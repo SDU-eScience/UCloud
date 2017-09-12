@@ -2,17 +2,14 @@ package dk.sdu.escience.irods;
 
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy;
 import org.irods.jargon.core.protovalues.UserTypeEnum;
-import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.*;
-import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.assertTrue;
 
 public class IRodsAdminTest {
     private IRodsService allServices;
@@ -65,7 +62,6 @@ public class IRodsAdminTest {
 
     @Test
     public void testModificationInvalidatesPassword() throws Exception {
-        // TODO iRODS clearly caches passwords for a while
         String username = randomUsername();
         String password = "securepassword";
 
@@ -73,6 +69,7 @@ public class IRodsAdminTest {
         adminService.modifyUserPassword(username, password);
         IRodsService service = irods.createForAccount(connection, username, password);
         assertTrue(service.getFileService().listObjectsAtPath("/tempZone/home").size() > 0);
+        service.close();
 
         adminService.modifyUserPassword(username, "somethingElse");
         service = irods.createForAccount(connection, username, password);

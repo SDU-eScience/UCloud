@@ -1,12 +1,16 @@
 package dk.sdu.escience.irods;
 
 import org.irods.jargon.core.exception.DuplicateDataException;
+import org.irods.jargon.core.exception.InvalidGroupException;
 import org.irods.jargon.core.exception.JargonException;
+import org.irods.jargon.core.pub.domain.User;
 import org.irods.jargon.core.pub.domain.UserGroup;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.Objects;
 
+@SuppressWarnings("WeakerAccess")
 public class IRodsUserGroupService {
     private final AccountServices internalServices;
     private boolean open = true;
@@ -39,11 +43,25 @@ public class IRodsUserGroupService {
         requireOpen();
 
         try {
-            UserGroup userGroup = internalServices.getUserGroups().find(name);
+            UserGroup userGroup = internalServices.getUserGroups().findByName(name);
+            if (userGroup == null) throw new UserGroupNotFoundException(name);
+            if (!listGroupMembers(name).isEmpty()) throw new CollectionNotEmptyException("UserGroup", name);
+            internalServices.getUserGroups().removeUserGroup(userGroup);
+        } catch (JargonException e) {
+            throw new IRodsException(e);
+        }
+    }
+
+    public void deleteGroupForced(@NotNull String name) throws UserGroupNotFoundException {
+        Objects.requireNonNull(name);
+        if (name.isEmpty()) throw new IllegalArgumentException("name cannot be empty!");
+        requireOpen();
+
+        try {
+            UserGroup userGroup = internalServices.getUserGroups().findByName(name);
             if (userGroup == null) throw new UserGroupNotFoundException(name);
             internalServices.getUserGroups().removeUserGroup(userGroup);
         } catch (JargonException e) {
-            // TODO Parse error codes
             throw new IRodsException(e);
         }
     }
@@ -57,24 +75,46 @@ public class IRodsUserGroupService {
         try {
             String zone = internalServices.getAccount().getZone();
             internalServices.getUserGroups().addUserToGroup(groupName, username, zone);
+        } catch (DuplicateDataException e) {
+            throw new UserInUserGroupAlreadyExistsException(username, e);
+        } catch (InvalidGroupException e) {
+            throw new UserGroupNotFoundException(groupName, e);
         } catch (JargonException e) {
-            // TODO Need to parse error codes. We want EntityNotFoundException if groupName or username is not found
-            // EntityAlreadyExistsException if user already is in group
             throw new IRodsException(e);
         }
     }
 
     public void removeUserFromGroup(@NotNull String groupName, @NotNull String username)
-            throws EntityNotFoundException, EntityAlreadyExistsException {
+            throws UserGroupNotFoundException, UserInUserGroupNotFoundException {
         Objects.requireNonNull(groupName);
         Objects.requireNonNull(username);
         requireOpen();
 
         try {
+            // TODO We end up doing more queries than we really need to. This is not ideal
             String zone = internalServices.getAccount().getZone();
+            if (internalServices.getUserGroups().findByName(groupName) == null) {
+                throw new UserGroupNotFoundException(groupName);
+            }
+            if (!internalServices.getUserGroups().isUserInGroup(username, groupName)) {
+                throw new UserInUserGroupNotFoundException(username);
+            }
+
             internalServices.getUserGroups().removeUserFromGroup(groupName, username, zone);
         } catch (JargonException e) {
-            // TODO Parse error codes
+            throw new IRodsException(e);
+        }
+    }
+
+    public List<User> listGroupMembers(@NotNull String groupName) throws UserGroupNotFoundException {
+        Objects.requireNonNull(groupName);
+        requireOpen();
+
+        try {
+            UserGroup userGroup = internalServices.getUserGroups().findByName(groupName);
+            if (userGroup == null) throw new UserGroupNotFoundException(groupName);
+            return internalServices.getUserGroups().listUserGroupMembers(groupName);
+        } catch (JargonException e) {
             throw new IRodsException(e);
         }
     }
