@@ -83,6 +83,11 @@ public class IRodsAdminTest {
         assertTrue(caughtExceptionDuringLogin);
     }
 
+    @Test(expected = UserNotFoundException.class)
+    public void testModificationOfPasswordOnInvalidUser() throws Exception {
+        adminService.modifyUserPassword("user_does_not_exist_1235123", "foobar");
+    }
+
     @NotNull
     private String randomUsername() {
         Random random = new Random();

@@ -19,8 +19,6 @@ public class IRodsAdminService {
         this.internalServices = internalServices;
     }
 
-    // TODO Might want to create an admin interface
-    // TODO Might want to split this service into categories.
     public void createUser(@NotNull String username, @NotNull UserTypeEnum type) throws UserAlreadyExistsException {
         Objects.requireNonNull(username);
         Objects.requireNonNull(type);
@@ -45,10 +43,12 @@ public class IRodsAdminService {
         requireOpen();
 
         try {
+            User byName = internalServices.getUsers().findByName(username);
+            if (byName == null) throw new UserNotFoundException(username);
             internalServices.getUsers().changeAUserPasswordByAnAdmin(username, newPassword);
+        } catch (DataNotFoundException e) {
+            throw new UserNotFoundException(username, e);
         } catch (JargonException e) {
-            // TODO We need to parse out relevant error codes
-            // TODO This includes throwing an EntityNotFoundException when relevant
             throw new IRodsException(e);
         }
 

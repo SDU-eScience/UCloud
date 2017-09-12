@@ -130,7 +130,8 @@ public class IRodsFileService {
         return file.delete();
     }
 
-    public void createDirectory(@NotNull String path, boolean recursive) throws ObjectAlreadyExistsException {
+    public void createDirectory(@NotNull String path, boolean recursive)
+            throws ObjectAlreadyExistsException {
         Objects.requireNonNull(path);
         requireOpen();
 
@@ -139,13 +140,20 @@ public class IRodsFileService {
             if (file.exists()) throw new ObjectAlreadyExistsException(file.getName());
 
             internalServices.getFileSystem().mkdir(file, recursive);
+        } catch (org.irods.jargon.core.exception.FileNotFoundException e) {
+            throw new IllegalArgumentException("Could not find directory. Missing recursive flag?");
         } catch (JargonException e) {
             // TODO Probably still some stuff we need to parse. Permissions for example
             throw new IRodsException(e);
         }
     }
 
-    // TODO We need more collection not empty exceptions
+    public boolean exists(@NotNull String path) {
+        Objects.requireNonNull(path);
+        requireOpen();
+        return getFile(path).exists();
+    }
+
     // TODO Do we want to use FileNotFoundException when we're already using EntityNotFoundException?
     public void deleteDirectory(@NotNull String path) throws FileNotFoundException, CollectionNotEmptyException {
         Objects.requireNonNull(path);
@@ -153,12 +161,10 @@ public class IRodsFileService {
 
         try {
             IRODSFile file = internalServices.getFiles().instanceIRODSFile(path);
-            if (file.exists()) throw new FileNotFoundException("Could not find object at " + path);
+            if (!file.exists()) throw new FileNotFoundException("Could not find object at " + path);
             if (!file.isDirectory()) throw new IllegalStateException("Object is not a directory");
             internalServices.getFileSystem().directoryDeleteNoForce(file);
         } catch (JargonException e) {
-            // TODO We need more collection not empty exceptions
-            // TODO We need more collection not empty exceptions
             throw new IRodsException(e);
         }
     }

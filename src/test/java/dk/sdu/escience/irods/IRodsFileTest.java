@@ -155,6 +155,36 @@ public class IRodsFileTest {
         userServices.delete(path);
     }
 
+    @Test
+    public void testDirectoryCreationAndDeletion() throws Exception {
+        String path = "/tempZone/home/test/foodir";
+        userServices.createDirectory(path, false);
+        userServices.deleteDirectory(path);
+    }
+
+    @Test
+    public void testDirectoryCreationRecursive() throws Exception {
+        String parent = "/tempZone/home/test/recursive";
+        String path = "/tempZone/home/test/recursive/a";
+
+        try {
+            userServices.createDirectory(path, true);
+            assertTrue(userServices.exists(path));
+        } finally {
+            userServices.deleteDirectory(path);
+            userServices.deleteDirectory(parent);
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testDirectoryCreationRecursiveWithInvalidFlag() throws Exception {
+        String parent = "/tempZone/home/test/recursive2";
+        String path = "/tempZone/home/test/recursive2/a";
+        userServices.createDirectory(path, false);
+        assertFalse(userServices.exists(path));
+        assertFalse(userServices.exists(parent));
+    }
+
     @After
     public void tearDown() {
         allUserServices.close();

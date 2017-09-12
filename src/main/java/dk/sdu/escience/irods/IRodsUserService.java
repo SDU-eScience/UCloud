@@ -18,6 +18,7 @@ public class IRodsUserService {
     // NOTE(dan): If you want to force change the password of a user you should use
     // IRodsAdminService#modifyUserPassword.
     public void modifyPassword(@NotNull String currentPassword, @NotNull String newPassword) {
+        requireOpen();
         try {
             internalServices.getUsers().changeAUserPasswordByThatUser(internalServices.getAccount().getUserName(),
                     currentPassword, newPassword);
