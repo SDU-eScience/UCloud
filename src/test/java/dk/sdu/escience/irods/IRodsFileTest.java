@@ -24,6 +24,8 @@ public class IRodsFileTest {
     //   - /tempZone/home/rods/_______IDoNotExist_______ does not exist at startup
     //   - /tempZone/home/rods/my_new_file does not exist at startup
 
+    private IRodsService allSystemServices;
+    private IRodsService allUserServices;
     private IRodsFileService systemServices;
     private IRodsFileService userServices;
 
@@ -37,8 +39,10 @@ public class IRodsFileTest {
                 .sslNegotiationPolicy(SslNegotiationPolicy.CS_NEG_REFUSE)
                 .build();
 
-        systemServices = irods.createForAccount(connection, "rods", "rods").getFileService();
-        userServices = irods.createForAccount(connection, "test", "test").getFileService();
+        allSystemServices = irods.createForAccount(connection, "rods", "rods");
+        allUserServices = irods.createForAccount(connection, "test", "test");
+        systemServices = allSystemServices.getFileService();
+        userServices = allUserServices.getFileService();
     }
 
     @Test
@@ -153,8 +157,8 @@ public class IRodsFileTest {
 
     @After
     public void tearDown() {
-        userServices.close();
-        systemServices.close();
+        allUserServices.close();
+        allSystemServices.close();
     }
 
     private void testPutAndGetForUser(IRodsFileService service) throws Exception {

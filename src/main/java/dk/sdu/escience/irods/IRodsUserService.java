@@ -12,8 +12,11 @@ public class IRodsUserService {
     }
 
     // TODO Exception for incorrect password
-    // TODO Since we have already connected once, should we just use that password?
-    // We probably should, but this would require us to keep the password around in memory
+    // We re-query the password from the user here. We don't want to keep it around in memory, and it is a good
+    // reminder for the UI layer to ask the user once again before changing the password.
+    //
+    // NOTE(dan): If you want to force change the password of a user you should use
+    // IRodsAdminService#modifyUserPassword.
     public void modifyPassword(@NotNull String currentPassword, @NotNull String newPassword) {
         try {
             internalServices.getUsers().changeAUserPasswordByThatUser(internalServices.getAccount().getUserName(),

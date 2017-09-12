@@ -10,7 +10,7 @@ public class EntityNotFoundException extends Exception {
     }
 
     public EntityNotFoundException(String entityType, String entityName, Throwable underlyingCause) {
-        super("Could not find entity of type '" + entityName + "' with name '" + entityName + "'", underlyingCause);
+        super("Could not find entity of type '" + entityType + "' with name '" + entityName + "'", underlyingCause);
         this.entityType = entityType;
         this.entityName = entityName;
         this.underlyingCause = underlyingCause;

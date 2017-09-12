@@ -1,5 +1,6 @@
 package dk.sdu.escience.irods;
 
+import org.irods.jargon.core.exception.DataNotFoundException;
 import org.irods.jargon.core.exception.DuplicateDataException;
 import org.irods.jargon.core.exception.InvalidUserException;
 import org.irods.jargon.core.exception.JargonException;
@@ -9,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
+@SuppressWarnings("WeakerAccess")
 public class IRodsAdminService {
     private final AccountServices internalServices;
     private boolean open = true;
@@ -57,8 +59,10 @@ public class IRodsAdminService {
         requireOpen();
 
         try {
+            User byName = internalServices.getUsers().findByName(username);
+            if (byName == null) throw new UserNotFoundException(username);
             internalServices.getUsers().deleteUser(username);
-        } catch (InvalidUserException e) {
+        } catch (DataNotFoundException | InvalidUserException e) {
             throw new UserNotFoundException(username, e);
         } catch (JargonException e) {
             throw new IRodsException(e);
