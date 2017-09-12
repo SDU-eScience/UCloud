@@ -24,8 +24,8 @@ public class IRodsFileTest {
     //   - /tempZone/home/rods/_______IDoNotExist_______ does not exist at startup
     //   - /tempZone/home/rods/my_new_file does not exist at startup
 
-    private IRodsService systemServices;
-    private IRodsService userServices;
+    private IRodsFileService systemServices;
+    private IRodsFileService userServices;
 
     @Before
     public void setUp() {
@@ -37,8 +37,8 @@ public class IRodsFileTest {
                 .sslNegotiationPolicy(SslNegotiationPolicy.CS_NEG_REFUSE)
                 .build();
 
-        systemServices = irods.createForAccount(connection, "rods", "rods");
-        userServices = irods.createForAccount(connection, "test", "test");
+        systemServices = irods.createForAccount(connection, "rods", "rods").getFileService();
+        userServices = irods.createForAccount(connection, "test", "test").getFileService();
     }
 
     @Test
@@ -157,7 +157,7 @@ public class IRodsFileTest {
         systemServices.close();
     }
 
-    private void testPutAndGetForUser(IRodsService service) throws Exception {
+    private void testPutAndGetForUser(IRodsFileService service) throws Exception {
         String message = "This is content for the file";
         String filePath = "my_new_file.txt";
 
