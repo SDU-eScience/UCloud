@@ -1,7 +1,7 @@
 package dk.sdu.escience.irods;
 
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy.SslNegotiationPolicy;
-import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry;
+import org.irods.jargon.core.query.*;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,7 +33,7 @@ public class IRodsFileTest {
         IRodsConnectionInformation connection = new IRodsConnectionInformationBuilder()
                 .host("localhost")
                 .zone("tempZone")
-                .storageResource("radosResc")
+                .storageResource("radosRandomResc")
                 .sslNegotiationPolicy(SslNegotiationPolicy.CS_NEG_REFUSE)
                 .build();
 
