@@ -185,6 +185,36 @@ public class IRodsFileTest {
         assertFalse(userServices.exists(parent));
     }
 
+    @Test
+    public void testOwnershipPermissionIsCorrectlyReturned() throws Exception {
+        assertEquals(FilePermission.OWN, systemServices.getPermissionsOnObject("/tempZone/home/rods/hello.txt"));
+    }
+
+    @Test
+    public void testCreateFileAndSetPermissionOnOtherUser() throws Exception {
+        String path = "/tempZone/home/public/file-for-test";
+        if (systemServices.exists(path)) systemServices.delete(path);
+        OutputStream os = systemServices.openForWriting(path);
+        os.write(42);
+        os.flush();
+        os.close();
+
+        assertEquals(FilePermission.OWN, systemServices.getPermissionsOnObject(path));
+        try {
+            userServices.getPermissionsOnObject(path);
+            assertTrue(false);
+        } catch (ObjectNotFoundException ignored) {}
+
+        systemServices.grantPermissionsOnObject(path, FilePermission.READ, "test");
+        assertEquals(FilePermission.READ, userServices.getPermissionsOnObject(path));
+
+        systemServices.revokeAllPermissionsOnObject(path, "test");
+        try {
+            userServices.getPermissionsOnObject(path);
+            assertTrue(false);
+        } catch (ObjectNotFoundException ignored) {}
+    }
+
     @After
     public void tearDown() {
         allUserServices.close();

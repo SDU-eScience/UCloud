@@ -1,9 +1,14 @@
 package dk.sdu.escience.irods;
 
+import org.irods.jargon.core.exception.DataNotFoundException;
 import org.irods.jargon.core.exception.JargonException;
+import org.irods.jargon.core.protovalues.FilePermissionEnum;
+import org.irods.jargon.core.pub.domain.User;
+import org.irods.jargon.core.pub.domain.UserFilePermission;
 import org.irods.jargon.core.pub.io.IRODSFile;
 import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -217,6 +222,78 @@ public class IRodsFileService {
             throw new FileNotFoundException("File not found at " + path);
         } catch (JargonException e) {
             throw new IRodsException(e);
+        }
+    }
+
+    private void grantNativePermissionOnObject(@NotNull String path, @NotNull FilePermissionEnum permission,
+                                               @NotNull String username)
+            throws ObjectNotFoundException, UserNotFoundException {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(permission);
+        Objects.requireNonNull(username);
+
+        requireOpen();
+
+        try {
+            String zone = internalServices.getAccount().getZone();
+
+            if (!exists(path)) throw new ObjectNotFoundException(path);
+            requireUserToExist(username);
+
+            internalServices.getDataObjects().setAccessPermission(zone, path, username, permission);
+        } catch (JargonException e) {
+            throw new IRodsException(e);
+        }
+    }
+
+    public void grantPermissionsOnObject(@NotNull String path, @NotNull FilePermission permission,
+                                               @NotNull String username)
+            throws ObjectNotFoundException, UserNotFoundException {
+        grantNativePermissionOnObject(path, permission.toNativeJargonType(), username);
+    }
+
+    public void revokeAllPermissionsOnObject(@NotNull String path, @NotNull String username)
+            throws ObjectNotFoundException, UserNotFoundException {
+        grantNativePermissionOnObject(path, FilePermissionEnum.NONE, username);
+    }
+
+    @Nullable
+    public FilePermission getPermissionsOnObject(@NotNull String path) throws ObjectNotFoundException {
+        try {
+            return getPermissionsOnObject(path, internalServices.getAccount().getUserName());
+        } catch (UserNotFoundException e) {
+            throw new IllegalStateException("Cannot find user which we have authenticated with");
+        }
+    }
+
+    @Nullable
+    public FilePermission getPermissionsOnObject(@NotNull String path, @NotNull String username)
+            throws ObjectNotFoundException, UserNotFoundException {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(username);
+
+        requireOpen();
+
+        try {
+            String zone = internalServices.getAccount().getZone();
+            if (!exists(path)) throw new ObjectNotFoundException(path);
+            requireUserToExist(username);
+
+            FilePermissionEnum permission = internalServices.getDataObjects()
+                    .getPermissionForDataObject(path, username, zone);
+
+            return FilePermission.fromNativeJargonType(permission);
+        } catch (JargonException e) {
+            throw new IRodsException(e);
+        }
+    }
+
+    private void requireUserToExist(@NotNull String username) throws JargonException, UserNotFoundException {
+        try {
+            User byName = internalServices.getUsers().findByName(username);
+            if (byName == null) throw new UserNotFoundException(username);
+        } catch (DataNotFoundException e) {
+            throw new UserNotFoundException(username, e);
         }
     }
 
