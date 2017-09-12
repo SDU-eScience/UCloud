@@ -22,9 +22,6 @@ import static dk.sdu.escience.irods.JargonUtils.rethrow;
 
 @SuppressWarnings("WeakerAccess")
 public class IRodsService {
-    public static final String ENTITY_USER_GROUP = "UserGroup";
-    public static final String ENTITY_USER = "User";
-    public static final String ENTITY_OBJECT = "Object";
     private final AccountServices internalServices;
     private boolean open = true;
     private boolean initialized = false;
@@ -143,7 +140,7 @@ public class IRodsService {
 
     // TODO Might want to create an admin interface
     // TODO Might want to split this service into categories.
-    public void createUser(@NotNull String username, @NotNull UserTypeEnum type) throws EntityAlreadyExistsException {
+    public void createUser(@NotNull String username, @NotNull UserTypeEnum type) throws UserAlreadyExistsException {
         Objects.requireNonNull(username);
         Objects.requireNonNull(type);
         requireOpen();
@@ -154,7 +151,7 @@ public class IRodsService {
             user.setUserType(type);
             internalServices.getUsers().addUser(user);
         } catch (DuplicateDataException e) {
-            throw new EntityAlreadyExistsException(ENTITY_USER, username, e);
+            throw new UserAlreadyExistsException(username, e);
         } catch (JargonException e) {
             throw new IRodsException(e);
         }
@@ -163,7 +160,7 @@ public class IRodsService {
     // TODO If not admin this should always be our user
     // TODO Might want to present a more general interface for user modification
     public void modifyUserPassword(@NotNull String username, @NotNull String newPassword,
-                                   @Nullable String currentPasswordOrNullIfAdmin) throws EntityNotFoundException {
+                                   @Nullable String currentPasswordOrNullIfAdmin) throws UserNotFoundException {
         Objects.requireNonNull(username);
         Objects.requireNonNull(newPassword);
         requireOpen();
@@ -188,20 +185,20 @@ public class IRodsService {
         }
     }
 
-    public void deleteUser(@NotNull String username) throws EntityNotFoundException {
+    public void deleteUser(@NotNull String username) throws UserNotFoundException {
         Objects.requireNonNull(username);
         requireOpen();
 
         try {
             internalServices.getUsers().deleteUser(username);
         } catch (InvalidUserException e) {
-            throw new EntityNotFoundException(ENTITY_USER, username, e);
+            throw new UserNotFoundException(username, e);
         } catch (JargonException e) {
             throw new IRodsException(e);
         }
     }
 
-    public void createGroup(@NotNull String name) throws EntityAlreadyExistsException {
+    public void createGroup(@NotNull String name) throws UserGroupAlreadyExistsException {
         Objects.requireNonNull(name);
         if (name.isEmpty()) throw new IllegalArgumentException("name cannot be empty!");
         requireOpen();
@@ -213,28 +210,29 @@ public class IRodsService {
         try {
             internalServices.getUserGroups().addUserGroup(userGroup);
         } catch (DuplicateDataException e) {
-            throw new EntityAlreadyExistsException(ENTITY_USER_GROUP, name, e);
+            throw new UserGroupAlreadyExistsException(name, e);
         } catch (JargonException e) {
             throw new IRodsException(e);
         }
     }
 
-    public void deleteGroup(@NotNull String name) throws EntityNotFoundException {
+    public void deleteGroup(@NotNull String name) throws UserGroupNotFoundException, CollectionNotEmptyException {
         Objects.requireNonNull(name);
         if (name.isEmpty()) throw new IllegalArgumentException("name cannot be empty!");
         requireOpen();
 
         try {
             UserGroup userGroup = internalServices.getUserGroups().find(name);
-            if (userGroup == null) throw new EntityNotFoundException(ENTITY_USER_GROUP, name);
+            if (userGroup == null) throw new UserGroupNotFoundException(name);
             internalServices.getUserGroups().removeUserGroup(userGroup);
         } catch (JargonException e) {
+            // TODO Parse error codes
             throw new IRodsException(e);
         }
     }
 
     public void addUserToGroup(@NotNull String groupName, @NotNull String username)
-            throws EntityNotFoundException, EntityAlreadyExistsException {
+            throws UserGroupNotFoundException, UserInUserGroupAlreadyExistsException {
         Objects.requireNonNull(groupName);
         Objects.requireNonNull(username);
         requireOpen();
@@ -264,13 +262,13 @@ public class IRodsService {
         }
     }
 
-    public void createDirectory(@NotNull String path, boolean recursive) throws EntityAlreadyExistsException {
+    public void createDirectory(@NotNull String path, boolean recursive) throws ObjectAlreadyExistsException {
         Objects.requireNonNull(path);
         requireOpen();
 
         try {
             IRODSFile file = internalServices.getFiles().instanceIRODSFile(path);
-            if (file.exists()) throw new EntityAlreadyExistsException(ENTITY_OBJECT, file.getName());
+            if (file.exists()) throw new ObjectAlreadyExistsException(file.getName());
 
             internalServices.getFileSystem().mkdir(file, recursive);
         } catch (JargonException e) {
@@ -281,7 +279,7 @@ public class IRodsService {
 
     // TODO We need more collection not empty exceptions
     // TODO Do we want to use FileNotFoundException when we're already using EntityNotFoundException?
-    public void deleteDirectory(@NotNull String path) throws FileNotFoundException {
+    public void deleteDirectory(@NotNull String path) throws FileNotFoundException, CollectionNotEmptyException {
         Objects.requireNonNull(path);
         requireOpen();
 
