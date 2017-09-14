@@ -215,6 +215,17 @@ public class IRodsFileTest {
         } catch (ObjectNotFoundException ignored) {}
     }
 
+    @Test
+    public void testRetrievingMD5Checksum() throws Exception {
+        String filePath = "/tempZone/home/test/md5sum.txt";
+        String expectedChecksum = "bea8252ff4e80f41719ea13cdf007273";
+
+        writeFile(userServices, "Hello, World!", filePath);
+
+        String actualChecksum = userServices.computeIRodsDefinedChecksum(filePath);
+        assertEquals(expectedChecksum, actualChecksum);
+    }
+
     @After
     public void tearDown() {
         allUserServices.close();
@@ -225,11 +236,7 @@ public class IRodsFileTest {
         String message = "This is content for the file";
         String filePath = "my_new_file.txt";
 
-        OutputStream outputStream = service.openForWriting(filePath);
-        try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream))) {
-            writer.println(message);
-            writer.flush();
-        }
+        writeFile(service, message, filePath);
 
         StringBuilder buffer = new StringBuilder();
         InputStream inputStream = service.openForReading(filePath);
@@ -242,5 +249,13 @@ public class IRodsFileTest {
         }
 
         assertEquals(message, buffer.toString());
+    }
+
+    private void writeFile(IRodsFileService service, String message, String filePath) throws Exception {
+        OutputStream outputStream = service.openForWriting(filePath);
+        try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream))) {
+            writer.println(message);
+            writer.flush();
+        }
     }
 }
