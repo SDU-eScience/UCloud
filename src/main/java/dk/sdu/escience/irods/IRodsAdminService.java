@@ -54,16 +54,13 @@ public class IRodsAdminService {
 
     }
 
-    public void deleteUser(@NotNull String username) throws UserNotFoundException {
+    public void deleteUser(@NotNull String username) {
         Objects.requireNonNull(username);
         requireOpen();
 
         try {
-            User byName = internalServices.getUsers().findByName(username);
-            if (byName == null) throw new UserNotFoundException(username);
             internalServices.getUsers().deleteUser(username);
-        } catch (DataNotFoundException | InvalidUserException e) {
-            throw new UserNotFoundException(username, e);
+        } catch (DataNotFoundException | InvalidUserException ignored) {
         } catch (JargonException e) {
             throw new IRodsException(e);
         }

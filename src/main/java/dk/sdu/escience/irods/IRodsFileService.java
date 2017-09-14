@@ -133,16 +133,12 @@ public class IRodsFileService {
         });
     }
 
-    public boolean delete(@NotNull String filePath) throws FileNotFoundException {
+    public boolean delete(@NotNull String filePath) {
         return wrapCommand(internalServices, "delete", Collections.singletonList(filePath), () -> {
             Objects.requireNonNull(filePath);
             requireOpen();
 
             IRODSFile file = rethrow(() -> internalServices.getFiles().instanceIRODSFile(filePath));
-            if (!file.exists()) {
-                throw new FileNotFoundException("Could not find file at " + filePath);
-            }
-
             return file.delete();
         });
     }

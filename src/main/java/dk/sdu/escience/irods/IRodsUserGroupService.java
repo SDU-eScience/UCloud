@@ -37,29 +37,31 @@ public class IRodsUserGroupService {
         }
     }
 
-    public void deleteGroup(@NotNull String name) throws UserGroupNotFoundException, CollectionNotEmptyException {
+    public void deleteGroup(@NotNull String name) throws CollectionNotEmptyException {
         Objects.requireNonNull(name);
         if (name.isEmpty()) throw new IllegalArgumentException("name cannot be empty!");
         requireOpen();
 
         try {
             UserGroup userGroup = internalServices.getUserGroups().findByName(name);
-            if (userGroup == null) throw new UserGroupNotFoundException(name);
-            if (!listGroupMembers(name).isEmpty()) throw new CollectionNotEmptyException("UserGroup", name);
+            try {
+                if (!listGroupMembers(name).isEmpty()) throw new CollectionNotEmptyException("UserGroup", name);
+            } catch (UserGroupNotFoundException ignored) {
+                return;
+            }
             internalServices.getUserGroups().removeUserGroup(userGroup);
         } catch (JargonException e) {
             throw new IRodsException(e);
         }
     }
 
-    public void deleteGroupForced(@NotNull String name) throws UserGroupNotFoundException {
+    public void deleteGroupForced(@NotNull String name) {
         Objects.requireNonNull(name);
         if (name.isEmpty()) throw new IllegalArgumentException("name cannot be empty!");
         requireOpen();
 
         try {
             UserGroup userGroup = internalServices.getUserGroups().findByName(name);
-            if (userGroup == null) throw new UserGroupNotFoundException(name);
             internalServices.getUserGroups().removeUserGroup(userGroup);
         } catch (JargonException e) {
             throw new IRodsException(e);
@@ -85,7 +87,7 @@ public class IRodsUserGroupService {
     }
 
     public void removeUserFromGroup(@NotNull String groupName, @NotNull String username)
-            throws UserGroupNotFoundException, UserInUserGroupNotFoundException {
+            throws UserGroupNotFoundException {
         Objects.requireNonNull(groupName);
         Objects.requireNonNull(username);
         requireOpen();
@@ -96,10 +98,6 @@ public class IRodsUserGroupService {
             if (internalServices.getUserGroups().findByName(groupName) == null) {
                 throw new UserGroupNotFoundException(groupName);
             }
-            if (!internalServices.getUserGroups().isUserInGroup(username, groupName)) {
-                throw new UserInUserGroupNotFoundException(username);
-            }
-
             internalServices.getUserGroups().removeUserFromGroup(groupName, username, zone);
         } catch (JargonException e) {
             throw new IRodsException(e);
