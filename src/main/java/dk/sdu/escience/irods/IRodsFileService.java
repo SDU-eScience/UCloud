@@ -15,15 +15,15 @@ import java.io.OutputStream;
 import java.nio.file.AccessDeniedException;
 import java.util.*;
 
-import static dk.sdu.escience.irods.JargonUtils.*;
-
 @SuppressWarnings("WeakerAccess")
 public class IRodsFileService {
     private final AccountServices internalServices;
+    private final CommandExecutor cmd;
     private boolean open = true;
 
-    IRodsFileService(AccountServices internalServices) {
+    IRodsFileService(AccountServices internalServices, CommandExecutor cmd) {
         this.internalServices = internalServices;
+        this.cmd = cmd;
     }
 
     /**
@@ -38,7 +38,7 @@ public class IRodsFileService {
      */
     @NotNull
     public InputStream openForReading(@NotNull String path) throws FileNotFoundException {
-        return wrapCommand(internalServices, "openForReading", Collections.singletonList(path), () -> {
+        return cmd.wrapCommand(internalServices, "openForReading", Collections.singletonList(path), () -> {
             Objects.requireNonNull(path);
             requireOpen();
 
@@ -69,7 +69,7 @@ public class IRodsFileService {
         // TODO We really cannot close the connection automatically when we return stuff like this!
         // Maybe we just take a function and always write to completion?
         // TODO Not exactly pretty when we have to help the compiler find the correct exception types
-        return JargonUtils.<OutputStream, FileNotFoundException, AccessDeniedException>wrapCommand2(
+        return cmd.<OutputStream, FileNotFoundException, AccessDeniedException>wrapCommand2(
                 internalServices, "openForWriting", Collections.singletonList(path), () -> {
                     Objects.requireNonNull(path);
                     requireOpen();
@@ -98,7 +98,7 @@ public class IRodsFileService {
      * @return A list of object names
      */
     public List<String> listObjectNamesAtHome() {
-        return wrapCommand(internalServices, "listObjectNamesAtHome", Collections.emptyList(), () -> {
+        return cmd.wrapCommand(internalServices, "listObjectNamesAtHome", Collections.emptyList(), () -> {
             requireOpen();
 
             try {
@@ -125,7 +125,7 @@ public class IRodsFileService {
      *                               permission to read it.
      */
     public List<String> listObjectNamesAtPath(@NotNull String path) throws FileNotFoundException {
-        return wrapCommand(internalServices, "listObjectNamesAtPath", Collections.singletonList(path), () -> {
+        return cmd.wrapCommand(internalServices, "listObjectNamesAtPath", Collections.singletonList(path), () -> {
             Objects.requireNonNull(path);
             requireOpen();
 
@@ -134,17 +134,17 @@ public class IRodsFileService {
     }
 
     public boolean delete(@NotNull String filePath) {
-        return wrapCommand(internalServices, "delete", Collections.singletonList(filePath), () -> {
+        return cmd.wrapCommand(internalServices, "delete", Collections.singletonList(filePath), () -> {
             Objects.requireNonNull(filePath);
             requireOpen();
 
-            IRODSFile file = rethrow(() -> internalServices.getFiles().instanceIRODSFile(filePath));
+            IRODSFile file = getFile(filePath);
             return file.delete();
         });
     }
 
     public void createDirectory(@NotNull String path, boolean recursive) {
-        wrapCommand(internalServices, "createDirectory", Arrays.asList(path, recursive), () -> {
+        cmd.wrapCommand(internalServices, "createDirectory", Arrays.asList(path, recursive), () -> {
             Objects.requireNonNull(path);
             requireOpen();
 
@@ -163,7 +163,7 @@ public class IRodsFileService {
     }
 
     public boolean exists(@NotNull String path) {
-        return wrapCommand(internalServices, "exists", Collections.singletonList(path), () -> {
+        return cmd.wrapCommand(internalServices, "exists", Collections.singletonList(path), () -> {
             Objects.requireNonNull(path);
             requireOpen();
             return getFile(path).exists();
@@ -171,7 +171,7 @@ public class IRodsFileService {
     }
 
     public void deleteDirectory(@NotNull String path) {
-        wrapCommand(internalServices, "deleteDirectory", Collections.singletonList(path), () -> {
+        cmd.wrapCommand(internalServices, "deleteDirectory", Collections.singletonList(path), () -> {
             Objects.requireNonNull(path);
             requireOpen();
 
@@ -196,7 +196,7 @@ public class IRodsFileService {
      */
     @NotNull
     public List<CollectionAndDataObjectListingEntry> listObjectsAtHome() {
-        return wrapCommand(internalServices, "listObjectsAtHome", Collections.emptyList(), () -> {
+        return cmd.wrapCommand(internalServices, "listObjectsAtHome", Collections.emptyList(), () -> {
             requireOpen();
             String homePath = getHomePath();
 
@@ -225,7 +225,7 @@ public class IRodsFileService {
     @NotNull
     public List<CollectionAndDataObjectListingEntry> listObjectsAtPath(@NotNull String path)
             throws FileNotFoundException {
-        return wrapCommand(internalServices, "listObjectsAtPath", Collections.singletonList(path), () -> {
+        return cmd.wrapCommand(internalServices, "listObjectsAtPath", Collections.singletonList(path), () -> {
             Objects.requireNonNull(path);
             requireOpen();
 
@@ -265,7 +265,7 @@ public class IRodsFileService {
     public void grantPermissionsOnObject(@NotNull String path, @NotNull FilePermission permission,
                                          @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {
-        JargonUtils.<Void, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
+        cmd.<Void, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
                 internalServices, "grantPermissionsOnObject", Arrays.asList(path, permission, username),
                 () -> {
                     grantNativePermissionOnObject(path, permission.toNativeJargonType(), username);
@@ -275,7 +275,7 @@ public class IRodsFileService {
 
     public void revokeAllPermissionsOnObject(@NotNull String path, @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {
-        JargonUtils.<Void, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
+        cmd.<Void, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
                 internalServices, "revokeAllPermissionsOnObject", Arrays.asList(path, username), () -> {
                     grantNativePermissionOnObject(path, FilePermissionEnum.NONE, username);
                     return null;
@@ -285,7 +285,7 @@ public class IRodsFileService {
 
     @Nullable
     public FilePermission getPermissionsOnObject(@NotNull String path) throws ObjectNotFoundException {
-        return wrapCommand(internalServices, "getPermissionsOnObject", Collections.singletonList(path), () -> {
+        return cmd.wrapCommand(internalServices, "getPermissionsOnObject", Collections.singletonList(path), () -> {
             try {
                 return getPermissionsOnObject(path, internalServices.getAccount().getUserName());
             } catch (UserNotFoundException e) {
@@ -297,7 +297,7 @@ public class IRodsFileService {
     @Nullable
     public FilePermission getPermissionsOnObject(@NotNull String path, @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {
-        return JargonUtils.<FilePermission, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
+        return cmd.<FilePermission, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
                 internalServices, "getPermissionsOnObject", Arrays.asList(path, username),
                 () -> {
                     Objects.requireNonNull(path);
@@ -332,7 +332,7 @@ public class IRodsFileService {
      * @return The MD5 checksum of a given object encoded as a hex string.
      */
     public String computeIRodsDefinedChecksum(@NotNull String path) throws FileNotFoundException {
-        return wrapCommand(internalServices, "computeIRodsDefinedChecksum", Collections.singletonList(path),
+        return cmd.wrapCommand(internalServices, "computeIRodsDefinedChecksum", Collections.singletonList(path),
                 () -> {
                     Objects.requireNonNull(path);
                     requireOpen();
@@ -367,7 +367,7 @@ public class IRodsFileService {
      */
     @NotNull
     public String getHomePath() {
-        return wrapCommand(internalServices, "getHomePath", Collections.emptyList(), () -> {
+        return cmd.wrapCommand(internalServices, "getHomePath", Collections.emptyList(), () -> {
             requireOpen();
             IRODSFile home = getHome();
             if (!home.exists()) {
@@ -397,14 +397,18 @@ public class IRodsFileService {
     @NotNull
     private IRODSFile getHome() {
         requireOpen();
-        return rethrow(() -> getFile(internalServices.getAccount().getHomeDirectory()));
+        return getFile(internalServices.getAccount().getHomeDirectory());
     }
 
     // NOTE(dan): This will _not_ throw an exception if the file does not exist! Use IRODSFile#exists()
     @NotNull
     private IRODSFile getFile(@NotNull String filePath) {
         requireOpen();
-        return rethrow(() -> internalServices.getFiles().instanceIRODSFile(filePath));
+        try {
+            return internalServices.getFiles().instanceIRODSFile(filePath);
+        } catch (JargonException e) {
+            throw new IRodsException(e);
+        }
     }
 
     void close() {

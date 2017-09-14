@@ -5,61 +5,27 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.function.Supplier;
 
 class JSONLogger {
-    private static final String LOGGER_PREFIX = "dk.sdu.escience.irods.json.";
-    private static final String DEBUG_PREFIX = LOGGER_PREFIX + "debug.";
-    private static final String PERF_PREFIX = LOGGER_PREFIX + "perf.";
-    private static final String ERROR_PREFIX = LOGGER_PREFIX + "error.";
-
-    private final Logger logger;
+    private final PrintWriter writer;
     private final ObjectMapper mapper = new ObjectMapper(); // TODO I'm assuming that this is safe
 
-    private JSONLogger(Logger logger) {
-        this.logger = logger;
+    JSONLogger(Writer writer) {
+        if (writer == null) this.writer = null;
+        else this.writer = new PrintWriter(writer);
     }
 
-    static JSONLogger getDebugLogger(String name) {
-        return new JSONLogger(LoggerFactory.getLogger(DEBUG_PREFIX + name));
-    }
-
-    static JSONLogger getErrorLogger(String name) {
-        return new JSONLogger(LoggerFactory.getLogger(ERROR_PREFIX + name));
-    }
-
-    static JSONLogger getPerfLogger(String name) {
-        return new JSONLogger(LoggerFactory.getLogger(PERF_PREFIX + name));
-    }
-
-    public <T> void trace(T objectToSerialize) {
-        logger.trace(asJson(objectToSerialize));
-    }
-
-    public <T> void trace(Supplier<T> objectToSerializeSupplier) {
-        if (!logger.isTraceEnabled()) return;
-        logger.trace(asJson(objectToSerializeSupplier.get()));
-    }
-
-    public <T> void debug(T objectToSerialize) {
-        logger.debug(asJson(objectToSerialize));
-    }
-
-    public <T> void debug(Supplier<T> objectToSerializeSupplier) {
-        if (!logger.isDebugEnabled()) return;
-        logger.debug(asJson(objectToSerializeSupplier.get()));
-    }
-
-    public <T> void info(T objectToSerialize) {
-        logger.info(asJson(objectToSerialize));
-    }
-
-    public <T> void warn(T objectToSerialize) {
-        logger.warn(asJson(objectToSerialize));
-    }
-
-    public <T> void error(T objectToSerialize) {
-        logger.error(asJson(objectToSerialize));
+    void entry(Object objectToSerialize) {
+        if (writer == null) return; // You can turn off a logger by setting the writer = null
+        long timestamp = System.currentTimeMillis();
+        String thread = Thread.currentThread().getName();
+        writer.format("{\"ts\":%d,\"thread\":\"%s\",\"message\":", timestamp, thread);
+        writer.print(asJson(objectToSerialize));
+        writer.println("}");
+        writer.flush();
     }
 
     private <T> String asJson(T objectToSerialize) {
@@ -68,5 +34,9 @@ class JSONLogger {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void close() {
+        if (writer != null) writer.close();
     }
 }

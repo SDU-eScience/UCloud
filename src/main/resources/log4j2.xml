@@ -1,16 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
     <Appenders>
-        <!-- This is, again, just insane enough to work. The JSON layout won't let us output a JSON payload -->
-        <Console name="json-err" target="SYSTEM_OUT">
-            <PatternLayout pattern="{&quot;ts&quot;:%d{UNIX_MILLIS},&quot;thread&quot;:&quot;[%t]&quot;,&quot;logger&quot;:&quot;%c{2}&quot;,&quot;message&quot;:%msg}%n"/>
-        </Console>
-        <Console name="json-debug" target="SYSTEM_OUT">
-            <PatternLayout pattern="{&quot;ts&quot;:%d{UNIX_MILLIS},&quot;thread&quot;:&quot;[%t]&quot;,&quot;logger&quot;:&quot;%c{2}&quot;,&quot;message&quot;:%msg}%n"/>
-        </Console>
-        <Console name="json-perf" target="SYSTEM_OUT">
-            <PatternLayout pattern="{&quot;ts&quot;:%d{UNIX_MILLIS},&quot;thread&quot;:&quot;[%t]&quot;,&quot;logger&quot;:&quot;%c{2}&quot;,&quot;message&quot;:%msg}%n"/>
-        </Console>
+
         <Console name="jargon">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
         </Console>
@@ -19,19 +10,6 @@
         <Logger name="org.irods.jargon" level="error" additivity="false">
             <AppenderRef ref="jargon"/>
         </Logger>
-
-        <Logger name="dk.sdu.escience.irods.json.debug" level="debug" additivity="false">
-            <AppenderRef ref="json-debug"/>
-        </Logger>
-
-        <Logger name="dk.sdu.escience.irods.json.error" level="error" additivity="false">
-            <AppenderRef ref="json-err"/>
-        </Logger>
-
-        <Logger name="dk.sdu.escience.irods.json.perf" level="info" additivity="false">
-            <AppenderRef ref="json-perf"/>
-        </Logger>
-
         <Root level="debug">
         </Root>
     </Loggers>

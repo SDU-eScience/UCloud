@@ -13,15 +13,17 @@ public class IRodsService {
     private final IRodsFileService fileService;
     private final IRodsAdminService adminService;
     private final IRodsUserService userService;
+    private final CommandExecutor cmd;
 
     private boolean open = true;
     private boolean initialized = false;
     private UserTypeEnum connectedAccountType = null;
 
-    IRodsService(AccountServices internalServices) {
+    IRodsService(AccountServices internalServices, CommandExecutor cmd) {
+        this.cmd = cmd;
         this.internalServices = internalServices;
         this.userGroupService = new IRodsUserGroupService(internalServices);
-        this.fileService = new IRodsFileService(internalServices);
+        this.fileService = new IRodsFileService(internalServices, cmd);
         this.adminService = new IRodsAdminService(internalServices);
         this.userService = new IRodsUserService(internalServices);
     }
@@ -76,6 +78,7 @@ public class IRodsService {
         adminService.close();
         userService.close();
         internalServices.close();
+        cmd.close();
     }
 
     private void requireOpen() {

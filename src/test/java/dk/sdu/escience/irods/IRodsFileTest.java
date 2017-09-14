@@ -140,21 +140,6 @@ public class IRodsFileTest {
         assertThat(systemServices.listObjectNamesAtHome(), not(hasItem(path)));
     }
 
-    @Test(expected = FileNotFoundException.class)
-    public void testFileDeletionOnNonExistingFile() throws Exception {
-        String path = "_______IDoNotExist_______";
-        assertThat(systemServices.listObjectNamesAtHome(), not(hasItem(path)));
-
-        systemServices.delete(path);
-    }
-
-    @Test(expected = FileNotFoundException.class)
-    public void testFileDeletionOnFileNotOwned() throws Exception {
-        String path = "/tempZone/home/rods";
-        assertThat(systemServices.listObjectNamesAtPath(path), hasItem("hello.txt"));
-        userServices.delete(path);
-    }
-
     @Test
     public void testDirectoryCreationAndDeletion() throws Exception {
         String path = "/tempZone/home/test/foodir";

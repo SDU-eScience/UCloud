@@ -5,10 +5,9 @@ import org.irods.jargon.core.connection.IRODSAccount;
 import org.irods.jargon.core.exception.JargonException;
 import org.irods.jargon.core.pub.IRODSAccessObjectFactory;
 import org.irods.jargon.core.pub.IRODSFileSystem;
+import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -34,8 +33,20 @@ public class IRodsServiceFactory {
         hasBeenInitialized = true;
     }
 
+    // TODO This is getting messy. Clean it up when it works.
+
     public IRodsService createForAccount(IRodsConnectionInformation connectionInformation,
                                          String username, String password) {
+        OutputStreamWriter defaultWriter = new OutputStreamWriter(System.err);
+        return createForAccount(connectionInformation, username, password, defaultWriter, defaultWriter, defaultWriter);
+    }
+
+    public IRodsService createForAccount(IRodsConnectionInformation connectionInformation,
+                                         String username, String password,
+                                         Writer accessWriter, Writer performanceWriter, Writer errorWriter) {
+        CommandExecutor executor = new CommandExecutor(new JSONLogger(accessWriter), new JSONLogger(performanceWriter),
+                new JSONLogger(errorWriter));
+
         lazyInit();
         IRODSAccount account;
         try {
@@ -51,12 +62,16 @@ public class IRodsServiceFactory {
         } catch (JargonException e) {
             throw new RuntimeException("This should never happen. IRODSAccount.instance threw an exception", e);
         }
-        return new IRodsService(new AccountServices(objectFactory, account));
+        return new IRodsService(new AccountServices(objectFactory, account), executor);
     }
 
     public IRodsService createForAccountUsingProperties(String username, String password) {
         LibProperties properties = retrieveOrLoadProperties();
-        return createForAccount(properties.getConnectionInformation(), username, password);
+        Writer accessWriter = createWriterFromConfigPath(properties.getDebugLogPath());
+        Writer performanceWriter = createWriterFromConfigPath(properties.getPerfLogPath());
+        Writer errorWriter = createWriterFromConfigPath(properties.getErrorLogPath());
+        return createForAccount(properties.getConnectionInformation(), username, password, accessWriter,
+                performanceWriter, errorWriter);
     }
 
     public IRodsService createForSystemAccountUsingProperties() {
@@ -67,10 +82,21 @@ public class IRodsServiceFactory {
         return createForAccountUsingProperties(properties.getUsername(), properties.getPassword());
     }
 
+    @Nullable
+    private Writer createWriterFromConfigPath(@Nullable String pathOrNull) {
+        if (pathOrNull == null) return null;
+        try {
+            return new FileWriter(pathOrNull, true);
+        } catch (IOException e) {
+            throw new RuntimeException("Error when creating log output at " + pathOrNull, e);
+        }
+    }
+
     public static void main(String[] args) {
         IRodsServiceFactory irods = new IRodsServiceFactory();
         IRodsService systemServices = irods.createForSystemAccountUsingProperties();
         systemServices.getFileService().listObjectNamesAtHome().forEach(System.out::println);
+        systemServices.close();
     }
 
     private LibProperties retrieveOrLoadProperties() {

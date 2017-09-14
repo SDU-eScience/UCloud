@@ -19,9 +19,9 @@ class LibProperties {
     private static final String AUTH_SCHEME = "authScheme";
     private static final String USERNAME = "systemUsername";
     private static final String PASSWORD = "systemPassword";
-    private static final String DEBUG_LOG_PATH = "debugLogPath";
+    private static final String ACCESS_LOG_PATH = "accessLogPath";
     private static final String ERROR_LOG_PATH = "errorLogPath";
-    private static final String PERF_LOG_PATH = "perfLogPath";
+    private static final String PERF_LOG_PATH = "performanceLogPath";
 
     private static final String STRING = "string";
     private static final String INT = "int";
@@ -56,7 +56,7 @@ class LibProperties {
         username = properties.getProperty(USERNAME, null);
         password = properties.getProperty(PASSWORD, null);
 
-        debugLogPath = properties.getProperty(DEBUG_LOG_PATH);
+        debugLogPath = properties.getProperty(ACCESS_LOG_PATH);
         errorLogPath = properties.getProperty(ERROR_LOG_PATH);
         perfLogPath = properties.getProperty(PERF_LOG_PATH);
     }
@@ -85,20 +85,20 @@ class LibProperties {
             }
         }
 
-        if (properties.containsKey(DEBUG_LOG_PATH)) {
-            if (!new File(DEBUG_LOG_PATH).getParentFile().exists()) {
-                errors.add("Cannot not find parent directory for debugLogPath");
+        if (properties.containsKey(ACCESS_LOG_PATH)) {
+            if (!new File(properties.getProperty(ACCESS_LOG_PATH)).getParentFile().exists()) {
+                errors.add("Cannot not find parent directory for accessLogPath");
             }
         }
 
         if (properties.containsKey(PERF_LOG_PATH)) {
-            if (!new File(PERF_LOG_PATH).getParentFile().exists()) {
-                errors.add("Cannot not find parent directory for perfLogPath");
+            if (!new File(properties.getProperty(PERF_LOG_PATH)).getParentFile().exists()) {
+                errors.add("Cannot not find parent directory for performanceLogPath");
             }
         }
 
         if (properties.containsKey(ERROR_LOG_PATH)) {
-            if (!new File(ERROR_LOG_PATH).getParentFile().exists()) {
+            if (!new File(properties.getProperty(ERROR_LOG_PATH)).getParentFile().exists()) {
                 errors.add("Cannot not find parent directory for errorLogPath");
             }
         }
