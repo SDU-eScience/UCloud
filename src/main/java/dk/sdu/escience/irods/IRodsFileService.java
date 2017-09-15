@@ -1,5 +1,6 @@
 package dk.sdu.escience.irods;
 
+import org.irods.jargon.core.checksum.ChecksumValue;
 import org.irods.jargon.core.exception.DataNotFoundException;
 import org.irods.jargon.core.exception.JargonException;
 import org.irods.jargon.core.protovalues.FilePermissionEnum;
@@ -9,6 +10,7 @@ import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -70,6 +72,7 @@ public class IRodsFileService {
         // Maybe we just take a function and always write to completion?
         // TODO Not exactly pretty when we have to help the compiler find the correct exception types
         return cmd.<OutputStream, FileNotFoundException, AccessDeniedException>wrapCommand2(
+                FileNotFoundException.class, AccessDeniedException.class,
                 internalServices, "openForWriting", Collections.singletonList(path), () -> {
                     Objects.requireNonNull(path);
                     requireOpen();
@@ -266,6 +269,7 @@ public class IRodsFileService {
                                          @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {
         cmd.<Void, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
+                ObjectNotFoundException.class, UserNotFoundException.class,
                 internalServices, "grantPermissionsOnObject", Arrays.asList(path, permission, username),
                 () -> {
                     grantNativePermissionOnObject(path, permission.toNativeJargonType(), username);
@@ -276,6 +280,7 @@ public class IRodsFileService {
     public void revokeAllPermissionsOnObject(@NotNull String path, @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {
         cmd.<Void, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
+                ObjectNotFoundException.class, UserNotFoundException.class,
                 internalServices, "revokeAllPermissionsOnObject", Arrays.asList(path, username), () -> {
                     grantNativePermissionOnObject(path, FilePermissionEnum.NONE, username);
                     return null;
@@ -298,6 +303,7 @@ public class IRodsFileService {
     public FilePermission getPermissionsOnObject(@NotNull String path, @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {
         return cmd.<FilePermission, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
+                ObjectNotFoundException.class, UserNotFoundException.class,
                 internalServices, "getPermissionsOnObject", Arrays.asList(path, username),
                 () -> {
                     Objects.requireNonNull(path);
@@ -321,30 +327,62 @@ public class IRodsFileService {
     }
 
     /**
-     * Computes the MD5 checksum of an object.
+     * Computes an iRODS defined checksum value.
      * <p>
      * This is implement by invoking an API call in iRODS. This will not result in a complete
      * download of the object. The checksum will <i>not</i> be computed locally.
      * <p>
-     * This function will return a hex-encoded MD5 string.
      *
      * @param path The absolute path to the object.
-     * @return The MD5 checksum of a given object encoded as a hex string.
+     * @return A checksum value. Algorithm determined by iRODS.
      */
-    public String computeIRodsDefinedChecksum(@NotNull String path) throws FileNotFoundException {
+    public ChecksumValue computeIRodsDefinedChecksum(@NotNull String path) throws FileNotFoundException {
         return cmd.wrapCommand(internalServices, "computeIRodsDefinedChecksum", Collections.singletonList(path),
                 () -> {
                     Objects.requireNonNull(path);
                     requireOpen();
 
                     try {
-                        // Definitely not an MD5 sum! Looks like a SHA-2 encoded as base64, although I haven't
+                        // Definitely not an MD5 sum! Looks like a SHA-256 encoded as base64, although I haven't
                         // been able to reproduce the result. That said, I'm pretty tired right now.
                         IRODSFile irodsFile = internalServices.getFiles().instanceIRODSFile(path);
                         if (!irodsFile.exists()) {
                             throw new FileNotFoundException("Could not find object at path " + path);
                         }
-                        return internalServices.getDataObjects().computeMD5ChecksumOnDataObject(irodsFile);
+                        return internalServices.getDataObjects().computeChecksumOnDataObject(irodsFile);
+                    } catch (JargonException e) {
+                        throw new IRodsException(e);
+                    }
+                });
+    }
+
+    /**
+     * Verifies that the checksum of a local file corresponds to that of a copy stored in iRODS.
+     *
+     * @param localFile The local file
+     * @param path The absolute path to the iRODS file
+     * @return true if the checksums match otherwise false
+     * @throws FileNotFoundException If the iRODS file or the local file does not exist
+     */
+    public boolean verifyChecksumOfLocalFileAgainstIRods(@NotNull File localFile,
+                                                         @NotNull String path) throws FileNotFoundException {
+        return cmd.wrapCommand(internalServices, "verifyChecksumOfLocalFileAgainstIRods",
+                Arrays.asList(localFile.getAbsolutePath(), path), () -> {
+                    Objects.requireNonNull(path);
+                    if (!localFile.exists()) {
+                        throw new FileNotFoundException("Local file at " + localFile.getAbsolutePath() +
+                                " does not exist!");
+                    }
+
+                    requireOpen();
+
+                    try {
+                        IRODSFile irodsFile = internalServices.getFiles().instanceIRODSFile(path);
+                        if (!irodsFile.exists()) {
+                            throw new FileNotFoundException("Could not find object at path " + path);
+                        }
+                        return internalServices.getDataObjects().verifyChecksumBetweenLocalAndIrods(irodsFile,
+                                localFile);
                     } catch (JargonException e) {
                         throw new IRodsException(e);
                     }

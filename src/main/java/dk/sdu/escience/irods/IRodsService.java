@@ -3,7 +3,9 @@ package dk.sdu.escience.irods;
 import org.irods.jargon.core.exception.JargonException;
 import org.irods.jargon.core.protovalues.UserTypeEnum;
 import org.irods.jargon.core.pub.domain.User;
+import org.irods.jargon.core.rule.IRODSRuleExecResult;
 
+import java.io.IOException;
 import java.util.Objects;
 
 @SuppressWarnings("WeakerAccess")
@@ -90,6 +92,13 @@ public class IRodsService {
                 connectedAccountType = byName.getUserType();
             } catch (JargonException e) {
                 throw new IRodsException(e);
+            } catch (Exception e) {
+                final Throwable cause = e.getCause();
+                if (cause instanceof JargonException) {
+                    throw new IRodsException((JargonException) cause);
+                }
+
+                throw new IRodsException(e.getMessage(), 0);
             }
             initialized = true;
         }

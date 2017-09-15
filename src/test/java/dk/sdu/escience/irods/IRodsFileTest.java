@@ -188,7 +188,8 @@ public class IRodsFileTest {
         try {
             userServices.getPermissionsOnObject(path);
             assertTrue(false);
-        } catch (ObjectNotFoundException ignored) {}
+        } catch (ObjectNotFoundException ignored) {
+        }
 
         systemServices.grantPermissionsOnObject(path, FilePermission.READ, "test");
         assertEquals(FilePermission.READ, userServices.getPermissionsOnObject(path));
@@ -197,18 +198,22 @@ public class IRodsFileTest {
         try {
             userServices.getPermissionsOnObject(path);
             assertTrue(false);
-        } catch (ObjectNotFoundException ignored) {}
+        } catch (ObjectNotFoundException ignored) {
+        }
     }
 
     @Test
-    public void testRetrievingMD5Checksum() throws Exception {
-        String filePath = "/tempZone/home/test/md5sum.txt";
-        String expectedChecksum = "bea8252ff4e80f41719ea13cdf007273";
+    public void testChecksumVerification() throws Exception {
+        String filePath = "/tempZone/home/test/checksum.txt";
 
-        writeFile(userServices, "Hello, World!", filePath);
+        String message = "Hello, World!";
+        writeFile(userServices, message, filePath);
+        File localFile = writeLocalFile(message);
 
-        String actualChecksum = userServices.computeIRodsDefinedChecksum(filePath);
-        assertEquals(expectedChecksum, actualChecksum);
+        File otherLocalFile = writeLocalFile("Some other message");
+
+        assertTrue(userServices.verifyChecksumOfLocalFileAgainstIRods(localFile, filePath));
+        assertFalse(userServices.verifyChecksumOfLocalFileAgainstIRods(otherLocalFile, filePath));
     }
 
     @After
@@ -242,5 +247,14 @@ public class IRodsFileTest {
             writer.println(message);
             writer.flush();
         }
+    }
+
+    private File writeLocalFile(String message) throws Exception {
+        File tempFile = File.createTempFile("irods-test-file", ".txt");
+        try (PrintWriter writer = new PrintWriter(new FileWriter(tempFile))) {
+            writer.println(message);
+            writer.flush();
+        }
+        return tempFile;
     }
 }
