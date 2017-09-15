@@ -44,11 +44,6 @@ public class IRodsUserGroupTests {
         ugService.createGroup("rodsadmin");
     }
 
-    @Test(expected = UserGroupNotFoundException.class)
-    public void testNonExistingGroupDeletion() throws Exception {
-        ugService.deleteGroup("does_not_exist_191283");
-    }
-
     @Test
     public void testCompleteGroupCreationWithMembers() throws Exception {
         String groupName = randomGroupName();
@@ -71,17 +66,6 @@ public class IRodsUserGroupTests {
     @Test(expected = UserGroupNotFoundException.class)
     public void testRemoveMemberFromInvalidGroup() throws Exception {
         ugService.removeUserFromGroup("group_does_not_exist_1235193", "rods");
-    }
-
-    @Test(expected = UserInUserGroupNotFoundException.class)
-    public void testRemoveMemberNotInGroup() throws Exception {
-        String groupName = randomGroupName();
-        try {
-            ugService.createGroup(groupName);
-            ugService.removeUserFromGroup(groupName, "test");
-        } finally {
-            ugService.deleteGroup(groupName);
-        }
     }
 
     @Test(expected = UserGroupNotFoundException.class)

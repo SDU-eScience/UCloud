@@ -38,11 +38,6 @@ public class IRodsAdminTest {
         adminService.deleteUser(username);
     }
 
-    @Test(expected = UserNotFoundException.class)
-    public void testInvalidUserDeletion() throws Exception {
-        adminService.deleteUser("not_a_real_user_11021");
-    }
-
     @Test(expected = UserAlreadyExistsException.class)
     public void testInvalidUserCreation() throws Exception {
         adminService.createUser("rods", UserTypeEnum.RODS_USER);

@@ -3,12 +3,17 @@ package dk.sdu.escience.irods;
 import org.irods.jargon.core.exception.JargonException;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
+import java.util.Collections;
+
 public class IRodsUserService {
     private final AccountServices internalServices;
+    private final CommandExecutor cmd;
     private boolean open = true;
 
-    IRodsUserService(AccountServices internalServices) {
+    IRodsUserService(AccountServices internalServices, CommandExecutor cmd) {
         this.internalServices = internalServices;
+        this.cmd = cmd;
     }
 
     // TODO Exception for incorrect password
@@ -18,13 +23,16 @@ public class IRodsUserService {
     // NOTE(dan): If you want to force change the password of a user you should use
     // IRodsAdminService#modifyUserPassword.
     public void modifyPassword(@NotNull String currentPassword, @NotNull String newPassword) {
-        requireOpen();
-        try {
-            internalServices.getUsers().changeAUserPasswordByThatUser(internalServices.getAccount().getUserName(),
-                    currentPassword, newPassword);
-        } catch (JargonException e) {
-            throw new IRodsException(e);
-        }
+        cmd.wrapCommand(internalServices, "modifyPassword", Collections.emptyList(), () -> {
+            requireOpen();
+            try {
+                internalServices.getUsers().changeAUserPasswordByThatUser(internalServices.getAccount().getUserName(),
+                        currentPassword, newPassword);
+                return null;
+            } catch (JargonException e) {
+                throw new IRodsException(e);
+            }
+        });
     }
 
     void close() {

@@ -8,62 +8,74 @@ import org.irods.jargon.core.protovalues.UserTypeEnum;
 import org.irods.jargon.core.pub.domain.User;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
 
 @SuppressWarnings("WeakerAccess")
 public class IRodsAdminService {
     private final AccountServices internalServices;
+    private final CommandExecutor cmd;
     private boolean open = true;
 
-    IRodsAdminService(AccountServices internalServices) {
+    IRodsAdminService(AccountServices internalServices, CommandExecutor cmd) {
         this.internalServices = internalServices;
+        this.cmd = cmd;
     }
 
     public void createUser(@NotNull String username, @NotNull UserTypeEnum type) throws UserAlreadyExistsException {
-        Objects.requireNonNull(username);
-        Objects.requireNonNull(type);
-        requireOpen();
+        cmd.wrapCommand(internalServices, "createUser", Arrays.asList(username, type), () -> {
+            Objects.requireNonNull(username);
+            Objects.requireNonNull(type);
+            requireOpen();
 
-        try {
-            User user = new User();
-            user.setName(username);
-            user.setUserType(type);
-            internalServices.getUsers().addUser(user);
-        } catch (DuplicateDataException e) {
-            throw new UserAlreadyExistsException(username, e);
-        } catch (JargonException e) {
-            throw new IRodsException(e);
-        }
+            try {
+                User user = new User();
+                user.setName(username);
+                user.setUserType(type);
+                internalServices.getUsers().addUser(user);
+                return null;
+            } catch (DuplicateDataException e) {
+                throw new UserAlreadyExistsException(username, e);
+            } catch (JargonException e) {
+                throw new IRodsException(e);
+            }
+        });
     }
 
     public void modifyUserPassword(@NotNull String username, @NotNull String newPassword)
             throws UserNotFoundException {
-        Objects.requireNonNull(username);
-        Objects.requireNonNull(newPassword);
-        requireOpen();
+        cmd.wrapCommand(internalServices, "modifyUserPassword", Collections.singletonList(username), () -> {
+            Objects.requireNonNull(username);
+            Objects.requireNonNull(newPassword);
+            requireOpen();
 
-        try {
-            User byName = internalServices.getUsers().findByName(username);
-            if (byName == null) throw new UserNotFoundException(username);
-            internalServices.getUsers().changeAUserPasswordByAnAdmin(username, newPassword);
-        } catch (DataNotFoundException e) {
-            throw new UserNotFoundException(username, e);
-        } catch (JargonException e) {
-            throw new IRodsException(e);
-        }
-
+            try {
+                User byName = internalServices.getUsers().findByName(username);
+                if (byName == null) throw new UserNotFoundException(username);
+                internalServices.getUsers().changeAUserPasswordByAnAdmin(username, newPassword);
+                return null;
+            } catch (DataNotFoundException e) {
+                throw new UserNotFoundException(username, e);
+            } catch (JargonException e) {
+                throw new IRodsException(e);
+            }
+        });
     }
 
     public void deleteUser(@NotNull String username) {
-        Objects.requireNonNull(username);
-        requireOpen();
+        cmd.wrapCommand(internalServices, "deleteUser", Collections.singletonList(username), () -> {
+            Objects.requireNonNull(username);
+            requireOpen();
 
-        try {
-            internalServices.getUsers().deleteUser(username);
-        } catch (DataNotFoundException | InvalidUserException ignored) {
-        } catch (JargonException e) {
-            throw new IRodsException(e);
-        }
+            try {
+                internalServices.getUsers().deleteUser(username);
+            } catch (DataNotFoundException | InvalidUserException ignored) {
+            } catch (JargonException e) {
+                throw new IRodsException(e);
+            }
+            return null;
+        });
     }
 
     void close() {

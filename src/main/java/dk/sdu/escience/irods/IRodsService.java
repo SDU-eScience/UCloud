@@ -3,9 +3,7 @@ package dk.sdu.escience.irods;
 import org.irods.jargon.core.exception.JargonException;
 import org.irods.jargon.core.protovalues.UserTypeEnum;
 import org.irods.jargon.core.pub.domain.User;
-import org.irods.jargon.core.rule.IRODSRuleExecResult;
 
-import java.io.IOException;
 import java.util.Objects;
 
 @SuppressWarnings("WeakerAccess")
@@ -24,10 +22,10 @@ public class IRodsService {
     IRodsService(AccountServices internalServices, CommandExecutor cmd) {
         this.cmd = cmd;
         this.internalServices = internalServices;
-        this.userGroupService = new IRodsUserGroupService(internalServices);
+        this.userGroupService = new IRodsUserGroupService(internalServices, cmd);
         this.fileService = new IRodsFileService(internalServices, cmd);
-        this.adminService = new IRodsAdminService(internalServices);
-        this.userService = new IRodsUserService(internalServices);
+        this.adminService = new IRodsAdminService(internalServices, cmd);
+        this.userService = new IRodsUserService(internalServices, cmd);
     }
 
     public IRodsUserGroupService getUserGroupService() {
