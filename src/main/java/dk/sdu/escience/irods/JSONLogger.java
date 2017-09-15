@@ -2,6 +2,7 @@ package dk.sdu.escience.irods;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +14,7 @@ class JSONLogger {
     private final PrintWriter writer;
     private final ObjectMapper mapper = new ObjectMapper(); // TODO I'm assuming that this is safe
 
-    JSONLogger(Writer writer) {
+    JSONLogger(@Nullable Writer writer) {
         if (writer == null) this.writer = null;
         else this.writer = new PrintWriter(writer);
     }

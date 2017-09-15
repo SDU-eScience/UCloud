@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-class LibProperties {
+class Configuration {
     private static final String HOST = "host";
     private static final String PORT = "port";
     private static final String ZONE = "zone";
@@ -42,7 +42,7 @@ class LibProperties {
     private final String errorLogPath;
     private final String perfLogPath;
 
-    LibProperties(Properties properties) {
+    Configuration(Properties properties) {
         validate(properties);
 
         host = properties.getProperty(HOST);
@@ -111,7 +111,7 @@ class LibProperties {
         }
 
         if (!errors.isEmpty()) {
-            throw new IllegalStateException("Found errors in properties file.\n" +
+            throw new ConfigurationException("Found errors in properties file.\n" +
                     errors.stream().collect(Collectors.joining("\n  ")));
         }
     }
