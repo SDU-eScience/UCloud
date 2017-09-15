@@ -86,4 +86,20 @@ Each of these fields represents their own log. If a field is left out no logging
   Example: `performanceLogPath: /var/log/irods-wrapper/access.log`
 
 
+## Configuration - Example
 
+```properties
+host: localhost
+port: 1247
+resource: radosRandomResc
+sslPolicy: CS_NEG_REFUSE
+authScheme: STANDARD
+zone: tempZone
+
+systemUsername: rods
+systemPassword: rods
+
+errorLogPath: /home/dan/error.log
+accessLogPath: /home/dan/access.log
+performanceLogPath: /home/dan/performance.log
+```
