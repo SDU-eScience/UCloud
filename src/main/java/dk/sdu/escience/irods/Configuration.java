@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+/**
+ * Represents the configuration of this library. Loading is done by the {@link ConfigurationLoader}.
+ */
 class Configuration {
     private static final String HOST = "host";
     private static final String PORT = "port";
