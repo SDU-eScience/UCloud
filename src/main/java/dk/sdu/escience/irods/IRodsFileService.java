@@ -136,8 +136,14 @@ public class IRodsFileService {
         });
     }
 
-    public boolean delete(@NotNull String filePath) {
-        return cmd.wrapCommand(internalServices, "delete", Collections.singletonList(filePath), () -> {
+    /**
+     * Deletes a file.
+     *
+     * @param filePath The path to the file
+     * @return true if file deletion was successful otherwise false
+     */
+    public boolean deleteFile(@NotNull String filePath) {
+        return cmd.wrapCommand(internalServices, "deleteFile", Collections.singletonList(filePath), () -> {
             Objects.requireNonNull(filePath);
             requireOpen();
 
@@ -146,6 +152,12 @@ public class IRodsFileService {
         });
     }
 
+    /**
+     * Creates a directory.
+     *
+     * @param path The path to the directory.
+     * @param recursive If parent directories should be created as needed.
+     */
     public void createDirectory(@NotNull String path, boolean recursive) {
         cmd.wrapCommand(internalServices, "createDirectory", Arrays.asList(path, recursive), () -> {
             Objects.requireNonNull(path);
@@ -165,6 +177,12 @@ public class IRodsFileService {
         });
     }
 
+    /**
+     * Checks if an object exists at a given path.
+     *
+     * @param path The path
+     * @return true if an object exists at the given path otherwise false
+     */
     public boolean exists(@NotNull String path) {
         return cmd.wrapCommand(internalServices, "exists", Collections.singletonList(path), () -> {
             Objects.requireNonNull(path);
@@ -173,6 +191,11 @@ public class IRodsFileService {
         });
     }
 
+    /**
+     * Deletes a directory and all of its contents.
+     *
+     * @param path The path
+     */
     public void deleteDirectory(@NotNull String path) {
         cmd.wrapCommand(internalServices, "deleteDirectory", Collections.singletonList(path), () -> {
             Objects.requireNonNull(path);
@@ -184,6 +207,7 @@ public class IRodsFileService {
                 internalServices.getFileSystem().directoryDeleteForce(file);
                 return null;
             } catch (JargonException e) {
+                // TODO We probably have some permission problems here
                 throw new IRodsException(e);
             }
         });
@@ -265,9 +289,19 @@ public class IRodsFileService {
         }
     }
 
+    /**
+     * Grants permissions for another user on an object which this user owns.
+     *
+     * @param path The path to the object
+     * @param permission The permission to grant
+     * @param username To which user to grant the permission
+     * @throws ObjectNotFoundException If the object is not found, or we don't have permissions to see it.
+     * @throws UserNotFoundException If the user has not been found.
+     */
     public void grantPermissionsOnObject(@NotNull String path, @NotNull FilePermission permission,
                                          @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {
+        // TODO What if we don't own it?
         cmd.<Void, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
                 ObjectNotFoundException.class, UserNotFoundException.class,
                 internalServices, "grantPermissionsOnObject", Arrays.asList(path, permission, username),
@@ -277,6 +311,14 @@ public class IRodsFileService {
                 });
     }
 
+    /**
+     * Revokes the permissons of another user on an object that we own.
+     *
+     * @param path The path to the object
+     * @param username The username to revoke permissions on
+     * @throws ObjectNotFoundException If the object is not found
+     * @throws UserNotFoundException If the user is not found
+     */
     public void revokeAllPermissionsOnObject(@NotNull String path, @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {
         cmd.<Void, ObjectNotFoundException, UserNotFoundException>wrapCommand2(
@@ -288,6 +330,13 @@ public class IRodsFileService {
         );
     }
 
+    /**
+     * Retrieves the file permissions which this user has on an object.
+     *
+     * @param path Path to the object
+     * @return The file permission or null
+     * @throws ObjectNotFoundException If the object is not found
+     */
     @Nullable
     public FilePermission getPermissionsOnObject(@NotNull String path) throws ObjectNotFoundException {
         return cmd.wrapCommand(internalServices, "getPermissionsOnObject", Collections.singletonList(path), () -> {
@@ -299,6 +348,15 @@ public class IRodsFileService {
         });
     }
 
+    /**
+     * Retrieves the file permissions of another user on an object that we own.
+     *
+     * @param path Path to the object
+     * @param username The user to check
+     * @return The file permission or null
+     * @throws ObjectNotFoundException If the object is not found
+     * @throws UserNotFoundException If the user is not found
+     */
     @Nullable
     public FilePermission getPermissionsOnObject(@NotNull String path, @NotNull String username)
             throws ObjectNotFoundException, UserNotFoundException {

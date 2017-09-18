@@ -136,7 +136,7 @@ public class IRodsFileTest {
 
         assertThat(systemServices.listObjectNamesAtHome(), hasItem(path));
 
-        assertTrue(systemServices.delete(path));
+        assertTrue(systemServices.deleteFile(path));
         assertThat(systemServices.listObjectNamesAtHome(), not(hasItem(path)));
     }
 
@@ -178,7 +178,7 @@ public class IRodsFileTest {
     @Test
     public void testCreateFileAndSetPermissionOnOtherUser() throws Exception {
         String path = "/tempZone/home/public/file-for-test";
-        if (systemServices.exists(path)) systemServices.delete(path);
+        if (systemServices.exists(path)) systemServices.deleteFile(path);
         OutputStream os = systemServices.openForWriting(path);
         os.write(42);
         os.flush();
