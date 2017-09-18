@@ -6,7 +6,7 @@
 
     <groupId>dk.sdu.escience</groupId>
     <artifactId>irods-access-wrapper</artifactId>
-    <version>0.3.0</version>
+    <version>0.3.1</version>
 
     <dependencies>
         <dependency>
