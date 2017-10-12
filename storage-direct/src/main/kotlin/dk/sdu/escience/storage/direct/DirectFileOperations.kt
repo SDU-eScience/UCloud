@@ -54,7 +54,7 @@ abstract class DirectFileOperations( // Really easy way of getting rid of compil
         jobs.forEach { it.get() } // await all
 
         DataObject.new {
-            this.name = path
+            this.name = path.path
             this.physicalPath = physicalName
             this.type = FileType.FILE
         }.flush()

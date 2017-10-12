@@ -27,7 +27,7 @@ class DataTest(
             executor.scheduleAtFixedRate(
                     scheduledTaskForUser(user, password),
                     random.nextInt(1).toLong(),
-                    240L,
+                    5L,
                     TimeUnit.SECONDS
             )
         }
@@ -76,13 +76,13 @@ class DataTest(
 
         private fun `create a bunch of files`() {
             val filesToCreate = random.nextInt(30) + 1
-            val filesCreated = arrayListOf<String>()
+            val filesCreated = arrayListOf<StoragePath>()
             val sizes = arrayListOf<Int>()
 
             log("Creating $filesToCreate files")
 
             (1..filesToCreate).forEach {
-                val name = conn.files.homeDirectory + '/' + random.nextString(20)
+                val name = conn.paths.homeDirectory.push(random.nextString(20))
                 val amountOfData = random.nextInt(1024 * 10)
                 val data = ByteArray(amountOfData) { CHARS[random.nextInt(CHARS.size)].toByte() }
                 conn.files.put(name, ByteArrayInputStream(data))
@@ -95,8 +95,8 @@ class DataTest(
                 assertNotEquals(null, fileStat, "File stat")
                 val stat = fileStat ?: return@forEachIndexed
                 assertEquals(sizes[index].toLong(), stat.sizeInBytes, "File size")
-                if (!stat.path.contains(filesCreated[index])) {
-                    System.err.println("Expected stat name to match (${stat.path}) and ${filesCreated[index]}")
+                if (stat.path.name != filesCreated[index].name) {
+                    System.err.println("Expected stat path to match (${stat.path}) and ${filesCreated[index]}")
                 }
             }
             log("Done")
@@ -104,14 +104,14 @@ class DataTest(
 
         private fun `list some files`() {
             log("Listing at home")
-            val filesAtHome = conn.fileQuery.listAt(conn.files.homeDirectory)
+            val filesAtHome = conn.fileQuery.listAt(conn.paths.homeDirectory)
             log("Done. Found ${filesAtHome.size} files at home")
         }
 
         private fun `create some directories and delete them all`() {
             val filesPerLevel = random.nextInt(3) + 1
             val depth = random.nextInt(10)
-            val root = conn.files.homeDirectory + '/' + random.nextString(10)
+            val root = conn.paths.homeDirectory.push(random.nextString(10))
             if (conn.fileQuery.exists(root)) return
 
             log("Creating files at $root with depth=$depth and fpl=$filesPerLevel")
@@ -122,10 +122,10 @@ class DataTest(
             var currentPath = root
             (0 until depth).forEach { level ->
                 (0 until filesPerLevel).forEach { fileIndex ->
-                    conn.files.put("$currentPath/file-$fileIndex", dummyFile)
+                    conn.files.put(currentPath.push("file-$fileIndex"), dummyFile)
                 }
 
-                currentPath += "/directory-$level"
+                currentPath = currentPath.push("/directory-$level")
                 conn.files.createDirectory(currentPath)
             }
 
@@ -133,23 +133,23 @@ class DataTest(
             currentPath = root
             (0 until depth).forEach { level ->
                 val allFiles = conn.fileQuery.listAt(currentPath)
-                val normalFiles = allFiles.filter { it.name.contains("file-") && it.type == FileType.FILE }
-                val directories = allFiles.filter { it.name.endsWith("directory-$level") &&
+                val normalFiles = allFiles.filter { it.path.name.startsWith("file-") && it.type == FileType.FILE }
+                val directories = allFiles.filter { it.path.name.startsWith("directory-$level") &&
                         it.type == FileType.DIRECTORY }
 
                 if (normalFiles.size != filesPerLevel) {
                     throw IllegalStateException("With fpl $filesPerLevel and depth $depth. " +
                             "Unexpected state at $currentPath: " +
-                            normalFiles.joinToString("\n") { it.name })
+                            normalFiles.joinToString("\n") { it.path.path })
                 }
 
                 if (directories.size != 1) {
                     throw IllegalStateException("With fpl $filesPerLevel and depth $depth. " +
                             "Unexpected state at $currentPath: " +
-                            directories.joinToString("\n") { it.name })
+                            directories.joinToString("\n") { it.path.path })
                 }
 
-                currentPath += "/directory-$level"
+                currentPath = currentPath.push("/directory-$level")
             }
 
             conn.files.delete(root, true)
@@ -161,7 +161,7 @@ class DataTest(
 
         private fun `create some files and change acl`() {
             val dummyFile = createDummyFile()
-            val path = conn.files.homeDirectory + '/' + random.nextString(20)
+            val path = conn.paths.homeDirectory.push(random.nextString(20))
             conn.files.put(path, dummyFile)
             conn.accessControl.updateACL(path, listOf(AccessEntry(User("rods"), AccessRight.READ_WRITE)))
             val newAcl = conn.accessControl.listAt(path)
@@ -180,7 +180,7 @@ class DataTest(
                 val file = createDummyFile()
                 val outputFile = Files.createTempFile("dummy", "file").toFile()
                 val checksum = file.checksum()
-                val targetPath = conn.files.homeDirectory + '/' + random.nextString(20)
+                val targetPath = conn.paths.homeDirectory.push(random.nextString(20))
 
                 conn.files.put(targetPath, file)
                 conn.files.get(targetPath, outputFile)
@@ -195,11 +195,11 @@ class DataTest(
 
         private fun `delete all in home`() {
             log("Deleting everything we have in the home directory")
-            val files = conn.fileQuery.listAt(conn.files.homeDirectory)
+            val files = conn.fileQuery.listAt(conn.paths.homeDirectory)
             files.forEach {
-                conn.files.delete(it.name, true)
+                conn.files.delete(it.path, true)
             }
-            val filesAfterDeletion = conn.fileQuery.listAt(conn.files.homeDirectory)
+            val filesAfterDeletion = conn.fileQuery.listAt(conn.paths.homeDirectory)
             if (filesAfterDeletion.isNotEmpty()) {
                 throw IllegalStateException("Did not manage to delete all files, but no exception were thrown. " +
                         "$filesAfterDeletion")
@@ -273,7 +273,7 @@ fun main(args: Array<String>) {
             sslNegotiationPolicy = CS_NEG_REFUSE
     )
 
-    val factory = LoggingConnectionFactory(IRodsConnectionFactory(connectionInfo))
+    val factory = IRodsConnectionFactory(connectionInfo)
     DataTest(factory, "irodsadmin" to "irodsadmin", mapOf(
             "irodsadmin" to "irodsadmin"
     )).startTest()

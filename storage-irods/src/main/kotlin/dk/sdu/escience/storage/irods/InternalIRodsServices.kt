@@ -6,7 +6,8 @@ import org.irods.jargon.core.connection.IRODSAccount
 import org.irods.jargon.core.connection.SettableJargonProperties
 import org.irods.jargon.core.pub.IRODSAccessObjectFactory
 
-class AccountServices(private val factory: IRODSAccessObjectFactory, val account: IRODSAccount) {
+class AccountServices(private val factory: IRODSAccessObjectFactory, val account: IRODSAccount,
+                      val connectionInformation: IRodsConnectionInformation) {
     val environment by lazy { factory.getEnvironmentalInfoAO(account) }
     val zones by lazy { factory.getZoneAO(account) }
     val resources by lazy { factory.getResourceAO(account) }
@@ -34,7 +35,6 @@ class AccountServices(private val factory: IRODSAccessObjectFactory, val account
     val dataTransfer by lazy { DataTransferWrapper(factory.getDataTransferOperations(account)) }
 
     init {
-
         val properties = factory.irodsSession.jargonProperties
         if (properties is SettableJargonProperties) {
             properties.isComputeChecksumAfterTransfer = false

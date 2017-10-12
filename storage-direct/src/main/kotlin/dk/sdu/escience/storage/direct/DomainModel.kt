@@ -12,7 +12,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SchemaUtils.create
 
 object DataObjects : LongIdTable() {
-    var name = varchar("name", 512).uniqueIndex() // TODO Does this need to be unique?
+    var name = varchar("path", 512).uniqueIndex() // TODO Does this need to be unique?
     var physicalPath = varchar("physical_path", 36)
     var type = enumeration("type", FileType::class.java)
 

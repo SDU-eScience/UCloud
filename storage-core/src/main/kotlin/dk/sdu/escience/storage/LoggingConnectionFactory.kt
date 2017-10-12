@@ -16,12 +16,15 @@ class LoggingConnectionFactory(private val delegate: ConnectionFactory) : Connec
     }
 }
 
+// TODO FIXME Needs to not throw exceptions when arguments cannot be serialized (e.g. input streams)
 private const val SERVICE = "service"
 class LoggingConnection(private val delegate: Connection) : Connection {
     // Metadata added to all logging entries. Should identify why this request is occurring
     private val loggingMeta: Map<String, Any?> by lazy { mapOf(
             "user" to connectedUser.name
     ) }
+
+    override val paths: PathOperations = delegate.paths
 
     override val connectedUser: User by lazy { delegate.connectedUser }
 

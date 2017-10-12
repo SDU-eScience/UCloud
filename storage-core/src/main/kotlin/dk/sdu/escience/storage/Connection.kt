@@ -4,6 +4,7 @@ interface Connection {
     val connectedUser: User
 
     // Services
+    val paths: PathOperations
     val files: FileOperations
     val metadata: MetadataOperations
     val accessControl: AccessControlOperations

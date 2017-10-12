@@ -19,32 +19,47 @@ import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
-class IRodsFileOperations(override val services: AccountServices) : FileOperations, IRodsOperationService {
+class IRodsPathOperations(override val services: AccountServices) : PathOperations, IRodsOperationService {
+    override val localRoot: StoragePath =
+            StoragePath.internalCreateFromHostAndAbsolutePath(services.connectionInformation.zone, "/")
+    override val homeDirectory: StoragePath = StoragePath.internalCreateFromHostAndAbsolutePath(
+            services.account.zone, "/home/${services.account.userName}")
+
+    override fun parseAbsolute(absolutePath: String, addHost: Boolean): StoragePath {
+        if (absolutePath.startsWith("/")) throw IllegalArgumentException("Invalid iRODS path")
+        val components = absolutePath.split("/")
+        return if (addHost) {
+            localRoot.pushRelative(components.joinToString("/"))
+        } else {
+            StoragePath.internalCreateFromHostAndAbsolutePath(components.first(), components.joinToString("/"))
+        }
+    }
+
+}
+
+class IRodsFileOperations(
+        val paths: PathOperations,
+        override val services: AccountServices
+) : FileOperations, IRodsOperationService {
     override val usesTrashCan: Boolean = true
-    override val homeDirectory: StoragePath = "/${services.account.zone}/home/${services.account.userName}"
 
     companion object {
         const val BUFFER_SIZE = 1024 * 4096
     }
 
     override fun createDirectory(path: StoragePath, recursive: Boolean) {
-        // TODO We still need to throw the relevant exceptions, but those we could probably
-        // handle in some more generic way.
         services.fileSystem.mkdir(path.toIRods(), recursive)
     }
 
     override fun put(path: StoragePath, source: InputStream) {
-        // TODO Map exceptions
         source.transferTo(services.files.instanceIRODSFileOutputStream(path.toIRods()))
     }
 
     override fun put(path: StoragePath, localFile: File) {
-        // TODO This might not block, in that case we should wait
         services.dataTransfer.putOperation(localFile, path.toIRods(), transferCallback(), transferControlBlock())
     }
 
     override fun get(path: StoragePath, localFile: File) {
-        // TODO This might not block, in that case we should wait
         services.dataTransfer.getOperation(path.toIRods(), localFile, transferCallback(), transferControlBlock())
     }
 
@@ -53,7 +68,7 @@ class IRodsFileOperations(override val services: AccountServices) : FileOperatio
             var currentEntry: ZipEntry? = ins.nextEntry
             while (currentEntry != null) {
                 val entry = currentEntry
-                val outputPath = path + "/" + entry.name
+                val outputPath = path.pushRelative(entry.name)
                 val entryStream = GuardedInputStream(ins)
                 entryStream.transferTo(services.files.instanceIRODSFileOutputStream(outputPath.toIRods()))
                 ins.closeEntry()
@@ -63,7 +78,6 @@ class IRodsFileOperations(override val services: AccountServices) : FileOperatio
     }
 
     override fun get(path: StoragePath, output: OutputStream) {
-        // TODO Map exceptions
         services.files.instanceIRODSFileInputStream(path.toIRods()).transferTo(output)
     }
 
@@ -153,21 +167,28 @@ class IRodsFileOperations(override val services: AccountServices) : FileOperatio
 
 }
 
-class IRodsMetadataOperations(override val services: AccountServices) : MetadataOperations, IRodsOperationService {
+class IRodsMetadataOperations(
+        val paths: PathOperations,
+        override val services: AccountServices
+) : MetadataOperations, IRodsOperationService {
     override fun updateMetadata(path: StoragePath, newOrUpdatesAttributes: Metadata,
                                 attributesToDeleteIfExists: List<String>) {
-        services.dataObjects.addBulkAVUMetadataToDataObject(path,
+        val absolutePath = path.toIRodsAbsolute()
+        services.dataObjects.addBulkAVUMetadataToDataObject(absolutePath,
                 newOrUpdatesAttributes.map { it.toIRods() }.toMutableList())
-        services.dataObjects.deleteBulkAVUMetadataFromDataObject(path,
+        services.dataObjects.deleteBulkAVUMetadataFromDataObject(absolutePath,
                 attributesToDeleteIfExists.map { AvuData(it, "", "") }.toMutableList())
     }
 
     override fun removeAllMetadata(path: StoragePath) {
-        services.dataObjects.deleteAllAVUForDataObject(path)
+        services.dataObjects.deleteAllAVUForDataObject(path.toIRodsAbsolute())
     }
 }
 
-class IRodsAccessControlOperations(override val services: AccountServices) : AccessControlOperations,
+class IRodsAccessControlOperations(
+        val paths: PathOperations,
+        override val services: AccountServices
+) : AccessControlOperations,
         IRodsOperationService {
     override fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean) {
         val localZone = services.account.zone
@@ -176,7 +197,7 @@ class IRodsAccessControlOperations(override val services: AccountServices) : Acc
             val zone: String
             if (it.entity.name.contains('#')) {
                 val split = it.entity.name.split('#')
-                if (split.size != 2) throw IllegalArgumentException("Invalid entity name '${it.entity.name}'")
+                if (split.size != 2) throw IllegalArgumentException("Invalid entity path '${it.entity.name}'")
                 entityName = split[0]
                 zone = split[1]
             } else {
@@ -184,27 +205,32 @@ class IRodsAccessControlOperations(override val services: AccountServices) : Acc
                 zone = localZone
             }
 
-            services.dataObjects.setAccessPermission(zone, path, entityName, it.right.toIRods())
+            services.dataObjects.setAccessPermission(zone, path.toIRodsAbsolute(), entityName, it.right.toIRods())
         }
     }
 
     override fun listAt(path: StoragePath): AccessControlList {
-        return services.dataObjects.listPermissionsForDataObject(path).map { it.toStorage() }
+        return services.dataObjects.listPermissionsForDataObject(path.toIRodsAbsolute()).map { it.toStorage() }
     }
 }
 
-class IRodsFileQueryOperations(override val services: AccountServices) : FileQueryOperations, IRodsOperationService {
+class IRodsFileQueryOperations(
+        val paths: PathOperations,
+        override val services: AccountServices
+) : FileQueryOperations, IRodsOperationService {
     override fun listAt(path: StoragePath, preloadACLs: Boolean, preloadMetadata: Boolean): List<StorageFile> {
         // Always loads ACLs
+        val absolutePath = path.toIRodsAbsolute()
         var results = services.collectionsAndObjectSearch
-                .listDataObjectsAndCollectionsUnderPath(path)
-                .map { it.toStorage() }
+                .listDataObjectsAndCollectionsUnderPath(absolutePath)
+                .map { it.toStorage(path) }
 
         if (preloadMetadata) {
             results = results.map {
-                // TODO Will `it.name` actually return the full path?
-                val metadata = services.dataObjects.findMetadataValuesForDataObject(it.name).map { it.toStorage() }
-                StorageFile(it.name, it.type, it.acl, metadata)
+                val metadata = services.dataObjects
+                        .findMetadataValuesForDataObject(it.path.toIRodsAbsolute())
+                        .map { it.toStorage() }
+                StorageFile(it.path, it.type, it.acl, metadata)
             }
         }
 
@@ -215,14 +241,34 @@ class IRodsFileQueryOperations(override val services: AccountServices) : FileQue
         TODO("query interface not implemented")
     }
 
+
     override fun statBulk(vararg paths: StoragePath): List<FileStat?> =
             paths.map { path ->
                 try {
-                    services.fileSystem.getObjStat(path).toStorage()
+                    services.fileSystem.getObjStat(path.toIRodsAbsolute()).toStorage()
                 } catch (_: Exception) {
                     null
                 }
             }
+
+    private fun CollectionAndDataObjectListingEntry.toStorage(relativeTo: StoragePath): StorageFile {
+        return StorageFile(
+                path = relativeTo.pushRelative(this.pathOrName),
+                type = if (this.isCollection) FileType.DIRECTORY else FileType.FILE,
+                acl = this.userFilePermission.map { it.toStorage() },
+                metadata = null
+        )
+    }
+
+    private fun ObjStat.toStorage(): FileStat =
+            FileStat(
+                    paths.parseAbsolute(this.absolutePath),
+                    this.createdAt.time,
+                    this.modifiedAt.time,
+                    "${this.ownerName}#${this.ownerZone}",
+                    this.objSize,
+                    this.checksum
+            )
 }
 
 class IRodsUserOperations(override val services: AccountServices) : UserOperations, IRodsOperationService {
@@ -256,7 +302,9 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
             if (!force && listGroupMembers(name).isNotEmpty()) {
                 throw PermissionException("Cannot remove empty user group without force flag")
             }
-        } catch (_: NotFoundException) { return }
+        } catch (_: NotFoundException) {
+            return
+        }
         services.userGroups.removeUserGroup(userGroup)
     }
 
@@ -291,15 +339,6 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
 interface IRodsOperationService {
     val services: AccountServices
 
-    fun ObjStat.toStorage(): FileStat =
-            FileStat(
-                    this.absolutePath,
-                    this.createdAt.time,
-                    this.modifiedAt.time,
-                    "${this.ownerName}#${this.ownerZone}",
-                    this.objSize,
-                    this.checksum
-            )
 
     fun FilePermissionEnum.toStorage(): AccessRight = when (this) {
         FilePermissionEnum.OWN -> AccessRight.OWN
@@ -315,20 +354,13 @@ interface IRodsOperationService {
     fun MetaDataAndDomainData.toStorage(): MetadataEntry =
             MetadataEntry(this.avuAttribute, this.avuValue)
 
-    fun CollectionAndDataObjectListingEntry.toStorage(): StorageFile {
-        return StorageFile(
-                name = this.pathOrName,
-                type = if (this.isCollection) FileType.DIRECTORY else FileType.FILE,
-                acl = this.userFilePermission.map { it.toStorage() },
-                metadata = null
-        )
-    }
 
     fun org.irods.jargon.core.pub.domain.User.toStorage(): User {
         return User(this.nameWithZone)
     }
 
-    fun StoragePath.toIRods(): IRODSFile = services.files.instanceIRODSFile(this)
+    fun StoragePath.toIRods(): IRODSFile = services.files.instanceIRODSFile(this.toIRodsAbsolute())
+    fun StoragePath.toIRodsAbsolute(): String = "/$host$path"
 
     fun AccessRight.toIRods(): FilePermissionEnum = when (this) {
         AccessRight.NONE -> FilePermissionEnum.NULL

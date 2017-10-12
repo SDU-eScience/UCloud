@@ -3,16 +3,16 @@ package dk.sdu.escience.storage.irods
 import dk.sdu.escience.storage.*
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.irods.jargon.core.connection.IRODSAccount
-import org.irods.jargon.core.exception.JargonException
 import org.irods.jargon.core.pub.IRODSFileSystem
 
 class IRodsConnection(private val services: AccountServices) : Connection {
     override val connectedUser: User = User(services.account.userName) // TODO Improve user definition
 
-    override val files: FileOperations = IRodsFileOperations(services)
-    override val metadata: MetadataOperations = IRodsMetadataOperations(services)
-    override val accessControl: AccessControlOperations = IRodsAccessControlOperations(services)
-    override val fileQuery: FileQueryOperations = IRodsFileQueryOperations(services)
+    override val paths: PathOperations = IRodsPathOperations(services)
+    override val files: FileOperations = IRodsFileOperations(paths, services)
+    override val metadata: MetadataOperations = IRodsMetadataOperations(paths, services)
+    override val accessControl: AccessControlOperations = IRodsAccessControlOperations(paths, services)
+    override val fileQuery: FileQueryOperations = IRodsFileQueryOperations(paths, services)
     override val users: UserOperations = IRodsUserOperations(services)
     override val groups: GroupOperations = IRodsGroupOperations(services)
 
@@ -34,6 +34,6 @@ class IRodsConnectionFactory(private val connectionInformation: IRodsConnectionI
         val csPolicy = ClientServerNegotiationPolicy()
         csPolicy.sslNegotiationPolicy = connectionInformation.sslNegotiationPolicy
         account.clientServerNegotiationPolicy = csPolicy
-        return IRodsConnection(AccountServices(objectFactory, account))
+        return IRodsConnection(AccountServices(objectFactory, account, connectionInformation))
     }
 }

@@ -3,9 +3,40 @@ package dk.sdu.escience.storage
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.URI
 import java.util.zip.ZipInputStream
 
-typealias StoragePath = String
+class StoragePath private constructor(private val uri: URI) {
+    val host get() = uri.host
+    val path get() = uri.path
+    val name get() = components.last()
+
+    init {
+        uri.host!!
+    }
+
+    val components: List<String>
+        get() = uri.path.split('/')
+
+    fun pushRelative(relativeURI: String): StoragePath {
+        return StoragePath(URI(uri.scheme, uri.host, URI(uri.path + '/' + relativeURI).normalize().path,
+                null, null))
+    }
+
+    fun push(vararg components: String): StoragePath {
+        return pushRelative(components.joinToString("/"))
+    }
+
+    fun pop(): StoragePath = StoragePath(uri.resolve(".").normalize())
+
+    override fun toString(): String = uri.toString()
+
+    companion object {
+        fun internalCreateFromHostAndAbsolutePath(host: String, path: String): StoragePath {
+            return StoragePath(URI("storage", host, path, null, null).normalize())
+        }
+    }
+}
 
 enum class AccessRight {
     NONE,
@@ -26,7 +57,7 @@ enum class FileType {
 }
 
 class StorageFile(
-        val name: String,
+        val path: StoragePath,
         val type: FileType,
         val acl: AccessControlList?,
         val metadata: Metadata?
@@ -50,12 +81,16 @@ enum class ArchiveType {
 open class StorageException(cause: String) : RuntimeException(cause)
 class PermissionException(cause: String) : StorageException(cause)
 class NotFoundException(val resourceType: String, val name: String, val internalCause: String = "Unknown") :
-        StorageException("Could not find resource of type '$resourceType' with name '$name' (Cause: $internalCause)")
+        StorageException("Could not find resource of type '$resourceType' with path '$name' (Cause: $internalCause)")
 class NotEmptyException(cause: String) : StorageException(cause)
 class ConnectionException(cause: String) : StorageException(cause)
 
-// TODO Doing stuff in a single transaction while supporting iRODS is not really easy.
-// Having to support iRODS will obviously change the interface we provide
+interface PathOperations {
+    val localRoot: StoragePath
+    val homeDirectory: StoragePath
+    fun parseAbsolute(absolutePath: String, addHost: Boolean = false): StoragePath
+}
+
 interface FileOperations {
     /**
      * Creates a directory at [path]. If the [recursive] flag is set then parent directories will attempt to be
@@ -187,8 +222,6 @@ interface FileOperations {
      * @throws NotFoundException If object at [remoteFile] is not a directory or does not exist
      */
     fun verifyConsistency(localFile: File, remoteFile: StoragePath): Boolean
-
-    val homeDirectory: StoragePath
 }
 
 interface AccessControlOperations {
@@ -243,7 +276,7 @@ interface FileQueryOperations {
      * @throws NotFoundException If the object could not be found
      */
     fun stat(path: StoragePath): FileStat =
-        statBulk(path).firstOrNull() ?: throw NotFoundException("file", path)
+        statBulk(path).firstOrNull() ?: throw NotFoundException("file", path.toString())
 
     /**
      * Retrieve, in bulk, stats about objects

@@ -27,6 +27,8 @@ import java.net.URI
 // Semi-automatically generated code which wraps all iRODS calls with remapException
 // Generation done via text-editor macros
 
+// TODO Could probably just use a dynamic proxy instead of this
+
 private inline fun <T> remapException(call: () -> T): T {
     try {
         return call()
