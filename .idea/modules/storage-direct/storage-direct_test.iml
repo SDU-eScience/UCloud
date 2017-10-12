@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module external.linked.project.id=":storage-direct:test" external.linked.project.path="$MODULE_DIR$/../../../storage-direct" external.root.project.path="$MODULE_DIR$/../../.." external.system.id="GRADLE" external.system.module.group="dk.sdu.escience" external.system.module.type="sourceSet" external.system.module.version="1.0-SNAPSHOT" type="JAVA_MODULE" version="4">
+  <component name="FacetManager">
+    <facet type="kotlin-language" name="Kotlin">
+      <configuration version="3" platform="JVM 1.8" useProjectSettings="false">
+        <compilerSettings />
+        <compilerArguments>
+          <option name="destination" value="$MODULE_DIR$/../../../storage-direct/build/kotlin-classes/test" />
+          <option name="noStdlib" value="true" />
+          <option name="noReflect" value="true" />
+          <option name="moduleName" value="storage-direct" />
+          <option name="jvmTarget" value="1.8" />
+          <option name="addCompilerBuiltIns" value="true" />
+          <option name="loadBuiltInsFromDependencies" value="true" />
+          <option name="languageVersion" value="1.1" />
+          <option name="apiVersion" value="1.1" />
+          <option name="pluginOptions">
+            <array />
+          </option>
+          <option name="pluginClasspaths">
+            <array />
+          </option>
+        </compilerArguments>
+      </configuration>
+    </facet>
+  </component>
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
+    <output-test url="file://$MODULE_DIR$/../../../storage-direct/out/test/classes" />
+    <exclude-output />
+    <content url="file://$MODULE_DIR$/../../../storage-direct/src/test">
+      <sourceFolder url="file://$MODULE_DIR$/../../../storage-direct/src/test/java" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../../storage-direct/src/test/kotlin" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../../storage-direct/src/test/resources" type="java-test-resource" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="storage-direct_main" />
+    <orderEntry type="module" module-name="storage-core_main" />
+    <orderEntry type="library" name="Gradle: com.ceph:rados:0.3.0" level="project" />
+    <orderEntry type="library" name="Gradle: org.jetbrains.exposed:exposed:0.8.6" level="project" />
+    <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jre8:1.1.51" level="project" />
+    <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-slf4j-impl:2.9.0" level="project" />
+    <orderEntry type="library" name="Gradle: com.fasterxml.jackson.core:jackson-databind:2.9.1" level="project" />
+    <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-api:2.9.0" level="project" />
+    <orderEntry type="library" name="Gradle: com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0" level="project" />
+    <orderEntry type="library" name="Gradle: net.java.dev.jna:jna:4.1.0" level="project" />
+    <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-reflect:1.1.4-3" level="project" />
+    <orderEntry type="library" name="Gradle: joda-time:joda-time:2.9.9" level="project" />
+    <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jre7:1.1.51" level="project" />
+    <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-core:2.9.0" level="project" />
+    <orderEntry type="library" name="Gradle: com.fasterxml.jackson.core:jackson-annotations:2.9.0" level="project" />
+    <orderEntry type="library" name="Gradle: com.fasterxml.jackson.core:jackson-core:2.9.1" level="project" />
+    <orderEntry type="library" name="Gradle: org.slf4j:slf4j-api:1.7.25" level="project" />
+    <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.1.51" level="project" />
+    <orderEntry type="library" name="Gradle: org.jetbrains:annotations:13.0" level="project" />
+  </component>
+  <component name="TestModuleProperties" production-module="storage-direct_main" />
+</module>

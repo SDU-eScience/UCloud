@@ -4,6 +4,12 @@
     <bytecodeTargetLevel>
       <module name="cloud-storage_main" target="1.8" />
       <module name="cloud-storage_test" target="1.8" />
+      <module name="storage-core_main" target="1.8" />
+      <module name="storage-core_test" target="1.8" />
+      <module name="storage-direct_main" target="1.8" />
+      <module name="storage-direct_test" target="1.8" />
+      <module name="storage-irods_main" target="1.8" />
+      <module name="storage-irods_test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>
