@@ -1,18 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <annotationProcessing>
-      <profile name="Maven default annotation processors profile" enabled="true">
-        <sourceOutputDir name="target/generated-sources/annotations" />
-        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
-        <outputRelativeToContentRoot value="true" />
-        <module name="irods-access-wrapper" />
-        <module name="irodsconnectiontest" />
-      </profile>
-    </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="irods-access-wrapper" target="1.8" />
-      <module name="irodsconnectiontest" target="1.8" />
+      <module name="cloud-storage_main" target="1.8" />
+      <module name="cloud-storage_test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>
