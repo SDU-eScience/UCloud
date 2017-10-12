@@ -193,6 +193,7 @@ class IRodsAccessControlOperations(
     override fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean) {
         val localZone = services.account.zone
         rights.forEach {
+            // TODO Clean this up
             val entityName: String
             val zone: String
             if (it.entity.name.contains('#')) {
@@ -283,7 +284,7 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
 
         val userGroup = UserGroup().apply {
             userGroupName = name
-            services.account.zone
+            zone = services.connectionInformation.zone
         }
 
         try {
@@ -309,10 +310,9 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
     }
 
     override fun addUserToGroup(groupName: String, username: String) {
-        val zone = services.account.zone
-        // TODO Parse zone from username
+        val user = IRodsUser.parse(services, username)
         try {
-            services.userGroups.addUserToGroup(groupName, username, zone)
+            services.userGroups.addUserToGroup(groupName, user.name, user.zone)
         } catch (_: DuplicateDataException) {
             // Ignored
         } catch (_: InvalidGroupException) {
@@ -321,11 +321,11 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
     }
 
     override fun removeUserFromGroup(groupName: String, username: String) {
-        val zone = services.account.zone
+        val user = IRodsUser.parse(services, username)
         if (services.userGroups.findByName(groupName) == null) {
             throw NotFoundException("usergroup", groupName)
         }
-        services.userGroups.removeUserFromGroup(groupName, username, zone)
+        services.userGroups.removeUserFromGroup(groupName, user.name, user.zone)
     }
 
     override fun listGroupMembers(groupName: String): List<User> {
@@ -338,7 +338,6 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
 
 interface IRodsOperationService {
     val services: AccountServices
-
 
     fun FilePermissionEnum.toStorage(): AccessRight = when (this) {
         FilePermissionEnum.OWN -> AccessRight.OWN
