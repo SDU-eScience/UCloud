@@ -26,6 +26,7 @@ class AccountServices(private val factory: IRODSAccessObjectFactory, val account
     val specificQueries by lazy { factory.getSpecificQueryAO(account) }
     val checksums by lazy { factory.getDataObjectChecksumUtilitiesAO(account) }
 
+    // TODO Accessing these can give JargonExceptions if not wrapped. Correct exception should be a ConnectionException
     val users by lazy { UserAOWrapper(factory.getUserAO(account)) }
     val files by lazy { FileFactoryWrapper(factory.getIRODSFileFactory(account)) }
     val fileSystem by lazy { FileSystemWrapper(factory.getIRODSFileSystemAO(account)) }

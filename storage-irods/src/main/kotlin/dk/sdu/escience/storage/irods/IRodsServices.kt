@@ -3,6 +3,7 @@ package dk.sdu.escience.storage.irods
 import dk.sdu.escience.storage.*
 import org.irods.jargon.core.exception.DuplicateDataException
 import org.irods.jargon.core.exception.InvalidGroupException
+import org.irods.jargon.core.exception.JargonException
 import org.irods.jargon.core.protovalues.FilePermissionEnum
 import org.irods.jargon.core.pub.domain.AvuData
 import org.irods.jargon.core.pub.domain.ObjStat
@@ -11,6 +12,7 @@ import org.irods.jargon.core.pub.domain.UserGroup
 import org.irods.jargon.core.pub.io.IRODSFile
 import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry
 import org.irods.jargon.core.query.MetaDataAndDomainData
+import org.irods.jargon.core.transfer.TransferControlBlock
 import org.irods.jargon.core.transfer.TransferStatus
 import org.irods.jargon.core.transfer.TransferStatusCallbackListener
 import java.io.File
@@ -26,12 +28,14 @@ class IRodsPathOperations(override val services: AccountServices) : PathOperatio
             services.account.zone, "/home/${services.account.userName}")
 
     override fun parseAbsolute(absolutePath: String, addHost: Boolean): StoragePath {
-        if (absolutePath.startsWith("/")) throw IllegalArgumentException("Invalid iRODS path")
-        val components = absolutePath.split("/")
+        if (!absolutePath.startsWith("/")) throw IllegalArgumentException("Invalid iRODS path")
+        val components = absolutePath.split("/").filter { it.isNotBlank() }
         return if (addHost) {
             localRoot.pushRelative(components.joinToString("/"))
         } else {
-            StoragePath.internalCreateFromHostAndAbsolutePath(components.first(), components.joinToString("/"))
+            // TODO First component is empty
+            StoragePath.internalCreateFromHostAndAbsolutePath(
+                    components.first(), '/' + components.joinToString("/"))
         }
     }
 
@@ -56,11 +60,21 @@ class IRodsFileOperations(
     }
 
     override fun put(path: StoragePath, localFile: File) {
-        services.dataTransfer.putOperation(localFile, path.toIRods(), transferCallback(), transferControlBlock())
+        val callback = transferCallback()
+        services.dataTransfer.putOperation(localFile, path.toIRods(), callback, transferControlBlock())
+        val caughtException = callback.caughtException
+        if (caughtException != null) {
+            throw remapException(caughtException)
+        }
     }
 
     override fun get(path: StoragePath, localFile: File) {
-        services.dataTransfer.getOperation(path.toIRods(), localFile, transferCallback(), transferControlBlock())
+        val callback = transferCallback()
+        services.dataTransfer.getOperation(path.toIRods(), localFile, callback, transferControlBlock())
+        val caughtException = callback.caughtException
+        if (caughtException != null) {
+            throw remapException(caughtException)
+        }
     }
 
     override fun bundlePut(path: StoragePath, source: ZipInputStream) {
@@ -142,7 +156,12 @@ class IRodsFileOperations(
     }
 
     override fun copy(from: StoragePath, to: StoragePath) {
-        services.dataTransfer.copy(from.toIRods(), to.toIRods(), transferCallback(), transferControlBlock())
+        val callback = transferCallback()
+        services.dataTransfer.copy(from.toIRods(), to.toIRods(), callback, transferControlBlock())
+        val caughtException = callback.caughtException
+        if (caughtException != null) {
+            throw remapException(caughtException)
+        }
     }
 
     override fun verifyConsistency(localFile: File, remoteFile: StoragePath): Boolean {
@@ -151,19 +170,29 @@ class IRodsFileOperations(
 
     private fun transferControlBlock() = services.dataTransfer.buildDefaultTransferControlBlockBasedOnJargonProperties()
 
-    private fun transferCallback(): TransferStatusCallbackListener = object : TransferStatusCallbackListener {
-        override fun transferAsksWhetherToForceOperation(p0: String?, p1: Boolean):
-                TransferStatusCallbackListener.CallbackResponse {
+    class OverwriteAndSaveExceptionCallbackListener : TransferStatusCallbackListener {
+        var caughtException:  Throwable? = null
+            private set
+
+        override fun transferAsksWhetherToForceOperation(p0: String?, p1: Boolean): TransferStatusCallbackListener.CallbackResponse {
             return TransferStatusCallbackListener.CallbackResponse.YES_FOR_ALL
         }
 
         override fun overallStatusCallback(p0: TransferStatus?) {}
 
-        override fun statusCallback(p0: TransferStatus?):
-                TransferStatusCallbackListener.FileStatusCallbackResponse {
+        override fun statusCallback(status: TransferStatus?): TransferStatusCallbackListener.FileStatusCallbackResponse {
+            val exception = status?.transferException
+            if (exception != null) {
+                caughtException = exception
+                // This doesn't do what we want it to do. The client of this class will need to manually retrhwo the
+                // caught exception (hence why we save it here)
+            }
             return TransferStatusCallbackListener.FileStatusCallbackResponse.CONTINUE
         }
+
     }
+
+    private fun transferCallback() = OverwriteAndSaveExceptionCallbackListener()
 
 }
 
@@ -213,6 +242,12 @@ class IRodsAccessControlOperations(
     override fun listAt(path: StoragePath): AccessControlList {
         return services.dataObjects.listPermissionsForDataObject(path.toIRodsAbsolute()).map { it.toStorage() }
     }
+
+    override fun getMyPermissionAt(path: StoragePath): AccessRight {
+        val connectedUser = IRodsUser(services.account.userName, services.account.zone)
+        return services.dataObjects.getPermissionForDataObject(path.toIRodsAbsolute(), connectedUser.username,
+                connectedUser.zone).toStorage()
+    }
 }
 
 class IRodsFileQueryOperations(
@@ -243,14 +278,16 @@ class IRodsFileQueryOperations(
     }
 
 
-    override fun statBulk(vararg paths: StoragePath): List<FileStat?> =
-            paths.map { path ->
-                try {
-                    services.fileSystem.getObjStat(path.toIRodsAbsolute()).toStorage()
-                } catch (_: Exception) {
-                    null
-                }
+    override fun statBulk(vararg paths: StoragePath): List<FileStat?> {
+        val result = paths.map { path ->
+            try {
+                services.fileSystem.getObjStat(path.toIRodsAbsolute()).toStorage()
+            } catch (_: JargonException) {
+                null
             }
+        }
+        return result
+    }
 
     private fun CollectionAndDataObjectListingEntry.toStorage(relativeTo: StoragePath): StorageFile {
         return StorageFile(
@@ -348,7 +385,7 @@ interface IRodsOperationService {
     }
 
     fun UserFilePermission.toStorage(): AccessEntry =
-            AccessEntry(User(this.nameWithZone), this.filePermissionEnum.toStorage())
+            AccessEntry(IRodsUser.parse(services, this.nameWithZone), this.filePermissionEnum.toStorage())
 
     fun MetaDataAndDomainData.toStorage(): MetadataEntry =
             MetadataEntry(this.avuAttribute, this.avuValue)
@@ -362,7 +399,7 @@ interface IRodsOperationService {
     fun StoragePath.toIRodsAbsolute(): String = "/$host$path"
 
     fun AccessRight.toIRods(): FilePermissionEnum = when (this) {
-        AccessRight.NONE -> FilePermissionEnum.NULL
+        AccessRight.NONE -> FilePermissionEnum.NONE
         AccessRight.READ -> FilePermissionEnum.READ
         AccessRight.READ_WRITE -> FilePermissionEnum.WRITE
         AccessRight.OWN -> FilePermissionEnum.OWN

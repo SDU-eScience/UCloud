@@ -31,6 +31,21 @@ class StoragePath private constructor(private val uri: URI) {
 
     override fun toString(): String = uri.toString()
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as StoragePath
+
+        if (uri != other.uri) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return uri.hashCode()
+    }
+
     companion object {
         fun internalCreateFromHostAndAbsolutePath(host: String, path: String): StoragePath {
             return StoragePath(URI("storage", host, path, null, null).normalize())
@@ -238,6 +253,14 @@ interface AccessControlOperations {
      * @throws NotFoundException if the object is not found
      */
     fun listAt(path: StoragePath): AccessControlList
+
+    /**
+     * Get the connected user's permission on an object
+     *
+     * @throws NotFoundException if the object is not found or the connected user does not have permission to know
+     * about the object
+     */
+    fun getMyPermissionAt(path: StoragePath): AccessRight
 }
 
 interface MetadataOperations {

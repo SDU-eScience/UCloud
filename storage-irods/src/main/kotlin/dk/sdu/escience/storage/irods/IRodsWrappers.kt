@@ -3,6 +3,7 @@ package dk.sdu.escience.storage.irods
 import dk.sdu.escience.storage.NotFoundException
 import dk.sdu.escience.storage.PermissionException
 import org.irods.jargon.core.checksum.ChecksumValue
+import org.irods.jargon.core.exception.CatNoAccessException
 import org.irods.jargon.core.exception.DuplicateDataException
 import org.irods.jargon.core.exception.InvalidGroupException
 import org.irods.jargon.core.exception.JargonException
@@ -32,19 +33,36 @@ import java.net.URI
 private inline fun <T> remapException(call: () -> T): T {
     try {
         return call()
-    } catch (ex: FileNotFoundException) {
-        throw NotFoundException("object", "Unknown", ex.message ?: "Unknown")
-    } catch (ex: org.irods.jargon.core.exception.FileNotFoundException) {
-        throw NotFoundException("object", "Unknown", ex.message ?: "Unknown")
-    } catch (ex: InvalidGroupException) {
-        throw NotFoundException("usergroup", "Unknown", ex.message ?: "Unknown")
-    } catch (ex: DuplicateDataException) {
-        throw PermissionException("Cannot create new entry - Entry already exists. Cause: ${ex.message}")
-    } catch (ex: JargonException) {
-        if (ex.cause is FileNotFoundException) {
-            throw NotFoundException("object", "Unknown", ex.message ?: "Unknown")
+    } catch (exception: Exception) {
+        throw remapException(exception)
+    }
+}
+
+fun remapException(exception: Throwable): Exception {
+    when (exception) {
+        is FileNotFoundException, is org.irods.jargon.core.exception.FileNotFoundException -> {
+            return NotFoundException("object", "Unknown", exception.message ?: "Unknown")
         }
-        throw RuntimeException("Exception in iRODS. Cause is unknown.", ex)
+        is DuplicateDataException -> {
+            return PermissionException("Cannot create new entry - Entry already exists. Cause: ${exception.message}")
+        }
+        is CatNoAccessException -> {
+            return PermissionException("Not allowed. Cause: ${exception.message}")
+        }
+
+        // Needs to be just before the else branch since this is the super type of all Jargon exceptions
+        is JargonException -> {
+            val cause = exception.cause as? Exception
+            return if (cause != null) {
+                remapException(cause)
+            } else {
+                RuntimeException("Caught unexpected exception", exception)
+            }
+        }
+
+        else -> {
+            return RuntimeException("Exception in iRODS. Cause is unknown.", exception)
+        }
     }
 }
 

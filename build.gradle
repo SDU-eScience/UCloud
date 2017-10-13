@@ -28,6 +28,10 @@ subprojects {
         mavenCentral()
     }
 
+    dependencies {
+        testCompile group: 'junit', name: 'junit', version: '4.12'
+    }
+
     /*
     task fatJar(type: Jar) {
         manifest {
@@ -45,11 +49,13 @@ subprojects {
 project(":storage-irods") {
     dependencies {
         compile project(":storage-core")
+        testCompile project(":storage-core").sourceSets.test.output
     }
 }
 
 project(":storage-direct") {
     dependencies {
         compile project(":storage-core")
+        testCompile project(":storage-core").sourceSets.test.output
     }
 }
