@@ -3,10 +3,7 @@ package dk.sdu.escience.storage.irods
 import dk.sdu.escience.storage.NotFoundException
 import dk.sdu.escience.storage.PermissionException
 import org.irods.jargon.core.checksum.ChecksumValue
-import org.irods.jargon.core.exception.CatNoAccessException
-import org.irods.jargon.core.exception.DuplicateDataException
-import org.irods.jargon.core.exception.InvalidGroupException
-import org.irods.jargon.core.exception.JargonException
+import org.irods.jargon.core.exception.*
 import org.irods.jargon.core.packinstr.DataObjInp
 import org.irods.jargon.core.protovalues.FilePermissionEnum
 import org.irods.jargon.core.pub.*
@@ -51,6 +48,9 @@ fun remapException(exception: Throwable): Exception {
         }
         is CatNoAccessException -> {
             return PermissionException("Not allowed. Cause: ${exception.message}")
+        }
+        is DataNotFoundException -> {
+            return NotFoundException("Unknown", "Unknown", exception.message ?: "Unknown")
         }
 
         // Needs to be just before the else branch since this is the super type of all Jargon exceptions
@@ -130,7 +130,7 @@ class UserAOWrapper(private val delegate: UserAO) : UserAO by delegate {
         return remapException { delegate.deleteAVUMetadata(p0, p1) }
     }
 
-    override fun findByName(p0: String?): User {
+    override fun findByName(p0: String?): User? {
         return remapException { delegate.findByName(p0) }
     }
 

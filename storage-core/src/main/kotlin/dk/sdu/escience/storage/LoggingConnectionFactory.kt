@@ -10,15 +10,9 @@ import kotlin.reflect.jvm.kotlinFunction
 // This is a component for creating logging associated with each public request.
 // This is most likely not needed, but what part of the initial design. Keeping it here, in case we need it.
 
-class LoggingConnectionFactory(private val delegate: ConnectionFactory) : ConnectionFactory {
-    override fun createForAccount(username: String, password: String): Connection {
-        return LoggingConnection(delegate.createForAccount(username, password))
-    }
-}
-
 // TODO FIXME Needs to not throw exceptions when arguments cannot be serialized (e.g. input streams)
 private const val SERVICE = "service"
-class LoggingConnection(private val delegate: Connection) : Connection {
+abstract class LoggingConnection(private val delegate: Connection) : Connection {
     // Metadata added to all logging entries. Should identify why this request is occurring
     private val loggingMeta: Map<String, Any?> by lazy { mapOf(
             "user" to connectedUser.name

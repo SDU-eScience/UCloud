@@ -12,6 +12,11 @@ interface Connection {
     val users: UserOperations
     val groups: GroupOperations
 
+    // Optional services, these might not be available on all connections.
+    // For example, administrative operations should not be provided for every open connection, as
+    // some users might not be authenticated for them.
+    val userAdmin: UserAdminOperations?
+
     // Methods
     fun close()
 }

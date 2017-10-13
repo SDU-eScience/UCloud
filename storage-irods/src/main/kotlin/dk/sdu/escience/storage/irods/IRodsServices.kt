@@ -1,10 +1,9 @@
 package dk.sdu.escience.storage.irods
 
 import dk.sdu.escience.storage.*
-import org.irods.jargon.core.exception.DuplicateDataException
-import org.irods.jargon.core.exception.InvalidGroupException
-import org.irods.jargon.core.exception.JargonException
+import org.irods.jargon.core.exception.*
 import org.irods.jargon.core.protovalues.FilePermissionEnum
+import org.irods.jargon.core.protovalues.UserTypeEnum
 import org.irods.jargon.core.pub.domain.AvuData
 import org.irods.jargon.core.pub.domain.ObjStat
 import org.irods.jargon.core.pub.domain.UserFilePermission
@@ -12,7 +11,6 @@ import org.irods.jargon.core.pub.domain.UserGroup
 import org.irods.jargon.core.pub.io.IRODSFile
 import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry
 import org.irods.jargon.core.query.MetaDataAndDomainData
-import org.irods.jargon.core.transfer.TransferControlBlock
 import org.irods.jargon.core.transfer.TransferStatus
 import org.irods.jargon.core.transfer.TransferStatusCallbackListener
 import java.io.File
@@ -171,7 +169,7 @@ class IRodsFileOperations(
     private fun transferControlBlock() = services.dataTransfer.buildDefaultTransferControlBlockBasedOnJargonProperties()
 
     class OverwriteAndSaveExceptionCallbackListener : TransferStatusCallbackListener {
-        var caughtException:  Throwable? = null
+        var caughtException: Throwable? = null
             private set
 
         override fun transferAsksWhetherToForceOperation(p0: String?, p1: Boolean): TransferStatusCallbackListener.CallbackResponse {
@@ -378,6 +376,40 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
     }
 }
 
+typealias JargonUser = org.irods.jargon.core.pub.domain.User
+
+class IRodsUserAdminOperations(override val services: AccountServices) : UserAdminOperations, IRodsOperationService {
+    override fun createUser(username: String, password: String?, type: UserType) {
+        val user = JargonUser().apply {
+            name = username
+            userType = type.toIRods()
+        }
+        services.users.addUser(user)
+
+        if (password != null) {
+            modifyPassword(user, password)
+        }
+    }
+
+    override fun deleteUser(username: String) {
+        try {
+            services.users.deleteUser(username)
+        } catch (_: DataNotFoundException) {
+        } catch (_: InvalidUserException) {
+        }
+    }
+
+    override fun modifyPassword(username: String, newPassword: String) {
+        val user = services.users.findByName(username) ?: throw NotFoundException("user", username)
+        modifyPassword(user, newPassword)
+    }
+
+    private fun modifyPassword(user: JargonUser, newPassword: String) {
+        services.users.changeAUserPasswordByAnAdmin(user.nameWithZone, newPassword)
+    }
+
+}
+
 interface IRodsOperationService {
     val services: AccountServices
 
@@ -408,6 +440,12 @@ interface IRodsOperationService {
         AccessRight.READ -> FilePermissionEnum.READ
         AccessRight.READ_WRITE -> FilePermissionEnum.WRITE
         AccessRight.OWN -> FilePermissionEnum.OWN
+    }
+
+    fun UserType.toIRods(): UserTypeEnum = when (this) {
+        UserType.USER -> UserTypeEnum.RODS_USER
+        UserType.ADMIN -> UserTypeEnum.RODS_ADMIN
+        UserType.GROUP_ADMIN -> UserTypeEnum.RODS_GROUP // TODO I think?
     }
 
     fun MetadataEntry.toIRods(): AvuData = AvuData(this.key, this.value, "")
