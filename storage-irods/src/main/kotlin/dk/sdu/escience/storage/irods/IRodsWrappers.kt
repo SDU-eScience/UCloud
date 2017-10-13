@@ -43,6 +43,9 @@ fun remapException(exception: Throwable): Exception {
         is FileNotFoundException, is org.irods.jargon.core.exception.FileNotFoundException -> {
             return NotFoundException("object", "Unknown", exception.message ?: "Unknown")
         }
+        is InvalidGroupException -> {
+            return NotFoundException("usergroup", "Unknown", exception.message ?: "Unknown")
+        }
         is DuplicateDataException -> {
             return PermissionException("Cannot create new entry - Entry already exists. Cause: ${exception.message}")
         }

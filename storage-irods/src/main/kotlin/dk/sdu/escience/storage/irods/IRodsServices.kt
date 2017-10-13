@@ -349,7 +349,7 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
     override fun addUserToGroup(groupName: String, username: String) {
         val user = IRodsUser.parse(services, username)
         try {
-            services.userGroups.addUserToGroup(groupName, user.name, user.zone)
+            services.userGroups.addUserToGroup(groupName, user.username, user.zone)
         } catch (_: DuplicateDataException) {
             // Ignored
         } catch (_: InvalidGroupException) {
@@ -362,7 +362,12 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
         if (services.userGroups.findByName(groupName) == null) {
             throw NotFoundException("usergroup", groupName)
         }
-        services.userGroups.removeUserFromGroup(groupName, user.name, user.zone)
+        try {
+            services.userGroups.removeUserFromGroup(groupName, user.username, user.zone)
+        } catch (ex: JargonException) {
+            // TODO The error code from Jargon are bugged. This could also be a permission exception
+            throw NotFoundException("user", user.name)
+        }
     }
 
     override fun listGroupMembers(groupName: String): List<User> {
@@ -392,7 +397,7 @@ interface IRodsOperationService {
 
 
     fun org.irods.jargon.core.pub.domain.User.toStorage(): User {
-        return User(this.nameWithZone)
+        return IRodsUser.parse(services, this.nameWithZone)
     }
 
     fun StoragePath.toIRods(): IRODSFile = services.files.instanceIRODSFile(this.toIRodsAbsolute())

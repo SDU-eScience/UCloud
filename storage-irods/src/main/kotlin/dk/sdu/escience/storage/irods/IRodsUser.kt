@@ -2,7 +2,8 @@ package dk.sdu.escience.storage.irods
 
 import dk.sdu.escience.storage.User
 
-class IRodsUser(val username: String, val zone: String) : User(username + '#' + zone) {
+class IRodsUser(val username: String, val zone: String, private val defaultZone: String? = null) :
+        User(username + '#' + zone) {
 
     companion object {
         fun parse(services: AccountServices, stringRepresentation: String): IRodsUser {
@@ -17,6 +18,12 @@ class IRodsUser(val username: String, val zone: String) : User(username + '#' + 
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
+        if (other?.javaClass == User::class.java) {
+            val otherUser = other as User
+            val zoneToUse = defaultZone ?: zone
+            return equals(IRodsUser(otherUser.name, zoneToUse))
+        }
+
         if (javaClass != other?.javaClass) return false
 
         other as IRodsUser
