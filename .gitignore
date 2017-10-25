@@ -2,6 +2,8 @@
 ### Java template
 # Compiled class file
 *.class
+**/build/**
+*.swp
 
 # Log file
 *.log
@@ -56,7 +58,7 @@ buildNumber.properties
 # Gradle:
 .idea/**/gradle.xml
 .idea/**/libraries
-
+**/.idea/libraries/Gradle*
 # CMake
 cmake-build-debug/
 
