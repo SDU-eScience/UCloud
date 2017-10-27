@@ -10,8 +10,8 @@ buildscript {
 }
 
 subprojects {
-    group 'dk.sdu.escience'
-    version '1.0-SNAPSHOT'
+    group 'org.esciencecloud'
+    version '0.1.0'
 
     apply plugin: 'java'
     apply plugin: 'kotlin'
@@ -55,5 +55,11 @@ project(":storage-direct") {
     dependencies {
         compile project(":storage-core")
         testCompile project(":storage-core").sourceSets.test.output
+    }
+}
+
+project(":storage-service") {
+    dependencies {
+        compile project(":storage-core")
     }
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1615143931/esciencecloud-transactions-gateway.iml" filepath="$PROJECT_DIR$/.idea/modules/-1615143931/esciencecloud-transactions-gateway.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/gateway.iml" filepath="$PROJECT_DIR$/.idea/modules/gateway.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1615143931/gateway_main.iml" filepath="$PROJECT_DIR$/.idea/modules/-1615143931/gateway_main.iml" group="gateway" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1615143931/gateway_test.iml" filepath="$PROJECT_DIR$/.idea/modules/-1615143931/gateway_test.iml" group="gateway" />
+    </modules>
+  </component>
+</project>

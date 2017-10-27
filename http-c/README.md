@@ -43,22 +43,22 @@ void main() {
             obj = http_json_get("https://httpbin.org/get", &status_code);
             if (obj == NULL) {
                 fprintf(stderr, "Unable to parse JSON response!");
-            } else {
-                printf("Status code: %d\n", status_code);
-
-                if (!json_is_object(obj)) {
-                    fprintf(stderr, "Returned response is not an object!\n");
-                    break;
-                }
-
-                json_t *origin = json_object_get(obj, "origin");
-                if (!json_is_string(origin)) {
-                    fprintf(stderr, "obj.origin is not a string!");
-                    break;
-                }
-
-                printf("Origin is: %s\n", json_string_value(origin));
+                break;
             }
+            printf("Status code: %d\n", status_code);
+
+            if (!json_is_object(obj)) {
+                fprintf(stderr, "Returned response is not an object!\n");
+                break;
+            }
+
+            json_t *origin = json_object_get(obj, "origin");
+            if (!json_is_string(origin)) {
+                fprintf(stderr, "obj.origin is not a string!");
+                break;
+            }
+
+            printf("Origin is: %s\n", json_string_value(origin));
         } while (false);
 
         if (obj != NULL) json_decref(obj);

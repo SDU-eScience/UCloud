@@ -1,15 +1,20 @@
 package org.esciencecloud.kafka.examples
 
-import org.esciencecloud.kafka.gateway.PermissionRequest
-import org.esciencecloud.kafka.jsonSerde
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStreamBuilder
+import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import java.io.File
 import java.util.*
+
+typealias StoragePath = String
+data class User(val username: String, val password: String)
+data class PermissionChange(val right: String, val to: String)
+data class BulkPermissionChange(val on: StoragePath, val changes: List<PermissionChange>)
+data class PermissionRequest(val user: User, val permissions: List<BulkPermissionChange>)
 
 fun main(args: Array<String>) {
     val properties = Properties()

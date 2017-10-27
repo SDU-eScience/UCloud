@@ -1,1 +1,0 @@
-Doing some work for 3fa17e45-a523-438f-bfee-537a8d6b34ce PermissionRequest(user=User(username=rods, password=rods), permissions=[BulkPermissionChange(on=/tempZone/rods/hello.txt, changes=[PermissionChange(right=write, to=rodsAdmin)])])

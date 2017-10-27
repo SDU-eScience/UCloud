@@ -1,5 +1,5 @@
 group 'org.esciencecloud'
-version '1.0-SNAPSHOT'
+version '0.1.0'
 
 buildscript {
     ext.kotlin_version = '1.1.51'
@@ -23,13 +23,19 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: '1.1.51'
+
+    // Kafka
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.1'
     compile 'org.apache.kafka:connect-json:0.9.0.1'
     compile group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.1'
+
+    // Logging
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
     compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
+
+    // Serialization
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
-    compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: '1.1.51'
 
     // ktor
     compile "org.jetbrains.ktor:ktor-core:$ktor_version"

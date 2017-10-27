@@ -12,6 +12,9 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/storage-irods.iml" filepath="$PROJECT_DIR$/.idea/modules/storage-irods.iml" group="storage-irods" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/storage-irods/storage-irods_main.iml" filepath="$PROJECT_DIR$/.idea/modules/storage-irods/storage-irods_main.iml" group="storage-irods" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/storage-irods/storage-irods_test.iml" filepath="$PROJECT_DIR$/.idea/modules/storage-irods/storage-irods_test.iml" group="storage-irods" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/storage-service.iml" filepath="$PROJECT_DIR$/.idea/modules/storage-service.iml" group="storage-service" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/storage-service/storage-service_main.iml" filepath="$PROJECT_DIR$/.idea/modules/storage-service/storage-service_main.iml" group="storage-service" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/storage-service/storage-service_test.iml" filepath="$PROJECT_DIR$/.idea/modules/storage-service/storage-service_test.iml" group="storage-service" />
     </modules>
   </component>
 </project>
