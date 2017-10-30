@@ -1,7 +1,8 @@
 package org.esciencecloud.storage.irods
 
-import org.esciencecloud.storage.NotFoundException
-import org.esciencecloud.storage.PermissionException
+import org.esciencecloud.storage.Error
+import org.esciencecloud.storage.Ok
+import org.esciencecloud.storage.Result
 import org.irods.jargon.core.checksum.ChecksumValue
 import org.irods.jargon.core.exception.*
 import org.irods.jargon.core.packinstr.DataObjInp
@@ -36,6 +37,7 @@ private inline fun <T> remapException(call: () -> T): T {
 }
 
 fun remapException(exception: Throwable): Exception {
+    /*
     when (exception) {
         is FileNotFoundException, is org.irods.jargon.core.exception.FileNotFoundException -> {
             return NotFoundException("object", "Unknown", exception.message ?: "Unknown")
@@ -67,95 +69,159 @@ fun remapException(exception: Throwable): Exception {
             return RuntimeException("Exception in iRODS. Cause is unknown.", exception)
         }
     }
+     */
+    return RuntimeException("Exception in iRODS. Cause is unknown.", exception)
 }
 
-class UserAOWrapper(private val delegate: UserAO) : UserAO by delegate {
-    override fun modifyAVUMetadata(p0: String?, p1: AvuData?) {
-        return remapException { delegate.modifyAVUMetadata(p0, p1) }
+inline fun <T : Any> remapExceptionToResult(call: () -> T?): Result<T> {
+    return try {
+        val result = call()
+        if (result != null) Ok(result) else Error.notFound()
+    } catch (ex: Exception) {
+        remapExceptionToResult(ex)
+    }
+}
+
+fun <T : Any> remapExceptionToResult(exception: Exception): Result<T> {
+    var current = exception
+    while (true) {
+        when (current) {
+            is FileNotFoundException, is org.irods.jargon.core.exception.FileNotFoundException ->
+                return Error.notFound()
+            is InvalidGroupException -> return Error.notFound()
+            is DuplicateDataException -> return Error.duplicateResource()
+            is CatNoAccessException -> return Error.permissionDenied()
+            is DataNotFoundException -> return Error.notFound()
+
+        // Needs to be just before the else branch since this is the super type of all Jargon exceptions
+            is JargonException -> {
+                current = exception.cause as? Exception ?:
+                        throw RuntimeException("Caught unexpected exception", exception)
+            }
+
+            else -> {
+                throw RuntimeException("Exception in iRODS. Cause is unknown.", exception)
+            }
+        }
+    }
+}
+
+interface StorageUserAO {
+    fun addUser(user: User): Result<User>
+    fun findAll(): Result<List<User>>
+    fun findByName(name: String): Result<User>
+    fun findById(id: String): Result<User>
+    fun findByIdInZone(id: String, zone: String): Result<User>
+    fun listUserMetadataForUserId(id: String): Result<List<AvuData>>
+    fun listUserMetadataForUserName(id: String): Result<List<AvuData>>
+    fun deleteUser(username: String): Result<Unit>
+    fun updateUser(user: User): Result<Unit>
+    fun findWhere(whereStatement: String): Result<List<User>>
+    fun changeAUserPasswordByThatUser(username: String, currentPassword: String, newPassword: String): Result<Unit>
+    fun changeAUserPasswordByAnAdmin(username: String, newPassword: String): Result<Unit>
+    fun addAVUMetadata(username: String, avuTuple: AvuData): Result<Unit>
+    fun deleteAVUMetadata(username: String, avuTuple: AvuData): Result<Unit>
+    fun modifyAVUMetadata(username: String, avuTuple: AvuData): Result<Unit>
+    fun findUserNameLike(likeUserName: String): Result<List<String>>
+    fun getTemporaryPasswordForConnectedUser(): Result<String>
+    fun getTemporaryPasswordForASpecifiedUser(username: String): Result<String>
+    fun retriveUserDNByUserId(var1: String): Result<String>
+    fun updateUserInfo(var1: String, var2: String): Result<Unit>
+    fun updateUserDN(var1: String, var2: String): Result<Unit>
+    fun removeUserDN(var1: String, var2: String): Result<Unit>
+}
+
+class UserAOWrapper(private val delegate: UserAO) : StorageUserAO {
+    override fun modifyAVUMetadata(username: String, avuTuple: AvuData): Result<Unit> {
+        return remapExceptionToResult { delegate.modifyAVUMetadata(username, avuTuple) }
     }
 
-    override fun updateUser(p0: User?) {
-        return remapException { delegate.updateUser(p0) }
+    override fun updateUser(user: User): Result<Unit> {
+        return remapExceptionToResult { delegate.updateUser(user) }
     }
 
-    override fun addAVUMetadata(p0: String?, p1: AvuData?) {
-        return remapException { delegate.addAVUMetadata(p0, p1) }
+    override fun addAVUMetadata(username: String, avuTuple: AvuData): Result<Unit> {
+        return remapExceptionToResult { delegate.addAVUMetadata(username, avuTuple) }
     }
 
-    override fun getTemporaryPasswordForConnectedUser(): String {
-        return remapException { delegate.temporaryPasswordForConnectedUser }
+    override fun getTemporaryPasswordForConnectedUser(): Result<String> {
+        return remapExceptionToResult { delegate.temporaryPasswordForConnectedUser }
     }
 
-    override fun updateUserDN(p0: String?, p1: String?) {
-        return remapException { delegate.updateUserDN(p0, p1) }
+    override fun updateUserDN(var1: String, var2: String): Result<Unit> {
+        return remapExceptionToResult { delegate.updateUserDN(var1, var2) }
     }
 
-    override fun removeUserDN(p0: String?, p1: String?) {
-        return remapException { delegate.removeUserDN(p0, p1) }
+    override fun removeUserDN(var1: String, var2: String): Result<Unit> {
+        return remapExceptionToResult { delegate.removeUserDN(var1, var2) }
     }
 
-    override fun listUserMetadataForUserName(p0: String?): MutableList<AvuData> {
-        return remapException { delegate.listUserMetadataForUserName(p0) }
+    override fun listUserMetadataForUserName(id: String): Result<List<AvuData>> {
+        return remapExceptionToResult { delegate.listUserMetadataForUserName(id) }
     }
 
-    override fun updateUserInfo(p0: String?, p1: String?) {
-        return remapException { delegate.updateUserInfo(p0, p1) }
+    override fun updateUserInfo(var1: String, var2: String): Result<Unit> {
+        return remapExceptionToResult { delegate.updateUserInfo(var1, var2) }
     }
 
-    override fun findAll(): MutableList<User> {
-        return remapException { delegate.findAll() }
+    override fun findAll(): Result<List<User>> {
+        return remapExceptionToResult { delegate.findAll() }
     }
 
-    override fun listUserMetadataForUserId(p0: String?): MutableList<AvuData> {
-        return remapException { delegate.listUserMetadataForUserId(p0) }
+    override fun listUserMetadataForUserId(id: String): Result<List<AvuData>> {
+        return remapExceptionToResult { delegate.listUserMetadataForUserId(id) }
     }
 
-    override fun changeAUserPasswordByAnAdmin(p0: String?, p1: String?) {
-        return remapException { delegate.changeAUserPasswordByAnAdmin(p0, p1) }
+    override fun changeAUserPasswordByAnAdmin(username: String, newPassword: String): Result<Unit> {
+        return remapExceptionToResult { delegate.changeAUserPasswordByAnAdmin(username, newPassword) }
     }
 
-    override fun getTemporaryPasswordForASpecifiedUser(p0: String?): String {
-        return remapException { delegate.getTemporaryPasswordForASpecifiedUser(p0) }
+    override fun getTemporaryPasswordForASpecifiedUser(username: String): Result<String> {
+        return remapExceptionToResult { delegate.getTemporaryPasswordForASpecifiedUser(username) }
     }
 
-    override fun changeAUserPasswordByThatUser(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.changeAUserPasswordByThatUser(p0, p1, p2) }
+    override fun changeAUserPasswordByThatUser(
+            username: String,
+            currentPassword: String,
+            newPassword: String
+    ): Result<Unit> {
+        return remapExceptionToResult { delegate.changeAUserPasswordByThatUser(username, currentPassword, newPassword) }
     }
 
-    override fun findUserNameLike(p0: String?): MutableList<String> {
-        return remapException { delegate.findUserNameLike(p0) }
+    override fun findUserNameLike(likeUserName: String): Result<List<String>> {
+        return remapExceptionToResult { delegate.findUserNameLike(likeUserName) }
     }
 
-    override fun deleteAVUMetadata(p0: String?, p1: AvuData?) {
-        return remapException { delegate.deleteAVUMetadata(p0, p1) }
+    override fun deleteAVUMetadata(username: String, avuTuple: AvuData): Result<Unit> {
+        return remapExceptionToResult { delegate.deleteAVUMetadata(username, avuTuple) }
     }
 
-    override fun findByName(p0: String?): User? {
-        return remapException { delegate.findByName(p0) }
+    override fun findByName(name: String): Result<User> {
+        return remapExceptionToResult { delegate.findByName(name) }
     }
 
-    override fun findWhere(p0: String?): MutableList<User> {
-        return remapException { delegate.findWhere(p0) }
+    override fun findWhere(whereStatement: String): Result<List<User>> {
+        return remapExceptionToResult { delegate.findWhere(whereStatement) }
     }
 
-    override fun findByIdInZone(p0: String?, p1: String?): User {
-        return remapException { delegate.findByIdInZone(p0, p1) }
+    override fun findByIdInZone(id: String, zone: String): Result<User> {
+        return remapExceptionToResult { delegate.findByIdInZone(id, zone) }
     }
 
-    override fun addUser(p0: User?): User {
-        return remapException { delegate.addUser(p0) }
+    override fun addUser(user: User): Result<User> {
+        return remapExceptionToResult { delegate.addUser(user) }
     }
 
-    override fun findById(p0: String?): User {
-        return remapException { delegate.findById(p0) }
+    override fun findById(id: String): Result<User> {
+        return remapExceptionToResult { delegate.findById(id) }
     }
 
-    override fun deleteUser(p0: String?) {
-        return remapException { delegate.deleteUser(p0) }
+    override fun deleteUser(username: String): Result<Unit> {
+        return remapExceptionToResult { delegate.deleteUser(username) }
     }
 
-    override fun retriveUserDNByUserId(p0: String?): String {
-        return remapException { delegate.retriveUserDNByUserId(p0) }
+    override fun retriveUserDNByUserId(var1: String): Result<String> {
+        return remapExceptionToResult { delegate.retriveUserDNByUserId(var1) }
     }
 }
 

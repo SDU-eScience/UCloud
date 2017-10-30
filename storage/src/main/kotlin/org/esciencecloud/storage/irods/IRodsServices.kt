@@ -382,7 +382,7 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
     }
 }
 
-typealias JargonUser = org.irods.jargon.core.pub.domain.User
+private typealias JargonUser = org.irods.jargon.core.pub.domain.User
 
 class IRodsUserAdminOperations(override val services: AccountServices) : UserAdminOperations, IRodsOperationService {
     override fun createUser(username: String, password: String?, type: UserType): Result<Unit> {
@@ -390,12 +390,9 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
             name = username
             userType = type.toIRods()
         }
-        services.users.addUser(user)
 
-        if (password != null) {
-            modifyPassword(user, password)
-        }
-        return Ok.empty()
+        services.users.addUser(user).capture() ?: return Result.lastError()
+        return if (password != null) modifyPassword(user, password) else Ok.empty()
     }
 
     override fun deleteUser(username: String): Result<Unit> {
@@ -408,7 +405,7 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
     }
 
     override fun modifyPassword(username: String, newPassword: String): Result<Unit> {
-        val user = services.users.findByName(username) ?: return Error.notFound()
+        val user = services.users.findByName(username).capture() ?: return Result.lastError()
         return modifyPassword(user, newPassword)
     }
 

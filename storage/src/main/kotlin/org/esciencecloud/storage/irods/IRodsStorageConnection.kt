@@ -11,7 +11,7 @@ class IRodsStorageConnection(private val services: AccountServices) : StorageCon
     val accountType: UserTypeEnum
 
     init {
-        val name = services.users.findByName(services.account.userName)!!
+        val name = services.users.findByName(services.account.userName).capture()!!
         accountType = name.userType
     }
 

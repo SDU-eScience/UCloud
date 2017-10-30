@@ -7,18 +7,16 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
-import org.esciencecloud.kafka.JsonHttpClient
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.esciencecloud.kafka.StreamDescription
 import org.jetbrains.ktor.application.install
-import org.jetbrains.ktor.cio.copyTo
-import org.jetbrains.ktor.cio.toInputStream
 import org.jetbrains.ktor.client.DefaultHttpClient
 import org.jetbrains.ktor.client.readText
 import org.jetbrains.ktor.gson.GsonSupport
 import org.jetbrains.ktor.host.embeddedServer
 import org.jetbrains.ktor.http.ContentType
 import org.jetbrains.ktor.http.HttpHeaders
+import org.jetbrains.ktor.http.HttpMethod
 import org.jetbrains.ktor.http.HttpStatusCode
 import org.jetbrains.ktor.netty.Netty
 import org.jetbrains.ktor.pipeline.PipelineContext
@@ -26,7 +24,6 @@ import org.jetbrains.ktor.request.*
 import org.jetbrains.ktor.response.header
 import org.jetbrains.ktor.response.respond
 import org.jetbrains.ktor.response.respondText
-import org.jetbrains.ktor.response.respondWrite
 import org.jetbrains.ktor.routing.get
 import org.jetbrains.ktor.routing.post
 import org.jetbrains.ktor.routing.route
@@ -49,36 +46,12 @@ fun main(args: Array<String>) {
         routing {
             route("api") {
                 route("files") {
-                    get {
-                        val queryString = call.request.queryString()
-                        // Practically anything past the endpoint should be generic enough to refactor
-                        val endpoint = URL(resolveStorageService(), "/api/files?$queryString")
-
-                        val header = validateRequestAndPrepareKafkaHeader() ?: return@get
-                        val auth = with (header.performedFor) {
-                            Base64.getEncoder().encodeToString("$username:$password".toByteArray())
-                        }
-
-                        val proxyResponse = DefaultHttpClient.request(endpoint) {
-                            header(HttpHeaders.Accept, ContentType.Application.Json.toString())
-                            header(HttpHeaders.Authorization, "Basic $auth")
-                            header("Job-Id", header.uuid)
-                        }
-
-                        // TODO We need more general proxying here
-                        val proxyType = proxyResponse.headers[HttpHeaders.ContentType]
-                        if (proxyType != null) {
-                            call.response.header(HttpHeaders.ContentType, proxyType)
-                        }
-
-                        call.response.status(proxyResponse.status)
-                        call.respondText(proxyResponse.readText())
-                    }
+                    get { proxyJobTo(resolveStorageService()) }
                 }
 
                 route("users") {
                     post {
-                        val header = validateRequestAndPrepareKafkaHeader() ?: return@post
+                        val header = validateRequestAndPrepareJobHeader() ?: return@post
                         val request = call.receive<RestCreateUserRequest>()
 
                         val kafkaRequest = CreateUserRequest(
@@ -106,9 +79,41 @@ fun main(args: Array<String>) {
     producer.close()
 }
 
+private suspend fun PipelineContext<Unit>.proxyJobTo(
+        host: URL,
+        endpoint: String = call.request.path(),
+        includeQueryString: Boolean = true,
+        proxyMethod: HttpMethod = call.request.httpMethod
+) {
+
+    val queryString = if (includeQueryString) call.request.queryString() else ""
+    val endpointUrl = URL(host, "$endpoint?$queryString")
+
+    val header = validateRequestAndPrepareJobHeader() ?: return
+    val auth = with(header.performedFor) {
+        Base64.getEncoder().encodeToString("$username:$password".toByteArray())
+    }
+
+    val proxyResponse = DefaultHttpClient.request(endpointUrl) {
+        header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+        header(HttpHeaders.Authorization, "Basic $auth")
+        header("Job-Id", header.uuid)
+        method = proxyMethod
+    }
+
+    // TODO We need more general proxying here
+    val proxyType = proxyResponse.headers[HttpHeaders.ContentType]
+    if (proxyType != null) {
+        call.response.header(HttpHeaders.ContentType, proxyType)
+    }
+
+    call.response.status(proxyResponse.status)
+    call.respondText(proxyResponse.readText())
+}
+
 private fun resolveStorageService() = URL("http://localhost:42100") // TODO Do something slightly better ;-)
 
-private suspend fun PipelineContext<Unit>.validateRequestAndPrepareKafkaHeader(): RequestHeader? {
+private suspend fun PipelineContext<Unit>.validateRequestAndPrepareJobHeader(): RequestHeader? {
     val jobId = UUID.randomUUID().toString()
     val (username, password) = call.request.basicAuth() ?: return run {
         call.respond(HttpStatusCode.Unauthorized)
