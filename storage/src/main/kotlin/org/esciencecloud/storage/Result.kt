@@ -42,6 +42,7 @@ class Error<out T : Any>(
 ) : Result<T>() {
     companion object {
         // TODO Figure out these error codes
+        // TODO Some of these might be specific to a product
         fun <T : Any> notFound(message: String = "Entity not found") = Error<T>(123, message)
         fun <T : Any> duplicateResource(message: String = "Entity already exists") = Error<T>(123, message)
         fun <T : Any> permissionDenied(message: String = "Permission denied") = Error<T>(123, message)

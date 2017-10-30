@@ -29,7 +29,7 @@ class IRodsPathOperations(override val services: AccountServices) : PathOperatio
         if (!absolutePath.startsWith("/")) throw IllegalArgumentException("Invalid iRODS path")
         val components = absolutePath.split("/").filter { it.isNotBlank() }
         return if (addHost) {
-            localRoot.pushRelative(components.joinToString("/"))
+            localRoot.pushRelative('/' + components.joinToString("/"))
         } else {
             // TODO First component is empty
             StoragePath.internalCreateFromHostAndAbsolutePath(
@@ -288,6 +288,7 @@ class IRodsFileQueryOperations(
     }
 
     private fun CollectionAndDataObjectListingEntry.toStorage(relativeTo: StoragePath): StorageFile {
+        // TODO The ACL should also contain the information stored in the ownerName and zone
         return StorageFile(
                 path = relativeTo.pushRelative(this.pathOrName),
                 type = if (this.isCollection) FileType.DIRECTORY else FileType.FILE,
