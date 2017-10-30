@@ -1,5 +1,6 @@
 buildscript {
     ext.kotlin_version = '1.1.51'
+    ext.ktor_version = '0.4.0'
 
     repositories {
         mavenCentral()
@@ -9,57 +10,87 @@ buildscript {
     }
 }
 
-subprojects {
-    group 'org.esciencecloud'
-    version '0.1.0'
+group 'org.esciencecloud'
+version '0.1.0'
 
-    apply plugin: 'java'
-    apply plugin: 'kotlin'
-    sourceCompatibility = 1.8
+apply plugin: 'java'
+apply plugin: 'kotlin'
+sourceCompatibility = 1.8
 
-    compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
-    }
-    compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
-    }
-
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        testCompile group: 'junit', name: 'junit', version: '4.12'
-    }
-
-    task fatJar(type: Jar) {
-        manifest {
-            attributes 'Implementation-Title': 'direct-misc-exporter',
-                    'Implementation-Version': version,
-                    'Main-Class': 'dk.sdu.escience.RadosUploadKt'
-        }
-        baseName = project.name + '-all'
-        from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-        with jar
-    }
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
 }
 
-project(":storage-irods") {
-    dependencies {
-        compile project(":storage-core")
-        testCompile project(":storage-core").sourceSets.test.output
-    }
+repositories {
+    mavenCentral()
+
+    maven { url "https://dl.bintray.com/kotlin/exposed" }
+
+    // TODO Something is not being imported correctly from the DICE repo
+    maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
+    // Had to get these last two from the Maven output where it doesn't need them
+    // mvn dependency:resolve gave us the correct locations
+    maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
+    maven { url "http://download.osgeo.org/webdav/geotools" }
+
+
+    maven { url "http://dl.bintray.com/kotlin/ktor" }
+    maven { url "https://dl.bintray.com/kotlin/kotlinx" }
 }
 
-project(":storage-direct") {
-    dependencies {
-        compile project(":storage-core")
-        testCompile project(":storage-core").sourceSets.test.output
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'direct-misc-exporter',
+                'Implementation-Version': version,
+                'Main-Class': 'dk.sdu.escience.RadosUploadKt'
     }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
 }
 
-project(":storage-service") {
-    dependencies {
-        compile project(":storage-core")
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+
+    // Kotlin
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: '1.1.51'
+
+    // Serialization
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.1'
+    compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
+
+    // Ceph Connector
+    compile group: 'com.ceph', name: 'rados', version: '0.3.0'
+    compile 'org.jetbrains.exposed:exposed:0.8.6'
+
+    // iRODS connector
+    compile group: 'org.irods.jargon', name: 'jargon-core', version: '4.2.0.0-RELEASE'
+
+    // Kafka
+    compile files("../kafka-common/builds/kafka-common-0.1.0.jar")
+    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.1'
+    compile 'org.apache.kafka:connect-json:0.9.0.1'
+    compile group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.1'
+
+    // Logging
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.7'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
+
+    // ktor
+    compile "org.jetbrains.ktor:ktor-core:$ktor_version"
+    compile "org.jetbrains.ktor:ktor-netty:$ktor_version"
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
+    compile "org.jetbrains.ktor:ktor-gson:$ktor_version"
+}
+
+kotlin {
+    experimental {
+        coroutines "enable"
     }
 }

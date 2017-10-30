@@ -9,10 +9,6 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/storage-core" />
-            <option value="$PROJECT_DIR$/storage-direct" />
-            <option value="$PROJECT_DIR$/storage-irods" />
-            <option value="$PROJECT_DIR$/storage-service" />
           </set>
         </option>
       </GradleProjectSettings>
