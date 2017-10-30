@@ -1,6 +1,5 @@
 package org.esciencecloud.storage.irods
 
-import dk.sdu.escience.storage.*
 import org.esciencecloud.storage.*
 import org.irods.jargon.core.exception.*
 import org.irods.jargon.core.protovalues.FilePermissionEnum
@@ -315,8 +314,8 @@ class IRodsUserOperations(override val services: AccountServices) : UserOperatio
 }
 
 class IRodsGroupOperations(override val services: AccountServices) : GroupOperations, IRodsOperationService {
-    override fun createGroup(name: String) {
-        if (name.isEmpty()) throw IllegalArgumentException("Name cannot be empty!")
+    override fun createGroup(name: String): Result<Unit> {
+        if (name.isEmpty()) return Error.invalidMessage("Name cannot be empty!")
 
         val userGroup = UserGroup().apply {
             userGroupName = name
@@ -326,61 +325,66 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
         try {
             services.userGroups.addUserGroup(userGroup)
         } catch (_: DuplicateDataException) {
-            throw PermissionException("Group '$name' already exists!")
+            return Error.duplicateResource("Group '$name' already exists!")
         }
+        return Ok.empty()
     }
 
-    override fun deleteGroup(name: String, force: Boolean) {
-        if (name.isEmpty()) throw IllegalArgumentException("Name cannot be empty!")
+    override fun deleteGroup(name: String, force: Boolean): Result<Unit> {
+        if (name.isEmpty()) return Error.invalidMessage()
 
         val userGroup = services.userGroups.findByName(name)
         // If not empty
         try {
-            if (!force && listGroupMembers(name).isNotEmpty()) {
-                throw PermissionException("Cannot remove empty user group without force flag")
+            val groupMembers = listGroupMembers(name).capture() ?: return Result.lastError()
+            if (!force && groupMembers.isNotEmpty()) {
+                return Error.invalidMessage("Cannot remove non-empty group without force flag")
             }
         } catch (_: NotFoundException) {
-            return
+            return Ok.empty()
         }
         services.userGroups.removeUserGroup(userGroup)
+        return Ok.empty()
     }
 
-    override fun addUserToGroup(groupName: String, username: String) {
+    override fun addUserToGroup(groupName: String, username: String): Result<Unit> {
         val user = IRodsUser.parse(services, username)
         try {
             services.userGroups.addUserToGroup(groupName, user.username, user.zone)
         } catch (_: DuplicateDataException) {
             // Ignored
         } catch (_: InvalidGroupException) {
-            throw NotFoundException("usergroup", groupName)
+            return Error.notFound()
         }
+        return Ok.empty()
     }
 
-    override fun removeUserFromGroup(groupName: String, username: String) {
+    override fun removeUserFromGroup(groupName: String, username: String): Result<Unit> {
         val user = IRodsUser.parse(services, username)
         if (services.userGroups.findByName(groupName) == null) {
-            throw NotFoundException("usergroup", groupName)
+            return Error.notFound()
         }
         try {
             services.userGroups.removeUserFromGroup(groupName, user.username, user.zone)
         } catch (ex: JargonException) {
             // TODO The error code from Jargon are bugged. This could also be a permission exception
-            throw NotFoundException("user", user.name)
+            return Error.notFound()
         }
+        return Ok.empty()
     }
 
-    override fun listGroupMembers(groupName: String): List<User> {
+    override fun listGroupMembers(groupName: String): Result<List<User>> {
         if (services.userGroups.findByName(groupName) == null) {
-            throw NotFoundException("usergroup", groupName)
+            return Error.notFound()
         }
-        return services.userGroups.listUserGroupMembers(groupName).map { it.toStorage() }
+        return Ok(services.userGroups.listUserGroupMembers(groupName).map { it.toStorage() })
     }
 }
 
 typealias JargonUser = org.irods.jargon.core.pub.domain.User
 
 class IRodsUserAdminOperations(override val services: AccountServices) : UserAdminOperations, IRodsOperationService {
-    override fun createUser(username: String, password: String?, type: UserType) {
+    override fun createUser(username: String, password: String?, type: UserType): Result<Unit> {
         val user = JargonUser().apply {
             name = username
             userType = type.toIRods()
@@ -390,23 +394,26 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
         if (password != null) {
             modifyPassword(user, password)
         }
+        return Ok.empty()
     }
 
-    override fun deleteUser(username: String) {
+    override fun deleteUser(username: String): Result<Unit> {
         try {
             services.users.deleteUser(username)
         } catch (_: DataNotFoundException) {
         } catch (_: InvalidUserException) {
         }
+        return Ok.empty()
     }
 
-    override fun modifyPassword(username: String, newPassword: String) {
-        val user = services.users.findByName(username) ?: throw NotFoundException("user", username)
-        modifyPassword(user, newPassword)
+    override fun modifyPassword(username: String, newPassword: String): Result<Unit> {
+        val user = services.users.findByName(username) ?: return Error.notFound()
+        return modifyPassword(user, newPassword)
     }
 
-    private fun modifyPassword(user: JargonUser, newPassword: String) {
+    private fun modifyPassword(user: JargonUser, newPassword: String): Result<Unit> {
         services.users.changeAUserPasswordByAnAdmin(user.nameWithZone, newPassword)
+        return Ok.empty()
     }
 
 }

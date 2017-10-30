@@ -1,6 +1,5 @@
 package org.esciencecloud.storage.irods
 
-import dk.sdu.escience.storage.*
 import org.esciencecloud.storage.*
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.irods.jargon.core.connection.IRODSAccount

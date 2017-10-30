@@ -1,57 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BookmarkManager">
+    <bookmark url="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt" line="332" />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="1de3e784-bf7c-4c82-afcd-78a54d0509a2" name="Default" comment="IRods user admin tests">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/../kafka-common/builds/kafka-common-0.1.0.jar" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/.idea/kotlinc.xml" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/.idea/modules/storage-service.iml" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/.idea/modules/storage-service/storage-service_main.iml" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/.idea/modules/storage-service/storage-service_test.iml" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/storage-service/build.gradle" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/storage-service/src/main/kotlin/org/esciencecloud/storage/Server.kt" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/../kafka-common/.idea/modules/-567619998/kafka_main.iml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/../kafka-common/.idea/modules/-567619998/kafka_test.iml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/../kafka-common/.idea/modules/-567619998/work-kafka.iml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/../kafka-common/output.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/../kafka-common/src/main/kotlin/org/esciencecloud/kafka/gateway/Server.kt" afterPath="" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/dk/sdu/escience/storage/Connection.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Connection.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/dk/sdu/escience/storage/Entities.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Entities.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/dk/sdu/escience/storage/FileOperations.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/FileOperations.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/dk/sdu/escience/storage/GroupOperations.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/GroupOperations.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/dk/sdu/escience/storage/GuardedStreams.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/GuardedStreams.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/dk/sdu/escience/storage/LoggingConnectionFactory.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/LoggingConnectionFactory.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/dk/sdu/escience/storage/UserAdminOperations.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserAdminOperations.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/dk/sdu/escience/storage/UserOperations.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserOperations.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/test/kotlin/dk/sdu/escience/storage/FileTests.kt" afterPath="$PROJECT_DIR$/storage-core/src/test/kotlin/org/esciencecloud/storage/FileTests.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/test/kotlin/dk/sdu/escience/storage/UserAdminTests.kt" afterPath="$PROJECT_DIR$/storage-core/src/test/kotlin/org/esciencecloud/storage/UserAdminTests.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-core/src/test/kotlin/dk/sdu/escience/storage/UserGroupTests.kt" afterPath="$PROJECT_DIR$/storage-core/src/test/kotlin/org/esciencecloud/storage/UserGroupTests.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-direct/src/main/kotlin/dk/sdu/escience/storage/direct/DirectFileOperations.kt" afterPath="$PROJECT_DIR$/storage-direct/src/main/kotlin/org/esciencecloud/storage/direct/DirectFileOperations.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-direct/src/main/kotlin/dk/sdu/escience/storage/direct/DomainModel.kt" afterPath="$PROJECT_DIR$/storage-direct/src/main/kotlin/org/esciencecloud/storage/direct/DomainModel.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsConnection.kt" afterPath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsConnection.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsServices.kt" afterPath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsUser.kt" afterPath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsUser.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsWrappers.kt" afterPath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsWrappers.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/InternalIRodsServices.kt" afterPath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/InternalIRodsServices.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/tools/DataTest.kt" afterPath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/tools/DataTest.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/test/kotlin/dk/sdu/escience/storage/irods/IRodsFileTests.kt" afterPath="$PROJECT_DIR$/storage-irods/src/test/kotlin/org/esciencecloud/storage/irods/IRodsFileTests.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/test/kotlin/dk/sdu/escience/storage/irods/IRodsUserAdminTests.kt" afterPath="$PROJECT_DIR$/storage-irods/src/test/kotlin/org/esciencecloud/storage/irods/IRodsUserAdminTests.kt" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/storage-irods/src/test/kotlin/dk/sdu/escience/storage/irods/IRodsUserGroupTests.kt" afterPath="$PROJECT_DIR$/storage-irods/src/test/kotlin/org/esciencecloud/storage/irods/IRodsUserGroupTests.kt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../http-c/README.md" afterPath="$PROJECT_DIR$/../http-c/README.md" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/.idea/compiler.xml" afterPath="$PROJECT_DIR$/../kafka-common/.idea/compiler.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/.idea/gradle.xml" afterPath="$PROJECT_DIR$/../kafka-common/.idea/gradle.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/.idea/modules.xml" afterPath="$PROJECT_DIR$/../kafka-common/.idea/modules.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/.idea/modules/kafka.iml" afterPath="$PROJECT_DIR$/../kafka-common/.idea/modules/kafka.iml" />
+    <list default="true" id="1de3e784-bf7c-4c82-afcd-78a54d0509a2" name="Default" comment="">
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/builds/kafka-common-0.1.0.jar" afterPath="$PROJECT_DIR$/../kafka-common/builds/kafka-common-0.1.0.jar" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/.idea/workspace.xml" afterPath="$PROJECT_DIR$/../kafka-common/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/build.gradle" afterPath="$PROJECT_DIR$/../kafka-common/build.gradle" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/settings.gradle" afterPath="$PROJECT_DIR$/../kafka-common/settings.gradle" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/src/main/kotlin/org/esciencecloud/kafka/examples/SimpleStream.kt" afterPath="$PROJECT_DIR$/../kafka-common/src/main/kotlin/org/esciencecloud/kafka/examples/SimpleStream.kt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/compiler.xml" afterPath="$PROJECT_DIR$/.idea/compiler.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/gradle.xml" afterPath="$PROJECT_DIR$/.idea/gradle.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/modules.xml" afterPath="$PROJECT_DIR$/.idea/modules.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/vcs.xml" afterPath="$PROJECT_DIR$/.idea/vcs.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../kafka-common/src/main/kotlin/org/esciencecloud/kafka/SerdeJson.kt" afterPath="$PROJECT_DIR$/../kafka-common/src/main/kotlin/org/esciencecloud/kafka/SerdeJson.kt" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/build.gradle" afterPath="$PROJECT_DIR$/build.gradle" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/settings.gradle" afterPath="$PROJECT_DIR$/settings.gradle" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Connection.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Connection.kt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/GroupOperations.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/GroupOperations.kt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserAdminOperations.kt" afterPath="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserAdminOperations.kt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsConnection.kt" afterPath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsConnection.kt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt" afterPath="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/storage-service/build.gradle" afterPath="$PROJECT_DIR$/storage-service/build.gradle" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/storage-service/src/main/kotlin/org/esciencecloud/storage/Server.kt" afterPath="$PROJECT_DIR$/storage-service/src/main/kotlin/org/esciencecloud/storage/Server.kt" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <ignored path="$PROJECT_DIR$/.gradle/" />
@@ -98,20 +62,7 @@
               <path>
                 <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
                 <item name="cloud-storage" type="f1a62948:ProjectNode" />
-                <item name=":storage-core" type="2d1252cf:ModuleNode" />
-              </path>
-              <path>
-                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
-                <item name="cloud-storage" type="f1a62948:ProjectNode" />
-                <item name=":storage-core" type="2d1252cf:ModuleNode" />
-                <item name="Tasks" type="e4a08cd1:TasksNode" />
-              </path>
-              <path>
-                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
-                <item name="cloud-storage" type="f1a62948:ProjectNode" />
-                <item name=":storage-core" type="2d1252cf:ModuleNode" />
-                <item name="Tasks" type="e4a08cd1:TasksNode" />
-                <item name="other" type="c8890929:TasksNode$1" />
+                <item name=":storage-service" type="2d1252cf:ModuleNode" />
               </path>
             </expand>
             <select />
@@ -121,52 +72,106 @@
     </system>
   </component>
   <component name="FileEditorManager">
-    <leaf>
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file leaf-file-name="Server.kt" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/storage-service/src/main/kotlin/org/esciencecloud/storage/Server.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1353">
-              <caret line="72" column="8" lean-forward="false" selection-start-line="72" selection-start-column="8" selection-end-line="72" selection-end-column="8" />
+            <state relative-caret-position="462">
+              <caret line="283" column="60" lean-forward="false" selection-start-line="283" selection-start-column="60" selection-end-line="283" selection-end-column="60" />
+              <folding>
+                <element signature="e#35#1222#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="NettyApplicationHost.kt" pinned="false" current-in-tab="false">
+        <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.ktor/ktor-netty/0.4.0/ebaace55a17a4e756e90e536a0f17f654e439278/ktor-netty-0.4.0-sources.jar!/org/jetbrains/ktor/netty/NettyApplicationHost.kt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="585">
+              <caret line="46" column="17" lean-forward="false" selection-start-line="46" selection-start-column="17" selection-end-line="46" selection-end-column="17" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="KStream.java" pinned="false" current-in-tab="false">
-        <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-streams/0.11.0.1/ba0c252c66933b70426a10e0c8e4254fde953b67/kafka-streams-0.11.0.1-sources.jar!/org/apache/kafka/streams/kstream/KStream.java">
+      <file leaf-file-name="FileOperations.kt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/FileOperations.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="301">
-              <caret line="147" column="29" lean-forward="false" selection-start-line="147" selection-start-column="29" selection-end-line="147" selection-end-column="29" />
+            <state relative-caret-position="387">
+              <caret line="291" column="104" lean-forward="false" selection-start-line="291" selection-start-column="104" selection-end-line="291" selection-end-column="104" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Connection.kt" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Connection.kt">
+      <file leaf-file-name="ApplicationCall.kt" pinned="false" current-in-tab="false">
+        <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.ktor/ktor-core/0.4.0/2a29b19cca46911de7f10846e391cf58395d29f0/ktor-core-0.4.0-sources.jar!/org/jetbrains/ktor/application/ApplicationCall.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="255">
-              <caret line="17" column="8" lean-forward="false" selection-start-line="17" selection-start-column="8" selection-end-line="17" selection-end-column="8" />
+            <state relative-caret-position="240">
+              <caret line="18" column="17" lean-forward="false" selection-start-line="18" selection-start-column="17" selection-end-line="18" selection-end-column="17" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="TableDescription.class" pinned="false" current-in-tab="false">
-        <entry file="jar://$PROJECT_DIR$/../kafka-common/builds/kafka-common-0.1.0.jar!/org/esciencecloud/kafka/TableDescription.class">
+      <file leaf-file-name="Strings.kt" pinned="false" current-in-tab="false">
+        <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/1.1.51/b44aed5fe16fe27bb75488a2274d435e875fdb44/kotlin-stdlib-1.1.51-sources.jar!/kotlin/text/Strings.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="75">
-              <caret line="5" column="0" lean-forward="false" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="0" />
+            <state relative-caret-position="26">
+              <caret line="332" column="18" lean-forward="false" selection-start-line="332" selection-start-column="18" selection-end-line="332" selection-end-column="18" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="UserAdminOperations.kt" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserAdminOperations.kt">
+      <file leaf-file-name="Base64.java" pinned="false" current-in-tab="false">
+        <entry file="jar:///Library/Java/JavaVirtualMachines/jdk1.8.0_144.jdk/Contents/Home/src.zip!/java/util/Base64.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="285">
-              <caret line="19" column="11" lean-forward="false" selection-start-line="19" selection-start-column="11" selection-end-line="19" selection-end-column="11" />
+            <state relative-caret-position="331">
+              <caret line="549" column="8" lean-forward="false" selection-start-line="549" selection-start-column="8" selection-end-line="549" selection-end-column="8" />
+              <folding>
+                <element signature="e#20766#20767#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="build.gradle" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/storage-service/build.gradle">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="769">
+              <caret line="54" column="0" lean-forward="false" selection-start-line="54" selection-start-column="0" selection-end-line="54" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="ApplicationRequestProperties.kt" pinned="false" current-in-tab="false">
+        <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.ktor/ktor-core/0.4.0/2a29b19cca46911de7f10846e391cf58395d29f0/ktor-core-0.4.0-sources.jar!/org/jetbrains/ktor/request/ApplicationRequestProperties.kt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="180">
+              <caret line="15" column="23" lean-forward="false" selection-start-line="15" selection-start-column="23" selection-end-line="15" selection-end-column="23" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="IRodsServices.kt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="2550">
+              <caret line="187" column="33" lean-forward="false" selection-start-line="187" selection-start-column="33" selection-end-line="187" selection-end-column="33" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="IRodsConnection.kt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsConnection.kt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="45">
+              <caret line="3" column="0" lean-forward="false" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -1411,9 +1416,14 @@
         <option value="$PROJECT_DIR$/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsWrappers.kt" />
         <option value="$PROJECT_DIR$/storage-core/build.gradle" />
         <option value="$PROJECT_DIR$/settings.gradle" />
-        <option value="$PROJECT_DIR$/storage-service/build.gradle" />
         <option value="$PROJECT_DIR$/build.gradle" />
         <option value="$PROJECT_DIR$/storage-direct/src/main/kotlin/org/esciencecloud/storage/direct/DirectFileOperations.kt" />
+        <option value="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsConnection.kt" />
+        <option value="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserAdminOperations.kt" />
+        <option value="$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt" />
+        <option value="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/GroupOperations.kt" />
+        <option value="$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Connection.kt" />
+        <option value="$PROJECT_DIR$/storage-service/build.gradle" />
         <option value="$PROJECT_DIR$/storage-service/src/main/kotlin/org/esciencecloud/storage/Server.kt" />
       </list>
     </option>
@@ -1424,9 +1434,9 @@
     <detection-done>true</detection-done>
     <sorting>DEFINITION_ORDER</sorting>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="ProjectFrameBounds">
     <option name="y" value="22" />
-    <option name="width" value="1414" />
+    <option name="width" value="1680" />
     <option name="height" value="1024" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
@@ -1491,6 +1501,41 @@
             <path>
               <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
               <item name="storage" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="storage-irods" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+            </path>
+            <path>
+              <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
+              <item name="storage" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="storage-irods" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
+              <item name="storage" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="storage-irods" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="main" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+            </path>
+            <path>
+              <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
+              <item name="storage" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="storage-irods" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="main" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="kotlin" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
+              <item name="storage" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="storage-irods" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="main" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="kotlin" type="462c0819:PsiDirectoryNode" />
+              <item name="irods" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
+              <item name="storage" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
               <item name="storage-service" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
             </path>
             <path>
@@ -1516,26 +1561,20 @@
             </path>
             <path>
               <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
-              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
-            </path>
-            <path>
-              <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
-              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
-              <item name="kafka-common-0.1.0.jar" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="cloud-storage" type="b2602c69:ProjectViewProjectNode" />
-              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
-              <item name="kafka-common-0.1.0.jar" type="462c0819:PsiDirectoryNode" />
-              <item name="kafka" type="462c0819:PsiDirectoryNode" />
+              <item name="storage" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="storage-service" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="main" type="8a07ba80:GradleTreeStructureProvider$GradleModuleDirectoryNode" />
+              <item name="kotlin" type="462c0819:PsiDirectoryNode" />
+              <item name="storage" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
         </subPane>
       </pane>
       <pane id="AndroidView" />
-      <pane id="Scratches" />
       <pane id="Scope" />
+      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -1543,7 +1582,7 @@
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="aspect.path.notification.shown" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="SearchEverywhereHistoryKey" value="UserAoImpl&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.UserAOImpl&#10;Connection&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-core/src/main/kotlin/dk/sdu/escience/storage/Connection.kt&#10;IRodsTests&#9;null&#9;null&#10;IRodsGroupOperation&#9;null&#9;null&#10;UserGroup&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/test/kotlin/dk/sdu/escience/storage/irods/IRodsUserGroupTests.kt&#10;IRodsUser&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsUser.kt&#10;IRodsFileOPerations&#9;null&#9;null&#10;IRodsFileTest&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/test/kotlin/dk/sdu/escience/storage/irods/IRodsFileTests.kt&#10;IROdsS&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsServices.kt&#10;DataObjectAoI&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataObjectAOImpl&#10;IRodsFileOpera&#9;null&#9;null&#10;IRodsFileOperations&#9;null&#9;null&#10;IRodsTest&#9;RUN_CONFIGURATION&#9;IRodsTestSuite&#10;StoragePath&#9;null&#9;null&#10;log4j2&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/resources/log4j2.xml&#10;FileTests&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-core/src/test/kotlin/dk/sdu/escience/storage/FileTests.kt&#10;IRods&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/InternalIRodsServices.kt&#10;IRodsFileOperation&#9;null&#9;null&#10;datatransferoperationimpl&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataTransferOperationsImpl&#10;IRodsFileOPer&#9;null&#9;null&#10;build.gradle&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-core/build.gradle&#10;build&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/build.gradle&#10;build.grad&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/build.gradle&#10;DataTest&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/tools/DataTest.kt&#10;IRodsFileOPe&#9;null&#9;null&#10;IRodsPath&#9;null&#9;null&#10;Logging&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/src/main/kotlin/dk/sdu/escience/storage/LoggingConnectionFactory.kt&#10;build.gr&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/build.gradle&#10;build.gradl&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/build.gradle&#10;IROdsFileOPerat&#9;null&#9;null&#10;IRodsOperat&#9;null&#9;null&#10;IRodsServ&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsServices.kt&#10;IROD&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsConnection.kt&#10;DataTransfer&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataTransferOperationsImpl&#10;DataObje&#9;FILE&#9;jar:///Users/dthrane/.gradle/caches/modules-2/files-2.1/org.irods.jargon/jargon-core/4.2.0.0-RELEASE/7c891e2036419e7571b3e30031ea107da2b4249c/jargon-core-4.2.0.0-RELEASE.jar!/org/irods/jargon/core/pub/DataObjectAOImpl.class&#10;DataObjectAoImpl&#9;FILE&#9;jar:///Users/dthrane/.gradle/caches/modules-2/files-2.1/org.irods.jargon/jargon-core/4.2.0.0-RELEASE/7c891e2036419e7571b3e30031ea107da2b4249c/jargon-core-4.2.0.0-RELEASE.jar!/org/irods/jargon/core/pub/DataObjectAOImpl.class&#10;DataObjectAOImpl&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataObjectAOImpl&#10;DataObjectaAo&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataObjectAuditAOImpl&#10;accountserv&#9;null&#9;null" />
+    <property name="SearchEverywhereHistoryKey" value="IROdsSErv&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt&#10;UserAoImpl&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.UserAOImpl&#10;Connection&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-core/src/main/kotlin/dk/sdu/escience/storage/Connection.kt&#10;IRodsTests&#9;null&#9;null&#10;IRodsGroupOperation&#9;null&#9;null&#10;UserGroup&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/test/kotlin/dk/sdu/escience/storage/irods/IRodsUserGroupTests.kt&#10;IRodsUser&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsUser.kt&#10;IRodsFileOPerations&#9;null&#9;null&#10;IRodsFileTest&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/test/kotlin/dk/sdu/escience/storage/irods/IRodsFileTests.kt&#10;IROdsS&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsServices.kt&#10;DataObjectAoI&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataObjectAOImpl&#10;IRodsFileOpera&#9;null&#9;null&#10;IRodsFileOperations&#9;null&#9;null&#10;IRodsTest&#9;RUN_CONFIGURATION&#9;IRodsTestSuite&#10;StoragePath&#9;null&#9;null&#10;log4j2&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/resources/log4j2.xml&#10;FileTests&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-core/src/test/kotlin/dk/sdu/escience/storage/FileTests.kt&#10;IRods&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/InternalIRodsServices.kt&#10;IRodsFileOperation&#9;null&#9;null&#10;datatransferoperationimpl&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataTransferOperationsImpl&#10;IRodsFileOPer&#9;null&#9;null&#10;build.gradle&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-core/build.gradle&#10;build&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/build.gradle&#10;build.grad&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/build.gradle&#10;DataTest&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/esciencecloud-transactions/storage-irods/src/main/kotlin/dk/sdu/escience/storage/irods/tools/DataTest.kt&#10;IRodsFileOPe&#9;null&#9;null&#10;IRodsPath&#9;null&#9;null&#10;Logging&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/src/main/kotlin/dk/sdu/escience/storage/LoggingConnectionFactory.kt&#10;build.gr&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/build.gradle&#10;build.gradl&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/build.gradle&#10;IROdsFileOPerat&#9;null&#9;null&#10;IRodsOperat&#9;null&#9;null&#10;IRodsServ&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsServices.kt&#10;IROD&#9;FILE&#9;file:///Users/dthrane/Dropbox/work/cloud-storage/src/main/kotlin/dk/sdu/escience/storage/irods/IRodsConnection.kt&#10;DataTransfer&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataTransferOperationsImpl&#10;DataObje&#9;FILE&#9;jar:///Users/dthrane/.gradle/caches/modules-2/files-2.1/org.irods.jargon/jargon-core/4.2.0.0-RELEASE/7c891e2036419e7571b3e30031ea107da2b4249c/jargon-core-4.2.0.0-RELEASE.jar!/org/irods/jargon/core/pub/DataObjectAOImpl.class&#10;DataObjectAoImpl&#9;FILE&#9;jar:///Users/dthrane/.gradle/caches/modules-2/files-2.1/org.irods.jargon/jargon-core/4.2.0.0-RELEASE/7c891e2036419e7571b3e30031ea107da2b4249c/jargon-core-4.2.0.0-RELEASE.jar!/org/irods/jargon/core/pub/DataObjectAOImpl.class&#10;DataObjectAOImpl&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataObjectAOImpl&#10;DataObjectaAo&#9;PSI&#9;JAVA://org.irods.jargon.core.pub.DataObjectAuditAOImpl&#10;accountserv&#9;null&#9;null" />
     <property name="settings.editor.selected.configurable" value="project.propVCSSupport.Mappings" />
     <property name="project.structure.last.edited" value="Modules" />
     <property name="project.structure.proportion" value="0.15" />
@@ -1800,7 +1839,10 @@
       <workItem from="1508494944890" duration="2971000" />
       <workItem from="1508999805871" duration="67000" />
       <workItem from="1508999899493" duration="2881000" />
-      <workItem from="1509082630383" duration="9257000" />
+      <workItem from="1509082630383" duration="18348000" />
+      <workItem from="1509346638281" duration="94000" />
+      <workItem from="1509346834323" duration="401000" />
+      <workItem from="1509347857870" duration="2438000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1507728061959</created>
@@ -1865,7 +1907,14 @@
       <option name="project" value="LOCAL" />
       <updated>1507897521952</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Loosely coupled thoughts and experiments">
+      <created>1509106127073</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1509106127074</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TestHistory">
@@ -1901,10 +1950,10 @@
     </history-entry>
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="95210000" />
+    <option name="totallyTimeSpent" value="107234000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="22" width="1680" height="1024" extended-state="6" />
+    <frame x="0" y="22" width="1680" height="1024" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="Palette" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -1919,7 +1968,7 @@
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Capture Tool" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Designer" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.1996337" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.2020757" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="JProfiler" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Gradle" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24358974" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -1960,21 +2009,22 @@
     <MESSAGE value="iRODS file tests and logging configuration" />
     <MESSAGE value="User group tests" />
     <MESSAGE value="IRods user admin tests" />
-    <option name="LAST_COMMIT_MESSAGE" value="IRods user admin tests" />
+    <MESSAGE value="Loosely coupled thoughts and experiments" />
+    <option name="LAST_COMMIT_MESSAGE" value="Loosely coupled thoughts and experiments" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="NONE" type="kotlin-line">
           <url>file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt</url>
-          <line>236</line>
+          <line>235</line>
           <log-expression expression="&quot;Set access permissions to ${it.right.toIRods()} for ${entityName}#${zone} on object ${path}&quot;" language="kotlin" />
           <properties />
           <option name="timeStamp" value="36" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="NONE" type="kotlin-line">
           <url>file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt</url>
-          <line>246</line>
+          <line>245</line>
           <log-expression expression="&quot;Asking for permissions on ${path.toIRodsAbsolute()} for the user ${connectedUser.username} ${connectedUser.zone}&quot;" language="kotlin" />
           <properties />
           <option name="timeStamp" value="37" />
@@ -1985,11 +2035,16 @@
           <properties />
           <option name="timeStamp" value="39" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" type="kotlin-line">
+          <url>file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserAdminOperations.kt</url>
+          <properties />
+          <option name="timeStamp" value="40" />
+        </line-breakpoint>
       </breakpoints>
       <breakpoints-dialog>
         <breakpoints-dialog />
       </breakpoints-dialog>
-      <option name="time" value="40" />
+      <option name="time" value="41" />
     </breakpoint-manager>
     <watches-manager>
       <configuration name="JetRunConfigurationType">
@@ -2000,69 +2055,6 @@
     </watches-manager>
   </component>
   <component name="editorHistoryManager">
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.irods.jargon/jargon-core/4.2.0.0-RELEASE/7c891e2036419e7571b3e30031ea107da2b4249c/jargon-core-4.2.0.0-RELEASE.jar!/org/irods/jargon/core/pub/domain/User.class">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="21" column="11" lean-forward="false" selection-start-line="21" selection-start-column="11" selection-end-line="21" selection-end-column="11" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.irods.jargon/jargon-core/4.2.0.0-RELEASE/7c891e2036419e7571b3e30031ea107da2b4249c/jargon-core-4.2.0.0-RELEASE.jar!/org/irods/jargon/core/transfer/TransferControlBlock.class">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="552">
-          <caret line="53" column="0" lean-forward="false" selection-start-line="53" selection-start-column="0" selection-end-line="53" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.irods.jargon/jargon-core/4.2.0.0-RELEASE/7c891e2036419e7571b3e30031ea107da2b4249c/jargon-core-4.2.0.0-RELEASE.jar!/org/irods/jargon/core/connection/IRODSErrorScanner.class">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="552">
-          <caret line="118" column="16" lean-forward="false" selection-start-line="118" selection-start-column="16" selection-end-line="118" selection-end-column="16" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-api/2.9.0/a64868637fbebbfa24a2c84bb461c6d063ba47bf/log4j-api-2.9.0-sources.jar!/org/apache/logging/log4j/message/ReusableSimpleMessage.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="32" column="0" lean-forward="false" selection-start-line="32" selection-start-column="0" selection-end-line="32" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-api/2.9.0/a64868637fbebbfa24a2c84bb461c6d063ba47bf/log4j-api-2.9.0-sources.jar!/org/apache/logging/log4j/message/ReusableMessageFactory.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="181" column="0" lean-forward="false" selection-start-line="181" selection-start-column="0" selection-end-line="181" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-core/2.9.0/fcfa73b299b5fa4e726124746fc2a4e6441aa49d/log4j-core-2.9.0-sources.jar!/org/apache/logging/log4j/core/config/AwaitCompletionReliabilityStrategy.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="62" column="0" lean-forward="false" selection-start-line="62" selection-start-column="0" selection-end-line="62" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-core/2.9.0/fcfa73b299b5fa4e726124746fc2a4e6441aa49d/log4j-core-2.9.0-sources.jar!/org/apache/logging/log4j/core/config/LoggerConfig.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="175">
-          <caret line="400" column="0" lean-forward="false" selection-start-line="400" selection-start-column="0" selection-end-line="400" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-core/2.9.0/fcfa73b299b5fa4e726124746fc2a4e6441aa49d/log4j-core-2.9.0-sources.jar!/org/apache/logging/log4j/core/impl/ReusableLogEventFactory.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="195">
-          <caret line="74" column="0" lean-forward="false" selection-start-line="74" selection-start-column="0" selection-end-line="74" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-core/2.9.0/fcfa73b299b5fa4e726124746fc2a4e6441aa49d/log4j-core-2.9.0-sources.jar!/org/apache/logging/log4j/core/filter/AbstractFilterable.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="202">
-          <caret line="76" column="0" lean-forward="false" selection-start-line="76" selection-start-column="0" selection-end-line="76" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
     <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-api/2.9.0/a64868637fbebbfa24a2c84bb461c6d063ba47bf/log4j-api-2.9.0-sources.jar!/org/apache/logging/log4j/Level.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="202">
@@ -2175,14 +2167,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/InternalIRodsServices.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="495">
-          <caret line="37" column="9" lean-forward="false" selection-start-line="37" selection-start-column="9" selection-end-line="37" selection-end-column="9" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/storage-irods/src/test/kotlin/org/esciencecloud/storage/irods/IRodsUserAdminTests.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="180">
@@ -2211,14 +2195,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="33" column="43" lean-forward="false" selection-start-line="33" selection-start-column="43" selection-end-line="33" selection-end-column="43" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsUser.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="285">
@@ -2227,18 +2203,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsConnection.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="135">
-          <caret line="13" column="38" lean-forward="false" selection-start-line="13" selection-start-column="38" selection-end-line="13" selection-end-column="38" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsWrappers.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="913">
           <caret line="129" column="67" lean-forward="false" selection-start-line="129" selection-start-column="67" selection-end-line="129" selection-end-column="67" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -2256,14 +2225,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/storage-service/build.gradle">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="45">
-          <caret line="3" column="4" lean-forward="false" selection-start-line="3" selection-start-column="4" selection-end-line="3" selection-end-column="4" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/gradlew">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -2275,7 +2236,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="45">
           <caret line="3" column="0" lean-forward="true" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -2295,32 +2255,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Entities.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="8" column="0" lean-forward="true" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/FileOperations.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/GroupOperations.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="8" column="0" lean-forward="false" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserOperations.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="30">
           <caret line="2" column="10" lean-forward="false" selection-start-line="2" selection-start-column="10" selection-end-line="2" selection-end-column="10" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -2328,7 +2267,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="810">
           <caret line="62" column="0" lean-forward="false" selection-start-line="62" selection-start-column="0" selection-end-line="62" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -2336,39 +2274,169 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="75">
           <caret line="5" column="0" lean-forward="false" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/InternalIRodsServices.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="495">
+          <caret line="37" column="9" lean-forward="false" selection-start-line="37" selection-start-column="9" selection-end-line="37" selection-end-column="9" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Connection.kt">
+    <entry file="jar://$PROJECT_DIR$/../kafka-common/builds/kafka-common-0.1.0.jar!/org/esciencecloud/kafka/JsonSerde.class">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="17" column="8" lean-forward="false" selection-start-line="17" selection-start-column="8" selection-end-line="17" selection-end-column="8" />
+        <state relative-caret-position="165">
+          <caret line="11" column="0" lean-forward="false" selection-start-line="11" selection-start-column="0" selection-end-line="11" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/GroupOperations.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="120">
+          <caret line="8" column="0" lean-forward="false" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserAdminOperations.kt">
+    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-streams/0.11.0.1/ba0c252c66933b70426a10e0c8e4254fde953b67/kafka-streams-0.11.0.1-sources.jar!/org/apache/kafka/streams/KafkaStreams.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="285">
-          <caret line="19" column="11" lean-forward="false" selection-start-line="19" selection-start-column="11" selection-end-line="19" selection-end-column="11" />
+        <state relative-caret-position="4870">
+          <caret line="770" column="0" lean-forward="false" selection-start-line="770" selection-start-column="0" selection-end-line="770" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar:///Library/Java/JavaVirtualMachines/jdk1.8.0_144.jdk/Contents/Home/src.zip!/java/lang/Runtime.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2880">
+          <caret line="220" column="0" lean-forward="false" selection-start-line="220" selection-start-column="0" selection-end-line="220" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Entities.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="105">
+          <caret line="7" column="29" lean-forward="false" selection-start-line="7" selection-start-column="29" selection-end-line="7" selection-end-column="29" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.kafka/kafka-streams/0.11.0.1/ba0c252c66933b70426a10e0c8e4254fde953b67/kafka-streams-0.11.0.1-sources.jar!/org/apache/kafka/streams/kstream/KStream.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="301">
+        <state relative-caret-position="1800">
           <caret line="147" column="29" lean-forward="false" selection-start-line="147" selection-start-column="29" selection-end-line="147" selection-end-column="29" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-core/2.9.1/dd7a74b8b7bacb99e053dea13611e6531e383b06/log4j-core-2.9.1-sources.jar!/org/apache/logging/log4j/core/util/KeyValuePair.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="330">
+          <caret line="40" column="11" lean-forward="false" selection-start-line="40" selection-start-column="11" selection-end-line="40" selection-end-column="11" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/UserAdminOperations.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="435">
+          <caret line="29" column="46" lean-forward="false" selection-start-line="29" selection-start-column="46" selection-end-line="29" selection-end-column="46" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/Connection.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="540">
+          <caret line="36" column="0" lean-forward="false" selection-start-line="36" selection-start-column="0" selection-end-line="36" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsServices.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2550">
+          <caret line="187" column="33" lean-forward="false" selection-start-line="187" selection-start-column="33" selection-end-line="187" selection-end-column="33" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-irods/src/main/kotlin/org/esciencecloud/storage/irods/IRodsConnection.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="45">
+          <caret line="3" column="0" lean-forward="false" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.ktor/ktor-core/0.4.0/2a29b19cca46911de7f10846e391cf58395d29f0/ktor-core-0.4.0-sources.jar!/org/jetbrains/ktor/request/ApplicationRequestProperties.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="15" column="23" lean-forward="false" selection-start-line="15" selection-start-column="23" selection-end-line="15" selection-end-column="23" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar:///Library/Java/JavaVirtualMachines/jdk1.8.0_144.jdk/Contents/Home/src.zip!/java/util/Base64.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="331">
+          <caret line="549" column="8" lean-forward="false" selection-start-line="549" selection-start-column="8" selection-end-line="549" selection-end-column="8" />
+          <folding>
+            <element signature="e#20766#20767#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/1.1.51/b44aed5fe16fe27bb75488a2274d435e875fdb44/kotlin-stdlib-1.1.51-sources.jar!/kotlin/text/Strings.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="26">
+          <caret line="332" column="18" lean-forward="false" selection-start-line="332" selection-start-column="18" selection-end-line="332" selection-end-column="18" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.ktor/ktor-core/0.4.0/2a29b19cca46911de7f10846e391cf58395d29f0/ktor-core-0.4.0-sources.jar!/org/jetbrains/ktor/application/ApplicationCall.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="240">
+          <caret line="18" column="17" lean-forward="false" selection-start-line="18" selection-start-column="17" selection-end-line="18" selection-end-column="17" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-core/src/main/kotlin/org/esciencecloud/storage/FileOperations.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="387">
+          <caret line="291" column="104" lean-forward="false" selection-start-line="291" selection-start-column="104" selection-end-line="291" selection-end-column="104" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.ktor/ktor-netty/0.4.0/ebaace55a17a4e756e90e536a0f17f654e439278/ktor-netty-0.4.0-sources.jar!/org/jetbrains/ktor/netty/NettyApplicationHost.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="585">
+          <caret line="46" column="17" lean-forward="false" selection-start-line="46" selection-start-column="17" selection-end-line="46" selection-end-column="17" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/storage-service/build.gradle">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="769">
+          <caret line="54" column="0" lean-forward="false" selection-start-line="54" selection-start-column="0" selection-end-line="54" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/storage-service/src/main/kotlin/org/esciencecloud/storage/Server.kt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1353">
-          <caret line="72" column="8" lean-forward="false" selection-start-line="72" selection-start-column="8" selection-end-line="72" selection-end-column="8" />
-          <folding />
+        <state relative-caret-position="462">
+          <caret line="283" column="60" lean-forward="false" selection-start-line="283" selection-start-column="60" selection-end-line="283" selection-end-column="60" />
+          <folding>
+            <element signature="e#35#1222#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

@@ -64,8 +64,7 @@ class JsonPOJOSerializer<T> : Serializer<T> {
 
     }
 
-    override fun close() { /* empty */
-    }
+    override fun close() { /* empty */ }
 }
 
 object JsonSerde {
@@ -75,8 +74,12 @@ object JsonSerde {
     val cachedSerdes = HashMap<Class<*>, Serde<*>>()
 
     inline fun <reified Type> createJsonSerializers(): Pair<Serializer<Type>, Deserializer<Type>> {
+        return createJsonSerializersFromClass(Type::class.java)
+    }
+
+    fun <Type> createJsonSerializersFromClass(klass: Class<Type>): Pair<Serializer<Type>, Deserializer<Type>> {
         val deserializer: Deserializer<Type> = JsonPOJODeserializer()
-        val props = mapOf(SERIALIZER_POJO_CLASS to Type::class.java)
+        val props = mapOf(SERIALIZER_POJO_CLASS to klass)
         deserializer.configure(props, false)
 
         val serializer: Serializer<Type> = JsonPOJOSerializer()
@@ -85,13 +88,18 @@ object JsonSerde {
     }
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified Type> jsonSerde(): Serde<Type> {
-        val existing = JsonSerde.cachedSerdes[Type::class.java]
-        if (existing != null) return existing as Serde<Type>
-        val (serializer, deserializer) = createJsonSerializers<Type>()
+    fun <T> jsonSerdeFromClass(klass: Class<T>): Serde<T> {
+        val existing = JsonSerde.cachedSerdes[klass]
+        if (existing != null) return existing as Serde<T>
+        val (serializer, deserializer) = createJsonSerializersFromClass(klass)
         val newSerde = Serdes.serdeFrom(serializer, deserializer)
-        JsonSerde.cachedSerdes[Type::class.java] = newSerde
+        JsonSerde.cachedSerdes[klass] = newSerde
         return newSerde
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified Type> jsonSerde(): Serde<Type> {
+        return jsonSerdeFromClass(Type::class.java)
     }
 
 }
