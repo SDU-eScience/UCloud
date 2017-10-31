@@ -1,10 +1,12 @@
 package org.esciencecloud.transactions
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
@@ -12,7 +14,6 @@ import org.esciencecloud.kafka.StreamDescription
 import org.jetbrains.ktor.application.install
 import org.jetbrains.ktor.client.DefaultHttpClient
 import org.jetbrains.ktor.client.readText
-import org.jetbrains.ktor.gson.GsonSupport
 import org.jetbrains.ktor.host.embeddedServer
 import org.jetbrains.ktor.http.ContentType
 import org.jetbrains.ktor.http.HttpHeaders
@@ -24,12 +25,13 @@ import org.jetbrains.ktor.request.*
 import org.jetbrains.ktor.response.header
 import org.jetbrains.ktor.response.respond
 import org.jetbrains.ktor.response.respondText
-import org.jetbrains.ktor.routing.get
-import org.jetbrains.ktor.routing.post
-import org.jetbrains.ktor.routing.route
-import org.jetbrains.ktor.routing.routing
+import org.jetbrains.ktor.routing.*
+import org.slf4j.LoggerFactory
+import java.io.PrintWriter
+import java.io.StringWriter
 import java.net.URL
 import java.util.*
+import kotlin.coroutines.experimental.suspendCoroutine
 
 fun main(args: Array<String>) {
     val producer = KafkaProducer<String, JsonNode>(mapOf(
@@ -38,10 +40,8 @@ fun main(args: Array<String>) {
             ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to "org.apache.kafka.connect.json.JsonSerializer"
     ))
 
-    val mapper = jacksonObjectMapper()
-
     embeddedServer(Netty, port = 8080) {
-        install(GsonSupport)
+        install(JacksonSupport)
 
         routing {
             route("api") {
@@ -51,25 +51,17 @@ fun main(args: Array<String>) {
 
                 route("users") {
                     post {
-                        val header = validateRequestAndPrepareJobHeader() ?: return@post
-                        val request = call.receive<RestCreateUserRequest>()
+                        call.respond(produceKafkaRequestFromREST(producer, UserGroupsProcessor.CreateUser)
+                        { header, request: RestCreateUserRequest ->
+                            CreateUserRequest(header, request.username, request.password, request.userType)
+                        })
+                    }
 
-                        val kafkaRequest = CreateUserRequest(
-                                header,
-                                request.username,
-                                request.password,
-                                request.userType
-                        )
-
-                        // Last part should be possible to refactor out. As long as we're given a correct request.
-                        // However, this would also require a common request scheme across all services.
-                        producer.send(ProducerRecord(
-                                UserGroupsProcessor.CreateUser.requestStream.name,
-                                header.uuid,
-                                mapper.valueToTree(kafkaRequest)
-                        ))
-
-                        call.respond(GatewayJobResponse(header.uuid, JobStatus.STARTED))
+                    put {
+                        call.respond(produceKafkaRequestFromREST(producer, UserGroupsProcessor.ModifyUser)
+                        { header, request: RestModifyUser ->
+                            ModifyUserRequest(header, request.currentUsername, request.newPassword, request.newUserType)
+                        })
                     }
                 }
             }
@@ -79,15 +71,82 @@ fun main(args: Array<String>) {
     producer.close()
 }
 
+val log = LoggerFactory.getLogger("GateWayServer")
+
+inline suspend fun <reified RestType : Any, KafkaRequestType : Any> PipelineContext<Unit>.produceKafkaRequestFromREST(
+        producer: KafkaProducer<String, JsonNode>,
+        stream: RequestResponseStream<KafkaRequestType>,
+        mapper: (RequestHeader, RestType) -> KafkaRequestType
+): GatewayJobResponse {
+    val header = validateRequestAndPrepareJobHeader(respond = false) ?:
+            return GatewayJobResponse("null", JobStatus.ERROR)
+
+    val request = try {
+        call.receive<RestType>() // tryReceive does not work well enough for this
+    } catch (ex: Exception) {
+        log.info("Caught exception while trying to deserialize user-input. Assuming that user input was malformed:")
+        log.info(ex.printStacktraceToString())
+
+        call.response.status(HttpStatusCode.BadRequest)
+        return GatewayJobResponse(header.uuid, JobStatus.ERROR)
+    }
+
+    val kafkaRequest = try {
+        mapper(header, request)
+    } catch (ex: Exception) {
+        log.warn("Exception when mapping REST request to Kafka request!")
+        log.warn(ex.printStacktraceToString())
+
+        call.response.status(HttpStatusCode.InternalServerError)
+        return GatewayJobResponse(header.uuid, JobStatus.ERROR)
+    }
+
+    try {
+        producer.sendJob(stream, header, kafkaRequest)
+    } catch (ex: Exception) {
+        log.warn("Kafka producer threw an exception while sending request!")
+        log.warn(ex.printStacktraceToString())
+
+        call.response.status(HttpStatusCode.InternalServerError)
+        return GatewayJobResponse(header.uuid, JobStatus.ERROR)
+    }
+
+    return GatewayJobResponse(header.uuid, JobStatus.STARTED)
+}
+
+fun Exception.printStacktraceToString() = StringWriter().apply { printStackTrace(PrintWriter(this)) }.toString()
+
+suspend fun <T : Any> KafkaProducer<String, JsonNode>.sendJob(
+        stream: RequestResponseStream<T>,
+        header: RequestHeader,
+        request: T,
+        mapper: ObjectMapper = defaultJsonMapper
+) = sendRequest(stream, header.uuid, request, mapper)
+
+val defaultJsonMapper = jacksonObjectMapper()
+suspend fun <T : Any> KafkaProducer<String, JsonNode>.sendRequest(
+        stream: RequestResponseStream<T>,
+        key: String,
+        payload: T,
+        mapper: ObjectMapper = defaultJsonMapper
+) = suspendCoroutine<RecordMetadata> { cont ->
+    send(ProducerRecord(stream.requestStream.name, key, mapper.valueToTree(payload))) { metadata, exception ->
+        if (exception != null) {
+            cont.resumeWithException(exception)
+        } else {
+            cont.resume(metadata)
+        }
+    }
+}
+
 private suspend fun PipelineContext<Unit>.proxyJobTo(
         host: URL,
         endpoint: String = call.request.path(),
         includeQueryString: Boolean = true,
         proxyMethod: HttpMethod = call.request.httpMethod
 ) {
-
-    val queryString = if (includeQueryString) call.request.queryString() else ""
-    val endpointUrl = URL(host, "$endpoint?$queryString")
+    val queryString = if (includeQueryString) '?' + call.request.queryString() else ""
+    val endpointUrl = URL(host, endpoint + queryString)
 
     val header = validateRequestAndPrepareJobHeader() ?: return
     val auth = with(header.performedFor) {
@@ -113,10 +172,13 @@ private suspend fun PipelineContext<Unit>.proxyJobTo(
 
 private fun resolveStorageService() = URL("http://localhost:42100") // TODO Do something slightly better ;-)
 
-private suspend fun PipelineContext<Unit>.validateRequestAndPrepareJobHeader(): RequestHeader? {
+suspend fun PipelineContext<Unit>.validateRequestAndPrepareJobHeader(respond: Boolean = true): RequestHeader? {
+    // TODO This probably shouldn't do a response for us
     val jobId = UUID.randomUUID().toString()
     val (username, password) = call.request.basicAuth() ?: return run {
-        call.respond(HttpStatusCode.Unauthorized)
+        if (respond) call.respond(HttpStatusCode.Unauthorized)
+        else call.response.status(HttpStatusCode.Unauthorized)
+
         null
     }
     return RequestHeader(jobId, ProxyClient(username, password))
@@ -147,6 +209,12 @@ data class RestCreateUserRequest(
         val username: String,
         val password: String?,
         val userType: UserType
+)
+
+data class RestModifyUser(
+        val currentUsername: String,
+        val newPassword: String?,
+        val newUserType: UserType?
 )
 
 // -------------------------------------------

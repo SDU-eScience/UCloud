@@ -43,8 +43,6 @@ dependencies {
     compile "org.jetbrains.ktor:ktor-core:$ktor_version"
     compile "org.jetbrains.ktor:ktor-netty:$ktor_version"
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
-    compile "org.jetbrains.ktor:ktor-gson:$ktor_version"
-
 }
 
 compileKotlin {
