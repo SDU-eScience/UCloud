@@ -217,15 +217,20 @@ class IRodsAccessControlOperations(
         override val services: AccountServices
 ) : AccessControlOperations,
         IRodsOperationService {
-    override fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean) {
+    override fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean): Result<Unit> {
         val localZone = services.account.zone
-        rights.forEach {
+        var result: Result<Unit> = Ok.empty()
+
+        for (it in rights) {
             // TODO Clean this up
             val entityName: String
             val zone: String
             if (it.entity.name.contains('#')) {
                 val split = it.entity.name.split('#')
-                if (split.size != 2) throw IllegalArgumentException("Invalid entity path '${it.entity.name}'")
+                if (split.size != 2) {
+                    result = Error.invalidMessage("Invalid entity name '${it.entity.name}'")
+                    continue
+                }
                 entityName = split[0]
                 zone = split[1]
             } else {
@@ -233,18 +238,37 @@ class IRodsAccessControlOperations(
                 zone = localZone
             }
 
-            services.dataObjects.setAccessPermission(zone, path.toIRodsAbsolute(), entityName, it.right.toIRods())
+            // TODO This is not even remotely atomic
+            //
+            // Maybe it is perfectly okay that we skip as needed? Probably shouldn't return an error always if some
+            // of them go through. Maybe expand on Ok to include a "but" clause.
+            //
+            // In must cases it is probably perfectly acceptable that this might fail on some entries. Either way,
+            // we must document this.
+            services.dataObjects.setAccessPermission(
+                    zone,
+                    path.toIRodsAbsolute(),
+                    entityName,
+                    it.right.toIRods()
+            ).onError { result = it }
         }
+
+        return result
     }
 
-    override fun listAt(path: StoragePath): AccessControlList {
-        return services.dataObjects.listPermissionsForDataObject(path.toIRodsAbsolute()).map { it.toStorage() }
+    override fun listAt(path: StoragePath): Result<AccessControlList> {
+        val listPermissionsForDataObject = services.dataObjects.listPermissionsForDataObject(path.toIRodsAbsolute())
+        return listPermissionsForDataObject.map { it.map { it.toStorage() } }
     }
 
-    override fun getMyPermissionAt(path: StoragePath): AccessRight {
+    override fun getMyPermissionAt(path: StoragePath): Result<AccessRight> {
         val connectedUser = IRodsUser(services.account.userName, services.account.zone)
-        return services.dataObjects.getPermissionForDataObject(path.toIRodsAbsolute(), connectedUser.username,
-                connectedUser.zone).toStorage()
+
+        return services.dataObjects.getPermissionForDataObject(
+                path.toIRodsAbsolute(),
+                connectedUser.username,
+                connectedUser.zone
+        ).map { it.toStorage() }
     }
 }
 
@@ -252,7 +276,7 @@ class IRodsFileQueryOperations(
         val paths: PathOperations,
         override val services: AccountServices
 ) : FileQueryOperations, IRodsOperationService {
-    override fun listAt(path: StoragePath, preloadACLs: Boolean, preloadMetadata: Boolean): List<StorageFile> {
+    override fun listAt(path: StoragePath, preloadACLs: Boolean, preloadMetadata: Boolean): Result<List<StorageFile>> {
         // Always loads ACLs
         val absolutePath = path.toIRodsAbsolute()
         var results = services.collectionsAndObjectSearch
@@ -263,20 +287,20 @@ class IRodsFileQueryOperations(
             results = results.map {
                 val metadata = services.dataObjects
                         .findMetadataValuesForDataObject(it.path.toIRodsAbsolute())
-                        .map { it.toStorage() }
+                        .map { it.map { it.toStorage() } }.capture() ?: return Result.lastError()
                 StorageFile(it.path, it.type, it.acl, metadata)
             }
         }
 
-        return results
+        return Ok(results)
     }
 
-    override fun listAtPathWithMetadata(path: StoragePath, query: Any?): List<StorageFile> {
+    override fun listAtPathWithMetadata(path: StoragePath, query: Any?): Result<List<StorageFile>> {
         TODO("query interface not implemented")
     }
 
 
-    override fun statBulk(vararg paths: StoragePath): List<FileStat?> {
+    override fun statBulk(vararg paths: StoragePath): Result<List<FileStat?>> {
         val result = paths.map { path ->
             try {
                 services.fileSystem.getObjStat(path.toIRodsAbsolute()).toStorage()
@@ -284,7 +308,7 @@ class IRodsFileQueryOperations(
                 null
             }
         }
-        return result
+        return Ok(result)
     }
 
     private fun CollectionAndDataObjectListingEntry.toStorage(relativeTo: StoragePath): StorageFile {

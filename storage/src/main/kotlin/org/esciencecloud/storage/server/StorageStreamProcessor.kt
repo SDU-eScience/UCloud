@@ -9,6 +9,9 @@ import org.esciencecloud.storage.Result
 import java.util.*
 
 class StorageStreamProcessor(private val storageService: StorageService) {
+    private val ugProcessor = UserGroupsStreamProcessor(storageService)
+    private val acProcessor = AccessControlStreamProcessor(storageService)
+
     fun retrieveKafkaConfiguration(): Properties {
         val properties = Properties()
         properties[StreamsConfig.APPLICATION_ID_CONFIG] = "storage-processor"
@@ -18,8 +21,8 @@ class StorageStreamProcessor(private val storageService: StorageService) {
     }
 
     fun constructStreams(builder: KStreamBuilder) {
-        UserGroupsProcessor.CreateUser.mapResult(builder) { createUser(it) }
-        UserGroupsProcessor.ModifyUser.mapResult(builder) { modifyUser(it) }
+        ugProcessor.init(builder)
+        acProcessor.init(builder)
 
         // TODO FIXME THIS SHOULD BE REMOVED LATER
         // TODO FIXME THIS SHOULD BE REMOVED LATER
@@ -34,44 +37,5 @@ class StorageStreamProcessor(private val storageService: StorageService) {
         // TODO How will we have other internal systems do work here? They won't have a performed by when the task
         // is entirely internal to the system. This will probably just be some simple API token such that we can confirm
         // who is performing the request.
-    }
-
-    private fun createUser(request: CreateUserRequest): Result<Unit> {
-        val connection = storageService.validateRequest(request).capture() ?: return Result.lastError()
-        val userAdmin = connection.userAdmin ?: return Error(123, "Not allowed")
-        return userAdmin.createUser(request.username, request.password)
-    }
-
-    private fun modifyUser(request: ModifyUserRequest): Result<Unit> {
-        val connection = storageService.validateRequest(request).capture() ?: return Result.lastError()
-        return when {
-            connection.userAdmin != null -> {
-                val userAdmin = connection.userAdmin!!
-                // We can do whatever
-                if (request.newPassword != null) {
-                    userAdmin.modifyPassword(request.currentUsername, request.newPassword)
-                }
-
-                if (request.newUserType != null) {
-                    TODO("Not provided by the API")
-                }
-
-                Ok.empty()
-            }
-
-            request.currentUsername == connection.connectedUser.name -> {
-                // Otherwise we need to modifying ourselves
-                // And even then, we only allow certain things
-
-                if (request.newUserType != null) return Error.permissionDenied()
-                if (request.newPassword != null) {
-                    val currentPassword = request.header.performedFor.password // TODO This shouldn't be available directly
-                    connection.users.modifyMyPassword(currentPassword, request.newPassword)
-                }
-                Ok.empty()
-            }
-
-            else -> Error.permissionDenied()
-        }
     }
 }

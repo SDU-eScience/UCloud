@@ -68,7 +68,7 @@ abstract class AbstractFileTests {
     fun testPutAndList() {
         val path = adminStorageConnection.paths.homeDirectory.push("file_in_list.txt")
         adminStorageConnection.files.put(path, emptyDummyFile)
-        val output = adminStorageConnection.fileQuery.listAt(path.pop())
+        val output = adminStorageConnection.fileQuery.listAt(path.pop()).orThrow()
         assertThat(output.map { it.path }, hasItem(path))
     }
 
@@ -76,9 +76,9 @@ abstract class AbstractFileTests {
     fun testValidFileDeletion() {
         val path = adminStorageConnection.paths.homeDirectory.push("file_to_delete.txt")
         adminStorageConnection.files.put(path, emptyDummyFile)
-        assertThat(adminStorageConnection.fileQuery.listAt(path.pop()).map { it.path }, hasItem(path))
+        assertThat(adminStorageConnection.fileQuery.listAt(path.pop()).orThrow().map { it.path }, hasItem(path))
         adminStorageConnection.files.delete(path)
-        assertThat(adminStorageConnection.fileQuery.listAt(path.pop()).map { it.path }, not(hasItem(path)))
+        assertThat(adminStorageConnection.fileQuery.listAt(path.pop()).orThrow().map { it.path }, not(hasItem(path)))
     }
 
     @Test
@@ -96,7 +96,7 @@ abstract class AbstractFileTests {
 
         try {
             userStorageConnection.files.createDirectory(path, true)
-            assertTrue(userStorageConnection.fileQuery.exists(path))
+            assertTrue(userStorageConnection.fileQuery.exists(path).orThrow())
         } finally {
             userStorageConnection.files.delete(path)
             userStorageConnection.files.delete(parent)
@@ -108,8 +108,8 @@ abstract class AbstractFileTests {
         val parent = userStorageConnection.paths.homeDirectory.push("recursive2")
         val path = parent.push("a")
         userStorageConnection.files.createDirectory(path, false)
-        assertFalse(userStorageConnection.fileQuery.exists(path))
-        assertFalse(userStorageConnection.fileQuery.exists(parent))
+        assertFalse(userStorageConnection.fileQuery.exists(path).orThrow())
+        assertFalse(userStorageConnection.fileQuery.exists(parent).orThrow())
     }
 
     @Test
@@ -122,7 +122,7 @@ abstract class AbstractFileTests {
     fun testCreateFileAndSetPermissionOnOtherUser() {
         val path = adminStorageConnection.paths.homeDirectory.pop().push("public", "file-for-test")
 
-        if (adminStorageConnection.fileQuery.exists(path)) adminStorageConnection.files.delete(path)
+        if (adminStorageConnection.fileQuery.exists(path).orThrow()) adminStorageConnection.files.delete(path)
 
         adminStorageConnection.files.put(path, emptyDummyFile)
 

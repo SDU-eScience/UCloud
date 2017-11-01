@@ -79,7 +79,7 @@ inline suspend fun <reified RestType : Any, KafkaRequestType : Any> PipelineCont
         mapper: (RequestHeader, RestType) -> KafkaRequestType
 ): GatewayJobResponse {
     val header = validateRequestAndPrepareJobHeader(respond = false) ?:
-            return GatewayJobResponse("null", JobStatus.ERROR)
+            return GatewayJobResponse("null", JobStatus.ERROR, null)
 
     val request = try {
         call.receive<RestType>() // tryReceive does not work well enough for this
@@ -88,7 +88,7 @@ inline suspend fun <reified RestType : Any, KafkaRequestType : Any> PipelineCont
         log.info(ex.printStacktraceToString())
 
         call.response.status(HttpStatusCode.BadRequest)
-        return GatewayJobResponse(header.uuid, JobStatus.ERROR)
+        return GatewayJobResponse(header.uuid, JobStatus.ERROR, null)
     }
 
     val kafkaRequest = try {
@@ -98,20 +98,20 @@ inline suspend fun <reified RestType : Any, KafkaRequestType : Any> PipelineCont
         log.warn(ex.printStacktraceToString())
 
         call.response.status(HttpStatusCode.InternalServerError)
-        return GatewayJobResponse(header.uuid, JobStatus.ERROR)
+        return GatewayJobResponse(header.uuid, JobStatus.ERROR, null)
     }
 
-    try {
+    val record = try {
         producer.sendJob(stream, header, kafkaRequest)
     } catch (ex: Exception) {
         log.warn("Kafka producer threw an exception while sending request!")
         log.warn(ex.printStacktraceToString())
 
         call.response.status(HttpStatusCode.InternalServerError)
-        return GatewayJobResponse(header.uuid, JobStatus.ERROR)
+        return GatewayJobResponse(header.uuid, JobStatus.ERROR, null)
     }
 
-    return GatewayJobResponse(header.uuid, JobStatus.STARTED)
+    return GatewayJobResponse(header.uuid, JobStatus.STARTED, record)
 }
 
 fun Exception.printStacktraceToString() = StringWriter().apply { printStackTrace(PrintWriter(this)) }.toString()
@@ -203,7 +203,11 @@ enum class JobStatus {
     ERROR
 }
 
-data class GatewayJobResponse(val jobId: String, val status: JobStatus)
+class GatewayJobResponse(val jobId: String, val status: JobStatus, metadata: RecordMetadata?) {
+    val offset = metadata?.offset()
+    val partition = metadata?.partition()
+    val timestamp = metadata?.timestamp()
+}
 
 data class RestCreateUserRequest(
         val username: String,

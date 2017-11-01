@@ -33,6 +33,27 @@ sealed class Result<out T : Any> {
             }
         }
     }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <R : Any> map(mapper: (T) -> R): Result<R> {
+        return when (this) {
+            is Ok<T> -> Ok(mapper(this.result))
+            is Error<T> -> this as Result<R>
+        }
+    }
+
+    fun orThrow(): T {
+        return when (this) {
+            is Ok<T> -> result
+            is Error<T> -> throw RuntimeException("Error in Result! Error code: $errorCode. Message: $message")
+        }
+    }
+
+    inline fun onError(handler: (Error<T>) -> Unit) {
+        when (this) {
+            is Error<T> -> handler(this)
+        }
+    }
 }
 
 // It is always safe to cast an error regardless of the generic

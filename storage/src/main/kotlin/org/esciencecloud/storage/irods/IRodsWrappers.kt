@@ -10,11 +10,9 @@ import org.irods.jargon.core.protovalues.FilePermissionEnum
 import org.irods.jargon.core.pub.*
 import org.irods.jargon.core.pub.domain.*
 import org.irods.jargon.core.pub.io.*
-import org.irods.jargon.core.query.AVUQueryElement
-import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry
-import org.irods.jargon.core.query.MetaDataAndDomainData
-import org.irods.jargon.core.query.PagingAwareCollectionListing
+import org.irods.jargon.core.query.*
 import org.irods.jargon.core.transfer.FileRestartInfo
+import org.irods.jargon.core.transfer.FileRestartManagementException
 import org.irods.jargon.core.transfer.TransferControlBlock
 import org.irods.jargon.core.transfer.TransferStatusCallbackListener
 import java.io.File
@@ -483,250 +481,113 @@ class UserGroupsWrapper(private val delegate: UserGroupAO) : UserGroupAO by dele
     }
 }
 
-class DataObjectsWrapper(private val delegate: DataObjectAO) : DataObjectAO by delegate {
-    override fun isUserHasAccess(p0: String?, p1: String?): Boolean {
-        return remapException { delegate.isUserHasAccess(p0, p1) }
+interface StorageDataObjectAO {
+    /*
+    fun findByCollectionNameAndDataName(var1: String, var2: String): DataObject
+    fun instanceIRODSFileForPath(var1: String): IRODSFile
+    fun addAVUMetadata(var1: String, var2: AvuData)
+    fun findMetadataValuesForDataObjectUsingAVUQuery(var1: List<AVUQueryElement>, var2: String, var3: String): List<MetaDataAndDomainData>
+    fun findMetadataValuesForDataObjectUsingAVUQuery(var1: List<AVUQueryElement>, var2: String, var3: String, var4: Boolean): List<MetaDataAndDomainData>
+    fun findMetadataValuesForDataObjectUsingAVUQuery(var1: List<AVUQueryElement>, var2: String): List<MetaDataAndDomainData>
+    fun findMetadataValuesByMetadataQuery(var1: List<AVUQueryElement>): List<MetaDataAndDomainData>
+    fun findMetadataValuesByMetadataQuery(var1: List<AVUQueryElement>, var2: Int): List<MetaDataAndDomainData>
+    fun findMetadataValuesByMetadataQuery(var1: List<AVUQueryElement>, var2: Int, var3: Boolean): List<MetaDataAndDomainData>
+    fun findDomainByMetadataQuery(var1: List<AVUQueryElement>): List<DataObject>
+    fun findDomainByMetadataQuery(var1: List<AVUQueryElement>, var2: Int): List<DataObject>
+    fun findDomainByMetadataQuery(var1: List<AVUQueryElement>, var2: Int, var3: Boolean): List<DataObject>
+    fun findMetadataValuesForDataObject(var1: String, var2: String): List<MetaDataAndDomainData>
+    fun replicateIrodsDataObject(var1: String, var2: String)
+    fun getResourcesForDataObject(var1: String, var2: String): List<Resource>
+    fun computeMD5ChecksumOnDataObject(var1: IRODSFile): String
+    fun replicateIrodsDataObjectToAllResourcesInResourceGroup(var1: String, var2: String)
+    fun deleteAVUMetadata(var1: String, var2: AvuData)
+    fun findByAbsolutePath(var1: String): DataObject
+    fun setAccessPermissionRead(var1: String, var2: String, var3: String)
+    fun setAccessPermissionWrite(var1: String, var2: String, var3: String)
+    fun setAccessPermissionOwn(var1: String, var2: String, var3: String)
+    fun removeAccessPermissionsForUser(var1: String, var2: String, var3: String)
+    fun modifyAvuValueBasedOnGivenAttributeAndUnit(var1: String, var2: AvuData)
+    fun modifyAVUMetadata(var1: String, var2: AvuData, var3: AvuData)
+    fun modifyAVUMetadata(var1: String, var2: String, var3: AvuData, var4: AvuData)
+    fun addAVUMetadata(var1: String, var2: String, var3: AvuData)
+    fun listPermissionsForDataObject(var1: String, var2: String): List<UserFilePermission>
+    fun getPermissionForDataObjectForUserName(var1: String, var2: String, var3: String): UserFilePermission
+    fun getPermissionForDataObjectForUserName(var1: String, var2: String): UserFilePermission
+    fun setAccessPermissionReadInAdminMode(var1: String, var2: String, var3: String)
+    fun setAccessPermissionWriteInAdminMode(var1: String, var2: String, var3: String)
+    fun setAccessPermissionOwnInAdminMode(var1: String, var2: String, var3: String)
+    fun removeAccessPermissionsForUserInAdminMode(var1: String, var2: String, var3: String)
+    fun listFileResources(var1: String): List<Resource>
+    fun findGivenObjStat(var1: ObjStat): DataObject
+    fun findById(var1: Int): DataObject
+    fun listReplicationsForFileInResGroup(var1: String, var2: String, var3: String): List<DataObject>
+    fun getTotalNumberOfReplsForDataObject(var1: String, var2: String): Int
+    fun getTotalNumberOfReplsInResourceGroupForDataObject(var1: String, var2: String, var3: String): Int
+    fun trimDataObjectReplicas(var1: String, var2: String, var3: String, var4: Int, var5: Int, var6: Boolean)
+    fun listReplicationsForFile(var1: String, var2: String): List<DataObject>
+    fun replicateIrodsDataObjectAsynchronously(var1: String, var2: String, var3: String, var4: Int)
+    fun computeSHA1ChecksumOfIrodsFileByReadingDataFromStream(var1: String): ByteArray
+    fun findMetadataValueForDataObjectById(var1: ObjStat, var2: Int): MetaDataAndDomainData
+    fun findMetadataValueForDataObjectById(var1: String, var2: Int): MetaDataAndDomainData
+    fun computeChecksumOnDataObject(var1: IRODSFile): ChecksumValue
+    fun retrieveRestartInfoIfAvailable(var1: FileRestartInfo.RestartType, var2: String): FileRestartInfo
+    */
+
+    fun getPermissionForDataObject(absolutePath: String, username: String, zone: String): Result<FilePermissionEnum>
+    fun verifyChecksumBetweenLocalAndIrods(irodsFile: IRODSFile, localFile: File): Result<Boolean>
+    fun listPermissionsForDataObject(absolutePath: String): Result<List<UserFilePermission>>
+    fun setAccessPermission(zone: String, absolutePath: String, username: String,
+                            permission: FilePermissionEnum): Result<Unit>
+
+
+    fun addBulkAVUMetadataToDataObject(absolutePath: String, dataToAdd: List<AvuData>): Result<List<BulkAVUOperationResponse>>
+    fun deleteBulkAVUMetadataFromDataObject(absolutePath: String, dataToDelete: List<AvuData>): Result<List<BulkAVUOperationResponse>>
+    fun deleteAllAVUForDataObject(absolutePath: String): Result<Unit>
+
+
+    fun findMetadataValuesForDataObject(file: IRODSFile): Result<List<MetaDataAndDomainData>>
+    fun findMetadataValuesForDataObject(absolutePath: String): Result<List<MetaDataAndDomainData>>
+}
+
+class DataObjectsWrapper(private val delegate: DataObjectAO) : StorageDataObjectAO {
+    override fun findMetadataValuesForDataObject(absolutePath: String): Result<List<MetaDataAndDomainData>> {
+        return remapExceptionToResult { delegate.findMetadataValuesForDataObject(absolutePath) }
     }
 
-    override fun replicateIrodsDataObjectAsynchronously(p0: String?, p1: String?, p2: String?, p3: Int) {
-        return remapException { delegate.replicateIrodsDataObjectAsynchronously(p0, p1, p2, p3) }
+    override fun findMetadataValuesForDataObject(file: IRODSFile): Result<List<MetaDataAndDomainData>> {
+        return remapExceptionToResult { delegate.findMetadataValuesForDataObject(file) }
     }
 
-    override fun findByCollectionNameAndDataName(p0: String?, p1: String?): DataObject {
-        return remapException { delegate.findByCollectionNameAndDataName(p0, p1) }
+    override fun addBulkAVUMetadataToDataObject(absolutePath: String, dataToAdd: List<AvuData>): Result<List<BulkAVUOperationResponse>> {
+        return remapExceptionToResult { delegate.addBulkAVUMetadataToDataObject(absolutePath, dataToAdd) }
     }
 
-    override fun setAccessPermissionOwnInAdminMode(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.setAccessPermissionOwnInAdminMode(p0, p1, p2) }
+    override fun deleteBulkAVUMetadataFromDataObject(absolutePath: String, dataToDelete: List<AvuData>): Result<List<BulkAVUOperationResponse>> {
+        return remapExceptionToResult { delegate.deleteBulkAVUMetadataFromDataObject(absolutePath, dataToDelete) }
     }
 
-    override fun listFileResources(p0: String?): MutableList<Resource> {
-        return remapException { delegate.listFileResources(p0) }
+    override fun deleteAllAVUForDataObject(absolutePath: String): Result<Unit> {
+        return remapExceptionToResult { delegate.deleteAllAVUForDataObject(absolutePath) }
     }
 
-    override fun findMetadataValuesByMetadataQuery(p0: MutableList<AVUQueryElement>?, p1: Int, p2: Boolean): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesByMetadataQuery(p0) }
+    override fun getPermissionForDataObject(absolutePath: String, username: String, zone: String):
+            Result<FilePermissionEnum> {
+        return remapExceptionToResult { delegate.getPermissionForDataObject(absolutePath, username, zone) }
     }
 
-    override fun findMetadataValuesByMetadataQuery(p0: MutableList<AVUQueryElement>?): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesByMetadataQuery(p0) }
+    override fun verifyChecksumBetweenLocalAndIrods(irodsFile: IRODSFile, localFile: File): Result<Boolean> {
+        return remapExceptionToResult { delegate.verifyChecksumBetweenLocalAndIrods(irodsFile, localFile) }
     }
 
-    override fun findMetadataValuesByMetadataQuery(p0: MutableList<AVUQueryElement>?, p1: Int): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesByMetadataQuery(p0) }
+    override fun listPermissionsForDataObject(absolutePath: String): Result<List<UserFilePermission>> {
+        return remapExceptionToResult { delegate.listPermissionsForDataObject(absolutePath) }
     }
 
-    override fun computeChecksumOnDataObject(p0: IRODSFile?): ChecksumValue {
-        return remapException { delegate.computeChecksumOnDataObject(p0) }
+    override fun setAccessPermission(zone: String, absolutePath: String, username: String,
+                                     permission: FilePermissionEnum): Result<Unit> {
+        return remapExceptionToResult { delegate.setAccessPermission(zone, absolutePath, username, permission) }
     }
 
-    override fun replicateIrodsDataObjectToAllResourcesInResourceGroup(p0: String?, p1: String?) {
-        return remapException { delegate.replicateIrodsDataObjectToAllResourcesInResourceGroup(p0, p1) }
-    }
-
-    override fun listReplicationsForFileInResGroup(p0: String?, p1: String?, p2: String?): MutableList<DataObject> {
-        return remapException { delegate.listReplicationsForFileInResGroup(p0, p1, p2) }
-    }
-
-    override fun modifyAvuValueBasedOnGivenAttributeAndUnit(p0: String?, p1: AvuData?) {
-        return remapException { delegate.modifyAvuValueBasedOnGivenAttributeAndUnit(p0, p1) }
-    }
-
-    override fun listReplicationsForFile(p0: String?, p1: String?): MutableList<DataObject> {
-        return remapException { delegate.listReplicationsForFile(p0, p1) }
-    }
-
-    override fun verifyChecksumBetweenLocalAndIrods(p0: IRODSFile?, p1: File?): Boolean {
-        return remapException { delegate.verifyChecksumBetweenLocalAndIrods(p0, p1) }
-    }
-
-    override fun setAccessPermissionReadInAdminMode(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.setAccessPermissionReadInAdminMode(p0, p1, p2) }
-    }
-
-    override fun deleteBulkAVUMetadataFromDataObject(p0: String?, p1: MutableList<AvuData>?): MutableList<BulkAVUOperationResponse> {
-        return remapException { delegate.deleteBulkAVUMetadataFromDataObject(p0, p1) }
-    }
-
-    override fun getHostForGetOperation(p0: String?, p1: String?): String {
-        return remapException { delegate.getHostForGetOperation(p0, p1) }
-    }
-
-    override fun findMetadataValueForDataObjectById(p0: ObjStat?, p1: Int): MetaDataAndDomainData {
-        return remapException { delegate.findMetadataValueForDataObjectById(p0, p1) }
-    }
-
-    override fun findMetadataValueForDataObjectById(p0: String?, p1: Int): MetaDataAndDomainData {
-        return remapException { delegate.findMetadataValueForDataObjectById(p0, p1) }
-    }
-
-    override fun findMetadataValuesForDataObjectUsingAVUQuery(p0: MutableList<AVUQueryElement>?, p1: String?, p2: String?): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesForDataObjectUsingAVUQuery(p0, p1, p2) }
-    }
-
-    override fun findMetadataValuesForDataObjectUsingAVUQuery(p0: MutableList<AVUQueryElement>?, p1: String?): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesForDataObjectUsingAVUQuery(p0, p1) }
-    }
-
-    override fun findMetadataValuesForDataObjectUsingAVUQuery(p0: MutableList<AVUQueryElement>?, p1: String?, p2: String?, p3: Boolean): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesForDataObjectUsingAVUQuery(p0, p1, p2, p3) }
-    }
-
-    override fun removeAccessPermissionsForUser(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.removeAccessPermissionsForUser(p0, p1, p2) }
-    }
-
-    override fun removeAccessPermissionsForUserInAdminMode(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.removeAccessPermissionsForUserInAdminMode(p0, p1, p2) }
-    }
-
-    override fun instanceIRODSFileForPath(p0: String?): IRODSFile {
-        return remapException { delegate.instanceIRODSFileForPath(p0) }
-    }
-
-    override fun listPermissionsForDataObject(p0: String?, p1: String?): MutableList<UserFilePermission> {
-        return remapException { delegate.listPermissionsForDataObject(p0) }
-    }
-
-    override fun listPermissionsForDataObject(p0: String?): MutableList<UserFilePermission> {
-        return remapException { delegate.listPermissionsForDataObject(p0) }
-    }
-
-    override fun findById(p0: Int): DataObject {
-        return remapException { delegate.findById(p0) }
-    }
-
-    override fun trimDataObjectReplicas(p0: String?, p1: String?, p2: String?, p3: Int, p4: Int, p5: Boolean) {
-        return remapException { delegate.trimDataObjectReplicas(p0, p1, p2, p3, p4, p5) }
-    }
-
-    override fun setAccessPermissionWriteInAdminMode(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.setAccessPermissionWriteInAdminMode(p0, p1, p2) }
-    }
-
-    override fun retrieveRestartInfoIfAvailable(p0: FileRestartInfo.RestartType?, p1: String?): FileRestartInfo {
-        return remapException { delegate.retrieveRestartInfoIfAvailable(p0, p1) }
-    }
-
-    override fun modifyAVUMetadata(p0: String?, p1: AvuData?, p2: AvuData?) {
-        return remapException { delegate.modifyAVUMetadata(p0, p1, p2) }
-    }
-
-    override fun modifyAVUMetadata(p0: String?, p1: String?, p2: AvuData?, p3: AvuData?) {
-        return remapException { delegate.modifyAVUMetadata(p0, p1, p2, p3) }
-    }
-
-    override fun setAccessPermissionOwn(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.setAccessPermissionOwn(p0, p1, p2) }
-    }
-
-    override fun getTotalNumberOfReplsForDataObject(p0: String?, p1: String?): Int {
-        return remapException { delegate.getTotalNumberOfReplsForDataObject(p0, p1) }
-    }
-
-    override fun addAVUMetadata(p0: String?, p1: AvuData?) {
-        return remapException { delegate.addAVUMetadata(p0, p1) }
-    }
-
-    override fun addAVUMetadata(p0: String?, p1: String?, p2: AvuData?) {
-        return remapException { delegate.addAVUMetadata(p0, p1, p2) }
-    }
-
-    override fun replicateIrodsDataObject(p0: String?, p1: String?) {
-        return remapException { delegate.replicateIrodsDataObject(p0, p1) }
-    }
-
-    override fun findByAbsolutePath(p0: String?): DataObject {
-        return remapException { delegate.findByAbsolutePath(p0) }
-    }
-
-    override fun setAccessPermissionWrite(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.setAccessPermissionWrite(p0, p1, p2) }
-    }
-
-    override fun findMetadataValuesForDataObject(p0: String?): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesForDataObject(p0) }
-    }
-
-    override fun findMetadataValuesForDataObject(p0: String?, p1: String?): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesForDataObject(p0) }
-    }
-
-    override fun findMetadataValuesForDataObject(p0: IRODSFile?): MutableList<MetaDataAndDomainData> {
-        return remapException { delegate.findMetadataValuesForDataObject(p0) }
-    }
-
-    override fun findDomainByMetadataQuery(p0: MutableList<AVUQueryElement>?, p1: Int): MutableList<DataObject> {
-        return remapException { delegate.findDomainByMetadataQuery(p0) }
-    }
-
-    override fun findDomainByMetadataQuery(p0: MutableList<AVUQueryElement>?, p1: Int, p2: Boolean): MutableList<DataObject> {
-        return remapException { delegate.findDomainByMetadataQuery(p0) }
-    }
-
-    override fun findDomainByMetadataQuery(p0: MutableList<AVUQueryElement>?): MutableList<DataObject> {
-        return remapException { delegate.findDomainByMetadataQuery(p0) }
-    }
-
-    override fun getHostForPutOperation(p0: String?, p1: String?): String {
-        return remapException { delegate.getHostForPutOperation(p0, p1) }
-    }
-
-    override fun getPermissionForDataObject(p0: String?, p1: String?, p2: String?): FilePermissionEnum {
-        return remapException { delegate.getPermissionForDataObject(p0, p1, p2) }
-    }
-
-    override fun deleteAllAVUForDataObject(p0: String?) {
-        return remapException { delegate.deleteAllAVUForDataObject(p0) }
-    }
-
-    override fun setAccessPermission(p0: String?, p1: String?, p2: String?, p3: FilePermissionEnum?) {
-        return remapException { delegate.setAccessPermission(p0, p1, p2, p3) }
-    }
-
-    override fun getPermissionForDataObjectForUserName(p0: String?, p1: String?, p2: String?): UserFilePermission {
-        return remapException { delegate.getPermissionForDataObjectForUserName(p0, p1, p2) }
-    }
-
-    override fun getPermissionForDataObjectForUserName(p0: String?, p1: String?): UserFilePermission {
-        return remapException { delegate.getPermissionForDataObjectForUserName(p0, p1) }
-    }
-
-    override fun addBulkAVUMetadataToDataObject(p0: String?, p1: MutableList<AvuData>?): MutableList<BulkAVUOperationResponse> {
-        return remapException { delegate.addBulkAVUMetadataToDataObject(p0, p1) }
-    }
-
-    override fun setAccessPermissionRead(p0: String?, p1: String?, p2: String?) {
-        return remapException { delegate.setAccessPermissionRead(p0, p1, p2) }
-    }
-
-    override fun findGivenObjStat(p0: ObjStat?): DataObject {
-        return remapException { delegate.findGivenObjStat(p0) }
-    }
-
-    override fun getTotalNumberOfReplsInResourceGroupForDataObject(p0: String?, p1: String?, p2: String?): Int {
-        return remapException { delegate.getTotalNumberOfReplsInResourceGroupForDataObject(p0, p1, p2) }
-    }
-
-    override fun computeMD5ChecksumOnDataObject(p0: IRODSFile?): String {
-        return remapException { delegate.computeMD5ChecksumOnDataObject(p0) }
-    }
-
-    override fun deleteAVUMetadata(p0: String?, p1: AvuData?) {
-        return remapException { delegate.deleteAVUMetadata(p0, p1) }
-    }
-
-    override fun getObjectStatForAbsolutePath(p0: String?): ObjStat {
-        return remapException { delegate.getObjectStatForAbsolutePath(p0) }
-    }
-
-    override fun computeSHA1ChecksumOfIrodsFileByReadingDataFromStream(p0: String?): ByteArray {
-        return remapException { delegate.computeSHA1ChecksumOfIrodsFileByReadingDataFromStream(p0) }
-    }
-
-    override fun getResourcesForDataObject(p0: String?, p1: String?): MutableList<Resource> {
-        return remapException { delegate.getResourcesForDataObject(p0, p1) }
-    }
 }
 
 class CollectionsAndObjectSearchWrapper(private val delegate: CollectionAndDataObjectListAndSearchAO) : CollectionAndDataObjectListAndSearchAO by delegate {

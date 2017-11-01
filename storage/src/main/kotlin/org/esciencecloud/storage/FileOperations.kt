@@ -97,6 +97,7 @@ open class StorageException(cause: String) : RuntimeException(cause)
 class PermissionException(cause: String) : StorageException(cause)
 class NotFoundException(val resourceType: String, val name: String, val internalCause: String = "Unknown") :
         StorageException("Could not find resource of type '$resourceType' with path '$name' (Cause: $internalCause)")
+
 class NotEmptyException(cause: String) : StorageException(cause)
 class ConnectionException(cause: String) : StorageException(cause)
 
@@ -245,14 +246,14 @@ interface AccessControlOperations {
      *
      * If the [recursive] is given then this will be applied, recursively, to all children.
      */
-    fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean = false)
+    fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean = false): Result<Unit>
 
     /**
      * Lists the ACL for a single object at [path]
      *
      * @throws NotFoundException if the object is not found
      */
-    fun listAt(path: StoragePath): AccessControlList
+    fun listAt(path: StoragePath): Result<AccessControlList>
 
     /**
      * Get the connected user's permission on an object
@@ -260,7 +261,7 @@ interface AccessControlOperations {
      * @throws NotFoundException if the object is not found or the connected user does not have permission to know
      * about the object
      */
-    fun getMyPermissionAt(path: StoragePath): AccessRight
+    fun getMyPermissionAt(path: StoragePath): Result<AccessRight>
 }
 
 interface MetadataOperations {
@@ -289,31 +290,39 @@ interface FileQueryOperations {
      * Note that ACLs and metadata might be retrieved even if the flags are off, but they must be retrieved when
      * they are off. This is up to the underlying implementation of determining what is the most efficient.
      */
-    fun listAt(path: StoragePath, preloadACLs: Boolean = false, preloadMetadata: Boolean = false): List<StorageFile>
+    fun listAt(
+            path: StoragePath,
+            preloadACLs: Boolean = false,
+            preloadMetadata: Boolean = false
+    ): Result<List<StorageFile>>
 
-    fun listAtPathWithMetadata(path: StoragePath, query: Any?): List<StorageFile> // TODO
+    fun listAtPathWithMetadata(path: StoragePath, query: Any?): Result<List<StorageFile>> // TODO
 
     /**
      * Retrieve stats about an object
      *
      * @throws NotFoundException If the object could not be found
      */
-    fun stat(path: StoragePath): FileStat =
-        statBulk(path).firstOrNull() ?: throw NotFoundException("file", path.toString())
+    fun stat(path: StoragePath): Result<FileStat> {
+        val capture = statBulk(path).capture() ?: return Result.lastError()
+        val stat = capture.firstOrNull() ?: return Error.notFound()
+        return Ok(stat)
+    }
 
     /**
      * Retrieve, in bulk, stats about objects
      *
      * Individual stats will be `null` if they are not found.
      */
-    fun statBulk(vararg paths: StoragePath): List<FileStat?>
+    fun statBulk(vararg paths: StoragePath): Result<List<FileStat?>>
 
     /**
      * Checks if an object at [path] exists
      *
      * Default implementation will delegate to [stat]
      */
-    fun exists(path: StoragePath): Boolean {
-        return statBulk(path).firstOrNull() != null
+    fun exists(path: StoragePath): Result<Boolean> {
+        val capture = statBulk(path).capture() ?: return Result.lastError()
+        return Ok(capture.firstOrNull() != null)
     }
 }

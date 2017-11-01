@@ -90,7 +90,7 @@ class DataTest(
                 sizes.add(amountOfData)
             }
 
-            val stats = conn.fileQuery.statBulk(*filesCreated.toTypedArray())
+            val stats = conn.fileQuery.statBulk(*filesCreated.toTypedArray()).orThrow()
             stats.forEachIndexed { index, fileStat ->
                 assertNotEquals(null, fileStat, "File stat")
                 val stat = fileStat ?: return@forEachIndexed
@@ -104,7 +104,7 @@ class DataTest(
 
         private fun `list some files`() {
             log("Listing at home")
-            val filesAtHome = conn.fileQuery.listAt(conn.paths.homeDirectory)
+            val filesAtHome = conn.fileQuery.listAt(conn.paths.homeDirectory).orThrow()
             log("Done. Found ${filesAtHome.size} files at home")
         }
 
@@ -112,7 +112,7 @@ class DataTest(
             val filesPerLevel = random.nextInt(3) + 1
             val depth = random.nextInt(10)
             val root = conn.paths.homeDirectory.push(random.nextString(10))
-            if (conn.fileQuery.exists(root)) return
+            if (conn.fileQuery.exists(root).orThrow()) return
 
             log("Creating files at $root with depth=$depth and fpl=$filesPerLevel")
 
@@ -132,7 +132,7 @@ class DataTest(
             // Time to validate
             currentPath = root
             (0 until depth).forEach { level ->
-                val allFiles = conn.fileQuery.listAt(currentPath)
+                val allFiles = conn.fileQuery.listAt(currentPath).orThrow()
                 val normalFiles = allFiles.filter { it.path.name.startsWith("file-") && it.type == FileType.FILE }
                 val directories = allFiles.filter { it.path.name.startsWith("directory-$level") &&
                         it.type == FileType.DIRECTORY }
@@ -153,7 +153,7 @@ class DataTest(
             }
 
             conn.files.delete(root, true)
-            if (conn.fileQuery.exists(root)) {
+            if (conn.fileQuery.exists(root).orThrow()) {
                 throw IllegalStateException("Did not manage to delete directory, but no exception")
             }
             log("Done")
@@ -164,7 +164,7 @@ class DataTest(
             val path = conn.paths.homeDirectory.push(random.nextString(20))
             conn.files.put(path, dummyFile)
             conn.accessControl.updateACL(path, listOf(AccessEntry(User("rods"), AccessRight.READ_WRITE)))
-            val newAcl = conn.accessControl.listAt(path)
+            val newAcl = conn.accessControl.listAt(path).orThrow()
             assertEquals(2, newAcl.size, "ACL size")
             val aclEntry = newAcl.find { it.entity.name.startsWith("rods") } ?:
                     throw IllegalStateException("could not find rods acl entry")
@@ -195,11 +195,11 @@ class DataTest(
 
         private fun `delete all in home`() {
             log("Deleting everything we have in the home directory")
-            val files = conn.fileQuery.listAt(conn.paths.homeDirectory)
+            val files = conn.fileQuery.listAt(conn.paths.homeDirectory).orThrow()
             files.forEach {
                 conn.files.delete(it.path, true)
             }
-            val filesAfterDeletion = conn.fileQuery.listAt(conn.paths.homeDirectory)
+            val filesAfterDeletion = conn.fileQuery.listAt(conn.paths.homeDirectory).orThrow()
             if (filesAfterDeletion.isNotEmpty()) {
                 throw IllegalStateException("Did not manage to delete all files, but no exception were thrown. " +
                         "$filesAfterDeletion")
