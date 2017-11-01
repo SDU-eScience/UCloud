@@ -45,9 +45,11 @@ fun main(args: Array<String>) {
 
         routing {
             route("api") {
-                route("files") {
-                    get { proxyJobTo(resolveStorageService()) }
-                }
+                get("files")  { proxyJobTo(resolveStorageService()) }
+                get("acl")    { proxyJobTo(resolveStorageService()) }
+                get("users")  { proxyJobTo(resolveStorageService()) }
+                get("groups") { proxyJobTo(resolveStorageService()) }
+
 
                 route("users") {
                     post {
