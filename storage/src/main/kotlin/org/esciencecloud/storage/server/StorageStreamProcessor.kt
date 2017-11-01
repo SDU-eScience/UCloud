@@ -3,14 +3,11 @@ package org.esciencecloud.storage.server
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStreamBuilder
-import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.Ok
-import org.esciencecloud.storage.Result
 import java.util.*
 
 class StorageStreamProcessor(private val storageService: StorageService) {
     private val ugProcessor = UserGroupsStreamProcessor(storageService)
-    private val acProcessor = AccessControlStreamProcessor(storageService)
+    private val acProcessor = AccessControl(storageService)
 
     fun retrieveKafkaConfiguration(): Properties {
         val properties = Properties()
@@ -22,7 +19,7 @@ class StorageStreamProcessor(private val storageService: StorageService) {
 
     fun constructStreams(builder: KStreamBuilder) {
         ugProcessor.init(builder)
-        acProcessor.init(builder)
+        acProcessor.initStream(builder)
 
         // TODO FIXME THIS SHOULD BE REMOVED LATER
         // TODO FIXME THIS SHOULD BE REMOVED LATER

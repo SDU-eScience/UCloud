@@ -36,4 +36,6 @@ interface UserAdminOperations {
      * Permission error if the connected user is not allowed to perform this operation.
      */
     fun modifyPassword(username: String, newPassword: String): Result<Unit>
+
+    fun findByUsername(username: String): Result<User>
 }

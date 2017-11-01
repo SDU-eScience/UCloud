@@ -1,7 +1,9 @@
 package org.esciencecloud.storage.server
 
 import org.esciencecloud.kafka.queryParamOrBad
+import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.StorageConnection
+import org.esciencecloud.storage.StoragePath
 import org.jetbrains.ktor.application.install
 import org.jetbrains.ktor.features.Compression
 import org.jetbrains.ktor.features.DefaultHeaders
@@ -13,6 +15,7 @@ import org.jetbrains.ktor.pipeline.PipelineContext
 import org.jetbrains.ktor.request.ApplicationRequest
 import org.jetbrains.ktor.request.authorization
 import org.jetbrains.ktor.response.respond
+import org.jetbrains.ktor.response.respondText
 import org.jetbrains.ktor.routing.get
 import org.jetbrains.ktor.routing.route
 import org.jetbrains.ktor.routing.routing
@@ -27,28 +30,90 @@ class StorageRestServer(val port: Int, private val storageService: StorageServic
         install(DefaultHeaders)
 
         routing {
+            // TODO We need a common way of handling results here
+            // TODO We need a format for errors. Should this always be included in the message? Would simplify
+            // client code.
             route("/api/") {
-                get("/files/") {
-                    val (_, connection) = parseStorageRequestAndValidate() ?: return@get
-                    val path = queryParamOrBad("path") ?: return@get
-                    val acls = queryParamAsBoolean("acl") ?: true
-                    val metadata = queryParamAsBoolean("metadata") ?: false
+                route("files") {
+                    get {
+                        val (_, connection) = parseStorageRequestAndValidate() ?: return@get
+                        val path = queryParamOrBad("path") ?: return@get
+                        val acls = queryParamAsBoolean("acl") ?: true
+                        val metadata = queryParamAsBoolean("metadata") ?: false
 
-                    try {
-                        call.respond(connection.fileQuery.listAt(
-                                path = connection.paths.parseAbsolute(path, addHost = true),
-                                preloadACLs = acls,
-                                preloadMetadata = metadata
-                        ))
-                    } catch (ex: Exception) {
-                        ex.printStackTrace()
-                        //TODO("Change interface such that we don't throw exceptions we need to handle here")
-                        call.respond(HttpStatusCode.InternalServerError)
+                        try {
+                            val message = connection.fileQuery.listAt(
+                                    path = connection.parsePath(path),
+                                    preloadACLs = acls,
+                                    preloadMetadata = metadata
+                            ).capture() ?: run {
+                                call.response.status(HttpStatusCode.BadRequest)
+                                return@get
+                            }
+
+                            call.respond(message)
+                        } catch (ex: Exception) {
+                            ex.printStackTrace()
+                            //TODO("Change interface such that we don't throw exceptions we need to handle here")
+                            call.respond(HttpStatusCode.InternalServerError)
+                        }
+                    }
+                }
+
+                route("acl") {
+                    get {
+                        val (_, connection) = parseStorageRequestAndValidate() ?: return@get
+                        val path = queryParamOrBad("path") ?: return@get
+                        val message = connection.accessControl.listAt(connection.parsePath(path)).capture() ?: run {
+                            val error = Result.lastError<Any>()
+                            call.respondText(error.message, status = HttpStatusCode.BadRequest)
+                            return@get
+                        }
+
+                        call.respond(message)
+                    }
+                }
+
+                route("users") {
+                    get {
+                        val (_, connection) = parseStorageRequestAndValidate() ?: return@get
+                        val userAdmin = connection.userAdmin ?: run {
+                            call.respondText("Unauthorized", status = HttpStatusCode.Unauthorized)
+                            return@get
+                        }
+
+                        val username = queryParamOrBad("username") ?: return@get
+                        val result = userAdmin.findByUsername(username).capture() ?: run {
+                            val error = Result.lastError<Any>()
+                            call.respondText(error.message, status = HttpStatusCode.BadRequest)
+                            return@get
+                        }
+
+                        call.respond(result)
+                    }
+                }
+
+                route("groups") {
+                    get {
+                        // TODO This might not be exception free
+                        val (_, connection) = parseStorageRequestAndValidate() ?: return@get
+                        val groupName = queryParamOrBad("groupname") ?: return@get
+                        val members = connection.groups.listGroupMembers(groupName).capture() ?: run {
+                            val error = Result.lastError<Any>()
+                            call.respondText(error.message, status = HttpStatusCode.BadRequest)
+                            return@get
+                        }
+
+                        call.respond(members)
                     }
                 }
             }
         }
     }
+
+    private fun StorageConnection.parsePath(pathFromRequest: String): StoragePath =
+            paths.parseAbsolute(pathFromRequest, addHost = true)
+
 
     private fun PipelineContext<Unit>.queryParamAsBoolean(key: String): Boolean? {
         val param = call.request.queryParameters[key] ?: return null
@@ -56,6 +121,8 @@ class StorageRestServer(val port: Int, private val storageService: StorageServic
         return param.toBoolean()
     }
 
+    // This will almost certainly need to be applied on all routes
+    // Look into how ktor allows for this (because it almost certainly does)
     private suspend fun PipelineContext<Unit>.parseStorageRequestAndValidate():
             Pair<StorageRequest, StorageConnection>? {
         val (username, password) = call.request.basicAuth() ?: return run {

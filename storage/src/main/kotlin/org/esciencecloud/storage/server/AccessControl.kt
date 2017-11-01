@@ -3,8 +3,8 @@ package org.esciencecloud.storage.server
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.storage.Result
 
-class AccessControlStreamProcessor(private val storageService: StorageService) {
-    fun init(builder: KStreamBuilder) {
+class AccessControl(private val storageService: StorageService) {
+    fun initStream(builder: KStreamBuilder) {
         AccessControlProcessor.UpdateACL.mapResult(builder) { updateACL(it) }
     }
 

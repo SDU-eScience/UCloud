@@ -438,6 +438,8 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
         return Ok.empty()
     }
 
+    override fun findByUsername(username: String): Result<User> =
+        services.users.findByName(username).map { it.toStorage() }
 }
 
 interface IRodsOperationService {
