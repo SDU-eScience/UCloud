@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<module external.linked.project.id="kafka-common:main" external.linked.project.path="$MODULE_DIR$/../.." external.root.project.path="$MODULE_DIR$/../.." external.system.id="GRADLE" external.system.module.group="org.esciencecloud" external.system.module.type="sourceSet" external.system.module.version="0.2.1" type="JAVA_MODULE" version="4">
+<module external.linked.project.id="kafka-common:main" external.linked.project.path="$MODULE_DIR$/../.." external.root.project.path="$MODULE_DIR$/../.." external.system.id="GRADLE" external.system.module.group="org.esciencecloud" external.system.module.type="sourceSet" external.system.module.version="0.3.0" type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
       <configuration version="3" platform="JVM 1.8" useProjectSettings="false">
@@ -35,42 +35,22 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Gradle: org.jetbrains.ktor:ktor-netty:0.4.0" level="project" />
-    <orderEntry type="library" name="Gradle: org.jetbrains.ktor:ktor-gson:0.4.0" level="project" />
-    <orderEntry type="library" name="Gradle: org.jetbrains.ktor:ktor-hosts-common:0.4.0" level="project" />
-    <orderEntry type="library" name="Gradle: org.jetbrains.ktor:ktor-core:0.4.0" level="project" />
-    <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jre8:1.1.4" level="project" />
-    <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jre7:1.1.4" level="project" />
-    <orderEntry type="library" name="Gradle: org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:0.17" level="project" />
     <orderEntry type="library" name="Gradle: com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0" level="project" />
     <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-reflect:1.1.51" level="project" />
-    <orderEntry type="library" name="Gradle: org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1" level="project" />
     <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.1.51" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.kafka:kafka-streams:0.11.0.1" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.kafka:connect-json:0.11.0.1" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.kafka:connect-api:0.11.0.1" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.kafka:kafka-clients:0.11.0.1" level="project" />
-    <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-slf4j-impl:2.9.1" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-core:2.9.1" level="project" />
     <orderEntry type="library" name="Gradle: org.jetbrains:annotations:13.0" level="project" />
     <orderEntry type="library" name="Gradle: net.jpountz.lz4:lz4:1.3.0" level="project" />
     <orderEntry type="library" name="Gradle: org.xerial.snappy:snappy-java:1.1.2.6" level="project" />
     <orderEntry type="library" name="Gradle: org.slf4j:slf4j-api:1.7.25" level="project" />
-    <orderEntry type="library" name="Gradle: com.fasterxml.jackson.core:jackson-databind:2.9.0" level="project" />
     <orderEntry type="library" name="Gradle: org.rocksdb:rocksdbjni:5.0.1" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-api:2.9.1" level="project" />
+    <orderEntry type="library" name="Gradle: com.fasterxml.jackson.core:jackson-databind:2.9.0" level="project" />
     <orderEntry type="library" name="Gradle: com.fasterxml.jackson.core:jackson-annotations:2.9.0" level="project" />
-    <orderEntry type="library" name="Gradle: com.typesafe:config:1.3.1" level="project" />
-    <orderEntry type="library" name="Gradle: io.netty:netty-codec-http2:4.1.12.Final" level="project" />
-    <orderEntry type="library" name="Gradle: org.eclipse.jetty.alpn:alpn-api:1.1.3.v20160715" level="project" />
-    <orderEntry type="library" name="Gradle: com.google.code.gson:gson:2.8.1" level="project" />
-    <orderEntry type="library" name="Gradle: io.netty:netty-codec-http:4.1.12.Final" level="project" />
-    <orderEntry type="library" name="Gradle: io.netty:netty-handler:4.1.12.Final" level="project" />
-    <orderEntry type="library" name="Gradle: io.netty:netty-codec:4.1.12.Final" level="project" />
-    <orderEntry type="library" name="Gradle: io.netty:netty-transport:4.1.12.Final" level="project" />
-    <orderEntry type="library" name="Gradle: io.netty:netty-buffer:4.1.12.Final" level="project" />
-    <orderEntry type="library" name="Gradle: io.netty:netty-resolver:4.1.12.Final" level="project" />
-    <orderEntry type="library" name="Gradle: io.netty:netty-common:4.1.12.Final" level="project" />
     <orderEntry type="library" name="Gradle: com.fasterxml.jackson.core:jackson-core:2.9.0" level="project" />
   </component>
 </module>

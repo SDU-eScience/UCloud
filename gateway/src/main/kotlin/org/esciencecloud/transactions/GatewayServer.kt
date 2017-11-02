@@ -3,7 +3,7 @@ package org.esciencecloud.transactions
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.RecordMetadata
-import org.esciencecloud.storage.server.*
+import org.esciencecloud.storage.model.*
 import org.jetbrains.ktor.application.install
 import org.jetbrains.ktor.client.DefaultHttpClient
 import org.jetbrains.ktor.client.readText

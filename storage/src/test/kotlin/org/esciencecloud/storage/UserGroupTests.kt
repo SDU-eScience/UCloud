@@ -1,5 +1,10 @@
 package org.esciencecloud.storage
 
+import org.esciencecloud.storage.ext.GroupOperations
+import org.esciencecloud.storage.ext.NotFoundException
+import org.esciencecloud.storage.ext.PermissionException
+import org.esciencecloud.storage.ext.StorageConnection
+import org.esciencecloud.storage.model.User
 import org.hamcrest.CoreMatchers.hasItem
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.After

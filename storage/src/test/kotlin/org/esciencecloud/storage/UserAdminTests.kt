@@ -1,6 +1,10 @@
 package org.esciencecloud.storage
 
-import org.esciencecloud.storage.server.UserType
+import org.esciencecloud.storage.ext.NotFoundException
+import org.esciencecloud.storage.ext.PermissionException
+import org.esciencecloud.storage.ext.StorageConnection
+import org.esciencecloud.storage.ext.StorageConnectionFactory
+import org.esciencecloud.storage.model.UserType
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.*

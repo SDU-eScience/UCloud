@@ -1,5 +1,11 @@
 package org.esciencecloud.storage
 
+import org.esciencecloud.storage.ext.NotFoundException
+import org.esciencecloud.storage.ext.PermissionException
+import org.esciencecloud.storage.ext.StorageConnection
+import org.esciencecloud.storage.ext.StorageConnectionFactory
+import org.esciencecloud.storage.model.AccessEntry
+import org.esciencecloud.storage.model.AccessRight
 import org.hamcrest.CoreMatchers.hasItem
 import org.hamcrest.CoreMatchers.not
 import org.junit.After

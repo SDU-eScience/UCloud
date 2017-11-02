@@ -52,6 +52,9 @@ sealed class Result<out T : Any> {
     inline fun onError(handler: (Error<T>) -> Unit) {
         when (this) {
             is Error<T> -> handler(this)
+            else -> {
+                // ignored
+            }
         }
     }
 }
@@ -65,6 +68,7 @@ class Error<out T : Any>(
         // TODO Figure out these error codes
         // TODO Some of these might be specific to a product
         fun <T : Any> notFound(message: String = "Entity not found") = Error<T>(123, message)
+
         fun <T : Any> duplicateResource(message: String = "Entity already exists") = Error<T>(123, message)
         fun <T : Any> permissionDenied(message: String = "Permission denied") = Error<T>(123, message)
         fun <T : Any> invalidMessage(message: String = "Invalid message") = Error<T>(123, message)
