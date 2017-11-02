@@ -1,7 +1,10 @@
-package org.esciencecloud.storage.server
+package org.esciencecloud.storage.server.processor
 
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.storage.Result
+import org.esciencecloud.storage.server.AccessControlProcessor
+import org.esciencecloud.storage.server.Request
+import org.esciencecloud.storage.server.UpdateACLRequest
 
 class AccessControl(private val storageService: StorageService) {
     fun initStream(builder: KStreamBuilder) {

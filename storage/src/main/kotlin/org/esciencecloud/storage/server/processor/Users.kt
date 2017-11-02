@@ -1,9 +1,12 @@
-package org.esciencecloud.storage.server
+package org.esciencecloud.storage.server.processor
 
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
+import org.esciencecloud.storage.server.RequestHeader
+import org.esciencecloud.storage.server.UserEvent
+import org.esciencecloud.storage.server.UserProcessor
 
 class Users(private val storageService: StorageService) {
     fun init(builder: KStreamBuilder) {

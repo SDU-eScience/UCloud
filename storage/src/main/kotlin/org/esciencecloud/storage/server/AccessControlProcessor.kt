@@ -1,10 +1,10 @@
 package org.esciencecloud.storage.server
 
+import org.apache.kafka.common.serialization.Serdes
+import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.esciencecloud.storage.*
 
 object AccessControlProcessor {
-    val PREFIX = "ac"
-
     /**
      * Updates the ACL of a single storage-entry.
      *
@@ -19,7 +19,10 @@ object AccessControlProcessor {
      * include all entries. As a result, any existing entry in the active list, not mentioned in the update request,
      * will simply remain as it currently is.
      */
-    val UpdateACL = RequestResponseStream.create<String, UpdateACLRequest>("$PREFIX.update")
+    val UpdateACL = RequestResponseStream<String, UpdateACLRequest>(
+            "acl.update",
+            Serdes.String(), jsonSerde(), jsonSerde()
+    )
 }
 
 data class UpdateACLRequest(

@@ -26,6 +26,7 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
 
     compile "org.esciencecloud:kafka-common:0.2.2"
+    compile "org.esciencecloud:storage-api:0.1.2"
 }
 
 compileKotlin {

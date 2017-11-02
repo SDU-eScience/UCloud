@@ -2,10 +2,8 @@ package org.esciencecloud.storage.server
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
+import org.apache.kafka.common.serialization.Serdes
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
-import org.esciencecloud.storage.UserType
 
 // Shared interface stuff. Should be published as a separate artifact
 // These artifacts should be shared with others, such that they may be used for types
@@ -56,11 +54,6 @@ sealed class UserEvent {
     ) : UserEvent()
 
     data class Delete(val username: String) : UserEvent()
-
-    companion object {
-        fun buildRequestWriter(objectMapper: ObjectMapper) =
-                objectMapper.writerFor(jacksonTypeRef<Request<UserEvent>>())
-    }
 }
 
 object UserProcessor {
@@ -71,6 +64,5 @@ object UserProcessor {
     // It would also make a lot of sense if these events were sent on the same topic, but with different payloads.
     // This also appears to be how most people describe event-sourcing. Using the primary key (i.e. user) would also
     // significantly help the ordering of things.
-    val UserEvents = RequestResponseStream("users", jsonSerde<String>(), jsonSerde<Request<UserEvent>>(), jsonSerde<Response<UserEvent>>())
-    //RequestResponseStream.create<String, UserEvent>("users")
+    val UserEvents = RequestResponseStream<String, UserEvent>("users", Serdes.String(), jsonSerde(), jsonSerde())
 }

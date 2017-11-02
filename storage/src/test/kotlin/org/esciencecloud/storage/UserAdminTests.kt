@@ -1,5 +1,6 @@
 package org.esciencecloud.storage
 
+import org.esciencecloud.storage.server.UserType
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.*

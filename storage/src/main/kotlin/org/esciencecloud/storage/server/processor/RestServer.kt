@@ -1,9 +1,11 @@
-package org.esciencecloud.storage.server
+package org.esciencecloud.storage.server.processor
 
 import org.esciencecloud.kafka.queryParamOrBad
 import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.StorageConnection
 import org.esciencecloud.storage.StoragePath
+import org.esciencecloud.storage.server.ProxyClient
+import org.esciencecloud.storage.server.RequestHeader
 import org.jetbrains.ktor.application.install
 import org.jetbrains.ktor.features.Compression
 import org.jetbrains.ktor.features.DefaultHeaders

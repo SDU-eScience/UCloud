@@ -1,6 +1,7 @@
 package org.esciencecloud.storage.irods
 
 import org.esciencecloud.storage.*
+import org.esciencecloud.storage.server.UserType
 import org.irods.jargon.core.exception.*
 import org.irods.jargon.core.protovalues.FilePermissionEnum
 import org.irods.jargon.core.protovalues.UserTypeEnum

@@ -1,10 +1,6 @@
 package org.esciencecloud.storage
 
-enum class UserType {
-    USER,
-    ADMIN,
-    GROUP_ADMIN
-}
+import org.esciencecloud.storage.server.UserType
 
 interface UserAdminOperations {
     /**
