@@ -6,7 +6,7 @@ import org.apache.kafka.streams.kstream.KStreamBuilder
 import java.util.*
 
 class StorageStreamProcessor(private val storageService: StorageService) {
-    private val ugProcessor = UserGroupsStreamProcessor(storageService)
+    private val userProcessor = Users(storageService)
     private val acProcessor = AccessControl(storageService)
 
     fun retrieveKafkaConfiguration(): Properties {
@@ -18,18 +18,8 @@ class StorageStreamProcessor(private val storageService: StorageService) {
     }
 
     fun constructStreams(builder: KStreamBuilder) {
-        ugProcessor.init(builder)
+        userProcessor.init(builder)
         acProcessor.initStream(builder)
-
-        // TODO FIXME THIS SHOULD BE REMOVED LATER
-        // TODO FIXME THIS SHOULD BE REMOVED LATER
-        UserGroupsProcessor.Bomb.mapResult(builder) {
-            // The idea is that we use this to test handling of jobs that are causing consistent crashes with the
-            // system. We should be able to handle these without killing the entire system.
-            throw RuntimeException("Boom!")
-        }
-        // TODO FIXME THIS SHOULD BE REMOVED LATER
-        // TODO FIXME THIS SHOULD BE REMOVED LATER
 
         // TODO How will we have other internal systems do work here? They won't have a performed by when the task
         // is entirely internal to the system. This will probably just be some simple API token such that we can confirm

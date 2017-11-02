@@ -1,8 +1,11 @@
 package org.esciencecloud.transactions
 
-import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.ObjectWriter
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -33,11 +36,13 @@ import java.net.URL
 import java.util.*
 import kotlin.coroutines.experimental.suspendCoroutine
 
+typealias GatewayProducer = KafkaProducer<String, String>
+
 fun main(args: Array<String>) {
-    val producer = KafkaProducer<String, JsonNode>(mapOf(
+    val producer = GatewayProducer(mapOf(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to "localhost:9092",
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to "org.apache.kafka.common.serialization.StringSerializer",
-            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to "org.apache.kafka.connect.json.JsonSerializer"
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to "org.apache.kafka.common.serialization.StringSerializer"
     ))
 
     embeddedServer(Netty, port = 8080) {
@@ -45,25 +50,24 @@ fun main(args: Array<String>) {
 
         routing {
             route("api") {
-                get("files")  { proxyJobTo(resolveStorageService()) }
-                get("acl")    { proxyJobTo(resolveStorageService()) }
-                get("users")  { proxyJobTo(resolveStorageService()) }
+                get("files") { proxyJobTo(resolveStorageService()) }
+                get("acl") { proxyJobTo(resolveStorageService()) }
+                get("users") { proxyJobTo(resolveStorageService()) }
                 get("groups") { proxyJobTo(resolveStorageService()) }
 
 
                 route("users") {
+                    val userEventWriter = UserEvent.buildRequestWriter(defaultJsonMapper)
+                    val keyWriter = defaultJsonMapper.writer()
+
                     post {
-                        call.respond(produceKafkaRequestFromREST(producer, UserGroupsProcessor.CreateUser)
-                        { header, request: RestCreateUserRequest ->
-                            CreateUserRequest(header, request.username, request.password, request.userType)
-                        })
+                        call.respond(produceKafkaRequestFromREST(producer, UserProcessor.UserEvents, keyWriter, userEventWriter)
+                        { _, request: UserEvent.Create -> Pair(request.username, request) })
                     }
 
                     put {
-                        call.respond(produceKafkaRequestFromREST(producer, UserGroupsProcessor.ModifyUser)
-                        { header, request: RestModifyUser ->
-                            ModifyUserRequest(header, request.currentUsername, request.newPassword, request.newUserType)
-                        })
+                        call.respond(produceKafkaRequestFromREST(producer, UserProcessor.UserEvents, keyWriter, userEventWriter)
+                        { _, request: UserEvent.Modify -> Pair(request.currentUsername, request) })
                     }
                 }
             }
@@ -75,10 +79,12 @@ fun main(args: Array<String>) {
 
 val log = LoggerFactory.getLogger("GateWayServer")
 
-inline suspend fun <reified RestType : Any, KafkaRequestType : Any> PipelineContext<Unit>.produceKafkaRequestFromREST(
-        producer: KafkaProducer<String, JsonNode>,
-        stream: RequestResponseStream<KafkaRequestType>,
-        mapper: (RequestHeader, RestType) -> KafkaRequestType
+inline suspend fun <reified RestType : Any, K : Any, R : Any> PipelineContext<Unit>.produceKafkaRequestFromREST(
+        producer: GatewayProducer,
+        stream: RequestResponseStream<K, R>,
+        keyWriter: ObjectWriter,
+        payloadWriter: ObjectWriter,
+        mapper: (RequestHeader, RestType) -> Pair<K, R>
 ): GatewayJobResponse {
     val header = validateRequestAndPrepareJobHeader(respond = false) ?:
             return GatewayJobResponse("null", JobStatus.ERROR, null)
@@ -104,7 +110,7 @@ inline suspend fun <reified RestType : Any, KafkaRequestType : Any> PipelineCont
     }
 
     val record = try {
-        producer.sendJob(stream, header, kafkaRequest)
+        producer.sendJob(stream, header, kafkaRequest.first, kafkaRequest.second, keyWriter, payloadWriter)
     } catch (ex: Exception) {
         log.warn("Kafka producer threw an exception while sending request!")
         log.warn(ex.printStacktraceToString())
@@ -118,21 +124,30 @@ inline suspend fun <reified RestType : Any, KafkaRequestType : Any> PipelineCont
 
 fun Exception.printStacktraceToString() = StringWriter().apply { printStackTrace(PrintWriter(this)) }.toString()
 
-suspend fun <T : Any> KafkaProducer<String, JsonNode>.sendJob(
-        stream: RequestResponseStream<T>,
+suspend fun <K : Any, R : Any> GatewayProducer.sendJob(
+        stream: RequestResponseStream<K, R>,
         header: RequestHeader,
-        request: T,
-        mapper: ObjectMapper = defaultJsonMapper
-) = sendRequest(stream, header.uuid, request, mapper)
+        key: K,
+        request: R,
+        keyWriter: ObjectWriter = defaultJsonMapper.writer(),
+        payloadWriter: ObjectWriter = defaultJsonMapper.writer()
+) = sendRequest(stream, key, Request(header, request), keyWriter, payloadWriter)
 
 val defaultJsonMapper = jacksonObjectMapper()
-suspend fun <T : Any> KafkaProducer<String, JsonNode>.sendRequest(
-        stream: RequestResponseStream<T>,
-        key: String,
-        payload: T,
-        mapper: ObjectMapper = defaultJsonMapper
+suspend fun <K : Any, R : Any> GatewayProducer.sendRequest(
+        stream: RequestResponseStream<K, R>,
+        key: K,
+        payload: Request<R>,
+        keyWriter: ObjectWriter = defaultJsonMapper.writer(),
+        payloadWriter: ObjectWriter = defaultJsonMapper.writer()
 ) = suspendCoroutine<RecordMetadata> { cont ->
-    send(ProducerRecord(stream.requestStream.name, key, mapper.valueToTree(payload))) { metadata, exception ->
+    val record = ProducerRecord(
+            stream.requestStream.name,
+            keyWriter.writeValueAsString(key),
+            payloadWriter.writeValueAsString(payload)
+    )
+
+    send(record) { metadata, exception ->
         if (exception != null) {
             cont.resumeWithException(exception)
         } else {
@@ -211,25 +226,15 @@ class GatewayJobResponse(val jobId: String, val status: JobStatus, metadata: Rec
     val timestamp = metadata?.timestamp()
 }
 
-data class RestCreateUserRequest(
-        val username: String,
-        val password: String?,
-        val userType: UserType
-)
-
-data class RestModifyUser(
-        val currentUsername: String,
-        val newPassword: String?,
-        val newUserType: UserType?
-)
-
 // -------------------------------------------
 // Currently copied from processor directly
 // This should be changed later
 // -------------------------------------------
 
-interface StorageRequest {
-    val header: RequestHeader
+data class Request<out EventType>(val header: RequestHeader, val event: EventType) {
+    companion object {
+        const val TYPE_PROPERTY = "type"
+    }
 }
 
 data class RequestHeader(
@@ -237,65 +242,70 @@ data class RequestHeader(
         val performedFor: ProxyClient
 )
 
-// This will chnage over time. Should use a token instead of a straight password. We won't need the username at that
+// This will change over time. Should use a token instead of a straight password. We won't need the username at that
 // point, since we could retrieve this from the auth service instead.
 data class ProxyClient(val username: String, val password: String)
 
-
-data class CreateUserRequest(
-        override val header: RequestHeader,
-
-        val username: String,
-        val password: String?,
-        val userType: UserType // <-- Shared type that lives inside storage interface
-) : StorageRequest
-
-data class ModifyUserRequest(
-        override val header: RequestHeader,
-
-        val currentUsername: String,
-        val newPassword: String?,
-        val newUserType: UserType?
-) : StorageRequest
-
-class StorageResponse<out InputType : Any>(
+class Response<out InputType : Any>(
         val successful: Boolean,
         val errorMessage: String?,
-        val input: InputType
+        val input: Request<InputType>
 )
 
-object StorageProcessor {
-    val PREFIX = "storage"
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = Request.TYPE_PROPERTY)
+@JsonSubTypes(
+        JsonSubTypes.Type(value = UserEvent.Create::class, name = "create"),
+        JsonSubTypes.Type(value = UserEvent.Modify::class, name = "modify"),
+        JsonSubTypes.Type(value = UserEvent.Delete::class, name = "delete"))
+sealed class UserEvent {
+    data class Create(
+            val username: String,
+            val password: String?,
+            val userType: UserType // <-- Shared type that lives inside storage interface
+    ) : UserEvent()
+
+    data class Modify(
+            val currentUsername: String,
+            val newPassword: String?,
+            val newUserType: UserType?
+    ) : UserEvent()
+
+    data class Delete(val username: String) : UserEvent()
+
+    companion object {
+        fun buildRequestWriter(objectMapper: ObjectMapper) =
+                objectMapper.writerFor(jacksonTypeRef<Request<UserEvent>>())
+    }
 }
 
-object UserGroupsProcessor {
-    val PREFIX = "${StorageProcessor.PREFIX}.ugs"
-
-    val CreateUser = RequestResponseStream.create<CreateUserRequest>("$PREFIX.create_user")
-    val ModifyUser = RequestResponseStream.create<ModifyUserRequest>("$PREFIX.modify_user")
-    val Bomb = RequestResponseStream.create<Unit>("$PREFIX.BOMB9392") // TODO FIXME REMOVE THIS LATER
-}
-
-enum class UserType {
-    USER,
-    ADMIN,
-    GROUP_ADMIN
+object UserProcessor {
+    // TODO Having auth be validated in the processor probably makes it quite a bit harder to use event-sourcing.
+    // The tokens would have validate during a replay. Food for thought...
+    // Maybe not, we might be able to just use the response topic? We really do need to look into this though.
+    //
+    // It would also make a lot of sense if these events were sent on the same topic, but with different payloads.
+    // This also appears to be how most people describe event-sourcing. Using the primary key (i.e. user) would also
+    // significantly help the ordering of things.
+    val UserEvents = RequestResponseStream.create<String, UserEvent>("users")
 }
 
 // Potential candidates for inclusion in kafka-common if they prove useful
 const val REQUEST = "request"
 const val RESPONSE = "response"
-const val POLICY = "policy"
 
 @Suppress("MemberVisibilityCanPrivate")
-class RequestResponseStream<RequestType : Any>(
+class RequestResponseStream<KeyType : Any, RequestType : Any>(
         topicName: String,
-        requestSerde: Serde<RequestType>,
-        responseSerde: Serde<StorageResponse<RequestType>>
+        keySerde: Serde<KeyType>,
+        requestSerde: Serde<Request<RequestType>>,
+        responseSerde: Serde<Response<RequestType>>
 ) {
     val requestStream = StreamDescription(
             "$REQUEST.$topicName",
-            Serdes.String(),
+            keySerde,
             requestSerde
     )
 
@@ -306,9 +316,16 @@ class RequestResponseStream<RequestType : Any>(
     )
 
     companion object {
-        inline fun <reified RequestType : Any> create(topicName: String): RequestResponseStream<RequestType> {
-            return RequestResponseStream(topicName, jsonSerde(), jsonSerde())
+        inline fun <reified KeyType : Any, reified RequestType : Any> create(
+                topicName: String
+        ): RequestResponseStream<KeyType, RequestType> {
+            return RequestResponseStream(topicName, jsonSerde(), jsonSerde(), jsonSerde())
         }
     }
 }
 
+enum class UserType {
+    USER,
+    ADMIN,
+    GROUP_ADMIN
+}

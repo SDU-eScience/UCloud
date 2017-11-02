@@ -2,9 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/esciencecloud-transactions-kafka_main.iml" filepath="$PROJECT_DIR$/.idea/modules/esciencecloud-transactions-kafka_main.iml" group="kafka" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/esciencecloud-transactions-kafka_test.iml" filepath="$PROJECT_DIR$/.idea/modules/esciencecloud-transactions-kafka_test.iml" group="kafka" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/kafka.iml" filepath="$PROJECT_DIR$/.idea/modules/kafka.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/kafka-common.iml" filepath="$PROJECT_DIR$/.idea/modules/kafka-common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/kafka-common_main.iml" filepath="$PROJECT_DIR$/.idea/modules/kafka-common_main.iml" group="kafka-common" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/kafka-common_test.iml" filepath="$PROJECT_DIR$/.idea/modules/kafka-common_test.iml" group="kafka-common" />
     </modules>
   </component>
 </project>

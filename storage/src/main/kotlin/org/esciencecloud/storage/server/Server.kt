@@ -16,8 +16,8 @@ import java.util.concurrent.TimeUnit
  * these together. It will also be simpler, so we should do this for now.
  */
 
-fun <T : Any, InputType : Any> Result<T>.toResponse(input: InputType) =
-        StorageResponse(this is Ok, (this as? Error)?.message, input)
+fun <T : Any, InputType : Any> Result<T>.toResponse(input: Request<InputType>) =
+        Response(this is Ok, (this as? Error)?.message, input)
 
 fun main(args: Array<String>) {
     val storageService = IRodsStorageService(
@@ -62,7 +62,7 @@ fun main(args: Array<String>) {
         // We should probably still log what happened...
         // mapResult could help with exception handling though.
     }
-    val log = LoggerFactory.getLogger(StorageProcessor::class.java)
+    val log = LoggerFactory.getLogger("Server")
 
     // Start the stream processor
     log.info("Starting stream processor")
@@ -90,15 +90,16 @@ abstract class StorageService {
      * This will cause Kafka to _not_ commit this message as having been consumed by this sub-system. Which is good,
      * because we want to retry at a later point.
      */
-    fun validateRequest(request: StorageRequest): Result<StorageConnection> {
-        if (request.header.performedFor.username == "internal-service-super-secret-obviously-dont-use-this") {
+    fun validateRequest(header: RequestHeader): Result<StorageConnection> {
+        // TODO
+        if (header.performedFor.username == "internal-service-super-secret-obviously-dont-use-this") {
             // This should use API tokens or just plain certificates for validating that this is an internal service
             // making the request.
             return Ok(adminConnection)
         }
 
         return try {
-            Ok(with(request.header.performedFor) { storageFactory.createForAccount(username, password) })
+            Ok(with(header.performedFor) { storageFactory.createForAccount(username, password) })
         } catch (ex: PermissionException) {
             // TODO Change interface
             Error.permissionDenied()

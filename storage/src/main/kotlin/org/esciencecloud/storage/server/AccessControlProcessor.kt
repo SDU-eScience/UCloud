@@ -19,12 +19,11 @@ object AccessControlProcessor {
      * include all entries. As a result, any existing entry in the active list, not mentioned in the update request,
      * will simply remain as it currently is.
      */
-    val UpdateACL = RequestResponseStream.create<UpdateACLRequest>("$PREFIX.update")
+    val UpdateACL = RequestResponseStream.create<String, UpdateACLRequest>("$PREFIX.update")
 }
 
 data class UpdateACLRequest(
-        override val header: RequestHeader,
         val path: String,
         val updatedEntries: AccessEntry,
         val recursive: Boolean
-) : StorageRequest
+)

@@ -21,8 +21,6 @@ import org.jetbrains.ktor.routing.route
 import org.jetbrains.ktor.routing.routing
 import java.util.*
 
-data class RestRequest(override val header: RequestHeader) : StorageRequest
-
 class StorageRestServer(val port: Int, private val storageService: StorageService) {
     fun create() = embeddedServer(Netty, port = port) {
         install(GsonSupport)
@@ -124,7 +122,7 @@ class StorageRestServer(val port: Int, private val storageService: StorageServic
     // This will almost certainly need to be applied on all routes
     // Look into how ktor allows for this (because it almost certainly does)
     private suspend fun PipelineContext<Unit>.parseStorageRequestAndValidate():
-            Pair<StorageRequest, StorageConnection>? {
+            Pair<RequestHeader, StorageConnection>? {
         val (username, password) = call.request.basicAuth() ?: return run {
             call.respond(HttpStatusCode.Unauthorized)
             null
@@ -135,14 +133,14 @@ class StorageRestServer(val port: Int, private val storageService: StorageServic
             null
         }
 
-        val request = RestRequest(RequestHeader(uuid, ProxyClient(username, password)))
+        val header = RequestHeader(uuid, ProxyClient(username, password))
 
-        val connection = storageService.validateRequest(request).capture() ?: return run {
+        val connection = storageService.validateRequest(header).capture() ?: return run {
             call.respond(HttpStatusCode.Unauthorized)
             null
         }
 
-        return Pair(request, connection)
+        return Pair(header, connection)
     }
 
     private fun ApplicationRequest.basicAuth(): Pair<String, String>? {

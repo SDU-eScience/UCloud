@@ -4,26 +4,26 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.KeyValue
-import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.esciencecloud.kafka.StreamDescription
 import org.esciencecloud.storage.Result
+import org.esciencecloud.storage.UserType
 
 // Potential candidates for inclusion in kafka-common if they prove useful
 const val REQUEST = "request"
 const val RESPONSE = "response"
-const val POLICY = "policy"
 
 @Suppress("MemberVisibilityCanPrivate")
-class RequestResponseStream<RequestType : Any>(
+class RequestResponseStream<KeyType : Any, RequestType : Any>(
         topicName: String,
-        requestSerde: Serde<RequestType>,
-        responseSerde: Serde<StorageResponse<RequestType>>
+        keySerde: Serde<KeyType>,
+        requestSerde: Serde<Request<RequestType>>,
+        responseSerde: Serde<Response<RequestType>>
 ) {
     val requestStream = StreamDescription(
             "$REQUEST.$topicName",
-            Serdes.String(),
+            keySerde,
             requestSerde
     )
 
@@ -33,35 +33,45 @@ class RequestResponseStream<RequestType : Any>(
             responseSerde
     )
 
-    fun map(
+    private fun <OutputKey : Any> map(
             builder: KStreamBuilder,
-            mapper: (String, RequestType) -> Pair<String, StorageResponse<RequestType>>
+            outputKeySerde: Serde<OutputKey>,
+            mapper: (KeyType, Request<RequestType>) -> Pair<OutputKey, Response<RequestType>>
     ) {
         requestStream.stream(builder).map { key, value ->
             val (a, b) = mapper(key, value)
             KeyValue.pair(a, b)
-        }.to(responseStream.keySerde, responseStream.valueSerde, responseStream.name)
+        }.to(outputKeySerde, responseStream.valueSerde, responseStream.name)
     }
 
-    fun mapResult(builder: KStreamBuilder, mapper: (RequestType) -> (Result<*>)) {
-        return map(builder) { key, request ->
-            Pair(key, mapper(request).toResponse(request))
+    fun process(builder: KStreamBuilder, mapper: (KeyType, Request<RequestType>) -> (Result<*>)) {
+        return map(builder, Serdes.String()) { key, request ->
+            Pair(request.header.uuid, mapper(key, request).toResponse(request))
         }
     }
 
     companion object {
-        inline fun <reified RequestType : Any> create(topicName: String): RequestResponseStream<RequestType> {
-            return RequestResponseStream(topicName, jsonSerde(), jsonSerde())
+        inline fun <reified KeyType : Any, reified RequestType : Any> create(
+                topicName: String
+        ): RequestResponseStream<KeyType, RequestType> {
+            // TODO FIXME RIGHT HERE. THERE IS SOME GENERIC ERASURE ON THE EVENT-TYPE
+            return RequestResponseStream(topicName, jsonSerde<KeyType>(), jsonSerde<Request<RequestType>>(), jsonSerde<Response<RequestType>>())
         }
     }
 }
 
-fun <Req : Any> KStream<String, StorageResponse<Req>>.toDescription(description: RequestResponseStream<Req>) {
-    this.toDescription(description.responseStream)
-}
+fun main(args: Array<String>) {
+    val serde: Serde<Request<UserEvent>> = jsonSerde()
+    val createRequest = Request(
+            RequestHeader("uuid", ProxyClient("username", "password")),
+            UserEvent.Create("123", null, UserType.USER)
+    )
+    val serialized = serde.serializer().serialize("f", createRequest)
+    val message = serialized.toString(Charsets.UTF_8)
+    println(message)
 
-fun <Key, Value> KStream<Key, Value>.toDescription(streamDescription: StreamDescription<Key, Value>) {
-    this.to(streamDescription.keySerde, streamDescription.valueSerde, streamDescription.name)
+    val deserialized = serde.deserializer().deserialize("f", message.toByteArray())
+    println(deserialized)
 }
 
 fun KafkaStreams.addShutdownHook() {

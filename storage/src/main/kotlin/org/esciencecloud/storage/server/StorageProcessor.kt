@@ -1,5 +1,10 @@
 package org.esciencecloud.storage.server
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
+import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.esciencecloud.storage.UserType
 
 // Shared interface stuff. Should be published as a separate artifact
@@ -8,8 +13,10 @@ import org.esciencecloud.storage.UserType
 // TODO This should also include certain types of the storage interfaces, but no longer the storage interface themselves
 // this will have to be changed later.
 
-interface StorageRequest {
-    val header: RequestHeader
+data class Request<out EventType>(val header: RequestHeader, val event: EventType) {
+    companion object {
+        const val TYPE_PROPERTY = "type"
+    }
 }
 
 data class RequestHeader(
@@ -17,40 +24,53 @@ data class RequestHeader(
         val performedFor: ProxyClient
 )
 
-// This will chnage over time. Should use a token instead of a straight password. We won't need the username at that
+// This will change over time. Should use a token instead of a straight password. We won't need the username at that
 // point, since we could retrieve this from the auth service instead.
 data class ProxyClient(val username: String, val password: String)
 
-data class CreateUserRequest(
-        override val header: RequestHeader,
-
-        val username: String,
-        val password: String?,
-        val userType: UserType // <-- Shared type that lives inside storage interface
-) : StorageRequest
-
-data class ModifyUserRequest(
-        override val header: RequestHeader,
-
-        val currentUsername: String,
-        val newPassword: String?,
-        val newUserType: UserType?
-) : StorageRequest
-
-class StorageResponse<out InputType : Any>(
+class Response<out InputType : Any>(
         val successful: Boolean,
         val errorMessage: String?,
-        val input: InputType
+        val input: Request<InputType>
 )
 
-object StorageProcessor {
-    val PREFIX = "storage"
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = Request.TYPE_PROPERTY)
+@JsonSubTypes(
+        JsonSubTypes.Type(value = UserEvent.Create::class, name = "create"),
+        JsonSubTypes.Type(value = UserEvent.Modify::class, name = "modify"),
+        JsonSubTypes.Type(value = UserEvent.Delete::class, name = "delete"))
+sealed class UserEvent {
+    data class Create(
+            val username: String,
+            val password: String?,
+            val userType: UserType // <-- Shared type that lives inside storage interface
+    ) : UserEvent()
+
+    data class Modify(
+            val currentUsername: String,
+            val newPassword: String?,
+            val newUserType: UserType?
+    ) : UserEvent()
+
+    data class Delete(val username: String) : UserEvent()
+
+    companion object {
+        fun buildRequestWriter(objectMapper: ObjectMapper) =
+                objectMapper.writerFor(jacksonTypeRef<Request<UserEvent>>())
+    }
 }
 
-object UserGroupsProcessor {
-    val PREFIX = "${StorageProcessor.PREFIX}.ugs"
-
-    val CreateUser = RequestResponseStream.create<CreateUserRequest>("$PREFIX.create_user")
-    val ModifyUser = RequestResponseStream.create<ModifyUserRequest>("$PREFIX.modify_user")
-    val Bomb = RequestResponseStream.create<Unit>("$PREFIX.BOMB9392") // TODO FIXME REMOVE THIS LATER
+object UserProcessor {
+    // TODO Having auth be validated in the processor probably makes it quite a bit harder to use event-sourcing.
+    // The tokens would have validate during a replay. Food for thought...
+    // Maybe not, we might be able to just use the response topic? We really do need to look into this though.
+    //
+    // It would also make a lot of sense if these events were sent on the same topic, but with different payloads.
+    // This also appears to be how most people describe event-sourcing. Using the primary key (i.e. user) would also
+    // significantly help the ordering of things.
+    val UserEvents = RequestResponseStream("users", jsonSerde<String>(), jsonSerde<Request<UserEvent>>(), jsonSerde<Response<UserEvent>>())
+    //RequestResponseStream.create<String, UserEvent>("users")
 }
