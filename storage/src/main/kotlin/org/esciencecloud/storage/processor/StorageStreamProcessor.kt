@@ -7,6 +7,7 @@ import java.util.*
 
 class StorageStreamProcessor(private val storageService: StorageService) {
     private val userProcessor = Users(storageService)
+    private val groupProcessor = Groups(storageService)
     private val acProcessor = AccessControl(storageService)
 
     fun retrieveKafkaConfiguration(): Properties {
@@ -18,8 +19,9 @@ class StorageStreamProcessor(private val storageService: StorageService) {
     }
 
     fun constructStreams(builder: KStreamBuilder) {
-        userProcessor.init(builder)
+        userProcessor.initStream(builder)
         acProcessor.initStream(builder)
+        groupProcessor.initStream(builder)
 
         // TODO How will we have other internal systems do work here? They won't have a performed by when the task
         // is entirely internal to the system. This will probably just be some simple API token such that we can confirm

@@ -4,57 +4,58 @@ import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
+import org.esciencecloud.storage.ext.StorageConnection
+import org.esciencecloud.storage.model.Request
 import org.esciencecloud.storage.model.RequestHeader
 import org.esciencecloud.storage.model.UserEvent
 import org.esciencecloud.storage.model.UserProcessor
 
 class Users(private val storageService: StorageService) {
-    fun init(builder: KStreamBuilder) {
+    fun initStream(builder: KStreamBuilder) {
         UserProcessor.UserEvents.process(builder) { _, request ->
-            val header = request.header
-            val event = request.event
+            val connection = storageService.validateRequest(request.header).capture() ?:
+                    return@process Result.lastError<Unit>()
 
-            when (event) {
-                is UserEvent.Create -> createUser(header, event)
-                is UserEvent.Modify -> modifyUser(header, event)
-                is UserEvent.Delete -> deleteUser(header, event)
+            @Suppress("UNCHECKED_CAST")
+            when (request.event) {
+                is UserEvent.Create -> createUser(connection, request as Request<UserEvent.Create>)
+                is UserEvent.Modify -> modifyUser(connection, request as Request<UserEvent.Modify>)
+                is UserEvent.Delete -> deleteUser(connection, request as Request<UserEvent.Delete>)
             }
         }
     }
 
-    private fun createUser(header: RequestHeader, request: UserEvent.Create): Result<Unit> {
-        val connection = storageService.validateRequest(header).capture() ?: return Result.lastError()
-        val userAdmin = connection.userAdmin ?: return Error(123, "Not allowed")
-        return userAdmin.createUser(request.username, request.password)
+    private fun createUser(connection: StorageConnection, request: Request<UserEvent.Create>): Result<Unit> {
+        val userAdmin = connection.userAdmin ?: return Error.permissionDenied()
+        return userAdmin.createUser(request.event.username, request.event.password)
     }
 
-    private fun modifyUser(header: RequestHeader, event: UserEvent.Modify): Result<Unit> {
-        val connection = storageService.validateRequest(header).capture() ?: return Result.lastError()
+    private fun modifyUser(connection: StorageConnection, request: Request<UserEvent.Modify>): Result<Unit> {
         return when {
             connection.userAdmin != null -> {
                 val userAdmin = connection.userAdmin!!
                 // We can do whatever
                 // TODO Rolling back if any of these fail is not trivial
-                if (event.newPassword != null) {
-                    userAdmin.modifyPassword(event.currentUsername, event.newPassword).capture() ?:
+                if (request.event.newPassword != null) {
+                    userAdmin.modifyPassword(request.event.currentUsername, request.event.newPassword).capture() ?:
                             return Result.lastError()
                 }
 
-                if (event.newUserType != null) {
+                if (request.event.newUserType != null) {
                     TODO("Not provided by the API")
                 }
 
                 Ok.empty()
             }
 
-            event.currentUsername == connection.connectedUser.name -> {
+            request.event.currentUsername == connection.connectedUser.name -> {
                 // Otherwise we need to modifying ourselves
                 // And even then, we only allow certain things
 
-                if (event.newUserType != null) return Error.permissionDenied()
-                if (event.newPassword != null) {
-                    val currentPassword = header.performedFor.password // TODO This shouldn't be available directly
-                    connection.users.modifyMyPassword(currentPassword, event.newPassword)
+                if (request.event.newUserType != null) return Error.permissionDenied()
+                if (request.event.newPassword != null) {
+                    val currentPassword = request.header.performedFor.password // TODO This shouldn't be available directly
+                    connection.users.modifyMyPassword(currentPassword, request.event.newPassword)
                 }
                 Ok.empty()
             }
@@ -63,5 +64,5 @@ class Users(private val storageService: StorageService) {
         }
     }
 
-    private fun deleteUser(header: RequestHeader, event: UserEvent.Delete): Result<Unit> = TODO()
+    private fun deleteUser(connection: StorageConnection, request: Request<UserEvent.Delete>): Result<Unit> = TODO()
 }

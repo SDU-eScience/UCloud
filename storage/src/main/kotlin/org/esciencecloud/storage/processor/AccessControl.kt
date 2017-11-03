@@ -15,6 +15,6 @@ class AccessControl(private val storageService: StorageService) {
     private fun updateACL(request: Request<UpdateACLRequest>): Result<Unit> {
         val connection = storageService.validateRequest(request.header).capture() ?: return Result.lastError()
         val path = connection.paths.parseAbsolute(request.event.path, addHost = true)
-        return connection.accessControl.updateACL(path, listOf(request.event.updatedEntries))
+        return connection.accessControl.updateACL(path, listOf(request.event.newEntry))
     }
 }

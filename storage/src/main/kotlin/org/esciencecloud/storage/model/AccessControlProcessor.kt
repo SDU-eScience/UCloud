@@ -12,7 +12,7 @@ object AccessControlProcessor {
      * also apply to all of its children. If the entry is not a [FileType.DIRECTORY] then the
      * [UpdateACLRequest.recursive] flag will be ignored.
      *
-     * The ACL will be updated using the entries in [UpdateACLRequest.updatedEntries]. An entry with a value of
+     * The ACL will be updated using the entry in [UpdateACLRequest.newEntry]. An entry with a value of
      * [AccessRight.NONE] will remove the rights from a given [Entity]. Any other [AccessRight] indicates that the
      * user should have its permissions updated in the list. The list sent in this update request does not have to
      * include all entries. As a result, any existing entry in the active list, not mentioned in the update request,
@@ -26,6 +26,6 @@ object AccessControlProcessor {
 
 data class UpdateACLRequest(
         val path: String,
-        val updatedEntries: AccessEntry,
+        val newEntry: AccessEntry,
         val recursive: Boolean
 )

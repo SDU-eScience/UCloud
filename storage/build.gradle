@@ -37,7 +37,6 @@ repositories {
     maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
     maven { url "http://download.osgeo.org/webdav/geotools" }
 
-
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
     maven { url(eScienceCloudRepository) }
