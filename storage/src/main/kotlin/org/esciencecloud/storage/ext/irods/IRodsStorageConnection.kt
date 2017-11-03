@@ -8,7 +8,7 @@ import org.irods.jargon.core.protovalues.UserTypeEnum
 import org.irods.jargon.core.pub.IRODSFileSystem
 
 class IRodsStorageConnection(private val services: AccountServices) : StorageConnection {
-    override val connectedUser: User = User(services.account.userName) // TODO Improve user definition
+    override val connectedUser: User = with (services.account) { User("$userName#$zone", userName, zone) }
     val accountType: UserTypeEnum
 
     init {

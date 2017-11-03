@@ -13,13 +13,14 @@ import org.irods.jargon.core.pub.domain.ObjStat
 import org.irods.jargon.core.pub.domain.UserFilePermission
 import org.irods.jargon.core.pub.domain.UserGroup
 import org.irods.jargon.core.pub.io.IRODSFile
-import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry
-import org.irods.jargon.core.query.MetaDataAndDomainData
+import org.irods.jargon.core.query.*
+import org.irods.jargon.core.query.RodsGenQueryEnum.*
 import org.irods.jargon.core.transfer.TransferStatus
 import org.irods.jargon.core.transfer.TransferStatusCallbackListener
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
@@ -37,7 +38,7 @@ class IRodsPathOperations(override val services: AccountServices) : PathOperatio
         } else {
             // TODO First component is empty
             StoragePath.internalCreateFromHostAndAbsolutePath(
-                    components.first(), '/' + components.joinToString("/"))
+                    components.first(), '/' + components.takeLast(components.size - 1).joinToString("/"))
         }
     }
 
@@ -266,37 +267,144 @@ class IRodsAccessControlOperations(
     }
 
     override fun getMyPermissionAt(path: StoragePath): Result<AccessRight> {
-        val connectedUser = IRodsUser(services.account.userName, services.account.zone)
+        val connectedUser = with(services.account) { User("$userName#zone", userName, zone) }
 
         return services.dataObjects.getPermissionForDataObject(
                 path.toIRodsAbsolute(),
-                connectedUser.username,
+                connectedUser.displayName,
                 connectedUser.zone
         ).map { it.toStorage() }
     }
+}
+
+inline fun <T> doTime(name: String, block: () -> T): T {
+    val start = System.currentTimeMillis()
+    val result = block()
+    println("Timing for $name took ${System.currentTimeMillis() - start} ms")
+    return result
 }
 
 class IRodsFileQueryOperations(
         val paths: PathOperations,
         override val services: AccountServices
 ) : FileQueryOperations, IRodsOperationService {
-    override fun listAt(path: StoragePath, preloadACLs: Boolean, preloadMetadata: Boolean): Result<List<StorageFile>> {
-        // Always loads ACLs
-        val absolutePath = path.toIRodsAbsolute()
-        var results = services.collectionsAndObjectSearch
-                .listDataObjectsAndCollectionsUnderPath(absolutePath)
-                .map { it.toStorage(path) }
+    override fun listAt(path: StoragePath): Result<List<StorageFile>> {
+        val effectiveAbsolutePath = path.toIRodsAbsolute()
 
-        if (preloadMetadata) {
-            results = results.map {
-                val metadata = services.dataObjects
-                        .findMetadataValuesForDataObject(it.path.toIRodsAbsolute())
-                        .map { it.map { it.toStorage() } }.capture() ?: return Result.lastError()
-                StorageFile(it.path, it.type, it.acl, metadata)
+        fun mapAccessRight(value: Int) = when (value) {
+            1050 -> AccessRight.READ
+            1200 -> AccessRight.OWN
+            1120 -> AccessRight.READ_WRITE
+            else -> AccessRight.NONE
+        }
+
+        val mappedResults = HashMap<String, StorageFile>()
+
+        run {
+            // Search for all collections
+            val query = IRODSGenQueryBuilder(true, null).apply {
+                // The parent truly doesn't matter, as the entry itself contains the full name. That is stupid.
+                addSelectAsGenQueryValue(COL_COLL_PARENT_NAME)
+                addSelectAsGenQueryValue(COL_COLL_NAME)
+                addSelectAsGenQueryValue(COL_COLL_CREATE_TIME)
+                addSelectAsGenQueryValue(COL_COLL_MODIFY_TIME)
+                addSelectAsGenQueryValue(COL_COLL_ID)
+
+                addSelectAsGenQueryValue(COL_COLL_ACCESS_TYPE)
+                addSelectAsGenQueryValue(COL_COLL_ACCESS_USER_NAME)
+                addSelectAsGenQueryValue(COL_COLL_ACCESS_USER_ZONE)
+
+                addConditionAsGenQueryField(COL_COLL_PARENT_NAME, QueryConditionOperators.EQUAL, effectiveAbsolutePath)
+            }.exportIRODSQueryFromBuilder(1024 * 32)
+
+            val result = doTime("coll query") {
+                try {
+                    services.queryExecutor.executeIRODSQueryWithPaging(query, 0)
+                } catch (ex: JargonException) {
+                    return remapExceptionToResult(ex)
+                }
+            }
+
+            result.results.map {
+                val pathToEntry = it.getColumn(COL_COLL_NAME.getName())
+                val row = mappedResults[pathToEntry] ?: StorageFile(
+                        FileType.DIRECTORY,
+                        paths.parseAbsolute(pathToEntry),
+                        it.getColumnAsDateOrNull(COL_COLL_CREATE_TIME.getName())?.time ?: 0,
+                        it.getColumnAsDateOrNull(COL_COLL_MODIFY_TIME.getName())?.time ?: 0,
+                        0,
+                        arrayListOf()
+                )
+
+                (row.acl as MutableList<AccessEntry>).add(AccessEntry(
+                        IRodsUser.fromUsernameAndZone(
+                                it.getColumn(COL_COLL_ACCESS_USER_NAME.getName()),
+                                it.getColumn(COL_COLL_ACCESS_USER_ZONE.getName())
+                        ),
+                        mapAccessRight(it.getColumnAsIntOrZero(COL_COLL_ACCESS_TYPE.getName()))
+                ))
+
+                mappedResults[pathToEntry] = row
             }
         }
 
-        return Ok(results)
+        run {
+            val query = IRODSGenQueryBuilder(true, null).apply {
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_COLL_NAME)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_DATA_NAME)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_D_CREATE_TIME)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_D_MODIFY_TIME)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_D_DATA_ID)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_DATA_SIZE)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_USER_NAME)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_DATA_ACCESS_USER_ID)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_DATA_ACCESS_TYPE)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_USER_TYPE)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_USER_ZONE)
+
+                addConditionAsGenQueryField(RodsGenQueryEnum.COL_COLL_NAME, QueryConditionOperators.EQUAL,
+                        effectiveAbsolutePath)
+            }.exportIRODSQueryFromBuilder(1024 * 32)
+            val result = doTime("data query") {
+                try {
+                    services.queryExecutor.executeIRODSQueryWithPaging(query, 0)
+                } catch (ex: JargonException) {
+                    return remapExceptionToResult(ex)
+                }
+            }
+
+            result.results.map {
+                val collectionName = it.getColumn(COL_COLL_NAME.getName())
+                val dataName = it.getColumn(COL_DATA_NAME.getName())
+                val pathToEntry = "$collectionName/$dataName"
+
+                val row = mappedResults[pathToEntry] ?:
+                        StorageFile(
+                                FileType.FILE,
+                                paths.parseAbsolute(pathToEntry),
+                                it.getColumnAsDateOrNull(COL_D_CREATE_TIME.getName())?.time ?: 0,
+                                it.getColumnAsDateOrNull(COL_D_MODIFY_TIME.getName())?.time ?: 0,
+                                it.getColumnAsIntOrZero(COL_DATA_SIZE.getName()),
+                                arrayListOf()
+                        )
+
+                (row.acl as MutableList<AccessEntry>).add(AccessEntry(
+                        IRodsUser.fromUsernameAndZone(
+                                it.getColumn(COL_USER_NAME.getName()),
+                                it.getColumn(COL_USER_ZONE.getName())
+                        ),
+                        mapAccessRight(it.getColumnAsIntOrZero(COL_DATA_ACCESS_TYPE.getName()))
+                ))
+
+                mappedResults[pathToEntry] = row
+            }
+        }
+
+        if (mappedResults.isEmpty()) {
+            val exists = exists(path).capture() ?: return Result.lastError()
+            return if (!exists) Error.notFound() else Ok(emptyList())
+        }
+        return Ok(mappedResults.values.toList())
     }
 
     override fun listAtPathWithMetadata(path: StoragePath, query: Any?): Result<List<StorageFile>> {
@@ -310,19 +418,11 @@ class IRodsFileQueryOperations(
                 services.fileSystem.getObjStat(path.toIRodsAbsolute()).toStorage()
             } catch (_: JargonException) {
                 null
+            } catch (_: StorageException) {
+                null
             }
         }
         return Ok(result)
-    }
-
-    private fun CollectionAndDataObjectListingEntry.toStorage(relativeTo: StoragePath): StorageFile {
-        // TODO The ACL should also contain the information stored in the ownerName and zone
-        return StorageFile(
-                path = relativeTo.pushRelative(this.pathOrName),
-                type = if (this.isCollection) FileType.DIRECTORY else FileType.FILE,
-                acl = this.userFilePermission.map { it.toStorage() },
-                metadata = null
-        )
     }
 
     private fun ObjStat.toStorage(): FileStat =
@@ -379,7 +479,7 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
     override fun addUserToGroup(groupName: String, username: String): Result<Unit> {
         val user = IRodsUser.parse(services, username)
         try {
-            services.userGroups.addUserToGroup(groupName, user.username, user.zone)
+            services.userGroups.addUserToGroup(groupName, user.displayName, user.zone)
         } catch (_: DuplicateDataException) {
             // Ignored
         } catch (_: InvalidGroupException) {
@@ -394,7 +494,7 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
             return Error.notFound()
         }
         try {
-            services.userGroups.removeUserFromGroup(groupName, user.username, user.zone)
+            services.userGroups.removeUserFromGroup(groupName, user.displayName, user.zone)
         } catch (ex: JargonException) {
             // TODO The error code from Jargon are bugged. This could also be a permission exception
             return Error.notFound()
@@ -443,7 +543,7 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
     }
 
     override fun findByUsername(username: String): Result<User> =
-        services.users.findByName(username).map { it.toStorage() }
+            services.users.findByName(username).map { it.toStorage() }
 }
 
 interface IRodsOperationService {

@@ -9,6 +9,7 @@ import org.hamcrest.CoreMatchers.hasItem
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.*
 
@@ -32,12 +33,13 @@ abstract class UserGroupTests {
     fun testCompleteGroupCreationWithMembers() {
         val groupName = randomGroupName()
         val testUser = "test"
+        val zone = "tempZone"
 
         ugService.createGroup(groupName)
         ugService.addUserToGroup(groupName, testUser)
 
         val users = ugService.listGroupMembers(groupName).capture()!!
-        val expectedUser = User(testUser)
+        val expectedUser = User("$testUser#$zone", testUser, zone)
         assertThat(users, hasItem(expectedUser))
         assertEquals(1, users.size)
 
@@ -45,14 +47,14 @@ abstract class UserGroupTests {
         ugService.deleteGroup(groupName)
     }
 
-    @Test(expected = NotFoundException::class)
+    @Test
     fun testRemoveMemberFromInvalidGroup() {
-        ugService.removeUserFromGroup("group_does_not_exist_1235193", "rods")
+        assertTrue(ugService.removeUserFromGroup("group_does_not_exist_1235193", "rods") is Error)
     }
 
-    @Test(expected = NotFoundException::class)
+    @Test
     fun testListGroupMembersFromInvalidGroup() {
-        ugService.listGroupMembers("group_does_not_exist_1235193")
+        assertTrue(ugService.listGroupMembers("group_does_not_exist_1235193") is Error)
     }
 
     @Test(expected = PermissionException::class)
@@ -74,7 +76,7 @@ abstract class UserGroupTests {
         ugService.addUserToGroup("group_does_not_exist_1235193", "test")
     }
 
-    @Test(expected = PermissionException::class)
+    @Test
     fun testDeletionOfNonEmptyGroup() {
         val groupName = randomGroupName()
         val userToAdd = "test"
@@ -82,7 +84,7 @@ abstract class UserGroupTests {
         ugService.createGroup(groupName)
         try {
             ugService.addUserToGroup(groupName, userToAdd)
-            ugService.deleteGroup(groupName)
+            assertTrue(ugService.deleteGroup(groupName) is Error)
         } finally {
             ugService.removeUserFromGroup(groupName, userToAdd)
             ugService.deleteGroup(groupName)

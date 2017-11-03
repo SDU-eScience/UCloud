@@ -199,18 +199,10 @@ interface FileQueryOperations {
      * If the object at [path] is a directory all children in the directory will be listed. This will not recurse.
      * Otherwise only information for that file will be loaded.
      *
-     * Additionally it is possible to load ACLs for every returned object with [preloadACLs]. Metadata can, similarly,
-     * be loaded with [preloadMetadata]. These flags will guarantee that the corresponding fields of StorageFile will
-     * be non-null.
-     *
      * Note that ACLs and metadata might be retrieved even if the flags are off, but they must be retrieved when
      * they are off. This is up to the underlying implementation of determining what is the most efficient.
      */
-    fun listAt(
-            path: StoragePath,
-            preloadACLs: Boolean = false,
-            preloadMetadata: Boolean = false
-    ): Result<List<StorageFile>>
+    fun listAt(path: StoragePath): Result<List<StorageFile>>
 
     fun listAtPathWithMetadata(path: StoragePath, query: Any?): Result<List<StorageFile>> // TODO
 

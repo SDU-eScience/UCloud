@@ -16,7 +16,7 @@ class AccountServices(private val factory: IRODSAccessObjectFactory, val account
     val remoteCommandExecution by lazy { factory.getRemoteExecutionOfCommandsAO(account) }
     val bulkFileOperations by lazy { factory.getBulkFileOperationsAO(account) }
     val quotas by lazy { factory.getQuotaAO(account) }
-    val queryExecutor by lazy { factory.getSimpleQueryExecutorAO(account) }
+    val simplQueryExecutor by lazy { factory.getSimpleQueryExecutorAO(account) }
     val dataObjectAudits by lazy { factory.getDataObjectAuditAO(account) }
     val collectionAudits by lazy { factory.getCollectionAuditAO(account) }
     val mountedCollections by lazy { factory.getMountedCollectionAO(account) }
@@ -25,6 +25,8 @@ class AccountServices(private val factory: IRODSAccessObjectFactory, val account
     val resourceGroups by lazy { factory.getResourceGroupAO(account) }
     val specificQueries by lazy { factory.getSpecificQueryAO(account) }
     val checksums by lazy { factory.getDataObjectChecksumUtilitiesAO(account) }
+
+    val queryExecutor by lazy { factory.getIRODSGenQueryExecutor(account) }
 
     // TODO Accessing these can give JargonExceptions if not wrapped. Correct exception should be a ConnectionException
     val users by lazy { UserAOWrapper(factory.getUserAO(account)) }

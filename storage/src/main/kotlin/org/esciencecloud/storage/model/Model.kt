@@ -10,7 +10,7 @@ enum class UserType {
     GROUP_ADMIN
 }
 
-class StoragePath private constructor(private val uri: URI) {
+data class StoragePath private constructor(private val uri: URI) {
     val host get() = uri.host
     val path get() = uri.path
     val name get() = components.last()
@@ -64,19 +64,26 @@ enum class AccessRight {
     OWN
 }
 
-class AccessEntry(val entity: Entity, val right: AccessRight)typealias AccessControlList = List<AccessEntry>class MetadataEntry(val key: String, val value: String)typealias Metadata = List<MetadataEntry>enum class FileType {
+data class AccessEntry(val entity: Entity, val right: AccessRight)typealias AccessControlList = List<AccessEntry>
+data class MetadataEntry(val key: String, val value: String)
+
+typealias Metadata = List<MetadataEntry>
+
+enum class FileType {
     FILE,
     DIRECTORY
 }
 
 class StorageFile(
-        val path: StoragePath,
         val type: FileType,
-        val acl: AccessControlList?,
-        val metadata: Metadata?
+        val path: StoragePath,
+        val createdAt: Long,
+        val modifiedAt: Long,
+        val size: Int,
+        val acl: List<AccessEntry>
 )
 
-class FileStat(
+data class FileStat(
         val path: StoragePath,
         val createdAtUnixMs: Long,
         val modifiedAtUnixMs: Long,
@@ -90,4 +97,3 @@ enum class ArchiveType {
     TAR_GZ,
     ZIP
 }
-

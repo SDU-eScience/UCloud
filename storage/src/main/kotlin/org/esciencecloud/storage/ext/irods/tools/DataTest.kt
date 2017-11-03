@@ -165,7 +165,8 @@ class DataTest(
             val dummyFile = createDummyFile()
             val path = conn.paths.homeDirectory.push(random.nextString(20))
             conn.files.put(path, dummyFile)
-            conn.accessControl.updateACL(path, listOf(AccessEntry(User("rods"), AccessRight.READ_WRITE)))
+            conn.accessControl.updateACL(path,
+                    listOf(AccessEntry(User("rods#tempZone", "rods", "tempZone"), AccessRight.READ_WRITE)))
             val newAcl = conn.accessControl.listAt(path).orThrow()
             assertEquals(2, newAcl.size, "ACL size")
             val aclEntry = newAcl.find { it.entity.name.startsWith("rods") } ?:

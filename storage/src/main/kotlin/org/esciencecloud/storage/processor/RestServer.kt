@@ -6,6 +6,7 @@ import org.esciencecloud.storage.model.StoragePath
 import org.esciencecloud.storage.model.ProxyClient
 import org.esciencecloud.storage.model.RequestHeader
 import org.jetbrains.ktor.application.install
+import org.jetbrains.ktor.content.file
 import org.jetbrains.ktor.features.Compression
 import org.jetbrains.ktor.features.DefaultHeaders
 import org.jetbrains.ktor.gson.GsonSupport
@@ -37,16 +38,13 @@ class StorageRestServer(val port: Int, private val storageService: StorageServic
                     get {
                         val (_, connection) = parseStorageRequestAndValidate() ?: return@get
                         val path = queryParamOrBad("path") ?: return@get
-                        val acls = queryParamAsBoolean("acl") ?: true
-                        val metadata = queryParamAsBoolean("metadata") ?: false
 
                         try {
                             val message = connection.fileQuery.listAt(
-                                    path = connection.parsePath(path),
-                                    preloadACLs = acls,
-                                    preloadMetadata = metadata
+                                    path = connection.parsePath(path)
                             ).capture() ?: run {
-                                call.response.status(HttpStatusCode.BadRequest)
+                                val error = Result.lastError<Any>()
+                                call.respondText(error.message, status = HttpStatusCode.BadRequest)
                                 return@get
                             }
 

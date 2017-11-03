@@ -21,9 +21,9 @@ abstract class UserAdminTests {
         adminService.deleteUser(username)
     }
 
-    @Test(expected = PermissionException::class)
+    @Test
     fun testInvalidUserCreation() {
-        adminService.createUser(adminConn.connectedUser.name)
+        assertTrue(adminService.createUser(adminConn.connectedUser.name) is Error)
     }
 
     @Test
@@ -62,9 +62,9 @@ abstract class UserAdminTests {
         assertTrue(caughtExceptionDuringLogin)
     }
 
-    @Test(expected = NotFoundException::class)
+    @Test
     fun testModificationOfPasswordOnInvalidUser() {
-        adminService.modifyPassword("user_does_not_exist_1235123", "foobar")
+        assertTrue(adminService.modifyPassword("user_does_not_exist_1235123", "foobar") is Error)
     }
 
     private fun randomUsername(): String {

@@ -3,6 +3,8 @@ package org.esciencecloud.storage.ext.irods
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
+import org.esciencecloud.storage.ext.NotFoundException
+import org.esciencecloud.storage.ext.PermissionException
 import org.irods.jargon.core.exception.*
 import org.irods.jargon.core.packinstr.DataObjInp
 import org.irods.jargon.core.protovalues.FilePermissionEnum
@@ -32,7 +34,6 @@ private inline fun <T> remapException(call: () -> T): T {
 }
 
 fun remapException(exception: Throwable): Exception {
-    /*
     when (exception) {
         is FileNotFoundException, is org.irods.jargon.core.exception.FileNotFoundException -> {
             return NotFoundException("object", "Unknown", exception.message ?: "Unknown")
@@ -64,8 +65,6 @@ fun remapException(exception: Throwable): Exception {
             return RuntimeException("Exception in iRODS. Cause is unknown.", exception)
         }
     }
-     */
-    return RuntimeException("Exception in iRODS. Cause is unknown.", exception)
 }
 
 inline fun <T : Any> remapExceptionToResult(call: () -> T?): Result<T> {

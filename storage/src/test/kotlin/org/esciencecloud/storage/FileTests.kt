@@ -121,7 +121,7 @@ abstract class AbstractFileTests {
     @Test
     fun testOwnershipPermissionIsCorrectlyReturned() {
         val path = adminStorageConnection.paths.homeDirectory.push("hello.txt")
-        assertEquals(AccessRight.OWN, adminStorageConnection.accessControl.getMyPermissionAt(path))
+        assertEquals(AccessRight.OWN, adminStorageConnection.accessControl.getMyPermissionAt(path).capture())
     }
 
     @Test
@@ -132,30 +132,22 @@ abstract class AbstractFileTests {
 
         adminStorageConnection.files.put(path, emptyDummyFile)
 
-        assertEquals(AccessRight.OWN, adminStorageConnection.accessControl.getMyPermissionAt(path))
+        assertEquals(AccessRight.OWN, adminStorageConnection.accessControl.getMyPermissionAt(path).capture())
 
-        try {
-            userStorageConnection.accessControl.getMyPermissionAt(path)
-            assertTrue(false)
-        } catch (ignored: NotFoundException) {
-        }
+        assertTrue(userStorageConnection.accessControl.getMyPermissionAt(path) is Error)
 
         adminStorageConnection.accessControl.updateACL(
                 path,
                 listOf(AccessEntry(userStorageConnection.connectedUser, AccessRight.READ))
         )
 
-        assertEquals(AccessRight.READ, userStorageConnection.accessControl.getMyPermissionAt(path))
+        assertEquals(AccessRight.READ, userStorageConnection.accessControl.getMyPermissionAt(path).capture())
 
         adminStorageConnection.accessControl.updateACL(
                 path,
                 listOf(AccessEntry(userStorageConnection.connectedUser, AccessRight.NONE))
         )
-        try {
-            userStorageConnection.accessControl.getMyPermissionAt(path)
-            assertTrue(false)
-        } catch (ignored: NotFoundException) {
-        }
+        assertTrue(userStorageConnection.accessControl.getMyPermissionAt(path) is Error)
     }
 
     @Test
