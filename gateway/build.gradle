@@ -14,6 +14,7 @@ buildscript {
 }
 
 apply plugin: 'kotlin'
+apply plugin: 'java'
 
 repositories {
     mavenCentral()
@@ -33,6 +34,12 @@ dependencies {
 
     compile "org.esciencecloud:kafka-common:0.3.0"
     compile "org.esciencecloud:storage-api:0.1.3"
+
+    compile "com.fasterxml.jackson.core:jackson-core:2.0.22"
+    compile "com.fasterxml.jackson.core:jackson-databind:2.0.22"
+
+    compile "org.eclipse.persistence:org.eclipse.persistence.jpa:2.6.5"
+    compile "org.postgresql:postgresql:42.1.4"
 }
 
 compileKotlin {
