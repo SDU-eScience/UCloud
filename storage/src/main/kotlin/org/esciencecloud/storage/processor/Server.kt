@@ -1,17 +1,21 @@
 package org.esciencecloud.storage.processor
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
-import org.esciencecloud.storage.ext.*
+import org.esciencecloud.storage.ext.StorageConnection
+import org.esciencecloud.storage.ext.StorageConnectionFactory
 import org.esciencecloud.storage.ext.irods.IRodsConnectionInformation
 import org.esciencecloud.storage.ext.irods.IRodsStorageConnectionFactory
-import org.esciencecloud.storage.model.*
+import org.esciencecloud.storage.model.RequestHeader
+import org.esciencecloud.storage.model.addShutdownHook
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 /*
@@ -20,25 +24,68 @@ import java.util.concurrent.TimeUnit
  * these together. It will also be simpler, so we should do this for now.
  */
 
+data class Configuration(
+        val storage: StorageConfiguration,
+        val service: ServiceConfiguration,
+        val kafka: KafkaConfiguration
+) {
+    companion object {
+        private val mapper = jacksonObjectMapper()
+
+        fun parseFile(file: File) = mapper.readValue<Configuration>(file)
+    }
+}
+
+data class StorageConfiguration(
+        val host: String,
+        val port: Int,
+        val zone: String,
+        val resource: String,
+        val authScheme: String?,
+        val sslPolicy: String?,
+        val adminUsername: String,
+        val adminPassword: String
+)
+
+data class ServiceConfiguration(val port: Int)
+data class KafkaConfiguration(val servers: List<String>)
+
 fun main(args: Array<String>) {
-    val storageService = IRodsStorageService(
-            IRodsConnectionInformation(
-                    host = "localhost",
-                    port = 1247,
-                    zone = "tempZone",
-                    storageResource = "radosRandomResc",
-                    authScheme = AuthScheme.STANDARD,
-                    sslNegotiationPolicy = ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE
-            ),
+    val log = LoggerFactory.getLogger("Server")
+    log.info("Starting storage service")
 
-            adminUsername = "rods",
-            adminPassword = "rods"
-    )
+    val filePath = File(if (args.size == 1) args[0] else "/etc/storage/conf.json")
+    log.info("Reading configuration file from: ${filePath.absolutePath}")
+    if (!filePath.exists()) {
+        log.error("Could not find log file!")
+        System.exit(1)
+        return
+    }
 
-    val streamProcessor = StorageStreamProcessor(storageService)
+    val configuration = Configuration.parseFile(filePath)
 
-    // TODO This should probably use their Application class thing. Look into this
-    val restServer = StorageRestServer(42100, storageService).create()
+    val storageService = with(configuration.storage) {
+        IRodsStorageService(
+                IRodsConnectionInformation(
+                        host = host,
+                        port = port,
+                        zone = zone,
+                        storageResource = resource,
+                        authScheme = if (authScheme != null) AuthScheme.valueOf(authScheme) else AuthScheme.STANDARD,
+                        sslNegotiationPolicy =
+                        if (sslPolicy != null)
+                            ClientServerNegotiationPolicy.SslNegotiationPolicy.valueOf(sslPolicy)
+                        else
+                            ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE
+                ),
+
+                adminUsername = adminUsername,
+                adminPassword = adminPassword
+        )
+    }
+
+    val streamProcessor = StorageStreamProcessor(storageService, configuration.kafka)
+    val restServer = StorageRestServer(configuration.service.port, storageService).create()
 
     val streams = KafkaStreams(
             KStreamBuilder().apply { streamProcessor.constructStreams(this) },
@@ -63,7 +110,6 @@ fun main(args: Array<String>) {
         // We should probably still log what happened...
         // mapResult could help with exception handling though.
     }
-    val log = LoggerFactory.getLogger("Server")
 
     // Start the stream processor
     log.info("Starting stream processor")
@@ -93,26 +139,26 @@ abstract class StorageService {
      */
     fun validateRequest(header: RequestHeader): Result<StorageConnection> {
         // TODO
+        /*
         if (header.performedFor.username == "internal-service-super-secret-obviously-dont-use-this") {
             // This should use API tokens or just plain certificates for validating that this is an internal service
             // making the request.
             return Ok(adminConnection)
         }
+        */
 
-        return try {
-            Ok(with(header.performedFor) { storageFactory.createForAccount(username, password) })
-        } catch (ex: PermissionException) {
-            // TODO Change interface
-            Error.permissionDenied()
-        }
+        // TODO We need to close the storage connections.
+        return with(header.performedFor) { storageFactory.createForAccount(username, password) }
     }
 }
 
 class IRodsStorageService(
         connectionInformation: IRodsConnectionInformation,
-        adminUsername: String = "rods",
-        adminPassword: String = "rods"
+        adminUsername: String,
+        adminPassword: String
 ) : StorageService() {
     override val storageFactory: StorageConnectionFactory = IRodsStorageConnectionFactory(connectionInformation)
-    override val adminConnection: StorageConnection = storageFactory.createForAccount(adminUsername, adminPassword)
+
+    override val adminConnection: StorageConnection =
+            storageFactory.createForAccount(adminUsername, adminPassword).orThrow()
 }

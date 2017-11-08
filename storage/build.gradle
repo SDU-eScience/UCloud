@@ -42,17 +42,6 @@ repositories {
     maven { url(eScienceCloudRepository) }
 }
 
-task fatJar(type: Jar) {
-    manifest {
-        attributes 'Implementation-Title': 'direct-misc-exporter',
-                'Implementation-Version': version,
-                'Main-Class': 'dk.sdu.escience.RadosUploadKt'
-    }
-    baseName = project.name + '-all'
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-    with jar
-}
-
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
 
@@ -67,8 +56,10 @@ dependencies {
     compile group: 'org.irods.jargon', name: 'jargon-core', version: '4.2.0.0-RELEASE'
 
     // Logging
-    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.7'
+
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
 
     // ktor
@@ -110,4 +101,15 @@ publishing {
             }
         }
     }
+}
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes(['Implementation-Title'  : 'Storage FatJar',
+                    'Implementation-Version': version,
+                    'Main-Class'            : 'org.esciencecloud.storage.processor.ServerKt'])
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
 }

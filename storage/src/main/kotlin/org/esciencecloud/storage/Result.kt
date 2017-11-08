@@ -72,6 +72,7 @@ class Error<out T : Any>(
         fun <T : Any> duplicateResource(message: String = "Entity already exists") = Error<T>(2, message)
         fun <T : Any> permissionDenied(message: String = "Permission denied") = Error<T>(3, message)
         fun <T : Any> invalidMessage(message: String = "Invalid message") = Error<T>(4, message)
+        fun <T : Any> invalidAuthentication(message: String = "Invalid username or password") = Error<T>(5, message)
     }
 }
 

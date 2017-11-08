@@ -41,6 +41,7 @@
     <orderEntry type="library" name="Gradle: org.jetbrains.exposed:exposed:0.8.6" level="project" />
     <orderEntry type="library" name="Gradle: org.irods.jargon:jargon-core:4.2.0.0-RELEASE" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-api:2.9.1" level="project" />
+    <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-slf4j-impl:2.9.1" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.logging.log4j:log4j-core:2.9.1" level="project" />
     <orderEntry type="library" name="Gradle: org.jetbrains.ktor:ktor-core:0.4.0" level="project" />
     <orderEntry type="library" name="Gradle: org.jetbrains.ktor:ktor-netty:0.4.0" level="project" />

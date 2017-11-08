@@ -1,14 +1,18 @@
 package org.esciencecloud.storage.ext.irods
 
+import org.esciencecloud.storage.Error
+import org.esciencecloud.storage.Ok
+import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.*
 import org.esciencecloud.storage.model.User
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.irods.jargon.core.connection.IRODSAccount
+import org.irods.jargon.core.exception.AuthenticationException
 import org.irods.jargon.core.protovalues.UserTypeEnum
 import org.irods.jargon.core.pub.IRODSFileSystem
 
 class IRodsStorageConnection(private val services: AccountServices) : StorageConnection {
-    override val connectedUser: User = with (services.account) { User("$userName#$zone", userName, zone) }
+    override val connectedUser: User = with(services.account) { IRodsUser.fromUsernameAndZone(userName, zone) }
     val accountType: UserTypeEnum
 
     init {
@@ -32,19 +36,25 @@ class IRodsStorageConnection(private val services: AccountServices) : StorageCon
     }
 }
 
-class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConnectionInformation) : StorageConnectionFactory {
+class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConnectionInformation) :
+        StorageConnectionFactory {
     private val objectFactory by lazy { IRODSFileSystem.instance().irodsAccessObjectFactory }
 
-    override fun createForAccount(username: String, password: String): StorageConnection {
-        val account = IRODSAccount.instance(connectionInformation.host, connectionInformation.port,
-                username, password, "/" + connectionInformation.zone + "/home/" + username,
-                connectionInformation.zone, connectionInformation.storageResource)
+    override fun createForAccount(username: String, password: String): Result<StorageConnection> {
+        return try {
+            val account = with(connectionInformation) {
+                IRODSAccount.instance(host, port, username, password, "/$zone/home/$username", zone, storageResource)
+            }
 
-        account.authenticationScheme = connectionInformation.authScheme
+            account.authenticationScheme = connectionInformation.authScheme
 
-        val csPolicy = ClientServerNegotiationPolicy()
-        csPolicy.sslNegotiationPolicy = connectionInformation.sslNegotiationPolicy
-        account.clientServerNegotiationPolicy = csPolicy
-        return IRodsStorageConnection(AccountServices(objectFactory, account, connectionInformation))
+            val csPolicy = ClientServerNegotiationPolicy()
+            csPolicy.sslNegotiationPolicy = connectionInformation.sslNegotiationPolicy
+            account.clientServerNegotiationPolicy = csPolicy
+
+            Ok(IRodsStorageConnection(AccountServices(objectFactory, account, connectionInformation)))
+        } catch (ex: AuthenticationException) {
+            Error.invalidAuthentication()
+        }
     }
 }

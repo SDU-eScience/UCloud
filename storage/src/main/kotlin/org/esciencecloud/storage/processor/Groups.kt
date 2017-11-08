@@ -9,7 +9,7 @@ import org.esciencecloud.storage.model.Request
 
 class Groups(private val storageService: StorageService) {
     fun initStream(builder: KStreamBuilder) {
-        GroupsProcessor.Groups.process(builder) { groupName, request ->
+        GroupsProcessor.Groups.process(builder) { _, request ->
             val connection = storageService.validateRequest(request.header).capture() ?:
                     return@process Result.lastError<Unit>()
 

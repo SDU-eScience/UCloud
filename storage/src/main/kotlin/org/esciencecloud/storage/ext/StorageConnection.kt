@@ -1,5 +1,6 @@
 package org.esciencecloud.storage.ext
 
+import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.model.User
 
 interface StorageConnection {
@@ -33,5 +34,5 @@ interface StorageConnectionFactory {
      *
      * @throws PermissionException If the authentication fails
      */
-    fun createForAccount(username: String, password: String): StorageConnection
+    fun createForAccount(username: String, password: String): Result<StorageConnection>
 }

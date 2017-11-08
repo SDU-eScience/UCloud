@@ -63,7 +63,7 @@ class DataTest(
 
         override fun run() {
             synchronized(lock) {
-                _conn = storageConnectionFactory.createForAccount(username, password)
+                _conn = storageConnectionFactory.createForAccount(username, password).orThrow()
                 try {
                     tasks[random.nextInt(tasks.size)]()
                 } catch (ex: Exception) {
