@@ -22,7 +22,7 @@ class IRodsFileTests : AbstractFileTests() {
                 authScheme = AuthScheme.STANDARD,
                 sslNegotiationPolicy = CS_NEG_REFUSE
         ))
-        adminStorageConnection = connFactoryStorage.createForAccount("rods", "rods")
-        userStorageConnection = connFactoryStorage.createForAccount("test", "test")
+        adminStorageConnection = connFactoryStorage.createForAccount("rods", "rods").orThrow()
+        userStorageConnection = connFactoryStorage.createForAccount("test", "test").orThrow()
     }
 }

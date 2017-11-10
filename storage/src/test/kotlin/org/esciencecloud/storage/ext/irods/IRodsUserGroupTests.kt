@@ -19,6 +19,6 @@ class IRodsUserGroupTests : UserGroupTests() {
                 authScheme = AuthScheme.STANDARD,
                 sslNegotiationPolicy = CS_NEG_REFUSE
         ))
-        allServices = factory.createForAccount("irodsadmin", "irodsadmin")
+        allServices = factory.createForAccount("irodsadmin", "irodsadmin").orThrow()
     }
 }

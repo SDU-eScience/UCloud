@@ -1,6 +1,6 @@
 buildscript {
     ext.kotlin_version = '1.1.51'
-    ext.ktor_version = '0.4.0'
+    ext.ktor_version = '0.9.0'
 
     repositories {
         mavenCentral()
@@ -40,19 +40,21 @@ repositories {
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
     maven { url(eScienceCloudRepository) }
+    maven { url "https://dl.bintray.com/tus/maven" }
 }
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
-
-    // Kotlin
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
 
-    // Ceph Connector
-    compile group: 'com.ceph', name: 'rados', version: '0.3.0'
-    compile 'org.jetbrains.exposed:exposed:0.8.6'
+    // ------------
+    // Ceph uploads
+    // ------------
+    compile files("libs/rados-0.4.0-SNAPSHOT.jar")
+    compile 'io.tus.java.client:tus-java-client:0.3.1'
+    // ------------
 
-    // iRODS connector
+    compile 'org.jetbrains.exposed:exposed:0.8.6'
     compile group: 'org.irods.jargon', name: 'jargon-core', version: '4.2.0.0-RELEASE'
 
     // Logging
@@ -63,10 +65,11 @@ dependencies {
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
 
     // ktor
-    compile "org.jetbrains.ktor:ktor-core:$ktor_version"
-    compile "org.jetbrains.ktor:ktor-netty:$ktor_version"
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
-    compile "org.jetbrains.ktor:ktor-gson:$ktor_version"
+
+    compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
+
 
     compile "org.esciencecloud:kafka-common:0.3.0"
 }

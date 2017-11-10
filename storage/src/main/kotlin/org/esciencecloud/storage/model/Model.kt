@@ -64,10 +64,11 @@ enum class AccessRight {
     OWN
 }
 
-data class AccessEntry(val entity: Entity, val right: AccessRight)typealias AccessControlList = List<AccessEntry>
 data class MetadataEntry(val key: String, val value: String)
-
 typealias Metadata = List<MetadataEntry>
+
+data class AccessEntry(val entity: Entity, val right: AccessRight)
+typealias AccessControlList = List<AccessEntry>
 
 enum class FileType {
     FILE,

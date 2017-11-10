@@ -21,6 +21,6 @@ class IRodsUserAdminTests : UserAdminTests() {
                 authScheme = AuthScheme.STANDARD,
                 sslNegotiationPolicy = CS_NEG_REFUSE
         ))
-        adminConn = storageConnectionFactory.createForAccount("irodsadmin", "irodsadmin")
+        adminConn = storageConnectionFactory.createForAccount("irodsadmin", "irodsadmin").orThrow()
     }
 }

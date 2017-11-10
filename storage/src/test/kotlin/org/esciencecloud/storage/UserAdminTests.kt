@@ -32,7 +32,7 @@ abstract class UserAdminTests {
         val password = "securepassword"
 
         adminService.createUser(username, password)
-        val service = storageConnectionFactory.createForAccount(username, password)
+        val service = storageConnectionFactory.createForAccount(username, password).orThrow()
         service.fileQuery.listAt(service.paths.homeDirectory)
         service.close()
         adminService.deleteUser(username)
@@ -45,14 +45,14 @@ abstract class UserAdminTests {
 
         adminService.createUser(username, type = UserType.USER)
         adminService.modifyPassword(username, password)
-        var service = storageConnectionFactory.createForAccount(username, password)
+        var service = storageConnectionFactory.createForAccount(username, password).orThrow()
         service.fileQuery.listAt(service.paths.homeDirectory)
         service.close()
 
         adminService.modifyPassword(username, "somethingElse")
         var caughtExceptionDuringLogin = false
         try {
-            service = storageConnectionFactory.createForAccount(username, password)
+            service = storageConnectionFactory.createForAccount(username, password).orThrow()
             service.fileQuery.listAt(service.paths.homeDirectory)
         } catch (e: Exception) {
             caughtExceptionDuringLogin = true
