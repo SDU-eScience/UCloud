@@ -1,12 +1,17 @@
 package org.esciencecloud.storage.processor
 
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.Compression
+import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.jackson.JacksonConverter
+import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.authorization
@@ -23,13 +28,16 @@ import org.esciencecloud.storage.processor.tus.TusController
 import org.esciencecloud.storage.Result
 import java.util.*
 
-
 class StorageRestServer(val port: Int, private val storageService: StorageService) {
     fun create() = embeddedServer(CIO, port = port) {
-        //install(GsonSupport)
         install(Compression)
         install(DefaultHeaders)
         install(CallLogging)
+        install(ContentNegotiation) {
+            jackson {
+                registerModule(KotlinModule())
+            }
+        }
 
         routing {
             // TODO We need a common way of handling results here

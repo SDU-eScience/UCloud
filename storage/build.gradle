@@ -69,6 +69,8 @@ dependencies {
 
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
+    compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
 
 
     compile "org.esciencecloud:kafka-common:0.3.0"
