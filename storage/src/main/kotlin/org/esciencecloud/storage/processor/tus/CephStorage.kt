@@ -159,6 +159,21 @@ class RadosUpload(
 
         // Await all launched jobs
         jobs.forEach { it?.join() }
+
+        // Since jobs can finish out of order we must notify again down here
+        val callback = onProgress
+        if (callback != null) {
+            var maxAck = 0
+            while (true) {
+                if (acknowledged.contains(maxAck)) {
+                    maxAck++
+                } else {
+                    // TODO FIXME THIS WILL NOT WORK WHEN WE HAVE BLOCKS THAT ARE NOT PERFECTLY LINED UP
+                    callback((maxAck.toLong() - 1) * RadosStorage.BLOCK_SIZE)
+                    break
+                }
+            }
+        }
     }
 }
 

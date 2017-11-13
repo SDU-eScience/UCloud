@@ -1,35 +1,41 @@
 package org.esciencecloud.storage.processor
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import io.ktor.application.ApplicationCall
-import io.ktor.application.call
-import io.ktor.application.install
+import io.ktor.application.*
 import io.ktor.features.CallLogging
 import io.ktor.features.Compression
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.authorization
+import io.ktor.request.uri
 import io.ktor.response.respond
 import io.ktor.response.respondText
-import io.ktor.routing.*
+import io.ktor.routing.get
+import io.ktor.routing.route
+import io.ktor.routing.routing
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.util.AttributeKey
+import org.esciencecloud.storage.Error
+import org.esciencecloud.storage.Ok
+import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.StorageConnection
 import org.esciencecloud.storage.model.ProxyClient
-import org.esciencecloud.storage.model.StoragePath
 import org.esciencecloud.storage.model.RequestHeader
+import org.esciencecloud.storage.model.StoragePath
 import org.esciencecloud.storage.processor.tus.TusController
-import org.esciencecloud.storage.Result
 import java.util.*
 
-class StorageRestServer(val port: Int, private val storageService: StorageService) {
-    fun create() = embeddedServer(CIO, port = port) {
+class StorageRestServer(private val configuration: Configuration, private val storageService: StorageService) {
+    companion object {
+        val StorageSession = AttributeKey<StorageConnection>("StorageSession")
+    }
+
+    fun create() = embeddedServer(CIO, port = configuration.service.port) {
         install(Compression)
         install(DefaultHeaders)
         install(CallLogging)
@@ -39,84 +45,74 @@ class StorageRestServer(val port: Int, private val storageService: StorageServic
             }
         }
 
+        intercept(ApplicationCallPipeline.Infrastructure) {
+            val (username, password) = call.request.basicAuth() ?: run {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@intercept
+            }
+
+            val uuid = call.request.headers["Job-Id"] ?: run {
+                call.respond(HttpStatusCode.BadRequest) // TODO
+                return@intercept
+            }
+
+            val header = RequestHeader(uuid, ProxyClient(username, password))
+            val connection = storageService.validateRequest(header).capture() ?: run {
+                call.respond(HttpStatusCode.Unauthorized)
+                finish()
+                return@intercept
+            }
+            call.attributes.put(StorageSession, connection)
+        }
+
         routing {
-            // TODO We need a common way of handling results here
-            // TODO We need a format for errors. Should this always be included in the message? Would simplify
-            // client code.
-            route("/api/") {
-                val tusController = TusController()
-                tusController.registerTusEndpoint(this, "tus")
+            val tusConfig = configuration.tus
+            if (tusConfig != null) {
+                val tusController = TusController(tusConfig)
+                tusController.registerTusEndpoint(this, "/api/tus")
+            }
 
-                route("files") {
-                    get {
-                        val (_, connection) = parseStorageRequestAndValidate() ?: return@get
-                        val path = queryParamOrBad("path") ?: return@get
-
-                        try {
-                            val message = connection.fileQuery.listAt(
-                                    path = connection.parsePath(path)
-                            ).capture() ?: run {
-                                val error = Result.lastError<Any>()
-                                call.respondText(error.message, status = HttpStatusCode.BadRequest)
-                                return@get
-                            }
-
-                            call.respond(message)
-                        } catch (ex: Exception) {
-                            ex.printStackTrace()
-                            //TODO("Change interface such that we don't throw exceptions we need to handle here")
-                            call.respond(HttpStatusCode.InternalServerError)
-                        }
-                    }
+            route("api") {
+                get("files") {
+                    val connection = call.attributes[StorageSession]
+                    val path = queryParamOrBad("path") ?: return@get
+                    produceResult(call, connection.fileQuery.listAt(connection.parsePath(path)))
                 }
 
-                route("acl") {
-                    get {
-                        val (_, connection) = parseStorageRequestAndValidate() ?: return@get
-                        val path = queryParamOrBad("path") ?: return@get
-                        val message = connection.accessControl.listAt(connection.parsePath(path)).capture() ?: run {
-                            val error = Result.lastError<Any>()
-                            call.respondText(error.message, status = HttpStatusCode.BadRequest)
-                            return@get
-                        }
-
-                        call.respond(message)
-                    }
+                get("acl") {
+                    val connection = call.attributes[StorageSession]
+                    val path = queryParamOrBad("path") ?: return@get
+                    produceResult(call, connection.accessControl.listAt(connection.parsePath(path)))
                 }
 
-                route("users") {
-                    get {
-                        val (_, connection) = parseStorageRequestAndValidate() ?: return@get
-                        val userAdmin = connection.userAdmin ?: run {
-                            call.respondText("Unauthorized", status = HttpStatusCode.Unauthorized)
-                            return@get
-                        }
-
-                        val username = queryParamOrBad("username") ?: return@get
-                        val result = userAdmin.findByUsername(username).capture() ?: run {
-                            val error = Result.lastError<Any>()
-                            call.respondText(error.message, status = HttpStatusCode.BadRequest)
-                            return@get
-                        }
-
-                        call.respond(result)
+                get("users") {
+                    val connection = call.attributes[StorageSession]
+                    val username = queryParamOrBad("username") ?: return@get
+                    val admin = connection.userAdmin ?: run {
+                        call.respondText("Unauthorized", status = HttpStatusCode.Unauthorized)
+                        return@get
                     }
+                    produceResult(call, admin.findByUsername(username))
                 }
 
-                route("groups") {
-                    get {
-                        // TODO This might not be exception free
-                        val (_, connection) = parseStorageRequestAndValidate() ?: return@get
-                        val groupName = queryParamOrBad("groupname") ?: return@get
-                        val members = connection.groups.listGroupMembers(groupName).capture() ?: run {
-                            val error = Result.lastError<Any>()
-                            call.respondText(error.message, status = HttpStatusCode.BadRequest)
-                            return@get
-                        }
-
-                        call.respond(members)
-                    }
+                get("groups") {
+                    // TODO This might not be exception free
+                    val connection = call.attributes[StorageSession]
+                    val groupName = queryParamOrBad("groupname") ?: return@get
+                    produceResult(call, connection.groups.listGroupMembers(groupName))
                 }
+            }
+        }
+    }
+
+    suspend fun <T : Any> produceResult(call: ApplicationCall, result: Result<T>) {
+        when (result) {
+            is Ok<T> -> {
+                call.respond(result.result)
+            }
+
+            is Error<T> -> {
+                call.respondText(result.message, status = HttpStatusCode.BadRequest)
             }
         }
     }
@@ -135,30 +131,6 @@ class StorageRestServer(val port: Int, private val storageService: StorageServic
         val param = call.request.queryParameters[key] ?: return null
         if (param.isEmpty()) return true
         return param.toBoolean()
-    }
-
-    // This will almost certainly need to be applied on all routes
-    // Look into how ktor allows for this (because it almost certainly does)
-    private suspend fun PipelineContext<Unit, ApplicationCall>.parseStorageRequestAndValidate():
-            Pair<RequestHeader, StorageConnection>? {
-        val (username, password) = call.request.basicAuth() ?: return run {
-            call.respond(HttpStatusCode.Unauthorized)
-            null
-        }
-
-        val uuid = call.request.headers["Job-Id"] ?: return run {
-            call.respond(HttpStatusCode.BadRequest) // TODO
-            null
-        }
-
-        val header = RequestHeader(uuid, ProxyClient(username, password))
-
-        val connection = storageService.validateRequest(header).capture() ?: return run {
-            call.respond(HttpStatusCode.Unauthorized)
-            null
-        }
-
-        return Pair(header, connection)
     }
 
     private fun ApplicationRequest.basicAuth(): Pair<String, String>? {

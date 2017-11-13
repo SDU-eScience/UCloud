@@ -27,7 +27,8 @@ import java.util.concurrent.TimeUnit
 data class Configuration(
         val storage: StorageConfiguration,
         val service: ServiceConfiguration,
-        val kafka: KafkaConfiguration
+        val kafka: KafkaConfiguration,
+        val tus: TusConfiguration?
 ) {
     companion object {
         private val mapper = jacksonObjectMapper()
@@ -49,6 +50,12 @@ data class StorageConfiguration(
 
 data class ServiceConfiguration(val port: Int)
 data class KafkaConfiguration(val servers: List<String>)
+
+data class TusConfiguration(
+        val icatJdbcUrl: String,
+        val icatUser: String,
+        val icatPassword: String
+)
 
 fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger("Server")
@@ -85,7 +92,7 @@ fun main(args: Array<String>) {
     }
 
     val streamProcessor = StorageStreamProcessor(storageService, configuration.kafka)
-    val restServer = StorageRestServer(configuration.service.port, storageService).create()
+    val restServer = StorageRestServer(configuration, storageService).create()
 
     val streams = KafkaStreams(
             KStreamBuilder().apply { streamProcessor.constructStreams(this) },

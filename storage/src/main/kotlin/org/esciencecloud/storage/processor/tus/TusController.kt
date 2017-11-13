@@ -8,28 +8,29 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.header
 import io.ktor.request.receiveChannel
-import io.ktor.request.receiveMultipart
 import io.ktor.response.ApplicationResponse
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
-import io.ktor.routing.Route
 import io.ktor.routing.*
+import org.esciencecloud.storage.processor.StorageRestServer
+import org.esciencecloud.storage.processor.TusConfiguration
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.URI
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
-class TusController {
-    private val idSequence = AtomicInteger()
+class TusController(private val config: TusConfiguration) {
     private val activeTransfers = HashMap<String, InitiatedTransferState>()
     private val log = LoggerFactory.getLogger("TUS")
-    private val rados = RadosStorage("client.development", File("ceph.conf"), "development")
+    private val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
+    private val icat = ICAT(config)
 
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
-            val serverConfiguration = TusConfiguration(
+            val serverConfiguration = InternalConfig(
                     prefix = contextPath,
                     tusVersion = SimpleSemanticVersion(1, 0, 0),
                     supportedVersions = listOf(SimpleSemanticVersion(1, 0, 0)), maxSizeInBytes = null
@@ -83,11 +84,12 @@ class TusController {
                 }
 
                 post {
-                    // Create a new resource for uploading
-                    val next = idSequence.getAndIncrement()
-                    val id = "transfer-$next"
+                    val connection = call.attributes[StorageRestServer.StorageSession]
 
-                    // TODO Support deferred length
+                    // Create a new resource for uploading. This is non-standard as we will need to know where
+                    // this resource is to be stored and such.
+                    val id = UUID.randomUUID().toString()
+
                     val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?:
                             return@post call.respond(HttpStatusCode.BadRequest)
 
@@ -95,8 +97,8 @@ class TusController {
                         return@post call.respond(HttpStatusCode(413, "Request Entity Too Large"))
                     }
 
-                    activeTransfers[id] = InitiatedTransferState(id, length)
-                    // TODO This is missing the remaining prefix (for example /api/)
+                    activeTransfers[id] = InitiatedTransferState(id, length, connection.connectedUser.displayName,
+                            connection.connectedUser.zone, connection.paths.homeDirectory.toString(), id)
                     call.response.header(HttpHeaders.Location, "${serverConfiguration.prefix}/$id")
                     call.respond(HttpStatusCode.Created)
                 }
@@ -106,7 +108,7 @@ class TusController {
                     with(serverConfiguration) {
                         call.response.tusSupportedVersions(supportedVersions)
                         call.response.tusMaxSize(maxSizeInBytes)
-                        call.response.tusExtensions(listOf(TusExtensions.Creation, TusExtensions.SduArchives))
+                        call.response.tusExtensions(listOf(TusExtensions.SduArchives))
                         call.respond(HttpStatusCode.NoContent)
                     }
                 }
@@ -137,15 +139,10 @@ class TusController {
         }
 
         // Start reading some contents
-        var firstByteReceived = false
         val channel = call.receiveChannel()
         val internalBuffer = ByteBuffer.allocate(1024 * 32)
         val wrappedChannel = object : IReadChannel {
             suspend override fun read(dst: ByteArray): Int {
-                if (!firstByteReceived) {
-                    firstByteReceived = true
-                    log.info("First byte received")
-                }
                 val read = channel.read(internalBuffer)
                 if (read != -1) {
                     internalBuffer.flip()
@@ -163,6 +160,39 @@ class TusController {
         val task = rados.createUpload(id, wrappedChannel, claimedOffset, transferState.length)
         task.onProgress = { transferState.set(it) }
         task.upload()
+
+        if (transferState.offset == transferState.length) {
+            val irodsUser = transferState.irodsUser
+            val irodsZone = transferState.irodsZone
+
+            val uri = URI(transferState.targetCollection)
+            val irodsCollection = "/${uri.host}${uri.path}"
+            val irodsFileName = transferState.targetName
+
+            // Finalize upload
+            log.info("Upload ${transferState.id} has been completed!")
+            icat.useConnection {
+                autoCommit = false
+                log.info("Registration of object...")
+                val resource = findResourceByNameAndZone("child_01", "tempZone") ?: return@useConnection
+                log.info("Using resource $resource. $irodsUser, $irodsZone, $irodsCollection")
+                val entry = findAccessRightForUserInCollection(irodsUser, irodsZone, irodsCollection)
+                log.info("ACL Entry: $entry")
+                // TODO This is really primitive and even worse, potentially wrong
+                if (entry != null && (entry.accessType == 1200L || entry.accessType == 1120L)) {
+                    val objectId = registerDataObject(entry.objectId, transferState.id, transferState.length,
+                            irodsFileName, irodsUser, irodsZone, resource) ?:
+                            return@useConnection run { rollback() }
+
+                    log.info("Auto-generated ID is $objectId")
+                    val now = System.currentTimeMillis()
+
+                    registerAccessEntry(ICATAccessEntry(objectId, entry.userId, 1200, now, now))
+                    log.info("Done!")
+                    commit()
+                }
+            }
+        }
 
         call.response.tusOffset(transferState.offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))
@@ -183,7 +213,7 @@ class TusController {
         }
     }
 
-    private data class TusConfiguration(
+    private data class InternalConfig(
             val prefix: String,
             val tusVersion: SimpleSemanticVersion,
             val supportedVersions: List<SimpleSemanticVersion>,
@@ -266,11 +296,12 @@ class TusController {
     }
 
     private object TusExtensions {
-        const val Creation = "Creation"
         const val SduArchives = "SduArchive"
     }
 
-    private class InitiatedTransferState(val id: String, val length: Long) {
+    private class InitiatedTransferState(val id: String, val length: Long, val irodsUser: String,
+                                         val irodsZone: String, val targetCollection: String,
+                                         val targetName: String) {
         var offset: Long = 0
             private set
 
