@@ -11,10 +11,10 @@ import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.authorization
-import io.ktor.request.uri
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.get
+import io.ktor.routing.post
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.cio.CIO
@@ -100,6 +100,11 @@ class StorageRestServer(private val configuration: Configuration, private val st
                     val connection = call.attributes[StorageSession]
                     val groupName = queryParamOrBad("groupname") ?: return@get
                     produceResult(call, connection.groups.listGroupMembers(groupName))
+                }
+
+                post("temp-auth") {
+                    call.attributes[StorageSession]
+                    call.respondText("OK")
                 }
             }
         }

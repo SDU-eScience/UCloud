@@ -48,6 +48,7 @@ class Server(private val configuration: Configuration) {
                     get("acl") { proxyJobTo(storageService) }
                     get("users") { proxyJobTo(storageService) }
                     get("groups") { proxyJobTo(storageService) }
+                    post("temp-auth") { proxyJobTo(storageService) }
 
 
                     route("users") {

@@ -1,5 +1,9 @@
 package org.esciencecloud.storage.model
 
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.SerializerProvider
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
+import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import java.net.URI
 
 // Contains the shared model (used as part of interface) of this service
@@ -10,7 +14,8 @@ enum class UserType {
     GROUP_ADMIN
 }
 
-data class StoragePath private constructor(private val uri: URI) {
+@JsonSerialize(using = StoragePath.Companion.Serializer::class)
+class StoragePath private constructor(private val uri: URI) {
     val host get() = uri.host
     val path get() = uri.path
     val name get() = components.last()
@@ -46,14 +51,22 @@ data class StoragePath private constructor(private val uri: URI) {
         return true
     }
 
-    override fun hashCode(): Int {
-        return uri.hashCode()
-    }
+    override fun hashCode(): Int = uri.hashCode()
 
     companion object {
-        fun internalCreateFromHostAndAbsolutePath(host: String, path: String): StoragePath {
-            return StoragePath(URI("storage", host, path, null, null).normalize())
+        object Serializer : StdSerializer<StoragePath>(StoragePath::class.java) {
+            override fun serialize(value: StoragePath, gen: JsonGenerator, provider: SerializerProvider) {
+                gen.writeStartObject()
+                gen.writeStringField("uri", value.uri.toString())
+                gen.writeStringField("host", value.uri.host)
+                gen.writeStringField("path", value.uri.path)
+                gen.writeStringField("name", value.name)
+                gen.writeEndObject()
+            }
         }
+
+        fun internalCreateFromHostAndAbsolutePath(host: String, path: String): StoragePath =
+                StoragePath(URI("storage", host, path, null, null).normalize())
     }
 }
 
