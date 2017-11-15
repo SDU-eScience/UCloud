@@ -5,38 +5,25 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "uimenudetail")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Uimenudetail.findAll", query = "SELECT u FROM Uimenudetail u")
-    , @NamedQuery(name = "Uimenudetail.findById", query = "SELECT u FROM Uimenudetail u WHERE u.id = :id")
-    , @NamedQuery(name = "Uimenudetail.findByUimenudetailtext", query = "SELECT u FROM Uimenudetail u WHERE u.uimenudetailtext = :uimenudetailtext")
-    , @NamedQuery(name = "Uimenudetail.findByUimenudetailhref", query = "SELECT u FROM Uimenudetail u WHERE u.uimenudetailhref = :uimenudetailhref")
-    , @NamedQuery(name = "Uimenudetail.findByActive", query = "SELECT u FROM Uimenudetail u WHERE u.active = :active")
-    , @NamedQuery(name = "Uimenudetail.findByMarkedfordelete", query = "SELECT u FROM Uimenudetail u WHERE u.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Uimenudetail.findByLastmodified", query = "SELECT u FROM Uimenudetail u WHERE u.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Uimenudetail.findAll", query = "SELECT u FROM Uimenudetail u")
+        , @NamedQuery(name = "Uimenudetail.findById", query = "SELECT u FROM Uimenudetail u WHERE u.id = :id")
+        , @NamedQuery(name = "Uimenudetail.findByUimenudetailtext", query = "SELECT u FROM Uimenudetail u WHERE u.uimenudetailtext = :uimenudetailtext")
+        , @NamedQuery(name = "Uimenudetail.findByUimenudetailhref", query = "SELECT u FROM Uimenudetail u WHERE u.uimenudetailhref = :uimenudetailhref")
+        , @NamedQuery(name = "Uimenudetail.findByActive", query = "SELECT u FROM Uimenudetail u WHERE u.active = :active")
+        , @NamedQuery(name = "Uimenudetail.findByMarkedfordelete", query = "SELECT u FROM Uimenudetail u WHERE u.markedfordelete = :markedfordelete")
+        , @NamedQuery(name = "Uimenudetail.findByLastmodified", query = "SELECT u FROM Uimenudetail u WHERE u.lastmodified = :lastmodified")})
 public class Uimenudetail implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -153,5 +140,5 @@ public class Uimenudetail implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Uimenudetail[ id=" + id + " ]";
     }
-    
+
 }

@@ -5,38 +5,27 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "projecteventcalendar")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projecteventcalendar.findAll", query = "SELECT p FROM Projecteventcalendar p")
-    , @NamedQuery(name = "Projecteventcalendar.findById", query = "SELECT p FROM Projecteventcalendar p WHERE p.id = :id")
-    , @NamedQuery(name = "Projecteventcalendar.findByEventtext", query = "SELECT p FROM Projecteventcalendar p WHERE p.eventtext = :eventtext")
-    , @NamedQuery(name = "Projecteventcalendar.findByProjectrefid", query = "SELECT p FROM Projecteventcalendar p WHERE p.projectrefid = :projectrefid")
-    , @NamedQuery(name = "Projecteventcalendar.findByPersonrefid", query = "SELECT p FROM Projecteventcalendar p WHERE p.personrefid = :personrefid")
-    , @NamedQuery(name = "Projecteventcalendar.findByEventstart", query = "SELECT p FROM Projecteventcalendar p WHERE p.eventstart = :eventstart")
-    , @NamedQuery(name = "Projecteventcalendar.findByEventend", query = "SELECT p FROM Projecteventcalendar p WHERE p.eventend = :eventend")
-    , @NamedQuery(name = "Projecteventcalendar.findByLastmodified", query = "SELECT p FROM Projecteventcalendar p WHERE p.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Projecteventcalendar.findByActive", query = "SELECT p FROM Projecteventcalendar p WHERE p.active = :active")})
+        @NamedQuery(name = "Projecteventcalendar.findAll", query = "SELECT p FROM Projecteventcalendar p")
+        , @NamedQuery(name = "Projecteventcalendar.findById", query = "SELECT p FROM Projecteventcalendar p WHERE p.id = :id")
+        , @NamedQuery(name = "Projecteventcalendar.findByEventtext", query = "SELECT p FROM Projecteventcalendar p WHERE p.eventtext = :eventtext")
+        , @NamedQuery(name = "Projecteventcalendar.findByProjectrefid", query = "SELECT p FROM Projecteventcalendar p WHERE p.projectrefid = :projectrefid")
+        , @NamedQuery(name = "Projecteventcalendar.findByPersonrefid", query = "SELECT p FROM Projecteventcalendar p WHERE p.personrefid = :personrefid")
+        , @NamedQuery(name = "Projecteventcalendar.findByEventstart", query = "SELECT p FROM Projecteventcalendar p WHERE p.eventstart = :eventstart")
+        , @NamedQuery(name = "Projecteventcalendar.findByEventend", query = "SELECT p FROM Projecteventcalendar p WHERE p.eventend = :eventend")
+        , @NamedQuery(name = "Projecteventcalendar.findByLastmodified", query = "SELECT p FROM Projecteventcalendar p WHERE p.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Projecteventcalendar.findByActive", query = "SELECT p FROM Projecteventcalendar p WHERE p.active = :active")})
 public class Projecteventcalendar implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -164,5 +153,5 @@ public class Projecteventcalendar implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Projecteventcalendar[ id=" + id + " ]";
     }
-    
+
 }

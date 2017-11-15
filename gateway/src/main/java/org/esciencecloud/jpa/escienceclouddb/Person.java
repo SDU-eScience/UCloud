@@ -5,56 +5,41 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "person")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Person.findAll", query = "SELECT p FROM Person p")
-    , @NamedQuery(name = "Person.findById", query = "SELECT p FROM Person p WHERE p.id = :id")
-    , @NamedQuery(name = "Person.findByPersontitle", query = "SELECT p FROM Person p WHERE p.persontitle = :persontitle")
-    , @NamedQuery(name = "Person.findByPersonfirstname", query = "SELECT p FROM Person p WHERE p.personfirstname = :personfirstname")
-    , @NamedQuery(name = "Person.findByPersonmiddlename", query = "SELECT p FROM Person p WHERE p.personmiddlename = :personmiddlename")
-    , @NamedQuery(name = "Person.findByPersonlastname", query = "SELECT p FROM Person p WHERE p.personlastname = :personlastname")
-    , @NamedQuery(name = "Person.findByPersonworkemail", query = "SELECT p FROM Person p WHERE p.personworkemail = :personworkemail")
-    , @NamedQuery(name = "Person.findByPersonphoneno", query = "SELECT p FROM Person p WHERE p.personphoneno = :personphoneno")
-    , @NamedQuery(name = "Person.findByLogintyperefid", query = "SELECT p FROM Person p WHERE p.logintyperefid = :logintyperefid")
-    , @NamedQuery(name = "Person.findByLatitude", query = "SELECT p FROM Person p WHERE p.latitude = :latitude")
-    , @NamedQuery(name = "Person.findByLongitude", query = "SELECT p FROM Person p WHERE p.longitude = :longitude")
-    , @NamedQuery(name = "Person.findByIrodsuseridmap", query = "SELECT p FROM Person p WHERE p.irodsuseridmap = :irodsuseridmap")
-    , @NamedQuery(name = "Person.findByActive", query = "SELECT p FROM Person p WHERE p.active = :active")
-    , @NamedQuery(name = "Person.findByLatestsessionid", query = "SELECT p FROM Person p WHERE p.latestsessionid = :latestsessionid")
-    , @NamedQuery(name = "Person.findByOrcid", query = "SELECT p FROM Person p WHERE p.orcid = :orcid")
-    , @NamedQuery(name = "Person.findByName", query = "SELECT p FROM Person p WHERE p.name = :name")
-    , @NamedQuery(name = "Person.findByLastmodified", query = "SELECT p FROM Person p WHERE p.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Person.findByIrodsusername", query = "SELECT p FROM Person p WHERE p.irodsusername = :irodsusername")
-    , @NamedQuery(name = "Person.findByPw", query = "SELECT p FROM Person p WHERE p.pw = :pw")
-    , @NamedQuery(name = "Person.findByPersonsessionhistory", query = "SELECT p FROM Person p WHERE p.personsessionhistory = :personsessionhistory")})
+        @NamedQuery(name = "Person.findAll", query = "SELECT p FROM Person p")
+        , @NamedQuery(name = "Person.findById", query = "SELECT p FROM Person p WHERE p.id = :id")
+        , @NamedQuery(name = "Person.findByPersontitle", query = "SELECT p FROM Person p WHERE p.persontitle = :persontitle")
+        , @NamedQuery(name = "Person.findByPersonfirstname", query = "SELECT p FROM Person p WHERE p.personfirstname = :personfirstname")
+        , @NamedQuery(name = "Person.findByPersonmiddlename", query = "SELECT p FROM Person p WHERE p.personmiddlename = :personmiddlename")
+        , @NamedQuery(name = "Person.findByPersonlastname", query = "SELECT p FROM Person p WHERE p.personlastname = :personlastname")
+        , @NamedQuery(name = "Person.findByPersonworkemail", query = "SELECT p FROM Person p WHERE p.personworkemail = :personworkemail")
+        , @NamedQuery(name = "Person.findByPersonphoneno", query = "SELECT p FROM Person p WHERE p.personphoneno = :personphoneno")
+        , @NamedQuery(name = "Person.findByLogintyperefid", query = "SELECT p FROM Person p WHERE p.logintyperefid = :logintyperefid")
+        , @NamedQuery(name = "Person.findByLatitude", query = "SELECT p FROM Person p WHERE p.latitude = :latitude")
+        , @NamedQuery(name = "Person.findByLongitude", query = "SELECT p FROM Person p WHERE p.longitude = :longitude")
+        , @NamedQuery(name = "Person.findByIrodsuseridmap", query = "SELECT p FROM Person p WHERE p.irodsuseridmap = :irodsuseridmap")
+        , @NamedQuery(name = "Person.findByActive", query = "SELECT p FROM Person p WHERE p.active = :active")
+        , @NamedQuery(name = "Person.findByLatestsessionid", query = "SELECT p FROM Person p WHERE p.latestsessionid = :latestsessionid")
+        , @NamedQuery(name = "Person.findByOrcid", query = "SELECT p FROM Person p WHERE p.orcid = :orcid")
+        , @NamedQuery(name = "Person.findByName", query = "SELECT p FROM Person p WHERE p.name = :name")
+        , @NamedQuery(name = "Person.findByLastmodified", query = "SELECT p FROM Person p WHERE p.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Person.findByIrodsusername", query = "SELECT p FROM Person p WHERE p.irodsusername = :irodsusername")
+        , @NamedQuery(name = "Person.findByPw", query = "SELECT p FROM Person p WHERE p.pw = :pw")
+        , @NamedQuery(name = "Person.findByPersonsessionhistory", query = "SELECT p FROM Person p WHERE p.personsessionhistory = :personsessionhistory")})
 public class Person implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -335,5 +320,5 @@ public class Person implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Person[ id=" + id + " ]";
     }
-    
+
 }

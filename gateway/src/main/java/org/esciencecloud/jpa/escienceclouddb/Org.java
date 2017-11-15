@@ -5,39 +5,26 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "org")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Org.findAll", query = "SELECT o FROM Org o")
-    , @NamedQuery(name = "Org.findById", query = "SELECT o FROM Org o WHERE o.id = :id")
-    , @NamedQuery(name = "Org.findByOrgfullname", query = "SELECT o FROM Org o WHERE o.orgfullname = :orgfullname")
-    , @NamedQuery(name = "Org.findByOrgshortname", query = "SELECT o FROM Org o WHERE o.orgshortname = :orgshortname")
-    , @NamedQuery(name = "Org.findByLastmodified", query = "SELECT o FROM Org o WHERE o.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Org.findByActive", query = "SELECT o FROM Org o WHERE o.active = :active")})
+        @NamedQuery(name = "Org.findAll", query = "SELECT o FROM Org o")
+        , @NamedQuery(name = "Org.findById", query = "SELECT o FROM Org o WHERE o.id = :id")
+        , @NamedQuery(name = "Org.findByOrgfullname", query = "SELECT o FROM Org o WHERE o.orgfullname = :orgfullname")
+        , @NamedQuery(name = "Org.findByOrgshortname", query = "SELECT o FROM Org o WHERE o.orgshortname = :orgshortname")
+        , @NamedQuery(name = "Org.findByLastmodified", query = "SELECT o FROM Org o WHERE o.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Org.findByActive", query = "SELECT o FROM Org o WHERE o.active = :active")})
 public class Org implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -144,5 +131,5 @@ public class Org implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Org[ id=" + id + " ]";
     }
-    
+
 }

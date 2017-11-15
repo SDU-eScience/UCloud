@@ -5,35 +5,22 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "personappusermessagesubscriptiontyperel")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Personappusermessagesubscriptiontyperel.findAll", query = "SELECT p FROM Personappusermessagesubscriptiontyperel p")
-    , @NamedQuery(name = "Personappusermessagesubscriptiontyperel.findById", query = "SELECT p FROM Personappusermessagesubscriptiontyperel p WHERE p.id = :id")
-    , @NamedQuery(name = "Personappusermessagesubscriptiontyperel.findByActive", query = "SELECT p FROM Personappusermessagesubscriptiontyperel p WHERE p.active = :active")
-    , @NamedQuery(name = "Personappusermessagesubscriptiontyperel.findByLastmodified", query = "SELECT p FROM Personappusermessagesubscriptiontyperel p WHERE p.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Personappusermessagesubscriptiontyperel.findAll", query = "SELECT p FROM Personappusermessagesubscriptiontyperel p")
+        , @NamedQuery(name = "Personappusermessagesubscriptiontyperel.findById", query = "SELECT p FROM Personappusermessagesubscriptiontyperel p WHERE p.id = :id")
+        , @NamedQuery(name = "Personappusermessagesubscriptiontyperel.findByActive", query = "SELECT p FROM Personappusermessagesubscriptiontyperel p WHERE p.active = :active")
+        , @NamedQuery(name = "Personappusermessagesubscriptiontyperel.findByLastmodified", query = "SELECT p FROM Personappusermessagesubscriptiontyperel p WHERE p.lastmodified = :lastmodified")})
 public class Personappusermessagesubscriptiontyperel implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -131,5 +118,5 @@ public class Personappusermessagesubscriptiontyperel implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Personappusermessagesubscriptiontyperel[ id=" + id + " ]";
     }
-    
+
 }

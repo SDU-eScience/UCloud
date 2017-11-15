@@ -5,40 +5,26 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "subsystemcommand")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Subsystemcommand.findAll", query = "SELECT s FROM Subsystemcommand s")
-    , @NamedQuery(name = "Subsystemcommand.findById", query = "SELECT s FROM Subsystemcommand s WHERE s.id = :id")
-    , @NamedQuery(name = "Subsystemcommand.findBySubsystemcommandtext", query = "SELECT s FROM Subsystemcommand s WHERE s.subsystemcommandtext = :subsystemcommandtext")
-    , @NamedQuery(name = "Subsystemcommand.findByLastmodified", query = "SELECT s FROM Subsystemcommand s WHERE s.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Subsystemcommand.findByImplemented", query = "SELECT s FROM Subsystemcommand s WHERE s.implemented = :implemented")
-    , @NamedQuery(name = "Subsystemcommand.findByKafkatopicname", query = "SELECT s FROM Subsystemcommand s WHERE s.kafkatopicname = :kafkatopicname")})
+        @NamedQuery(name = "Subsystemcommand.findAll", query = "SELECT s FROM Subsystemcommand s")
+        , @NamedQuery(name = "Subsystemcommand.findById", query = "SELECT s FROM Subsystemcommand s WHERE s.id = :id")
+        , @NamedQuery(name = "Subsystemcommand.findBySubsystemcommandtext", query = "SELECT s FROM Subsystemcommand s WHERE s.subsystemcommandtext = :subsystemcommandtext")
+        , @NamedQuery(name = "Subsystemcommand.findByLastmodified", query = "SELECT s FROM Subsystemcommand s WHERE s.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Subsystemcommand.findByImplemented", query = "SELECT s FROM Subsystemcommand s WHERE s.implemented = :implemented")
+        , @NamedQuery(name = "Subsystemcommand.findByKafkatopicname", query = "SELECT s FROM Subsystemcommand s WHERE s.kafkatopicname = :kafkatopicname")})
 public class Subsystemcommand implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -169,5 +155,5 @@ public class Subsystemcommand implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Subsystemcommand[ id=" + id + " ]";
     }
-    
+
 }

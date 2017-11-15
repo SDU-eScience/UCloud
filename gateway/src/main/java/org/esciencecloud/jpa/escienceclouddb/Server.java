@@ -5,39 +5,27 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "server")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Server.findAll", query = "SELECT s FROM Server s")
-    , @NamedQuery(name = "Server.findById", query = "SELECT s FROM Server s WHERE s.id = :id")
-    , @NamedQuery(name = "Server.findByServertext", query = "SELECT s FROM Server s WHERE s.servertext = :servertext")
-    , @NamedQuery(name = "Server.findByHealth", query = "SELECT s FROM Server s WHERE s.health = :health")
-    , @NamedQuery(name = "Server.findByHostname", query = "SELECT s FROM Server s WHERE s.hostname = :hostname")
-    , @NamedQuery(name = "Server.findByIp", query = "SELECT s FROM Server s WHERE s.ip = :ip")
-    , @NamedQuery(name = "Server.findByLastmodified", query = "SELECT s FROM Server s WHERE s.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Server.findAll", query = "SELECT s FROM Server s")
+        , @NamedQuery(name = "Server.findById", query = "SELECT s FROM Server s WHERE s.id = :id")
+        , @NamedQuery(name = "Server.findByServertext", query = "SELECT s FROM Server s WHERE s.servertext = :servertext")
+        , @NamedQuery(name = "Server.findByHealth", query = "SELECT s FROM Server s WHERE s.health = :health")
+        , @NamedQuery(name = "Server.findByHostname", query = "SELECT s FROM Server s WHERE s.hostname = :hostname")
+        , @NamedQuery(name = "Server.findByIp", query = "SELECT s FROM Server s WHERE s.ip = :ip")
+        , @NamedQuery(name = "Server.findByLastmodified", query = "SELECT s FROM Server s WHERE s.lastmodified = :lastmodified")})
 public class Server implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -154,5 +142,5 @@ public class Server implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Server[ id=" + id + " ]";
     }
-    
+
 }

@@ -5,35 +5,24 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "projectpublicationrel")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectpublicationrel.findAll", query = "SELECT p FROM Projectpublicationrel p")
-    , @NamedQuery(name = "Projectpublicationrel.findById", query = "SELECT p FROM Projectpublicationrel p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectpublicationrel.findByProjectrefid", query = "SELECT p FROM Projectpublicationrel p WHERE p.projectrefid = :projectrefid")
-    , @NamedQuery(name = "Projectpublicationrel.findByPublicationrefid", query = "SELECT p FROM Projectpublicationrel p WHERE p.publicationrefid = :publicationrefid")
-    , @NamedQuery(name = "Projectpublicationrel.findByLastmodified", query = "SELECT p FROM Projectpublicationrel p WHERE p.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Projectpublicationrel.findByActive", query = "SELECT p FROM Projectpublicationrel p WHERE p.active = :active")})
+        @NamedQuery(name = "Projectpublicationrel.findAll", query = "SELECT p FROM Projectpublicationrel p")
+        , @NamedQuery(name = "Projectpublicationrel.findById", query = "SELECT p FROM Projectpublicationrel p WHERE p.id = :id")
+        , @NamedQuery(name = "Projectpublicationrel.findByProjectrefid", query = "SELECT p FROM Projectpublicationrel p WHERE p.projectrefid = :projectrefid")
+        , @NamedQuery(name = "Projectpublicationrel.findByPublicationrefid", query = "SELECT p FROM Projectpublicationrel p WHERE p.publicationrefid = :publicationrefid")
+        , @NamedQuery(name = "Projectpublicationrel.findByLastmodified", query = "SELECT p FROM Projectpublicationrel p WHERE p.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Projectpublicationrel.findByActive", query = "SELECT p FROM Projectpublicationrel p WHERE p.active = :active")})
 public class Projectpublicationrel implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -129,5 +118,5 @@ public class Projectpublicationrel implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Projectpublicationrel[ id=" + id + " ]";
     }
-    
+
 }

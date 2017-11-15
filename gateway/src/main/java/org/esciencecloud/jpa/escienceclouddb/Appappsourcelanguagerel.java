@@ -5,35 +5,22 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "appappsourcelanguagerel")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Appappsourcelanguagerel.findAll", query = "SELECT a FROM Appappsourcelanguagerel a")
-    , @NamedQuery(name = "Appappsourcelanguagerel.findById", query = "SELECT a FROM Appappsourcelanguagerel a WHERE a.id = :id")
-    , @NamedQuery(name = "Appappsourcelanguagerel.findByActive", query = "SELECT a FROM Appappsourcelanguagerel a WHERE a.active = :active")
-    , @NamedQuery(name = "Appappsourcelanguagerel.findByLastmodified", query = "SELECT a FROM Appappsourcelanguagerel a WHERE a.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Appappsourcelanguagerel.findAll", query = "SELECT a FROM Appappsourcelanguagerel a")
+        , @NamedQuery(name = "Appappsourcelanguagerel.findById", query = "SELECT a FROM Appappsourcelanguagerel a WHERE a.id = :id")
+        , @NamedQuery(name = "Appappsourcelanguagerel.findByActive", query = "SELECT a FROM Appappsourcelanguagerel a WHERE a.active = :active")
+        , @NamedQuery(name = "Appappsourcelanguagerel.findByLastmodified", query = "SELECT a FROM Appappsourcelanguagerel a WHERE a.lastmodified = :lastmodified")})
 public class Appappsourcelanguagerel implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -131,5 +118,5 @@ public class Appappsourcelanguagerel implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Appappsourcelanguagerel[ id=" + id + " ]";
     }
-    
+
 }

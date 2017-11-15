@@ -5,36 +5,23 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "projectorgrel")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectorgrel.findAll", query = "SELECT p FROM Projectorgrel p")
-    , @NamedQuery(name = "Projectorgrel.findById", query = "SELECT p FROM Projectorgrel p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectorgrel.findByProjectrefid", query = "SELECT p FROM Projectorgrel p WHERE p.projectrefid = :projectrefid")
-    , @NamedQuery(name = "Projectorgrel.findByLastmodified", query = "SELECT p FROM Projectorgrel p WHERE p.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Projectorgrel.findByActive", query = "SELECT p FROM Projectorgrel p WHERE p.active = :active")})
+        @NamedQuery(name = "Projectorgrel.findAll", query = "SELECT p FROM Projectorgrel p")
+        , @NamedQuery(name = "Projectorgrel.findById", query = "SELECT p FROM Projectorgrel p WHERE p.id = :id")
+        , @NamedQuery(name = "Projectorgrel.findByProjectrefid", query = "SELECT p FROM Projectorgrel p WHERE p.projectrefid = :projectrefid")
+        , @NamedQuery(name = "Projectorgrel.findByLastmodified", query = "SELECT p FROM Projectorgrel p WHERE p.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Projectorgrel.findByActive", query = "SELECT p FROM Projectorgrel p WHERE p.active = :active")})
 public class Projectorgrel implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -133,5 +120,5 @@ public class Projectorgrel implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Projectorgrel[ id=" + id + " ]";
     }
-    
+
 }

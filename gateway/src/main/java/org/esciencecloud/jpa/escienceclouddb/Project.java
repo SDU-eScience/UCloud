@@ -5,43 +5,30 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "project")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Project.findAll", query = "SELECT p FROM Project p")
-    , @NamedQuery(name = "Project.findById", query = "SELECT p FROM Project p WHERE p.id = :id")
-    , @NamedQuery(name = "Project.findByProjectname", query = "SELECT p FROM Project p WHERE p.projectname = :projectname")
-    , @NamedQuery(name = "Project.findByProjectstart", query = "SELECT p FROM Project p WHERE p.projectstart = :projectstart")
-    , @NamedQuery(name = "Project.findByProjectend", query = "SELECT p FROM Project p WHERE p.projectend = :projectend")
-    , @NamedQuery(name = "Project.findByLastmodified", query = "SELECT p FROM Project p WHERE p.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Project.findByIrodsgroupidmap", query = "SELECT p FROM Project p WHERE p.irodsgroupidmap = :irodsgroupidmap")
-    , @NamedQuery(name = "Project.findByActive", query = "SELECT p FROM Project p WHERE p.active = :active")
-    , @NamedQuery(name = "Project.findByProjectshortname", query = "SELECT p FROM Project p WHERE p.projectshortname = :projectshortname")
-    , @NamedQuery(name = "Project.findByIrodsgroupadmin", query = "SELECT p FROM Project p WHERE p.irodsgroupadmin = :irodsgroupadmin")})
+        @NamedQuery(name = "Project.findAll", query = "SELECT p FROM Project p")
+        , @NamedQuery(name = "Project.findById", query = "SELECT p FROM Project p WHERE p.id = :id")
+        , @NamedQuery(name = "Project.findByProjectname", query = "SELECT p FROM Project p WHERE p.projectname = :projectname")
+        , @NamedQuery(name = "Project.findByProjectstart", query = "SELECT p FROM Project p WHERE p.projectstart = :projectstart")
+        , @NamedQuery(name = "Project.findByProjectend", query = "SELECT p FROM Project p WHERE p.projectend = :projectend")
+        , @NamedQuery(name = "Project.findByLastmodified", query = "SELECT p FROM Project p WHERE p.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Project.findByIrodsgroupidmap", query = "SELECT p FROM Project p WHERE p.irodsgroupidmap = :irodsgroupidmap")
+        , @NamedQuery(name = "Project.findByActive", query = "SELECT p FROM Project p WHERE p.active = :active")
+        , @NamedQuery(name = "Project.findByProjectshortname", query = "SELECT p FROM Project p WHERE p.projectshortname = :projectshortname")
+        , @NamedQuery(name = "Project.findByIrodsgroupadmin", query = "SELECT p FROM Project p WHERE p.irodsgroupadmin = :irodsgroupadmin")})
 public class Project implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -212,5 +199,5 @@ public class Project implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Project[ id=" + id + " ]";
     }
-    
+
 }

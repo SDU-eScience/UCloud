@@ -5,35 +5,22 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "projectpersonrel")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectpersonrel.findAll", query = "SELECT p FROM Projectpersonrel p")
-    , @NamedQuery(name = "Projectpersonrel.findById", query = "SELECT p FROM Projectpersonrel p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectpersonrel.findByLastmodified", query = "SELECT p FROM Projectpersonrel p WHERE p.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Projectpersonrel.findByActive", query = "SELECT p FROM Projectpersonrel p WHERE p.active = :active")})
+        @NamedQuery(name = "Projectpersonrel.findAll", query = "SELECT p FROM Projectpersonrel p")
+        , @NamedQuery(name = "Projectpersonrel.findById", query = "SELECT p FROM Projectpersonrel p WHERE p.id = :id")
+        , @NamedQuery(name = "Projectpersonrel.findByLastmodified", query = "SELECT p FROM Projectpersonrel p WHERE p.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Projectpersonrel.findByActive", query = "SELECT p FROM Projectpersonrel p WHERE p.active = :active")})
 public class Projectpersonrel implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -142,5 +129,5 @@ public class Projectpersonrel implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Projectpersonrel[ id=" + id + " ]";
     }
-    
+
 }

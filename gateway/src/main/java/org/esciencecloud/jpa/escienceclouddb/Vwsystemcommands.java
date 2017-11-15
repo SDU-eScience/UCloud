@@ -5,33 +5,28 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.math.BigInteger;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "vwsystemcommands")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Vwsystemcommands.findAll", query = "SELECT v FROM Vwsystemcommands v")
-    , @NamedQuery(name = "Vwsystemcommands.findByRecid", query = "SELECT v FROM Vwsystemcommands v WHERE v.recid = :recid")
-    , @NamedQuery(name = "Vwsystemcommands.findBySubsystemid", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemid = :subsystemid")
-    , @NamedQuery(name = "Vwsystemcommands.findBySubsystemtext", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemtext = :subsystemtext")
-    , @NamedQuery(name = "Vwsystemcommands.findBySubsystemcommandcategoryid", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemcommandcategoryid = :subsystemcommandcategoryid")
-    , @NamedQuery(name = "Vwsystemcommands.findBySubsystemcommandcategorytext", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemcommandcategorytext = :subsystemcommandcategorytext")
-    , @NamedQuery(name = "Vwsystemcommands.findBySubsystemcommandid", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemcommandid = :subsystemcommandid")
-    , @NamedQuery(name = "Vwsystemcommands.findBySubsystemcommandtext", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemcommandtext = :subsystemcommandtext")
-    , @NamedQuery(name = "Vwsystemcommands.findByKafkatopicname", query = "SELECT v FROM Vwsystemcommands v WHERE v.kafkatopicname = :kafkatopicname")
-    , @NamedQuery(name = "Vwsystemcommands.findBySessionid", query = "SELECT v FROM Vwsystemcommands v WHERE v.sessionid = :sessionid")})
+        @NamedQuery(name = "Vwsystemcommands.findAll", query = "SELECT v FROM Vwsystemcommands v")
+        , @NamedQuery(name = "Vwsystemcommands.findByRecid", query = "SELECT v FROM Vwsystemcommands v WHERE v.recid = :recid")
+        , @NamedQuery(name = "Vwsystemcommands.findBySubsystemid", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemid = :subsystemid")
+        , @NamedQuery(name = "Vwsystemcommands.findBySubsystemtext", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemtext = :subsystemtext")
+        , @NamedQuery(name = "Vwsystemcommands.findBySubsystemcommandcategoryid", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemcommandcategoryid = :subsystemcommandcategoryid")
+        , @NamedQuery(name = "Vwsystemcommands.findBySubsystemcommandcategorytext", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemcommandcategorytext = :subsystemcommandcategorytext")
+        , @NamedQuery(name = "Vwsystemcommands.findBySubsystemcommandid", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemcommandid = :subsystemcommandid")
+        , @NamedQuery(name = "Vwsystemcommands.findBySubsystemcommandtext", query = "SELECT v FROM Vwsystemcommands v WHERE v.subsystemcommandtext = :subsystemcommandtext")
+        , @NamedQuery(name = "Vwsystemcommands.findByKafkatopicname", query = "SELECT v FROM Vwsystemcommands v WHERE v.kafkatopicname = :kafkatopicname")
+        , @NamedQuery(name = "Vwsystemcommands.findBySessionid", query = "SELECT v FROM Vwsystemcommands v WHERE v.sessionid = :sessionid")})
 public class Vwsystemcommands implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -128,5 +123,5 @@ public class Vwsystemcommands implements Serializable {
     public void setSessionid(String sessionid) {
         this.sessionid = sessionid;
     }
-    
+
 }

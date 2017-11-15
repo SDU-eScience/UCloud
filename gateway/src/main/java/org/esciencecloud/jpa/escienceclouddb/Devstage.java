@@ -5,36 +5,24 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "devstage")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Devstage.findAll", query = "SELECT d FROM Devstage d")
-    , @NamedQuery(name = "Devstage.findById", query = "SELECT d FROM Devstage d WHERE d.id = :id")
-    , @NamedQuery(name = "Devstage.findByDevstagetext", query = "SELECT d FROM Devstage d WHERE d.devstagetext = :devstagetext")
-    , @NamedQuery(name = "Devstage.findByLastmodified", query = "SELECT d FROM Devstage d WHERE d.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Devstage.findAll", query = "SELECT d FROM Devstage d")
+        , @NamedQuery(name = "Devstage.findById", query = "SELECT d FROM Devstage d WHERE d.id = :id")
+        , @NamedQuery(name = "Devstage.findByDevstagetext", query = "SELECT d FROM Devstage d WHERE d.devstagetext = :devstagetext")
+        , @NamedQuery(name = "Devstage.findByLastmodified", query = "SELECT d FROM Devstage d WHERE d.lastmodified = :lastmodified")})
 public class Devstage implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -121,5 +109,5 @@ public class Devstage implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Devstage[ id=" + id + " ]";
     }
-    
+
 }

@@ -1,15 +1,10 @@
 package org.esciencecloud.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.esciencecloud.jpa.escienceclouddb.Person;
-
 import java.io.*;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 
@@ -104,7 +99,7 @@ public class GenEscienceclouddbFacade {
         lines.add("EntityManager em = emf.createEntityManager();");
         lines.add("");
         lines.add("em.getTransaction().begin();");
-        lines.add("em.remove(em.find("+jpaClass+".class, id));");
+        lines.add("em.remove(em.find(" + jpaClass + ".class, id));");
         lines.add("em.getTransaction().commit();");
         lines.add("em.close();");
         lines.add("emf.close();");
@@ -162,37 +157,37 @@ public class GenEscienceclouddbFacade {
         lines.add("}");
 
 
-    //lastline
+        //lastline
         lines.add("}");
 
 
-    Writer writer = null;
+        Writer writer = null;
 
         try
 
-    {
-        writer = new BufferedWriter(new OutputStreamWriter(
-                new FileOutputStream(filePathString), "utf-8"));
+        {
+            writer = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(filePathString), "utf-8"));
 
-        for (String s : lines) {
-            writer.write(s);
+            for (String s : lines) {
+                writer.write(s);
+            }
+
+        } catch (
+                IOException ex)
+
+        {
+            // report
+        } finally
+
+        {
+            try {
+                writer.close();
+            } catch (Exception ex) {/*ignore*/}
         }
 
-    } catch(
-    IOException ex)
 
-    {
-        // report
-    } finally
-
-    {
-        try {
-            writer.close();
-        } catch (Exception ex) {/*ignore*/}
     }
-
-
-}
 
 
     public static void main(String[] args) {

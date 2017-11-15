@@ -5,37 +5,25 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "appsourcelanguage")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Appsourcelanguage.findAll", query = "SELECT a FROM Appsourcelanguage a")
-    , @NamedQuery(name = "Appsourcelanguage.findById", query = "SELECT a FROM Appsourcelanguage a WHERE a.id = :id")
-    , @NamedQuery(name = "Appsourcelanguage.findByAppsourcelanguagetext", query = "SELECT a FROM Appsourcelanguage a WHERE a.appsourcelanguagetext = :appsourcelanguagetext")
-    , @NamedQuery(name = "Appsourcelanguage.findByActive", query = "SELECT a FROM Appsourcelanguage a WHERE a.active = :active")
-    , @NamedQuery(name = "Appsourcelanguage.findByLastmodified", query = "SELECT a FROM Appsourcelanguage a WHERE a.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Appsourcelanguage.findAll", query = "SELECT a FROM Appsourcelanguage a")
+        , @NamedQuery(name = "Appsourcelanguage.findById", query = "SELECT a FROM Appsourcelanguage a WHERE a.id = :id")
+        , @NamedQuery(name = "Appsourcelanguage.findByAppsourcelanguagetext", query = "SELECT a FROM Appsourcelanguage a WHERE a.appsourcelanguagetext = :appsourcelanguagetext")
+        , @NamedQuery(name = "Appsourcelanguage.findByActive", query = "SELECT a FROM Appsourcelanguage a WHERE a.active = :active")
+        , @NamedQuery(name = "Appsourcelanguage.findByLastmodified", query = "SELECT a FROM Appsourcelanguage a WHERE a.lastmodified = :lastmodified")})
 public class Appsourcelanguage implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -132,5 +120,5 @@ public class Appsourcelanguage implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Appsourcelanguage[ id=" + id + " ]";
     }
-    
+
 }

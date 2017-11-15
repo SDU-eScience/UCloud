@@ -5,35 +5,24 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "irodsresourcetype")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Irodsresourcetype.findAll", query = "SELECT i FROM Irodsresourcetype i")
-    , @NamedQuery(name = "Irodsresourcetype.findById", query = "SELECT i FROM Irodsresourcetype i WHERE i.id = :id")
-    , @NamedQuery(name = "Irodsresourcetype.findByIrodsresourcetypetext", query = "SELECT i FROM Irodsresourcetype i WHERE i.irodsresourcetypetext = :irodsresourcetypetext")
-    , @NamedQuery(name = "Irodsresourcetype.findByIrodsresourcetypeidmap", query = "SELECT i FROM Irodsresourcetype i WHERE i.irodsresourcetypeidmap = :irodsresourcetypeidmap")
-    , @NamedQuery(name = "Irodsresourcetype.findByActive", query = "SELECT i FROM Irodsresourcetype i WHERE i.active = :active")
-    , @NamedQuery(name = "Irodsresourcetype.findByLastmodified", query = "SELECT i FROM Irodsresourcetype i WHERE i.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Irodsresourcetype.findAll", query = "SELECT i FROM Irodsresourcetype i")
+        , @NamedQuery(name = "Irodsresourcetype.findById", query = "SELECT i FROM Irodsresourcetype i WHERE i.id = :id")
+        , @NamedQuery(name = "Irodsresourcetype.findByIrodsresourcetypetext", query = "SELECT i FROM Irodsresourcetype i WHERE i.irodsresourcetypetext = :irodsresourcetypetext")
+        , @NamedQuery(name = "Irodsresourcetype.findByIrodsresourcetypeidmap", query = "SELECT i FROM Irodsresourcetype i WHERE i.irodsresourcetypeidmap = :irodsresourcetypeidmap")
+        , @NamedQuery(name = "Irodsresourcetype.findByActive", query = "SELECT i FROM Irodsresourcetype i WHERE i.active = :active")
+        , @NamedQuery(name = "Irodsresourcetype.findByLastmodified", query = "SELECT i FROM Irodsresourcetype i WHERE i.lastmodified = :lastmodified")})
 public class Irodsresourcetype implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -129,5 +118,5 @@ public class Irodsresourcetype implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Irodsresourcetype[ id=" + id + " ]";
     }
-    
+
 }

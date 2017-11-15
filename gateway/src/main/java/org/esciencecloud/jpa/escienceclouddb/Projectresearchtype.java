@@ -5,37 +5,25 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "projectresearchtype")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectresearchtype.findAll", query = "SELECT p FROM Projectresearchtype p")
-    , @NamedQuery(name = "Projectresearchtype.findById", query = "SELECT p FROM Projectresearchtype p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectresearchtype.findByProjectresearchtypetext", query = "SELECT p FROM Projectresearchtype p WHERE p.projectresearchtypetext = :projectresearchtypetext")
-    , @NamedQuery(name = "Projectresearchtype.findByActive", query = "SELECT p FROM Projectresearchtype p WHERE p.active = :active")
-    , @NamedQuery(name = "Projectresearchtype.findByLastmodified", query = "SELECT p FROM Projectresearchtype p WHERE p.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Projectresearchtype.findAll", query = "SELECT p FROM Projectresearchtype p")
+        , @NamedQuery(name = "Projectresearchtype.findById", query = "SELECT p FROM Projectresearchtype p WHERE p.id = :id")
+        , @NamedQuery(name = "Projectresearchtype.findByProjectresearchtypetext", query = "SELECT p FROM Projectresearchtype p WHERE p.projectresearchtypetext = :projectresearchtypetext")
+        , @NamedQuery(name = "Projectresearchtype.findByActive", query = "SELECT p FROM Projectresearchtype p WHERE p.active = :active")
+        , @NamedQuery(name = "Projectresearchtype.findByLastmodified", query = "SELECT p FROM Projectresearchtype p WHERE p.lastmodified = :lastmodified")})
 public class Projectresearchtype implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -132,5 +120,5 @@ public class Projectresearchtype implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Projectresearchtype[ id=" + id + " ]";
     }
-    
+
 }

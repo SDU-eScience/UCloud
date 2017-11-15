@@ -5,38 +5,26 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "app")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "App.findAll", query = "SELECT a FROM App a")
-    , @NamedQuery(name = "App.findById", query = "SELECT a FROM App a WHERE a.id = :id")
-    , @NamedQuery(name = "App.findByApptext", query = "SELECT a FROM App a WHERE a.apptext = :apptext")
-    , @NamedQuery(name = "App.findByAppdescriptiontext", query = "SELECT a FROM App a WHERE a.appdescriptiontext = :appdescriptiontext")
-    , @NamedQuery(name = "App.findByActive", query = "SELECT a FROM App a WHERE a.active = :active")
-    , @NamedQuery(name = "App.findByLastmodified", query = "SELECT a FROM App a WHERE a.lastmodified = :lastmodified")})
+        @NamedQuery(name = "App.findAll", query = "SELECT a FROM App a")
+        , @NamedQuery(name = "App.findById", query = "SELECT a FROM App a WHERE a.id = :id")
+        , @NamedQuery(name = "App.findByApptext", query = "SELECT a FROM App a WHERE a.apptext = :apptext")
+        , @NamedQuery(name = "App.findByAppdescriptiontext", query = "SELECT a FROM App a WHERE a.appdescriptiontext = :appdescriptiontext")
+        , @NamedQuery(name = "App.findByActive", query = "SELECT a FROM App a WHERE a.active = :active")
+        , @NamedQuery(name = "App.findByLastmodified", query = "SELECT a FROM App a WHERE a.lastmodified = :lastmodified")})
 public class App implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -143,5 +131,5 @@ public class App implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.App[ id=" + id + " ]";
     }
-    
+
 }

@@ -5,39 +5,26 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Lob;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "projectdocument")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectdocument.findAll", query = "SELECT p FROM Projectdocument p")
-    , @NamedQuery(name = "Projectdocument.findById", query = "SELECT p FROM Projectdocument p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectdocument.findByProjectdocumentfilename", query = "SELECT p FROM Projectdocument p WHERE p.projectdocumentfilename = :projectdocumentfilename")
-    , @NamedQuery(name = "Projectdocument.findByDocumenttypedescription", query = "SELECT p FROM Projectdocument p WHERE p.documenttypedescription = :documenttypedescription")
-    , @NamedQuery(name = "Projectdocument.findByActive", query = "SELECT p FROM Projectdocument p WHERE p.active = :active")
-    , @NamedQuery(name = "Projectdocument.findByLastmodified", query = "SELECT p FROM Projectdocument p WHERE p.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Projectdocument.findAll", query = "SELECT p FROM Projectdocument p")
+        , @NamedQuery(name = "Projectdocument.findById", query = "SELECT p FROM Projectdocument p WHERE p.id = :id")
+        , @NamedQuery(name = "Projectdocument.findByProjectdocumentfilename", query = "SELECT p FROM Projectdocument p WHERE p.projectdocumentfilename = :projectdocumentfilename")
+        , @NamedQuery(name = "Projectdocument.findByDocumenttypedescription", query = "SELECT p FROM Projectdocument p WHERE p.documenttypedescription = :documenttypedescription")
+        , @NamedQuery(name = "Projectdocument.findByActive", query = "SELECT p FROM Projectdocument p WHERE p.active = :active")
+        , @NamedQuery(name = "Projectdocument.findByLastmodified", query = "SELECT p FROM Projectdocument p WHERE p.lastmodified = :lastmodified")})
 public class Projectdocument implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -155,5 +142,5 @@ public class Projectdocument implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Projectdocument[ id=" + id + " ]";
     }
-    
+
 }

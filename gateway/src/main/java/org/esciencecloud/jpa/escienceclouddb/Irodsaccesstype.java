@@ -5,35 +5,24 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "irodsaccesstype")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Irodsaccesstype.findAll", query = "SELECT i FROM Irodsaccesstype i")
-    , @NamedQuery(name = "Irodsaccesstype.findById", query = "SELECT i FROM Irodsaccesstype i WHERE i.id = :id")
-    , @NamedQuery(name = "Irodsaccesstype.findByIrodsaccesstypetext", query = "SELECT i FROM Irodsaccesstype i WHERE i.irodsaccesstypetext = :irodsaccesstypetext")
-    , @NamedQuery(name = "Irodsaccesstype.findByIrodsaccesstypeidmap", query = "SELECT i FROM Irodsaccesstype i WHERE i.irodsaccesstypeidmap = :irodsaccesstypeidmap")
-    , @NamedQuery(name = "Irodsaccesstype.findByActive", query = "SELECT i FROM Irodsaccesstype i WHERE i.active = :active")
-    , @NamedQuery(name = "Irodsaccesstype.findByLastmodified", query = "SELECT i FROM Irodsaccesstype i WHERE i.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Irodsaccesstype.findAll", query = "SELECT i FROM Irodsaccesstype i")
+        , @NamedQuery(name = "Irodsaccesstype.findById", query = "SELECT i FROM Irodsaccesstype i WHERE i.id = :id")
+        , @NamedQuery(name = "Irodsaccesstype.findByIrodsaccesstypetext", query = "SELECT i FROM Irodsaccesstype i WHERE i.irodsaccesstypetext = :irodsaccesstypetext")
+        , @NamedQuery(name = "Irodsaccesstype.findByIrodsaccesstypeidmap", query = "SELECT i FROM Irodsaccesstype i WHERE i.irodsaccesstypeidmap = :irodsaccesstypeidmap")
+        , @NamedQuery(name = "Irodsaccesstype.findByActive", query = "SELECT i FROM Irodsaccesstype i WHERE i.active = :active")
+        , @NamedQuery(name = "Irodsaccesstype.findByLastmodified", query = "SELECT i FROM Irodsaccesstype i WHERE i.lastmodified = :lastmodified")})
 public class Irodsaccesstype implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -129,5 +118,5 @@ public class Irodsaccesstype implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Irodsaccesstype[ id=" + id + " ]";
     }
-    
+
 }

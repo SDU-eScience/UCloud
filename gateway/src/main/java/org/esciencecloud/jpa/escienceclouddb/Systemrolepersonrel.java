@@ -5,35 +5,24 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "systemrolepersonrel")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Systemrolepersonrel.findAll", query = "SELECT s FROM Systemrolepersonrel s")
-    , @NamedQuery(name = "Systemrolepersonrel.findById", query = "SELECT s FROM Systemrolepersonrel s WHERE s.id = :id")
-    , @NamedQuery(name = "Systemrolepersonrel.findBySystemrolerefid", query = "SELECT s FROM Systemrolepersonrel s WHERE s.systemrolerefid = :systemrolerefid")
-    , @NamedQuery(name = "Systemrolepersonrel.findByPersonrefid", query = "SELECT s FROM Systemrolepersonrel s WHERE s.personrefid = :personrefid")
-    , @NamedQuery(name = "Systemrolepersonrel.findByLastmodified", query = "SELECT s FROM Systemrolepersonrel s WHERE s.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Systemrolepersonrel.findByActive", query = "SELECT s FROM Systemrolepersonrel s WHERE s.active = :active")})
+        @NamedQuery(name = "Systemrolepersonrel.findAll", query = "SELECT s FROM Systemrolepersonrel s")
+        , @NamedQuery(name = "Systemrolepersonrel.findById", query = "SELECT s FROM Systemrolepersonrel s WHERE s.id = :id")
+        , @NamedQuery(name = "Systemrolepersonrel.findBySystemrolerefid", query = "SELECT s FROM Systemrolepersonrel s WHERE s.systemrolerefid = :systemrolerefid")
+        , @NamedQuery(name = "Systemrolepersonrel.findByPersonrefid", query = "SELECT s FROM Systemrolepersonrel s WHERE s.personrefid = :personrefid")
+        , @NamedQuery(name = "Systemrolepersonrel.findByLastmodified", query = "SELECT s FROM Systemrolepersonrel s WHERE s.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Systemrolepersonrel.findByActive", query = "SELECT s FROM Systemrolepersonrel s WHERE s.active = :active")})
 public class Systemrolepersonrel implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -133,5 +122,5 @@ public class Systemrolepersonrel implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Systemrolepersonrel[ id=" + id + " ]";
     }
-    
+
 }

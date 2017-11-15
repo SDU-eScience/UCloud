@@ -5,43 +5,31 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "subsystem")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Subsystem.findAll", query = "SELECT s FROM Subsystem s")
-    , @NamedQuery(name = "Subsystem.findById", query = "SELECT s FROM Subsystem s WHERE s.id = :id")
-    , @NamedQuery(name = "Subsystem.findBySubsystemtext", query = "SELECT s FROM Subsystem s WHERE s.subsystemtext = :subsystemtext")
-    , @NamedQuery(name = "Subsystem.findByHealth", query = "SELECT s FROM Subsystem s WHERE s.health = :health")
-    , @NamedQuery(name = "Subsystem.findByIpDev", query = "SELECT s FROM Subsystem s WHERE s.ipDev = :ipDev")
-    , @NamedQuery(name = "Subsystem.findByPortDev", query = "SELECT s FROM Subsystem s WHERE s.portDev = :portDev")
-    , @NamedQuery(name = "Subsystem.findByIpTest", query = "SELECT s FROM Subsystem s WHERE s.ipTest = :ipTest")
-    , @NamedQuery(name = "Subsystem.findByPortTest", query = "SELECT s FROM Subsystem s WHERE s.portTest = :portTest")
-    , @NamedQuery(name = "Subsystem.findByIpProd", query = "SELECT s FROM Subsystem s WHERE s.ipProd = :ipProd")
-    , @NamedQuery(name = "Subsystem.findByPortProd", query = "SELECT s FROM Subsystem s WHERE s.portProd = :portProd")
-    , @NamedQuery(name = "Subsystem.findByLastmodified", query = "SELECT s FROM Subsystem s WHERE s.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Subsystem.findAll", query = "SELECT s FROM Subsystem s")
+        , @NamedQuery(name = "Subsystem.findById", query = "SELECT s FROM Subsystem s WHERE s.id = :id")
+        , @NamedQuery(name = "Subsystem.findBySubsystemtext", query = "SELECT s FROM Subsystem s WHERE s.subsystemtext = :subsystemtext")
+        , @NamedQuery(name = "Subsystem.findByHealth", query = "SELECT s FROM Subsystem s WHERE s.health = :health")
+        , @NamedQuery(name = "Subsystem.findByIpDev", query = "SELECT s FROM Subsystem s WHERE s.ipDev = :ipDev")
+        , @NamedQuery(name = "Subsystem.findByPortDev", query = "SELECT s FROM Subsystem s WHERE s.portDev = :portDev")
+        , @NamedQuery(name = "Subsystem.findByIpTest", query = "SELECT s FROM Subsystem s WHERE s.ipTest = :ipTest")
+        , @NamedQuery(name = "Subsystem.findByPortTest", query = "SELECT s FROM Subsystem s WHERE s.portTest = :portTest")
+        , @NamedQuery(name = "Subsystem.findByIpProd", query = "SELECT s FROM Subsystem s WHERE s.ipProd = :ipProd")
+        , @NamedQuery(name = "Subsystem.findByPortProd", query = "SELECT s FROM Subsystem s WHERE s.portProd = :portProd")
+        , @NamedQuery(name = "Subsystem.findByLastmodified", query = "SELECT s FROM Subsystem s WHERE s.lastmodified = :lastmodified")})
 public class Subsystem implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -198,5 +186,5 @@ public class Subsystem implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Subsystem[ id=" + id + " ]";
     }
-    
+
 }

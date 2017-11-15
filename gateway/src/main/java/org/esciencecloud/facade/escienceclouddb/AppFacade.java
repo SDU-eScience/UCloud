@@ -1,5 +1,6 @@
 package org.esciencecloud.facade.escienceclouddb;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.esciencecloud.jpa.escienceclouddb.App;
 
 import javax.persistence.EntityManager;
@@ -8,8 +9,6 @@ import javax.persistence.Persistence;
 import javax.persistence.Query;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AppFacade {
     private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AppFacade.class);

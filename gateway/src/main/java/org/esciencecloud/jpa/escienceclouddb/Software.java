@@ -5,40 +5,27 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "software")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Software.findAll", query = "SELECT s FROM Software s")
-    , @NamedQuery(name = "Software.findById", query = "SELECT s FROM Software s WHERE s.id = :id")
-    , @NamedQuery(name = "Software.findByDownloadurl", query = "SELECT s FROM Software s WHERE s.downloadurl = :downloadurl")
-    , @NamedQuery(name = "Software.findBySoftwaretext", query = "SELECT s FROM Software s WHERE s.softwaretext = :softwaretext")
-    , @NamedQuery(name = "Software.findByVersion", query = "SELECT s FROM Software s WHERE s.version = :version")
-    , @NamedQuery(name = "Software.findByRpms", query = "SELECT s FROM Software s WHERE s.rpms = :rpms")
-    , @NamedQuery(name = "Software.findByYums", query = "SELECT s FROM Software s WHERE s.yums = :yums")
-    , @NamedQuery(name = "Software.findByPorts", query = "SELECT s FROM Software s WHERE s.ports = :ports")
-    , @NamedQuery(name = "Software.findByLastmodified", query = "SELECT s FROM Software s WHERE s.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Software.findAll", query = "SELECT s FROM Software s")
+        , @NamedQuery(name = "Software.findById", query = "SELECT s FROM Software s WHERE s.id = :id")
+        , @NamedQuery(name = "Software.findByDownloadurl", query = "SELECT s FROM Software s WHERE s.downloadurl = :downloadurl")
+        , @NamedQuery(name = "Software.findBySoftwaretext", query = "SELECT s FROM Software s WHERE s.softwaretext = :softwaretext")
+        , @NamedQuery(name = "Software.findByVersion", query = "SELECT s FROM Software s WHERE s.version = :version")
+        , @NamedQuery(name = "Software.findByRpms", query = "SELECT s FROM Software s WHERE s.rpms = :rpms")
+        , @NamedQuery(name = "Software.findByYums", query = "SELECT s FROM Software s WHERE s.yums = :yums")
+        , @NamedQuery(name = "Software.findByPorts", query = "SELECT s FROM Software s WHERE s.ports = :ports")
+        , @NamedQuery(name = "Software.findByLastmodified", query = "SELECT s FROM Software s WHERE s.lastmodified = :lastmodified")})
 public class Software implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -186,5 +173,5 @@ public class Software implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Software[ id=" + id + " ]";
     }
-    
+
 }

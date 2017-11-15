@@ -5,34 +5,23 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "logintype")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Logintype.findAll", query = "SELECT l FROM Logintype l")
-    , @NamedQuery(name = "Logintype.findById", query = "SELECT l FROM Logintype l WHERE l.id = :id")
-    , @NamedQuery(name = "Logintype.findByLogintypetext", query = "SELECT l FROM Logintype l WHERE l.logintypetext = :logintypetext")
-    , @NamedQuery(name = "Logintype.findByLastmodified", query = "SELECT l FROM Logintype l WHERE l.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Logintype.findByActive", query = "SELECT l FROM Logintype l WHERE l.active = :active")})
+        @NamedQuery(name = "Logintype.findAll", query = "SELECT l FROM Logintype l")
+        , @NamedQuery(name = "Logintype.findById", query = "SELECT l FROM Logintype l WHERE l.id = :id")
+        , @NamedQuery(name = "Logintype.findByLogintypetext", query = "SELECT l FROM Logintype l WHERE l.logintypetext = :logintypetext")
+        , @NamedQuery(name = "Logintype.findByLastmodified", query = "SELECT l FROM Logintype l WHERE l.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Logintype.findByActive", query = "SELECT l FROM Logintype l WHERE l.active = :active")})
 public class Logintype implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -118,5 +107,5 @@ public class Logintype implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Logintype[ id=" + id + " ]";
     }
-    
+
 }

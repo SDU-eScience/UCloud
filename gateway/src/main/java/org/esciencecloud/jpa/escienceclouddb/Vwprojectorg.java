@@ -5,39 +5,32 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Date;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "vwprojectorg")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Vwprojectorg.findAll", query = "SELECT v FROM Vwprojectorg v")
-    , @NamedQuery(name = "Vwprojectorg.findByRecid", query = "SELECT v FROM Vwprojectorg v WHERE v.recid = :recid")
-    , @NamedQuery(name = "Vwprojectorg.findByProjectrefid", query = "SELECT v FROM Vwprojectorg v WHERE v.projectrefid = :projectrefid")
-    , @NamedQuery(name = "Vwprojectorg.findByProjectname", query = "SELECT v FROM Vwprojectorg v WHERE v.projectname = :projectname")
-    , @NamedQuery(name = "Vwprojectorg.findByProjectstart", query = "SELECT v FROM Vwprojectorg v WHERE v.projectstart = :projectstart")
-    , @NamedQuery(name = "Vwprojectorg.findByProjectend", query = "SELECT v FROM Vwprojectorg v WHERE v.projectend = :projectend")
-    , @NamedQuery(name = "Vwprojectorg.findByActive", query = "SELECT v FROM Vwprojectorg v WHERE v.active = :active")
-    , @NamedQuery(name = "Vwprojectorg.findByPersonrefid", query = "SELECT v FROM Vwprojectorg v WHERE v.personrefid = :personrefid")
-    , @NamedQuery(name = "Vwprojectorg.findByPersonfirstname", query = "SELECT v FROM Vwprojectorg v WHERE v.personfirstname = :personfirstname")
-    , @NamedQuery(name = "Vwprojectorg.findByPersonmiddlename", query = "SELECT v FROM Vwprojectorg v WHERE v.personmiddlename = :personmiddlename")
-    , @NamedQuery(name = "Vwprojectorg.findByPersonlastname", query = "SELECT v FROM Vwprojectorg v WHERE v.personlastname = :personlastname")
-    , @NamedQuery(name = "Vwprojectorg.findByProjectrolerefid", query = "SELECT v FROM Vwprojectorg v WHERE v.projectrolerefid = :projectrolerefid")
-    , @NamedQuery(name = "Vwprojectorg.findByProjectroletext", query = "SELECT v FROM Vwprojectorg v WHERE v.projectroletext = :projectroletext")})
+        @NamedQuery(name = "Vwprojectorg.findAll", query = "SELECT v FROM Vwprojectorg v")
+        , @NamedQuery(name = "Vwprojectorg.findByRecid", query = "SELECT v FROM Vwprojectorg v WHERE v.recid = :recid")
+        , @NamedQuery(name = "Vwprojectorg.findByProjectrefid", query = "SELECT v FROM Vwprojectorg v WHERE v.projectrefid = :projectrefid")
+        , @NamedQuery(name = "Vwprojectorg.findByProjectname", query = "SELECT v FROM Vwprojectorg v WHERE v.projectname = :projectname")
+        , @NamedQuery(name = "Vwprojectorg.findByProjectstart", query = "SELECT v FROM Vwprojectorg v WHERE v.projectstart = :projectstart")
+        , @NamedQuery(name = "Vwprojectorg.findByProjectend", query = "SELECT v FROM Vwprojectorg v WHERE v.projectend = :projectend")
+        , @NamedQuery(name = "Vwprojectorg.findByActive", query = "SELECT v FROM Vwprojectorg v WHERE v.active = :active")
+        , @NamedQuery(name = "Vwprojectorg.findByPersonrefid", query = "SELECT v FROM Vwprojectorg v WHERE v.personrefid = :personrefid")
+        , @NamedQuery(name = "Vwprojectorg.findByPersonfirstname", query = "SELECT v FROM Vwprojectorg v WHERE v.personfirstname = :personfirstname")
+        , @NamedQuery(name = "Vwprojectorg.findByPersonmiddlename", query = "SELECT v FROM Vwprojectorg v WHERE v.personmiddlename = :personmiddlename")
+        , @NamedQuery(name = "Vwprojectorg.findByPersonlastname", query = "SELECT v FROM Vwprojectorg v WHERE v.personlastname = :personlastname")
+        , @NamedQuery(name = "Vwprojectorg.findByProjectrolerefid", query = "SELECT v FROM Vwprojectorg v WHERE v.projectrolerefid = :projectrolerefid")
+        , @NamedQuery(name = "Vwprojectorg.findByProjectroletext", query = "SELECT v FROM Vwprojectorg v WHERE v.projectroletext = :projectroletext")})
 public class Vwprojectorg implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -166,5 +159,5 @@ public class Vwprojectorg implements Serializable {
     public void setProjectroletext(String projectroletext) {
         this.projectroletext = projectroletext;
     }
-    
+
 }

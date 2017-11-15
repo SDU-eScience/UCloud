@@ -5,35 +5,24 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "systemrole")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Systemrole.findAll", query = "SELECT s FROM Systemrole s")
-    , @NamedQuery(name = "Systemrole.findById", query = "SELECT s FROM Systemrole s WHERE s.id = :id")
-    , @NamedQuery(name = "Systemrole.findBySystemroletext", query = "SELECT s FROM Systemrole s WHERE s.systemroletext = :systemroletext")
-    , @NamedQuery(name = "Systemrole.findByLastmodified", query = "SELECT s FROM Systemrole s WHERE s.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Systemrole.findByLandingpage", query = "SELECT s FROM Systemrole s WHERE s.landingpage = :landingpage")
-    , @NamedQuery(name = "Systemrole.findByActive", query = "SELECT s FROM Systemrole s WHERE s.active = :active")})
+        @NamedQuery(name = "Systemrole.findAll", query = "SELECT s FROM Systemrole s")
+        , @NamedQuery(name = "Systemrole.findById", query = "SELECT s FROM Systemrole s WHERE s.id = :id")
+        , @NamedQuery(name = "Systemrole.findBySystemroletext", query = "SELECT s FROM Systemrole s WHERE s.systemroletext = :systemroletext")
+        , @NamedQuery(name = "Systemrole.findByLastmodified", query = "SELECT s FROM Systemrole s WHERE s.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Systemrole.findByLandingpage", query = "SELECT s FROM Systemrole s WHERE s.landingpage = :landingpage")
+        , @NamedQuery(name = "Systemrole.findByActive", query = "SELECT s FROM Systemrole s WHERE s.active = :active")})
 public class Systemrole implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -129,5 +118,5 @@ public class Systemrole implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Systemrole[ id=" + id + " ]";
     }
-    
+
 }

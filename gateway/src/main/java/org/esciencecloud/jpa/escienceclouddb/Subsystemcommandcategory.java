@@ -5,36 +5,24 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "subsystemcommandcategory")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Subsystemcommandcategory.findAll", query = "SELECT s FROM Subsystemcommandcategory s")
-    , @NamedQuery(name = "Subsystemcommandcategory.findById", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.id = :id")
-    , @NamedQuery(name = "Subsystemcommandcategory.findBySubsystemcommandcategorytext", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.subsystemcommandcategorytext = :subsystemcommandcategorytext")
-    , @NamedQuery(name = "Subsystemcommandcategory.findByLastmodified", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Subsystemcommandcategory.findAll", query = "SELECT s FROM Subsystemcommandcategory s")
+        , @NamedQuery(name = "Subsystemcommandcategory.findById", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.id = :id")
+        , @NamedQuery(name = "Subsystemcommandcategory.findBySubsystemcommandcategorytext", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.subsystemcommandcategorytext = :subsystemcommandcategorytext")
+        , @NamedQuery(name = "Subsystemcommandcategory.findByLastmodified", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.lastmodified = :lastmodified")})
 public class Subsystemcommandcategory implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -121,5 +109,5 @@ public class Subsystemcommandcategory implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Subsystemcommandcategory[ id=" + id + " ]";
     }
-    
+
 }

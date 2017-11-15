@@ -5,36 +5,24 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "subsystemcommandstatus")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Subsystemcommandstatus.findAll", query = "SELECT s FROM Subsystemcommandstatus s")
-    , @NamedQuery(name = "Subsystemcommandstatus.findById", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.id = :id")
-    , @NamedQuery(name = "Subsystemcommandstatus.findBySubsystemcommandstatustext", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.subsystemcommandstatustext = :subsystemcommandstatustext")
-    , @NamedQuery(name = "Subsystemcommandstatus.findByLastmodified", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Subsystemcommandstatus.findAll", query = "SELECT s FROM Subsystemcommandstatus s")
+        , @NamedQuery(name = "Subsystemcommandstatus.findById", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.id = :id")
+        , @NamedQuery(name = "Subsystemcommandstatus.findBySubsystemcommandstatustext", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.subsystemcommandstatustext = :subsystemcommandstatustext")
+        , @NamedQuery(name = "Subsystemcommandstatus.findByLastmodified", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.lastmodified = :lastmodified")})
 public class Subsystemcommandstatus implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -121,5 +109,5 @@ public class Subsystemcommandstatus implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Subsystemcommandstatus[ id=" + id + " ]";
     }
-    
+
 }

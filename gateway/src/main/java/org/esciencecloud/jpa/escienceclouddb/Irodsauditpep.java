@@ -5,36 +5,25 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "irodsauditpep")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Irodsauditpep.findAll", query = "SELECT i FROM Irodsauditpep i")
-    , @NamedQuery(name = "Irodsauditpep.findById", query = "SELECT i FROM Irodsauditpep i WHERE i.id = :id")
-    , @NamedQuery(name = "Irodsauditpep.findByType", query = "SELECT i FROM Irodsauditpep i WHERE i.type = :type")
-    , @NamedQuery(name = "Irodsauditpep.findByParm", query = "SELECT i FROM Irodsauditpep i WHERE i.parm = :parm")
-    , @NamedQuery(name = "Irodsauditpep.findByLastmodified", query = "SELECT i FROM Irodsauditpep i WHERE i.lastmodified = :lastmodified")
-    , @NamedQuery(name = "Irodsauditpep.findByPhase", query = "SELECT i FROM Irodsauditpep i WHERE i.phase = :phase")
-    , @NamedQuery(name = "Irodsauditpep.findByActive", query = "SELECT i FROM Irodsauditpep i WHERE i.active = :active")})
+        @NamedQuery(name = "Irodsauditpep.findAll", query = "SELECT i FROM Irodsauditpep i")
+        , @NamedQuery(name = "Irodsauditpep.findById", query = "SELECT i FROM Irodsauditpep i WHERE i.id = :id")
+        , @NamedQuery(name = "Irodsauditpep.findByType", query = "SELECT i FROM Irodsauditpep i WHERE i.type = :type")
+        , @NamedQuery(name = "Irodsauditpep.findByParm", query = "SELECT i FROM Irodsauditpep i WHERE i.parm = :parm")
+        , @NamedQuery(name = "Irodsauditpep.findByLastmodified", query = "SELECT i FROM Irodsauditpep i WHERE i.lastmodified = :lastmodified")
+        , @NamedQuery(name = "Irodsauditpep.findByPhase", query = "SELECT i FROM Irodsauditpep i WHERE i.phase = :phase")
+        , @NamedQuery(name = "Irodsauditpep.findByActive", query = "SELECT i FROM Irodsauditpep i WHERE i.active = :active")})
 public class Irodsauditpep implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -140,5 +129,5 @@ public class Irodsauditpep implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Irodsauditpep[ id=" + id + " ]";
     }
-    
+
 }

@@ -5,38 +5,25 @@
  */
 package org.esciencecloud.jpa.escienceclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "appusermessagesubscriptiontype")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Appusermessagesubscriptiontype.findAll", query = "SELECT a FROM Appusermessagesubscriptiontype a")
-    , @NamedQuery(name = "Appusermessagesubscriptiontype.findById", query = "SELECT a FROM Appusermessagesubscriptiontype a WHERE a.id = :id")
-    , @NamedQuery(name = "Appusermessagesubscriptiontype.findByAppusermessagesubscriptiontypetext", query = "SELECT a FROM Appusermessagesubscriptiontype a WHERE a.appusermessagesubscriptiontypetext = :appusermessagesubscriptiontypetext")
-    , @NamedQuery(name = "Appusermessagesubscriptiontype.findByActive", query = "SELECT a FROM Appusermessagesubscriptiontype a WHERE a.active = :active")
-    , @NamedQuery(name = "Appusermessagesubscriptiontype.findByLastmodified", query = "SELECT a FROM Appusermessagesubscriptiontype a WHERE a.lastmodified = :lastmodified")})
+        @NamedQuery(name = "Appusermessagesubscriptiontype.findAll", query = "SELECT a FROM Appusermessagesubscriptiontype a")
+        , @NamedQuery(name = "Appusermessagesubscriptiontype.findById", query = "SELECT a FROM Appusermessagesubscriptiontype a WHERE a.id = :id")
+        , @NamedQuery(name = "Appusermessagesubscriptiontype.findByAppusermessagesubscriptiontypetext", query = "SELECT a FROM Appusermessagesubscriptiontype a WHERE a.appusermessagesubscriptiontypetext = :appusermessagesubscriptiontypetext")
+        , @NamedQuery(name = "Appusermessagesubscriptiontype.findByActive", query = "SELECT a FROM Appusermessagesubscriptiontype a WHERE a.active = :active")
+        , @NamedQuery(name = "Appusermessagesubscriptiontype.findByLastmodified", query = "SELECT a FROM Appusermessagesubscriptiontype a WHERE a.lastmodified = :lastmodified")})
 public class Appusermessagesubscriptiontype implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -133,5 +120,5 @@ public class Appusermessagesubscriptiontype implements Serializable {
     public String toString() {
         return "org.escience.jpa.escienceclouddb.Appusermessagesubscriptiontype[ id=" + id + " ]";
     }
-    
+
 }
