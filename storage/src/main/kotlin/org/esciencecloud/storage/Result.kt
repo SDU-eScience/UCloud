@@ -23,30 +23,24 @@ sealed class Result<out T : Any> {
         fun <T : Any> lastError(): Error<T> = lastError.get() as Error<T>
     }
 
-    fun capture(): T? {
-        return when (this) {
-            is Ok<T> -> this.result
+    fun capture(): T? = when (this) {
+        is Ok<T> -> this.result
 
-            is Error<T> -> {
-                lastError.set(this)
-                null
-            }
+        is Error<T> -> {
+            lastError.set(this)
+            null
         }
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <R : Any> map(mapper: (T) -> R): Result<R> {
-        return when (this) {
-            is Ok<T> -> Ok(mapper(this.result))
-            is Error<T> -> this as Result<R>
-        }
+    fun <R : Any> map(mapper: (T) -> R): Result<R> = when (this) {
+        is Ok<T> -> Ok(mapper(this.result))
+        is Error<T> -> this as Result<R>
     }
 
-    fun orThrow(): T {
-        return when (this) {
-            is Ok<T> -> result
-            is Error<T> -> throw RuntimeException("Error in Result! Error code: $errorCode. Message: $message")
-        }
+    fun orThrow(): T = when (this) {
+        is Ok<T> -> result
+        is Error<T> -> throw RuntimeException("Error in Result! Error code: $errorCode. Message: $message")
     }
 
     inline fun onError(handler: (Error<T>) -> Unit) {

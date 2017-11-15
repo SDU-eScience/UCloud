@@ -17,6 +17,8 @@ import org.irods.jargon.core.query.*
 import org.irods.jargon.core.query.RodsGenQueryEnum.*
 import org.irods.jargon.core.transfer.TransferStatus
 import org.irods.jargon.core.transfer.TransferStatusCallbackListener
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -277,10 +279,10 @@ class IRodsAccessControlOperations(
     }
 }
 
-inline fun <T> doTime(name: String, block: () -> T): T {
+inline fun <T> doTime(name: String, log: Logger = LoggerFactory.getLogger("Timer"), block: () -> T): T {
     val start = System.currentTimeMillis()
     val result = block()
-    println("Timing for $name took ${System.currentTimeMillis() - start} ms")
+    log.debug("Timing for $name took ${System.currentTimeMillis() - start} ms")
     return result
 }
 

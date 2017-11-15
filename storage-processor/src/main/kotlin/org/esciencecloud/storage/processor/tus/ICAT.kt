@@ -178,37 +178,6 @@ class ICATConnection(connection: Connection) : Connection by connection {
     }
 
     fun convertTimestampToICAT(unixMs: Long) = (unixMs / 1000).toString().padStart(11, '0')
-
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            val cephId = "transfer-0"
-            val irodsCollection = "/tempZone/home/rods"
-            val irodsFileName = "new-ceph"
-            val irodsUser = "rods"
-            val irodsZone = "tempZone"
-            val objectSize = 1337L
-
-            val icat = ICAT(TusConfiguration("jdbc:postgresql://localhost:5432/ICAT", "postgres", "Rasmus12"))
-            icat.useConnection {
-                autoCommit = false
-                val resource = findResourceByNameAndZone("child_01", "tempZone") ?: return@useConnection
-                val entry = findAccessRightForUserInCollection(irodsUser, irodsZone, irodsCollection)
-                // TODO This is really primitive and even worse, potentially wrong
-                if (entry != null && (entry.accessType == 1200L || entry.accessType == 1120L)) {
-                    val id = registerDataObject(entry.objectId, cephId, objectSize,
-                            irodsCollection + '/' + irodsFileName, irodsUser, irodsZone, resource) ?:
-                            return@useConnection run { rollback() }
-
-                    println("Auto-generated ID is $id")
-                    val now = System.currentTimeMillis()
-
-                    registerAccessEntry(ICATAccessEntry(id, entry.userId, 1200, now, now))
-                    commit()
-                }
-            }
-        }
-    }
 }
 
 data class ICATCollection(val collectionId: Long, val parent: String, val name: String, val owner: String,
