@@ -28,36 +28,17 @@ compileTestKotlin {
 repositories {
     mavenCentral()
 
-    // TODO Something is not being imported correctly from the DICE repo
+    // iRODS
     maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
-    // Had to get these last two from the Maven output where it doesn't need them
-    // mvn dependency:resolve gave us the correct locations
     maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
     maven { url "http://download.osgeo.org/webdav/geotools" }
 
-    /*
-    maven { url "http://dl.bintray.com/kotlin/ktor" }
-    maven { url "https://dl.bintray.com/kotlin/kotlinx" }
-    maven { url "https://dl.bintray.com/tus/maven" }
-    */
     maven { url(eScienceCloudRepository) }
 }
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
-
-    // ------------
-    // Ceph uploads
-    // ------------
-    /*
-    compile files("libs/rados-0.4.0-SNAPSHOT.jar")
-    compile group: 'net.java.dev.jna', name: 'jna', version: '4.5.0'
-    compile 'io.tus.java.client:tus-java-client:0.3.1'
-    compile group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
-    */
-    // ------------
-
     compile group: 'org.irods.jargon', name: 'jargon-core', version: '4.2.0.0-RELEASE'
 
     // Logging
@@ -68,17 +49,6 @@ dependencies {
     testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
 
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
-
-    /*
-    // ktor
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
-
-    compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
-    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
-    compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
-
-    compile "org.esciencecloud:kafka-common:0.3.0"
-    */
 }
 
 kotlin {
@@ -87,27 +57,12 @@ kotlin {
     }
 }
 
-/*
-task apiJar(type: Jar) {
-    baseName "publishing-api"
-    from sourceSets.main.output
-    include "org/esciencecloud/storage/model/**"
-}
-*/
-
 task sourceJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
 publishing {
     publications {
-        /*
-        api(MavenPublication) {
-            groupId 'org.esciencecloud'
-            artifactId 'storage-api'
-            artifact apiJar
-        }
-        */
         mavenJava(MavenPublication) {
             from components.java
 
@@ -128,15 +83,3 @@ publishing {
     }
 }
 
-/*
-task fatJar(type: Jar) {
-    manifest {
-        attributes(['Implementation-Title'  : 'Storage FatJar',
-                    'Implementation-Version': version,
-                    'Main-Class'            : 'org.esciencecloud.storage.processor.ServerKt'])
-    }
-    baseName = project.name + '-all'
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-    with jar
-}
-*/

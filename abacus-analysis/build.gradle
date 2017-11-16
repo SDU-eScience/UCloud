@@ -1,0 +1,95 @@
+group 'org.esciencecloud'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    ext.kotlin_version = '1.1.60'
+    ext.ktor_version = '0.9.0'
+
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'kotlin'
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+
+    maven { url "http://dl.bintray.com/kotlin/ktor" }
+    maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+    maven { url("http://cloud.sdu.dk:8080/archiva/repository/internal") }
+
+    // Repositories required for iRODS to work
+    maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
+    maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
+    maven { url "http://download.osgeo.org/webdav/geotools" }
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+
+    // ------------
+    // iRODS
+    // ------------
+    compile "org.esciencecloud:cloud-storage:0.2.0"
+
+    // ------------
+    // Logging
+    // ------------
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
+
+    // ------------
+    // ktor
+    // ------------
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
+
+    compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
+
+    // ------------
+    // Kafka
+    // ------------
+    compile "org.esciencecloud:kafka-common:0.3.0"
+
+    // ------------
+    // SSH/SCP
+    // ------------
+    compile group: 'com.jcraft', name: 'jsch', version: '0.1.54'
+
+    // ------------
+    // Mail
+    // ------------
+    compile group: 'javax.mail', name: 'javax.mail-api', version: '1.6.0'
+    compile group: 'com.sun.mail', name: 'javax.mail', version: '1.6.0'
+}
+
+kotlin {
+    experimental {
+        coroutines "enable"
+    }
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes(['Implementation-Title'  : 'Storage FatJar',
+                    'Implementation-Version': version,
+                    'Main-Class'            : 'org.esciencecloud.abc.FileTransfersKt'])
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
