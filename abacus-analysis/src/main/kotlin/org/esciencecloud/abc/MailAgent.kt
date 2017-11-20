@@ -121,7 +121,6 @@ class MailAgent(private val config: MailAgentConfiguration) {
 
         val inbox = store.getFolder("INBOX") as IMAPFolder
         inbox.open(Folder.READ_WRITE)
-        // TODO This should probably read old (unread) messages too
         inbox.addMessageCountListener(object : MessageCountAdapter() {
             override fun messagesAdded(e: MessageCountEvent) {
                 e.messages.forEach { processMessage(it) }
@@ -162,7 +161,6 @@ class MailAgent(private val config: MailAgentConfiguration) {
 
         isRunning = true
         idleThread.start()
-
     }
 
     private fun processMessage(message: Message) {
