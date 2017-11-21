@@ -36,7 +36,7 @@ dependencies {
     // ------------
     // iRODS
     // ------------
-    compile "org.esciencecloud:cloud-storage:0.2.0"
+    compile "org.esciencecloud:cloud-storage:0.3.0"
 
     // ------------
     // Logging
@@ -53,6 +53,11 @@ dependencies {
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
+
+    // ------------
+    // rpc
+    // ------------
+    compile group: 'org.esciencecloud', name: 'kt-async-http-client', version: '0.1.2'
 
     // ------------
     // Kafka

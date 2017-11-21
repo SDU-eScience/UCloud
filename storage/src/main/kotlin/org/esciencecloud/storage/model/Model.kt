@@ -22,6 +22,7 @@ class StoragePath private constructor(private val uri: URI) {
 
     init {
         uri.host!!
+        if (uri.scheme != "storage") throw IllegalArgumentException("invalid scheme")
     }
 
     val components: List<String>
@@ -32,9 +33,7 @@ class StoragePath private constructor(private val uri: URI) {
                 null, null))
     }
 
-    fun push(vararg components: String): StoragePath {
-        return pushRelative(components.joinToString("/"))
-    }
+    fun push(vararg components: String): StoragePath = pushRelative(components.joinToString("/"))
 
     fun pop(): StoragePath = StoragePath(uri.resolve(".").normalize())
 
@@ -67,6 +66,9 @@ class StoragePath private constructor(private val uri: URI) {
 
         fun internalCreateFromHostAndAbsolutePath(host: String, path: String): StoragePath =
                 StoragePath(URI("storage", host, path, null, null).normalize())
+
+        fun fromURI(uri: URI) = StoragePath(uri)
+        fun fromURI(uriAsString: String) = StoragePath(URI(uriAsString))
     }
 }
 

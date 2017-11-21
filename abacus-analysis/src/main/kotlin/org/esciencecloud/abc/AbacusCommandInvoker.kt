@@ -113,7 +113,6 @@ fun SSHConnection.sbatch(file: String, vararg args: String): SBatchSubmissionRes
     }
 }
 
-
 fun SSHConnection.scp(file: File, destination: String, permissions: String) =
         scp(
                 fileLength = file.length(),
@@ -154,7 +153,6 @@ fun SSHConnection.scp(fileLength: Long, fileName: String, fileDestination: Strin
                       fileWriter: (OutputStream) -> Unit): Int {
     val execChannel = openExecChannel()
     val log = LoggerFactory.getLogger("SCP")
-
 
     val ins = execChannel.inputStream
     val outs = execChannel.outputStream

@@ -20,8 +20,8 @@ class SBatchGenerator(private val emailForNotifications: String) {
 
     private fun safeBashArgument(rawArgument: String) = "\"${bashEscaper.escape(rawArgument)}\""
 
-    fun generate(description: ApplicationDescription, parameters: Map<String, Any>, workDir: String) {
-        val tool = ToolDAO.findByNameAndVerison(description.tool.name, description.tool.version)!!
+    fun generate(description: ApplicationDescription, parameters: Map<String, Any>, workDir: String): String {
+        val tool = ToolDAO.findByNameAndVersion(description.tool.name, description.tool.version)!!
 
         val groupedAppParameters = description.parameters.groupBy { it.name }.mapValues { it.value.single() }
         val actualParameters = groupedAppParameters.mapValues {
@@ -30,7 +30,12 @@ class SBatchGenerator(private val emailForNotifications: String) {
 
         fun nodeToString(node: TemplateNode): String = when (node) {
             is WordNode -> node.text
-            is VariableNode -> actualParameters[node.parameterName]!!.toString()
+            is VariableNode -> {
+                @Suppress("UNCHECKED_CAST")
+                val applicationParameter = groupedAppParameters[node.parameterName]!! as ApplicationParameter<Any>
+                val entry = actualParameters[node.parameterName]!!
+                applicationParameter.toInvocationArgument(entry)
+            }
             is MixedNode -> node.nodes.joinToString("") { nodeToString(it) }
         }
 
@@ -107,7 +112,7 @@ class SBatchGenerator(private val emailForNotifications: String) {
             srun singularity run -C -H ${safeBashArgument(workDir)} ${safeBashArgument(tool.container)} $invocation
             """.trimIndent()
 
-        println(batchJob)
+        return batchJob
     }
 }
 
@@ -117,10 +122,18 @@ data class VariableNode(val parameterName: String) : TemplateNode()
 data class MixedNode(val nodes: List<TemplateNode>) : TemplateNode()
 
 class TemplateParser {
+    private enum class State {
+        WORD,
+        VAR_FIRST_CHAR,
+        VAR_BODY_NO_BRACE,
+        VAR_BODY_WITH_BRACE,
+        ESCAPE
+    }
+
     fun parseSingleLineTemplate(inputTemplate: String): ArrayList<TemplateNode> {
         val template = inputTemplate.lines().singleOrNull() ?: throw IllegalArgumentException("Multiple lines in template")
         val output = ArrayList<TemplateNode>()
-        var state = 0
+        var state = State.WORD
 
         val nodes = ArrayList<TemplateNode>()
         val builder = StringBuilder()
@@ -132,27 +145,27 @@ class TemplateParser {
                 else -> output.add(MixedNode(nodes.toList()))
             }
 
-            state = 0
+            state = State.WORD
             builder.setLength(0)
             nodes.clear()
         }
 
         template.forEach { char ->
             when (state) {
-                0 -> { // Parse word
+                State.WORD -> {
                     when {
                         char.isWhitespace() -> {
                             nodes.add(WordNode(builder.toString()))
                             completeToken()
                         }
 
-                        char == '$' -> state = 1
-                        char == '\\' -> state = 4
+                        char == '$' -> state = State.VAR_FIRST_CHAR
+                        char == '\\' -> state = State.ESCAPE
                         else -> builder.append(char)
                     }
                 }
 
-                1 -> { // Parse variable, first char
+                State.VAR_FIRST_CHAR -> {
                     if (char.isWhitespace()) {
                         builder.append("$")
                         nodes.add(WordNode(builder.toString()))
@@ -164,15 +177,15 @@ class TemplateParser {
                         }
 
                         if (char == '{') {
-                            state = 3
+                            state = State.VAR_BODY_WITH_BRACE
                         } else {
                             builder.append(char)
-                            state = 2
+                            state = State.VAR_BODY_NO_BRACE
                         }
                     }
                 }
 
-                2 -> { // Parse variable, no braces
+                State.VAR_BODY_NO_BRACE -> {
                     when {
                         char.isWhitespace() -> {
                             nodes.add(VariableNode(builder.toString()))
@@ -184,12 +197,12 @@ class TemplateParser {
                     }
                 }
 
-                3 -> { // Parse variable, with braces
+                State.VAR_BODY_WITH_BRACE -> {
                     when {
                         char == '}' -> {
                             nodes.add(VariableNode(builder.toString()))
                             builder.setLength(0)
-                            state = 0
+                            state = State.WORD
                         }
 
                         char.isLetterOrDigit() -> builder.append(char)
@@ -197,16 +210,16 @@ class TemplateParser {
                     }
                 }
 
-                4 -> { // Escape char
+                State.ESCAPE -> {
                     state = when (char) {
                         '$' -> {
                             builder.append('$')
-                            0
+                            State.WORD
                         }
 
                         '\\' -> {
                             builder.append('\\')
-                            0
+                            State.WORD
                         }
 
                         else -> {
@@ -218,7 +231,7 @@ class TemplateParser {
         }
 
         when (state) {
-            0 -> { // Parse word
+            State.WORD -> {
                 if (builder.isNotEmpty()) {
                     nodes.add(WordNode(builder.toString()))
                 }
@@ -228,21 +241,21 @@ class TemplateParser {
                 }
             }
 
-            1 -> { // Parse variable, first char
+            State.VAR_FIRST_CHAR -> {
                 nodes.add(WordNode("$"))
                 completeToken()
             }
 
-            2 -> { // Parse variables, no braces
+            State.VAR_BODY_NO_BRACE -> {
                 nodes.add(VariableNode(builder.toString()))
                 completeToken()
             }
 
-            3 -> { // Parse variable, with braces
+            State.VAR_BODY_WITH_BRACE -> {
                 throw IllegalStateException("Unexpected end of template")
             }
 
-            4 -> { // Escape char
+            State.ESCAPE -> {
                 throw IllegalStateException("Unexpected end of template during escaping")
             }
         }
