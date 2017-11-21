@@ -71,17 +71,17 @@ class ApplicationStreamProcessor(
     private lateinit var streamProcessor: KafkaStreams
     private lateinit var mailAgent: MailAgent
 
-    private fun retrieveKafkaConfiguration(): Properties {
-        val properties = Properties()
-        properties[StreamsConfig.APPLICATION_ID_CONFIG] = "storage-processor"
-        properties[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
-        properties[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
-        properties[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$rpcPort"
+    private fun retrieveKafkaStreamsConfiguration(): Properties = Properties().apply {
+        this[StreamsConfig.APPLICATION_ID_CONFIG] = "storage-processor"
+        this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
+        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
+        this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$rpcPort"
+    }
 
-        properties[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
-        properties[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
-        properties[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
-        return properties
+    private fun retrieveKafkaProducerConfiguration(): Properties = Properties().apply {
+        this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
+        this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+        this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
     }
 
     private data class ValidatedFileForUpload(
@@ -226,11 +226,13 @@ class ApplicationStreamProcessor(
 
     fun start() {
         if (initialized) throw IllegalStateException("Already started!")
-        val kafkaConfig = retrieveKafkaConfiguration()
 
         // TODO How do we handle deserialization exceptions???
         log.info("Starting Kafka Streams Processor")
-        streamProcessor = KafkaStreams(KStreamBuilder().apply { constructStreams(this) }, kafkaConfig)
+        streamProcessor = KafkaStreams(
+                KStreamBuilder().apply { constructStreams(this) },
+                retrieveKafkaStreamsConfiguration()
+        )
         streamProcessor.start()
         streamProcessor.addShutdownHook()
 
@@ -239,8 +241,7 @@ class ApplicationStreamProcessor(
         rpc.start()
 
         log.info("Starting Kafka Producer (Mail Agent)")
-        // TODO Should only use the producer config, not the streams config
-        val producer = KafkaProducer<String, String>(kafkaConfig)
+        val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
 
         log.info("Starting Mail Agent")
         val mapper = jacksonObjectMapper()
@@ -285,7 +286,6 @@ class ApplicationStreamProcessor(
 
 fun <T : Any> Error.Companion.internalError(): Error<T> = Error(500, "Internal error")
 fun Exception.stackTraceToString(): String = StringWriter().apply { printStackTrace(PrintWriter(this)) }.toString()
-
 
 fun main(args: Array<String>) {
     val mapper = jacksonObjectMapper()
