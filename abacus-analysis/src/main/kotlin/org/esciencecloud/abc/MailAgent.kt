@@ -1,16 +1,8 @@
 package org.esciencecloud.abc
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.sun.mail.imap.IMAPFolder
 import com.sun.mail.imap.IMAPStore
-import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.ext.irods.IRodsConnectionInformation
-import org.esciencecloud.storage.ext.irods.IRodsStorageConnectionFactory
-import org.irods.jargon.core.connection.AuthScheme
-import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.time.Duration
 import java.util.*
 import javax.mail.Flags
@@ -92,11 +84,13 @@ class SlurmEventEnded(jobId: Long, name: String, val runTime: Duration, val stat
 
 class SlurmEventUnknown(jobId: Long, name: String, val type: String) : SlurmEvent(jobId, name)
 
+typealias SlurmEventListener = (SlurmEvent) -> Unit
+
 class MailAgent(private val config: MailAgentConfiguration) {
     private lateinit var idleThread: Thread
-    private lateinit var sshConnection: SSHConnection
-    private lateinit var adminConnection: StorageConnection
+    private val eventListeners = ArrayList<SlurmEventListener>()
     private var isRunning = false
+    private val log = LoggerFactory.getLogger(MailAgent::class.java)
 
     companion object {
         private val SLURM_MAIL = "slurm@deic.sdu.dk"
@@ -127,28 +121,6 @@ class MailAgent(private val config: MailAgentConfiguration) {
             }
         })
 
-
-        // ---------------------------------------------------------
-        // The last part doesn't belong here, just for demo purposes
-        // ---------------------------------------------------------
-        val irods = IRodsStorageConnectionFactory(IRodsConnectionInformation(
-                host = "localhost",
-                zone = "tempZone",
-                port = 1247,
-                storageResource = "radosRandomResc",
-                sslNegotiationPolicy = ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE,
-                authScheme = AuthScheme.STANDARD
-        ))
-        adminConnection = irods.createForAccount("rods", "rods").orThrow()
-
-        val mapper = jacksonObjectMapper()
-        val sshConfig = mapper.readValue<SimpleConfiguration>(File("ssh_conf.json"))
-        sshConnection = SSHConnection.connect(sshConfig)
-
-        val log = LoggerFactory.getLogger("MailAgent")
-        log.info("Ready!")
-        // ---------------------------------------------------------
-
         val unreadMails = inbox.search(FlagTerm(Flags(Flags.Flag.SEEN), false))
         unreadMails.forEach { processMessage(it) }
 
@@ -157,44 +129,53 @@ class MailAgent(private val config: MailAgentConfiguration) {
                 if (!store.isConnected) store.connect(config.username, config.password)
                 inbox.idle()
             }
+            inbox.close()
+            store.close()
         }
 
         isRunning = true
         idleThread.start()
     }
 
+    fun addListener(listener: SlurmEventListener) {
+        eventListeners.add(listener)
+    }
+
+    fun removeListener(listener: SlurmEventListener) {
+        eventListeners.remove(listener)
+    }
+
     private fun processMessage(message: Message) {
-        val from = message.from.map { (it as? InternetAddress)?.address }.filterNotNull()
+        val from = message.from.mapNotNull { (it as? InternetAddress)?.address }
         val subject = message.subject
-        println(from)
-        println(subject)
         if (!from.contains(SLURM_MAIL)) return
-        val event = SlurmEvent.parse(message.subject)
-        when (event) {
-            is SlurmEventBegan -> println("We just began a job! $event")
-            is SlurmEventEnded -> {
-                println("We are done! $event")
-                sshConnection.scpDownload("/home/dthrane/slurm-${event.jobId}.out") {
-                    adminConnection.files.put(adminConnection.paths.homeDirectory.push("output-${event.jobId}.txt"), it)
-                }
-            }
+        val event = try {
+            SlurmEvent.parse(message.subject)
+        } catch (ex: Exception) {
+            log.warn("Exception while parsing slurm event!")
+            log.warn("From: $from")
+            log.warn("Subject: $subject")
+            log.warn("Exception was: ${ex.stackTraceToString()}")
+            null
         }
+
+        if (event == null) {
+            log.warn("Was unable to parse Slurm message")
+            log.warn("From: $from")
+            log.warn("Subject: $subject")
+        } else {
+            eventListeners.forEach { it(event) }
+        }
+
+        // This should run after the listeners have been invoked, this way listeners will have a chance to mark the
+        // event as having been processed. If they crash, then this e-mail notification will be replayed on restart.
         message.setFlag(Flags.Flag.SEEN, true)
     }
 
     fun stop() {
+        // TODO Will probably need to wake up the idle command for this to work
         isRunning = false
     }
 }
 
 data class MailAgentConfiguration(val host: String, val port: Int, val username: String, val password: String)
-
-fun main(args: Array<String>) {
-    val mapper = jacksonObjectMapper()
-    val conf = mapper.readValue<MailAgentConfiguration>(File("mail_conf.json"))
-    val agent = MailAgent(conf)
-    agent.start()
-    while (true) {
-        Thread.sleep(100)
-    }
-}
