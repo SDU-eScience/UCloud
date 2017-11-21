@@ -42,12 +42,18 @@ import java.net.URI
 import java.util.*
 import kotlin.collections.set
 
+data class HPCConfig(
+        val kafka: KafkaConfiguration,
+        val ssh: SimpleSSHConfig,
+        val mail: MailAgentConfiguration,
+        val storage: StorageConfiguration
+)
+
+data class StorageConfiguration(val host: String, val port: Int, val zone: String)
 data class KafkaConfiguration(val servers: List<String>)
 
 class ApplicationStreamProcessor(
-        private val kafkaConfig: KafkaConfiguration,
-        private val sshConfig: SimpleSSHConfig,
-        private val mailConfig: MailAgentConfiguration,
+        private val config: HPCConfig,
         private val storageConnectionFactory: StorageConnectionFactory,
         private val hostname: String,
         private val rpcPort: Int
@@ -68,11 +74,11 @@ class ApplicationStreamProcessor(
     private fun retrieveKafkaConfiguration(): Properties {
         val properties = Properties()
         properties[StreamsConfig.APPLICATION_ID_CONFIG] = "storage-processor"
-        properties[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaConfig.servers.joinToString(",")
+        properties[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
         properties[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
         properties[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$rpcPort"
 
-        properties[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaConfig.servers.joinToString(",")
+        properties[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
         properties[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
         properties[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
         return properties
@@ -121,7 +127,7 @@ class ApplicationStreamProcessor(
         val parameters = request.parameters
 
         // Must end in '/'. Otherwise resolve will do the wrong thing
-        val homeDir = URI("file:///home/${sshConfig.user}/projects/")
+        val homeDir = URI("file:///home/${config.ssh.user}/projects/")
         val jobDir = homeDir.resolve("jobid/")
         val workDir = jobDir.resolve("files/")
 
@@ -137,7 +143,7 @@ class ApplicationStreamProcessor(
         val validatedFiles = validateInputFiles(app, parameters, storage, workDir).capture() ?:
                 return Result.lastError()
 
-        SSHConnection.connect(sshConfig).use { ssh ->
+        SSHConnection.connect(config.ssh).use { ssh ->
             // Transfer (validated) input files
             validatedFiles.forEach { upload ->
                 var errorDuringUpload: Error<Long>? = null
@@ -238,7 +244,7 @@ class ApplicationStreamProcessor(
 
         log.info("Starting Mail Agent")
         val mapper = jacksonObjectMapper()
-        mailAgent = MailAgent(mailConfig)
+        mailAgent = MailAgent(config.mail)
         mailAgent.addListener { event ->
             when (event) {
                 is SlurmEventBegan -> {
@@ -283,21 +289,18 @@ fun Exception.stackTraceToString(): String = StringWriter().apply { printStackTr
 
 fun main(args: Array<String>) {
     val mapper = jacksonObjectMapper()
-    val kafkaConfig = mapper.readValue<KafkaConfiguration>(File("kafka_conf.json"))
-    val sshConfig = mapper.readValue<SimpleSSHConfig>(File("ssh_conf.json"))
-    val mailConfig = mapper.readValue<MailAgentConfiguration>(File("mail_conf.json"))
+    val hpcConfig = mapper.readValue<HPCConfig>(File("hpc_conf.json"))
 
     val irodsConnectionFactory = IRodsStorageConnectionFactory(IRodsConnectionInformation(
-            host = "localhost",
-            zone = "tempZone",
-            port = 1247,
+            host = hpcConfig.storage.host,
+            zone = hpcConfig.storage.zone,
+            port = hpcConfig.storage.port,
             storageResource = "radosRandomResc",
             sslNegotiationPolicy = ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE,
             authScheme = AuthScheme.STANDARD
     ))
 
-    val processor = ApplicationStreamProcessor(kafkaConfig, sshConfig, mailConfig,
-            irodsConnectionFactory, "localhost", 42200)
+    val processor = ApplicationStreamProcessor(hpcConfig, irodsConnectionFactory, "localhost", 42200)
     processor.start()
 }
 

@@ -124,10 +124,10 @@ inline fun <reified Type : Any> defaultSerdeOrJson(): Serde<Type> = when (Type::
 }
 
 class KafkaRPCServer(
-        val hostname: String,
-        val port: Int,
-        val endpoints: List<KafkaRPCEndpoint<Any, Any>>,
-        val streams: KafkaStreams
+        private val hostname: String,
+        private val port: Int,
+        private val endpoints: List<KafkaRPCEndpoint<Any, Any>>,
+        private val streams: KafkaStreams
 ) {
     private var server: ApplicationEngine? = null
     private val thisHost = HostInfo(hostname, port)
@@ -167,4 +167,3 @@ class KafkaRPCServer(
         this.server!!.stop(gracePeriod, timeout, timeUnit)
     }
 }
-
