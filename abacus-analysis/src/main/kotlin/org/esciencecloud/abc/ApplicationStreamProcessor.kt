@@ -2,44 +2,25 @@ package org.esciencecloud.abc
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import io.ktor.application.ApplicationCall
-import io.ktor.application.call
-import io.ktor.application.install
-import io.ktor.features.CallLogging
-import io.ktor.features.ContentNegotiation
-import io.ktor.features.DefaultHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.jackson.jackson
-import io.ktor.request.httpMethod
-import io.ktor.request.uri
-import io.ktor.response.respond
-import io.ktor.routing.get
-import io.ktor.routing.routing
-import io.ktor.server.cio.CIO
-import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStreamBuilder
-import org.apache.kafka.streams.state.HostInfo
-import org.apache.kafka.streams.state.QueryableStoreTypes
-import org.apache.kafka.streams.state.StreamsMetadata
-import org.esciencecloud.abc.api.*
+import org.esciencecloud.abc.api.ApplicationDescription
+import org.esciencecloud.abc.api.ApplicationParameter
+import org.esciencecloud.abc.api.HPCAppEvent
+import org.esciencecloud.abc.api.HPCAppRequest
 import org.esciencecloud.abc.ssh.SSHConnection
 import org.esciencecloud.abc.ssh.SimpleSSHConfig
 import org.esciencecloud.abc.ssh.sbatch
 import org.esciencecloud.abc.ssh.scpUpload
-import org.esciencecloud.asynchttp.HttpClient
-import org.esciencecloud.asynchttp.setJsonBody
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
@@ -59,6 +40,7 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
 import java.util.*
+import kotlin.collections.set
 
 data class KafkaConfiguration(val servers: List<String>)
 
@@ -247,7 +229,8 @@ class ApplicationStreamProcessor(
         streamProcessor.addShutdownHook()
 
         log.info("Starting RPC Server")
-        createRPCServer().start()
+        val rpc = HPCEndpoints(hostname, rpcPort, streamProcessor)
+        rpc.start()
 
         log.info("Starting Kafka Producer (Mail Agent)")
         // TODO Should only use the producer config, not the streams config
@@ -259,22 +242,14 @@ class ApplicationStreamProcessor(
         mailAgent.addListener { event ->
             when (event) {
                 is SlurmEventBegan -> {
-                    val key = runBlocking {
-                        lookupKafkaStoreOrProxy("/slurm/${event.jobId}", "GET", HostInfo(hostname, rpcPort),
-                                TOPIC_SLURM_TO_JOB_ID, event.jobId, Serdes.Long(), Serdes.String())
-                    }.orThrow()
-
+                    val key = runBlocking { rpc.querySlurmIdToInternal(event.jobId) }.orThrow()
                     val appEvent = mapper.writeValueAsString(HPCAppEvent.Started(event.jobId))
                     producer.send(ProducerRecord(TOPIC_HPC_APP_EVENTS, key, appEvent))
                 }
 
                 is SlurmEventEnded -> {
                     // TODO Not sure if throwing is the right choice here, but not sure how else to handle it
-                    val key = runBlocking {
-                        lookupKafkaStoreOrProxy("/slurm/${event.jobId}", "GET", HostInfo(hostname, rpcPort),
-                                TOPIC_SLURM_TO_JOB_ID, event.jobId, Serdes.Long(), Serdes.String())
-                    }.orThrow()
-
+                    val key = runBlocking { rpc.querySlurmIdToInternal(event.jobId) }.orThrow()
                     val appEvent = mapper.writeValueAsString(HPCAppEvent.SuccessfullyCompleted(event.jobId))
                     producer.send(ProducerRecord(TOPIC_HPC_APP_EVENTS, key, appEvent))
 
@@ -299,112 +274,6 @@ class ApplicationStreamProcessor(
 
     private fun KafkaStreams.addShutdownHook() {
         Runtime.getRuntime().addShutdownHook(Thread { this.close() })
-    }
-
-    private fun createRPCServer() = embeddedServer(CIO, port = rpcPort) {
-        // TODO Need to validate via certificates
-        install(CallLogging)
-        install(DefaultHeaders)
-        install(ContentNegotiation) {
-            jackson { registerKotlinModule() }
-        }
-
-        routing {
-            get("/slurm/{key}") {
-                val key = call.requireParamOrRespond("key") { it.toLongOrNull() } ?: return@get
-
-                call.respondInteractiveQuery<Long, String>(
-                        HostInfo(hostname, rpcPort),
-                        TOPIC_SLURM_TO_JOB_ID,
-                        key,
-                        Serdes.Long(),
-                        Serdes.String()
-                )
-            }
-        }
-    }
-
-    private suspend fun <T : Any> ApplicationCall.requireParamOrRespond(key: String, mapper: (String) -> T?): T? {
-        val input = parameters[key]
-        if (input == null) {
-            respond(HttpStatusCode.BadRequest, "Bad request")
-            return null
-        }
-
-        val mapped = mapper(input)
-        if (mapped == null) {
-            respond(HttpStatusCode.BadRequest, "Bad request")
-            return null
-        }
-        return mapped
-    }
-
-    private suspend fun <Key : Any, Value : Any> ApplicationCall.respondInteractiveQuery(
-            thisHost: HostInfo,
-            table: String,
-            key: Key,
-            keySerde: Serde<Key>,
-            valueSerde: Serde<Value>,
-            payload: Any? = null
-    ) {
-        val result = lookupKafkaStoreOrProxy(request.uri, request.httpMethod.value, thisHost, table, key,
-                keySerde, valueSerde, payload)
-
-        when (result) {
-            is Ok -> respond(result.result)
-        // TODO We need an http error code for results
-            is Error -> respond(HttpStatusCode.fromValue(result.errorCode), result.message)
-        }
-    }
-
-    private suspend fun <Key : Any, Value : Any> lookupKafkaStoreOrProxy(
-            rpcEndpoint: String,
-            rpcHttpMethod: String,
-            thisHost: HostInfo,
-            table: String,
-            key: Key,
-            keySerde: Serde<Key>,
-            valueSerde: Serde<Value>,
-            payload: Any? = null
-    ): Result<Value> {
-        val hostWithData = streamProcessor.metadataForKey(table, key, keySerde.serializer())
-        return when {
-            hostWithData == StreamsMetadata.NOT_AVAILABLE -> Error.notFound()
-
-            thisHost == hostWithData.hostInfo() -> {
-                val store = streamProcessor.store(table, QueryableStoreTypes.keyValueStore<Key, Value>())
-                val value = store[key] ?: return run {
-                    log.error("Expected value to be found in local server")
-                    log.error("Table: $table, key: $key")
-
-                    Error.internalError()
-                }
-
-                Ok(value)
-            }
-
-            else -> {
-                val uri = if (!rpcEndpoint.startsWith("/")) "/$rpcEndpoint" else rpcEndpoint
-
-                val endpoint = "http://${hostWithData.host()}:${hostWithData.port()}$uri"
-                val response = HttpClient.post(endpoint) {
-                    if (payload != null) setJsonBody(payload)
-                    setMethod(rpcHttpMethod)
-                }
-
-                return try {
-                    Ok(valueSerde.deserializer().deserialize("", response.responseBodyAsBytes))
-                } catch (ex: Exception) {
-                    log.warn("Unable to deserialize response from other Kafka store.")
-                    log.warn("Endpoint was: $endpoint")
-                    log.warn("Table: $table, key: $key")
-                    log.warn("Raw response: ${response.responseBody} (${response.statusCode})")
-                    log.warn("Exception: ${ex.stackTraceToString()}")
-
-                    Error.internalError()
-                }
-            }
-        }
     }
 }
 
