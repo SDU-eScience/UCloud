@@ -46,7 +46,7 @@ fun SSHConnection.scpUpload(file: File, destination: String, permissions: String
         }
 
 fun SSHConnection.scpUpload(fileLength: Long, fileName: String, fileDestination: String, filePermissions: String,
-                                                      fileWriter: (OutputStream) -> Unit): Int {
+                            fileWriter: (OutputStream) -> Unit): Int {
     val execChannel = openExecChannel()
 
     val ins = execChannel.inputStream

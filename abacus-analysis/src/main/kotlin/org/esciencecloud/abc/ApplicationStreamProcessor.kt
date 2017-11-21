@@ -3,6 +3,7 @@ package org.esciencecloud.abc
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -46,6 +47,7 @@ class ApplicationStreamProcessor(
         const val TOPIC_HPC_APP_REQUESTS = "hpcAppRequests"
         const val TOPIC_HPC_APP_EVENTS = "hpcAppEvents"
         const val TOPIC_SLURM_TO_JOB_ID = "slurmIdToJobId"
+        const val TOPIC_JOB_ID_TO_APP = "jobToApp"
     }
 
     private val log = LoggerFactory.getLogger(ApplicationStreamProcessor::class.java)
@@ -90,8 +92,9 @@ class ApplicationStreamProcessor(
 
         log.info("Starting Slurm Mail Agent")
         mailAgent = SlurmMailAgent(config.mail)
-        val slurmProcessor = SlurmProcessor(rpc, mapper, producer)
-        mailAgent.addListener(slurmProcessor::handle)
+        val slurmProcessor = SlurmProcessor(rpc, mapper, producer, config.ssh, storageConnectionFactory)
+        // TODO Handle this better. Can't do launch since we need it to block on agent side
+        mailAgent.addListener { runBlocking { slurmProcessor.handle(it) } }
         mailAgent.start()
 
         log.info("Ready!")

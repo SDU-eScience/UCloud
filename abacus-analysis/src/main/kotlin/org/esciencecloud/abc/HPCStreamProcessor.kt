@@ -2,9 +2,11 @@ package org.esciencecloud.abc
 
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KeyValue
+import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.abc.ApplicationStreamProcessor.Companion.TOPIC_HPC_APP_EVENTS
 import org.esciencecloud.abc.ApplicationStreamProcessor.Companion.TOPIC_HPC_APP_REQUESTS
+import org.esciencecloud.abc.ApplicationStreamProcessor.Companion.TOPIC_JOB_ID_TO_APP
 import org.esciencecloud.abc.ApplicationStreamProcessor.Companion.TOPIC_SLURM_TO_JOB_ID
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCAppRequest
@@ -16,6 +18,7 @@ import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.StorageConnection
 import org.esciencecloud.storage.ext.StorageConnectionFactory
 import org.slf4j.LoggerFactory
+import kotlin.reflect.KClass
 
 class HPCStreamProcessor(
         private val storageConnectionFactory: StorageConnectionFactory,
@@ -58,5 +61,23 @@ class HPCStreamProcessor(
                         Serdes.String(), // value serde
                         TOPIC_SLURM_TO_JOB_ID // table name
                 )
+
+        // Keep a mapping between internal job ids and their start request
+        @Suppress("UNCHECKED_CAST")
+        requests.filter { _, value -> value.event is HPCAppRequest.Start }
+                .mapValues { it as Request<HPCAppRequest.Start> }
+                .groupByKey(Serdes.String(), jsonSerde())
+                .aggregate(
+                        { null },
+                        { _, newValue, _ -> newValue },
+                        jsonSerde<Request<HPCAppRequest.Start>>(),
+                        TOPIC_JOB_ID_TO_APP
+                )
     }
+
+    private fun <K, V : Any, R : V> KStream<K, V>.filterIsInstance(klass: KClass<R>) =
+            filter { _, value -> klass.isInstance(value) }.mapValues {
+                @Suppress("UNCHECKED_CAST")
+                it as R
+            }
 }

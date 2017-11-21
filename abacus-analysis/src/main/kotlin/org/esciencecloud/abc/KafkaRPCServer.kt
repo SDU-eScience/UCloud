@@ -16,6 +16,8 @@ import io.ktor.routing.routing
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.time.delay
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.utils.Bytes
@@ -67,46 +69,63 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
         fun <T : Any> resultFromNullable(t: T?): Result<T> = if (t != null) Ok(t) else Error.invalidMessage()
     }
 
-    suspend fun query(streamProcessor: KafkaStreams, thisHost: HostInfo, key: Key): Result<Value> {
-        val hostWithData = streamProcessor.metadataForKey(table, key, keySerde.serializer())
+    suspend fun query(streamProcessor: KafkaStreams, thisHost: HostInfo, key: Key, allowRetries: Boolean = true):
+            Result<Value> {
+        var tries = 0
+        while (tries < 5) {
+            val hostWithData = streamProcessor.metadataForKey(table, key, keySerde.serializer())
 
-        return when {
-            hostWithData == StreamsMetadata.NOT_AVAILABLE -> Error.notFound()
+            val result: Result<Value> = when {
+                hostWithData == StreamsMetadata.NOT_AVAILABLE -> Error.notFound()
 
-            thisHost == hostWithData.hostInfo() -> {
-                val store = streamProcessor.store(table, QueryableStoreTypes.keyValueStore<Key, Value>())
-                val value = store[key] ?: return run {
-                    log.error("Expected value to be found in local server")
-                    log.error("Table: $table, key: $key")
+                thisHost == hostWithData.hostInfo() -> {
+                    val store = streamProcessor.store(table, QueryableStoreTypes.keyValueStore<Key, Value>())
+                    val value = store[key] ?: return run {
+                        log.error("Expected value to be found in local server")
+                        log.error("Table: $table, key: $key")
 
-                    Error.internalError()
+                        Error.internalError()
+                    }
+
+                    Ok(value)
                 }
 
-                Ok(value)
+                else -> {
+                    val returnedEndpoint = endpointFormatter(key)
+                    val uri = if (!returnedEndpoint.startsWith("/")) "/$returnedEndpoint" else returnedEndpoint
+
+                    val endpoint = "http://${hostWithData.host()}:${hostWithData.port()}$uri"
+                    val response = HttpClient.post(endpoint) {
+                        setMethod(httpMethod.value)
+                    }
+
+                    return try {
+                        Ok(valueSerde.deserializer().deserialize("", response.responseBodyAsBytes))
+                    } catch (ex: Exception) {
+                        log.warn("Unable to deserialize response from other Kafka store.")
+                        log.warn("Endpoint was: $endpoint")
+                        log.warn("Table: $table, key: $key")
+                        log.warn("Raw response: ${response.responseBody} (${response.statusCode})")
+                        log.warn("Exception: ${ex.stackTraceToString()}")
+
+                        Error.internalError()
+                    }
+                }
             }
 
-            else -> {
-                val returnedEndpoint = endpointFormatter(key)
-                val uri = if (!returnedEndpoint.startsWith("/")) "/$returnedEndpoint" else returnedEndpoint
-
-                val endpoint = "http://${hostWithData.host()}:${hostWithData.port()}$uri"
-                val response = HttpClient.post(endpoint) {
-                    setMethod(httpMethod.value)
-                }
-
-                return try {
-                    Ok(valueSerde.deserializer().deserialize("", response.responseBodyAsBytes))
-                } catch (ex: Exception) {
-                    log.warn("Unable to deserialize response from other Kafka store.")
-                    log.warn("Endpoint was: $endpoint")
-                    log.warn("Table: $table, key: $key")
-                    log.warn("Raw response: ${response.responseBody} (${response.statusCode})")
-                    log.warn("Exception: ${ex.stackTraceToString()}")
-
-                    Error.internalError()
+            when (result) {
+                is Ok -> return result
+                is Error -> {
+                    val notFoundCode = Error.notFound<Unit>().errorCode // TODO FIX THESE
+                    if (!allowRetries || result.errorCode != notFoundCode) return result
                 }
             }
+
+            tries++
+            delay(tries.toLong(), TimeUnit.SECONDS)
         }
+
+        return Error.notFound()
     }
 }
 
