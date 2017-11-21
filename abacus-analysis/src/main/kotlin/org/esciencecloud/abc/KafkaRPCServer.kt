@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
+// TODO This could probably be a shared component
 class KafkaRPCEndpoint<Key : Any, Value : Any>(
         val httpMethod: HttpMethod,
         val endpointForServer: String,

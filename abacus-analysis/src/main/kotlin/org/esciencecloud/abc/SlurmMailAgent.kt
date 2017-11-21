@@ -86,11 +86,11 @@ class SlurmEventUnknown(jobId: Long, name: String, val type: String) : SlurmEven
 
 typealias SlurmEventListener = (SlurmEvent) -> Unit
 
-class MailAgent(private val config: MailAgentConfiguration) {
+class SlurmMailAgent(private val config: MailAgentConfiguration) {
     private lateinit var idleThread: Thread
     private val eventListeners = ArrayList<SlurmEventListener>()
     private var isRunning = false
-    private val log = LoggerFactory.getLogger(MailAgent::class.java)
+    private val log = LoggerFactory.getLogger(SlurmMailAgent::class.java)
 
     companion object {
         private val SLURM_MAIL = "slurm@deic.sdu.dk"

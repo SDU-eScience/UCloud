@@ -5,7 +5,7 @@ import org.apache.kafka.streams.state.HostInfo
 import org.esciencecloud.storage.Result
 import java.util.concurrent.TimeUnit
 
-class HPCEndpoints(private val hostname: String, private val port: Int, private val streams: KafkaStreams) {
+class HPCStoreEndpoints(private val hostname: String, private val port: Int, private val streams: KafkaStreams) {
     private var server: KafkaRPCServer? = null
     private val hostInfo = HostInfo(hostname, port)
 
