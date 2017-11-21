@@ -14,7 +14,10 @@ import javax.mail.event.MessageCountEvent
 import javax.mail.internet.InternetAddress
 import javax.mail.search.FlagTerm
 
-sealed class SlurmEvent(val jobId: Long, val name: String) {
+sealed class SlurmEvent{
+    abstract val jobId: Long
+    abstract val name: String
+
     companion object {
         val BASE_REGEX = Regex("SLURM Job_id=(\\d+) Name=(([^,]|[ \\t\\w])+) (([^,]|[ \\t\\w])+),(.+)")
         val BEGAN_REGEX = Regex("Queued time (\\d+):(\\d+):(\\d+)")
@@ -72,17 +75,21 @@ sealed class SlurmEvent(val jobId: Long, val name: String) {
     }
 }
 
-class SlurmEventBegan(jobId: Long, name: String, val queueTime: Duration) : SlurmEvent(jobId, name) {
-    override fun toString(): String = "SlurmEventBegan(jobId=$jobId, name=$name, queueTime=$queueTime)"
-}
+data class SlurmEventBegan(
+        override val jobId: Long,
+        override val name: String,
+        val queueTime: Duration
+) : SlurmEvent()
 
-class SlurmEventEnded(jobId: Long, name: String, val runTime: Duration, val status: String, val exitCode: Int)
-    : SlurmEvent(jobId, name) {
-    override fun toString(): String = "SlurmEventEnded(jobId=$jobId, name=$name, runTime=$runTime, status='$status', " +
-            "exitCode=$exitCode)"
-}
+data class SlurmEventEnded(
+        override val jobId: Long,
+        override val name: String,
+        val runTime: Duration,
+        val status: String,
+        val exitCode: Int
+) : SlurmEvent()
 
-class SlurmEventUnknown(jobId: Long, name: String, val type: String) : SlurmEvent(jobId, name)
+data class SlurmEventUnknown(override val jobId: Long, override val name: String, val type: String) : SlurmEvent()
 
 typealias SlurmEventListener = (SlurmEvent) -> Unit
 
