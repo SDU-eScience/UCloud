@@ -1,6 +1,9 @@
 package org.esciencecloud.abc
 
 import com.google.common.escape.Escapers
+import org.esciencecloud.abc.api.ApplicationDescription
+import org.esciencecloud.abc.api.ApplicationParameter
+import org.esciencecloud.abc.api.SimpleDuration
 
 class SBatchGenerator(private val emailForNotifications: String) {
     // We use double-quoted string for the built-in escaping provided by Bash. On top of this we simply need to

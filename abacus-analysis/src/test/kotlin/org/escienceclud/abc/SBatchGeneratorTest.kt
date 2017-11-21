@@ -1,6 +1,7 @@
 package org.escienceclud.abc
 
 import org.esciencecloud.abc.*
+import org.esciencecloud.abc.api.*
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.hamcrest.CoreMatchers.*
 import org.hamcrest.MatcherAssert.assertThat

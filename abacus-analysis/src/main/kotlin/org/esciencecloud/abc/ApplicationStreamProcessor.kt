@@ -1,7 +1,5 @@
 package org.esciencecloud.abc
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -35,6 +33,11 @@ import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.apache.kafka.streams.state.HostInfo
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.StreamsMetadata
+import org.esciencecloud.abc.api.*
+import org.esciencecloud.abc.ssh.SSHConnection
+import org.esciencecloud.abc.ssh.SimpleSSHConfig
+import org.esciencecloud.abc.ssh.sbatch
+import org.esciencecloud.abc.ssh.scpUpload
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.setJsonBody
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
@@ -61,7 +64,7 @@ data class KafkaConfiguration(val servers: List<String>)
 
 class ApplicationStreamProcessor(
         private val kafkaConfig: KafkaConfiguration,
-        private val sshConfig: SimpleConfiguration,
+        private val sshConfig: SimpleSSHConfig,
         private val mailConfig: MailAgentConfiguration,
         private val storageConnectionFactory: StorageConnectionFactory,
         private val hostname: String,
@@ -159,7 +162,7 @@ class ApplicationStreamProcessor(
                 // TODO FIXME Destination name should be escaped
                 // TODO FIXME Destination name should be escaped
                 // TODO FIXME Destination name should be escaped
-                ssh.scp(upload.stat.sizeInBytes, upload.destinationFileName, upload.destinationPath,
+                ssh.scpUpload(upload.stat.sizeInBytes, upload.destinationFileName, upload.destinationPath,
                         "0644") {
                     try {
                         storage.files.get(upload.sourcePath, it) // TODO This will need to change
@@ -173,7 +176,7 @@ class ApplicationStreamProcessor(
             // Transfer job file
             val jobLocation = jobDir.resolve("job.sh").normalize()
             val serializedJob = job.toByteArray()
-            ssh.scp(serializedJob.size.toLong(), "job.sh", jobLocation.path, "0644") {
+            ssh.scpUpload(serializedJob.size.toLong(), "job.sh", jobLocation.path, "0644") {
                 it.write(serializedJob)
             }
 
@@ -412,7 +415,7 @@ fun Exception.stackTraceToString(): String = StringWriter().apply { printStackTr
 fun main(args: Array<String>) {
     val mapper = jacksonObjectMapper()
     val kafkaConfig = mapper.readValue<KafkaConfiguration>(File("kafka_conf.json"))
-    val sshConfig = mapper.readValue<SimpleConfiguration>(File("ssh_conf.json"))
+    val sshConfig = mapper.readValue<SimpleSSHConfig>(File("ssh_conf.json"))
     val mailConfig = mapper.readValue<MailAgentConfiguration>(File("mail_conf.json"))
 
     val irodsConnectionFactory = IRodsStorageConnectionFactory(IRodsConnectionInformation(
@@ -443,192 +446,3 @@ data class RequestHeader(
 
 data class ProxyClient(val username: String, val password: String)
 
-data class SimpleDuration(val hours: Int, val minutes: Int, val seconds: Int) {
-    init {
-        if (seconds !in 0..59) throw IllegalArgumentException("seconds must be in 0..59")
-        if (minutes !in 0..59) throw IllegalArgumentException("minutes must be in 0..59")
-    }
-
-    override fun toString() = StringBuilder().apply {
-        append(hours.toString().padStart(2, '0'))
-        append(':')
-        append(minutes.toString().padStart(2, '0'))
-        append(':')
-        append(seconds.toString().padStart(2, '0'))
-    }.toString()
-}
-
-data class NameAndVersion(val name: String, val version: String) {
-    override fun toString() = "$name@$version"
-}
-
-data class ToolDescription(
-        val info: NameAndVersion,
-        val container: String,
-        val defaultNumberOfNodes: Int,
-        val defaultTasksPerNode: Int,
-        val defaultMaxTime: SimpleDuration,
-        val requiredModules: List<String>
-)
-
-data class FileTransferDescription(val source: String, val destination: String)
-
-@JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = "type")
-@JsonSubTypes(
-        JsonSubTypes.Type(value = ApplicationParameter.InputFile::class, name = "input_file"),
-        JsonSubTypes.Type(value = ApplicationParameter.OutputFile::class, name = "output_file"),
-        JsonSubTypes.Type(value = ApplicationParameter.Text::class, name = "text"),
-        JsonSubTypes.Type(value = ApplicationParameter.Integer::class, name = "integer"),
-        JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = "floating_point"))
-sealed class ApplicationParameter<V : Any> {
-    abstract val name: String
-    abstract fun map(inputParameter: Any): V
-    abstract fun toInvocationArgument(entry: V): String
-
-    data class InputFile(override val name: String) : ApplicationParameter<FileTransferDescription>() {
-        override fun map(inputParameter: Any): FileTransferDescription {
-            @Suppress("UNCHECKED_CAST")
-            val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
-            val source = params["source"] as String? ?: throw IllegalArgumentException("Missing source property")
-            val destination = params["destination"] as String? ?:
-                    throw IllegalArgumentException("Missing destination property")
-
-            return FileTransferDescription(source, destination)
-        }
-
-        override fun toInvocationArgument(entry: FileTransferDescription): String = entry.destination
-    }
-
-    data class OutputFile(override val name: String) : ApplicationParameter<FileTransferDescription>() {
-        override fun map(inputParameter: Any): FileTransferDescription {
-            @Suppress("UNCHECKED_CAST")
-            val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
-            val source = params["source"] as String? ?: throw IllegalArgumentException("Missing source property")
-            val destination = params["destination"] as String? ?:
-                    throw IllegalArgumentException("Missing destination property")
-
-            return FileTransferDescription(source, destination)
-        }
-
-        override fun toInvocationArgument(entry: FileTransferDescription): String = entry.source
-    }
-
-    data class Text(override val name: String) : ApplicationParameter<String>() {
-        override fun map(inputParameter: Any): String = inputParameter.toString()
-
-        override fun toInvocationArgument(entry: String): String = entry
-    }
-
-    data class Integer(override val name: String, val min: Int? = null, val max: Int?) : ApplicationParameter<Int>() {
-        override fun map(inputParameter: Any): Int = (inputParameter as? Int) ?: inputParameter.toString().toInt()
-
-        override fun toInvocationArgument(entry: Int): String = entry.toString()
-    }
-
-    data class FloatingPoint(
-            override val name: String,
-            val min: Double?,
-            val max: Double?
-    ) : ApplicationParameter<Double>() {
-        override fun map(inputParameter: Any): Double =
-                (inputParameter as? Double) ?: inputParameter.toString().toDouble()
-
-        override fun toInvocationArgument(entry: Double): String = entry.toString()
-    }
-}
-
-data class ApplicationDescription(
-        val tool: NameAndVersion,
-        val info: NameAndVersion,
-        val numberOfNodes: String?,
-        val tasksPerNode: String?,
-        val maxTime: String?,
-        val invocationTemplate: String,
-// TODO We cannot have duplicates on param name!
-        val parameters: List<ApplicationParameter<*>>
-)
-
-object ToolDAO {
-    val inMemoryDB = mutableMapOf(
-            "hello_world" to listOf(
-                    ToolDescription(
-                            info = NameAndVersion("hello_world", "1.0.0"),
-                            container = "hello.simg",
-                            defaultNumberOfNodes = 1,
-                            defaultTasksPerNode = 1,
-                            defaultMaxTime = SimpleDuration(hours = 0, minutes = 1, seconds = 0),
-                            requiredModules = emptyList()
-                    )
-            )
-    )
-
-    fun findByNameAndVersion(name: String, version: String): ToolDescription? =
-            inMemoryDB[name]?.find { it.info.version == version }
-
-    fun findAllByName(name: String): List<ToolDescription> = inMemoryDB[name] ?: emptyList()
-}
-
-object ApplicationDAO {
-    val inMemoryDB = mutableMapOf(
-            "hello" to listOf(
-                    ApplicationDescription(
-                            tool = NameAndVersion("hello_world", "1.0.0"),
-                            info = NameAndVersion("hello", "1.0.0"),
-                            numberOfNodes = null,
-                            tasksPerNode = null,
-                            maxTime = null,
-                            invocationTemplate = "--greeting \$greeting \$infile \$outfile",
-                            parameters = listOf(
-                                    ApplicationParameter.Text("greeting"),
-                                    ApplicationParameter.InputFile("infile"),
-                                    ApplicationParameter.OutputFile("outfile")
-                            )
-                    )
-            )
-    )
-
-    fun findByNameAndVersion(name: String, version: String): ApplicationDescription? =
-            inMemoryDB[name]?.find { it.info.version == version }
-
-    fun findAllByName(name: String): List<ApplicationDescription> = inMemoryDB[name] ?: emptyList()
-}
-
-// Model
-@JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = Request.TYPE_PROPERTY)
-@JsonSubTypes(
-        JsonSubTypes.Type(value = HPCAppRequest.Start::class, name = "start"),
-        JsonSubTypes.Type(value = HPCAppRequest.Cancel::class, name = "cancel"))
-sealed class HPCAppRequest {
-    data class Start(val application: NameAndVersion, val parameters: Map<String, Any>) : HPCAppRequest()
-    data class Cancel(val jobId: Long) : HPCAppRequest()
-}
-
-@JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = Request.TYPE_PROPERTY)
-@JsonSubTypes(
-        JsonSubTypes.Type(value = HPCAppEvent.Started::class, name = "started"),
-        JsonSubTypes.Type(value = HPCAppEvent.SuccessfullyCompleted::class, name = "success"),
-        JsonSubTypes.Type(value = HPCAppEvent.UnsuccessfullyCompleted::class, name = "error"))
-sealed class HPCAppEvent {
-    data class Started(val jobId: Long) : HPCAppEvent()
-
-    abstract class Ended : HPCAppEvent() {
-        abstract val success: Boolean
-    }
-
-    data class SuccessfullyCompleted(val jobId: Long) : Ended() {
-        override val success: Boolean = true
-    }
-
-    data class UnsuccessfullyCompleted(val reason: Error<Any>) : Ended() {
-        override val success: Boolean = false
-    }
-}
