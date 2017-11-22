@@ -8,8 +8,7 @@ import org.esciencecloud.abc.ApplicationStreamProcessor.Companion.TOPIC_HPC_APP_
 import org.esciencecloud.abc.BashEscaper.safeBashArgument
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.HPCAppEvent
-import org.esciencecloud.abc.ssh.SSHConnection
-import org.esciencecloud.abc.ssh.SimpleSSHConfig
+import org.esciencecloud.abc.ssh.SSHConnectionPool
 import org.esciencecloud.abc.ssh.scpDownload
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.PermissionException
@@ -26,7 +25,7 @@ class SlurmProcessor(
         private val interactiveStore: HPCStoreEndpoints,
         private val mapper: ObjectMapper,
         private val producer: KafkaProducer<String, String>,
-        private val sshConfig: SimpleSSHConfig,
+        private val sshPool: SSHConnectionPool,
         private val storageConnectionFactory: StorageConnectionFactory
 ) {
     companion object {
@@ -74,7 +73,7 @@ class SlurmProcessor(
         // TODO We should use a connection pool for this stuff
         // Otherwise we will risk opening and closing a lot of connection, we also risk having a lot of concurrent
         // connections.
-        SSHConnection.connect(sshConfig).use { ssh ->
+        sshPool.borrow { ssh ->
             // Transfer output files
             for (transfer in outputs) {
                 val workingDirectory = URI(pendingEvent.workingDirectory)
@@ -94,7 +93,7 @@ class SlurmProcessor(
                         }
                     }
 
-                    if (permissionDenied) return Pair(key, HPCAppEvent.UnsuccessfullyCompleted(
+                    if (permissionDenied) return@borrow Pair(key, HPCAppEvent.UnsuccessfullyCompleted(
                             Error.permissionDenied("Could not transfer file to ${transfer.destination}")
                     ))
                 }

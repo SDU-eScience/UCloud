@@ -12,6 +12,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.abc.processors.SlurmProcessor
+import org.esciencecloud.abc.ssh.SSHConnectionPool
 import org.esciencecloud.abc.ssh.SimpleSSHConfig
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.StorageConnectionFactory
@@ -73,9 +74,12 @@ class ApplicationStreamProcessor(
     fun start() {
         if (initialized) throw IllegalStateException("Already started!")
 
+        log.info("Starting SSH Connection Pool")
+        val sshPool = SSHConnectionPool(config.ssh)
+
         // TODO How do we handle deserialization exceptions???
         log.info("Starting HPC Streams Processor")
-        val hpcProcessor = HPCStreamProcessor(storageConnectionFactory, sbatchGenerator, config.ssh)
+        val hpcProcessor = HPCStreamProcessor(storageConnectionFactory, sbatchGenerator, config.ssh, sshPool)
         streamProcessor = KafkaStreams(
                 KStreamBuilder().apply { hpcProcessor.constructStreams(this) },
                 retrieveKafkaStreamsConfiguration()
@@ -92,7 +96,7 @@ class ApplicationStreamProcessor(
 
         log.info("Starting Slurm Mail Agent")
         mailAgent = SlurmMailAgent(config.mail)
-        val slurmProcessor = SlurmProcessor(rpc, mapper, producer, config.ssh, storageConnectionFactory)
+        val slurmProcessor = SlurmProcessor(rpc, mapper, producer, sshPool, storageConnectionFactory)
         // TODO Handle this better. Can't do launch since we need it to block on agent side
         mailAgent.addListener { runBlocking { slurmProcessor.handle(it) } }
         mailAgent.start()

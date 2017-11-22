@@ -5,10 +5,7 @@ import org.esciencecloud.abc.api.ApplicationDescription
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCAppRequest
-import org.esciencecloud.abc.ssh.SSHConnection
-import org.esciencecloud.abc.ssh.SimpleSSHConfig
-import org.esciencecloud.abc.ssh.sbatch
-import org.esciencecloud.abc.ssh.scpUpload
+import org.esciencecloud.abc.ssh.*
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
@@ -21,7 +18,8 @@ import java.net.URI
 
 class StartProcessor(
         private val sBatchGenerator: SBatchGenerator,
-        private val sshConfig: SimpleSSHConfig
+        private val sshPool: SSHConnectionPool,
+        private val sshUser: String
 ) {
     private val log = LoggerFactory.getLogger(StartProcessor::class.java)
 
@@ -72,7 +70,7 @@ class StartProcessor(
         val parameters = event.parameters
 
         // Must end in '/'. Otherwise resolve will do the wrong thing
-        val homeDir = URI("file:///home/${sshConfig.user}/projects/")
+        val homeDir = URI("file:///home/$sshUser/projects/")
         val jobDir = homeDir.resolve("jobid/")
         val workDir = jobDir.resolve("files/")
 
@@ -88,7 +86,7 @@ class StartProcessor(
         val validatedFiles = validateInputFiles(app, parameters, storage, workDir).capture() ?:
                 return Result.lastError()
 
-        SSHConnection.connect(sshConfig).use { ssh ->
+        return sshPool.borrow { ssh ->
             // Transfer (validated) input files
             validatedFiles.forEach { upload ->
                 var errorDuringUpload: Error<HPCAppEvent.Pending>? = null
@@ -103,7 +101,7 @@ class StartProcessor(
                         errorDuringUpload = Error.permissionDenied("Not allowed to access file: ${upload.sourcePath}")
                     }
                 }
-                if (errorDuringUpload != null) return errorDuringUpload as Error<HPCAppEvent.Pending>
+                if (errorDuringUpload != null) return@borrow errorDuringUpload as Error<HPCAppEvent.Pending>
             }
 
             // Transfer job file
@@ -117,7 +115,8 @@ class StartProcessor(
             val (_, output, slurmJobId) = ssh.sbatch(jobLocation.path)
             // TODO Need to revisit the idea of status codes
             // Crashing right here would cause incorrect resubmission of job to HPC
-            return if (slurmJobId == null) {
+
+            if (slurmJobId == null) {
                 log.warn("Got back a null slurm job ID!")
                 log.warn("Output from job: $output")
                 log.warn("Generated slurm file:")

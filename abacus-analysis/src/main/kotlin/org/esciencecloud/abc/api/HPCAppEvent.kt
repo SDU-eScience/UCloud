@@ -12,6 +12,7 @@ import org.esciencecloud.storage.Error
 @JsonSubTypes(
         JsonSubTypes.Type(value = HPCAppEvent.Started::class, name = "started"),
         JsonSubTypes.Type(value = HPCAppEvent.SuccessfullyCompleted::class, name = "success"),
+        JsonSubTypes.Type(value = HPCAppEvent.Pending::class, name = "pending"),
         JsonSubTypes.Type(value = HPCAppEvent.UnsuccessfullyCompleted::class, name = "error"))
 sealed class HPCAppEvent {
     /**

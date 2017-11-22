@@ -11,6 +11,7 @@ import org.esciencecloud.abc.ApplicationStreamProcessor.Companion.TOPIC_SLURM_TO
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCAppRequest
 import org.esciencecloud.abc.processors.StartProcessor
+import org.esciencecloud.abc.ssh.SSHConnectionPool
 import org.esciencecloud.abc.ssh.SimpleSSHConfig
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.esciencecloud.storage.Error
@@ -23,17 +24,32 @@ import kotlin.reflect.KClass
 class HPCStreamProcessor(
         private val storageConnectionFactory: StorageConnectionFactory,
         private val sBatchGenerator: SBatchGenerator,
-        private val sshConfig: SimpleSSHConfig
+        private val sshConfig: SimpleSSHConfig,
+        private val sshConnectionPool: SSHConnectionPool
 ) {
     private val log = LoggerFactory.getLogger(HPCStreamProcessor::class.java)
 
     // TODO Should this component really be creating these?
-    private val startProcessor = StartProcessor(sBatchGenerator, sshConfig)
+    private val startProcessor = StartProcessor(sBatchGenerator, sshConnectionPool, sshConfig.user)
 
     private fun validateAndConnectToStorage(requestHeader: RequestHeader): Result<StorageConnection> =
             with(requestHeader.performedFor) { storageConnectionFactory.createForAccount(username, password) }
 
     fun constructStreams(builder: KStreamBuilder) {
+        if (false) {
+            // TODO FIX THIS!!
+            // Serialization errors will always cause a crash. We need those messages to be ignored instead.
+            builder.stream<String, String>(Serdes.String(), Serdes.String(),
+                    TOPIC_HPC_APP_REQUESTS).print()
+
+            builder.stream<String, String>(Serdes.String(), Serdes.String(),
+                    TOPIC_HPC_APP_EVENTS).print()
+
+            builder.stream<String, String>(Serdes.String(), Serdes.String(), "storage-processor-jobToApp-changelog")
+                    .print()
+            return
+        }
+
         val requests = builder.stream<String, Request<HPCAppRequest>>(Serdes.String(), jsonSerde(),
                 TOPIC_HPC_APP_REQUESTS)
 
@@ -68,12 +84,13 @@ class HPCStreamProcessor(
                 )
 
         // Keep a mapping between internal job ids and their pending event
+        val serde = jsonSerde<HPCAppEvent.Pending>()
         pendingEvents
-                .groupByKey(Serdes.String(), jsonSerde())
+                .groupByKey(Serdes.String(), serde)
                 .aggregate(
                         { null },
-                        { _, newValue, _ -> newValue },
-                        jsonSerde<HPCAppEvent.Pending>(),
+                        { _, newValue, _ -> println(newValue) ; newValue },
+                        serde,
                         TOPIC_JOB_ID_TO_APP
                 )
     }
