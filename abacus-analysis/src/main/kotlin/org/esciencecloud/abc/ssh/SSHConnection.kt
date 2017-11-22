@@ -1,6 +1,7 @@
 package org.esciencecloud.abc.ssh
 
 import com.jcraft.jsch.ChannelExec
+import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.Session
 
 data class SimpleSSHConfig(val server: String, val port: Int, val keyName: String, val user: String,
@@ -8,6 +9,7 @@ data class SimpleSSHConfig(val server: String, val port: Int, val keyName: Strin
 
 class SSHConnection(val session: Session) {
     fun openExecChannel(): ChannelExec = session.openChannel("exec") as ChannelExec
+    fun openSFTPChannel(): ChannelSftp = session.openChannel("sftp") as ChannelSftp
 
     fun <T> exec(command: String, body: ChannelExec.() -> T): Pair<Int, T> =
             openExecChannel().run {

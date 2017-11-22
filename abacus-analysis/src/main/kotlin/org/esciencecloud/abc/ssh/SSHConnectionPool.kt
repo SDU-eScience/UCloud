@@ -26,7 +26,7 @@ class SSHConnectionPool(
         private val log = LoggerFactory.getLogger(SSHConnectionPool::class.java)
     }
 
-    fun <R> borrow(body: (SSHConnection) -> R): R {
+    fun <R> use(body: SSHConnection.() -> R): R {
         val (idx, session) = borrowConnection()
         return try {
             body(session)

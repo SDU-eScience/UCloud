@@ -73,8 +73,8 @@ class StartProcessor(
         val jobDir = homeDir.resolve("${request.header.uuid}/")
         val workDir = jobDir.resolve("files/")
 
-        val (mkdirStatus, text) = sshPool.borrow {
-            it.execWithOutputAsText("mkdir -p ${BashEscaper.safeBashArgument(workDir.path)}")
+        val (mkdirStatus, text) = sshPool.use {
+            execWithOutputAsText("mkdir -p ${BashEscaper.safeBashArgument(workDir.path)}")
         }
 
         if (mkdirStatus != 0) {
@@ -96,11 +96,11 @@ class StartProcessor(
         val validatedFiles = validateInputFiles(app, parameters, storage, workDir).capture() ?:
                 return Result.lastError()
 
-        return sshPool.borrow { ssh ->
+        return sshPool.use {
             // Transfer (validated) input files
             validatedFiles.forEach { upload ->
                 var errorDuringUpload: Error<HPCAppEvent.Pending>? = null
-                ssh.scpUpload(
+                scpUpload(
                         upload.stat.sizeInBytes,
                         upload.destinationFileName,
                         upload.destinationPath,
@@ -112,18 +112,18 @@ class StartProcessor(
                         errorDuringUpload = Error.permissionDenied("Not allowed to access file: ${upload.sourcePath}")
                     }
                 }
-                if (errorDuringUpload != null) return@borrow errorDuringUpload as Error<HPCAppEvent.Pending>
+                if (errorDuringUpload != null) return@use errorDuringUpload as Error<HPCAppEvent.Pending>
             }
 
             // Transfer job file
             val jobLocation = jobDir.resolve("job.sh").normalize()
             val serializedJob = job.toByteArray()
-            ssh.scpUpload(serializedJob.size.toLong(), "job.sh", jobLocation.path, "0644") {
+            scpUpload(serializedJob.size.toLong(), "job.sh", jobLocation.path, "0644") {
                 it.write(serializedJob)
             }
 
             // Submit job file
-            val (_, output, slurmJobId) = ssh.sbatch(jobLocation.path)
+            val (_, output, slurmJobId) = sbatch(jobLocation.path)
             // TODO Need to revisit the idea of status codes
             // Crashing right here would cause incorrect resubmission of job to HPC
 

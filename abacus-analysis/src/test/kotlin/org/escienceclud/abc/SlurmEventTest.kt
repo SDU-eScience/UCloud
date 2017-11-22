@@ -1,9 +1,9 @@
 package org.escienceclud.abc
 
-import junit.framework.Assert.assertEquals
 import org.esciencecloud.abc.SlurmEvent
 import org.esciencecloud.abc.SlurmEventBegan
 import org.esciencecloud.abc.SlurmEventEnded
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Duration
 

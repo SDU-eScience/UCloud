@@ -9,7 +9,9 @@ import org.esciencecloud.abc.BashEscaper.safeBashArgument
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.ssh.SSHConnectionPool
+import org.esciencecloud.abc.ssh.ls
 import org.esciencecloud.abc.ssh.scpDownload
+import org.esciencecloud.abc.ssh.stat
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.PermissionException
 import org.esciencecloud.storage.ext.StorageConnectionFactory
@@ -70,17 +72,44 @@ class SlurmProcessor(
             storageConnectionFactory.createForAccount(username, password)
         }.capture() ?: return Pair(key, HPCAppEvent.UnsuccessfullyCompleted(Error.invalidAuthentication()))
 
-        sshPool.borrow { ssh ->
+        return sshPool.use {
             // Transfer output files
             for (transfer in outputs) {
                 val workingDirectory = URI(pendingEvent.workingDirectory)
                 val source = workingDirectory.resolve(transfer.source)
+
                 if (!source.path.startsWith(workingDirectory.path)) {
                     log.warn("File ${transfer.source} did not resolve to be within working directory " +
                             "($source versus $workingDirectory). Skipping this file")
+                    continue
+                }
+
+                // TODO Do we just automatically zip up if the output file is a directory?
+                val sourceFile = stat(source.path)
+                if (sourceFile == null) {
+                    log.info("Could not find output file at: ${source.path}. Skipping file")
+                    continue
+                }
+
+                if (sourceFile.isDir) {
+                    val name = source.path + ".zip"
+                    val (status, output) = execWithOutputAsText("zip -r " +
+                            BashEscaper.safeBashArgument(name) + " " +
+                            BashEscaper.safeBashArgument(source.path))
+
+                    if (status != 0) {
+                        log.warn("Unable to create zip archive of output!")
+                        log.warn("Path: ${source.path}")
+                        log.warn("Status: $status")
+                        log.warn("Output: $output")
+
+                        return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted(Error.internalError()))
+                    }
+
+                    TODO("Handle directory uploads")
                 } else {
                     var permissionDenied = false
-                    ssh.scpDownload(source.path) {
+                    scpDownload(source.path) {
                         try {
                             storage.files.put(StoragePath.fromURI(transfer.destination), it)
                         } catch (ex: FileNotFoundException) {
@@ -90,7 +119,7 @@ class SlurmProcessor(
                         }
                     }
 
-                    if (permissionDenied) return@borrow Pair(key, HPCAppEvent.UnsuccessfullyCompleted(
+                    if (permissionDenied) return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted(
                             Error.permissionDenied("Could not transfer file to ${transfer.destination}")
                     ))
                 }
@@ -98,9 +127,9 @@ class SlurmProcessor(
 
             // TODO Crashing after deletion but before we send event will cause a lot of problems. We should split
             // this into two.
-            ssh.exec("rm -rf ${safeBashArgument(pendingEvent.jobDirectory)}") {}
-        }
+            execWithOutputAsText("rm -rf ${safeBashArgument(pendingEvent.jobDirectory)}")
 
-        return Pair(key, HPCAppEvent.SuccessfullyCompleted(event.jobId))
+            Pair(key, HPCAppEvent.SuccessfullyCompleted(event.jobId))
+        }
     }
 }
