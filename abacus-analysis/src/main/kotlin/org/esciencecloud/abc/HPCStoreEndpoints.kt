@@ -2,6 +2,7 @@ package org.esciencecloud.abc
 
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.state.HostInfo
+import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCAppRequest
 import org.esciencecloud.storage.Result
 import java.util.concurrent.TimeUnit
@@ -14,7 +15,7 @@ class HPCStoreEndpoints(private val hostname: String, private val port: Int, pri
             "/slurm", ApplicationStreamProcessor.TOPIC_SLURM_TO_JOB_ID
     ) { KafkaRPCEndpoint.resultFromNullable(it.toLongOrNull()) }
 
-    private val jobToApp = KafkaRPCEndpoint.simpleEndpoint<String, Request<HPCAppRequest.Start>>(
+    private val jobToApp = KafkaRPCEndpoint.simpleEndpoint<String, HPCAppEvent.Pending>(
             "/job", ApplicationStreamProcessor.TOPIC_JOB_ID_TO_APP
     )
 
@@ -34,7 +35,7 @@ class HPCStoreEndpoints(private val hostname: String, private val port: Int, pri
     suspend fun querySlurmIdToInternal(slurmId: Long): Result<String> =
             slurmIdToInternalId.query(streams, hostInfo, slurmId)
 
-    suspend fun queryJobIdToApp(jobId: String): Result<Request<HPCAppRequest.Start>> =
+    suspend fun queryJobIdToApp(jobId: String): Result<HPCAppEvent.Pending> =
             jobToApp.query(streams, hostInfo, jobId)
 
     fun stop() {

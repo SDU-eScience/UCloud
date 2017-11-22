@@ -14,8 +14,24 @@ import org.esciencecloud.storage.Error
         JsonSubTypes.Type(value = HPCAppEvent.SuccessfullyCompleted::class, name = "success"),
         JsonSubTypes.Type(value = HPCAppEvent.UnsuccessfullyCompleted::class, name = "error"))
 sealed class HPCAppEvent {
+    /**
+     * The request has been submitted to Slurm, but we have not yet received notification that it has started
+     */
+    data class Pending(
+            val jobId: Long,
+            val jobDirectory: String,
+            val workingDirectory: String,
+            val originalRequest: Request<HPCAppRequest.Start>
+    ) : HPCAppEvent()
+
+    /**
+     * The request has started and is being processed by Slurm
+     */
     data class Started(val jobId: Long) : HPCAppEvent()
 
+    /**
+     * The request has been handled by Slurm. See sub-classes for outcome.
+     */
     abstract class Ended : HPCAppEvent() {
         abstract val success: Boolean
     }

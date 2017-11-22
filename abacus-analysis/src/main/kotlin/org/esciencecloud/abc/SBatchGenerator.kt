@@ -1,27 +1,14 @@
 package org.esciencecloud.abc
 
-import com.google.common.escape.Escapers
 import org.esciencecloud.abc.api.ApplicationDescription
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.SimpleDuration
+import org.esciencecloud.abc.BashEscaper.safeBashArgument
 
 class SBatchGenerator(private val emailForNotifications: String) {
-    // We use double-quoted string for the built-in escaping provided by Bash. On top of this we simply need to
-    // make sure that user input doesn't escape the string. We should also make sure that variables provided in Bash
-    // are not accessible.
-    private val bashEscaper =
-            Escapers.builder().apply {
-                addEscape('\'', "'\"'\"'")
-                addEscape('\"', "\\\"")
-                addEscape('`', "\\`")
-                addEscape('$', "\\$")
-            }.build()
-
     private val compiler = TemplateParser()
 
     private val TIME_REGEX = Regex("(((\\d{0,2}):)?((\\d{0,2}):))?(\\d{0,2})")
-
-    private fun safeBashArgument(rawArgument: String) = "\"${bashEscaper.escape(rawArgument)}\""
 
     fun generate(description: ApplicationDescription, parameters: Map<String, Any>, workDir: String): String {
         val tool = ToolDAO.findByNameAndVersion(description.tool.name, description.tool.version)!!

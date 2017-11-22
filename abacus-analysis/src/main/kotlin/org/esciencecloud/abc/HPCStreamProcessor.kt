@@ -43,17 +43,22 @@ class HPCStreamProcessor(
                     val storage: Result<StorageConnection> = validateAndConnectToStorage(request.header)
 
                     // TODO We still need a clear plan for how to deal with this during replays.
+                    @Suppress("UNCHECKED_CAST")
                     when (request.event) {
-                        is HPCAppRequest.Start -> startProcessor.handle(storage, request.event)
+                        is HPCAppRequest.Start -> startProcessor.handle(
+                                storage,
+                                request as Request<HPCAppRequest.Start>
+                        )
                         is HPCAppRequest.Cancel -> HPCAppEvent.UnsuccessfullyCompleted(Error.invalidMessage())
                     }
                 }
                 .through(Serdes.String(), jsonSerde(), TOPIC_HPC_APP_EVENTS)
 
         // Keep a mapping between slurm ids and job ids
-        events
-                .filter { _, kafkaEvent -> kafkaEvent is HPCAppEvent.Started }
-                .map { systemId, event -> KeyValue((event as HPCAppEvent.Started).jobId, systemId) }
+        val pendingEvents = events.filterIsInstance(HPCAppEvent.Pending::class)
+
+        pendingEvents
+                .map { systemId, event -> KeyValue(event.jobId, systemId) }
                 .groupByKey(Serdes.Long(), Serdes.String())
                 .aggregate(
                         { null }, // aggregate initializer
@@ -62,15 +67,13 @@ class HPCStreamProcessor(
                         TOPIC_SLURM_TO_JOB_ID // table name
                 )
 
-        // Keep a mapping between internal job ids and their start request
-        @Suppress("UNCHECKED_CAST")
-        requests.filter { _, value -> value.event is HPCAppRequest.Start }
-                .mapValues { it as Request<HPCAppRequest.Start> }
+        // Keep a mapping between internal job ids and their pending event
+        pendingEvents
                 .groupByKey(Serdes.String(), jsonSerde())
                 .aggregate(
                         { null },
                         { _, newValue, _ -> newValue },
-                        jsonSerde<Request<HPCAppRequest.Start>>(),
+                        jsonSerde<HPCAppEvent.Pending>(),
                         TOPIC_JOB_ID_TO_APP
                 )
     }

@@ -1,17 +1,14 @@
 package org.esciencecloud.abc.processors
 
-import org.esciencecloud.abc.ApplicationDAO
-import org.esciencecloud.abc.SBatchGenerator
+import org.esciencecloud.abc.*
 import org.esciencecloud.abc.api.ApplicationDescription
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCAppRequest
-import org.esciencecloud.abc.internalError
 import org.esciencecloud.abc.ssh.SSHConnection
 import org.esciencecloud.abc.ssh.SimpleSSHConfig
 import org.esciencecloud.abc.ssh.sbatch
 import org.esciencecloud.abc.ssh.scpUpload
-import org.esciencecloud.abc.stackTraceToString
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
@@ -64,11 +61,15 @@ class StartProcessor(
         return Ok(result)
     }
 
-    private fun handleStartEvent(storage: StorageConnection, request: HPCAppRequest.Start): Result<Long> {
-        val app = with(request.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?:
-                return Error.notFound("Could not find application ${request.application}")
+    private fun handleStartEvent(
+            storage: StorageConnection,
+            request: Request<HPCAppRequest.Start>
+    ): Result<HPCAppEvent.Pending> {
+        val event = request.event
+        val app = with(event.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?:
+                return Error.notFound("Could not find application ${event.application}")
 
-        val parameters = request.parameters
+        val parameters = event.parameters
 
         // Must end in '/'. Otherwise resolve will do the wrong thing
         val homeDir = URI("file:///home/${sshConfig.user}/projects/")
@@ -90,7 +91,7 @@ class StartProcessor(
         SSHConnection.connect(sshConfig).use { ssh ->
             // Transfer (validated) input files
             validatedFiles.forEach { upload ->
-                var errorDuringUpload: Error<Long>? = null
+                var errorDuringUpload: Error<HPCAppEvent.Pending>? = null
                 // TODO FIXME Destination name should be escaped
                 // TODO FIXME Destination name should be escaped
                 // TODO FIXME Destination name should be escaped
@@ -102,7 +103,7 @@ class StartProcessor(
                         errorDuringUpload = Error.permissionDenied("Not allowed to access file: ${upload.sourcePath}")
                     }
                 }
-                if (errorDuringUpload != null) return errorDuringUpload as Error<Long>
+                if (errorDuringUpload != null) return errorDuringUpload as Error<HPCAppEvent.Pending>
             }
 
             // Transfer job file
@@ -124,20 +125,20 @@ class StartProcessor(
 
                 Error.internalError()
             } else {
-                Ok(slurmJobId)
+                Ok(HPCAppEvent.Pending(slurmJobId, jobDir.path, workDir.path, request))
             }
         }
     }
 
-    fun handle(connection: Result<StorageConnection>, request: HPCAppRequest.Start): HPCAppEvent {
+    fun handle(connection: Result<StorageConnection>, request: Request<HPCAppRequest.Start>): HPCAppEvent {
         // TODO We still need a clear plan for how to deal with this during replays.
         val storage = connection.capture() ?:
                 return HPCAppEvent.UnsuccessfullyCompleted(Error.invalidAuthentication())
 
-        val result = handleStartEvent(storage, request)
-        return when (result) {
-            is Ok<Long> -> HPCAppEvent.Started(result.result)
-            is Error<Long> -> HPCAppEvent.UnsuccessfullyCompleted(result)
+        val handledEvent = handleStartEvent(storage, request)
+        return when (handledEvent) {
+            is Ok  -> handledEvent.result
+            is Error -> HPCAppEvent.UnsuccessfullyCompleted(handledEvent)
         }
     }
 }
