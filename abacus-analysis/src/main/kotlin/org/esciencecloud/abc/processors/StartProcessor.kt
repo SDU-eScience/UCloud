@@ -35,8 +35,7 @@ class StartProcessor(
         val result = ArrayList<ValidatedFileForUpload>()
 
         for (input in app.parameters.filterIsInstance<ApplicationParameter.InputFile>()) {
-            val inputParameter = parameters[input.name] ?:
-                    return Error.invalidMessage("Missing input parameter: " + input.name)
+            val inputParameter = parameters[input.name]
 
             val transferDescription = input.map(inputParameter)
             val sourcePath = StoragePath.fromURI(transferDescription.source)
@@ -71,13 +70,24 @@ class StartProcessor(
 
         // Must end in '/'. Otherwise resolve will do the wrong thing
         val homeDir = URI("file:///home/$sshUser/projects/")
-        val jobDir = homeDir.resolve("jobid/")
+        val jobDir = homeDir.resolve("${request.header.uuid}/")
         val workDir = jobDir.resolve("files/")
+
+        val (mkdirStatus, text) = sshPool.borrow {
+            it.execWithOutputAsText("mkdir -p ${BashEscaper.safeBashArgument(workDir.path)}")
+        }
+
+        if (mkdirStatus != 0) {
+            log.warn("Unable to create directory: ${workDir.path}")
+            log.warn("Got back status: $mkdirStatus")
+            log.warn("stdout: $text")
+            return Error.internalError()
+        }
+
 
         val job = try {
             sBatchGenerator.generate(app, parameters, workDir.path)
         } catch (ex: Exception) {
-            // TODO Should probably return a result?
             log.warn("Unable to generate slurm job:")
             log.warn(ex.stackTraceToString())
             return Error.internalError()
@@ -90,13 +100,14 @@ class StartProcessor(
             // Transfer (validated) input files
             validatedFiles.forEach { upload ->
                 var errorDuringUpload: Error<HPCAppEvent.Pending>? = null
-                // TODO FIXME Destination name should be escaped
-                // TODO FIXME Destination name should be escaped
-                // TODO FIXME Destination name should be escaped
-                ssh.scpUpload(upload.stat.sizeInBytes, upload.destinationFileName, upload.destinationPath,
-                        "0644") {
+                ssh.scpUpload(
+                        upload.stat.sizeInBytes,
+                        upload.destinationFileName,
+                        upload.destinationPath,
+                        "0644"
+                ) {
                     try {
-                        storage.files.get(upload.sourcePath, it) // TODO This will need to change
+                        storage.files.get(upload.sourcePath, it)
                     } catch (ex: StorageException) {
                         errorDuringUpload = Error.permissionDenied("Not allowed to access file: ${upload.sourcePath}")
                     }

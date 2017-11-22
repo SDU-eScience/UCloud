@@ -64,15 +64,12 @@ class SlurmProcessor(
         // There will also be some logic in handling optional parameters.
         val outputs = app.parameters
                 .filterIsInstance<ApplicationParameter.OutputFile>()
-                .map { it.map(appParameters[it.name]!!) }
+                .map { it.map(appParameters[it.name]) }
 
         val storage = with(pendingEvent.originalRequest.header.performedFor) {
             storageConnectionFactory.createForAccount(username, password)
         }.capture() ?: return Pair(key, HPCAppEvent.UnsuccessfullyCompleted(Error.invalidAuthentication()))
 
-        // TODO We should use a connection pool for this stuff
-        // Otherwise we will risk opening and closing a lot of connection, we also risk having a lot of concurrent
-        // connections.
         sshPool.borrow { ssh ->
             // Transfer output files
             for (transfer in outputs) {
@@ -83,7 +80,7 @@ class SlurmProcessor(
                             "($source versus $workingDirectory). Skipping this file")
                 } else {
                     var permissionDenied = false
-                    ssh.scpDownload(safeBashArgument(source.path)) {
+                    ssh.scpDownload(source.path) {
                         try {
                             storage.files.put(StoragePath.fromURI(transfer.destination), it)
                         } catch (ex: FileNotFoundException) {

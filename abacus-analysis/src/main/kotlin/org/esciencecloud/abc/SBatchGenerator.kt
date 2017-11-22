@@ -15,7 +15,7 @@ class SBatchGenerator(private val emailForNotifications: String) {
 
         val groupedAppParameters = description.parameters.groupBy { it.name }.mapValues { it.value.single() }
         val actualParameters = groupedAppParameters.mapValues {
-            it.value.map(parameters[it.key]!!) // TODO Optional parameters
+            it.value.map(parameters[it.key])
         }
 
         fun nodeToString(node: TemplateNode): String = when (node) {

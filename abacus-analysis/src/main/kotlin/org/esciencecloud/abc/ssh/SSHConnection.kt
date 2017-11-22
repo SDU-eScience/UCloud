@@ -22,6 +22,9 @@ class SSHConnection(val session: Session) {
 
                 Pair(exitStatus, res)
             }
+
+    fun execWithOutputAsText(command: String): Pair<Int, String> =
+            exec(command) { inputStream.bufferedReader().readText() }
 }
 
 fun ChannelExec.awaitClosed(timeout: Long = 1000, pollRate: Long = 10): Boolean {

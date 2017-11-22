@@ -1,5 +1,6 @@
 package org.esciencecloud.abc.ssh
 
+import org.esciencecloud.abc.BashEscaper
 import org.esciencecloud.abc.CappedInputStream
 import org.esciencecloud.storage.ext.GuardedOutputStream
 import org.slf4j.LoggerFactory
@@ -53,7 +54,7 @@ fun SSHConnection.scpUpload(fileLength: Long, fileName: String, fileDestination:
     val outs = execChannel.outputStream
 
     log.info("Setting command")
-    execChannel.setCommand("scp -t $fileDestination")
+    execChannel.setCommand("scp -t ${BashEscaper.safeBashArgument(fileDestination)}")
     execChannel.connect()
     scpCheckAck(ins).also { if (it != 0) return it }
 
@@ -85,7 +86,7 @@ fun SSHConnection.scpDownload(remoteFile: String, body: (InputStream) -> Unit): 
         return builder.substring(0, builder.lastIndex)
     }
 
-    return exec("scp -f $remoteFile") {
+    return exec("scp -f ${BashEscaper.safeBashArgument(remoteFile)}") {
         val outs = outputStream
         val ins = inputStream
 

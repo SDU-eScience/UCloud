@@ -97,7 +97,6 @@ class ApplicationStreamProcessor(
         log.info("Starting Slurm Mail Agent")
         mailAgent = SlurmMailAgent(config.mail)
         val slurmProcessor = SlurmProcessor(rpc, mapper, producer, sshPool, storageConnectionFactory)
-        // TODO Handle this better. Can't do launch since we need it to block on agent side
         mailAgent.addListener { runBlocking { slurmProcessor.handle(it) } }
         mailAgent.start()
 

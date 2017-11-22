@@ -15,9 +15,29 @@ object ApplicationDAO {
                             maxTime = null,
                             invocationTemplate = "--greeting \$greeting \$infile \$outfile",
                             parameters = listOf(
-                                    ApplicationParameter.Text("greeting"),
-                                    ApplicationParameter.InputFile("infile"),
-                                    ApplicationParameter.OutputFile("outfile")
+                                    ApplicationParameter.Text(
+                                            name = "greeting",
+                                            optional = false,
+                                            defaultValue = null,
+                                            prettyName = "Greeting",
+                                            description = "A greeting"
+                                    ),
+
+                                    ApplicationParameter.InputFile(
+                                            name = "infile",
+                                            optional = false,
+                                            defaultValue = null,
+                                            prettyName = "Input file",
+                                            description = "An input file"
+                                    ),
+
+                                    ApplicationParameter.OutputFile(
+                                            name = "outfile",
+                                            optional = false,
+                                            defaultValue = null,
+                                            prettyName = "Output file",
+                                            description = "An output file"
+                                    )
                             )
                     )
             )

@@ -11,22 +11,22 @@ class SBatchGeneratorTest {
     @Test
     fun testWithNoParams() {
         ToolDAO.inMemoryDB["test"] = listOf(ToolDescription(
-                NameAndVersion("test", "1.0.0"),
-                "container-name",
-                1,
-                1,
-                SimpleDuration(1, 0, 0),
-                emptyList()
+                info = NameAndVersion("test", "1.0.0"),
+                container = "container-name",
+                defaultNumberOfNodes = 1,
+                defaultTasksPerNode = 1,
+                defaultMaxTime = SimpleDuration(1, 0, 0),
+                requiredModules = emptyList()
         ))
 
         ApplicationDAO.inMemoryDB["app"] = listOf(ApplicationDescription(
-                NameAndVersion("test", "1.0.0"),
-                NameAndVersion("app", "1.0.0"),
-                null,
-                null,
-                null,
-                "hello",
-                emptyList()
+                tool = NameAndVersion("test", "1.0.0"),
+                info = NameAndVersion("app", "1.0.0"),
+                numberOfNodes = null,
+                tasksPerNode = null,
+                maxTime = null,
+                invocationTemplate = "hello",
+                parameters = emptyList()
         ))
 
         val generator = SBatchGenerator("test@test")
@@ -66,9 +66,9 @@ class SBatchGeneratorTest {
                         maxTime = null,
                         invocationTemplate = "--greeting \$greeting \$infile \$outfile",
                         parameters = listOf(
-                                ApplicationParameter.Text("greeting"),
-                                ApplicationParameter.InputFile("infile"),
-                                ApplicationParameter.OutputFile("outfile")
+                                ApplicationParameter.Text("greeting", false, null, "greeting", "greeting"),
+                                ApplicationParameter.InputFile("infile", false, null, "infile", "infile"),
+                                ApplicationParameter.OutputFile("outfile", false, null, "outfile", "outfile")
                         )
                 )
         )

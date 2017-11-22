@@ -89,7 +89,7 @@ class HPCStreamProcessor(
                 .groupByKey(Serdes.String(), serde)
                 .aggregate(
                         { null },
-                        { _, newValue, _ -> println(newValue) ; newValue },
+                        { _, newValue, _ -> newValue },
                         serde,
                         TOPIC_JOB_ID_TO_APP
                 )
