@@ -9,7 +9,6 @@ import org.esciencecloud.abc.BashEscaper.safeBashArgument
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.ssh.SSHConnectionPool
-import org.esciencecloud.abc.ssh.ls
 import org.esciencecloud.abc.ssh.scpDownload
 import org.esciencecloud.abc.ssh.stat
 import org.esciencecloud.storage.Error
@@ -52,8 +51,7 @@ class SlurmProcessor(
     private suspend fun handleEndedEvent(event: SlurmEventEnded): Pair<String, HPCAppEvent.Ended> {
         // Some of these queries _must_ resolve. Because of this we throw if they do not resolve.
         // The queries should have built-in retries, so if the instances have not yet replayed the data we will
-        // give them a chance to do so before crashing. TODO We might have to tweak this slightly for more
-        // events.
+        // give them a chance to do so before crashing. TODO We might have to tweak this slightly for more events.
         val key = interactiveStore.querySlurmIdToInternal(event.jobId).orThrow()
         val pendingEvent = interactiveStore.queryJobIdToApp(key).orThrow()
 
@@ -92,9 +90,9 @@ class SlurmProcessor(
                 }
 
                 if (sourceFile.isDir) {
-                    val name = source.path + ".zip"
+                    val zipPath = source.path + ".zip"
                     val (status, output) = execWithOutputAsText("zip -r " +
-                            BashEscaper.safeBashArgument(name) + " " +
+                            BashEscaper.safeBashArgument(zipPath) + " " +
                             BashEscaper.safeBashArgument(source.path))
 
                     if (status != 0) {

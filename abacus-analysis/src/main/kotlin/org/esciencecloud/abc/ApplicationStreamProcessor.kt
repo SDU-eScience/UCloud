@@ -3,7 +3,6 @@ package org.esciencecloud.abc
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -25,6 +24,9 @@ import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.*
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
 data class HPCConfig(
@@ -57,6 +59,8 @@ class ApplicationStreamProcessor(
     private var initialized = false
     private lateinit var streamProcessor: KafkaStreams
     private lateinit var mailAgent: SlurmMailAgent
+    private lateinit var scheduledExecutor: ScheduledExecutorService
+    private lateinit var slurmPollAgent: SlurmPollAgent
 
     private fun retrieveKafkaStreamsConfiguration(): Properties = Properties().apply {
         this[StreamsConfig.APPLICATION_ID_CONFIG] = "storage-processor"
@@ -77,28 +81,44 @@ class ApplicationStreamProcessor(
         log.info("Starting SSH Connection Pool")
         val sshPool = SSHConnectionPool(config.ssh)
 
+
         // TODO How do we handle deserialization exceptions???
-        log.info("Starting HPC Streams Processor")
-        val hpcProcessor = HPCStreamProcessor(storageConnectionFactory, sbatchGenerator, config.ssh, sshPool)
-        streamProcessor = KafkaStreams(
-                KStreamBuilder().apply { hpcProcessor.constructStreams(this) },
-                retrieveKafkaStreamsConfiguration()
+        val rpc = HPCStoreEndpoints(hostname, rpcPort)
+
+        log.info("Starting Kafka Producer (Mail Agent)")
+        val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
+        val slurmProcessor = SlurmProcessor(rpc, mapper, producer, sshPool, storageConnectionFactory)
+        log.info("Starting Slurm Poll Agent")
+        scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
+        slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS, slurmProcessor)
+        slurmPollAgent.start()
+
+        /*
+        log.info("Starting Slurm Mail Agent")
+        mailAgent = SlurmMailAgent(config.mail)
+        mailAgent.addListener { runBlocking { slurmProcessor.handle(it) } }
+        mailAgent.start()
+        */
+
+        val streamBuilder = KStreamBuilder()
+        // TODO This guy is doing more than it should
+        val hpcProcessor = HPCStreamProcessor(
+                storageConnectionFactory,
+                sbatchGenerator,
+                config.ssh,
+                sshPool,
+                slurmPollAgent
         )
+        hpcProcessor.constructStreams(streamBuilder)
+        streamProcessor = KafkaStreams(streamBuilder, retrieveKafkaStreamsConfiguration())
+
+
+        log.info("Starting HPC Streams Processor")
         streamProcessor.start()
         streamProcessor.addShutdownHook()
 
         log.info("Starting RPC Server")
-        val rpc = HPCStoreEndpoints(hostname, rpcPort, streamProcessor)
-        rpc.start()
-
-        log.info("Starting Kafka Producer (Mail Agent)")
-        val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
-
-        log.info("Starting Slurm Mail Agent")
-        mailAgent = SlurmMailAgent(config.mail)
-        val slurmProcessor = SlurmProcessor(rpc, mapper, producer, sshPool, storageConnectionFactory)
-        mailAgent.addListener { runBlocking { slurmProcessor.handle(it) } }
-        mailAgent.start()
+        rpc.start(streamProcessor)
 
         log.info("Ready!")
         initialized = true
@@ -106,7 +126,9 @@ class ApplicationStreamProcessor(
 
     fun stop() {
         mailAgent.stop()
+        slurmPollAgent.stop()
         streamProcessor.close()
+        scheduledExecutor.shutdown()
     }
 
     private fun KafkaStreams.addShutdownHook() {

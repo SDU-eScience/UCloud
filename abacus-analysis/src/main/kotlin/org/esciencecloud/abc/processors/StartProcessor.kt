@@ -77,7 +77,7 @@ class StartProcessor(
             execWithOutputAsText("mkdir -p ${BashEscaper.safeBashArgument(workDir.path)}")
         }
 
-        if (mkdirStatus != 0) {
+        if (mkdirStatus != 0 && mkdirStatus != -1) { // TODO This is bugged. Sometimes status comes back as -1
             log.warn("Unable to create directory: ${workDir.path}")
             log.warn("Got back status: $mkdirStatus")
             log.warn("stdout: $text")

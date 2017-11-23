@@ -7,9 +7,11 @@ import org.esciencecloud.abc.api.HPCAppRequest
 import org.esciencecloud.storage.Result
 import java.util.concurrent.TimeUnit
 
-class HPCStoreEndpoints(private val hostname: String, private val port: Int, private val streams: KafkaStreams) {
+class HPCStoreEndpoints(private val hostname: String, private val port: Int) {
     private var server: KafkaRPCServer? = null
     private val hostInfo = HostInfo(hostname, port)
+
+    private lateinit var streams: KafkaStreams
 
     private val slurmIdToInternalId = KafkaRPCEndpoint.simpleEndpoint<Long, String>(
             "/slurm", ApplicationStreamProcessor.TOPIC_SLURM_TO_JOB_ID
@@ -25,8 +27,10 @@ class HPCStoreEndpoints(private val hostname: String, private val port: Int, pri
             jobToApp
     ) as List<KafkaRPCEndpoint<Any, Any>>
 
-    fun start(wait: Boolean = false) {
+    fun start(streams: KafkaStreams, wait: Boolean = false) {
         if (server != null) throw IllegalStateException("RPC Server already started!")
+        this.streams = streams
+
         val server = KafkaRPCServer(hostname, port, endpoints, streams)
         server.start(wait = wait)
         this.server = server

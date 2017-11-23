@@ -25,7 +25,8 @@ class HPCStreamProcessor(
         private val storageConnectionFactory: StorageConnectionFactory,
         private val sBatchGenerator: SBatchGenerator,
         private val sshConfig: SimpleSSHConfig,
-        private val sshConnectionPool: SSHConnectionPool
+        private val sshConnectionPool: SSHConnectionPool,
+        private val slurmPollAgent: SlurmPollAgent
 ) {
     private val log = LoggerFactory.getLogger(HPCStreamProcessor::class.java)
 
@@ -93,6 +94,17 @@ class HPCStreamProcessor(
                         serde,
                         TOPIC_JOB_ID_TO_APP
                 )
+
+        // TODO This needs to pick up stuff that it lost by replaying (actually, all of the iqueries need to do so)
+        events.groupByKey(Serdes.String(), jsonSerde()).aggregate(
+                { null },
+                { _, newValue, _ ->
+                    slurmPollAgent.handle(newValue)
+                    newValue
+                },
+                jsonSerde<HPCAppEvent>(),
+                "appStatus"
+        )
     }
 
     private fun <K, V : Any, R : V> KStream<K, V>.filterIsInstance(klass: KClass<R>) =
