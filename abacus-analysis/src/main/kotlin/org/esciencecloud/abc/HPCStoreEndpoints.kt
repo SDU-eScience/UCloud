@@ -3,11 +3,10 @@ package org.esciencecloud.abc
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.state.HostInfo
 import org.esciencecloud.abc.api.HPCAppEvent
-import org.esciencecloud.abc.api.HPCAppRequest
 import org.esciencecloud.storage.Result
 import java.util.concurrent.TimeUnit
 
-class HPCStoreEndpoints(private val hostname: String, private val port: Int) {
+class HPCStoreEndpoints(private val hostname: String, private val port: Int, private val rpc: RPCConfiguration) {
     private var server: KafkaRPCServer? = null
     private val hostInfo = HostInfo(hostname, port)
 
@@ -31,16 +30,16 @@ class HPCStoreEndpoints(private val hostname: String, private val port: Int) {
         if (server != null) throw IllegalStateException("RPC Server already started!")
         this.streams = streams
 
-        val server = KafkaRPCServer(hostname, port, endpoints, streams)
+        val server = KafkaRPCServer(hostname, port, endpoints, streams, rpc.secretToken)
         server.start(wait = wait)
         this.server = server
     }
 
     suspend fun querySlurmIdToInternal(slurmId: Long): Result<String> =
-            slurmIdToInternalId.query(streams, hostInfo, slurmId)
+            slurmIdToInternalId.query(streams, hostInfo, slurmId, rpc.secretToken)
 
     suspend fun queryJobIdToApp(jobId: String): Result<HPCAppEvent.Pending> =
-            jobToApp.query(streams, hostInfo, jobId)
+            jobToApp.query(streams, hostInfo, jobId, rpc.secretToken)
 
     fun stop() {
         server!!.stop(0, 5, TimeUnit.SECONDS)

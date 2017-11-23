@@ -10,14 +10,15 @@ import io.ktor.features.DefaultHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
+import io.ktor.request.header
 import io.ktor.response.respond
+import io.ktor.routing.Routing
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.time.delay
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.utils.Bytes
@@ -69,7 +70,8 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
         fun <T : Any> resultFromNullable(t: T?): Result<T> = if (t != null) Ok(t) else Error.invalidMessage()
     }
 
-    suspend fun query(streamProcessor: KafkaStreams, thisHost: HostInfo, key: Key, allowRetries: Boolean = true):
+    suspend fun query(streamProcessor: KafkaStreams, thisHost: HostInfo, key: Key, secretToken: String,
+                      allowRetries: Boolean = true):
             Result<Value> {
         var tries = 0
         while (tries < 5) {
@@ -97,6 +99,7 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
                     val endpoint = "http://${hostWithData.host()}:${hostWithData.port()}$uri"
                     val response = HttpClient.post(endpoint) {
                         setMethod(httpMethod.value)
+                        addHeader(KafkaRPCServer.APP_TOKEN_HEADER, secretToken)
                     }
 
                     return try {
@@ -147,40 +150,52 @@ class KafkaRPCServer(
         private val hostname: String,
         private val port: Int,
         private val endpoints: List<KafkaRPCEndpoint<Any, Any>>,
-        private val streams: KafkaStreams
+        private val streams: KafkaStreams,
+        private val secretToken: String
 ) {
     private var server: ApplicationEngine? = null
     private val thisHost = HostInfo(hostname, port)
+
+    companion object {
+        const val APP_TOKEN_HEADER = "App-Token"
+    }
 
     fun start(wait: Boolean = false) {
         if (this.server != null) throw IllegalStateException("RPC Server already started!")
 
         val server = embeddedServer(CIO, port = port) {
-            // TODO Validate certificates
             install(CallLogging)
             install(DefaultHeaders)
             install(ContentNegotiation) {
                 jackson { registerKotlinModule() }
             }
 
-            routing {
-                endpoints.forEach { endpoint ->
-                    route(endpoint.endpointForServer, endpoint.httpMethod) {
-                        handle {
-                            val key = endpoint.keyParser(call)
-                            when (key) {
-                                is Ok -> call.respond(endpoint.query(streams, thisHost, key.result))
-                                is Error -> call.respond(HttpStatusCode.fromValue(key.errorCode), key.message)
-                            }
-                        }
-                    }
-                }
-            }
+            routing { configureExisting(this) }
         }
 
         server.start(wait = wait)
 
         this.server = server
+    }
+
+    fun configureExisting(routing: Routing) = with(routing) {
+        endpoints.forEach { endpoint ->
+            route(endpoint.endpointForServer, endpoint.httpMethod) {
+                handle {
+                    // TODO Validate certificates instead of using a simple shared secret
+                    val appToken = call.request.header(APP_TOKEN_HEADER)
+                    if (appToken != secretToken) {
+                        call.respond(HttpStatusCode.Unauthorized)
+                    } else {
+                        val key = endpoint.keyParser(call)
+                        when (key) {
+                            is Ok -> call.respond(endpoint.query(streams, thisHost, key.result, secretToken))
+                            is Error -> call.respond(HttpStatusCode.fromValue(key.errorCode), key.message)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun stop(gracePeriod: Long, timeout: Long, timeUnit: TimeUnit) {

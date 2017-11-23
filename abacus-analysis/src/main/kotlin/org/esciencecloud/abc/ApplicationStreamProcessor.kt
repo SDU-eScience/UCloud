@@ -33,11 +33,13 @@ data class HPCConfig(
         val kafka: KafkaConfiguration,
         val ssh: SimpleSSHConfig,
         val mail: MailAgentConfiguration,
-        val storage: StorageConfiguration
+        val storage: StorageConfiguration,
+        val rpc: RPCConfiguration
 )
 
 data class StorageConfiguration(val host: String, val port: Int, val zone: String)
 data class KafkaConfiguration(val servers: List<String>)
+data class RPCConfiguration(val secretToken: String)
 
 class ApplicationStreamProcessor(
         private val config: HPCConfig,
@@ -83,7 +85,7 @@ class ApplicationStreamProcessor(
 
 
         // TODO How do we handle deserialization exceptions???
-        val rpc = HPCStoreEndpoints(hostname, rpcPort)
+        val rpc = HPCStoreEndpoints(hostname, rpcPort, config.rpc)
 
         log.info("Starting Kafka Producer (Mail Agent)")
         val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
