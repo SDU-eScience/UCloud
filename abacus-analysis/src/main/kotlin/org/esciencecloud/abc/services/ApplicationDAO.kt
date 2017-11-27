@@ -47,4 +47,6 @@ object ApplicationDAO {
             inMemoryDB[name]?.find { it.info.version == version }
 
     fun findAllByName(name: String): List<ApplicationDescription> = inMemoryDB[name] ?: emptyList()
+
+    fun all(): List<ApplicationDescription> = inMemoryDB.values.flatten()
 }

@@ -29,5 +29,10 @@ class ToolController(private val source: ToolDAO) {
                 }
             }
         }
+
+        get("tools") {
+            call.respond(source.all())
+        }
     }
+
 }

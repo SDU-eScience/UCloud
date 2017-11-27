@@ -29,5 +29,9 @@ class AppController(private val source: ApplicationDAO) {
                 }
             }
         }
+
+        get("apps") {
+            call.respond(source.all())
+        }
     }
 }

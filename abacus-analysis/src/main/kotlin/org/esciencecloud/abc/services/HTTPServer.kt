@@ -1,4 +1,4 @@
-package org.esciencecloud.abc
+package org.esciencecloud.abc.services
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.ktor.application.install

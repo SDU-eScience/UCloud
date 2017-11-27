@@ -22,4 +22,6 @@ object ToolDAO {
             inMemoryDB[name]?.find { it.info.version == version }
 
     fun findAllByName(name: String): List<ToolDescription> = inMemoryDB[name] ?: emptyList()
+
+    fun all(): List<ToolDescription> = inMemoryDB.values.flatten()
 }
