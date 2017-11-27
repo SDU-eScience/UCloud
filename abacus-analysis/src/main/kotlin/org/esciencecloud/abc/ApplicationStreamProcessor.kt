@@ -2,6 +2,7 @@ package org.esciencecloud.abc
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import io.ktor.routing.route
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -114,9 +115,11 @@ class ApplicationStreamProcessor(
         rpcServer.start {
             hpcStore.init(streamProcessor, this)
 
-            AppController(ApplicationDAO).configure(this)
-            JobController(hpcStore).configure(this)
-            ToolController(ToolDAO).configure(this)
+            route("api") {
+                AppController(ApplicationDAO).configure(this)
+                JobController(hpcStore).configure(this)
+                ToolController(ToolDAO).configure(this)
+            }
         }
 
         log.info("Ready!")

@@ -14,6 +14,7 @@ import io.ktor.jackson.jackson
 import io.ktor.request.header
 import io.ktor.response.contentType
 import io.ktor.response.respond
+import io.ktor.routing.Route
 import io.ktor.routing.Routing
 import io.ktor.routing.route
 import io.ktor.routing.routing
@@ -183,7 +184,7 @@ class KafkaRPCServer(
         this.server = server
     }
 
-    fun configureExisting(routing: Routing) = with(routing) {
+    fun configureExisting(routing: Route) = with(routing) {
         endpoints.forEach { endpoint ->
             route(endpoint.endpointForServer, endpoint.httpMethod) {
                 handle {

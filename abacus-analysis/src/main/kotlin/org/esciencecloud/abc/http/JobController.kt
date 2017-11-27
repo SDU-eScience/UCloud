@@ -3,16 +3,16 @@ package org.esciencecloud.abc.http
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
-import io.ktor.routing.Routing
+import io.ktor.routing.Route
 import io.ktor.routing.get
-import org.esciencecloud.abc.services.HPCStore
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.JobStatus
+import org.esciencecloud.abc.services.HPCStore
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 
 class JobController(private val store: HPCStore) {
-    fun configure(routing: Routing) = with(routing) {
+    fun configure(routing: Route) = with(routing) {
         get("job/{id}") {
             val lastEvent = store.queryJobIdToStatus(call.parameters["id"]!!)
 

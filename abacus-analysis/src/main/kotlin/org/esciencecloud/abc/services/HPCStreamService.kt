@@ -74,4 +74,3 @@ data class AuthenticatedStream<K, R : Any>(
         unauthenticated.map { k, v -> KeyValue(k, onUnauthenticated(k, v)) }.to(target)
     }
 }
-

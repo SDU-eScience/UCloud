@@ -3,12 +3,12 @@ package org.esciencecloud.abc.http
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
-import io.ktor.routing.Routing
+import io.ktor.routing.Route
 import io.ktor.routing.get
 import org.esciencecloud.abc.services.ToolDAO
 
 class ToolController(private val source: ToolDAO) {
-    fun configure(routing: Routing) = with(routing) {
+    fun configure(routing: Route) = with(routing) {
         get("tool/{name}/{version?}") {
             val name = call.parameters["name"]!!
             val version = call.parameters["version"]

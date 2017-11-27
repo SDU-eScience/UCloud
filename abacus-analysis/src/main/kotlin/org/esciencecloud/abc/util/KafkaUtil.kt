@@ -104,5 +104,4 @@ sealed class RequestAfterAuthentication<out T> {
     ) : RequestAfterAuthentication<T>()
 }
 
-
 data class DivergedStream<K, V>(val predicateTrue: KStream<K, V>, val predicateFalse: KStream<K, V>)
