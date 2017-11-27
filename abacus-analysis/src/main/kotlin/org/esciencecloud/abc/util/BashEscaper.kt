@@ -1,4 +1,4 @@
-package org.esciencecloud.abc
+package org.esciencecloud.abc.util
 
 import com.google.common.escape.Escapers
 

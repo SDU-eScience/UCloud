@@ -1,8 +1,8 @@
 package org.escienceclud.abc
 
-import org.esciencecloud.abc.SlurmEvent
-import org.esciencecloud.abc.SlurmEventBegan
-import org.esciencecloud.abc.SlurmEventEnded
+import org.esciencecloud.abc.services.SlurmEvent
+import org.esciencecloud.abc.services.SlurmEventBegan
+import org.esciencecloud.abc.services.SlurmEventEnded
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Duration

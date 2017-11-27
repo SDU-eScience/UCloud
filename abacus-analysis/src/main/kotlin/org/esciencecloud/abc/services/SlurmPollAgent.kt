@@ -1,10 +1,9 @@
-package org.esciencecloud.abc
+package org.esciencecloud.abc.services
 
 import kotlinx.coroutines.experimental.runBlocking
 import org.esciencecloud.abc.api.HPCAppEvent
-import org.esciencecloud.abc.processors.SlurmProcessor
-import org.esciencecloud.abc.ssh.SSHConnectionPool
-import org.esciencecloud.abc.ssh.pollSlurmStatus
+import org.esciencecloud.abc.services.ssh.SSHConnectionPool
+import org.esciencecloud.abc.services.ssh.pollSlurmStatus
 import org.slf4j.LoggerFactory
 import java.time.ZonedDateTime
 import java.util.concurrent.ScheduledExecutorService
@@ -16,8 +15,7 @@ class SlurmPollAgent(
         private val executor: ScheduledExecutorService,
         private val initialDelay: Long,
         private val pollInterval: Long,
-        private val pollUnit: TimeUnit,
-        private val processor: SlurmProcessor
+        private val pollUnit: TimeUnit
 ) {
     private var lastPoll = ZonedDateTime.now()
     private var future: ScheduledFuture<*>? = null
@@ -25,6 +23,8 @@ class SlurmPollAgent(
     private val lock = Any()
 
     private val log = LoggerFactory.getLogger(SlurmPollAgent::class.java)
+
+    private val listeners = ArrayList<SlurmEventListener>()
 
     fun start() {
         log.info("Starting slurm poll agent")
@@ -43,7 +43,19 @@ class SlurmPollAgent(
                 log.debug("Activating ${event.jobId}")
                 synchronized(lock) { active.add(event.jobId) }
             }
+
+            else -> {
+                // Do nothing
+            }
         }
+    }
+
+    fun addListener(listener: SlurmEventListener) {
+        listeners.add(listener)
+    }
+
+    fun removeListener(listener: SlurmEventListener) {
+        listeners.remove(listener)
     }
 
     private fun tick() {
@@ -61,7 +73,7 @@ class SlurmPollAgent(
                         active.remove(it.jobId)
                     }
 
-                    processor.handle(it)
+                    listeners.forEach { listener -> listener(it) }
                 }
             }
             lastPoll = ZonedDateTime.now()

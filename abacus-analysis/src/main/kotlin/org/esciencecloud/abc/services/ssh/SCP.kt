@@ -1,7 +1,7 @@
-package org.esciencecloud.abc.ssh
+package org.esciencecloud.abc.services.ssh
 
-import org.esciencecloud.abc.BashEscaper
-import org.esciencecloud.abc.CappedInputStream
+import org.esciencecloud.abc.util.BashEscaper
+import org.esciencecloud.abc.util.CappedInputStream
 import org.esciencecloud.storage.ext.GuardedOutputStream
 import org.slf4j.LoggerFactory
 import java.io.File

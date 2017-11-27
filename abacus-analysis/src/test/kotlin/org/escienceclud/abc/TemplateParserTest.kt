@@ -1,9 +1,9 @@
 package org.escienceclud.abc
 
-import org.esciencecloud.abc.MixedNode
-import org.esciencecloud.abc.TemplateParser
-import org.esciencecloud.abc.VariableNode
-import org.esciencecloud.abc.WordNode
+import org.esciencecloud.abc.services.MixedNode
+import org.esciencecloud.abc.services.TemplateParser
+import org.esciencecloud.abc.services.VariableNode
+import org.esciencecloud.abc.services.WordNode
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

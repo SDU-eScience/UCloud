@@ -1,6 +1,5 @@
 package org.esciencecloud.abc
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -10,9 +9,15 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStreamBuilder
+import org.esciencecloud.abc.http.AppController
+import org.esciencecloud.abc.http.JobController
+import org.esciencecloud.abc.http.ToolController
+import org.esciencecloud.abc.processors.SlurmAggregate
 import org.esciencecloud.abc.processors.SlurmProcessor
-import org.esciencecloud.abc.ssh.SSHConnectionPool
-import org.esciencecloud.abc.ssh.SimpleSSHConfig
+import org.esciencecloud.abc.processors.StartProcessor
+import org.esciencecloud.abc.services.*
+import org.esciencecloud.abc.services.ssh.SSHConnectionPool
+import org.esciencecloud.abc.services.ssh.SimpleSSHConfig
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.StorageConnectionFactory
 import org.esciencecloud.storage.ext.irods.IRodsConnectionInformation
@@ -45,22 +50,13 @@ class ApplicationStreamProcessor(
         private val config: HPCConfig,
         private val storageConnectionFactory: StorageConnectionFactory,
         private val hostname: String,
-        private val rpcPort: Int,
-        private val mapper: ObjectMapper
+        private val rpcPort: Int
 ) {
-    companion object {
-        const val TOPIC_HPC_APP_REQUESTS = "hpcAppRequests"
-        const val TOPIC_HPC_APP_EVENTS = "hpcAppEvents"
-        const val TOPIC_SLURM_TO_JOB_ID = "slurmIdToJobId"
-        const val TOPIC_JOB_ID_TO_APP = "jobToApp"
-    }
-
     private val log = LoggerFactory.getLogger(ApplicationStreamProcessor::class.java)
 
-    private val sbatchGenerator = SBatchGenerator("sdu.esci.dev@gmail.com")
     private var initialized = false
+    private lateinit var rpcServer: HTTPServer
     private lateinit var streamProcessor: KafkaStreams
-    private lateinit var mailAgent: SlurmMailAgent
     private lateinit var scheduledExecutor: ScheduledExecutorService
     private lateinit var slurmPollAgent: SlurmPollAgent
 
@@ -78,56 +74,57 @@ class ApplicationStreamProcessor(
     }
 
     fun start() {
+        // TODO How do we handle deserialization exceptions???
+        // TODO Create some component interfaces
+        // TODO This would most likely be a lot better if we could use DI in this
         if (initialized) throw IllegalStateException("Already started!")
 
-        log.info("Starting SSH Connection Pool")
-        val sshPool = SSHConnectionPool(config.ssh)
-
-
-        // TODO How do we handle deserialization exceptions???
-        val rpc = HPCStoreEndpoints(hostname, rpcPort, config.rpc)
-
-        log.info("Starting Kafka Producer (Mail Agent)")
+        log.info("Init Core Services")
+        val streamBuilder = KStreamBuilder()
         val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
-        val slurmProcessor = SlurmProcessor(rpc, mapper, producer, sshPool, storageConnectionFactory)
-        log.info("Starting Slurm Poll Agent")
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
-        slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS, slurmProcessor)
+
+        log.info("Init Application Services")
+        val sshPool = SSHConnectionPool(config.ssh)
+        val hpcStore = HPCStore(hostname, rpcPort, config.rpc)
+        val streamService = HPCStreamService(storageConnectionFactory, streamBuilder, producer)
+        val sbatchGenerator = SBatchGenerator("sdu.esci.dev@gmail.com")
+        slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
+
+        log.info("Init Event Processors")
+        val slurmProcessor = SlurmProcessor(hpcStore, sshPool, storageConnectionFactory, slurmPollAgent, streamService)
+        val slurmAggregate = SlurmAggregate(streamService, slurmPollAgent)
+        val startProcessor = StartProcessor(sbatchGenerator, sshPool, config.ssh.user, streamService)
+
+        log.info("Starting Event Processors")
+        slurmProcessor.init()
+        slurmAggregate.init()
+        startProcessor.init()
+
+        log.info("Starting Application Services")
         slurmPollAgent.start()
 
-        /*
-        log.info("Starting Slurm Mail Agent")
-        mailAgent = SlurmMailAgent(config.mail)
-        mailAgent.addListener { runBlocking { slurmProcessor.handle(it) } }
-        mailAgent.start()
-        */
-
-        val streamBuilder = KStreamBuilder()
-        // TODO This guy is doing more than it should
-        val hpcProcessor = HPCStreamProcessor(
-                storageConnectionFactory,
-                sbatchGenerator,
-                config.ssh,
-                sshPool,
-                slurmPollAgent
-        )
-        hpcProcessor.constructStreams(streamBuilder)
+        log.info("Starting Core Services")
         streamProcessor = KafkaStreams(streamBuilder, retrieveKafkaStreamsConfiguration())
-
-
-        log.info("Starting HPC Streams Processor")
         streamProcessor.start()
         streamProcessor.addShutdownHook()
 
-        log.info("Starting RPC Server")
-        rpc.start(streamProcessor)
+        log.info("Starting HTTP Server")
+        rpcServer = HTTPServer(hostname, rpcPort)
+        rpcServer.start {
+            hpcStore.init(streamProcessor, this)
+
+            AppController(ApplicationDAO).configure(this)
+            JobController(hpcStore).configure(this)
+            ToolController(ToolDAO).configure(this)
+        }
 
         log.info("Ready!")
         initialized = true
     }
 
     fun stop() {
-        mailAgent.stop()
+        rpcServer.stop()
         slurmPollAgent.stop()
         streamProcessor.close()
         scheduledExecutor.shutdown()
@@ -154,7 +151,7 @@ fun main(args: Array<String>) {
             authScheme = AuthScheme.STANDARD
     ))
 
-    val processor = ApplicationStreamProcessor(hpcConfig, irodsConnectionFactory, "localhost", 42200, mapper)
+    val processor = ApplicationStreamProcessor(hpcConfig, irodsConnectionFactory, "localhost", 42200)
     processor.start()
 }
 
@@ -171,4 +168,3 @@ data class RequestHeader(
 )
 
 data class ProxyClient(val username: String, val password: String)
-

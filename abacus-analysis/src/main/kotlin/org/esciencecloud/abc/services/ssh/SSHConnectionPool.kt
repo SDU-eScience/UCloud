@@ -1,7 +1,6 @@
-package org.esciencecloud.abc.ssh
+package org.esciencecloud.abc.services.ssh
 
 import com.jcraft.jsch.JSch
-import com.jcraft.jsch.Session
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileInputStream

@@ -2,7 +2,7 @@ group 'org.esciencecloud'
 version '1.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.1.60'
+    ext.kotlin_version = '1.1.61'
     ext.ktor_version = '0.9.0'
 
     repositories {

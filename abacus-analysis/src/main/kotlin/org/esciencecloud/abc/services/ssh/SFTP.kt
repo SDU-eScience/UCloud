@@ -1,4 +1,4 @@
-package org.esciencecloud.abc.ssh
+package org.esciencecloud.abc.services.ssh
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue

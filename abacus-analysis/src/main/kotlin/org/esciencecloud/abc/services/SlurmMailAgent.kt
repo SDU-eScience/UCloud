@@ -1,7 +1,8 @@
-package org.esciencecloud.abc
+package org.esciencecloud.abc.services
 
 import com.sun.mail.imap.IMAPFolder
 import com.sun.mail.imap.IMAPStore
+import org.esciencecloud.abc.stackTraceToString
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*

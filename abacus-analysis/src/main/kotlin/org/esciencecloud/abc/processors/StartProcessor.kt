@@ -1,11 +1,14 @@
 package org.esciencecloud.abc.processors
 
 import org.esciencecloud.abc.*
-import org.esciencecloud.abc.api.ApplicationDescription
-import org.esciencecloud.abc.api.ApplicationParameter
-import org.esciencecloud.abc.api.HPCAppEvent
-import org.esciencecloud.abc.api.HPCAppRequest
-import org.esciencecloud.abc.ssh.*
+import org.esciencecloud.abc.api.*
+import org.esciencecloud.abc.services.ApplicationDAO
+import org.esciencecloud.abc.services.HPCStreamService
+import org.esciencecloud.abc.services.SBatchGenerator
+import org.esciencecloud.abc.services.ssh.SSHConnectionPool
+import org.esciencecloud.abc.services.ssh.sbatch
+import org.esciencecloud.abc.services.ssh.scpUpload
+import org.esciencecloud.abc.util.BashEscaper
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
@@ -19,7 +22,8 @@ import java.net.URI
 class StartProcessor(
         private val sBatchGenerator: SBatchGenerator,
         private val sshPool: SSHConnectionPool,
-        private val sshUser: String
+        private val sshUser: String,
+        private val streamService: HPCStreamService
 ) {
     private val log = LoggerFactory.getLogger(StartProcessor::class.java)
 
@@ -140,15 +144,32 @@ class StartProcessor(
         }
     }
 
-    fun handle(connection: Result<StorageConnection>, request: Request<HPCAppRequest.Start>): HPCAppEvent {
-        // TODO We still need a clear plan for how to deal with this during replays.
-        val storage = connection.capture() ?:
-                return HPCAppEvent.UnsuccessfullyCompleted(Error.invalidAuthentication())
-
-        val handledEvent = handleStartEvent(storage, request)
-        return when (handledEvent) {
-            is Ok  -> handledEvent.result
-            is Error -> HPCAppEvent.UnsuccessfullyCompleted(handledEvent)
+    @Suppress("UNCHECKED_CAST")
+    fun handle(connection: StorageConnection, request: Request<HPCAppRequest>): HPCAppEvent = when (request.event) {
+        is HPCAppRequest.Start -> {
+            val result = handleStartEvent(connection, request as Request<HPCAppRequest.Start>)
+            when (result) {
+                is Ok -> result.result
+                is Error -> HPCAppEvent.UnsuccessfullyCompleted(result)
+            }
         }
+
+        is HPCAppRequest.Cancel -> {
+            HPCAppEvent.UnsuccessfullyCompleted(Error.internalError())
+        }
+    }
+
+    fun init() {
+        streamService.appRequests.respond(
+                target = HPCStreams.AppEvents,
+
+                onAuthenticated = { _, e ->
+                    handle(e.connection, e.originalRequest)
+                },
+
+                onUnauthenticated = { _, e ->
+                    HPCAppEvent.UnsuccessfullyCompleted(e.error)
+                }
+        )
     }
 }

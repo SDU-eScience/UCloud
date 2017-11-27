@@ -1,4 +1,4 @@
-package org.esciencecloud.abc.ssh
+package org.esciencecloud.abc.services.ssh
 
 data class SBatchSubmissionResult(val exitCode: Int, val output: String, val jobId: Long?)
 

@@ -1,4 +1,4 @@
-package org.esciencecloud.abc.ssh
+package org.esciencecloud.abc.services.ssh
 
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp

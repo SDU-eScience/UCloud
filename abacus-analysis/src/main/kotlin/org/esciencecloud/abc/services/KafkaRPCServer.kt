@@ -1,4 +1,4 @@
-package org.esciencecloud.abc
+package org.esciencecloud.abc.services
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.ktor.application.ApplicationCall
@@ -7,10 +7,12 @@ import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
+import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.request.header
+import io.ktor.response.contentType
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.route
@@ -26,7 +28,10 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.state.HostInfo
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.StreamsMetadata
+import org.esciencecloud.abc.internalError
+import org.esciencecloud.abc.stackTraceToString
 import org.esciencecloud.asynchttp.HttpClient
+import org.esciencecloud.kafka.JsonPOJOSerializer
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
@@ -70,7 +75,7 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
         fun <T : Any> resultFromNullable(t: T?): Result<T> = if (t != null) Ok(t) else Error.invalidMessage()
     }
 
-    suspend fun query(streamProcessor: KafkaStreams, thisHost: HostInfo, key: Key, secretToken: String,
+    suspend fun query(streamProcessor: KafkaStreams, thisHost: HostInfo, secretToken: String, key: Key,
                       allowRetries: Boolean = true):
             Result<Value> {
         var tries = 0
@@ -187,10 +192,26 @@ class KafkaRPCServer(
                     if (appToken != secretToken) {
                         call.respond(HttpStatusCode.Unauthorized)
                     } else {
-                        val key = endpoint.keyParser(call)
-                        when (key) {
-                            is Ok -> call.respond(endpoint.query(streams, thisHost, key.result, secretToken))
-                            is Error -> call.respond(HttpStatusCode.fromValue(key.errorCode), key.message)
+                        val key = endpoint.keyParser(call).capture() ?: return@handle Result.lastError<Unit>().run {
+                            call.respond(HttpStatusCode.fromValue(errorCode), message)
+                        }
+
+                        val message = endpoint.query(streams, thisHost, secretToken, key)
+                        when (message) {
+                            is Ok -> {
+                                val serializer = endpoint.valueSerde.serializer()
+                                val contentType = if (serializer is JsonPOJOSerializer) {
+                                    ContentType.Application.Json
+                                } else {
+                                    ContentType.Text.Plain
+                                }
+
+                                call.response.contentType(contentType)
+                                call.respond(serializer.serialize("", message.result))
+                            }
+                            is Error -> {
+                                call.respond(HttpStatusCode.fromValue(message.errorCode), message.message)
+                            }
                         }
                     }
                 }

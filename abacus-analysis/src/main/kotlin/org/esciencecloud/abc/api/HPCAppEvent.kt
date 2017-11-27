@@ -45,3 +45,4 @@ sealed class HPCAppEvent {
         override val success: Boolean = false
     }
 }
+

@@ -1,4 +1,4 @@
-package org.esciencecloud.abc
+package org.esciencecloud.abc.services
 
 import org.esciencecloud.abc.api.NameAndVersion
 import org.esciencecloud.abc.api.SimpleDuration

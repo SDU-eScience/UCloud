@@ -1,16 +1,15 @@
 package org.esciencecloud.abc.processors
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.clients.producer.ProducerRecord
+import kotlinx.coroutines.experimental.runBlocking
 import org.esciencecloud.abc.*
-import org.esciencecloud.abc.ApplicationStreamProcessor.Companion.TOPIC_HPC_APP_EVENTS
-import org.esciencecloud.abc.BashEscaper.safeBashArgument
+import org.esciencecloud.abc.util.BashEscaper.safeBashArgument
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.HPCAppEvent
-import org.esciencecloud.abc.ssh.SSHConnectionPool
-import org.esciencecloud.abc.ssh.scpDownload
-import org.esciencecloud.abc.ssh.stat
+import org.esciencecloud.abc.services.*
+import org.esciencecloud.abc.services.ssh.SSHConnectionPool
+import org.esciencecloud.abc.services.ssh.scpDownload
+import org.esciencecloud.abc.services.ssh.stat
+import org.esciencecloud.abc.util.BashEscaper
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.PermissionException
 import org.esciencecloud.storage.ext.StorageConnectionFactory
@@ -23,30 +22,29 @@ import java.net.URI
  * Processes events from slurm
  */
 class SlurmProcessor(
-        private val interactiveStore: HPCStoreEndpoints,
-        private val mapper: ObjectMapper,
-        private val producer: KafkaProducer<String, String>,
+        private val interactiveStore: HPCStore,
         private val sshPool: SSHConnectionPool,
-        private val storageConnectionFactory: StorageConnectionFactory
+        private val storageConnectionFactory: StorageConnectionFactory,
+        private val slurmAgent: SlurmPollAgent,
+        private val streamService: HPCStreamService
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(SlurmProcessor::class.java)
     }
 
-    suspend fun handle(event: SlurmEvent) {
-        when (event) {
-            is SlurmEventBegan -> {
-                val key = interactiveStore.querySlurmIdToInternal(event.jobId).orThrow()
-                val appEvent = mapper.writeValueAsString(HPCAppEvent.Started(event.jobId))
-                producer.send(ProducerRecord(TOPIC_HPC_APP_EVENTS, key, appEvent))
-            }
+    suspend fun handle(event: SlurmEvent): Pair<String, HPCAppEvent> =
+            when (event) {
+                is SlurmEventBegan -> {
+                    val key = interactiveStore.querySlurmIdToInternal(event.jobId).orThrow()
+                    val appEvent = HPCAppEvent.Started(event.jobId)
 
-            is SlurmEventEnded -> {
-                val (key, newEvent) = handleEndedEvent(event)
-                producer.send(ProducerRecord(TOPIC_HPC_APP_EVENTS, key, mapper.writeValueAsString(newEvent)))
+                    Pair(key, appEvent)
+                }
+
+                is SlurmEventEnded -> handleEndedEvent(event)
+
+                else -> throw IllegalStateException()
             }
-        }
-    }
 
     private suspend fun handleEndedEvent(event: SlurmEventEnded): Pair<String, HPCAppEvent.Ended> {
         // Some of these queries _must_ resolve. Because of this we throw if they do not resolve.
@@ -71,6 +69,7 @@ class SlurmProcessor(
         }.capture() ?: return Pair(key, HPCAppEvent.UnsuccessfullyCompleted(Error.invalidAuthentication()))
 
         return sshPool.use {
+            log.info("Handling Slurm ended event! $key ${event.jobId}")
             // Transfer output files
             for (transfer in outputs) {
                 val workingDirectory = URI(pendingEvent.workingDirectory)
@@ -128,6 +127,15 @@ class SlurmProcessor(
             execWithOutputAsText("rm -rf ${safeBashArgument(pendingEvent.jobDirectory)}")
 
             Pair(key, HPCAppEvent.SuccessfullyCompleted(event.jobId))
+        }
+    }
+
+    fun init() {
+        slurmAgent.addListener {
+            runBlocking {
+                val (key, event) = handle(it)
+                streamService.appEventsProducer.emit(key, event)
+            }
         }
     }
 }

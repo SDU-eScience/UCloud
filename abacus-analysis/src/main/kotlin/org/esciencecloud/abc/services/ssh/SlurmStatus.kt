@@ -1,10 +1,10 @@
-package org.esciencecloud.abc.ssh
+package org.esciencecloud.abc.services.ssh
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.esciencecloud.abc.HPCConfig
-import org.esciencecloud.abc.SlurmEvent
-import org.esciencecloud.abc.SlurmEventEnded
+import org.esciencecloud.abc.services.SlurmEvent
+import org.esciencecloud.abc.services.SlurmEventEnded
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.time.Duration

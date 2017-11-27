@@ -1,9 +1,9 @@
-package org.esciencecloud.abc
+package org.esciencecloud.abc.services
 
 import org.esciencecloud.abc.api.ApplicationDescription
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.SimpleDuration
-import org.esciencecloud.abc.BashEscaper.safeBashArgument
+import org.esciencecloud.abc.util.BashEscaper.safeBashArgument
 
 class SBatchGenerator(private val emailForNotifications: String) {
     private val compiler = TemplateParser()
