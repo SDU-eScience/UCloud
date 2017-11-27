@@ -9,7 +9,7 @@ import org.esciencecloud.abc.services.ApplicationDAO
 
 class AppController(private val source: ApplicationDAO) {
     fun configure(routing: Route) = with(routing) {
-        get("app/{name}/{version?}") {
+        get("apps/{name}/{version?}") {
             val name = call.parameters["name"]!!
             val version = call.parameters["version"]
 

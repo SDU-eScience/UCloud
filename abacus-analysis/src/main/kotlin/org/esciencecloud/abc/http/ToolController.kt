@@ -9,7 +9,7 @@ import org.esciencecloud.abc.services.ToolDAO
 
 class ToolController(private val source: ToolDAO) {
     fun configure(routing: Route) = with(routing) {
-        get("tool/{name}/{version?}") {
+        get("tools/{name}/{version?}") {
             val name = call.parameters["name"]!!
             val version = call.parameters["version"]
 

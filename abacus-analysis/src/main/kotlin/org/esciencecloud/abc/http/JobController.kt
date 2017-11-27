@@ -13,7 +13,7 @@ import org.esciencecloud.storage.Ok
 
 class JobController(private val store: HPCStore) {
     fun configure(routing: Route) = with(routing) {
-        get("job/{id}") {
+        get("jobs/{id}") {
             val lastEvent = store.queryJobIdToStatus(call.parameters["id"]!!)
 
             when (lastEvent) {

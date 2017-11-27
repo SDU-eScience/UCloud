@@ -116,9 +116,11 @@ class ApplicationStreamProcessor(
             hpcStore.init(streamProcessor, this)
 
             route("api") {
-                AppController(ApplicationDAO).configure(this)
-                JobController(hpcStore).configure(this)
-                ToolController(ToolDAO).configure(this)
+                route("hpc") {
+                    AppController(ApplicationDAO).configure(this)
+                    JobController(hpcStore).configure(this)
+                    ToolController(ToolDAO).configure(this)
+                }
             }
         }
 

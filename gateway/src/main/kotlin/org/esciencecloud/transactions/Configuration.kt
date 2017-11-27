@@ -7,7 +7,8 @@ import java.io.File
 data class Configuration(
         val kafka: KafkaConfiguration,
         val gateway: GatewayConfiguration,
-        val storage: StorageConfiguration
+        val storage: StorageConfiguration,
+        val hpc: StorageConfiguration
 ) {
     companion object {
         private val mapper = jacksonObjectMapper()
@@ -19,3 +20,4 @@ data class Configuration(
 data class KafkaConfiguration(val servers: List<String>)
 data class GatewayConfiguration(val port: Int)
 data class StorageConfiguration(val host: String, val port: Int)
+data class HPCConfiguration(val host: String, val port: Int)

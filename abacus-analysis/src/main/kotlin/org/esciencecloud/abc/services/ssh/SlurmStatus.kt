@@ -18,6 +18,7 @@ fun SSHConnection.pollSlurmStatus(sinceWhen: ZonedDateTime): List<SlurmEvent> {
     fun Int.asTwoDigits() = toString().padStart(2, '0')
     // Just in case this software will be run on hardware in another zone, we convert all to zone where HPC is located
 
+    // TODO This might be a bit surprising
     // Go back a bit, we don't know if we are in sync with the HPC server
     val then = sinceWhen.withZoneSameInstant(ABACUS_ZONE).minusMinutes(1L)
     val since = "${then.year}-${then.monthValue.asTwoDigits()}-${then.dayOfMonth.asTwoDigits()}" +

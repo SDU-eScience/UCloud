@@ -12,6 +12,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.request.header
+import io.ktor.request.httpMethod
 import io.ktor.response.contentType
 import io.ktor.response.respond
 import io.ktor.routing.Route
@@ -188,6 +189,10 @@ class KafkaRPCServer(
         endpoints.forEach { endpoint ->
             route(endpoint.endpointForServer, endpoint.httpMethod) {
                 handle {
+                    if (call.request.httpMethod != HttpMethod.Get) {
+                        return@handle call.respond(HttpStatusCode.MethodNotAllowed)
+                    }
+
                     // TODO Validate certificates instead of using a simple shared secret
                     val appToken = call.request.header(APP_TOKEN_HEADER)
                     if (appToken != secretToken) {

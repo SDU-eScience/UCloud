@@ -21,6 +21,7 @@ import org.jetbrains.ktor.routing.*
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.net.ConnectException
 import java.net.URL
 import java.util.*
 import kotlin.coroutines.experimental.suspendCoroutine
@@ -38,6 +39,7 @@ class Server(private val configuration: Configuration) {
 
         // TODO This will eventually be replaced by a more robust solution
         val storageService = with(configuration.storage) { URL("http://$host:$port") }
+        val hpcService = with(configuration.hpc) { URL("http://$host:$port") }
 
         embeddedServer(Netty, port = configuration.gateway.port) {
             install(JacksonSupport)
@@ -48,6 +50,7 @@ class Server(private val configuration: Configuration) {
                     get("acl") { proxyJobTo(storageService) }
                     get("users") { proxyJobTo(storageService) }
                     get("groups") { proxyJobTo(storageService) }
+                    get("hpc/{...}") { proxyJobTo(hpcService) }
                     post("temp-auth") { proxyJobTo(storageService) }
 
 
@@ -69,7 +72,8 @@ class Server(private val configuration: Configuration) {
         producer.close()
     }
 
-    private inline suspend fun <reified RestType : Any, K : Any, R : Any> PipelineContext<Unit>.produceKafkaRequestFromREST(
+    private inline suspend fun
+            <reified RestType : Any, K : Any, R : Any> PipelineContext<Unit>.produceKafkaRequestFromREST(
             producer: GatewayProducer,
             stream: RequestResponseStream<K, R>,
             mapper: (RequestHeader, RestType) -> Pair<K, R>
@@ -110,7 +114,9 @@ class Server(private val configuration: Configuration) {
         return GatewayJobResponse.started(header.uuid, record)
     }
 
-    private fun Exception.printStacktraceToString() = StringWriter().apply { printStackTrace(PrintWriter(this)) }.toString()
+    private fun Exception.printStacktraceToString() = StringWriter().apply {
+        printStackTrace(PrintWriter(this))
+    }.toString()
 
     private suspend fun <K : Any, R : Any> GatewayProducer.sendRequest(
             stream: RequestResponseStream<K, R>,
@@ -139,16 +145,21 @@ class Server(private val configuration: Configuration) {
 
         // TODO This will always collect the entire thing in memory
         // TODO We also currently assume this to be text
-        val resp = HttpClient.get(endpointUrl.toString()) {
-            addBasicAuth(header.performedFor.username, header.performedFor.password)
-            setHeader(HttpHeaders.Accept, ContentType.Application.Json.toString())
-            setHeader("Job-Id", header.uuid)
+        val resp = try {
+            HttpClient.get(endpointUrl.toString()) {
+                addBasicAuth(header.performedFor.username, header.performedFor.password)
+                setHeader(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                setHeader("Job-Id", header.uuid)
 
-            setMethod(proxyMethod.value)
+                setMethod(proxyMethod.value)
+            }
+        } catch (ex: ConnectException) {
+            call.respond(HttpStatusCode.GatewayTimeout)
+            return
         }
 
-        call.respondText(resp.responseBody, ContentType.parse(resp.contentType),
-                HttpStatusCode.fromValue(resp.statusCode))
+        val contentType = resp.contentType?.let { ContentType.parse(it) } ?: ContentType.Text.Plain
+        call.respondText(resp.responseBody, contentType, HttpStatusCode.fromValue(resp.statusCode))
     }
 
     private suspend fun PipelineContext<Unit>.validateRequestAndPrepareJobHeader(respond: Boolean = true): RequestHeader? {
