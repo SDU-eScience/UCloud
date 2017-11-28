@@ -2,7 +2,15 @@ package org.esciencecloud.abc
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import io.ktor.application.ApplicationCall
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.http.HttpStatusCode
+import io.ktor.request.ApplicationRequest
+import io.ktor.request.authorization
+import io.ktor.response.respond
 import io.ktor.routing.route
+import io.ktor.util.AttributeKey
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -20,6 +28,7 @@ import org.esciencecloud.abc.services.*
 import org.esciencecloud.abc.services.ssh.SSHConnectionPool
 import org.esciencecloud.abc.services.ssh.SimpleSSHConfig
 import org.esciencecloud.storage.Error
+import org.esciencecloud.storage.ext.StorageConnection
 import org.esciencecloud.storage.ext.StorageConnectionFactory
 import org.esciencecloud.storage.ext.irods.IRodsConnectionInformation
 import org.esciencecloud.storage.ext.irods.IRodsStorageConnectionFactory
@@ -46,6 +55,9 @@ data class HPCConfig(
 data class StorageConfiguration(val host: String, val port: Int, val zone: String)
 data class KafkaConfiguration(val servers: List<String>)
 data class RPCConfiguration(val secretToken: String)
+
+private val storageConnectionKey = AttributeKey<StorageConnection>("StorageSession")
+val ApplicationCall.storageConnection get() = attributes[storageConnectionKey]
 
 class ApplicationStreamProcessor(
         private val config: HPCConfig,
@@ -117,6 +129,31 @@ class ApplicationStreamProcessor(
 
             route("api") {
                 route("hpc") {
+                    fun ApplicationRequest.basicAuth(): Pair<String, String>? {
+                        val auth = authorization() ?: return null
+                        if (!auth.startsWith("Basic ")) return null
+                        val decoded = String(Base64.getDecoder().decode(auth.substringAfter("Basic ")))
+                        if (decoded.indexOf(':') == -1) return null
+
+                        return Pair(decoded.substringBefore(':'), decoded.substringAfter(':'))
+                    }
+
+                    intercept(ApplicationCallPipeline.Infrastructure) {
+                        val (username, password) = call.request.basicAuth() ?: return@intercept run {
+                            call.respond(HttpStatusCode.Unauthorized)
+                            finish()
+                        }
+
+                        val connection = storageConnectionFactory.createForAccount(username, password).capture() ?:
+                                return@intercept run {
+                                    call.respond(HttpStatusCode.Unauthorized)
+                                    finish()
+                                    return@intercept
+                                }
+
+                        call.attributes.put(storageConnectionKey, connection)
+                    }
+
                     AppController(ApplicationDAO).configure(this)
                     JobController(hpcStore).configure(this)
                     ToolController(ToolDAO).configure(this)
