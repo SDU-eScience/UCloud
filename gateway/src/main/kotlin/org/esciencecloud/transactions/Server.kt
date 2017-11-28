@@ -71,6 +71,16 @@ class Server(private val configuration: Configuration) {
                             { _, request: UserEvent.Modify -> Pair(request.currentUsername, request) })
                         }
                     }
+
+                    route("hpc") {
+                        post("jobs") {
+                            val kafkaResp = call.produceKafkaRequestFromREST(producer, HPCStreams.AppRequests) {
+                                key, request: HPCAppRequest.Start -> Pair(key.uuid, request)
+                            }
+
+                            call.respond(kafkaResp)
+                        }
+                    }
                 }
             }
         }.start(wait = true)

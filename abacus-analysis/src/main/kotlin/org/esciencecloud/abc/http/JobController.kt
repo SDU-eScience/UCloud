@@ -30,7 +30,7 @@ class JobController(private val store: HPCStore) {
             }
         }
 
-        get("myjobs") {
+        get("jobs") {
             val user = call.storageConnection.connectedUser.displayName
             val recent = store.queryRecentJobsByUser(user, allowRetries = false).capture() ?: return@get run {
                 val error = Result.lastError<Unit>()

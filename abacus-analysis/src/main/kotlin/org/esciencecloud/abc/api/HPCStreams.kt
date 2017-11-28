@@ -8,7 +8,7 @@ import org.esciencecloud.kafka.StreamDescription
 import org.esciencecloud.kafka.TableDescription
 
 object HPCStreams {
-    val AppRequests = StreamDescription<String, Request<HPCAppRequest>>("hpcAppRequests", Serdes.String(), jsonSerde())
+    val AppRequests = StreamDescription<String, Request<HPCAppRequest>>("request.hpcApp", Serdes.String(), jsonSerde())
     val AppEvents = StreamDescription<String, HPCAppEvent>("hpcAppEvents", Serdes.String(), jsonSerde())
 
     // TODO We can clean up in these
