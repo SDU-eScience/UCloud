@@ -5,28 +5,20 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.get
-import org.esciencecloud.abc.api.HPCAppEvent
-import org.esciencecloud.abc.api.JobStatus
 import org.esciencecloud.abc.services.HPCStore
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
+import org.esciencecloud.storage.Result
 
 class JobController(private val store: HPCStore) {
     fun configure(routing: Route) = with(routing) {
+        // TODO Authentication should go on all API routes
         get("jobs/{id}") {
-            val lastEvent = store.queryJobIdToStatus(call.parameters["id"]!!)
+            val lastEvent = store.queryJobIdToStatus(call.parameters["id"]!!, allowRetries = false)
 
             when (lastEvent) {
                 is Ok -> {
-                    val status = when (lastEvent.result) {
-                        is HPCAppEvent.Pending -> JobStatus.PENDING
-                        is HPCAppEvent.SuccessfullyCompleted -> JobStatus.COMPLETE
-                        is HPCAppEvent.UnsuccessfullyCompleted -> JobStatus.FAILURE
-                        is HPCAppEvent.Started -> JobStatus.RUNNING
-
-                        is HPCAppEvent.Ended -> IllegalStateException() // Is abstract, all other cases should be caught
-                    }
-
+                    val status = lastEvent.result.toJobStatus()
                     call.respond(mapOf("status" to status))
                 }
 
@@ -35,6 +27,18 @@ class JobController(private val store: HPCStore) {
                     call.respond(HttpStatusCode.NotFound, lastEvent.message)
                 }
             }
+        }
+
+        // TODO JUST FOR TESTING
+        // TODO JUST FOR TESTING
+        // TODO JUST FOR TESTING
+        get("myjobs/{user}") {
+            val user = call.parameters["user"]!!
+            val recent = store.queryRecentJobsByUser(user, allowRetries = false).capture() ?: return@get run {
+                val error = Result.lastError<Unit>()
+                call.respond(HttpStatusCode.fromValue(error.errorCode), error.message)
+            }
+            call.respond(recent)
         }
     }
 }

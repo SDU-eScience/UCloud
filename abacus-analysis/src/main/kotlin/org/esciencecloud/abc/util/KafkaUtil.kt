@@ -3,6 +3,7 @@ package org.esciencecloud.abc.util
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.KGroupedStream
 import org.apache.kafka.streams.kstream.KStream
@@ -47,6 +48,9 @@ fun <K, V> KafkaProducer<String, String>.forStream(description: StreamDescriptio
 fun <K, V> KStreamBuilder.stream(description: StreamDescription<K, V>): KStream<K, V> =
         stream(description.keySerde, description.valueSerde, description.name)
 
+fun <K, V> KStreamBuilder.table(description: StreamDescription<K, V>): KTable<K, V> =
+        table(description.keySerde, description.valueSerde, description.name)
+
 fun <K, V, A> KStreamBuilder.aggregate(
         description: StreamDescription<K, V>,
         tableDescription: TableDescription<K, A>,
@@ -74,6 +78,10 @@ fun <K, V : Any, R : V> KStream<K, V>.filterIsInstance(klass: KClass<R>) =
             @Suppress("UNCHECKED_CAST")
             it as R
         }
+
+fun <K, V> KStream<K, V>.toTable(): KTable<K, V> = groupByKey().reduce { _, newValue -> newValue }
+fun <K, V> KStream<K, V>.toTable(keySerde: Serde<K>, valSerde: Serde<V>): KTable<K, V> =
+        groupByKey(keySerde, valSerde).reduce { _, newValue -> newValue }
 
 fun <K, V> KStream<K, V>.through(description: StreamDescription<K, V>): KStream<K, V> =
     through(description.keySerde, description.valueSerde, description.name)

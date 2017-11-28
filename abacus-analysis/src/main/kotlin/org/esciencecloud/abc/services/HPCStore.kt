@@ -3,12 +3,11 @@ package org.esciencecloud.abc.services
 import io.ktor.routing.Routing
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.state.HostInfo
-import org.esciencecloud.abc.ApplicationStreamProcessor
 import org.esciencecloud.abc.RPCConfiguration
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCStreams
+import org.esciencecloud.abc.processors.MyJobs
 import org.esciencecloud.storage.Result
-import java.util.concurrent.TimeUnit
 
 class HPCStore(private val hostname: String, private val port: Int, private val rpc: RPCConfiguration) {
     private var server: KafkaRPCServer? = null
@@ -39,6 +38,13 @@ class HPCStore(private val hostname: String, private val port: Int, private val 
         )
     }
 
+    private val recentJobsByUser = endpoint {
+        KafkaRPCEndpoint.simpleEndpoint<String, MyJobs>(
+                root = "/recent",
+                table = HPCStreams.RecentlyCompletedJobs.name
+        )
+    }
+
     fun init(streams: KafkaStreams, routing: Routing) {
         if (server != null) throw IllegalStateException("RPC Server already started!")
         this.streams = streams
@@ -48,14 +54,17 @@ class HPCStore(private val hostname: String, private val port: Int, private val 
         this.server = server
     }
 
-    suspend fun querySlurmIdToInternal(slurmId: Long): Result<String> =
-            slurmIdToInternalId.query(streams, hostInfo, rpc.secretToken, slurmId)
+    suspend fun querySlurmIdToInternal(slurmId: Long, allowRetries: Boolean = true): Result<String> =
+            slurmIdToInternalId.query(streams, hostInfo, rpc.secretToken, slurmId, allowRetries)
 
-    suspend fun queryJobIdToApp(jobId: String): Result<HPCAppEvent.Pending> =
-            jobToApp.query(streams, hostInfo, rpc.secretToken, jobId)
+    suspend fun queryJobIdToApp(jobId: String, allowRetries: Boolean = true): Result<HPCAppEvent.Pending> =
+            jobToApp.query(streams, hostInfo, rpc.secretToken, jobId, allowRetries)
 
-    suspend fun queryJobIdToStatus(jobId: String): Result<HPCAppEvent> =
-            jobToStatus.query(streams, hostInfo, rpc.secretToken, jobId)
+    suspend fun queryJobIdToStatus(jobId: String, allowRetries: Boolean = true): Result<HPCAppEvent> =
+            jobToStatus.query(streams, hostInfo, rpc.secretToken, jobId, allowRetries)
+
+    suspend fun queryRecentJobsByUser(user: String, allowRetries: Boolean = true): Result<MyJobs> =
+            recentJobsByUser.query(streams, hostInfo, rpc.secretToken, user, allowRetries)
 
     private inline fun <K : Any, V : Any> endpoint(producer: () -> KafkaRPCEndpoint<K, V>): KafkaRPCEndpoint<K, V> {
         val endpoint = producer()

@@ -2,6 +2,7 @@ package org.esciencecloud.abc.api
 
 import org.apache.kafka.common.serialization.Serdes
 import org.esciencecloud.abc.Request
+import org.esciencecloud.abc.processors.MyJobs
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
 import org.esciencecloud.kafka.StreamDescription
 import org.esciencecloud.kafka.TableDescription
@@ -14,4 +15,7 @@ object HPCStreams {
     val JobIdToApp = TableDescription<String, HPCAppEvent.Pending>("hpcJobToApp", Serdes.String(), jsonSerde())
     val SlurmIdToJobId = TableDescription<Long, String>("hpcSlurmIdToJobId", Serdes.Long(), Serdes.String())
     val JobIdToStatus = TableDescription<String, HPCAppEvent>("hpcJobToStatus", Serdes.String(), jsonSerde())
+
+    val RecentlyCompletedJobs = TableDescription<String, MyJobs>("hpcRecentJobs",
+            Serdes.String(), jsonSerde())
 }

@@ -5,6 +5,7 @@ import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.abc.Request
+import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCStreams
 import org.esciencecloud.abc.util.*
 import org.esciencecloud.kafka.StreamDescription
@@ -18,7 +19,8 @@ class HPCStreamService(
         builder: KStreamBuilder,
         producer: KafkaProducer<String, String>
 ) {
-    val appRequests = builder.stream(HPCStreams.AppRequests).authenticate()
+    val rawAppRequests = builder.stream(HPCStreams.AppRequests)
+    val appRequests = rawAppRequests.authenticate()
     val appEvents = builder.stream(HPCStreams.AppEvents)
     val appEventsProducer = producer.forStream(HPCStreams.AppEvents)
 

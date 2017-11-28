@@ -131,6 +131,7 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
                 }
             }
 
+            log.info("Waiting: $allowRetries")
             tries++
             delay(tries.toLong(), TimeUnit.SECONDS)
         }

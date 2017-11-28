@@ -44,5 +44,14 @@ sealed class HPCAppEvent {
     data class UnsuccessfullyCompleted(val reason: Error<Any>) : Ended() {
         override val success: Boolean = false
     }
+
+    fun toJobStatus(): JobStatus = when (this) {
+        is HPCAppEvent.Pending -> JobStatus.PENDING
+        is HPCAppEvent.SuccessfullyCompleted -> JobStatus.COMPLETE
+        is HPCAppEvent.UnsuccessfullyCompleted -> JobStatus.FAILURE
+        is HPCAppEvent.Started -> JobStatus.RUNNING
+
+        is HPCAppEvent.Ended -> throw IllegalStateException() // Is abstract, all other cases should be caught
+    }
 }
 
