@@ -1,23 +1,27 @@
 package org.esciencecloud.transactions
 
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import io.ktor.application.ApplicationCall
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.features.ContentNegotiation
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.jackson.jackson
+import io.ktor.request.*
+import io.ktor.response.respond
+import io.ktor.response.respondText
+import io.ktor.routing.*
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.embeddedServer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.addBasicAuth
 import org.esciencecloud.storage.model.*
-import org.jetbrains.ktor.application.install
-import org.jetbrains.ktor.host.embeddedServer
-import org.jetbrains.ktor.http.ContentType
-import org.jetbrains.ktor.http.HttpHeaders
-import org.jetbrains.ktor.http.HttpMethod
-import org.jetbrains.ktor.http.HttpStatusCode
-import org.jetbrains.ktor.netty.Netty
-import org.jetbrains.ktor.pipeline.PipelineContext
-import org.jetbrains.ktor.request.*
-import org.jetbrains.ktor.response.respond
-import org.jetbrains.ktor.response.respondText
-import org.jetbrains.ktor.routing.*
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -41,27 +45,29 @@ class Server(private val configuration: Configuration) {
         val storageService = with(configuration.storage) { URL("http://$host:$port") }
         val hpcService = with(configuration.hpc) { URL("http://$host:$port") }
 
-        embeddedServer(Netty, port = configuration.gateway.port) {
-            install(JacksonSupport)
+        embeddedServer(CIO, port = configuration.gateway.port) {
+            install(ContentNegotiation) {
+                jackson { registerKotlinModule() }
+            }
 
             routing {
                 route("api") {
-                    get("files") { proxyJobTo(storageService) }
-                    get("acl") { proxyJobTo(storageService) }
-                    get("users") { proxyJobTo(storageService) }
-                    get("groups") { proxyJobTo(storageService) }
-                    get("hpc/{...}") { proxyJobTo(hpcService) }
-                    post("temp-auth") { proxyJobTo(storageService) }
+                    get("files") { call.proxyJobTo(storageService) }
+                    get("acl") { call.proxyJobTo(storageService) }
+                    get("users") { call.proxyJobTo(storageService) }
+                    get("groups") { call.proxyJobTo(storageService) }
+                    get("hpc/{...}") { call.proxyJobTo(hpcService) }
+                    post("temp-auth") { call.proxyJobTo(storageService) }
 
 
                     route("users") {
                         post {
-                            call.respond(produceKafkaRequestFromREST(producer, UserProcessor.UserEvents)
+                            call.respond(call.produceKafkaRequestFromREST(producer, UserProcessor.UserEvents)
                             { _, request: UserEvent.Create -> Pair(request.username, request) })
                         }
 
                         put {
-                            call.respond(produceKafkaRequestFromREST(producer, UserProcessor.UserEvents)
+                            call.respond(call.produceKafkaRequestFromREST(producer, UserProcessor.UserEvents)
                             { _, request: UserEvent.Modify -> Pair(request.currentUsername, request) })
                         }
                     }
@@ -73,7 +79,7 @@ class Server(private val configuration: Configuration) {
     }
 
     private inline suspend fun
-            <reified RestType : Any, K : Any, R : Any> PipelineContext<Unit>.produceKafkaRequestFromREST(
+            <reified RestType : Any, K : Any, R : Any> ApplicationCall.produceKafkaRequestFromREST(
             producer: GatewayProducer,
             stream: RequestResponseStream<K, R>,
             mapper: (RequestHeader, RestType) -> Pair<K, R>
@@ -82,12 +88,12 @@ class Server(private val configuration: Configuration) {
                 return GatewayJobResponse.error()
 
         val request = try {
-            call.receive<RestType>() // tryReceive does not work well enough for this
+            receive<RestType>() // tryReceive does not work well enough for this
         } catch (ex: Exception) {
             log.info("Caught exception while trying to deserialize user-input. Assuming that user input was malformed:")
             log.info(ex.printStacktraceToString())
 
-            call.response.status(HttpStatusCode.BadRequest)
+            response.status(HttpStatusCode.BadRequest)
             return GatewayJobResponse.error()
         }
 
@@ -97,7 +103,7 @@ class Server(private val configuration: Configuration) {
             log.warn("Exception when mapping REST request to Kafka request!")
             log.warn(ex.printStacktraceToString())
 
-            call.response.status(HttpStatusCode.InternalServerError)
+            response.status(HttpStatusCode.InternalServerError)
             return GatewayJobResponse.error()
         }
 
@@ -107,7 +113,7 @@ class Server(private val configuration: Configuration) {
             log.warn("Kafka producer threw an exception while sending request!")
             log.warn(ex.printStacktraceToString())
 
-            call.response.status(HttpStatusCode.InternalServerError)
+            response.status(HttpStatusCode.InternalServerError)
             return GatewayJobResponse.error()
         }
 
@@ -132,13 +138,13 @@ class Server(private val configuration: Configuration) {
         }
     }
 
-    private suspend fun PipelineContext<Unit>.proxyJobTo(
+    private suspend fun ApplicationCall.proxyJobTo(
             host: URL,
-            endpoint: String = call.request.path(),
+            endpoint: String = request.path(),
             includeQueryString: Boolean = true,
-            proxyMethod: HttpMethod = call.request.httpMethod
+            proxyMethod: HttpMethod = request.httpMethod
     ) {
-        val queryString = if (includeQueryString) '?' + call.request.queryString() else ""
+        val queryString = if (includeQueryString) '?' + request.queryString() else ""
         val endpointUrl = URL(host, endpoint + queryString)
 
         val header = validateRequestAndPrepareJobHeader() ?: return
@@ -154,20 +160,20 @@ class Server(private val configuration: Configuration) {
                 setMethod(proxyMethod.value)
             }
         } catch (ex: ConnectException) {
-            call.respond(HttpStatusCode.GatewayTimeout)
+            respond(HttpStatusCode.GatewayTimeout)
             return
         }
 
         val contentType = resp.contentType?.let { ContentType.parse(it) } ?: ContentType.Text.Plain
-        call.respondText(resp.responseBody, contentType, HttpStatusCode.fromValue(resp.statusCode))
+        respondText(resp.responseBody, contentType, HttpStatusCode.fromValue(resp.statusCode))
     }
 
-    private suspend fun PipelineContext<Unit>.validateRequestAndPrepareJobHeader(respond: Boolean = true): RequestHeader? {
+    private suspend fun ApplicationCall.validateRequestAndPrepareJobHeader(respond: Boolean = true): RequestHeader? {
         // TODO This probably shouldn't do a response for us
         val jobId = UUID.randomUUID().toString()
-        val (username, password) = call.request.basicAuth() ?: return run {
-            if (respond) call.respond(HttpStatusCode.Unauthorized)
-            else call.response.status(HttpStatusCode.Unauthorized)
+        val (username, password) = request.basicAuth() ?: return run {
+            if (respond) respond(HttpStatusCode.Unauthorized)
+            else response.status(HttpStatusCode.Unauthorized)
 
             null
         }

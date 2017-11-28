@@ -1,9 +1,9 @@
 group 'org.esciencecloud'
-version '1.0-SNAPSHOT'
+version '0.1.0'
 
 buildscript {
-    ext.ktor_version = '0.4.0'
-    ext.kotlin_version = '1.1.51'
+    ext.ktor_version = '0.9.0'
+    ext.kotlin_version = '1.1.61'
 
     repositories {
         mavenCentral()
@@ -29,23 +29,17 @@ dependencies {
 
 
     // ktor
-    compile "org.jetbrains.ktor:ktor-core:$ktor_version"
-    compile "org.jetbrains.ktor:ktor-netty:$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
+
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
-    compile "org.jetbrains.ktor:ktor-gson:$ktor_version"
 
     compile "org.esciencecloud:kafka-common:0.3.0"
     compile "org.esciencecloud:storage-api:0.1.3"
 
     compile "com.fasterxml.jackson.core:jackson-core:2.0.22"
     compile "com.fasterxml.jackson.core:jackson-databind:2.0.22"
-
-    // I have had to, temporarily, comment out the JPA dependency.
-    // When building a fat jar it is causing the main file to not get loaded correctly.
-
-//    compile "org.eclipse.persistence:org.eclipse.persistence.jpa:2.6.5"
-//    compile "org.postgresql:postgresql:42.1.4"
-
 
     compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
