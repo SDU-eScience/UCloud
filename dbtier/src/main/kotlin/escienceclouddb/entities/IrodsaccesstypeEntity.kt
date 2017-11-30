@@ -6,7 +6,7 @@ import org.jetbrains.exposed.dao.IntIdTable
 object Irodsaccesstype : IntIdTable() {
 	val lastmodified = datetime("lastmodified")
 	val irodsaccesstypetext = text("irodsaccesstypetext").nullable()
-	val irodsaccesstypeactive = integer("irodsaccesstypeactive").nullable()
+	val active = integer("irodsaccesstypeactive").nullable()
 	val irodsaccesstypeidmap = integer("irodsaccesstypeidmap").nullable()
 }
 
@@ -15,6 +15,6 @@ class IrodsaccesstypeEntity(id: EntityID<Int>) : IntEntity(id) {
 
 	var lastmodified by Irodsaccesstype.lastmodified
 	var irodsaccesstypetext by Irodsaccesstype.irodsaccesstypetext
-	var irodsaccesstypeactive by Irodsaccesstype.irodsaccesstypeactive
+	var irodsaccesstypeactive by Irodsaccesstype.active
 	var irodsaccesstypeidmap by Irodsaccesstype.irodsaccesstypeidmap
 }

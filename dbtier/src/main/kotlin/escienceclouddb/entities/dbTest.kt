@@ -3,7 +3,6 @@ package escienceclouddb
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.transactions.transaction
-import IrodsaccesstypeEntity
 import org.jetbrains.ktor.util.cast
 
 fun main(args: Array<String>) {
