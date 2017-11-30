@@ -41,20 +41,29 @@ class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConn
     private val objectFactory by lazy { IRODSFileSystem.instance().irodsAccessObjectFactory }
 
     override fun createForAccount(username: String, password: String): Result<StorageConnection> {
-        return try {
-            val account = with(connectionInformation) {
-                IRODSAccount.instance(host, port, username, password, "/$zone/home/$username", zone, storageResource)
+        // Jargon uses a thread-local cache for connections. It is very important that we _do not_ cache these.
+        // For this reason we will create a new thread (to circumvent this thread local cache) and then return the
+        // result once the thread has connected.
+        var result: Result<StorageConnection>? = null
+        val thread = Thread {
+            result = try {
+                val account = with(connectionInformation) {
+                    IRODSAccount.instance(host, port, username, password, "/$zone/home/$username", zone, storageResource)
+                }
+
+                account.authenticationScheme = connectionInformation.authScheme
+
+                val csPolicy = ClientServerNegotiationPolicy()
+                csPolicy.sslNegotiationPolicy = connectionInformation.sslNegotiationPolicy
+                account.clientServerNegotiationPolicy = csPolicy
+
+                Ok(IRodsStorageConnection(AccountServices(objectFactory, account, connectionInformation)))
+            } catch (ex: AuthenticationException) {
+                Error.invalidAuthentication()
             }
-
-            account.authenticationScheme = connectionInformation.authScheme
-
-            val csPolicy = ClientServerNegotiationPolicy()
-            csPolicy.sslNegotiationPolicy = connectionInformation.sslNegotiationPolicy
-            account.clientServerNegotiationPolicy = csPolicy
-
-            Ok(IRodsStorageConnection(AccountServices(objectFactory, account, connectionInformation)))
-        } catch (ex: AuthenticationException) {
-            Error.invalidAuthentication()
         }
+        thread.start()
+        thread.join()
+        return result ?: throw IllegalStateException("Result from connection was null. This was unexpected.")
     }
 }

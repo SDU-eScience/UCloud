@@ -31,8 +31,6 @@ interface StorageConnectionFactory {
      * The [username] and [password] will be used for the authentication. Note that [password] used might be,
      * depending on implementation, not the actual password of the user, but rather an access token. This is left
      * as an implementation detail of the connection.
-     *
-     * @throws PermissionException If the authentication fails
      */
     fun createForAccount(username: String, password: String): Result<StorageConnection>
 }
