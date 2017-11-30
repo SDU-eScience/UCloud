@@ -9,8 +9,10 @@ import io.ktor.features.DefaultHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
+import io.ktor.pipeline.intercept
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.authorization
+import io.ktor.response.ApplicationSendPipeline
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.get
@@ -63,6 +65,11 @@ class StorageRestServer(private val configuration: Configuration, private val st
                 return@intercept
             }
             call.attributes.put(StorageSession, connection)
+        }
+
+        // TODO Not sure if this is the correct phase to use
+        sendPipeline.intercept(ApplicationSendPipeline.After) {
+            call.attributes.getOrNull(StorageSession)?.close()
         }
 
         routing {

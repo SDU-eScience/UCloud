@@ -38,7 +38,6 @@ class IRodsStorageConnection(private val services: AccountServices) : StorageCon
 
 class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConnectionInformation) :
         StorageConnectionFactory {
-    private val objectFactory by lazy { IRODSFileSystem.instance().irodsAccessObjectFactory }
 
     override fun createForAccount(username: String, password: String): Result<StorageConnection> {
         // Jargon uses a thread-local cache for connections. It is very important that we _do not_ cache these.
@@ -57,7 +56,8 @@ class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConn
                 csPolicy.sslNegotiationPolicy = connectionInformation.sslNegotiationPolicy
                 account.clientServerNegotiationPolicy = csPolicy
 
-                Ok(IRodsStorageConnection(AccountServices(objectFactory, account, connectionInformation)))
+                val fs = IRODSFileSystem.instance()
+                Ok(IRodsStorageConnection(AccountServices(fs, account, connectionInformation)))
             } catch (ex: AuthenticationException) {
                 Error.invalidAuthentication()
             }

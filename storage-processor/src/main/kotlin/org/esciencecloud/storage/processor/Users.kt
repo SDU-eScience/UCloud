@@ -6,7 +6,6 @@ import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.StorageConnection
 import org.esciencecloud.storage.model.Request
-import org.esciencecloud.storage.model.RequestHeader
 import org.esciencecloud.storage.model.UserEvent
 import org.esciencecloud.storage.model.UserProcessor
 
@@ -16,11 +15,13 @@ class Users(private val storageService: StorageService) {
             val connection = storageService.validateRequest(request.header).capture() ?:
                     return@process Result.lastError<Unit>()
 
-            @Suppress("UNCHECKED_CAST")
-            when (request.event) {
-                is UserEvent.Create -> createUser(connection, request as Request<UserEvent.Create>)
-                is UserEvent.Modify -> modifyUser(connection, request as Request<UserEvent.Modify>)
-                is UserEvent.Delete -> deleteUser(connection, request as Request<UserEvent.Delete>)
+            connection.use {
+                @Suppress("UNCHECKED_CAST")
+                when (request.event) {
+                    is UserEvent.Create -> createUser(connection, request as Request<UserEvent.Create>)
+                    is UserEvent.Modify -> modifyUser(connection, request as Request<UserEvent.Modify>)
+                    is UserEvent.Delete -> deleteUser(connection, request as Request<UserEvent.Delete>)
+                }
             }
         }
     }

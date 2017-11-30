@@ -2,8 +2,9 @@ package org.esciencecloud.storage.ext
 
 import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.model.User
+import java.io.Closeable
 
-interface StorageConnection {
+interface StorageConnection : Closeable {
     val connectedUser: User
 
     // Services
@@ -19,9 +20,6 @@ interface StorageConnection {
     // For example, administrative operations should not be provided for every open connection, as
     // some users might not be authenticated for them.
     val userAdmin: UserAdminOperations?
-
-    // Methods
-    fun close()
 }
 
 interface StorageConnectionFactory {

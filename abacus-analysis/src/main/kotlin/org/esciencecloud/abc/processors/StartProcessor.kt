@@ -1,13 +1,15 @@
 package org.esciencecloud.abc.processors
 
-import org.esciencecloud.abc.*
+import org.esciencecloud.abc.Request
 import org.esciencecloud.abc.api.*
+import org.esciencecloud.abc.internalError
 import org.esciencecloud.abc.services.ApplicationDAO
 import org.esciencecloud.abc.services.HPCStreamService
 import org.esciencecloud.abc.services.SBatchGenerator
 import org.esciencecloud.abc.services.ssh.SSHConnectionPool
 import org.esciencecloud.abc.services.ssh.sbatch
 import org.esciencecloud.abc.services.ssh.scpUpload
+import org.esciencecloud.abc.stackTraceToString
 import org.esciencecloud.abc.util.BashEscaper
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
@@ -164,7 +166,11 @@ class StartProcessor(
                 target = HPCStreams.AppEvents,
 
                 onAuthenticated = { _, e ->
-                    handle(e.connection, e.originalRequest)
+                    try {
+                        handle(e.connection, e.originalRequest)
+                    } finally {
+                        e.connection.close() // TODO This should be easier
+                    }
                 },
 
                 onUnauthenticated = { _, e ->

@@ -4,10 +4,12 @@ import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.irods.jargon.core.connection.IRODSAccount
 import org.irods.jargon.core.connection.SettableJargonProperties
-import org.irods.jargon.core.pub.IRODSAccessObjectFactory
+import org.irods.jargon.core.pub.IRODSFileSystem
 
-class AccountServices(private val factory: IRODSAccessObjectFactory, val account: IRODSAccount,
+class AccountServices(private val fs: IRODSFileSystem, val account: IRODSAccount,
                       val connectionInformation: IRodsConnectionInformation) {
+    private val factory = fs.irodsAccessObjectFactory
+
     val environment by lazy { factory.getEnvironmentalInfoAO(account) }
     val zones by lazy { factory.getZoneAO(account) }
     val resources by lazy { factory.getResourceAO(account) }
@@ -49,7 +51,7 @@ class AccountServices(private val factory: IRODSAccessObjectFactory, val account
     }
 
     fun close() {
-        factory.closeSessionAndEatExceptions()
+        fs.close(account)
     }
 
 }

@@ -13,12 +13,14 @@ class Groups(private val storageService: StorageService) {
             val connection = storageService.validateRequest(request.header).capture() ?:
                     return@process Result.lastError<Unit>()
 
-            @Suppress("UNCHECKED_CAST")
-            when (request.event) {
-                is GroupEvent.Create -> createGroup(connection, request as Request<GroupEvent.Create>)
-                is GroupEvent.AddMember -> addMember(connection, request as Request<GroupEvent.AddMember>)
-                is GroupEvent.RemoveMember -> removeMember(connection, request as Request<GroupEvent.RemoveMember>)
-                is GroupEvent.Delete -> deleteGroup(connection, request as Request<GroupEvent.Delete>)
+            connection.use {
+                @Suppress("UNCHECKED_CAST")
+                when (request.event) {
+                    is GroupEvent.Create -> createGroup(connection, request as Request<GroupEvent.Create>)
+                    is GroupEvent.AddMember -> addMember(connection, request as Request<GroupEvent.AddMember>)
+                    is GroupEvent.RemoveMember -> removeMember(connection, request as Request<GroupEvent.RemoveMember>)
+                    is GroupEvent.Delete -> deleteGroup(connection, request as Request<GroupEvent.Delete>)
+                }
             }
         }
     }
