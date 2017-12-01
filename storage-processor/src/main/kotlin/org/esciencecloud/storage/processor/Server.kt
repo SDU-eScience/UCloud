@@ -130,7 +130,7 @@ fun main(args: Array<String>) {
 
 abstract class StorageService {
     abstract val storageFactory: StorageConnectionFactory
-    abstract val adminConnection: StorageConnection
+    //abstract val adminConnection: StorageConnection
 
     /**
      * Should validate the StorageRequest and provide us with an appropriate StorageConnection. For internal
@@ -166,6 +166,6 @@ class IRodsStorageService(
 ) : StorageService() {
     override val storageFactory: StorageConnectionFactory = IRodsStorageConnectionFactory(connectionInformation)
 
-    override val adminConnection: StorageConnection =
-            storageFactory.createForAccount(adminUsername, adminPassword).orThrow()
+    //override val adminConnection: StorageConnection =
+     //       storageFactory.createForAccount(adminUsername, adminPassword).orThrow()
 }

@@ -3,10 +3,7 @@ package org.esciencecloud.transactions
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import org.apache.kafka.common.serialization.Serdes
-import org.esciencecloud.kafka.JsonSerde
 import org.esciencecloud.kafka.JsonSerde.jsonSerde
-import org.esciencecloud.kafka.StreamDescription
-import org.esciencecloud.kafka.TableDescription
 import org.esciencecloud.storage.model.Request
 import org.esciencecloud.storage.model.RequestResponseStream
 

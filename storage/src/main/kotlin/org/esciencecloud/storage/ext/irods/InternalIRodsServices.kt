@@ -36,7 +36,9 @@ class AccountServices(private val fs: IRODSFileSystem, val account: IRODSAccount
     val fileSystem by lazy { FileSystemWrapper(factory.getIRODSFileSystemAO(account)) }
     val userGroups by lazy { UserGroupsWrapper(factory.getUserGroupAO(account)) }
     val dataObjects by lazy { DataObjectsWrapper(factory.getDataObjectAO(account)) }
-    val collectionsAndObjectSearch by lazy { CollectionsAndObjectSearchWrapper(factory.getCollectionAndDataObjectListAndSearchAO(account)) }
+    val collectionsAndObjectSearch by lazy {
+        CollectionsAndObjectSearchWrapper(factory.getCollectionAndDataObjectListAndSearchAO(account))
+    }
     val dataTransfer by lazy { DataTransferWrapper(factory.getDataTransferOperations(account)) }
 
     init {
@@ -44,7 +46,6 @@ class AccountServices(private val fs: IRODSFileSystem, val account: IRODSAccount
         if (properties is SettableJargonProperties) {
             properties.isComputeChecksumAfterTransfer = false
             properties.isComputeAndVerifyChecksumAfterTransfer = false
-            println("Disabled automatic checksum")
         } else {
             System.err.println("Expected Jargon properties to be settable. Ignore this warning if manually overwritten")
         }
