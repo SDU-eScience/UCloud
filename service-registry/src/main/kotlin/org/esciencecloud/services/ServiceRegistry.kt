@@ -1,5 +1,7 @@
 package org.esciencecloud.services
 
+import com.github.zafarkhaja.semver.Version
+import com.github.zafarkhaja.semver.expr.Expression
 import org.apache.zookeeper.*
 import org.apache.zookeeper.Watcher.Event.KeeperState.AuthFailed
 import org.apache.zookeeper.Watcher.Event.KeeperState.SyncConnected
@@ -17,10 +19,13 @@ enum class ServiceStatus {
 
 private const val ROOT_NODE = "/services"
 
-data class ServiceDefinition(val name: String, val version: String) : Serializable
+data class ServiceDefinition(val name: String, val version: Version) : Serializable
 data class ServiceInstance(val definition: ServiceDefinition, val hostname: String, val port: Int) : Serializable
 data class RunningService(val instance: ServiceInstance, val status: ServiceStatus) : Serializable
 
+// The ACL should probably use x509 as scheme (client certificate). At this point it is just a matter of how we
+// do the identity.
+// https://cwiki.apache.org/confluence/display/ZOOKEEPER/ZooKeeper+SSL+User+Guide
 suspend fun ZooKeeper.registerService(instance: ServiceInstance, acl: List<ACL>): String {
     val service = RunningService(instance, ServiceStatus.STARTING)
     val path = computeServicePath(instance)
@@ -63,13 +68,40 @@ suspend fun ZooKeeper.markServiceAsStopping(node: String, instance: ServiceInsta
 suspend fun ZooKeeper.listServices(service: ServiceDefinition): List<String> =
         listServices(service.name, service.version)
 
-suspend fun ZooKeeper.listServices(name: String, version: String): List<String> =
+suspend fun ZooKeeper.listServices(name: String): Map<Version, List<String>> {
+    val servicePath = computeServicePath(name)
+
+    return aGetChildren(servicePath).mapNotNull {
+        val version = Version.valueOf(it) ?: return@mapNotNull null
+        val versionPath = "$servicePath/$it"
+        version to aGetChildren(versionPath).map { "$versionPath/$it" }
+    }.toMap()
+}
+
+suspend fun ZooKeeper.listServices(name: String, versionExpression: Expression): Map<Version, List<String>> =
+        listServices(name).filterKeys { it.satisfies(versionExpression) }
+
+suspend fun ZooKeeper.listServicesWithStatus(name: String): Map<Version, List<RunningService>> =
+        listServices(name).mapValues { it.value.map { deserializeRunningService(aGetData(it)) } }
+
+suspend fun ZooKeeper.listServicesWithStatus(
+        name: String,
+        versionExpression: Expression
+): Map<Version, List<RunningService>> {
+    return listServices(name, versionExpression).mapValues {
+        it.value.map {
+            deserializeRunningService(aGetData(it))
+        }
+    }
+}
+
+suspend fun ZooKeeper.listServices(name: String, version: Version): List<String> =
         aGetChildren(computeServicePath(name, version)).map { "$ROOT_NODE/$name/$version/$it" }
 
 suspend fun ZooKeeper.listServicesWithStatus(service: ServiceDefinition): List<RunningService> =
         listServicesWithStatus(service.name, service.version)
 
-suspend fun ZooKeeper.listServicesWithStatus(name: String, version: String): List<RunningService> =
+suspend fun ZooKeeper.listServicesWithStatus(name: String, version: Version): List<RunningService> =
         listServices(name, version).map {
             deserializeRunningService(aGetData(it))
         }
@@ -179,6 +211,7 @@ class ZooKeeperConnection(val hosts: List<ZooKeeperHostInfo>) {
     }
 }
 
+// TODO Should use some custom serialization for this
 private fun serializeRunningService(service: RunningService): ByteArray = ByteArrayOutputStream().also {
     ObjectOutputStream(it).use { it.writeObject(service) }
 }.toByteArray()
@@ -189,7 +222,7 @@ private fun deserializeRunningService(array: ByteArray): RunningService =
 private fun computeServicePath(instance: ServiceInstance) =
         computeServicePath(instance.definition.name, instance.definition.version, instance.hostname, instance.port)
 
-private fun computeServicePath(name: String, version: String? = null, hostname: String? = null, port: Int? = null) =
+private fun computeServicePath(name: String, version: Version? = null, hostname: String? = null, port: Int? = null) =
         StringBuilder().apply {
             append(ROOT_NODE)
             append('/')
