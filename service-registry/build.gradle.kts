@@ -1,12 +1,14 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.dsl.Coroutines
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
+import java.net.URI
 
 group = "org.esciencecloud"
 version = "0.1.0"
 
 buildscript {
     var kotlin_version: String by extra
+
     kotlin_version = "1.2.0"
 
     repositories {
@@ -21,6 +23,7 @@ buildscript {
 
 apply {
     plugin("kotlin")
+    plugin("maven-publish")
 }
 
 val kotlin_version: String by extra
@@ -42,4 +45,22 @@ tasks.withType<KotlinCompile> {
 
 configure<KotlinProjectExtension> {
     experimental.coroutines = Coroutines.ENABLE
+}
+
+configure<PublishingExtension> {
+    (publications) {
+        "mavenJava"(MavenPublication::class) {
+            from(components["java"])
+        }
+    }
+
+    repositories {
+        maven {
+            url = URI("https://cloud.sdu.dk/archiva/repository/internal")
+            credentials {
+                username = properties["eScienceCloudUser"] as String
+                password = properties["eScienceCloudPassword"] as String
+            }
+        }
+    }
 }

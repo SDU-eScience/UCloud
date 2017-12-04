@@ -31,8 +31,6 @@ suspend fun ZooKeeper.registerService(instance: ServiceInstance, acl: List<ACL>)
     val path = computeServicePath(instance)
 
     val serialized = serializeRunningService(service)
-    //val acl = ZooDefs.Ids.OPEN_ACL_UNSAFE // TODO FIXME UNSAFE
-
     return try {
         aCreate(path, serialized, acl, CreateMode.EPHEMERAL_SEQUENTIAL)
     } catch (ex: KeeperException.NoNodeException) {
@@ -78,7 +76,7 @@ suspend fun ZooKeeper.listServices(name: String): Map<Version, List<String>> {
     }.toMap()
 }
 
-suspend fun ZooKeeper.listServices(name: String, versionExpression: Expression): Map<Version, List<String>> =
+suspend fun ZooKeeper.listServices(name: String, versionExpression: String): Map<Version, List<String>> =
         listServices(name).filterKeys { it.satisfies(versionExpression) }
 
 suspend fun ZooKeeper.listServicesWithStatus(name: String): Map<Version, List<RunningService>> =
@@ -86,7 +84,7 @@ suspend fun ZooKeeper.listServicesWithStatus(name: String): Map<Version, List<Ru
 
 suspend fun ZooKeeper.listServicesWithStatus(
         name: String,
-        versionExpression: Expression
+        versionExpression: String
 ): Map<Version, List<RunningService>> {
     return listServices(name, versionExpression).mapValues {
         it.value.map {
@@ -213,11 +211,46 @@ class ZooKeeperConnection(val hosts: List<ZooKeeperHostInfo>) {
 
 // TODO Should use some custom serialization for this
 private fun serializeRunningService(service: RunningService): ByteArray = ByteArrayOutputStream().also {
-    ObjectOutputStream(it).use { it.writeObject(service) }
+    DataOutputStream(it).use {
+        it.writeShort(1) // Version
+
+        with(service.instance.definition) {
+            it.writeUTF(name)
+            it.writeUTF(version.toString())
+        }
+
+        with(service.instance) {
+            it.writeUTF(hostname)
+            it.writeInt(port)
+        }
+
+        with(service) {
+            it.writeInt(status.ordinal)
+        }
+    }
 }.toByteArray()
 
 private fun deserializeRunningService(array: ByteArray): RunningService =
-        ObjectInputStream(ByteArrayInputStream(array)).use { it.readObject() as RunningService }
+        DataInputStream(ByteArrayInputStream(array)).use {
+            val version = it.readShort()
+            if (version != 1.toShort()) throw IllegalStateException("Unsupported version")
+
+            val definition = ServiceDefinition(
+                    name = it.readUTF(),
+                    version = Version.valueOf(it.readUTF())
+            )
+
+            val instance = ServiceInstance(
+                    hostname = it.readUTF(),
+                    port = it.readInt(),
+                    definition = definition
+            )
+
+            RunningService(
+                    status = ServiceStatus.values()[it.readInt()],
+                    instance = instance
+            )
+        }
 
 private fun computeServicePath(instance: ServiceInstance) =
         computeServicePath(instance.definition.name, instance.definition.version, instance.hostname, instance.port)
