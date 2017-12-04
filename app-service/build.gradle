@@ -104,3 +104,10 @@ task fatJar(type: Jar) {
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
+
+task apiJar(type: Jar) {
+    baseName project.name + '-api'
+    from sourceSets.main.output
+    include("**/org/esciencecloud/abc/api/**", "service_manifest.json")
+    with jar
+}

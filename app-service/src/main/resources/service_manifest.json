@@ -1,0 +1,8 @@
+{
+  "name": "apps",
+  "restEndpoints": [
+    "/apps/{...}",
+    "/jobs/{...}",
+    "/tools/{...}"
+  ]
+}
