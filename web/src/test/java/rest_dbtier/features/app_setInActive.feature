@@ -1,0 +1,1 @@
+Scenario: app_setInActive

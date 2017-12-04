@@ -1,0 +1,1 @@
+Scenario: logintype_getAllInActiveList

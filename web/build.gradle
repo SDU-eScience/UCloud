@@ -1,0 +1,64 @@
+group 'esciencecloud'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    ext.kotlin_version = '1.2.0'
+    ext.ktor_version = '0.9.0'
+
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'kotlin'
+apply plugin: 'application'
+apply plugin: "org.jetbrains.kotlin.jvm"
+
+sourceCompatibility = 1.8
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+kotlin {
+    experimental {
+        coroutines "enable"
+    }
+}
+
+
+
+repositories {
+    mavenCentral()
+    maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+    maven { url "https://dl.bintray.com/kotlin/ktor" }
+    maven { url "http://dl.bintray.com/kotlin/exposed" }
+    maven { url "https://mvnrepository.com/artifact/org.postgresql/postgresql" }
+    maven { url("http://130.225.164.200:8080/archiva/repository/internal") }
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile "ch.qos.logback:logback-classic:1.2.1"
+    compile group: 'joda-time', name: 'joda-time', version: '2.9.9'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
+    compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-locations', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-freemarker', version: "$ktor_version"
+    compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
+    compile "org.esciencecloud:kt-async-http-client:0.1.2"
+    compile group: 'info.cukes', name: 'cucumber-java', version: '1.2.5'
+    compile group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.7.1'
+
+}
+
+mainClassName = 'io.ktor.server.netty.DevelopmentEngine'

@@ -1,0 +1,1 @@
+Scenario: irodsfileextension_getByName

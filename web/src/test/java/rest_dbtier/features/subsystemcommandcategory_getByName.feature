@@ -1,0 +1,1 @@
+Scenario: subsystemcommandcategory_getByName

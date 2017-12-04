@@ -1,0 +1,313 @@
+<template>
+  <section>
+    <div class="container-fluid">
+      <div class="col-lg-10">
+        <ol class="breadcrumb">
+          <li v-for="breadcrumb in breadcrumbs" class="breadcrumb-item"><a
+            v-on:click="getFiles(breadcrumb.second)">{{breadcrumb.first}}</a></li>
+        </ol>
+        <div :class="{ hidden: !loading }">
+          <h1>Loading Files...</h1>
+        </div>
+        <div v-cloak class="card" v-if="files.length">
+          <div class="card-body">
+            <table class="table-datatable table table-striped table-hover mv-lg">
+              <thead>
+              <tr>
+                <th class="select-cell disabled">
+                  <label class="mda-checkbox">
+                    <input name="select" class="select-box"
+                           v-model="masterCheckbox"
+                           v-on:change="onMasterCheckboxChange"
+                           value="all"
+                           type="checkbox"><em
+                    class="bg-info"></em></label></th>
+                <th>Filename</th>
+                <th><a class="ion-star"></a></th>
+                <th class="sort-numeric">Modified</th>
+                <th class="sort-alpha">File Owner</th>
+              </tr>
+              </thead>
+              <tbody v-cloak>
+              <!--v-on:click="clickHandler(file, $event)"-->
+              <tr class="row-settings clickable-row" aria-selected="false" v-for="file in files"
+                  v-on:dblclick="dblClickHandler(file, $event)">
+                <td class="select-cell" style=""><label class="mda-checkbox"><input
+                  name="select" class="select-box" :value="file" v-model="selectedFiles" type="checkbox"><em
+                  class="bg-info"></em></label></td>
+                <td v-if="file.type === 'FILE'">
+                  <a class="ion-android-document"></a> {{ file.path.name }}
+                </td>
+                <td v-else><a class="ion-android-folder"></a> {{ file.path.name }}</td>
+                <td v-if="file.isStarred"><a class="ion-star"></a></td>
+                <td v-else><a class="ion-star" v-on:click="favourite(file.path.path, $event)"></a></td>
+                <td>{{ new Date(file.modifiedAt).toLocaleString() }}</td>
+                <td>{{ file.acl.length > 1 ? file.acl.length + ' collaborators' : file.acl[0].right }}</td>
+                <td>
+                  <span class="hidden-lg">
+                      <div class="pull-right dropdown">
+                          <button type="button" data-toggle="dropdown"
+                                  class="btn btn-flat btn-flat-icon"
+                                  aria-expanded="false"><em
+                            class="ion-android-more-vertical"></em></button>
+                          <ul role="menu" class="dropdown-menu md-dropdown-menu dropdown-menu-right">
+                              <li><a class="btn btn-info ripple btn-block"
+                                     v-on:click="sendToAbacus()"> Send to Abacus 2.0</a></li>
+                              <li><a class="btn btn-default ripple btn-block ion-share"
+                                     v-on:click="shareFile(currentFile.path.name, 'file')"> Share file</a></li>
+                              <li><a class="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
+                              <li><a class="btn btn-default ripple ion-ios-photos"> Move file</a></li>
+                              <li><a class="btn btn-default ripple ion-ios-compose"
+                                     v-on:click="renameFile(currentFile.path.name, 'file')"> Rename file</a></li>
+                              <li><a class="btn btn-danger ripple ion-ios-trash"
+                                     v-on:click="showFileDeletionPrompt(currentFile.path.name, currentFile.path)"> Delete file</a></li>
+                          </ul>
+                      </div>
+                  </span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-2 visible-lg">
+        <div>
+          <ol v-cloak class="icons-list">
+            <li data-pack="default" class="ion-star" v-on:click="getFavourites()"></li>
+            <li data-pack="default" class="ion-ios-home" v-on:click="getFiles('')"></li>
+            <hr>
+          </ol>
+          <button class="btn btn-primary ripple btn-block ion-android-upload"> Upload Files</button>
+          <br>
+          <button class="btn btn-default ripple btn-block ion-folder" v-on:click="createFolder"> New
+            folder
+          </button>
+          <br>
+          <hr>
+          <h3 v-if="selectedFiles.length" v-cloak>
+            {{ 'Rights level: ' +  options }}<br>
+            {{ selectedFiles.length > 1 ? selectedFiles.length + ' files selected.' : selectedFiles[0].path.name }}</h3>
+          <div v-if="selectedFiles.length" v-cloak>
+            <div v-if="selectedFiles[0].type === 'FILE'">
+              <p><a class="btn btn-info rippple btn-block ion-arrow-right-c"
+                    v-on:click="sendToAbacus()"> Send to Abacus 2.0</a></p>
+              <p>
+                <a class="btn btn-default ripple btn-block ion-share"
+                   v-on:click="shareFile(selectedFiles[0].path.name, 'file')"> Share file</a>
+              </p>
+              <p><a class="btn btn-default ripple btn-block ion-ios-download"> Download file</a></p>
+              <p><a class="btn btn-default btn-block ripple ion-android-star"> Favourite file</a></p>
+              <p><a class="btn btn-default btn-block ripple ion-ios-photos"> Move file</a></p>
+              <p><a class="btn btn-default btn-block ripple ion-ios-compose"
+                    v-on:click="renameFile(selectedFiles[0].path.name, 'file')"> Rename file</a></p>
+              <p><a class="btn btn-danger btn-block ripple ion-ios-trash"
+                    v-on:click="showFileDeletionPrompt(selectedFiles[0].path.name, selectedFiles[0].path)">
+                Delete
+                file</a></p>
+            </div>
+            <div v-else-if="selectedFiles[0].type === 'DIRECTORY'">
+              <p><a class="btn btn-info rippple btn-block"
+                    v-on:click="sendToAbacus()"> Send to Abacus 2.0</a></p>
+              <p><a class="btn btn-default ripple btn-block ion-share"
+                    v-on:click="shareFile(selectedFiles[0].path.name, 'folder')"> Share folder</a></p>
+              <p><a class="btn btn-default ripple btn-block ion-ios-download"> Download folder</a></p>
+              <p><a class="btn btn-default btn-block ripple ion-android-star"> Favourite folder</a>
+              </p>
+              <p><a class="btn btn-default btn-block ripple ion-ios-photos"> Move folder</a></p>
+              <p><a class="btn btn-default btn-block ripple ion-ios-compose"
+                    v-on:click="renameFile(selectedFiles[0].path.name, 'folder')"> Rename Folder</a></p>
+              <p><a class="btn btn-danger btn-block ripple ion-ios-trash"
+                    v-on:click="showFileDeletionPrompt(selectedFiles[0].path.name, selectedFiles[0].path)">
+                Delete
+                folder</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</template>
+
+<script>
+  import $ from 'jquery'
+  import swal from 'sweetalert2'
+
+  export default {
+    name: 'file-viewer',
+
+    data() {
+      return {
+        files: [],
+        selectedFiles: [],
+        breadcrumbs: [],
+        loading: true,
+        masterCheckbox: false,
+        rightsMap: {
+          'NONE': 1,
+          'READ': 2,
+          'READ_WRITE': 3,
+          'OWN': 4
+        }
+      }
+    },
+    mounted() {
+      this.getFiles("");
+    },
+    computed: {
+      options() {
+        if (!this.selectedFiles.length) return 0;
+        let lowestPrivilegeOptions = this.rightsMap['OWN'];
+        this.selectedFiles.forEach((it) => {
+          it.acl.forEach((acl) => {
+            console.log(this.rightsMap[acl.right]);
+            lowestPrivilegeOptions = Math.min(this.rightsMap[acl.right], lowestPrivilegeOptions);
+          });
+        });
+        return lowestPrivilegeOptions;
+      },
+      isEmptyFolder() {
+        return this.files.length === 0;
+      }
+    },
+    methods: {
+      getFavourites() {
+        $.getJSON("/api/getFavourites").then((files) => {
+          this.files = files;
+          this.breadcrumbs = [{
+            first: "home",
+            second: ""
+          }];
+          this.masterCheckbox = false;
+          this.selectedFiles = [];
+        });
+      },
+      onMasterCheckboxChange() {
+          if (this.masterCheckbox) {
+            this.selectedFiles = this.files;
+          } else {
+            this.selectedFiles = [];
+         }
+      },
+      getBreadcrumbs(path) {
+        $.getJSON("/api/getBreadcrumbs", {path: path}).then((breadcrumbs) => {
+          if (breadcrumbs.length) {
+            this.breadcrumbs = breadcrumbs;
+          } else {
+            this.breadcrumbs = [];
+          }
+        });
+      },
+      favourite(path, $event) {
+        $.getJSON("/api/favouriteFile", {path: path}).then((success) => {
+          if (success === 200) {
+            console.log("Favouriting files doesn't work yet.")
+          }
+        }).fail(function () {
+          swal('An Error Occurred', 'Something went wrong, please try again later', 'error');
+        });
+      },
+      getFiles(path) {
+        $.getJSON("/api/getFiles", {path: path}).then((files) => {
+          this.loading = true;
+          if (files.length) {
+            this.files = files;
+          } else {
+            this.files = [];
+          }
+          this.loading = false;
+          this.selectedFiles = [];
+          this.getBreadcrumbs(path);
+        });
+      },
+      dblClickHandler(file, event) {
+        if (file.type === 'DIRECTORY') {
+          this.getFiles(file.path.path);
+        }
+      },
+      showFileDeletionPrompt(name, path, $event = null) {
+        swal({
+          title: "Are you sure?",
+          text: "Your will not be able to recover " + name + ".",
+          type: "warning",
+          showCancelButton: true,
+          confirmButtonClass: "btn-danger",
+          confirmButtonText: "Yes, delete it!",
+          closeOnConfirm: false
+        }).then((name) => {
+            swal("Deleted!", "Your file " + name.value + " has been deleted.", "success");
+        });
+      },
+      createFolder() {
+        swal({
+          title: "Create a folder",
+          text: "Input the folder name:",
+          input: "text",
+          showCancelButton: true,
+          closeOnConfirm: false,
+          inputPlaceholder: "Folder name..."
+        }).then((inputValue) => {
+          if (inputValue === false) return false;
+          if (inputValue === "") {
+            swal.showInputError("You need to enter a folder name.");
+            return false
+          }
+          swal("Success", "Folder " + inputValue.value + " created", "success");
+        });
+      },
+      sendToAbacus() {
+        swal({
+          title: 'Send to Abacus 2.0',
+          text: "Are you sure?",
+          showCancelButton: true,
+          confirmButtonColor: '#52d64b',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, send it.'
+        }).then((input) => {
+          if (input.value) {
+            swal('File sent!', 'Your file has been transferred to Abacus 2.0', 'success');
+          }
+        });
+      },
+      shareFile: function (name, type) {
+        swal({
+          title: "Share a " + type,
+          text: "Enter the mail of the person you want to share with:",
+          input: "email",
+          showCancelButton: true,
+          closeOnConfirm: false,
+          inputPlaceholder: "Mail..."
+        }).then((inputValue) => {
+          if (inputValue === false) return false;
+          if (inputValue === "") {
+            swal.showInputError("You need to enter an e-mail.");
+            return false
+          }
+          swal("Success", name + " shared with " + inputValue.value, "success");
+        });
+      },
+      renameFile: function (name, type) {
+        swal({
+          title: "Rename " + type + " " + name,
+          text: "Enter a new name for file " + name + ":",
+          input: "text",
+          showCancelButton: true,
+          closeOnConfirm: false,
+          inputPlaceholder: "New filename..."
+        }).then((inputValue) => {
+          if (inputValue === false) return false;
+          if (inputValue === "") {
+            swal.showInputError("You need to enter an e-mail.");
+            return false
+          }
+          if (inputValue === name) {
+            swal.showInputError("A " + type + " can't be renamed to itself");
+            return false
+          }
+          swal("Success", name + " renamed to " + inputValue.value, "success");
+        });
+      }
+    }
+  }
+</script>
+

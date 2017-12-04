@@ -1,0 +1,1 @@
+Scenario: irodsresourcetype_getAllList

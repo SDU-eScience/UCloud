@@ -1,0 +1,1 @@
+Scenario: person_delete

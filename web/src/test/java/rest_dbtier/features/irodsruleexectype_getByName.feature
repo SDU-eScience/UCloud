@@ -1,0 +1,1 @@
+Scenario: irodsruleexectype_getByName

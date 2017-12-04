@@ -1,0 +1,1 @@
+Scenario: irodsaccesstype_getByName

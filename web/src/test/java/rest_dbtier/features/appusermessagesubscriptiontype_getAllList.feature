@@ -1,0 +1,1 @@
+Scenario: appusermessagesubscriptiontype_getAllList
