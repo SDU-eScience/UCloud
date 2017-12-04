@@ -190,7 +190,7 @@
          }
       },
       getBreadcrumbs(path) {
-        $.getJSON("/api/getBreadcrumbs", {path: path}).then((breadcrumbs) => {
+        $.getJSON("/api/getBreadcrumbs", {path: path}).then( (breadcrumbs) => {
           if (breadcrumbs.length) {
             this.breadcrumbs = breadcrumbs;
           } else {
@@ -199,7 +199,7 @@
         });
       },
       favourite(path, $event) {
-        $.getJSON("/api/favouriteFile", {path: path}).then((success) => {
+        $.getJSON("/api/favouriteFile", {path: path}).then( (success) => {
           if (success === 200) {
             console.log("Favouriting files doesn't work yet.")
           }
@@ -208,7 +208,7 @@
         });
       },
       getFiles(path) {
-        $.getJSON("/api/getFiles", {path: path}).then((files) => {
+        $.getJSON("/api/getFiles", {path: path}).then( (files) => {
           this.loading = true;
           if (files.length) {
             this.files = files;
@@ -216,6 +216,7 @@
             this.files = [];
           }
           this.loading = false;
+          this.masterCheckbox = false;
           this.selectedFiles = [];
           this.getBreadcrumbs(path);
         });
