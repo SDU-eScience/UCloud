@@ -233,7 +233,6 @@
           showCancelButton: true,
           confirmButtonClass: "btn-danger",
           confirmButtonText: "Yes, delete it!",
-          closeOnConfirm: false
         }).then((name) => {
             swal("Deleted!", "Your file " + name.value + " has been deleted.", "success");
         });
@@ -244,7 +243,6 @@
           text: "Input the folder name:",
           input: "text",
           showCancelButton: true,
-          closeOnConfirm: false,
           inputPlaceholder: "Folder name..."
         }).then((inputValue) => {
           if (inputValue === false) return false;
@@ -275,7 +273,6 @@
           text: "Enter the mail of the person you want to share with:",
           input: "email",
           showCancelButton: true,
-          closeOnConfirm: false,
           inputPlaceholder: "Mail..."
         }).then((inputValue) => {
           if (inputValue === false) return false;
@@ -292,7 +289,6 @@
           text: "Enter a new name for file " + name + ":",
           input: "text",
           showCancelButton: true,
-          closeOnConfirm: false,
           inputPlaceholder: "New filename..."
         }).then((inputValue) => {
           if (inputValue === false) return false;
