@@ -29,9 +29,8 @@
               </tr>
               </thead>
               <tbody v-cloak>
-              <!--v-on:click="clickHandler(file, $event)"-->
-              <tr class="row-settings clickable-row" aria-selected="false" v-for="file in files"
-                  v-on:dblclick="dblClickHandler(file, $event)">
+              <tr @click="clickRow(file)" class="row-settings clickable-row" v-for="file in files">
+                <!--v-on:dblclick="dblClickHandler(file, $event)">-->
                 <td class="select-cell" style=""><label class="mda-checkbox"><input
                   name="select" class="select-box" :value="file" v-model="selectedFiles" type="checkbox"><em
                   class="bg-info"></em></label></td>
@@ -164,13 +163,22 @@
             lowestPrivilegeOptions = Math.min(this.rightsMap[acl.right], lowestPrivilegeOptions);
           });
         });
-        return lowestPrivilegeOptions;
+        return Object.keys(this.rightsMap)[lowestPrivilegeOptions - 1];
       },
       isEmptyFolder() {
         return this.files.length === 0;
       }
     },
     methods: {
+      clickRow(clickedFile) {
+        let previousLength = this.selectedFiles.length;
+        this.selectedFiles = this.selectedFiles.filter( (file) => {
+          return file.path.uri !== clickedFile.path.uri
+        });
+        if (this.selectedFiles.length === previousLength) {
+          this.selectedFiles.push(clickedFile)
+        }
+      },
       getFavourites() {
         $.getJSON("/api/getFavourites").then((files) => {
           this.files = files;
