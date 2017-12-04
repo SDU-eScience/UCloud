@@ -61,7 +61,7 @@ fun Route.ajaxOperations() {
 
     get<GetFiles> {
         val fixedPath = when (it.path) {
-            "" -> "/home/${call.irodsUser.username}/"
+            "/" -> "/home/${call.irodsUser.username}/"
             else -> it.path.removePrefix("storage://tempZone")
         }
         val files = call.getFiles(fixedPath)
