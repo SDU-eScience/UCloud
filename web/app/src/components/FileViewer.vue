@@ -3,8 +3,8 @@
     <div class="container-fluid">
       <div class="col-lg-10">
         <ol class="breadcrumb">
-          <li v-for="breadcrumb in breadcrumbs" class="breadcrumb-item"><a
-            v-on:click="getFiles(breadcrumb.second)">{{breadcrumb.first}}</a></li>
+          <li v-for="breadcrumb in breadcrumbs" class="breadcrumb-item">
+            <router-link :to="{ path: breadcrumb.second }" append>{{breadcrumb.first}}</router-link></li>
         </ol>
         <div :class="{ hidden: !loading }" class="card-body">
           <h1>Loading files...</h1>
