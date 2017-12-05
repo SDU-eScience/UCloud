@@ -28,7 +28,7 @@
           <div class="card-body">
             <table class="table-datatable table table-striped table-hover mv-lg">
               <thead>
-              <tr>
+              <tr role="row">
                 <th class="select-cell disabled">
                   <label class="mda-checkbox">
                     <input name="select" class="select-box"
@@ -37,10 +37,10 @@
                            value="all"
                            type="checkbox"><em
                     class="bg-info"></em></label></th>
-                <th @click="orderByName">Filename</th>
-                <th @click="orderByFavourite"><a class="ion-star"></a></th>
-                <th @click="orderByDate" class="sort-numeric">Modified</th>
-                <th @click="orderByOwner" class="sort-alpha">File Owner</th>
+                <th class="text-left" @click="orderByName"><span class="text">Filename </span><span :class="['icon', getIcon('filename')]"></span></th>
+                <th class="text-left" @click="orderByFavourite"><span><a class="ion-star"></a></span><span :class="['icon', getIcon('favourite')]"></span></th>
+                <th class="text-left" @click="orderByDate"><span class="text">Last Modified </span><span :class="['icon', getIcon('lastModified')]"></span></th>
+                <th class="text-left" @click="orderByOwner"><span class="text">File Owner</span><span :class="['icon', getIcon('owners')]"></span></th>
               </tr>
               </thead>
               <tbody v-cloak>
@@ -141,10 +141,11 @@
         loading: true,
         masterCheckbox: false,
         sortOrders: {
+          lastSorted: 'filename',
           filename: true,
-          favourite: true,
-          lastModified: true,
-          owners: true
+          favourite: false,
+          lastModified: false,
+          owners: false
         },
         buttonTitles: {
           share: {
@@ -229,6 +230,14 @@
           }
         });
       },
+      getIcon(name) {
+        if (this.sortOrders.lastSorted !== name) { return "" }
+        if (this.sortOrders[name]) {
+          return "ion-chevron-down"
+        } else {
+          return "ion-chevron-up"
+        }
+      },
       favourite(path, $event) {
         $event.stopPropagation();
         $.getJSON("/api/favouriteFile", {path: path}).then((success) => {
@@ -251,8 +260,9 @@
         });
       },
       orderByName() {
-        let order = this.sortOrders.name ? 1 : -1;
-        this.sortOrders.name = !this.sortOrders.name;
+        let order = this.sortOrders.filename ? 1 : -1;
+        this.sortOrders.filename = !this.sortOrders.filename;
+        this.sortOrders.lastSorted = "filename";
         this.files.sort((a, b) => {
           if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
             return -1 * order;
@@ -266,6 +276,7 @@
       orderByFavourite() {
         let order = this.sortOrders.favourite ? 1 : -1;
         this.sortOrders.favourite = !this.sortOrders.favourite;
+        this.sortOrders.lastSorted = "favourite";
         this.files.sort((a, b) => {
           if (a.favourite && b.favourite) {
             return 0;
@@ -279,6 +290,7 @@
       orderByDate() {
         let order = this.sortOrders.lastModified ? 1 : -1;
         this.sortOrders.lastModified = !this.sortOrders.lastModified;
+        this.sortOrders.lastSorted = "lastModified";
         this.files.sort((a, b) => {
           if (a.modifiedAt === b.modifiedAt) {
             return 0;
@@ -291,7 +303,8 @@
       },
       orderByOwner() {
         let order = this.sortOrders.owners ? 1 : -1;
-        this.sortOrders.owners = !this.sortOrders.owners
+        this.sortOrders.owners = !this.sortOrders.owners;
+        this.sortOrders.lastSorted = "owners";
         this.files.sort((a, b) => {
           if (a.acl.length === b.acl.length) {
             return 0;
