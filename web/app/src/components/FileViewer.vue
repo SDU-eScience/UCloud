@@ -52,7 +52,7 @@
                   <a class="ion-android-document"></a> {{ file.path.name }}
                 </td>
                 <td v-else><a class="ion-android-folder"></a> {{ file.path.name }}</td>
-                <td v-if="file.isStarred"><a class="ion-star"></a></td>
+                <td v-if="file.isStarred"><a @click="favourite(file)" class="ion-star"></a></td>
                 <td v-else><a class="ion-star" v-on:click="favourite(file.path.path, $event)"></a></td>
                 <td>{{ new Date(file.modifiedAt).toLocaleString() }}</td>
                 <td>{{ file.acl.length > 1 ? file.acl.length + ' collaborators' : file.acl[0].right }}</td>
@@ -197,7 +197,7 @@
           this.selectedFiles.push(clickedFile)
         }
       },
-      openFile(file) {
+      openFile(file, $event) {
         if (file.type === 'DIRECTORY') {
           window.location.hash = file.path.path
         }
@@ -230,6 +230,7 @@
         });
       },
       favourite(path, $event) {
+        $event.stopPropagation();
         $.getJSON("/api/favouriteFile", {path: path}).then((success) => {
           if (success === 200) {
             console.log("Favouriting files doesn't work yet.")
