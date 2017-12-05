@@ -197,15 +197,6 @@
       }
     },
     methods: {
-      clickRow(clickedFile) {
-        let previousLength = this.selectedFiles.length;
-        this.selectedFiles = this.selectedFiles.filter((file) => {
-          return file.path.uri !== clickedFile.path.uri
-        });
-        if (this.selectedFiles.length === previousLength) {
-          this.selectedFiles.push(clickedFile)
-        }
-      },
       openFile(file, $event) {
         if (file.type === 'DIRECTORY') {
           window.location.hash = file.path.path
@@ -251,8 +242,8 @@
       getFiles(path) {
         this.loading = true;
         $.getJSON("/api/getFiles", {path: path}).then((files) => {
-          this.files = files
-          this.orderByName()
+          this.files = files;
+          this.orderByName();
           this.loading = false;
           this.masterCheckbox = false;
           this.selectedFiles = [];
