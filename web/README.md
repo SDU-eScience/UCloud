@@ -9,6 +9,16 @@ The technology used is:
 - Webpack (Through NPM)
 - VueJS
 
+## Running
+
+As the server uses Webpack to serve assets, in addition to launching the KTOR project, go to the app folder and run node using:
+
+```javascript
+npm run dev
+```
+
+The website will be available at localhost:9090
+
 ### Issues
 
 Currently, sessions persist in the browser between restarts of the frontend server, which can lead to inconsistent data retrieval.

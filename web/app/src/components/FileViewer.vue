@@ -3,8 +3,8 @@
     <div class="container-fluid">
       <div class="col-lg-10">
         <ol class="breadcrumb">
-          <li v-for="breadcrumb in breadcrumbs" class="breadcrumb-item"><a
-            v-on:click="getFiles(breadcrumb.second)">{{breadcrumb.first}}</a></li>
+          <li v-for="breadcrumb in breadcrumbs" class="breadcrumb-item">
+            <router-link :to="{ path: breadcrumb.second }" append>{{breadcrumb.first}}</router-link></li>
         </ol>
         <div :class="{ hidden: !loading }" class="card-body">
           <h1>Loading files...</h1>
@@ -90,7 +90,7 @@
         <div>
           <ol v-cloak class="icons-list">
             <li data-pack="default" class="ion-star" v-on:click="getFavourites()"></li>
-            <li data-pack="default" class="ion-ios-home" v-on:click="getFiles('')"></li>
+            <li data-pack="default" class="ion-ios-home" onclick="location.href='/files#/'"></li>
             <hr>
           </ol>
           <button class="btn btn-primary ripple btn-block ion-android-upload"> Upload Files</button>
@@ -101,42 +101,23 @@
           <br>
           <hr>
           <h3 v-if="selectedFiles.length" v-cloak>
-            {{ 'Rights level: ' + options }}<br>
+            {{ 'Rights level: ' + options.rightsName }}<br>
             {{ selectedFiles.length > 1 ? selectedFiles.length + ' files selected.' : selectedFiles[0].path.name }}</h3>
-          <div v-if="selectedFiles.length" v-cloak>
-            <div v-if="selectedFiles[0].type === 'FILE'">
-              <p><a class="btn btn-info rippple btn-block ion-arrow-right-c"
-                    v-on:click="sendToAbacus()"> Send to Abacus 2.0</a></p>
-              <p>
-                <a class="btn btn-default ripple btn-block ion-share"
-                   v-on:click="shareFile(selectedFiles[0].path.name, 'file')"> Share file</a>
+          <div v-if="selectedFiles.length" v-cloak> <!-- TODO Are separate options necessary? -->
+              <p><button class="btn btn-info rippple btn-block"
+                    v-on:click="sendToAbacus()"> Send to Abacus 2.0</button></p>
+              <p><button type="button" class="btn btn-default ripple btn-block ion-share"
+                    v-on:click="shareFile(selectedFiles[0].path.name, 'folder')"> Share selected files</button></p>
+              <p><button class="btn btn-default ripple btn-block ion-ios-download"> Download selected files</button></p>
+              <p><button type="button" class="btn btn-default btn-block ripple ion-android-star" :disabled="options.rightsLevel < 3"> Favourite selected files</button>
               </p>
-              <p><a class="btn btn-default ripple btn-block ion-ios-download"> Download file</a></p>
-              <p><a class="btn btn-default btn-block ripple ion-android-star"> Favourite file</a></p>
-              <p><a class="btn btn-default btn-block ripple ion-ios-photos"> Move file</a></p>
-              <p><a class="btn btn-default btn-block ripple ion-ios-compose"
-                    v-on:click="renameFile(selectedFiles[0].path.name, 'file')"> Rename file</a></p>
-              <p><a class="btn btn-danger btn-block ripple ion-ios-trash"
+              <p><button class="btn btn-default btn-block ripple ion-ios-photos"> Move folder</button></p> <!-- TODO When is this allowed? -->
+              <p><button type="button" class="btn btn-default btn-block ripple ion-ios-compose"
+                    v-on:click="renameFile(selectedFiles[0].path.name, 'folder')"  :disabled="options.rightsLevel < 3 || selectedFiles.length !== 1"> Rename file</button></p>
+              <p><button class="btn btn-danger btn-block ripple ion-ios-trash" :disabled="options.rightsLevel < 3"
                     v-on:click="showFileDeletionPrompt(selectedFiles[0].path.name, selectedFiles[0].path)">
                 Delete
-                file</a></p>
-            </div>
-            <div v-else-if="selectedFiles[0].type === 'DIRECTORY'">
-              <p><a class="btn btn-info rippple btn-block"
-                    v-on:click="sendToAbacus()"> Send to Abacus 2.0</a></p>
-              <p><a class="btn btn-default ripple btn-block ion-share"
-                    v-on:click="shareFile(selectedFiles[0].path.name, 'folder')"> Share folder</a></p>
-              <p><a class="btn btn-default ripple btn-block ion-ios-download"> Download folder</a></p>
-              <p><a class="btn btn-default btn-block ripple ion-android-star"> Favourite folder</a>
-              </p>
-              <p><a class="btn btn-default btn-block ripple ion-ios-photos"> Move folder</a></p>
-              <p><a class="btn btn-default btn-block ripple ion-ios-compose"
-                    v-on:click="renameFile(selectedFiles[0].path.name, 'folder')"> Rename Folder</a></p>
-              <p><a class="btn btn-danger btn-block ripple ion-ios-trash"
-                    v-on:click="showFileDeletionPrompt(selectedFiles[0].path.name, selectedFiles[0].path)">
-                Delete
-                folder</a></p>
-            </div>
+                folder</button></p>
           </div>
         </div>
       </div>
@@ -151,8 +132,6 @@
   import VueRouter from 'vue-router'
 
   Vue.use(VueRouter);
-
-  const router = new VueRouter();
 
   export default {
     name: 'file-viewer',
@@ -175,7 +154,7 @@
     mounted() {
       this.getFiles(this.$route.path);
     },
-    router: router,
+    router: new VueRouter(),
     computed: {
       options() {
         if (!this.selectedFiles.length) return 0;
@@ -185,7 +164,10 @@
             lowestPrivilegeOptions = Math.min(this.rightsMap[acl.right], lowestPrivilegeOptions);
           });
         });
-        return Object.keys(this.rightsMap)[lowestPrivilegeOptions - 1];
+        return {
+          rightsName: Object.keys(this.rightsMap)[lowestPrivilegeOptions - 1],
+          rightsLevel: lowestPrivilegeOptions
+        }
       },
       isEmptyFolder() {
         return this.files.length === 0;
