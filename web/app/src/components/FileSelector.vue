@@ -83,7 +83,7 @@
       },
       computeIcon: function (file) {
         if (file.type === "DIRECTORY") return "ion-folder";
-        else return "ion-filing";
+        else return "ion-android-document";
       },
       handleSelection: function (file) {
         if (file.type === "DIRECTORY") {
