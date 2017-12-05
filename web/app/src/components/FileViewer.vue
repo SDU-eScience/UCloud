@@ -6,10 +6,25 @@
           <li v-for="breadcrumb in breadcrumbs" class="breadcrumb-item"><a
             v-on:click="getFiles(breadcrumb.second)">{{breadcrumb.first}}</a></li>
         </ol>
-        <div :class="{ hidden: !loading }">
-          <h1>Loading Files...</h1>
+        <div :class="{ hidden: !loading }" class="card-body">
+          <h1>Loading files...</h1>
+          <div class="row loader-primary">
+              <div class="loader-demo">
+                <div class="loader-inner pacman">
+                  <div></div>
+                  <div></div>
+                  <div></div>
+                  <div></div>
+                  <div></div>
+                </div>
+              </div>
+              <!-- Fallback -->
+              <!--<div class="loader-demo">
+                <div class="loader-inner ball-pulse"><div></div><div></div><div></div></div>
+              </div>-->
+          </div>
         </div>
-        <div v-cloak class="card" v-if="files.length">
+        <div v-cloak class="card" v-if="files.length && !loading">
           <div class="card-body">
             <table class="table-datatable table table-striped table-hover mv-lg">
               <thead>
@@ -29,16 +44,16 @@
               </tr>
               </thead>
               <tbody v-cloak>
-              <!--v-on:click="clickHandler(file, $event)"-->
-              <tr class="row-settings clickable-row" aria-selected="false" v-for="file in files"
-                  v-on:dblclick="dblClickHandler(file, $event)">
+              <tr @click="clickRow(file)" class="row-settings clickable-row" v-for="file in files">
                 <td class="select-cell" style=""><label class="mda-checkbox"><input
                   name="select" class="select-box" :value="file" v-model="selectedFiles" type="checkbox"><em
                   class="bg-info"></em></label></td>
                 <td v-if="file.type === 'FILE'">
                   <a class="ion-android-document"></a> {{ file.path.name }}
                 </td>
-                <td v-else><a class="ion-android-folder"></a> {{ file.path.name }}</td>
+                <td v-else><a class="ion-android-folder"></a>
+                  <router-link :to="{ path: file.path.path }" append> {{ file.path.name }}</router-link>
+                </td>
                 <td v-if="file.isStarred"><a class="ion-star"></a></td>
                 <td v-else><a class="ion-star" v-on:click="favourite(file.path.path, $event)"></a></td>
                 <td>{{ new Date(file.modifiedAt).toLocaleString() }}</td>
@@ -86,7 +101,7 @@
           <br>
           <hr>
           <h3 v-if="selectedFiles.length" v-cloak>
-            {{ 'Rights level: ' +  options }}<br>
+            {{ 'Rights level: ' + options }}<br>
             {{ selectedFiles.length > 1 ? selectedFiles.length + ' files selected.' : selectedFiles[0].path.name }}</h3>
           <div v-if="selectedFiles.length" v-cloak>
             <div v-if="selectedFiles[0].type === 'FILE'">
@@ -132,6 +147,12 @@
 <script>
   import $ from 'jquery'
   import swal from 'sweetalert2'
+  import Vue from 'vue'
+  import VueRouter from 'vue-router'
+
+  Vue.use(VueRouter);
+
+  const router = new VueRouter();
 
   export default {
     name: 'file-viewer',
@@ -152,25 +173,39 @@
       }
     },
     mounted() {
-      this.getFiles("");
+      this.getFiles(this.$route.path);
     },
+    router: router,
     computed: {
       options() {
         if (!this.selectedFiles.length) return 0;
         let lowestPrivilegeOptions = this.rightsMap['OWN'];
         this.selectedFiles.forEach((it) => {
           it.acl.forEach((acl) => {
-            console.log(this.rightsMap[acl.right]);
             lowestPrivilegeOptions = Math.min(this.rightsMap[acl.right], lowestPrivilegeOptions);
           });
         });
-        return lowestPrivilegeOptions;
+        return Object.keys(this.rightsMap)[lowestPrivilegeOptions - 1];
       },
       isEmptyFolder() {
         return this.files.length === 0;
       }
     },
+    watch: {
+      '$route'(to, fr) {
+        this.getFiles(to.path);
+      }
+    },
     methods: {
+      clickRow(clickedFile) {
+        let previousLength = this.selectedFiles.length;
+        this.selectedFiles = this.selectedFiles.filter((file) => {
+          return file.path.uri !== clickedFile.path.uri
+        });
+        if (this.selectedFiles.length === previousLength) {
+          this.selectedFiles.push(clickedFile)
+        }
+      },
       getFavourites() {
         $.getJSON("/api/getFavourites").then((files) => {
           this.files = files;
@@ -183,11 +218,11 @@
         });
       },
       onMasterCheckboxChange() {
-          if (this.masterCheckbox) {
-            this.selectedFiles = this.files;
-          } else {
-            this.selectedFiles = [];
-         }
+        if (this.masterCheckbox) {
+          this.selectedFiles = this.files;
+        } else {
+          this.selectedFiles = [];
+        }
       },
       getBreadcrumbs(path) {
         $.getJSON("/api/getBreadcrumbs", {path: path}).then((breadcrumbs) => {
@@ -208,14 +243,11 @@
         });
       },
       getFiles(path) {
+        this.loading = true;
         $.getJSON("/api/getFiles", {path: path}).then((files) => {
-          this.loading = true;
-          if (files.length) {
-            this.files = files;
-          } else {
-            this.files = [];
-          }
+          this.files = files;
           this.loading = false;
+          this.masterCheckbox = false;
           this.selectedFiles = [];
           this.getBreadcrumbs(path);
         });
@@ -233,9 +265,8 @@
           showCancelButton: true,
           confirmButtonClass: "btn-danger",
           confirmButtonText: "Yes, delete it!",
-          closeOnConfirm: false
         }).then((name) => {
-            swal("Deleted!", "Your file " + name.value + " has been deleted.", "success");
+          swal("Deleted!", "Your file " + name.value + " has been deleted.", "success");
         });
       },
       createFolder() {
@@ -244,7 +275,6 @@
           text: "Input the folder name:",
           input: "text",
           showCancelButton: true,
-          closeOnConfirm: false,
           inputPlaceholder: "Folder name..."
         }).then((inputValue) => {
           if (inputValue === false) return false;
@@ -275,7 +305,6 @@
           text: "Enter the mail of the person you want to share with:",
           input: "email",
           showCancelButton: true,
-          closeOnConfirm: false,
           inputPlaceholder: "Mail..."
         }).then((inputValue) => {
           if (inputValue === false) return false;
@@ -292,7 +321,6 @@
           text: "Enter a new name for file " + name + ":",
           input: "text",
           showCancelButton: true,
-          closeOnConfirm: false,
           inputPlaceholder: "New filename..."
         }).then((inputValue) => {
           if (inputValue === false) return false;
