@@ -37,10 +37,10 @@
                            value="all"
                            type="checkbox"><em
                     class="bg-info"></em></label></th>
-                <th>Filename</th>
-                <th><a class="ion-star"></a></th>
-                <th class="sort-numeric">Modified</th>
-                <th class="sort-alpha">File Owner</th>
+                <th @click="orderByName">Filename</th>
+                <th @click="orderByFavourite"><a class="ion-star"></a></th>
+                <th @click="orderByDate" class="sort-numeric">Modified</th>
+                <th @click="orderByOwner" class="sort-alpha">File Owner</th>
               </tr>
               </thead>
               <tbody v-cloak>
@@ -140,6 +140,12 @@
         breadcrumbs: [],
         loading: true,
         masterCheckbox: false,
+        sortOrders: {
+          filename: true,
+          favourite: true,
+          lastModified: true,
+          owners: true
+        },
         buttonTitles: {
           share: {
             normal: 'Click to share the selected files.',
@@ -150,7 +156,10 @@
             normal: 'Click to delete the selected files',
             lowRightsLevel: 'You do not have the rights to delete the selected files.'
           },
-          move: {}
+          move: {
+            normal: 'Click to move the selected files to a different location',
+            lowRightsLevel: 'You do not have the rights to move the selected files'
+          }
         },
         rightsMap: {
           'NONE': 1,
@@ -242,17 +251,65 @@
       getFiles(path) {
         this.loading = true;
         $.getJSON("/api/getFiles", {path: path}).then((files) => {
-          this.files = files;
+          this.files = files
+          this.orderByName()
           this.loading = false;
           this.masterCheckbox = false;
           this.selectedFiles = [];
           this.getBreadcrumbs(path);
         });
       },
-      dblClickHandler(file, event) {
-        if (file.type === 'DIRECTORY') {
-          this.getFiles(file.path.path);
-        }
+      orderByName() {
+        let order = this.sortOrders.name ? 1 : -1;
+        this.sortOrders.name = !this.sortOrders.name;
+        this.files.sort((a, b) => {
+          if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
+            return -1 * order;
+          else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
+            return 1 * order;
+          else {
+            return a.path.name.localeCompare(b.path.name) * order;
+          }
+        });
+      },
+      orderByFavourite() {
+        let order = this.sortOrders.favourite ? 1 : -1;
+        this.sortOrders.favourite = !this.sortOrders.favourite;
+        this.files.sort((a, b) => {
+          if (a.favourite && b.favourite) {
+            return 0;
+          } else if (a.favourite) {
+            return 1 * order;
+          } else {
+            return -1 * order;
+          }
+        });
+      },
+      orderByDate() {
+        let order = this.sortOrders.lastModified ? 1 : -1;
+        this.sortOrders.lastModified = !this.sortOrders.lastModified;
+        this.files.sort((a, b) => {
+          if (a.modifiedAt === b.modifiedAt) {
+            return 0;
+          } else if (a.modifiedAt < b.modifiedAt) {
+            return 1 * order;
+          } else {
+            return -1 * order;
+          }
+        });
+      },
+      orderByOwner() {
+        let order = this.sortOrders.owners ? 1 : -1;
+        this.sortOrders.owners = !this.sortOrders.owners
+        this.files.sort((a, b) => {
+          if (a.acl.length === b.acl.length) {
+            return 0;
+          } else if (a.acl.length < b.acl.length) {
+            return 1 * order;
+          } else {
+            return -1 * order;
+          }
+        });
       },
       showFileDeletionPrompt(name, path, $event = null) {
         swal({
