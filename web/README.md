@@ -24,7 +24,7 @@ The website will be available at localhost:9090
 Currently, sessions persist in the browser between restarts of the frontend server, which can lead to inconsistent data retrieval.
 
 Current workarounds:
-    - Either use private browsing
-    - Delete cookies/sessions for the site
+- Either use private browsing
+- Delete cookies/sessions for the site
 
 to be added....
