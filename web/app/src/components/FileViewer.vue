@@ -44,16 +44,14 @@
               </tr>
               </thead>
               <tbody v-cloak>
-              <tr @click="clickRow(file)" class="row-settings clickable-row" v-for="file in files">
+              <tr class="row-settings clickable-row" v-for="file in files" @click="openFile(file)">
                 <td class="select-cell" style=""><label class="mda-checkbox"><input
                   name="select" class="select-box" :value="file" v-model="selectedFiles" type="checkbox"><em
                   class="bg-info"></em></label></td>
                 <td v-if="file.type === 'FILE'">
                   <a class="ion-android-document"></a> {{ file.path.name }}
                 </td>
-                <td v-else><a class="ion-android-folder"></a>
-                  <router-link :to="{ path: file.path.path }" append> {{ file.path.name }}</router-link>
-                </td>
+                <td v-else><a class="ion-android-folder"></a> {{ file.path.name }}</td>
                 <td v-if="file.isStarred"><a class="ion-star"></a></td>
                 <td v-else><a class="ion-star" v-on:click="favourite(file.path.path, $event)"></a></td>
                 <td>{{ new Date(file.modifiedAt).toLocaleString() }}</td>
@@ -69,13 +67,13 @@
                               <li><a class="btn btn-info ripple btn-block"
                                      v-on:click="sendToAbacus()"> Send to Abacus 2.0</a></li>
                               <li><a class="btn btn-default ripple btn-block ion-share"
-                                     v-on:click="shareFile(currentFile.path.name, 'file')"> Share file</a></li>
+                                     v-on:click="shareFile(file.path.name, 'file')"> Share file</a></li>
                               <li><a class="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
                               <li><a class="btn btn-default ripple ion-ios-photos"> Move file</a></li>
                               <li><a class="btn btn-default ripple ion-ios-compose"
-                                     v-on:click="renameFile(currentFile.path.name, 'file')"> Rename file</a></li>
+                                     v-on:click="renameFile(file.path.name, 'file')"> Rename file</a></li>
                               <li><a class="btn btn-danger ripple ion-ios-trash"
-                                     v-on:click="showFileDeletionPrompt(currentFile.path.name, currentFile.path)"> Delete file</a></li>
+                                     v-on:click="showFileDeletionPrompt(file.path.name, file.path)"> Delete file</a></li>
                           </ul>
                       </div>
                   </span>
@@ -109,15 +107,14 @@
               <p><button type="button" class="btn btn-default ripple btn-block ion-share"
                     v-on:click="shareFile(selectedFiles[0].path.name, 'folder')"> Share selected files</button></p>
               <p><button class="btn btn-default ripple btn-block ion-ios-download"> Download selected files</button></p>
-              <p><button type="button" class="btn btn-default btn-block ripple ion-android-star" :disabled="options.rightsLevel < 3"> Favourite selected files</button>
+              <p><button type="button" class="btn btn-default btn-block ripple ion-android-star"> Favourite selected files</button>
               </p>
               <p><button class="btn btn-default btn-block ripple ion-ios-photos"> Move folder</button></p> <!-- TODO When is this allowed? -->
               <p><button type="button" class="btn btn-default btn-block ripple ion-ios-compose"
                     v-on:click="renameFile(selectedFiles[0].path.name, 'folder')"  :disabled="options.rightsLevel < 3 || selectedFiles.length !== 1"> Rename file</button></p>
               <p><button class="btn btn-danger btn-block ripple ion-ios-trash" :disabled="options.rightsLevel < 3"
                     v-on:click="showFileDeletionPrompt(selectedFiles[0].path.name, selectedFiles[0].path)">
-                Delete
-                folder</button></p>
+                Delete selected files</button></p>
           </div>
         </div>
       </div>
@@ -143,6 +140,18 @@
         breadcrumbs: [],
         loading: true,
         masterCheckbox: false,
+        buttonTitles: {
+          share: {
+            normal: 'Click to share the selected files.',
+            lowRightsLevel: 'You do not have the rights to rename this file',
+            multipleFilesSelected: 'You can only rename one file at a time. Please only select one file to rename.'
+          },
+          delete: {
+            normal: 'Click to delete the selected files',
+            lowRightsLevel: 'You do not have the rights to delete the selected files.'
+          },
+          move: {}
+        },
         rightsMap: {
           'NONE': 1,
           'READ': 2,
@@ -186,6 +195,11 @@
         });
         if (this.selectedFiles.length === previousLength) {
           this.selectedFiles.push(clickedFile)
+        }
+      },
+      openFile(file) {
+        if (file.type === 'DIRECTORY') {
+          window.location.hash = file.path.path
         }
       },
       getFavourites() {
