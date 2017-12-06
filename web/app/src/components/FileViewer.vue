@@ -6,24 +6,7 @@
           <li v-for="breadcrumb in breadcrumbs" class="breadcrumb-item">
             <router-link :to="{ path: breadcrumb.second }" append>{{breadcrumb.first}}</router-link></li>
         </ol>
-        <div :class="{ hidden: !loading }" class="card-body">
-          <h1>Loading files...</h1>
-          <div class="row loader-primary">
-              <div class="loader-demo">
-                <div class="loader-inner pacman">
-                  <div></div>
-                  <div></div>
-                  <div></div>
-                  <div></div>
-                  <div></div>
-                </div>
-              </div>
-              <!-- Fallback -->
-              <!--<div class="loader-demo">
-                <div class="loader-inner ball-pulse"><div></div><div></div><div></div></div>
-              </div>-->
-          </div>
-        </div>
+        <loading-icon v-if="!files.length"></loading-icon>
         <div v-cloak class="card" v-if="files.length && !loading">
           <div class="card-body">
             <table class="table-datatable table table-striped table-hover mv-lg">
@@ -127,10 +110,12 @@
   import swal from 'sweetalert2'
   import Vue from 'vue'
   import VueRouter from 'vue-router'
+  import LoadingIcon from "./LoadingIcon";
 
   Vue.use(VueRouter);
 
   export default {
+    components: {LoadingIcon},
     name: 'file-viewer',
 
     data() {

@@ -13,24 +13,7 @@
               <th>Starred</th>
             </tr>
             </thead>
-            <div v-if="!favourites.length" class="card-body">
-              <h3>Loading...</h3>
-              <div class="row loader-primary">
-                <div class="loader-demo">
-                  <div class="loader-inner pacman">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                  </div>
-                </div>
-                <!-- Fallback -->
-                <!--<div class="loader-demo">
-                  <div class="loader-inner ball-pulse"><div></div><div></div><div></div></div>
-                </div>-->
-              </div>
-            </div>
+            <loading-icon v-if="!favourites.length"></loading-icon>
             <tbody>
             <tr v-for="file in favourites">
               <td><a href="#">{{ file.path.name }}</a></td>
@@ -52,24 +35,7 @@
               <th>Modified</th>
             </tr>
             </thead>
-            <div v-if="!mostRecentlyUsed.length" class="card-body">
-              <h3>Loading...</h3>
-              <div class="row loader-primary">
-                <div class="loader-demo">
-                  <div class="loader-inner pacman">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                  </div>
-                </div>
-                <!-- Fallback -->
-                <!--<div class="loader-demo">
-                  <div class="loader-inner ball-pulse"><div></div><div></div><div></div></div>
-                </div>-->
-              </div>
-            </div>
+            <loading-icon v-if="!mostRecentlyUsed.length"></loading-icon>
             <tbody>
             <tr v-cloak v-for="file in mostRecentlyUsed">
               <td><a href="#">{{ file.path.name }}</a></td>
@@ -91,24 +57,7 @@
               <th>Status</th>
             </tr>
             </thead>
-            <div v-if="!analyses.length" class="card-body">
-              <h3>Loading...</h3>
-              <div class="row loader-primary">
-                <div class="loader-demo">
-                  <div class="loader-inner pacman">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                  </div>
-                </div>
-                <!-- Fallback -->
-                <!--<div class="loader-demo">
-                  <div class="loader-inner ball-pulse"><div></div><div></div><div></div></div>
-                </div>-->
-              </div>
-            </div>
+            <loading-icon v-if="!analyses.length"></loading-icon>
             <tbody>
             <tr v-for="analysis in analyses">
               <td><a href="#">{{ analysis.name }}</a></td>
@@ -197,7 +146,9 @@
 <script>
   import Vue from 'vue'
   import $ from 'jquery'
+  import LoadingIcon from "./LoadingIcon";
   export default {
+    components: {LoadingIcon},
     name: 'dashboard-component',
     data() {
       return {
