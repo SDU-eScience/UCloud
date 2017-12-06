@@ -13,6 +13,24 @@
               <th>Starred</th>
             </tr>
             </thead>
+            <div v-if="!favourites.length" class="card-body">
+              <h3>Loading...</h3>
+              <div class="row loader-primary">
+                <div class="loader-demo">
+                  <div class="loader-inner pacman">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                  </div>
+                </div>
+                <!-- Fallback -->
+                <!--<div class="loader-demo">
+                  <div class="loader-inner ball-pulse"><div></div><div></div><div></div></div>
+                </div>-->
+              </div>
+            </div>
             <tbody>
             <tr v-for="file in favourites">
               <td><a href="#">{{ getFileName(file.path) }}</a></td>
@@ -34,6 +52,24 @@
               <th>Modified</th>
             </tr>
             </thead>
+            <div v-if="!mostRecentlyUsed.length" class="card-body">
+              <h3>Loading...</h3>
+              <div class="row loader-primary">
+                <div class="loader-demo">
+                  <div class="loader-inner pacman">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                  </div>
+                </div>
+                <!-- Fallback -->
+                <!--<div class="loader-demo">
+                  <div class="loader-inner ball-pulse"><div></div><div></div><div></div></div>
+                </div>-->
+              </div>
+            </div>
             <tbody>
             <tr v-cloak v-for="file in mostRecentlyUsed">
               <td><a href="#">{{ getFileName(file.path) }}</a></td>
@@ -55,6 +91,24 @@
               <th>Status</th>
             </tr>
             </thead>
+            <div v-if="!analyses.length" class="card-body">
+              <h3>Loading...</h3>
+              <div class="row loader-primary">
+                <div class="loader-demo">
+                  <div class="loader-inner pacman">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                  </div>
+                </div>
+                <!-- Fallback -->
+                <!--<div class="loader-demo">
+                  <div class="loader-inner ball-pulse"><div></div><div></div><div></div></div>
+                </div>-->
+              </div>
+            </div>
             <tbody>
             <tr v-for="analysis in analyses">
               <td><a href="#">{{ analysis.name }}</a></td>
@@ -147,9 +201,9 @@
     name: 'dashboard-component',
     data() {
       return {
-        favourites: {},
-        mostRecentlyUsed: {},
-        analyses: {}
+        favourites: [],
+        mostRecentlyUsed: [],
+        analyses: []
       }
     },
     mounted() {

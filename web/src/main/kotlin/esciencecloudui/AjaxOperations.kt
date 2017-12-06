@@ -1,18 +1,13 @@
 package esciencecloudui
 
-import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
 import io.ktor.locations.get
 import io.ktor.locations.location
 import io.ktor.locations.post
-import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
-import io.ktor.response.respondRedirect
 import io.ktor.routing.Route
-import io.ktor.routing.post
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.addBasicAuth
 import org.esciencecloud.asynchttp.asJson
@@ -125,8 +120,7 @@ fun Route.ajaxOperations() {
     }
 
     get<GetApplicationInfo> {
-        val app = getApp(it.name, it.version)!!
-        call.respond(app)
+        call.respond(getApp(it.name, it.version) ?: "failure")
     }
 
     get<Analyses> {
