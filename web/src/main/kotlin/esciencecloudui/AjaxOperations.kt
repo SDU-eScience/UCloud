@@ -54,6 +54,9 @@ class Analyses
 @location("/getApplicationInfo")
 data class GetApplicationInfo(val name: String, val version: String)
 
+@location("/createDir")
+data class CreateDirectory(val dirPath: String)
+
 //TODO - modifications must be made by backend provider
 
 fun Route.ajaxOperations() {
@@ -132,6 +135,10 @@ fun Route.ajaxOperations() {
 
     post<StartJob> {
         val application = call.receiveParameters()["application"]
+        call.respond(200)
+    }
+
+    get<CreateDirectory> {
         call.respond(200)
     }
 }

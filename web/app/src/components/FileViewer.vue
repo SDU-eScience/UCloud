@@ -147,6 +147,7 @@
           lastModified: false,
           owners: false
         },
+        // FIXME Intended as titles for buttons
         buttonTitles: {
           share: {
             normal: 'Click to share the selected files.',
@@ -172,7 +173,7 @@
     },
     mounted() {
       this.getFiles(this.$route.path);
-      window.addEventListener('keydown', this.deselect)
+      window.addEventListener('keydown', this.deselectKeyListener)
     },
     router: new VueRouter(),
     computed: {
@@ -202,7 +203,7 @@
       prevent($event) {
         $event.stopPropagation();
       },
-      deselect($event) {
+      deselectKeyListener($event) {
         if ($event.key === 'Escape') {
           this.selectedFiles = [];
           this.masterCheckbox = false;

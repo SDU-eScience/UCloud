@@ -27,6 +27,9 @@
               </tbody>
             </table>
           </div>
+          <div class="modal-body">
+            <button class="btn btn-info" @click="createFolder">Create new folder</button>
+          </div>
         </div>
       </div>
     </div>
@@ -35,6 +38,7 @@
 
 <script>
   import $ from 'jquery'
+  import swal from 'sweetalert2'
 
   export default {
     name: 'file-selector',
@@ -63,7 +67,7 @@
       $.getJSON("/api/getBreadcrumbs", {path: this.path}).then((breadcrumbs) => {
         this.breadcrumbs = breadcrumbs
       });
-      window.addEventListener('keydown', this.tryHide);
+      window.addEventListener('keydown', this.escapeKeyListener);
     },
     watch: {
       path: function () {
@@ -76,7 +80,7 @@
       }
     },
     methods: {
-      tryHide($event) {
+      escapeKeyListener($event) {
         if ($event.key === 'Escape' && this.isShown) {
           this.hide()
         }
@@ -106,6 +110,29 @@
           this.setFile(file);
           this.hide();
         }
+      },
+      createFolder() {
+        let currentDir = this.breadcrumbs[this.breadcrumbs.length - 1].second;
+        swal({
+          title: "Create a folder",
+          text: "Input the folder name:",
+          input: "text",
+          showCancelButton: true,
+          inputPlaceholder: "Folder name..."
+        }).then((inputValue) => {
+          if (inputValue === false) return false;
+          if (inputValue === "") {
+            swal.showInputError("You need to enter a folder name.");
+            return false
+          }
+          $.getJSON("/api/createDir", { dirPath: currentDir + inputValue.value } , (result) => {
+            if (result === 200) {
+              swal("Success", "Folder " + currentDir + inputValue.value + " created", "success");
+            } else {
+              swal("Error", "Folder " + currentDir + inputValue.value + " was not created", "error");
+            }
+          });
+        });
       }
     }
   }
