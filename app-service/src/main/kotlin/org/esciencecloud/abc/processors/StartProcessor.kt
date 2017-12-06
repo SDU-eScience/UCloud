@@ -1,6 +1,5 @@
 package org.esciencecloud.abc.processors
 
-import org.esciencecloud.abc.Request
 import org.esciencecloud.abc.api.*
 import org.esciencecloud.abc.internalError
 import org.esciencecloud.abc.services.ApplicationDAO
@@ -11,6 +10,7 @@ import org.esciencecloud.abc.services.ssh.sbatch
 import org.esciencecloud.abc.services.ssh.scpUpload
 import org.esciencecloud.abc.stackTraceToString
 import org.esciencecloud.abc.util.BashEscaper
+import org.esciencecloud.client.KafkaRequest
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
@@ -66,7 +66,7 @@ class StartProcessor(
 
     private fun handleStartEvent(
             storage: StorageConnection,
-            request: Request<HPCAppRequest.Start>
+            request: KafkaRequest<HPCAppRequest.Start>
     ): Result<HPCAppEvent.Pending> {
         val event = request.event
         val app = with(event.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?:
@@ -147,9 +147,9 @@ class StartProcessor(
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun handle(connection: StorageConnection, request: Request<HPCAppRequest>): HPCAppEvent = when (request.event) {
+    fun handle(connection: StorageConnection, request: KafkaRequest<HPCAppRequest>): HPCAppEvent = when (request.event) {
         is HPCAppRequest.Start -> {
-            val result = handleStartEvent(connection, request as Request<HPCAppRequest.Start>)
+            val result = handleStartEvent(connection, request as KafkaRequest<HPCAppRequest.Start>)
             when (result) {
                 is Ok -> result.result
                 is Error -> HPCAppEvent.UnsuccessfullyCompleted(result)

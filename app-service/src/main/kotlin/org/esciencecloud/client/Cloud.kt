@@ -1,5 +1,6 @@
 package org.esciencecloud.client
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
@@ -9,6 +10,7 @@ import org.asynchttpclient.Response
 import org.esciencecloud.abc.stackTraceToString
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.addBasicAuth
+import org.esciencecloud.asynchttp.setJsonBody
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
@@ -121,6 +123,7 @@ fun EScienceCloud.basicAuth(username: String, password: String) = BasicAuthentic
 data class RESTCallDescription<R : Any, S, E>(
         val method: HttpMethod,
         val path: RESTPath<R>,
+        val body: RESTBody<R, *>?,
         val requestType: KClass<R>,
         val deserializerSuccess: ObjectReader,
         val deserializerError: ObjectReader,
@@ -149,10 +152,33 @@ data class RESTCallDescription<R : Any, S, E>(
             }
 
             override fun BoundRequestBuilder.configure() {
+                setMethod(method.value)
                 requestConfiguration()
+                when (body) {
+                    is RESTBody.BoundToEntireRequest<*> -> {
+                        setJsonBody(payload)
+                    }
+
+                    is RESTBody.BoundToSubProperty -> {
+                        setJsonBody(body.property.get(payload))
+                    }
+                }
             }
         }
     }
+}
+
+sealed class RESTBody<R : Any, T : Any> {
+    abstract val ref: TypeReference<T>
+
+    data class BoundToSubProperty<R : Any, T : Any>(
+            val property: KProperty1<R, *>,
+            override val ref: TypeReference<T>
+    ) : RESTBody<R, T>()
+
+    data class BoundToEntireRequest<R : Any>(
+            override val ref: TypeReference<R>
+    ) : RESTBody<R, R>()
 }
 
 data class RESTPath<R : Any>(val basePath: String, val segments: List<RESTPathSegment<R>>)

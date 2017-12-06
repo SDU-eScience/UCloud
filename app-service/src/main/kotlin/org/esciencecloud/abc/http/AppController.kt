@@ -2,6 +2,7 @@ package org.esciencecloud.abc.http
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.ktor.application.install
+import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
@@ -12,6 +13,7 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import org.esciencecloud.abc.api.HPCApplications
 import org.esciencecloud.abc.services.ApplicationDAO
+import org.esciencecloud.client.GatewayJobResponse
 import org.esciencecloud.client.implement
 
 class AppController(private val source: ApplicationDAO) {
@@ -37,11 +39,17 @@ class AppController(private val source: ApplicationDAO) {
         implement(HPCApplications.Test.description) {
             ok(it)
         }
+
+        implement(HPCApplications.AppRequest.Start.description) {
+            println(it)
+            ok(GatewayJobResponse.started("123", 1L, 1, 1L))
+        }
     }
 }
 
 fun main(args: Array<String>) {
     embeddedServer(CIO, port = 8080) {
+        install(CallLogging)
         install(ContentNegotiation) {
             jackson {
                 registerKotlinModule()

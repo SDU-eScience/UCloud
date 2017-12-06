@@ -9,8 +9,8 @@ import org.apache.kafka.streams.kstream.KGroupedStream
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.apache.kafka.streams.kstream.KTable
-import org.esciencecloud.abc.Request
-import org.esciencecloud.abc.RequestHeader
+import org.esciencecloud.client.KafkaRequest
+import org.esciencecloud.client.RequestHeader
 import org.esciencecloud.kafka.StreamDescription
 import org.esciencecloud.kafka.TableDescription
 import org.esciencecloud.storage.ext.StorageConnection
@@ -93,7 +93,7 @@ fun <K, V> KStream<K, V>.to(description: StreamDescription<K, V>) {
 // Not a pretty name, but I couldn't find any name indicating that authentication and taken place that didn't
 // also imply that it was successful.
 sealed class RequestAfterAuthentication<out T> {
-    abstract val originalRequest: Request<T>
+    abstract val originalRequest: KafkaRequest<T>
 
     val event: T
         get() = originalRequest.event
@@ -102,12 +102,12 @@ sealed class RequestAfterAuthentication<out T> {
         get() = originalRequest.header
 
     class Authenticated<out T>(
-            override val originalRequest: Request<T>,
+            override val originalRequest: KafkaRequest<T>,
             val connection: StorageConnection
     ) : RequestAfterAuthentication<T>()
 
     class Unauthenticated<out T>(
-            override val originalRequest: Request<T>,
+            override val originalRequest: KafkaRequest<T>,
             val error: Error<Any>
     ) : RequestAfterAuthentication<T>()
 }

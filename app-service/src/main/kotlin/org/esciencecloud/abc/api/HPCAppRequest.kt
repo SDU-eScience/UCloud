@@ -2,13 +2,13 @@ package org.esciencecloud.abc.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import org.esciencecloud.abc.Request
+import org.esciencecloud.client.KafkaRequest
 
 // Model
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
-        property = Request.TYPE_PROPERTY)
+        property = KafkaRequest.TYPE_PROPERTY)
 @JsonSubTypes(
         JsonSubTypes.Type(value = HPCAppRequest.Start::class, name = "start"),
         JsonSubTypes.Type(value = HPCAppRequest.Cancel::class, name = "cancel"))

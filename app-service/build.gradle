@@ -21,7 +21,13 @@ repositories {
 
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
-    maven { url("http://cloud.sdu.dk:8080/archiva/repository/internal") }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
 
     // Repositories required for iRODS to work
     maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
@@ -31,6 +37,7 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     testCompile group: 'junit', name: 'junit', version: '4.12'
 
     // ------------

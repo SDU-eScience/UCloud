@@ -4,10 +4,9 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.KStreamBuilder
-import org.esciencecloud.abc.Request
-import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCStreams
 import org.esciencecloud.abc.util.*
+import org.esciencecloud.client.KafkaRequest
 import org.esciencecloud.kafka.StreamDescription
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Error
@@ -24,7 +23,7 @@ class HPCStreamService(
     val appEvents = builder.stream(HPCStreams.AppEvents)
     val appEventsProducer = producer.forStream(HPCStreams.AppEvents)
 
-    private fun <K, T : Any, V : Request<T>> KStream<K, V>.authenticate(): AuthenticatedStream<K, T> {
+    private fun <K, T : Any, V : KafkaRequest<T>> KStream<K, V>.authenticate(): AuthenticatedStream<K, T> {
         val (auth, unauth) = mapValues { request ->
             val conn = with(request.header.performedFor) {
                 storageConnectionFactory.createForAccount(username, password)

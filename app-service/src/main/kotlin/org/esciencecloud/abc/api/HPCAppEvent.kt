@@ -2,13 +2,13 @@ package org.esciencecloud.abc.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import org.esciencecloud.abc.Request
+import org.esciencecloud.client.KafkaRequest
 import org.esciencecloud.storage.Error
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
-        property = Request.TYPE_PROPERTY)
+        property = KafkaRequest.TYPE_PROPERTY)
 @JsonSubTypes(
         JsonSubTypes.Type(value = HPCAppEvent.Started::class, name = "started"),
         JsonSubTypes.Type(value = HPCAppEvent.SuccessfullyCompleted::class, name = "success"),
@@ -22,7 +22,7 @@ sealed class HPCAppEvent {
             val jobId: Long,
             val jobDirectory: String,
             val workingDirectory: String,
-            val originalRequest: Request<HPCAppRequest.Start>
+            val originalRequest: KafkaRequest<HPCAppRequest.Start>
     ) : HPCAppEvent()
 
     /**

@@ -19,7 +19,7 @@ data class RequestHeader(
 
 data class ProxyClient(val username: String, val password: String)
 
-data class KafkaMappingDescription<in R : Any, K : Any, V : Any>(
+class KafkaMappingDescription<in R : Any, K : Any, V : Any>(
         val topicName: String,
         val keySerde: Serde<K>,
         val valueSerde: Serde<V>,
@@ -43,8 +43,8 @@ abstract class KafkaDescriptions {
             keySerde: Serde<K> = defaultSerdeOrJson(),
             valueSerde: Serde<V> = defaultSerdeOrJson(),
             noinline mapper: (KafkaRequest<R>) -> Pair<K, V>
-    ) {
-        forEach { it.mappedAtGateway(topicName, keySerde, valueSerde, mapper) }
+    ): StreamDescription<K, V> {
+        return map { it.mappedAtGateway(topicName, keySerde, valueSerde, mapper) }.first()
     }
 
     /**
@@ -80,7 +80,7 @@ abstract class KafkaDescriptions {
     }
 
     fun registerMapping(description: KafkaMappingDescription<*, *, *>) {
-        log.debug("Registering new Kafka descriptions $description")
+        log.debug("Registering new Kafka descriptions ${description.topicName}")
         _descriptions.add(description)
     }
 }

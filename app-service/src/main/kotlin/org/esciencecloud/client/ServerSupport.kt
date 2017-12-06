@@ -1,5 +1,7 @@
 package org.esciencecloud.client
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
 import io.ktor.application.application
@@ -7,16 +9,23 @@ import io.ktor.application.call
 import io.ktor.features.conversionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
+import io.ktor.request.receiveText
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.util.DataConversionException
+import org.esciencecloud.abc.stackTraceToString
 import org.slf4j.LoggerFactory
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaType
 
 private val log = LoggerFactory.getLogger("org.esciencecloud.client.ServerSupport")
+
+// TODO We should find a better solution for all of these "defaultMappers"
+object RESTServerSupport {
+    var defaultMapper: ObjectMapper = jacksonObjectMapper()
+}
 
 fun <P : Any, S : Any, E : Any> Route.implement(
         restCall: RESTCallDescription<P, S, E>,
@@ -26,10 +35,23 @@ fun <P : Any, S : Any, E : Any> Route.implement(
     route(template) {
         method(restCall.method) {
             handle {
+                // TODO Refactor this. It is getting slightly out of hand
                 val payload: P = if (restCall.requestType == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as P
                 } else {
+                    // Parse body as JSON (if any)
+                    val parsedBody = try {
+                        restCall.body?.let {
+                            RESTServerSupport.defaultMapper.readValue<Any?>(call.receiveText(), it.ref)
+                        }
+                    } catch (ex: Exception) {
+                        log.debug("Caught exception while trying to deserialize request body")
+                        log.debug(ex.stackTraceToString())
+                        return@handle call.respond(HttpStatusCode.BadRequest)
+                    }
+
+                    // Retrieve argument values from path (if any)
                     val arguments = try {
                         restCall.path.segments.mapNotNull {
                             it.bindValuesFromCall(call)
@@ -38,18 +60,30 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                         return@handle call.respond(HttpStatusCode.BadRequest)
                     }
 
-                    val constructor = restCall.requestType.primaryConstructor ?: restCall.requestType.constructors.single()
-                    val resolvedArguments = constructor.parameters.map {
-                        val name = it.name ?: throw IllegalStateException("Unable to determine name of property in " +
-                                "request type. Please use a data class instead to solve this problem.")
+                    if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
+                        val constructor = restCall.requestType.primaryConstructor ?:
+                                restCall.requestType.constructors.single()
 
-                        if (name !in arguments) {
-                            throw IllegalStateException("The property '$name' was not bound in description!")
-                        }
+                        val resolvedArguments = constructor.parameters.map {
+                            val name = it.name ?:
+                                    throw IllegalStateException("Unable to determine name of property in request " +
+                                            "type. Please use a data class instead to solve this problem.")
 
-                        it to arguments[name]
-                    }.toMap()
-                    constructor.callBy(resolvedArguments)
+                            if (name !in arguments) {
+                                if (restCall.body is RESTBody.BoundToSubProperty<*, *> &&
+                                        restCall.body.property.name == it.name) {
+                                    return@map it to parsedBody
+                                }
+                                throw IllegalStateException("The property '$name' was not bound in description!")
+                            }
+
+                            it to arguments[name]
+                        }.toMap()
+                        constructor.callBy(resolvedArguments)
+                    } else {
+                        @Suppress("UNCHECKED_CAST")
+                        parsedBody as P
+                    }
                 }
 
                 RESTHandler<P, S, E>(this).handler(payload)

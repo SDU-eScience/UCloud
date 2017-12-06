@@ -2,11 +2,15 @@ package org.esciencecloud.abc.api
 
 import org.esciencecloud.abc.processors.MyJobs
 import org.esciencecloud.client.KafkaDescriptions
+import org.esciencecloud.client.KafkaRequest
 
 object HPCStreams : KafkaDescriptions() {
+    /*
     val AppRequests = HPCApplications.AppRequest.descriptions.mappedAtGateway("request.hpcApp") {
         Pair(it.header.uuid, it)
     }
+    */
+    val AppRequests = stream<String, KafkaRequest<HPCAppRequest>>("request.hpcApp")
     val AppEvents = stream<String, HPCAppEvent>("hpcAppEvents")
 
     // TODO We can clean up in these

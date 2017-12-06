@@ -1,15 +1,15 @@
 package org.esciencecloud.abc.processors
 
 import kotlinx.coroutines.experimental.runBlocking
-import org.esciencecloud.abc.*
-import org.esciencecloud.abc.util.BashEscaper.safeBashArgument
 import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.HPCAppEvent
+import org.esciencecloud.abc.internalError
 import org.esciencecloud.abc.services.*
 import org.esciencecloud.abc.services.ssh.SSHConnectionPool
 import org.esciencecloud.abc.services.ssh.scpDownload
 import org.esciencecloud.abc.services.ssh.stat
 import org.esciencecloud.abc.util.BashEscaper
+import org.esciencecloud.abc.util.BashEscaper.safeBashArgument
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.PermissionException
 import org.esciencecloud.storage.ext.StorageConnectionFactory
@@ -68,7 +68,7 @@ class SlurmProcessor(
             storageConnectionFactory.createForAccount(username, password)
         }.capture() ?: return Pair(key, HPCAppEvent.UnsuccessfullyCompleted(Error.invalidAuthentication()))
 
-        return storage.use {
+        return try {
             sshPool.use {
                 log.info("Handling Slurm ended event! $key ${event.jobId}")
                 // Transfer output files
@@ -129,6 +129,8 @@ class SlurmProcessor(
 
                 Pair(key, HPCAppEvent.SuccessfullyCompleted(event.jobId))
             }
+        } finally {
+            storage.close()
         }
     }
 

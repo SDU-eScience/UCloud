@@ -69,7 +69,8 @@ object HPCApplications : RESTDescriptions() {
     sealed class AppRequest {
         data class Start(
                 val application: NameAndVersion,
-                val parameters: Map<String, Any>
+                val test: String
+                //,val parameters: Map<String, Any>
         ) : AppRequest() {
             companion object {
                 val description = kafkaDescription<AppRequest.Start> {
@@ -80,9 +81,13 @@ object HPCApplications : RESTDescriptions() {
                         +"jobs"
                     }
 
-                    // TODO Body
+                    body {
+                        bindEntireRequestFromBody()
+                    }
                 }
             }
+
+            suspend fun call(cloud: AuthenticatedCloud) = description.prepare(this).call(cloud)
         }
 
         data class Cancel(val jobId: Long) : AppRequest() {
@@ -97,16 +102,15 @@ object HPCApplications : RESTDescriptions() {
                     }
                 }
             }
+
+            suspend fun call(cloud: AuthenticatedCloud) = description.prepare(this).call(cloud)
         }
 
         companion object {
-            val descriptions: KafkaCallDescriptionBundle<AppRequest> =
-                    listOf(AppRequest.Start.description, AppRequest.Cancel.description)
-        }
-
-        suspend fun call(cloud: AuthenticatedCloud): RESTResponse<GatewayJobResponse, GatewayJobResponse> = when(this) {
-            is Start -> Start.description.prepare(this).call(cloud)
-            is Cancel -> Cancel.description.prepare(this).call(cloud)
+            // TODO This is not a robust solution. Will crash if not lazy
+            val descriptions: KafkaCallDescriptionBundle<AppRequest> by lazy {
+                listOf(AppRequest.Start.description, AppRequest.Cancel.description)
+            }
         }
     }
 }
@@ -140,8 +144,6 @@ fun main(args: Array<String>) {
     */
 
     runBlocking {
-        repeat(10) {
-            println(HPCApplications.Test("test", 42, HPCApplications.TestEnum.B).call(authenticated))
-        }
+        println(HPCApplications.AppRequest.Start(NameAndVersion("foobar", "1.2.3"), "test0string").call(authenticated))
     }
 }
