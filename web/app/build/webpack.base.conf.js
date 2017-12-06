@@ -13,7 +13,7 @@ module.exports = {
   entry: {
     app: './src/main.js',
     "file-viewer": "./src/files.js",
-    "runApp": "./src/runApp.js", // FIXME I am temporary. I should be included in relevant pages
+    "runApp": "./src/runApp.js",
     "dashboard": "./src/dashboard.js",
     "applications": "./src/applications.js",
     "workflows": "./src/workflows.js",

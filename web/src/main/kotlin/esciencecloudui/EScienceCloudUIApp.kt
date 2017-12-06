@@ -78,8 +78,6 @@ class EScienceCloudUIApp {
                 files("resources/app/vendor")
                 files("resources/app/server")
                 files("resources/app")
-                // Getting escience SVG FIXME replace with SDUcloud file
-                files("resources/")
             }
 
             login(hashFunction)

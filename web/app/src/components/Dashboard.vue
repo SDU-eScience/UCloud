@@ -33,7 +33,7 @@
             </div>
             <tbody>
             <tr v-for="file in favourites">
-              <td><a href="#">{{ getFileName(file.path) }}</a></td>
+              <td><a href="#">{{ file.path.name }}</a></td>
               <td><em class="ion-star"></em></td>
             </tr>
             </tbody>
@@ -72,7 +72,7 @@
             </div>
             <tbody>
             <tr v-cloak v-for="file in mostRecentlyUsed">
-              <td><a href="#">{{ getFileName(file.path) }}</a></td>
+              <td><a href="#">{{ file.path.name }}</a></td>
               <td>{{ new Date(file.modifiedAt).toLocaleString() }}</td>
             </tr>
             </tbody>
@@ -226,9 +226,6 @@
         $.getJSON("/api/getRecentWorkflowStatus").then((data) => {
           this.analyses = data;
         });
-      },
-      getFileName: function (path) {
-        return path.uri.split("/").pop()
       }
     }
   }
