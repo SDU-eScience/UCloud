@@ -42,7 +42,7 @@ class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
 
     private fun addSegment(segment: RESTPathSegment<R>) {
         if (segment is RESTPathSegment.Property<*, *>) {
-            val isLegal = true // TODO
+            val isLegal = parent.body !is RESTBody.BoundToEntireRequest<*>
             if (!isLegal) {
                 throw RESTDSLException("""
                     Cannot bind a property to the both, the entire request has already been to the body.

@@ -9,7 +9,7 @@ import io.ktor.application.call
 import io.ktor.features.conversionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
-import io.ktor.request.receiveText
+import io.ktor.request.receiveOrNull
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.method
@@ -35,27 +35,26 @@ fun <P : Any, S : Any, E : Any> Route.implement(
     route(template) {
         method(restCall.method) {
             handle {
-                // TODO Refactor this. It is getting slightly out of hand
                 val payload: P = if (restCall.requestType == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as P
                 } else {
                     // Parse body as JSON (if any)
-                    val parsedBody = try {
-                        restCall.body?.let {
-                            RESTServerSupport.defaultMapper.readValue<Any?>(call.receiveText(), it.ref)
+                    val valueFromBody = parseRequestBody(call.receiveOrNull(), restCall.body).let {
+                        when (it) {
+                            is ParsedRequestBody.Parsed -> it.result
+
+                            ParsedRequestBody.MissingAndNotRequired -> null
+
+                            ParsedRequestBody.MissingAndRequired -> {
+                                return@handle call.respond(HttpStatusCode.BadRequest)
+                            }
                         }
-                    } catch (ex: Exception) {
-                        log.debug("Caught exception while trying to deserialize request body")
-                        log.debug(ex.stackTraceToString())
-                        return@handle call.respond(HttpStatusCode.BadRequest)
                     }
 
                     // Retrieve argument values from path (if any)
-                    val arguments = try {
-                        restCall.path.segments.mapNotNull {
-                            it.bindValuesFromCall(call)
-                        }.toMap()
+                    val valuesFromPath = try {
+                        restCall.path.segments.mapNotNull { it.bindValuesFromCall(call) }.toMap()
                     } catch (ex: IllegalArgumentException) {
                         return@handle call.respond(HttpStatusCode.BadRequest)
                     }
@@ -65,30 +64,85 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                                 restCall.requestType.constructors.single()
 
                         val resolvedArguments = constructor.parameters.map {
-                            val name = it.name ?:
-                                    throw IllegalStateException("Unable to determine name of property in request " +
-                                            "type. Please use a data class instead to solve this problem.")
+                            val name = it.name ?: run {
+                                throw IllegalStateException("Unable to determine name of property in request " +
+                                        "type. Please use a data class instead to solve this problem.")
+                            }
 
-                            if (name !in arguments) {
+                            if (name !in valuesFromPath) {
+                                // If not found in path, check if this is param bound to the body
                                 if (restCall.body is RESTBody.BoundToSubProperty<*, *> &&
                                         restCall.body.property.name == it.name) {
-                                    return@map it to parsedBody
+                                    return@map it to valueFromBody
                                 }
+
+                                // All arguments were collected successfully from the request, but we still
+                                // can't satisfy this constructor parameter. As a result it must be a bug in
+                                // the description.
                                 throw IllegalStateException("The property '$name' was not bound in description!")
                             }
 
-                            it to arguments[name]
+                            it to valuesFromPath[name]
                         }.toMap()
-                        constructor.callBy(resolvedArguments)
+
+                        try {
+                            constructor.callBy(resolvedArguments)
+                        } catch (ex: IllegalArgumentException) {
+                            log.debug("Caught (validation) exception during construction of request object!")
+                            log.debug(ex.stackTraceToString())
+
+                            return@handle call.respond(HttpStatusCode.BadRequest)
+                        } catch (ex: Exception) {
+                            log.warn("Caught exception during construction of request object!")
+                            log.warn(ex.stackTraceToString())
+
+                            return@handle call.respond(HttpStatusCode.InternalServerError)
+                        }
                     } else {
                         @Suppress("UNCHECKED_CAST")
-                        parsedBody as P
+                        // Request bound to body. We just need to cast the already parsed body. Type safety is
+                        // ensured by builder.
+                        valueFromBody as P
                     }
                 }
 
+                // Call the handler with the payload
                 RESTHandler<P, S, E>(this).handler(payload)
             }
         }
+    }
+}
+
+private sealed class ParsedRequestBody {
+    data class Parsed(val result: Any) : ParsedRequestBody()
+    object MissingAndRequired : ParsedRequestBody()
+    object MissingAndNotRequired : ParsedRequestBody()
+}
+
+private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): ParsedRequestBody {
+    // We silently ignore a body which is not required
+    if (restBody == null) return ParsedRequestBody.MissingAndNotRequired
+
+    val hasText = !requestBody.isNullOrEmpty()
+    if (!hasText) {
+        if (restBody is RESTBody.BoundToSubProperty) {
+            return if (restBody.property.returnType.isMarkedNullable) {
+                ParsedRequestBody.MissingAndNotRequired
+            } else {
+                ParsedRequestBody.MissingAndRequired
+            }
+        }
+        return ParsedRequestBody.MissingAndRequired
+    }
+
+    return try {
+        ParsedRequestBody.Parsed(RESTServerSupport.defaultMapper.readValue<Any>(requestBody, restBody.ref))
+    } catch (ex: Exception) {
+        // TODO Don't assume that all exceptions are user input errors
+        log.debug("Caught exception while trying to deserialize request body")
+        log.debug(ex.stackTraceToString())
+
+        ParsedRequestBody.MissingAndRequired
     }
 }
 
