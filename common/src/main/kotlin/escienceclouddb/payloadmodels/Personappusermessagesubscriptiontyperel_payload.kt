@@ -1,15 +1,16 @@
 package escienceclouddb.payloadmodels
 
 enum class PersonappusermessagesubscriptiontyperelUiCommand {
-    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList, getByName
+    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList
 }
 
 data class Personappusermessagesubscriptiontyperel_payload(
         val session: String,
+        val jwt: String,
         val command: PersonappusermessagesubscriptiontyperelUiCommand,
         val id: Int,
-        val appusermessagesubscriptiontyperefid: Int,
-        val personrefid: Int
+        val appusermessagesubscriptiontyperefid: Int=0,
+        val personrefid: Int=0
 )
 {
 
@@ -17,54 +18,57 @@ data class Personappusermessagesubscriptiontyperel_payload(
         if (command.equals(AppUiCommand.create)) {
 
             if (id!=0) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: id must be empty ")
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:create:messagetext: id must be empty ")
             }
 
-            if (apptext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: apptext can not be empty ")
+            if (appusermessagesubscriptiontyperefid==0||appusermessagesubscriptiontyperefid==null) {
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:create:messagetext: appusermessagesubscriptiontyperefid can not be 0 or null ")
             }
 
-            if (appdescriptiontext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: appdescriptiontext can not be empty ")
+            if (personrefid==0||personrefid==null) {
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:create:messagetext: personrefid can not be 0 or null")
             }
         }
 
         if (command.equals("update")) {
-            if (id==null)
+            if (id==0||id==null) {
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:update:messagetext: appdescriptiontext can not be empty ")
+            }
 
-                throw IllegalArgumentException("dbtier:app:update:messagetext: appdescriptiontext can not be empty ")
+            if (appusermessagesubscriptiontyperefid==0) {
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:create:messagetext: appusermessagesubscriptiontyperefid can not be 0 or null ")
+            }
+
+            if (personrefid==0||personrefid==null) {
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:create:messagetext: personrefid can not be 0 or null ")
+            }
         }
 
         if (command.equals("delete")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:delete:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:delete:messagetext: id can not be 0 or null")
         }
 
         if (command.equals("setActive")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:setActive:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:setActive:messagetext: id can not be 0 or null")
         }
 
         if (command.equals("setInActive")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:setInActive: message id can not be empty")
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:setInActive: message id can not be 0 or null")
         }
 
         if (command.equals("getById")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:getById:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:personappusermessagesubscriptiontyperel:getById:messagetext: id can not be 0 or null")
         }
 
 
-        if (command.equals("getByName")) {
-            if (id==null)
-
-                throw IllegalArgumentException("dbtier:app:getByName:messagetext: id can not be empty")
-        }
 
 
     }

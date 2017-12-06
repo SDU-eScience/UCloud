@@ -3,10 +3,11 @@ package escienceclouddb.payloadmodels
 import java.sql.Blob
 
 enum class ProjectdocumentUiCommand {
-    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList, getByName
+    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList
 }
 
 data class Projectdocument_payload(val session: String,
+                                   val jwt: String,
                                    val command: ProjectdocumentUiCommand,
                                    val id: Int = 0,
                                    val projectdocumentfilename: String,
@@ -19,54 +20,58 @@ data class Projectdocument_payload(val session: String,
         if (command.equals(AppUiCommand.create)) {
 
             if (id!=0) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: id must be empty ")
+                throw IllegalArgumentException("common:projectdocument:create:messagetext: id must be empty ")
             }
 
-            if (apptext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: apptext can not be empty ")
+            if (projectdocumentfilename.isEmpty()) {
+                throw IllegalArgumentException("common:projectdocument:create:messagetext: projectdocumentfilename can not be empty ")
             }
 
-            if (appdescriptiontext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: appdescriptiontext can not be empty ")
+            if (documenttypedescription.isEmpty()) {
+                throw IllegalArgumentException("common:projectdocument:create:messagetext: documenttypedescription can not be empty ")
             }
         }
 
         if (command.equals("update")) {
-            if (id==null)
+            if (id == null||id==0) {
+                throw IllegalArgumentException("common:projectdocument:update:messagetext: appdescriptiontext can not be empty or 0")
+            }
 
-                throw IllegalArgumentException("dbtier:app:update:messagetext: appdescriptiontext can not be empty ")
+            if (projectdocumentfilename.isEmpty()) {
+                throw IllegalArgumentException("common:projectdocument:update:messagetext: projectdocumentfilename can not be empty or 0")
+            }
+
+            if (documenttypedescription.isEmpty()) {
+                throw IllegalArgumentException("common:projectdocument:update:messagetext: appdescriptiontext can not be empty or 0")
+            }
         }
 
         if (command.equals("delete")) {
-            if (id==null)
+            if (id==null||id==0)
 
-                throw IllegalArgumentException("dbtier:app:delete:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projectdocument:delete:messagetext: id can not be empty or 0")
         }
 
         if (command.equals("setActive")) {
-            if (id==null)
+            if (id==null||id==0)
 
-                throw IllegalArgumentException("dbtier:app:setActive:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projectdocument:setActive:messagetext: id can not be empty or 0")
         }
 
         if (command.equals("setInActive")) {
-            if (id==null)
+            if (id==null||id==0)
 
-                throw IllegalArgumentException("dbtier:app:setInActive: message id can not be empty")
+                throw IllegalArgumentException("common:projectdocument:setInActive: message id can not be empty or 0")
         }
 
         if (command.equals("getById")) {
-            if (id==null)
+            if (id==null||id==0)
 
-                throw IllegalArgumentException("dbtier:app:getById:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projectdocument:getById:messagetext: id can not be empty or 0")
         }
 
 
-        if (command.equals("getByName")) {
-            if (id==null)
 
-                throw IllegalArgumentException("dbtier:app:getByName:messagetext: id can not be empty")
-        }
 
 
     }

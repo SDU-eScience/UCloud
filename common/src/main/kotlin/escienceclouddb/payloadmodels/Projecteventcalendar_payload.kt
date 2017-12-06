@@ -5,13 +5,14 @@ enum class ProjecteventcalendarUiCommand {
 }
 
 data class Projecteventcalendar_payload(val session: String,
+                                        val jwt: String,
                                         val command: ProjecteventcalendarUiCommand,
                                         val id: Int = 0,
-                                        val projectrefid: Int,
-                                        val eventend: Long,
-                                        val eventtext: String,
-                                        val eventstart: Long,
-                                        val personrefid: Int
+                                        val projectrefid: Int=0,
+                                        val eventend: Long=0,
+                                        val eventtext: String="event description",
+                                        val eventstart: Long=0,
+                                        val personrefid: Int=0
 )
 {
 
@@ -19,53 +20,61 @@ data class Projecteventcalendar_payload(val session: String,
         if (command.equals(AppUiCommand.create)) {
 
             if (id!=0) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: id must be empty ")
+                throw IllegalArgumentException("common:projecteventcalendar:create:messagetext: id must be empty ")
             }
 
-            if (apptext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: apptext can not be empty ")
+            if (eventtext.isEmpty()) {
+                throw IllegalArgumentException("common:projecteventcalendar:create:messagetext: eventtext can not be empty ")
             }
 
-            if (appdescriptiontext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: appdescriptiontext can not be empty ")
+            if (eventstart==null||eventstart<1) {
+                throw IllegalArgumentException("common:projecteventcalendar:create:messagetext: eventtstart can not be empty ")
+            }
+
+            if (eventend==null||eventstart<1) {
+                throw IllegalArgumentException("common:projecteventcalendar:create:messagetext: eventend can not be empty ")
             }
         }
 
         if (command.equals("update")) {
-            if (id==null)
+            if (id == null||id==0) {
+                throw IllegalArgumentException("common:projecteventcalendar:update:messagetext: appdescriptiontext can not be empty or 0 ")
 
-                throw IllegalArgumentException("dbtier:app:update:messagetext: appdescriptiontext can not be empty ")
-        }
+            }
 
-        if (command.equals("delete")) {
-            if (id==null)
+            if (eventstart==null||eventstart<1) {
+                throw IllegalArgumentException("common:projecteventcalendar:create:messagetext: eventtstart can not be empty or 0")
+            }
 
-                throw IllegalArgumentException("dbtier:app:delete:messagetext: id can not be empty")
+            if (eventend==null||eventstart<1) {
+                throw IllegalArgumentException("common:projecteventcalendar:create:messagetext: eventend can not be empty or 0 ")
+            }
+
         }
 
         if (command.equals("setActive")) {
-            if (id==null)
+            if (id==null||id==0)
 
-                throw IllegalArgumentException("dbtier:app:setActive:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projecteventcalendar:setActive:messagetext: id can not be empty or 0")
         }
 
         if (command.equals("setInActive")) {
-            if (id==null)
+            if (id==null||id==0)
 
-                throw IllegalArgumentException("dbtier:app:setInActive: message id can not be empty")
+                throw IllegalArgumentException("common:projecteventcalendar:setInActive: message id can not be empty or 0")
         }
 
         if (command.equals("getById")) {
-            if (id==null)
+            if (id==null||id==0)
 
-                throw IllegalArgumentException("dbtier:app:getById:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projecteventcalendar:getById:messagetext: id can not be empty or 0")
         }
 
 
         if (command.equals("getByName")) {
-            if (id==null)
+            if (eventtext.isEmpty())
 
-                throw IllegalArgumentException("dbtier:app:getByName:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:app:getByName:messagetext: eventtext can not be empty or 0")
         }
 
 

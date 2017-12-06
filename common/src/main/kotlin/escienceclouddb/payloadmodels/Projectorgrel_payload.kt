@@ -1,14 +1,15 @@
 package escienceclouddb.payloadmodels
 
 enum class ProjectorgrelUiCommand {
-    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList, getByName
+    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList
 }
 
 data class Projectorgrel_payload(val session: String,
+                                 val jwt: String,
                                  val command: ProjectorgrelUiCommand,
                                  val id: Int = 0,
-                                 val projectrefid: Int,
-                                 val orgrefid: Int
+                                 val projectrefid: Int=0,
+                                 val orgrefid: Int=0
 )
 {
 
@@ -16,54 +17,58 @@ data class Projectorgrel_payload(val session: String,
         if (command.equals(AppUiCommand.create)) {
 
             if (id!=0) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: id must be empty ")
+                throw IllegalArgumentException("common:projectorgrel:create:messagetext: id must be empty ")
             }
 
-            if (apptext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: apptext can not be empty ")
+            if (projectrefid==0||projectrefid==null) {
+                throw IllegalArgumentException("common:projectorgrel:create:messagetext: projectrefid must not be  empty or 0 ")
             }
 
-            if (appdescriptiontext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: appdescriptiontext can not be empty ")
+            if (orgrefid==0||orgrefid==null) {
+                throw IllegalArgumentException("common:projectorgrel:create:messagetext: projectrolerefid must not be  empty or 0 ")
             }
         }
 
         if (command.equals("update")) {
-            if (id==null)
+            if (id==0||id==null) {
+                throw IllegalArgumentException("common:projectorgrel:update:messagetext: id can not be empty or 0")
+            }
 
-                throw IllegalArgumentException("dbtier:app:update:messagetext: appdescriptiontext can not be empty ")
+            if (projectrefid==0||projectrefid==null) {
+                throw IllegalArgumentException("common:projectorgrel:update:messagetext: projectrefid must not be  empty or 0 ")
+            }
+
+            if (orgrefid==0||orgrefid==null) {
+                throw IllegalArgumentException("common:projectorgrel:update:messagetext: projectrolerefid must not be  empty or 0 ")
+            }
         }
 
         if (command.equals("delete")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:delete:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projectorgrel:delete:messagetext: id can not be empty")
         }
 
         if (command.equals("setActive")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:setActive:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projectorgrel:setActive:messagetext: id can not be empty")
         }
 
         if (command.equals("setInActive")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:setInActive: message id can not be empty")
+                throw IllegalArgumentException("common:projectorgrel:setInActive: message id can not be empty")
         }
 
         if (command.equals("getById")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:getById:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projectorgrel:getById:messagetext: id can not be empty")
         }
 
 
-        if (command.equals("getByName")) {
-            if (id==null)
 
-                throw IllegalArgumentException("dbtier:app:getByName:messagetext: id can not be empty")
-        }
 
 
     }

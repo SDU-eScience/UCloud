@@ -5,6 +5,7 @@ enum class IrodsauditpepUiCommand {
 }
 
 data class Irodsauditpep_payload(val session: String,
+                                 val jwt: String,
                                  val command: IrodsauditpepUiCommand,
                                  val id: Int = 0,
                                  val phase: String,
@@ -14,57 +15,26 @@ data class Irodsauditpep_payload(val session: String,
 {
 
     init {
-        if (command.equals(AppUiCommand.create)) {
-
-            if (id!=0) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: id must be empty ")
-            }
-
-            if (apptext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: apptext can not be empty ")
-            }
-
-            if (appdescriptiontext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: appdescriptiontext can not be empty ")
-            }
-        }
-
-        if (command.equals("update")) {
-            if (id==null)
-
-                throw IllegalArgumentException("dbtier:app:update:messagetext: appdescriptiontext can not be empty ")
-        }
-
-        if (command.equals("delete")) {
-            if (id==null)
-
-                throw IllegalArgumentException("dbtier:app:delete:messagetext: id can not be empty")
-        }
-
         if (command.equals("setActive")) {
-            if (id==null)
+            if (id == null)
 
-                throw IllegalArgumentException("dbtier:app:setActive:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:app:setActive:messagetext: id can not be empty")
         }
 
         if (command.equals("setInActive")) {
-            if (id==null)
+            if (id == null)
 
-                throw IllegalArgumentException("dbtier:app:setInActive: message id can not be empty")
+                throw IllegalArgumentException("common:app:setInActive: message id can not be empty")
         }
 
         if (command.equals("getById")) {
-            if (id==null)
+            if (id == null)
 
-                throw IllegalArgumentException("dbtier:app:getById:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:app:getById:messagetext: id can not be empty")
         }
 
 
-        if (command.equals("getByName")) {
-            if (id==null)
 
-                throw IllegalArgumentException("dbtier:app:getByName:messagetext: id can not be empty")
-        }
 
 
     }

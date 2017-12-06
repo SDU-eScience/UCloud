@@ -5,6 +5,7 @@ enum class ServerUiCommand {
 }
 
 data class Server_payload(val session: String,
+                          val jwt: String,
                           val command: ServerUiCommand,
                           val id: Int = 0,
                           val hostname: String,
@@ -18,53 +19,77 @@ data class Server_payload(val session: String,
         if (command.equals(AppUiCommand.create)) {
 
             if (id!=0) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: id must be empty ")
+                throw IllegalArgumentException("common:server:create:messagetext: id must be 0 ")
             }
 
-            if (apptext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: apptext can not be empty ")
+            if (hostname.isEmpty()) {
+                throw IllegalArgumentException("common:server:create:messagetext: hostname can not be empty ")
             }
 
-            if (appdescriptiontext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: appdescriptiontext can not be empty ")
+            if (ip.isEmpty()) {
+                throw IllegalArgumentException("common:server:create:messagetext: ip can not be empty ")
+            }
+
+            if (servertext.isEmpty()) {
+                throw IllegalArgumentException("common:server:create:messagetext: servertext can not be empty ")
+            }
+
+            if (health.isEmpty()) {
+                throw IllegalArgumentException("common:server:create:messagetext: health can not be empty ")
             }
         }
 
         if (command.equals("update")) {
-            if (id==null)
+            if (id != 0 || id == null) {
+                throw IllegalArgumentException("common:server:create:messagetext: id must be 0 ")
+            }
 
-                throw IllegalArgumentException("dbtier:app:update:messagetext: appdescriptiontext can not be empty ")
+            if (hostname.isEmpty()) {
+                throw IllegalArgumentException("common:server:create:messagetext: hostname can not be empty ")
+            }
+
+            if (ip.isEmpty()) {
+                throw IllegalArgumentException("common:server:create:messagetext: ip can not be empty ")
+            }
+
+            if (servertext.isEmpty()) {
+                throw IllegalArgumentException("common:server:create:messagetext: servertext can not be empty ")
+            }
+
+            if (health.isEmpty()) {
+                throw IllegalArgumentException("common:server:create:messagetext: health can not be empty ")
+            }
         }
 
         if (command.equals("delete")) {
-            if (id==null)
+            if (id != 0 || id == null)
 
-                throw IllegalArgumentException("dbtier:app:delete:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:server:delete:messagetext: id can not be empty  or 0")
         }
 
         if (command.equals("setActive")) {
-            if (id==null)
+            if (id != 0 || id == null)
 
-                throw IllegalArgumentException("dbtier:app:setActive:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:server:setActive:messagetext: id can not be empty  or 0")
         }
 
         if (command.equals("setInActive")) {
-            if (id==null)
+            if (id != 0 || id == null)
 
-                throw IllegalArgumentException("dbtier:app:setInActive: message id can not be empty")
+                throw IllegalArgumentException("common:server:setInActive: message id can not be empty  or 0")
         }
 
         if (command.equals("getById")) {
-            if (id==null)
+            if (id != 0 || id == null)
 
-                throw IllegalArgumentException("dbtier:app:getById:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:server:getById:messagetext: id can not be empty or 0")
         }
 
 
         if (command.equals("getByName")) {
-            if (id==null)
-
-                throw IllegalArgumentException("dbtier:app:getByName:messagetext: id can not be empty")
+            if (servertext.isEmpty()) {
+                throw IllegalArgumentException("common:server:getByName:messagetext: servertext can not be empty ")
+            }
         }
 
 

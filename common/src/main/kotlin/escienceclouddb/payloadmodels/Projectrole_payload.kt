@@ -5,9 +5,9 @@ enum class ProjectroleUiCommand {
 }
 
 data class Projectrole_payload(val session: String,
+                               val jwt: String,
                                val command: ProjectroleUiCommand,
                                val id: Int = 0,
-                               val irodsrolemap: String,
                                val projectroletext: String
 )
 {
@@ -15,56 +15,58 @@ data class Projectrole_payload(val session: String,
     init {
         if (command.equals(AppUiCommand.create)) {
 
-            if (id!=0) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: id must be empty ")
+            if (id != 0) {
+                throw IllegalArgumentException("common:projectrole:create:messagetext: id must be 0 ")
             }
 
-            if (apptext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: apptext can not be empty ")
+            if (projectroletext.isEmpty()) {
+                throw IllegalArgumentException("common:projectrole:create:messagetext: projectroletext can not be empty ")
             }
 
-            if (appdescriptiontext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: appdescriptiontext can not be empty ")
-            }
+
         }
 
         if (command.equals("update")) {
-            if (id==null)
+            if (id != 0 || id == null) {
+                throw IllegalArgumentException("common:app:update:messagetext: id can not be empty or 0")
+            }
 
-                throw IllegalArgumentException("dbtier:app:update:messagetext: appdescriptiontext can not be empty ")
+            if (projectroletext.isEmpty()) {
+                throw IllegalArgumentException("common:projectrole:update:messagetext: projectroletext can not be empty ")
+            }
         }
 
         if (command.equals("delete")) {
-            if (id==null)
+            if (id != 0 || id == null)
 
-                throw IllegalArgumentException("dbtier:app:delete:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:app:delete:messagetext: id can not be empty  or 0")
         }
 
         if (command.equals("setActive")) {
-            if (id==null)
+            if (id != 0 || id == null)
 
-                throw IllegalArgumentException("dbtier:app:setActive:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:app:setActive:messagetext: id can not be empty  or 0")
         }
 
         if (command.equals("setInActive")) {
-            if (id==null)
+            if (id != 0 || id == null)
 
-                throw IllegalArgumentException("dbtier:app:setInActive: message id can not be empty")
+                throw IllegalArgumentException("common:app:setInActive: message id can not be empty  or 0")
         }
 
         if (command.equals("getById")) {
-            if (id==null)
+            if (id != 0 || id == null)
 
-                throw IllegalArgumentException("dbtier:app:getById:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:app:getById:messagetext: id can not be empty  or 0")
         }
 
 
         if (command.equals("getByName")) {
-            if (id==null)
+            if (projectroletext.isEmpty()) {
+                throw IllegalArgumentException("common:projectrole:getByName:messagetext: projectroletext can not be empty ")
+            }
 
-                throw IllegalArgumentException("dbtier:app:getByName:messagetext: id can not be empty")
+
         }
-
-
     }
 }

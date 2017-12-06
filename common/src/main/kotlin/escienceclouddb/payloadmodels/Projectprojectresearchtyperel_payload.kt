@@ -1,7 +1,7 @@
 package escienceclouddb.payloadmodels
 
 enum class ProjectprojectresearchtyperelUiCommand {
-    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList, getByName
+    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList
 }
 
 data class Projectprojectresearchtyperel_payload(val session: String,
@@ -16,54 +16,59 @@ data class Projectprojectresearchtyperel_payload(val session: String,
         if (command.equals(AppUiCommand.create)) {
 
             if (id!=0) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: id must be empty ")
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:create:messagetext: id must be empty ")
             }
 
-            if (apptext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: apptext can not be empty ")
+            if (projectrefid==0||projectrefid==null) {
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:create:messagetext: projectrefid must not be  empty or 0 ")
             }
 
-            if (appdescriptiontext.isEmpty()) {
-                throw IllegalArgumentException("dbtier:app:create:messagetext: appdescriptiontext can not be empty ")
+            if (projectresearchtyperefid==0||projectresearchtyperefid==null) {
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:create:messagetext: personrefid must not be  empty or 0 ")
             }
+
         }
 
         if (command.equals("update")) {
-            if (id==null)
+            if (id==0||id==null) {
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:update:messagetext: appdescriptiontext can not be empty ")
+            }
 
-                throw IllegalArgumentException("dbtier:app:update:messagetext: appdescriptiontext can not be empty ")
+            if (projectrefid==0||projectrefid==null) {
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:update:messagetext: projectrefid must not be  empty or 0 ")
+            }
+
+            if (projectresearchtyperefid==0||projectresearchtyperefid==null) {
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:update:messagetext: personrefid must not be  empty or 0 ")
+            }
         }
 
         if (command.equals("delete")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:delete:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:delete:messagetext: id can not be empty or 0")
         }
 
         if (command.equals("setActive")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:setActive:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:setActive:messagetext: id can not be empty or 0")
         }
 
         if (command.equals("setInActive")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:setInActive: message id can not be empty")
+                throw IllegalArgumentException("common:projectprojectresearchtyperel:setInActive: message id can not be empty or 0")
         }
 
         if (command.equals("getById")) {
-            if (id==null)
+            if (id==0||id==null)
 
-                throw IllegalArgumentException("dbtier:app:getById:messagetext: id can not be empty")
+                throw IllegalArgumentException("common:app:getById:messagetext: id can not be empty or 0")
         }
 
 
-        if (command.equals("getByName")) {
-            if (id==null)
 
-                throw IllegalArgumentException("dbtier:app:getByName:messagetext: id can not be empty")
-        }
 
 
     }
