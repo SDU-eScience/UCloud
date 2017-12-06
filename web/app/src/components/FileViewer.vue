@@ -45,8 +45,8 @@
               </thead>
               <tbody v-cloak>
               <tr class="row-settings clickable-row" v-for="file in files" @click="openFile(file)">
-                <td class="select-cell" style=""><label class="mda-checkbox"><input
-                  name="select" class="select-box" :value="file" v-model="selectedFiles" type="checkbox"><em
+                <td class="select-cell"><label class="mda-checkbox"><input
+                  name="select" class="select-box"  :value="file" v-model="selectedFiles" @click="prevent" type="checkbox"><em
                   class="bg-info"></em></label></td>
                 <td v-if="file.type === 'FILE'">
                   <a class="ion-android-document"></a> {{ file.path.name }}
@@ -172,6 +172,7 @@
     },
     mounted() {
       this.getFiles(this.$route.path);
+      window.addEventListener('keydown', this.deselect)
     },
     router: new VueRouter(),
     computed: {
@@ -198,7 +199,16 @@
       }
     },
     methods: {
-      openFile(file, $event) {
+      prevent($event) {
+        $event.stopPropagation();
+      },
+      deselect($event) {
+        if ($event.key === 'Escape') {
+          this.selectedFiles = [];
+          this.masterCheckbox = false;
+        }
+      },
+      openFile(file) {
         if (file.type === 'DIRECTORY') {
           window.location.hash = file.path.path
         }

@@ -55,6 +55,7 @@
       $.getJSON("/api/getBreadcrumbs", {path: this.path}).then((breadcrumbs) => {
         this.breadcrumbs = breadcrumbs
       });
+      window.addEventListener('keydown', this.tryHide);
     },
     watch: {
       path: function () {
@@ -67,6 +68,11 @@
       }
     },
     methods: {
+      tryHide($event) {
+        if ($event.key === 'Escape' && this.isShown) {
+          this.hide()
+        }
+      },
       changePath: function (newPath) {
         this.path = newPath;
       },
