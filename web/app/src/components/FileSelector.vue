@@ -41,7 +41,7 @@
 
     data() {
       return {
-        path: '',
+        path: '/',
         files: [],
         breadcrumbs: [],
         isShown: false,
@@ -50,7 +50,15 @@
     },
     mounted() {
       $.getJSON("/api/getFiles", {path: this.path}).then((files) => {
-        this.files = files;
+        this.files = files.sort((a, b) => {
+          if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
+            return -1;
+          else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
+            return 1;
+          else {
+            return a.path.name.localeCompare(b.path.name);
+          }
+        });
       });
       $.getJSON("/api/getBreadcrumbs", {path: this.path}).then((breadcrumbs) => {
         this.breadcrumbs = breadcrumbs
