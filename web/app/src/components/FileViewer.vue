@@ -4,9 +4,10 @@
       <div class="col-lg-10">
         <ol class="breadcrumb">
           <li v-for="breadcrumb in breadcrumbs" class="breadcrumb-item">
-            <router-link :to="{ path: breadcrumb.second }" append>{{breadcrumb.first}}</router-link></li>
+            <router-link :to="{ path: breadcrumb.second }" append>{{breadcrumb.first}}</router-link>
+          </li>
         </ol>
-        <loading-icon v-if="!files.length"></loading-icon>
+        <loading-icon v-if="loading"></loading-icon>
         <div v-cloak class="card" v-if="files.length && !loading">
           <div class="card-body">
             <table class="table-datatable table table-striped table-hover mv-lg">
@@ -20,16 +21,21 @@
                            value="all"
                            type="checkbox"><em
                     class="bg-info"></em></label></th>
-                <th class="text-left" @click="orderByName"><span class="text">Filename </span><span :class="['icon', getIcon('filename')]"></span></th>
-                <th class="text-left" @click="orderByFavourite"><span><a class="ion-star"></a></span><span :class="['icon', getIcon('favourite')]"></span></th>
-                <th class="text-left" @click="orderByDate"><span class="text">Last Modified </span><span :class="['icon', getIcon('lastModified')]"></span></th>
-                <th class="text-left" @click="orderByOwner"><span class="text">File Owner</span><span :class="['icon', getIcon('owners')]"></span></th>
+                <th class="text-left" @click="orderByName"><span class="text">Filename </span><span
+                  :class="['icon', getIcon('filename')]"></span></th>
+                <th class="text-left" @click="orderByFavourite"><span><a class="ion-star"></a></span><span
+                  :class="['icon', getIcon('favourite')]"></span></th>
+                <th class="text-left" @click="orderByDate"><span class="text">Last Modified </span><span
+                  :class="['icon', getIcon('lastModified')]"></span></th>
+                <th class="text-left" @click="orderByOwner"><span class="text">File Owner</span><span
+                  :class="['icon', getIcon('owners')]"></span></th>
               </tr>
               </thead>
               <tbody v-cloak>
               <tr class="row-settings clickable-row" v-for="file in files" @click="openFile(file)">
                 <td class="select-cell"><label class="mda-checkbox"><input
-                  name="select" class="select-box"  :value="file" v-model="selectedFiles" @click="prevent" type="checkbox"><em
+                  name="select" class="select-box" :value="file" v-model="selectedFiles" @click="prevent"
+                  type="checkbox"><em
                   class="bg-info"></em></label></td>
                 <td v-if="file.type === 'FILE'">
                   <a class="ion-android-document"></a> {{ file.path.name }}
@@ -70,10 +76,10 @@
       <div class="col-lg-2 visible-lg">
         <div>
           <div class="center">
-            <button class="btn btn-link btn-lg" @click="getFavourites()"><i class="icon ion-star" ></i></button>
+            <button class="btn btn-link btn-lg" @click="getFavourites()"><i class="icon ion-star"></i></button>
             <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
           </div>
-            <hr>
+          <hr>
           <button class="btn btn-primary ripple btn-block ion-android-upload"> Upload Files</button>
           <br>
           <button class="btn btn-default ripple btn-block ion-folder" v-on:click="createFolder"> New
@@ -84,20 +90,46 @@
           <h3 v-if="selectedFiles.length" v-cloak>
             {{ 'Rights level: ' + options.rightsName }}<br>
             {{ selectedFiles.length > 1 ? selectedFiles.length + ' files selected.' : selectedFiles[0].path.name }}</h3>
-          <div v-if="selectedFiles.length" v-cloak> <!-- TODO Are separate options necessary? -->
-              <p><button class="btn btn-info rippple btn-block"
-                    v-on:click="sendToAbacus()"> Send to Abacus 2.0</button></p>
-              <p><button type="button" class="btn btn-default ripple btn-block ion-share"
-                    v-on:click="shareFile(selectedFiles[0].path.name, 'folder')"> Share selected files</button></p>
-              <p><button class="btn btn-default ripple btn-block ion-ios-download"> Download selected files</button></p>
-              <p><button type="button" class="btn btn-default btn-block ripple ion-android-star"> Favourite selected files</button>
-              </p>
-              <p><button class="btn btn-default btn-block ripple ion-ios-photos"> Move folder</button></p> <!-- TODO When is this allowed? -->
-              <p><button type="button" class="btn btn-default btn-block ripple ion-ios-compose"
-                    v-on:click="renameFile(selectedFiles[0].path.name, 'folder')"  :disabled="options.rightsLevel < 3 || selectedFiles.length !== 1"> Rename file</button></p>
-              <p><button class="btn btn-danger btn-block ripple ion-ios-trash" :disabled="options.rightsLevel < 3"
-                    v-on:click="showFileDeletionPrompt(selectedFiles[0].path.name, selectedFiles[0].path)">
-                Delete selected files</button></p>
+          <div v-if="selectedFiles.length" v-cloak>
+            <p>
+              <button class="btn btn-info rippple btn-block"
+                      v-on:click="sendToAbacus()"> Send to Abacus 2.0
+              </button>
+            </p>
+            <p>
+              <button type="button" class="btn btn-default ripple btn-block ion-share" :title="getTitle('share')"
+                      v-on:click="shareFile(selectedFiles[0].path.name, 'folder')"> Share selected files
+              </button>
+            </p>
+            <p>
+              <button class="btn btn-default ripple btn-block ion-ios-download" :title="getTitle('download')">
+                Download selected files
+              </button>
+            </p>
+            <p>
+              <button type="button" class="btn btn-default btn-block ripple ion-android-star">
+                Favourite selected files
+              </button>
+            </p>
+            <p>
+              <button class="btn btn-default btn-block ripple ion-ios-photos" :title="getTitle('move')">
+                Move folder
+              </button>
+            </p> <!-- TODO When is this allowed? -->
+            <p>
+              <button type="button" class="btn btn-default btn-block ripple ion-ios-compose"
+                      v-on:click="renameFile(selectedFiles[0].path.name, 'folder')" :title="getTitle('rename')"
+                      :disabled="options.rightsLevel < 3 || selectedFiles.length !== 1">
+                Rename file
+              </button>
+            </p>
+            <p>
+              <button class="btn btn-danger btn-block ripple ion-ios-trash" :title="getTitle('delete')"
+                      :disabled="options.rightsLevel < 3"
+                      v-on:click="showFileDeletionPrompt(selectedFiles[0].path.name, selectedFiles[0].path)">
+                Delete selected files
+              </button>
+            </p>
           </div>
         </div>
       </div>
@@ -134,8 +166,8 @@
         },
         // FIXME Intended as titles for buttons
         buttonTitles: {
-          share: {
-            normal: 'Click to share the selected files.',
+          rename: {
+            normal: 'Click to rename the selected file.',
             lowRightsLevel: 'You do not have the rights to rename this file',
             multipleFilesSelected: 'You can only rename one file at a time. Please only select one file to rename.'
           },
@@ -146,6 +178,13 @@
           move: {
             normal: 'Click to move the selected files to a different location',
             lowRightsLevel: 'You do not have the rights to move the selected files'
+          },
+          share: {
+            normal: 'Click to share the selected files.'
+          },
+          download: {
+            normal: 'Click to download the selected files.',
+            lowRightsLevel: 'You do not the correct permissions to delete the selected files',
           }
         },
         rightsMap: {
@@ -185,6 +224,29 @@
       }
     },
     methods: {
+      getTitle(buttonName) {
+        console.log(buttonName);
+        if (buttonName === 'rename') {
+          if (this.options.rightsLevel < 3) {
+            return this.buttonTitles[buttonName]['lowRightsLevel'];
+          } else if (this.selectedFiles.length > 1) { // Special case for rename
+            return this.buttonTitles[buttonName]['multipleFilesSelected'];
+          }
+        } else if (buttonName === 'share') {
+          if (this.options.rightsLevel < 3) {
+            return this.buttonTitles[buttonName]['lowRightsLevel']
+          }
+        } else if (buttonName === 'move') {
+          if (this.options.rightsLevel < 3) {
+            return this.buttonTitles[buttonName]['lowRightsLevel']
+          }
+        } else if (buttonName === 'delete') {
+          if (this.options.rightsLevel < 3) {
+            return this.buttonTitles[buttonName]['lowRightsLevel']
+          }
+        }
+        return this.buttonTitles[buttonName]['normal'];
+      },
       prevent($event) {
         $event.stopPropagation();
       },
@@ -227,7 +289,9 @@
         });
       },
       getIcon(name) {
-        if (this.sortOrders.lastSorted !== name) { return "" }
+        if (this.sortOrders.lastSorted !== name) {
+          return ""
+        }
         if (this.sortOrders[name]) {
           return "ion-chevron-down"
         } else {
