@@ -4,9 +4,7 @@
     <div class="container-fluid">
       <!-- DATATABLE DEMO 1-->
       <div class="col-lg-10">
-        <div class="file-loading">
-          <h1 class="app-loading-content">Loading Applications...</h1>
-        </div>
+        <loading-icon v-if="!applications.length"></loading-icon>
         <div v-cloak class="card" v-if="applications[0] != null">
           <div class="card-body">
             <table id="table-options" class="table-datatable table table-striped table-hover mv-lg">
@@ -53,8 +51,10 @@
 
 <script>
   import $ from 'jquery'
+  import LoadingIcon from "./LoadingIcon";
 
   export default {
+    components: {LoadingIcon},
     name: 'applications',
     data() {
       return {
@@ -67,12 +67,7 @@
     methods: {
       getApplications: function () {
         $.getJSON("/api/getApplications").then((data) => {
-          if (data[0] === undefined) {
-            $(".app-loading-content").text("No applications found.");
-          } else {
-            $(".app-loading-content").text("");
-            this.applications = data
-          }
+          this.applications = data;
         });
       },
       newApplication: function () {
