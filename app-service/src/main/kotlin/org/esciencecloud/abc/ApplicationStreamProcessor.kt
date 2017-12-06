@@ -197,16 +197,3 @@ fun main(args: Array<String>) {
     processor.start()
 }
 
-// TODO Should be shared!
-data class Request<out EventType>(val header: RequestHeader, val event: EventType) {
-    companion object {
-        const val TYPE_PROPERTY = "type"
-    }
-}
-
-data class RequestHeader(
-        val uuid: String,
-        val performedFor: ProxyClient
-)
-
-data class ProxyClient(val username: String, val password: String)

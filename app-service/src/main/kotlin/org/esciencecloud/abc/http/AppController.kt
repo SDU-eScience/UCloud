@@ -47,6 +47,7 @@ fun main(args: Array<String>) {
                 registerKotlinModule()
             }
         }
+
         routing {
             route("/hpc/apps") {
                 AppController(ApplicationDAO).configure(this)

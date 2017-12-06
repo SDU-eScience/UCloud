@@ -1,21 +1,18 @@
 package org.esciencecloud.abc.api
 
-import org.apache.kafka.common.serialization.Serdes
-import org.esciencecloud.abc.Request
 import org.esciencecloud.abc.processors.MyJobs
-import org.esciencecloud.kafka.JsonSerde.jsonSerde
-import org.esciencecloud.kafka.StreamDescription
-import org.esciencecloud.kafka.TableDescription
+import org.esciencecloud.client.KafkaDescriptions
 
-object HPCStreams {
-    val AppRequests = StreamDescription<String, Request<HPCAppRequest>>("request.hpcApp", Serdes.String(), jsonSerde())
-    val AppEvents = StreamDescription<String, HPCAppEvent>("hpcAppEvents", Serdes.String(), jsonSerde())
+object HPCStreams : KafkaDescriptions() {
+    val AppRequests = HPCApplications.AppRequest.descriptions.mappedAtGateway("request.hpcApp") {
+        Pair(it.header.uuid, it)
+    }
+    val AppEvents = stream<String, HPCAppEvent>("hpcAppEvents")
 
     // TODO We can clean up in these
-    val JobIdToApp = TableDescription<String, HPCAppEvent.Pending>("hpcJobToApp", Serdes.String(), jsonSerde())
-    val SlurmIdToJobId = TableDescription<Long, String>("hpcSlurmIdToJobId", Serdes.Long(), Serdes.String())
-    val JobIdToStatus = TableDescription<String, HPCAppEvent>("hpcJobToStatus", Serdes.String(), jsonSerde())
+    val JobIdToApp = table<String, HPCAppEvent.Pending>("hpcJobToApp")
+    val SlurmIdToJobId = table<Long, String>("hpcSlurmIdToJobId")
+    val JobIdToStatus = table<String, HPCAppEvent>("hpcJobToStatus")
 
-    val RecentlyCompletedJobs = TableDescription<String, MyJobs>("hpcRecentJobs",
-            Serdes.String(), jsonSerde())
+    val RecentlyCompletedJobs = table<String, MyJobs>("hpcRecentJobs")
 }

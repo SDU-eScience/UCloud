@@ -10,15 +10,6 @@ import kotlin.reflect.KProperty1
 
 @DslMarker annotation class RESTCallDSL
 
-inline fun <reified R : Any, reified S : Any, reified E : Any> callDescription(
-        mapper: ObjectMapper = HttpClient.defaultMapper,
-        body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
-): RESTCallDescription<R, S, E> =
-        RESTCallDescriptionBuilder<R, S, E>(
-                R::class,
-                mapper.readerFor(jacksonTypeRef<S>()),
-                mapper.readerFor(jacksonTypeRef<E>())
-        ).also(body).build()
 
 @RESTCallDSL
 class RESTCallDescriptionBuilder<R : Any, S, E>(

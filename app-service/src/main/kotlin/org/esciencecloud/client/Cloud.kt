@@ -162,3 +162,28 @@ sealed class RESTPathSegment<R : Any> {
     data class Property<R : Any, P>(val property: KProperty1<R, P>) : RESTPathSegment<R>()
     class Remaining<R : Any> : RESTPathSegment<R>()
 }
+
+typealias KafkaCallDescription<R> = RESTCallDescription<R, GatewayJobResponse, GatewayJobResponse>
+typealias KafkaCallDescriptionBundle<R> = List<RESTCallDescription<out R, GatewayJobResponse, GatewayJobResponse>>
+
+// Needs to be exported to clients of GW. We purposefully remove _all_ references to Kafka here.
+enum class JobStatus {
+    STARTED,
+    COMPLETE,
+    ERROR
+}
+
+class GatewayJobResponse private constructor(
+        val status: JobStatus,
+        val jobId: String?,
+        val offset: Long?,
+        val partition: Int?,
+        val timestamp: Long?
+) {
+    companion object {
+        private val error by lazy { GatewayJobResponse(JobStatus.ERROR, null, null, null, null) }
+        fun started(jobId: String, offset: Long, partition: Int, timestamp: Long) =
+                GatewayJobResponse(JobStatus.STARTED, jobId, offset, partition, timestamp)
+        fun error() = error
+    }
+}

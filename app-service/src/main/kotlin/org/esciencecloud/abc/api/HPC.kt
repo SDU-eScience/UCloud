@@ -1,12 +1,10 @@
 package org.esciencecloud.abc.api
 
+import io.ktor.http.HttpMethod
 import kotlinx.coroutines.experimental.runBlocking
-import org.esciencecloud.client.AuthenticatedCloud
-import org.esciencecloud.client.EScienceCloud
-import org.esciencecloud.client.basicAuth
-import org.esciencecloud.client.callDescription
+import org.esciencecloud.client.*
 
-object HPCApplications {
+object HPCApplications : RESTDescriptions() {
     val baseContext = "/hpc/apps/"
 
     data class FindAllByName(val name: String) {
@@ -66,6 +64,50 @@ object HPCApplications {
         }
 
         suspend fun call(cloud: AuthenticatedCloud) = description.prepare(this).call(cloud)
+    }
+
+    sealed class AppRequest {
+        data class Start(
+                val application: NameAndVersion,
+                val parameters: Map<String, Any>
+        ) : AppRequest() {
+            companion object {
+                val description = kafkaDescription<AppRequest.Start> {
+                    method = HttpMethod.Post
+
+                    path {
+                        using(baseContext)
+                        +"jobs"
+                    }
+
+                    // TODO Body
+                }
+            }
+        }
+
+        data class Cancel(val jobId: Long) : AppRequest() {
+            companion object {
+                val description = kafkaDescription<AppRequest.Cancel> {
+                    method = HttpMethod.Delete
+
+                    path {
+                        using(baseContext)
+                        +"jobs"
+                        +boundTo(Cancel::jobId)
+                    }
+                }
+            }
+        }
+
+        companion object {
+            val descriptions: KafkaCallDescriptionBundle<AppRequest> =
+                    listOf(AppRequest.Start.description, AppRequest.Cancel.description)
+        }
+
+        suspend fun call(cloud: AuthenticatedCloud): RESTResponse<GatewayJobResponse, GatewayJobResponse> = when(this) {
+            is Start -> Start.description.prepare(this).call(cloud)
+            is Cancel -> Cancel.description.prepare(this).call(cloud)
+        }
     }
 }
 

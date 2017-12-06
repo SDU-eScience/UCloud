@@ -22,8 +22,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
         restCall: RESTCallDescription<P, S, E>,
         handler: suspend RESTHandler<P, S, E>.(P) -> Unit
 ) {
-    val template = restCall.path.segments.joinToString("/") { it.toKtorTemplateString() }
-    println(template)
+    val template = restCall.path.toKtorTemplate(fullyQualified = false)
     route(template) {
         method(restCall.method) {
             handle {
@@ -77,7 +76,16 @@ class RESTHandler<P : Any, in S : Any, in E : Any>(val boundTo: PipelineContext<
 // We should keep these out, such that they are in a module which is only used by service definitions (to not
 // force ktor dependency on clients)
 
-fun <R : Any> RESTPathSegment<R>.toKtorTemplateString(): String = when (this) {
+fun RESTPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
+    val primaryPart = segments.joinToString("/") { it.toKtorTemplateString() }
+    return if (fullyQualified) {
+        basePath.removeSuffix("/") + "/" + primaryPart
+    } else {
+        primaryPart
+    }
+}
+
+private fun <R : Any> RESTPathSegment<R>.toKtorTemplateString(): String = when (this) {
     is RESTPathSegment.Simple -> text
 
     is RESTPathSegment.Property<R, *> -> StringBuilder().apply {
@@ -117,3 +125,4 @@ fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair
         else -> null
     }
 }
+
