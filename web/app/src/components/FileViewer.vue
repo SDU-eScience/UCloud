@@ -69,11 +69,11 @@
       </div>
       <div class="col-lg-2 visible-lg">
         <div>
-          <ol v-cloak class="icons-list">
-            <li data-pack="default" class="ion-star" v-on:click="getFavourites()"></li>
-            <li data-pack="default" class="ion-ios-home" onclick="location.href='/files#/'"></li>
+          <div class="center">
+            <button class="btn btn-link btn-lg" @click="getFavourites()"><i class="icon ion-star" ></i></button>
+            <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
+          </div>
             <hr>
-          </ol>
           <button class="btn btn-primary ripple btn-block ion-android-upload"> Upload Files</button>
           <br>
           <button class="btn btn-default ripple btn-block ion-folder" v-on:click="createFolder"> New
