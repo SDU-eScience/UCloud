@@ -6,14 +6,15 @@
           <h5 class="card-heading pb0">
             Favourite files
           </h5>
-          <table class="table-datatable table table-striped table-hover mv-lg">
+          <loading-icon v-if="favouritesLoading"></loading-icon>
+          <h3 v-else-if="!favourites.length" class="text-center"><small>No favourites found.</small></h3>
+          <table class="table-datatable table table-striped table-hover mv-lg" v-else>
             <thead>
             <tr>
               <th>File</th>
               <th>Starred</th>
             </tr>
             </thead>
-            <loading-icon v-if="favouritesLoading"></loading-icon>
             <tbody>
             <tr v-for="file in favourites">
               <td><a href="#">{{ file.path.name }}</a></td>
@@ -28,14 +29,15 @@
           <h5 class="card-heading pb0">
             Recently modified files
           </h5>
-          <table class="table-datatable table table-striped table-hover mv-lg">
+          <loading-icon v-if="mostRecentlyUsedLoading"></loading-icon>
+          <h3 v-else-if="!mostRecentlyUsed.length" class="text-center"><small>No recently used files found.</small></h3>
+          <table class="table-datatable table table-striped table-hover mv-lg" v-else>
             <thead>
             <tr>
               <th>File</th>
               <th>Modified</th>
             </tr>
             </thead>
-            <loading-icon v-if="mostRecentlyUsedLoading"></loading-icon>
             <tbody>
             <tr v-cloak v-for="file in mostRecentlyUsed">
               <td><a href="#">{{ file.path.name }}</a></td>
@@ -50,14 +52,15 @@
           <h5 class="card-heading pb0">
             Analyses
           </h5>
-          <table class="table-datatable table table-striped table-hover mv-lg">
+          <loading-icon v-if="analysesLoading"></loading-icon>
+          <h3 v-else-if="!analyses.length" class="text-center"><small>No analyses found.</small></h3>
+          <table class="table-datatable table table-striped table-hover mv-lg" v-else>
             <thead>
             <tr>
               <th>Name</th>
               <th>Status</th>
             </tr>
             </thead>
-            <loading-icon v-if="analysesLoading"></loading-icon>
             <tbody>
             <tr v-for="analysis in analyses">
               <td><a href="#">{{ analysis.name }}</a></td>
