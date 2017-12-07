@@ -1,4 +1,4 @@
-package org.esciencecloud.transactions
+package org.esciencecloud.transactions.new
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -16,15 +16,19 @@ data class ServiceManifest(
         val kafkaProxies: List<String>? = null
 )
 
-class ServiceLoader(private val jarFile: JarFile) : ClassLoader(), Closeable {
-    private val knownResources: Set<String>
-    private val knownClasses: Map<String, JarEntry>
-    private val cachedClasses = HashMap<String, Class<*>>()
+class ServiceClassLoader(private val jarFile: JarFile) : ClassLoader(), Closeable {
     val manifest: ServiceManifest
+    val source = jarFile.name
+    private val _knownResources: Set<String>
+    private val _knownClasses: Map<String, JarEntry>
 
+    val knownResources: Iterable<String> get() = _knownResources
+    val knownClasses: List<String> get() = _knownClasses.keys.toList()
+
+    private val cachedClasses = HashMap<String, Class<*>>()
     companion object {
         private val mapper = jacksonObjectMapper()
-        private val log = LoggerFactory.getLogger(ServiceLoader::class.qualifiedName)
+        private val log = LoggerFactory.getLogger(ServiceClassLoader::class.qualifiedName)
     }
 
     init {
@@ -37,9 +41,9 @@ class ServiceLoader(private val jarFile: JarFile) : ClassLoader(), Closeable {
         }
 
         val entries = jarFile.entries().toList()
-        knownResources = entries.map { it.name }.toSet()
+        _knownResources = entries.map { it.name }.toSet()
 
-        knownClasses = entries.filter { it.name.endsWith(".class") }.map {
+        _knownClasses = entries.filter { it.name.endsWith(".class") }.map {
             Pair(it.name.replace('/', '.').removeSuffix(".class"), it)
         }.toMap()
     }
@@ -48,8 +52,8 @@ class ServiceLoader(private val jarFile: JarFile) : ClassLoader(), Closeable {
         return when (name) {
             in cachedClasses -> cachedClasses[name]
 
-            in knownClasses -> {
-                val readBytes = jarFile.getInputStream(knownClasses[name]).readBytes()
+            in _knownClasses -> {
+                val readBytes = jarFile.getInputStream(_knownClasses[name]).readBytes()
                 defineClass(name, readBytes, 0, readBytes.size).also {
                     cachedClasses[name] = it
                 }
@@ -60,7 +64,7 @@ class ServiceLoader(private val jarFile: JarFile) : ClassLoader(), Closeable {
     }
 
     override fun getResourceAsStream(name: String): InputStream? {
-        if (name in knownResources) {
+        if (name in _knownResources) {
             val jarEntry = jarFile.getJarEntry(name) ?: return null
             return jarFile.getInputStream(jarEntry)
         }
@@ -80,7 +84,7 @@ fun main(args: Array<String>) {
         println("Trying!")
         try {
             val f = JarFile(File(path))
-            ServiceLoader(f).use { loader ->
+            ServiceClassLoader(f).use { loader ->
                 println(loader.manifest)
                 val klass = loader.loadClass("org.esciencecloud.abc.api.SimpleTest")
                 val instance = klass!!.newInstance()

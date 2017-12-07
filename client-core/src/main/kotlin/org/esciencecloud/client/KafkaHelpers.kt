@@ -1,7 +1,7 @@
 package org.esciencecloud.client
 
 typealias KafkaCallDescription<R> = RESTCallDescription<R, GatewayJobResponse, GatewayJobResponse>
-typealias KafkaCallDescriptionBundle<R> = List<RESTCallDescription<out R, GatewayJobResponse, GatewayJobResponse>>
+typealias KafkaCallDescriptionBundle<R> = List<RESTCallDescription<R, GatewayJobResponse, GatewayJobResponse>>
 
 // Needs to be exported to clients of GW. We purposefully remove _all_ references to Kafka here.
 enum class JobStatus {

@@ -2,21 +2,47 @@ package org.esciencecloud.client
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
+import io.netty.handler.codec.http.HttpMethod
 import org.asynchttpclient.BoundRequestBuilder
 import org.slf4j.LoggerFactory
+
+sealed class ProxyDescription {
+    abstract val template: String
+    abstract val method: HttpMethod
+    abstract val shouldProxyFromGateway: Boolean
+
+    data class Manual(
+            override val template: String,
+            override val method: HttpMethod,
+            override val shouldProxyFromGateway: Boolean
+    ) : ProxyDescription()
+
+    data class FromDescription(
+            val description: RESTCallDescription<*, *, *>
+    ) : ProxyDescription() {
+        override val method: HttpMethod
+            get() = description.method
+
+        override val shouldProxyFromGateway: Boolean
+            get() = description.shouldProxyFromGateway
+
+        override val template: String
+            get() = description.path.toKtorTemplate(fullyQualified = true)
+    }
+}
 
 abstract class RESTDescriptions {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val _descriptions: MutableList<String> = ArrayList()
-    val descriptions: List<String> get() = _descriptions.toList()
+    private val _descriptions: MutableList<ProxyDescription> = ArrayList()
+    val descriptions: List<ProxyDescription> get() = _descriptions.toList()
 
     /**
      * Creates a [RESTCallDescription] and registers it in the container.
      *
      * To do this manually create a description and call [register] with the template.
      */
-    inline fun <reified R : Any, reified S : Any, reified E : Any> callDescription(
+    inline protected fun <reified R : Any, reified S : Any, reified E : Any> callDescription(
             mapper: ObjectMapper = HttpClient.defaultMapper,
             noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
             body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
@@ -28,7 +54,7 @@ abstract class RESTDescriptions {
         )
         builder.body()
         val result = builder.build(additionalRequestConfiguration)
-        register(result.path.toKtorTemplate(fullyQualified = true))
+        register(result)
         return result
     }
 
@@ -38,7 +64,7 @@ abstract class RESTDescriptions {
      * This is the same as using [callDescription] with no registration at GW at with predefined [GatewayJobResponse]
      * for both success and error messages.
      */
-    inline fun <reified R : Any> kafkaDescription(
+    inline protected fun <reified R : Any> kafkaDescription(
             mapper: ObjectMapper = HttpClient.defaultMapper,
             noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
             body: RESTCallDescriptionBuilder<R, GatewayJobResponse, GatewayJobResponse>.() -> Unit
@@ -52,11 +78,17 @@ abstract class RESTDescriptions {
     /**
      * Registers a ktor style template in this container.
      */
-    fun register(template: String) {
+    protected fun register(template: String, method: HttpMethod) {
         log.debug("Registering new ktor template: $template")
-        _descriptions.add(template)
+        _descriptions.add(ProxyDescription.Manual(template, method, true))
+    }
+
+    protected fun register(description: RESTCallDescription<*, *, *>) {
+        log.debug("Registering new ktor template: ${description.path.toKtorTemplate(true)}")
+        _descriptions.add(ProxyDescription.FromDescription(description))
     }
 }
+
 fun RESTPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
     val primaryPart = segments.joinToString("/") { it.toKtorTemplateString() }
     return if (fullyQualified) {

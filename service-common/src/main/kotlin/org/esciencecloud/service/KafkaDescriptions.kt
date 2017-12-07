@@ -12,8 +12,10 @@ import org.apache.kafka.streams.kstream.Serialized
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore
 import org.apache.kafka.streams.state.StreamsMetadata
+import org.esciencecloud.client.GatewayJobResponse
 import org.esciencecloud.client.KafkaCallDescription
 import org.esciencecloud.client.KafkaCallDescriptionBundle
+import org.esciencecloud.client.RESTCallDescription
 import org.esciencecloud.service.JsonSerde.jsonSerde
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
@@ -48,8 +50,9 @@ data class RequestHeader(
 
 data class ProxyClient(val username: String, val password: String)
 
-class KafkaMappingDescription<in R : Any, K : Any, V : Any>(
+class KafkaMappingDescription<R : Any, K : Any, V : Any>(
         val topicName: String,
+        val targets: KafkaCallDescriptionBundle<R>,
         val keySerde: Serde<K>,
         val valueSerde: Serde<V>,
         val mappper: (KafkaRequest<R>) -> Pair<K, V>
@@ -73,7 +76,8 @@ abstract class KafkaDescriptions {
             valueSerde: Serde<V> = defaultSerdeOrJson(),
             noinline mapper: (KafkaRequest<R>) -> Pair<K, V>
     ): StreamDescription<K, V> {
-        return map { it.mappedAtGateway(topicName, keySerde, valueSerde, mapper) }.first()
+        registerMapping(KafkaMappingDescription(topicName, this, keySerde, valueSerde, mapper))
+        return stream(topicName, keySerde, valueSerde)
     }
 
     /**
@@ -81,14 +85,13 @@ abstract class KafkaDescriptions {
      *
      *  This code will be run at the API gateway and _not_ in the service.
      */
-    @Suppress("unused") // the receiver is used for type inference and type safety
     inline fun <R : Any, reified K : Any, reified V : Any> KafkaCallDescription<R>.mappedAtGateway(
             topicName: String,
             keySerde: Serde<K> = defaultSerdeOrJson(),
             valueSerde: Serde<V> = defaultSerdeOrJson(),
             noinline mapper: (KafkaRequest<R>) -> Pair<K, V>
     ): StreamDescription<K, V> {
-        registerMapping(KafkaMappingDescription(topicName, keySerde, valueSerde, mapper))
+        registerMapping(KafkaMappingDescription(topicName, listOf(this), keySerde, valueSerde, mapper))
         return stream(topicName, keySerde, valueSerde)
     }
 
