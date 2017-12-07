@@ -31,7 +31,7 @@ class SBatchGeneratorTest {
                 parameters = emptyList()
         ))
 
-        val generator = SBatchGenerator("test@test")
+        val generator = SBatchGenerator()
 
         val job = generator.generate(ApplicationDAO.findByNameAndVersion("app", "1.0.0")!!, emptyMap(), "")
         val lines = job.lines()
@@ -90,7 +90,7 @@ class SBatchGeneratorTest {
         }
         """.trimIndent()
 
-        val gen = SBatchGenerator("sdu.esci.dev@gmail.com")
+        val gen = SBatchGenerator()
         val parameters = serde.deserializer().deserialize("", parametersJson.toByteArray())
 
         val app = ApplicationDAO.findAllByName("hello").first()

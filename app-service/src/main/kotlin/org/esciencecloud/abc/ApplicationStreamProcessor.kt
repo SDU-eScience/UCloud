@@ -47,7 +47,6 @@ import kotlin.collections.set
 data class HPCConfig(
         val kafka: KafkaConfiguration,
         val ssh: SimpleSSHConfig,
-        val mail: MailAgentConfiguration,
         val storage: StorageConfiguration,
         val rpc: RPCConfiguration
 )
@@ -101,7 +100,7 @@ class ApplicationStreamProcessor(
         val sshPool = SSHConnectionPool(config.ssh)
         val hpcStore = HPCStore(hostname, rpcPort, config.rpc)
         val streamService = HPCStreamService(storageConnectionFactory, streamBuilder, producer)
-        val sbatchGenerator = SBatchGenerator("sdu.esci.dev@gmail.com")
+        val sbatchGenerator = SBatchGenerator()
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
         log.info("Init Event Processors")

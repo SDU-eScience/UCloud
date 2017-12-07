@@ -5,7 +5,7 @@ import org.esciencecloud.abc.api.ApplicationParameter
 import org.esciencecloud.abc.api.SimpleDuration
 import org.esciencecloud.abc.util.BashEscaper.safeBashArgument
 
-class SBatchGenerator(private val emailForNotifications: String) {
+class SBatchGenerator {
     private val compiler = TemplateParser()
 
     private val TIME_REGEX = Regex("(((\\d{0,2}):)?((\\d{0,2}):))?(\\d{0,2})")
@@ -93,8 +93,6 @@ class SBatchGenerator(private val emailForNotifications: String) {
             #SBATCH --nodes $numberOfNodes
             #SBATCH --ntasks-per-node $tasksPerNode
             #SBATCH --time $maxTime
-            #SBATCH --mail-type=ALL
-            #SBATCH --mail-user=$emailForNotifications
 
             module add singularity
             $modules
