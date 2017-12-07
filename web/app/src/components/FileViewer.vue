@@ -9,7 +9,10 @@
         </ol>
         <loading-icon v-if="loading"></loading-icon>
         <div v-cloak class="card" v-if="!loading">
-          <div class="card-body">
+          <div v-if="!files.length">
+            <h3 class="text-center"><small>There are no files in current folder</small></h3>
+          </div>
+          <div v-else class="card-body">
             <table class="table-datatable table table-striped table-hover mv-lg">
               <thead>
               <tr role="row">
@@ -86,7 +89,7 @@
                     @click="toPage(n - 1)">{{ n }}</button>
           </span>
           <button class="paginate_button next btn-default btn btn-circle ion-ios-arrow-right" @click="nextPage()"
-                  :disabled="currentPage === paginationPages - 1"></button>
+                  :disabled="currentPage === Math.max(paginationPages - 1, 0)"></button>
         </div>
       </div>
       <div class="col-lg-2 visible-lg">
@@ -495,4 +498,3 @@
     }
   }
 </script>
-
