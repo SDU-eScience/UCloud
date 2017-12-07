@@ -58,3 +58,24 @@ abstract class RESTDescriptions {
         _descriptions.add(template)
     }
 }
+fun RESTPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
+    val primaryPart = segments.joinToString("/") { it.toKtorTemplateString() }
+    return if (fullyQualified) {
+        basePath.removeSuffix("/") + "/" + primaryPart
+    } else {
+        primaryPart
+    }
+}
+
+private fun <R : Any> RESTPathSegment<R>.toKtorTemplateString(): String = when (this) {
+    is RESTPathSegment.Simple -> text
+
+    is RESTPathSegment.Property<R, *> -> StringBuilder().apply {
+        append('{')
+        append(property.name)
+        if (property.returnType.isMarkedNullable) append('?')
+        append('}')
+    }.toString()
+
+    is RESTPathSegment.Remaining -> "{...}"
+}

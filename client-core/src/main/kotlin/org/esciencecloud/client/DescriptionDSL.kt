@@ -3,7 +3,7 @@ package org.esciencecloud.client
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
-import io.ktor.http.HttpMethod
+import io.netty.handler.codec.http.HttpMethod
 import org.asynchttpclient.BoundRequestBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
@@ -16,7 +16,7 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
         private val deserializerSuccess: ObjectReader,
         private val deserializerError: ObjectReader
 ) {
-    var method: HttpMethod = HttpMethod.Get
+    var method: HttpMethod = HttpMethod.GET
     var shouldProxyFromGateway: Boolean = true
     internal var path: RESTPath<R>? = null
     internal var body: RESTBody<R, *>? = null

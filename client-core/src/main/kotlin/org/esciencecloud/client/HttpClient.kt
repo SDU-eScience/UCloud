@@ -1,4 +1,4 @@
-package org.esciencecloud.asynchttp
+package org.esciencecloud.client
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper

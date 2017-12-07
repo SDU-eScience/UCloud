@@ -1,12 +1,16 @@
 package org.esciencecloud.client
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
-import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.Response
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.addBasicAuth
+import org.slf4j.LoggerFactory
+import java.io.PrintWriter
+import java.io.StringWriter
+
+private fun Exception.stackTraceToString(): String = StringWriter().apply {
+    printStackTrace(PrintWriter(this))
+}.toString()
 
 sealed class RESTResponse<out T, out E> {
     abstract val response: Response
@@ -16,52 +20,60 @@ sealed class RESTResponse<out T, out E> {
     val rawResponseBody: String get() = response.responseBody
 
     data class Ok<out T, out E>(override val response: Response, val result: T) : RESTResponse<T, E>()
-    data class Err<out T, out E>(override val response: Response, val error: E) : RESTResponse<T, E>()
+    data class Err<out T, out E>(override val response: Response, val error: E? = null) : RESTResponse<T, E>()
 }
 
-abstract class PreparedRESTCall<out T, out E>(val resolvedEndpoint: String) {
+abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String) {
+    val resolvedEndpoint = resolvedEndpoint.removePrefix("/")
+
+    companion object {
+        private val log = LoggerFactory.getLogger(PreparedRESTCall::class.java)
+    }
+
     abstract fun BoundRequestBuilder.configure()
     abstract fun deserializeSuccess(response: Response): T
-    abstract fun deserializeError(response: Response): E
+    abstract fun deserializeError(response: Response): E?
 
     suspend fun call(context: AuthenticatedCloud): RESTResponse<T, E> {
-        val resp = HttpClient.get("${context.parent.endpoint}/$resolvedEndpoint") {
+        val url = "${context.parent.endpoint}/$resolvedEndpoint"
+        val resp = HttpClient.get(url) {
             context.apply { configureCall() }
             configure()
         }
 
+        // TODO FIXME The stackTraceToString does not exist in the correct module!
         return if (resp.statusCode in 200..299) {
-            RESTResponse.Ok(resp, deserializeSuccess(resp))
+            val result = try {
+                deserializeSuccess(resp)
+            } catch (ex: Exception) {
+                log.warn("Caught exception while attempting to deserialize a _successful_ message!")
+                log.warn("Exception follows: ${ex.stackTraceToString()}")
+                null
+            }
+
+            if (result != null) {
+                RESTResponse.Ok(resp, result)
+            } else {
+                log.warn("Unable to deserialize _successful_ message!")
+                RESTResponse.Err(resp)
+            }
         } else {
-            RESTResponse.Err(resp, deserializeError(resp))
+            val error = try {
+                deserializeError(resp)
+            } catch (ex: Exception) {
+                log.warn("Caught exception while attempting to deserialize an unsuccessful message!")
+                log.warn("Exception follows: ${ex.stackTraceToString()}")
+                null
+            }
+
+            RESTResponse.Err(resp, error)
         }
     }
 }
 
-inline fun <reified T : Any, reified E : Any> preparedCallWithJsonOutput(
-        endpoint: String,
-        mapper: ObjectMapper = HttpClient.defaultMapper,
-        crossinline configureBody: BoundRequestBuilder.() -> Unit = {}
-): PreparedRESTCall<T, E> {
-    val successRef = mapper.readerFor(jacksonTypeRef<T>())
-    val errorRef = mapper.readerFor(jacksonTypeRef<E>())
-
-    return object : PreparedRESTCall<T, E>(endpoint) {
-        override fun BoundRequestBuilder.configure() {
-            configureBody()
-        }
-
-        override fun deserializeSuccess(response: Response): T {
-            return successRef.readValue(response.responseBody)
-        }
-
-        override fun deserializeError(response: Response): E {
-            return errorRef.readValue(response.responseBody)
-        }
-    }
+class EScienceCloud(endpoint: String) {
+    val endpoint = endpoint.removeSuffix("/")
 }
-
-class EScienceCloud(val endpoint: String)
 
 interface AuthenticatedCloud {
     val parent: EScienceCloud
@@ -72,37 +84,10 @@ class BasicAuthenticatedCloud(
         override val parent: EScienceCloud,
         val username: String,
         val password: String
-) : AuthenticatedCloud{
+) : AuthenticatedCloud {
     override fun BoundRequestBuilder.configureCall() {
         addBasicAuth(username, password)
     }
 }
 
 fun EScienceCloud.basicAuth(username: String, password: String) = BasicAuthenticatedCloud(this, username, password)
-
-data class Test(val f: String)
-data class TestError(val f: String)
-
-object HPC {
-    fun listTest(): PreparedRESTCall<List<Test>, TestError> = preparedCallWithJsonOutput("/hpc/tests")
-    fun findAppsByName(name: String): PreparedRESTCall<List<Test>, TestError> =
-            preparedCallWithJsonOutput("/hpc/apps/$name")
-
-    fun findAppByNameAndVersion(name: String, version: String): PreparedRESTCall<Test, TestError> =
-            preparedCallWithJsonOutput("/hpc/apps/$name/$version")
-}
-
-
-fun main(args: Array<String>) = runBlocking {
-    val cloud = EScienceCloud("https://cloud.sdu.dk/api")
-    val bound = cloud.basicAuth("rods", "rods")
-    val result = HPC.listTest().call(bound)
-
-    when (result) {
-        is RESTResponse.Ok -> {
-            result.result.forEach {
-
-            }
-        }
-    }
-}

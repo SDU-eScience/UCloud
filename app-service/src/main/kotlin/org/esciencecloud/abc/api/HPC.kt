@@ -1,8 +1,10 @@
 package org.esciencecloud.abc.api
 
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
-import io.ktor.http.HttpMethod
-import org.esciencecloud.client.*
+import io.netty.handler.codec.http.HttpMethod
+import org.esciencecloud.client.AuthenticatedCloud
+import org.esciencecloud.client.KafkaCallDescriptionBundle
+import org.esciencecloud.client.RESTDescriptions
+import org.esciencecloud.client.bindEntireRequestFromBody
 
 object HPCApplications : RESTDescriptions() {
     val baseContext = "/hpc/apps/"
@@ -73,7 +75,7 @@ object HPCApplications : RESTDescriptions() {
         ) : AppRequest() {
             companion object {
                 val description = kafkaDescription<AppRequest.Start> {
-                    method = HttpMethod.Post
+                    method = HttpMethod.POST
 
                     path {
                         using(baseContext)
@@ -92,7 +94,7 @@ object HPCApplications : RESTDescriptions() {
         data class Cancel(val jobId: Long) : AppRequest() {
             companion object {
                 val description = kafkaDescription<AppRequest.Cancel> {
-                    method = HttpMethod.Delete
+                    method = HttpMethod.DELETE
 
                     path {
                         using(baseContext)

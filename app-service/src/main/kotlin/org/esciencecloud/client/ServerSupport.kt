@@ -7,6 +7,7 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.application
 import io.ktor.application.call
 import io.ktor.features.conversionService
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.receiveOrNull
@@ -33,7 +34,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
 ) {
     val template = restCall.path.toKtorTemplate(fullyQualified = false)
     route(template) {
-        method(restCall.method) {
+        method(HttpMethod.parse(restCall.method.name())) {
             handle {
                 val payload: P = if (restCall.requestType == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
@@ -71,9 +72,11 @@ fun <P : Any, S : Any, E : Any> Route.implement(
 
                             if (name !in valuesFromPath) {
                                 // If not found in path, check if this is param bound to the body
-                                if (restCall.body is RESTBody.BoundToSubProperty<*, *> &&
-                                        restCall.body.property.name == it.name) {
-                                    return@map it to valueFromBody
+                                if (restCall.body is RESTBody.BoundToSubProperty<*, *>) {
+                                    val body = restCall.body as RESTBody.BoundToSubProperty
+                                    if (body.property.name == it.name) {
+                                        return@map it to valueFromBody
+                                    }
                                 }
 
                                 // All arguments were collected successfully from the request, but we still
@@ -159,31 +162,6 @@ class RESTHandler<P : Any, in S : Any, in E : Any>(val boundTo: PipelineContext<
         assert(status.value !in 200..299)
         call.respond(status, error)
     }
-}
-
-// We should keep these out, such that they are in a module which is only used by service definitions (to not
-// force ktor dependency on clients)
-
-fun RESTPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
-    val primaryPart = segments.joinToString("/") { it.toKtorTemplateString() }
-    return if (fullyQualified) {
-        basePath.removeSuffix("/") + "/" + primaryPart
-    } else {
-        primaryPart
-    }
-}
-
-private fun <R : Any> RESTPathSegment<R>.toKtorTemplateString(): String = when (this) {
-    is RESTPathSegment.Simple -> text
-
-    is RESTPathSegment.Property<R, *> -> StringBuilder().apply {
-        append('{')
-        append(property.name)
-        if (property.returnType.isMarkedNullable) append('?')
-        append('}')
-    }.toString()
-
-    is RESTPathSegment.Remaining -> "{...}"
 }
 
 fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair<String, Any?>? {
