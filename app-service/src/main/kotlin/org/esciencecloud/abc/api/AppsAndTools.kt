@@ -10,3 +10,16 @@ data class ApplicationDescription(
         // TODO We cannot have duplicates on param name!
         val parameters: List<ApplicationParameter<*>>
 )
+
+data class NameAndVersion(val name: String, val version: String) {
+    override fun toString() = "$name@$version"
+}
+
+data class ToolDescription(
+        val info: NameAndVersion,
+        val container: String,
+        val defaultNumberOfNodes: Int,
+        val defaultTasksPerNode: Int,
+        val defaultMaxTime: SimpleDuration,
+        val requiredModules: List<String>
+)

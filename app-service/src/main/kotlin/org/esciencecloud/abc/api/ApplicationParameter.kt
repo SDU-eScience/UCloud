@@ -117,3 +117,5 @@ sealed class ApplicationParameter<V : Any> {
         override fun toInvocationArgument(entry: Double): String = entry.toString()
     }
 }
+
+data class FileTransferDescription(val source: String, val destination: String)

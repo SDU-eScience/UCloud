@@ -6,7 +6,7 @@ import org.esciencecloud.client.KafkaCallDescriptionBundle
 import org.esciencecloud.client.RESTDescriptions
 import org.esciencecloud.client.bindEntireRequestFromBody
 
-object HPCApplications : RESTDescriptions() {
+object HPCApplicationDescriptions : RESTDescriptions() {
     val baseContext = "/hpc/apps/"
 
     data class FindAllByName(val name: String) {
@@ -116,6 +116,3 @@ object HPCApplications : RESTDescriptions() {
     }
 }
 
-object HPCJobs {
-
-}
