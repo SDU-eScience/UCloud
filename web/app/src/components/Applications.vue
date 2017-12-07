@@ -5,7 +5,7 @@
       <!-- DATATABLE DEMO 1-->
       <div class="col-lg-10">
         <loading-icon v-if="!applications.length"></loading-icon>
-        <div v-cloak class="card" v-if="applications[0] != null">
+        <div v-cloak class="card" v-if="applications.length">
           <div class="card-body">
             <table id="table-options" class="table-datatable table table-striped table-hover mv-lg">
               <thead>

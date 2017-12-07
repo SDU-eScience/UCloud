@@ -40,7 +40,13 @@ repositories {
     maven { url "https://dl.bintray.com/kotlin/ktor" }
     maven { url "http://dl.bintray.com/kotlin/exposed" }
     maven { url "https://mvnrepository.com/artifact/org.postgresql/postgresql" }
-    maven { url("http://130.225.164.200:8080/archiva/repository/internal") }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
 }
 
 dependencies {
