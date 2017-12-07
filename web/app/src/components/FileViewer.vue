@@ -333,9 +333,9 @@
           return ""
         }
         if (this.sortOrders[name]) {
-          return "ion-chevron-down"
-        } else {
           return "ion-chevron-up"
+        } else {
+          return "ion-chevron-down"
         }
       },
       favourite(uri, $event) {
