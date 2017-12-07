@@ -42,7 +42,7 @@
                 </td>
                 <td v-else><a class="ion-android-folder"></a> {{ file.path.name }}</td>
                 <td v-if="file.isStarred"><a @click="favourite(file)" class="ion-star"></a></td>
-                <td v-else><a class="ion-star" v-on:click="favourite(file.path.path, $event)"></a></td>
+                <td v-else><a class="ion-star" v-on:click="favourite(file.path.uri, $event)"></a></td>
                 <td>{{ new Date(file.modifiedAt).toLocaleString() }}</td>
                 <td>{{ file.acl.length > 1 ? file.acl.length + ' collaborators' : file.acl[0].right }}</td>
                 <td>
@@ -62,7 +62,7 @@
                               <li><a class="btn btn-default ripple ion-ios-compose"
                                      v-on:click="renameFile(file.path.name, 'file')"> Rename file</a></li>
                               <li><a class="btn btn-danger ripple ion-ios-trash"
-                                     v-on:click="showFileDeletionPrompt(file.path.name, file.path)"> Delete file</a></li>
+                                     v-on:click="showFileDeletionPrompt(file.path)"> Delete file</a></li>
                           </ul>
                       </div>
                   </span>
@@ -72,11 +72,17 @@
             </table>
           </div>
         </div>
-        <div class="dataTables_paginate paging_simple_numbers">
+        <select class="selectpicker" v-model="filesPerPage">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select> Files per page
+        <div class="text-center">
           <button class="previous btn-default btn btn-circle" @click="previousPage()" :disabled="currentPage === 0"
                   id="datatable1_previous"><em class="ion-ios-arrow-left"></em></button>
           <span v-for="n in paginationPages">
-            <button class="paginate_button btn btn-default btn-circle" :disabled="n - 1 === currentPage"
+            <button class="paginate_button btn btn-default btn-circle" :class="{  'btn-info': n - 1 === currentPage }" :disabled="n - 1 === currentPage"
                     @click="toPage(n - 1)">{{ n }}</button>
           </span>
           <button class="paginate_button next btn-default btn btn-circle ion-ios-arrow-right" @click="nextPage()"
@@ -136,7 +142,7 @@
             <p>
               <button class="btn btn-danger btn-block ripple ion-ios-trash" :title="getTitle('delete')"
                       :disabled="options.rightsLevel < 3"
-                      v-on:click="showFileDeletionPrompt(selectedFiles[0].path.name, selectedFiles[0].path)">
+                      v-on:click="showFileDeletionPrompt(selectedFiles[0].path)">
                 Delete selected files
               </button>
             </p>
@@ -326,9 +332,9 @@
           return "ion-chevron-up"
         }
       },
-      favourite(path, $event) {
+      favourite(uri, $event) {
         $event.stopPropagation();
-        $.getJSON("/api/favouriteFile", {path: path}).then((success) => {
+        $.getJSON("/api/favouriteFile", {path: uri}).then((success) => {
           if (success === 200) {
             console.log("Favouriting files doesn't work yet.")
           }
@@ -403,10 +409,12 @@
           }
         });
       },
-      showFileDeletionPrompt(name, path, $event = null) {
+      showFileDeletionPrompt(path, $event = null) {
+        let fileName = path.name;
+        let uri = path.uri;
         swal({
           title: "Are you sure?",
-          text: "Your will not be able to recover " + name + ".",
+          text: "Your will not be able to recover " + fileName + ".",
           type: "warning",
           showCancelButton: true,
           confirmButtonClass: "btn-danger",
