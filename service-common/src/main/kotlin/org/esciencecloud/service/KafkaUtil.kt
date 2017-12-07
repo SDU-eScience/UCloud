@@ -13,6 +13,7 @@ import org.apache.kafka.streams.state.KeyValueStore
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.reflect.KClass
 
+// TODO Use branch instead
 fun <K, V> KStream<K, V>.diverge(predicate: (K, V) -> Boolean): DivergedStream<K, V> {
     // We only want to run the predicate once for every item
     val predicateStream = map { key, value -> KeyValue(key, Pair(predicate(key, value), value)) }

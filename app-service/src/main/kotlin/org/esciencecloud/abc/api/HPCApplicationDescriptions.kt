@@ -1,10 +1,13 @@
 package org.esciencecloud.abc.api
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.netty.handler.codec.http.HttpMethod
 import org.esciencecloud.client.AuthenticatedCloud
 import org.esciencecloud.client.KafkaCallDescriptionBundle
 import org.esciencecloud.client.RESTDescriptions
 import org.esciencecloud.client.bindEntireRequestFromBody
+import org.esciencecloud.service.KafkaRequest
 
 object HPCApplicationDescriptions : RESTDescriptions() {
     val baseContext = "/hpc/apps/"
@@ -45,13 +48,17 @@ object HPCApplicationDescriptions : RESTDescriptions() {
         suspend fun call(cloud: AuthenticatedCloud) = description.prepare(Unit).call(cloud)
     }
 
+    @JsonTypeInfo(
+            use = JsonTypeInfo.Id.NAME,
+            include = JsonTypeInfo.As.PROPERTY,
+            property = KafkaRequest.TYPE_PROPERTY)
+    @JsonSubTypes(
+            JsonSubTypes.Type(value = AppRequest.Start::class, name = "start"),
+            JsonSubTypes.Type(value = AppRequest.Cancel::class, name = "cancel"))
     sealed class AppRequest {
-        data class Start(
-                val application: NameAndVersion,
-                val parameters: Map<String, Any>
-        ) : AppRequest() {
+        data class Start(val application: NameAndVersion, val parameters: Map<String, Any>) : AppRequest() {
             companion object {
-                val description = kafkaDescription<AppRequest.Start> {
+                val description = kafkaDescription<Start> {
                     method = HttpMethod.POST
 
                     path {
@@ -70,7 +77,7 @@ object HPCApplicationDescriptions : RESTDescriptions() {
 
         data class Cancel(val jobId: Long) : AppRequest() {
             companion object {
-                val description = kafkaDescription<AppRequest.Cancel> {
+                val description = kafkaDescription<Cancel> {
                     method = HttpMethod.DELETE
 
                     path {

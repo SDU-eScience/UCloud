@@ -15,7 +15,11 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.Serialized
-import org.esciencecloud.abc.api.*
+import org.esciencecloud.abc.api.HPCAppEvent
+import org.esciencecloud.abc.api.HPCApplicationDescriptions.AppRequest
+import org.esciencecloud.abc.api.HPCStreams
+import org.esciencecloud.abc.api.JobStatus
+import org.esciencecloud.abc.api.RunningJobStatus
 import org.esciencecloud.abc.services.HPCStreamService
 import org.esciencecloud.abc.services.SlurmPollAgent
 import org.esciencecloud.service.JsonSerde.jsonSerde
@@ -56,7 +60,7 @@ class SlurmAggregate(
         // These are not authenticated, but this doesn't matter when we join them with the event stream.
         // This means we only use the requests that we acted upon regardless (i.e. authenticated requests).
         val ownerByJobId = streamServices.rawAppRequests
-                .filter { _, value -> value.event is HPCAppRequest.Start }
+                .filter { _, value -> value.event is AppRequest.Start }
                 .mapValues { it.header.performedFor.username }
                 .toTable(Serdes.String(), Serdes.String())
 

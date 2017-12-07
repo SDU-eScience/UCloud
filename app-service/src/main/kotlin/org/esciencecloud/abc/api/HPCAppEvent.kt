@@ -2,6 +2,7 @@ package org.esciencecloud.abc.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import org.esciencecloud.abc.api.HPCApplicationDescriptions.AppRequest
 import org.esciencecloud.service.KafkaRequest
 import org.esciencecloud.storage.Error
 
@@ -22,7 +23,7 @@ sealed class HPCAppEvent {
             val jobId: Long,
             val jobDirectory: String,
             val workingDirectory: String,
-            val originalRequest: KafkaRequest<HPCAppRequest.Start>
+            val originalRequest: KafkaRequest<AppRequest.Start>
     ) : HPCAppEvent()
 
     /**
