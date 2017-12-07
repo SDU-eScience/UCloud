@@ -13,7 +13,7 @@
               <th>Starred</th>
             </tr>
             </thead>
-            <loading-icon v-if="!favourites.length"></loading-icon>
+            <loading-icon v-if="favouritesLoading"></loading-icon>
             <tbody>
             <tr v-for="file in favourites">
               <td><a href="#">{{ file.path.name }}</a></td>
@@ -35,7 +35,7 @@
               <th>Modified</th>
             </tr>
             </thead>
-            <loading-icon v-if="!mostRecentlyUsed.length"></loading-icon>
+            <loading-icon v-if="mostRecentlyUsedLoading"></loading-icon>
             <tbody>
             <tr v-cloak v-for="file in mostRecentlyUsed">
               <td><a href="#">{{ file.path.name }}</a></td>
@@ -57,7 +57,7 @@
               <th>Status</th>
             </tr>
             </thead>
-            <loading-icon v-if="!analyses.length"></loading-icon>
+            <loading-icon v-if="analysesLoading"></loading-icon>
             <tbody>
             <tr v-for="analysis in analyses">
               <td><a href="#">{{ analysis.name }}</a></td>
@@ -153,8 +153,11 @@
     data() {
       return {
         favourites: [],
+        favouritesLoading: false,
         mostRecentlyUsed: [],
-        analyses: []
+        mostRecentlyUsedLoading: false,
+        analyses: [],
+        analysesLoading: false
       }
     },
     mounted() {
@@ -163,19 +166,25 @@
       this.getWorkflowStatuses();
     },
     methods: {
-      getFavourites: function () {
+      getFavourites() {
+        this.favouritesLoading = true;
         $.getJSON("/api/getFavouritesSubset").then((data) => {
           this.favourites = data;
+          this.favouritesLoading = false;
         });
       },
-      getMostRecentFiles: function () {
+      getMostRecentFiles() {
+        this.mostRecentlyUsedLoading = true;
         $.getJSON("/api/getMostRecentFiles").then((data) => {
           this.mostRecentlyUsed = data;
+          this.mostRecentlyUsedLoading = false;
         });
       },
-      getWorkflowStatuses: function () {
+      getWorkflowStatuses() {
+        this.analysesLoading = true;
         $.getJSON("/api/getRecentWorkflowStatus").then((data) => {
           this.analyses = data;
+          this.analysesLoading = false;
         });
       }
     }
