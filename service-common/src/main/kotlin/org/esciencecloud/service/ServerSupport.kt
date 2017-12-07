@@ -1,4 +1,4 @@
-package org.esciencecloud.client
+package org.esciencecloud.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -16,12 +16,21 @@ import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.util.DataConversionException
-import org.esciencecloud.abc.stackTraceToString
+import org.esciencecloud.client.RESTBody
+import org.esciencecloud.client.RESTCallDescription
+import org.esciencecloud.client.RESTPathSegment
+import org.esciencecloud.client.toKtorTemplate
 import org.slf4j.LoggerFactory
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaType
 
-private val log = LoggerFactory.getLogger("org.esciencecloud.client.ServerSupport")
+private val log = LoggerFactory.getLogger("org.esciencecloud.service.ServerSupport")
+
+internal fun Exception.stackTraceToString(): String = StringWriter().apply {
+    printStackTrace(PrintWriter(this))
+}.toString()
 
 // TODO We should find a better solution for all of these "defaultMappers"
 object RESTServerSupport {
@@ -191,4 +200,3 @@ fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair
         else -> null
     }
 }
-

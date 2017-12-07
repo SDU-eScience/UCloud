@@ -3,7 +3,6 @@ package org.esciencecloud.client
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import org.asynchttpclient.BoundRequestBuilder
-import org.esciencecloud.asynchttp.HttpClient
 import org.slf4j.LoggerFactory
 
 abstract class RESTDescriptions {

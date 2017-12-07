@@ -1,9 +1,9 @@
 group 'org.esciencecloud'
-version '0.3.0'
+version '0.4.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.1.51'
-    ext.ktor_version = '0.4.0'
+    ext.kotlin_version = '1.2.0'
+    ext.ktor_version = '0.9.0'
 
     repositories {
         mavenCentral()
@@ -17,6 +17,7 @@ apply plugin: 'kotlin'
 apply plugin: 'maven-publish'
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
@@ -27,14 +28,24 @@ dependencies {
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: '1.1.51'
 
     // Kafka
-    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.1'
-    compile group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.1'
+    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '1.0.0'
+    compile group: 'org.apache.kafka', name: 'kafka-streams', version: '1.0.0'
 
     // Logging
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
 
     // Serialization
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
+
+    compile "org.esciencecloud.client:core:0.1.0-SNAPSHOT"
+
+    // ktor
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
+
+    compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
+
 }
 
 compileKotlin {

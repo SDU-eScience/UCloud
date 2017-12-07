@@ -7,7 +7,8 @@ import org.esciencecloud.abc.RPCConfiguration
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCStreams
 import org.esciencecloud.abc.processors.MyJobs
-import org.esciencecloud.storage.Result
+import org.esciencecloud.service.KafkaRPCEndpoint
+import org.esciencecloud.service.KafkaRPCServer
 
 class HPCStore(private val hostname: String, private val port: Int, private val rpc: RPCConfiguration) {
     private var server: KafkaRPCServer? = null
@@ -20,7 +21,7 @@ class HPCStore(private val hostname: String, private val port: Int, private val 
         KafkaRPCEndpoint.simpleEndpoint<Long, String>(
                 root = "/slurm",
                 table = HPCStreams.SlurmIdToJobId.name,
-                keyParser = { KafkaRPCEndpoint.resultFromNullable(it.toLongOrNull()) }
+                keyParser = { it.toLong() }
         )
     }
 
@@ -54,16 +55,16 @@ class HPCStore(private val hostname: String, private val port: Int, private val 
         this.server = server
     }
 
-    suspend fun querySlurmIdToInternal(slurmId: Long, allowRetries: Boolean = true): Result<String> =
+    suspend fun querySlurmIdToInternal(slurmId: Long, allowRetries: Boolean = true): String =
             slurmIdToInternalId.query(streams, hostInfo, rpc.secretToken, slurmId, allowRetries)
 
-    suspend fun queryJobIdToApp(jobId: String, allowRetries: Boolean = true): Result<HPCAppEvent.Pending> =
+    suspend fun queryJobIdToApp(jobId: String, allowRetries: Boolean = true): HPCAppEvent.Pending =
             jobToApp.query(streams, hostInfo, rpc.secretToken, jobId, allowRetries)
 
-    suspend fun queryJobIdToStatus(jobId: String, allowRetries: Boolean = true): Result<HPCAppEvent> =
+    suspend fun queryJobIdToStatus(jobId: String, allowRetries: Boolean = true): HPCAppEvent =
             jobToStatus.query(streams, hostInfo, rpc.secretToken, jobId, allowRetries)
 
-    suspend fun queryRecentJobsByUser(user: String, allowRetries: Boolean = true): Result<MyJobs> =
+    suspend fun queryRecentJobsByUser(user: String, allowRetries: Boolean = true): MyJobs =
             recentJobsByUser.query(streams, hostInfo, rpc.secretToken, user, allowRetries)
 
     private inline fun <K : Any, V : Any> endpoint(producer: () -> KafkaRPCEndpoint<K, V>): KafkaRPCEndpoint<K, V> {

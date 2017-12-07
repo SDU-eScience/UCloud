@@ -35,7 +35,7 @@ class SlurmProcessor(
     suspend fun handle(event: SlurmEvent): Pair<String, HPCAppEvent> =
             when (event) {
                 is SlurmEventBegan -> {
-                    val key = interactiveStore.querySlurmIdToInternal(event.jobId).orThrow()
+                    val key = interactiveStore.querySlurmIdToInternal(event.jobId) // throw if not found
                     val appEvent = HPCAppEvent.Started(event.jobId)
 
                     Pair(key, appEvent)
@@ -50,8 +50,8 @@ class SlurmProcessor(
         // Some of these queries _must_ resolve. Because of this we throw if they do not resolve.
         // The queries should have built-in retries, so if the instances have not yet replayed the data we will
         // give them a chance to do so before crashing. TODO We might have to tweak this slightly for more events.
-        val key = interactiveStore.querySlurmIdToInternal(event.jobId).orThrow()
-        val pendingEvent = interactiveStore.queryJobIdToApp(key).orThrow()
+        val key = interactiveStore.querySlurmIdToInternal(event.jobId)
+        val pendingEvent = interactiveStore.queryJobIdToApp(key)
 
         val appParameters = pendingEvent.originalRequest.event.parameters
         val app = with(pendingEvent.originalRequest.event.application) {

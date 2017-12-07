@@ -16,8 +16,8 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
-import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.abc.http.AppController
 import org.esciencecloud.abc.http.JobController
 import org.esciencecloud.abc.http.ToolController
@@ -93,7 +93,7 @@ class ApplicationStreamProcessor(
         if (initialized) throw IllegalStateException("Already started!")
 
         log.info("Init Core Services")
-        val streamBuilder = KStreamBuilder()
+        val streamBuilder = StreamsBuilder()
         val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
 
@@ -118,7 +118,7 @@ class ApplicationStreamProcessor(
         slurmPollAgent.start()
 
         log.info("Starting Core Services")
-        streamProcessor = KafkaStreams(streamBuilder, retrieveKafkaStreamsConfiguration())
+        streamProcessor = KafkaStreams(streamBuilder.build(), retrieveKafkaStreamsConfiguration())
         streamProcessor.start()
         streamProcessor.addShutdownHook()
 

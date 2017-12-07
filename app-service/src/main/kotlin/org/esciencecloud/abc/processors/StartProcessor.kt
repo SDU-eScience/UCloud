@@ -10,7 +10,7 @@ import org.esciencecloud.abc.services.ssh.sbatch
 import org.esciencecloud.abc.services.ssh.scpUpload
 import org.esciencecloud.abc.stackTraceToString
 import org.esciencecloud.abc.util.BashEscaper
-import org.esciencecloud.client.KafkaRequest
+import org.esciencecloud.service.KafkaRequest
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result

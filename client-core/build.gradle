@@ -27,7 +27,6 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-    compile "org.esciencecloud:kt-async-http-client:0.1.2"
 
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
     compile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.1.0-alpha25'

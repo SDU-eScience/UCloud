@@ -2,8 +2,6 @@ package org.esciencecloud.client
 
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.Response
-import org.esciencecloud.asynchttp.HttpClient
-import org.esciencecloud.asynchttp.addBasicAuth
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
 import java.io.StringWriter

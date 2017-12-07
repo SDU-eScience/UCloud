@@ -56,16 +56,11 @@ dependencies {
     // ------------
     // ktor
     // ------------
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
 
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
-
-    // ------------
-    // Kafka
-    // ------------
-    compile "org.esciencecloud:kafka-common:0.3.0"
 
     // ------------
     // SSH/SCP
@@ -84,6 +79,7 @@ dependencies {
     compile 'com.google.guava:guava:23.4-jre'
 
     compile 'org.esciencecloud.client:core:0.1.0-SNAPSHOT'
+    compile 'org.esciencecloud:service-common:0.4.0-SNAPSHOT'
 }
 
 kotlin {

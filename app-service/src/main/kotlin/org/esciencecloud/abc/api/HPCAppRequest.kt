@@ -2,7 +2,7 @@ package org.esciencecloud.abc.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import org.esciencecloud.client.KafkaRequest
+import org.esciencecloud.service.KafkaRequest
 
 // Model
 @JsonTypeInfo(

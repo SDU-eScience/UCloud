@@ -14,13 +14,15 @@ import com.fasterxml.jackson.databind.node.TextNode
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KeyValue
+import org.apache.kafka.streams.kstream.Serialized
 import org.esciencecloud.abc.api.*
 import org.esciencecloud.abc.services.HPCStreamService
 import org.esciencecloud.abc.services.SlurmPollAgent
-import org.esciencecloud.abc.util.aggregate
-import org.esciencecloud.abc.util.filterIsInstance
-import org.esciencecloud.abc.util.toTable
-import org.esciencecloud.kafka.JsonSerde.jsonSerde
+import org.esciencecloud.service.JsonSerde.jsonSerde
+import org.esciencecloud.service.aggregate
+import org.esciencecloud.service.filterIsInstance
+import org.esciencecloud.service.toTable
+import java.util.*
 
 class SlurmAggregate(
         private val streamServices: HPCStreamService,
@@ -35,17 +37,17 @@ class SlurmAggregate(
                 .map { systemId, event ->
                     KeyValue(event.jobId, systemId)
                 }
-                .groupByKey(Serdes.Long(), Serdes.String())
+                .groupByKey(Serialized.with(Serdes.Long(), Serdes.String()))
                 .aggregate(HPCStreams.SlurmIdToJobId) { _, value, _ -> value }
 
         // System job id to app
         pendingEvents
-                .groupByKey(Serdes.String(), jsonSerde())
+                .groupByKey(Serialized.with(Serdes.String(), jsonSerde()))
                 .aggregate(HPCStreams.JobIdToApp) { _, value, _ -> value }
 
         // Keep last status of every job. Also keeps state in Slurm poll agent
         streamServices.appEvents
-                .groupByKey(Serdes.String(), jsonSerde())
+                .groupByKey(Serialized.with(Serdes.String(), jsonSerde()))
                 .aggregate(HPCStreams.JobIdToStatus) { _, value, _ ->
                     slurmPollAgent.handle(value)
                     value
@@ -62,7 +64,7 @@ class SlurmAggregate(
             Pair(owner, event.toJobStatus())
         }.map { jobId, (owner, status) ->
             KeyValue(owner, RunningJobStatus(jobId, status))
-        }.groupByKey(Serdes.String(), jsonSerde())
+        }.groupByKey(Serialized.with(Serdes.String(), jsonSerde()))
 
         runningJobsByOwner.aggregate(
                 target = HPCStreams.RecentlyCompletedJobs,
@@ -86,7 +88,27 @@ class MyJobs {
                 val startIdx: Int,
                 val recentlyCompleted: Array<RunningJobStatus?>,
                 val active: Map<String, RunningJobStatus>
-        )
+        ) {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as SerializedState
+
+                if (startIdx != other.startIdx) return false
+                if (!Arrays.equals(recentlyCompleted, other.recentlyCompleted)) return false
+                if (active != other.active) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = startIdx
+                result = 31 * result + Arrays.hashCode(recentlyCompleted)
+                result = 31 * result + active.hashCode()
+                return result
+            }
+        }
 
         private fun JsonGenerator.writeRunningStatus(status: RunningJobStatus) {
             writeStartObject()
@@ -136,7 +158,7 @@ class MyJobs {
                 JobStatus.valueOf((it["status"] as TextNode).textValue())
         )
 
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): MyJobs {
+        override fun deserialize(p: JsonParser, ctx: DeserializationContext): MyJobs {
             return MyJobs().apply {
                 val node = p.codec.readTree<JsonNode>(p) as ObjectNode
 

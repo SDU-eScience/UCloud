@@ -15,7 +15,7 @@ import javax.mail.event.MessageCountEvent
 import javax.mail.internet.InternetAddress
 import javax.mail.search.FlagTerm
 
-sealed class SlurmEvent{
+sealed class SlurmEvent {
     abstract val jobId: Long
     abstract val name: String
 

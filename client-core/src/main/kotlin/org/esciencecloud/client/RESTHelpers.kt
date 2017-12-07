@@ -7,8 +7,6 @@ import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.netty.handler.codec.http.HttpMethod
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.Response
-import org.esciencecloud.asynchttp.HttpClient
-import org.esciencecloud.asynchttp.setJsonBody
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 

@@ -1,8 +1,8 @@
 package org.esciencecloud.abc.api
 
 import org.esciencecloud.abc.processors.MyJobs
-import org.esciencecloud.client.KafkaDescriptions
-import org.esciencecloud.client.KafkaRequest
+import org.esciencecloud.service.KafkaDescriptions
+import org.esciencecloud.service.KafkaRequest
 
 object HPCStreams : KafkaDescriptions() {
     /*

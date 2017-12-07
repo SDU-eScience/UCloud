@@ -29,13 +29,13 @@ fun SSHConnection.ls(path: String): List<ChannelSftp.LsEntry> {
 }
 
 fun SSHConnection.stat(path: String): SftpATTRS? =
-    sftp {
-        try {
-            stat(path)
-        } catch (ex: SftpException) {
-            null
+        sftp {
+            try {
+                stat(path)
+            } catch (ex: SftpException) {
+                null
+            }
         }
-    }
 
 fun main(args: Array<String>) {
     val mapper = jacksonObjectMapper()

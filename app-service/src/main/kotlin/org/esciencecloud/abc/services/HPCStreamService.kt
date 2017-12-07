@@ -2,22 +2,19 @@ package org.esciencecloud.abc.services
 
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KeyValue
+import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.kstream.KStream
-import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.abc.api.HPCStreams
-import org.esciencecloud.abc.util.*
-import org.esciencecloud.client.KafkaRequest
-import org.esciencecloud.client.RequestHeader
-import org.esciencecloud.kafka.StreamDescription
-import org.esciencecloud.storage.Ok
+import org.esciencecloud.service.*
 import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.ext.StorageConnectionFactory
+import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.ext.StorageConnection
+import org.esciencecloud.storage.ext.StorageConnectionFactory
 import kotlin.reflect.KClass
 
 class HPCStreamService(
         private val storageConnectionFactory: StorageConnectionFactory,
-        builder: KStreamBuilder,
+        builder: StreamsBuilder,
         producer: KafkaProducer<String, String>
 ) {
     val rawAppRequests = builder.stream(HPCStreams.AppRequests)

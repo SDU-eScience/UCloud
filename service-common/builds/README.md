@@ -15,7 +15,7 @@ To add one of these as a dependency in your project you will have to add:
 
 ```groovy
 dependencies {
-    compile files("../kafka-common/builds/kafka-0.1.0.jar")
+    compile files(service)
 }
 ```
 

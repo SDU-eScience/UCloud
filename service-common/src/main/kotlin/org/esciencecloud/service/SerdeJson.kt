@@ -1,4 +1,4 @@
-package org.esciencecloud.kafka
+package org.esciencecloud.service
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.MapperFeature
@@ -12,7 +12,7 @@ import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.serialization.Serializer
 
 // Code is adapted from: https://github.com/apache/kafka/blob/c504b22841b1066c0d46183adb22f48596479d7e/
-//                       streams/examples/src/main/java/org/apache/kafka/streams/examples/pageview/
+//                       streams/examples/src/main/java/org/apache/service/streams/examples/pageview/
 //                       PageViewTypedDemo.java
 //
 // It has been modified to work better with kotlin

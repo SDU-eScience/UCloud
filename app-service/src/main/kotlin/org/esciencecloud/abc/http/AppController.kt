@@ -14,7 +14,7 @@ import io.ktor.server.engine.embeddedServer
 import org.esciencecloud.abc.api.HPCApplications
 import org.esciencecloud.abc.services.ApplicationDAO
 import org.esciencecloud.client.GatewayJobResponse
-import org.esciencecloud.client.implement
+import org.esciencecloud.service.implement
 
 class AppController(private val source: ApplicationDAO) {
     fun configure(routing: Route) = with(routing) {
