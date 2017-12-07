@@ -242,6 +242,9 @@
     watch: {
       '$route'(to, fr) {
         this.getFiles(to.path);
+      },
+      filesPerPage() {
+        this.currentPage = 0;
       }
     },
     methods: {
