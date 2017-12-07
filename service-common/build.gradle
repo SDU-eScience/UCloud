@@ -46,6 +46,8 @@ dependencies {
     compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
 
+    // Testing
+    testCompile group: 'junit', name: 'junit', version: '4.12'
 }
 
 compileKotlin {
