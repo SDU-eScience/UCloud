@@ -4,12 +4,11 @@
     <div class="container-fluid">
       <!-- DATATABLE DEMO 1-->
       <div class="col-lg-10">
-        <div class="file-loading">
-          <h1 v-if="loading">Loading Analyses...</h1>
-        </div>
-        <div v-cloak class="card" v-if="analyses.length">
+        <loading-icon v-if="loading"></loading-icon>
+        <div v-cloak class="card" v-else>
           <div class="card-body">
-            <table id="table-options" class="table-datatable table table-striped table-hover mv-lg">
+            <h3 v-if="!analyses.length" class="text-center"><small>No analyses found. Go to workflows to start one.</small></h3>
+            <table v-else id="table-options" class="table-datatable table table-striped table-hover mv-lg">
               <thead>
               <tr>
                 <th>Workflow Name</th>
@@ -36,8 +35,10 @@
 
 <script>
   import $ from 'jquery'
+  import LoadingIcon from "./LoadingIcon";
 
   export default {
+    components: {LoadingIcon},
     name: 'analyses',
     data() {
       return {
