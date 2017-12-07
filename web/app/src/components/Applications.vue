@@ -23,7 +23,7 @@
                 <td v-if="app.info.private"
                     title="The app is private and can only be seen by the creator and people it was shared with">
                   <em class="ion-locked"></em></td>
-                <td v-else title='The application is openly available for everyone'><em
+                <td title="The application is openly available for everyone" v-else ><em
                   class="ion-unlocked"></em></td>
                 <td v-bind:title="app.info.description">{{ app.info.name }}</td>
                 <td v-bind:title="app.info.description">{{ app.info.author }}</td>
@@ -40,7 +40,7 @@
       </div>
       <div class="col-lg-2 visible-lg">
         <div>
-          <button class="btn btn-primary ripple btn-block ion-android-upload"> Upload Application</button>
+          <button class="btn btn-primary ripple btn-block ion-android-upload" @click="newApplication()"> Upload Application</button>
           <br>
           <hr>
         </div>
@@ -51,6 +51,7 @@
 
 <script>
   import $ from 'jquery'
+  import swal from 'sweetalert2'
   import LoadingIcon from "./LoadingIcon";
 
   export default {
@@ -65,15 +66,21 @@
       this.getApplications();
     },
     methods: {
-      getApplications: function () {
+      getApplications() {
         $.getJSON("/api/getApplications").then((data) => {
           this.applications = data;
         });
       },
-      newApplication: function () {
-        console.log("Empty");
+      newApplication() {
+        swal({
+          input: 'file',
+        }).then((input) => {
+          this.uploadApplication(input)
+        });
+      },
+      uploadApplication(file) {
+        console.log(file);
       }
     }
   }
-
 </script>
