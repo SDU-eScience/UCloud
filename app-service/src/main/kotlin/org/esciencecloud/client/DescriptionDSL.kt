@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.ktor.http.HttpMethod
+import org.asynchttpclient.BoundRequestBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
@@ -16,6 +17,7 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
         private val deserializerError: ObjectReader
 ) {
     var method: HttpMethod = HttpMethod.Get
+    var shouldProxyFromGateway: Boolean = true
     internal var path: RESTPath<R>? = null
     internal var body: RESTBody<R, *>? = null
 
@@ -29,9 +31,19 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
         body = RESTCallBodyBuilder(this).also(builderBody).body ?: throw RESTDSLException("Missing entries in body{}")
     }
 
-    fun build(): RESTCallDescription<R, S, E> {
+    fun build(additionalConfiguration: (BoundRequestBuilder.(R) -> Unit)?): RESTCallDescription<R, S, E> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
-        return RESTCallDescription(method, path, body, requestType, deserializerSuccess, deserializerError)
+
+        return RESTCallDescription(
+                method,
+                path,
+                body,
+                requestType,
+                shouldProxyFromGateway,
+                deserializerSuccess,
+                deserializerError,
+                additionalConfiguration
+        )
     }
 }
 

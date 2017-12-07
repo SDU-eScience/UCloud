@@ -9,12 +9,8 @@ import org.apache.kafka.streams.kstream.KGroupedStream
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.apache.kafka.streams.kstream.KTable
-import org.esciencecloud.client.KafkaRequest
-import org.esciencecloud.client.RequestHeader
 import org.esciencecloud.kafka.StreamDescription
 import org.esciencecloud.kafka.TableDescription
-import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.Error
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.reflect.KClass
 
@@ -31,7 +27,7 @@ class EventProducer<in K, in V>(
         private val producer: KafkaProducer<String, String>,
         private val description: StreamDescription<K, V>
 ) {
-    suspend fun emit(key: K, value: V) = suspendCoroutine<RecordMetadata>{ cont ->
+    suspend fun emit(key: K, value: V) = suspendCoroutine<RecordMetadata> { cont ->
         val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
         val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
 
@@ -84,32 +80,10 @@ fun <K, V> KStream<K, V>.toTable(keySerde: Serde<K>, valSerde: Serde<V>): KTable
         groupByKey(keySerde, valSerde).reduce { _, newValue -> newValue }
 
 fun <K, V> KStream<K, V>.through(description: StreamDescription<K, V>): KStream<K, V> =
-    through(description.keySerde, description.valueSerde, description.name)
+        through(description.keySerde, description.valueSerde, description.name)
 
 fun <K, V> KStream<K, V>.to(description: StreamDescription<K, V>) {
     to(description.keySerde, description.valueSerde, description.name)
-}
-
-// Not a pretty name, but I couldn't find any name indicating that authentication and taken place that didn't
-// also imply that it was successful.
-sealed class RequestAfterAuthentication<out T> {
-    abstract val originalRequest: KafkaRequest<T>
-
-    val event: T
-        get() = originalRequest.event
-
-    val header: RequestHeader
-        get() = originalRequest.header
-
-    class Authenticated<out T>(
-            override val originalRequest: KafkaRequest<T>,
-            val connection: StorageConnection
-    ) : RequestAfterAuthentication<T>()
-
-    class Unauthenticated<out T>(
-            override val originalRequest: KafkaRequest<T>,
-            val error: Error<Any>
-    ) : RequestAfterAuthentication<T>()
 }
 
 data class DivergedStream<K, V>(val predicateTrue: KStream<K, V>, val predicateFalse: KStream<K, V>)

@@ -2,6 +2,7 @@ package org.esciencecloud.client
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
+import org.asynchttpclient.BoundRequestBuilder
 import org.esciencecloud.asynchttp.HttpClient
 import org.slf4j.LoggerFactory
 
@@ -18,6 +19,7 @@ abstract class RESTDescriptions {
      */
     inline fun <reified R : Any, reified S : Any, reified E : Any> callDescription(
             mapper: ObjectMapper = HttpClient.defaultMapper,
+            noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
             body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
     ): RESTCallDescription<R, S, E> {
         val builder = RESTCallDescriptionBuilder<R, S, E>(
@@ -26,7 +28,7 @@ abstract class RESTDescriptions {
                 deserializerError = mapper.readerFor(jacksonTypeRef<E>())
         )
         builder.body()
-        val result = builder.build()
+        val result = builder.build(additionalRequestConfiguration)
         register(result.path.toKtorTemplate(fullyQualified = true))
         return result
     }
@@ -39,8 +41,14 @@ abstract class RESTDescriptions {
      */
     inline fun <reified R : Any> kafkaDescription(
             mapper: ObjectMapper = HttpClient.defaultMapper,
+            noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
             body: RESTCallDescriptionBuilder<R, GatewayJobResponse, GatewayJobResponse>.() -> Unit
-    ): KafkaCallDescription<R> = callDescription(mapper, body)
+    ): KafkaCallDescription<R> = callDescription(mapper, additionalRequestConfiguration) {
+        // Placed before call to body() to allow these to be overwritten
+        shouldProxyFromGateway = false
+
+        body()
+    }
 
     /**
      * Registers a ktor style template in this container.

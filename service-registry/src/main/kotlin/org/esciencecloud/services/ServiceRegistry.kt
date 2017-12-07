@@ -1,14 +1,12 @@
 package org.esciencecloud.services
 
 import com.github.zafarkhaja.semver.Version
-import com.github.zafarkhaja.semver.expr.Expression
 import org.apache.zookeeper.*
 import org.apache.zookeeper.Watcher.Event.KeeperState.AuthFailed
 import org.apache.zookeeper.Watcher.Event.KeeperState.SyncConnected
 import org.apache.zookeeper.data.ACL
 import org.apache.zookeeper.data.Stat
 import java.io.*
-import java.util.concurrent.CountDownLatch
 import kotlin.coroutines.experimental.suspendCoroutine
 
 enum class ServiceStatus {
@@ -177,39 +175,39 @@ class ZooKeeperHostInfo(val hostname: String, val port: Int = 2181, val chroot: 
 class ZooKeeperConnection(val hosts: List<ZooKeeperHostInfo>) {
     // Loosely based on: https://www.tutorialspoint.com/zookeeper/zookeeper_api.htm
 
-    fun connect(sessionId: Long? = null, sessionPassword: ByteArray? = null): ZooKeeper {
-        val connectString = hosts.joinToString(",")
-        val signal = CountDownLatch(1)
-        val timeout = 5000
-        val watcher = Watcher {
-            when (it.state) {
-                SyncConnected -> {
-                    signal.countDown()
+    suspend fun connect(sessionId: Long? = null, sessionPassword: ByteArray? = null): ZooKeeper =
+            suspendCoroutine { cont ->
+                val connectString = hosts.joinToString(",")
+                val timeout = 5000
+                var zk: ZooKeeper? = null
+
+                val watcher = Watcher {
+                    when (it.state) {
+                        SyncConnected -> {
+                            cont.resume(zk!!)
+                        }
+
+                        AuthFailed -> {
+                            cont.resumeWithException(IllegalStateException("Auth failed!"))
+                        }
+
+                        else -> {
+                            cont.resumeWithException(
+                                    IllegalStateException("Not yet implemented. Unexpected state: ${it.state}")
+                            )
+                        }
+
+                    }
                 }
 
-                AuthFailed -> {
-                    throw IllegalStateException("Auth failed!")
+                zk = if (sessionId != null || sessionPassword != null) {
+                    ZooKeeper(connectString, timeout, watcher, sessionId!!, sessionPassword!!)
+                } else {
+                    ZooKeeper(connectString, timeout, watcher)
                 }
-
-                else -> {
-                    throw IllegalStateException("Not yet implemented. Unexpected state: ${it.state}")
-                }
-
             }
-        }
-
-        val zk = if (sessionId != null || sessionPassword != null) {
-            ZooKeeper(connectString, timeout, watcher, sessionId!!, sessionPassword!!)
-        } else {
-            ZooKeeper(connectString, timeout, watcher)
-        }
-
-        signal.await()
-        return zk
-    }
 }
 
-// TODO Should use some custom serialization for this
 private fun serializeRunningService(service: RunningService): ByteArray = ByteArrayOutputStream().also {
     DataOutputStream(it).use {
         it.writeShort(1) // Version

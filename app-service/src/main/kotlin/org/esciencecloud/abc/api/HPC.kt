@@ -1,7 +1,7 @@
 package org.esciencecloud.abc.api
 
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.ktor.http.HttpMethod
-import kotlinx.coroutines.experimental.runBlocking
 import org.esciencecloud.client.*
 
 object HPCApplications : RESTDescriptions() {
@@ -69,8 +69,7 @@ object HPCApplications : RESTDescriptions() {
     sealed class AppRequest {
         data class Start(
                 val application: NameAndVersion,
-                val test: String
-                //,val parameters: Map<String, Any>
+                val parameters: Map<String, Any>
         ) : AppRequest() {
             companion object {
                 val description = kafkaDescription<AppRequest.Start> {
@@ -117,33 +116,4 @@ object HPCApplications : RESTDescriptions() {
 
 object HPCJobs {
 
-}
-
-fun main(args: Array<String>) {
-    val cloud = EScienceCloud("http://localhost:8080/")
-    val authenticated = cloud.basicAuth("rods", " rods")
-    /*
-    runBlocking {
-        val all = HPCApplications.FindByNameAndVersion("hello", "1.0.0").call(authenticated)
-        when (all) {
-            is RESTResponse.Ok -> {
-                println("Yay!")
-                println(all.result)
-            }
-
-            is RESTResponse.Err -> {
-                println(":-(")
-                println(all)
-            }
-        }
-    }
-
-    runBlocking {
-        println(HPCApplications.ListAll.call(authenticated))
-    }
-    */
-
-    runBlocking {
-        println(HPCApplications.AppRequest.Start(NameAndVersion("foobar", "1.2.3"), "test0string").call(authenticated))
-    }
 }

@@ -7,10 +7,12 @@ import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.esciencecloud.abc.api.HPCStreams
 import org.esciencecloud.abc.util.*
 import org.esciencecloud.client.KafkaRequest
+import org.esciencecloud.client.RequestHeader
 import org.esciencecloud.kafka.StreamDescription
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.StorageConnectionFactory
+import org.esciencecloud.storage.ext.StorageConnection
 import kotlin.reflect.KClass
 
 class HPCStreamService(
@@ -75,3 +77,26 @@ data class AuthenticatedStream<K, R : Any>(
         unauthenticated.map { k, v -> KeyValue(k, onUnauthenticated(k, v)) }.to(target)
     }
 }
+
+// Not a pretty name, but I couldn't find any name indicating that authentication and taken place that didn't
+// also imply that it was successful.
+sealed class RequestAfterAuthentication<out T> {
+    abstract val originalRequest: KafkaRequest<T>
+
+    val event: T
+        get() = originalRequest.event
+
+    val header: RequestHeader
+        get() = originalRequest.header
+
+    class Authenticated<out T>(
+            override val originalRequest: KafkaRequest<T>,
+            val connection: StorageConnection
+    ) : RequestAfterAuthentication<T>()
+
+    class Unauthenticated<out T>(
+            override val originalRequest: KafkaRequest<T>,
+            val error: Error<Any>
+    ) : RequestAfterAuthentication<T>()
+}
+

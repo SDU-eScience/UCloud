@@ -125,21 +125,22 @@ data class RESTCallDescription<R : Any, S, E>(
         val path: RESTPath<R>,
         val body: RESTBody<R, *>?,
         val requestType: KClass<R>,
+        val shouldProxyFromGateway: Boolean,
         val deserializerSuccess: ObjectReader,
         val deserializerError: ObjectReader,
-        val requestConfiguration: BoundRequestBuilder.() -> Unit = {}
+        val requestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null
 ) {
     fun prepare(payload: R): PreparedRESTCall<S, E> {
-        val primaryPath = path.segments.joinToString("/") {
+        val primaryPath = path.segments.mapNotNull {
             when (it) {
                 is RESTPathSegment.Simple -> it.text
                 is RESTPathSegment.Remaining -> ""
                 is RESTPathSegment.Property<R, *> -> {
                     val value = it.property.get(payload)
-                    value?.toString() ?: ""
+                    value?.toString()
                 }
             }
-        }
+        }.joinToString("/")
 
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath
         return object : PreparedRESTCall<S, E>(resolvedPath) {
@@ -153,7 +154,7 @@ data class RESTCallDescription<R : Any, S, E>(
 
             override fun BoundRequestBuilder.configure() {
                 setMethod(method.value)
-                requestConfiguration()
+                requestConfiguration?.invoke(this, payload)
                 when (body) {
                     is RESTBody.BoundToEntireRequest<*> -> {
                         setJsonBody(payload)
@@ -199,6 +200,9 @@ enum class JobStatus {
     ERROR
 }
 
+// TODO I really don't think it is a good idea for us to be leaking the details of where the message ends up.
+// Should reevaluate if this is actually a good idea. Ideally our frontends will talk directly to the gateway.
+// It was added because of a request from Bjørn.
 class GatewayJobResponse private constructor(
         val status: JobStatus,
         val jobId: String?,
