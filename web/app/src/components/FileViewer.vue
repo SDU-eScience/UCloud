@@ -8,7 +8,7 @@
           </li>
         </ol>
         <loading-icon v-if="loading"></loading-icon>
-        <div v-cloak class="card" v-if="files.length && !loading">
+        <div v-cloak class="card" v-if="!loading">
           <div class="card-body">
             <table class="table-datatable table table-striped table-hover mv-lg">
               <thead>
@@ -32,7 +32,7 @@
               </tr>
               </thead>
               <tbody v-cloak>
-              <tr class="row-settings clickable-row" v-for="file in files" @click="openFile(file)">
+              <tr class="row-settings clickable-row" v-for="file in getFilePage()" @click="openFile(file)">
                 <td class="select-cell"><label class="mda-checkbox"><input
                   name="select" class="select-box" :value="file" v-model="selectedFiles" @click="prevent"
                   type="checkbox"><em
@@ -72,10 +72,20 @@
             </table>
           </div>
         </div>
+        <div class="dataTables_paginate paging_simple_numbers">
+          <button class="previous btn-default btn btn-circle" @click="previousPage()" :disabled="currentPage === 0"
+                  id="datatable1_previous"><em class="ion-ios-arrow-left"></em></button>
+          <span v-for="n in paginationPages">
+            <button class="paginate_button btn btn-default btn-circle" :disabled="n - 1 === currentPage"
+                    @click="toPage(n - 1)">{{ n }}</button>
+          </span>
+          <button class="paginate_button next btn-default btn btn-circle ion-ios-arrow-right" @click="nextPage()"
+                  :disabled="currentPage === paginationPages - 1"></button>
+        </div>
       </div>
       <div class="col-lg-2 visible-lg">
         <div>
-          <div class="center">
+          <div class="center-block text-center">
             <button class="btn btn-link btn-lg" @click="getFavourites()"><i class="icon ion-star"></i></button>
             <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
           </div>
@@ -153,6 +163,8 @@
     data() {
       return {
         files: [],
+        filesPerPage: 10,
+        currentPage: 0,
         selectedFiles: [],
         breadcrumbs: [],
         loading: true,
@@ -216,6 +228,9 @@
       },
       isEmptyFolder() {
         return this.files.length === 0;
+      },
+      paginationPages() {
+        return Math.ceil(this.files.length / this.filesPerPage)
       }
     },
     watch: {
@@ -224,8 +239,19 @@
       }
     },
     methods: {
+      nextPage() {
+        this.currentPage++;
+      },
+      previousPage() {
+        this.currentPage--;
+      },
+      toPage(pageNumber) {
+        this.currentPage = pageNumber;
+      },
+      getFilePage() {
+        return this.files.slice(this.currentPage * this.filesPerPage, this.currentPage * this.filesPerPage + this.filesPerPage);
+      },
       getTitle(buttonName) {
-        console.log(buttonName);
         if (buttonName === 'rename') {
           if (this.options.rightsLevel < 3) {
             return this.buttonTitles[buttonName]['lowRightsLevel'];
@@ -262,6 +288,7 @@
         }
       },
       getFavourites() {
+        this.loading = true;
         $.getJSON("/api/getFavourites").then((files) => {
           this.files = files;
           this.breadcrumbs = [{
@@ -270,6 +297,7 @@
           }];
           this.masterCheckbox = false;
           this.selectedFiles = [];
+          this.loading = false;
         });
       },
       onMasterCheckboxChange() {
