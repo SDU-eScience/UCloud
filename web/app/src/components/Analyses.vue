@@ -7,7 +7,9 @@
         <loading-icon v-if="loading"></loading-icon>
         <div v-cloak class="card" v-else>
           <div class="card-body">
-            <h3 v-if="!analyses.length" class="text-center"><small>No analyses found. Go to workflows to start one.</small></h3>
+            <h3 v-if="!analyses.length" class="text-center">
+              <small>No analyses found. Go to workflows to start one.</small>
+            </h3>
             <table v-else id="table-options" class="table-datatable table table-striped table-hover mv-lg">
               <thead>
               <tr>
@@ -19,7 +21,9 @@
               <tbody v-cloak>
               <tr class="gradeA row-settings" v-for="analysis in analyses">
                 <td>{{ analysis.name }}</td>
-                <td>{{ Math.floor(Math.random() * 100000) + '-' + Math.floor(Math.random() * 100000) + '-' + Math.floor(Math.random() * 100000) }}</td>
+                <td>{{ Math.floor(Math.random() * 100000) + '-' + Math.floor(Math.random() * 100000) + '-' +
+                  Math.floor(Math.random() * 100000) }}
+                </td>
                 <td>{{ analysis.status }}</td>
               </tr>
               </tbody>
@@ -27,8 +31,6 @@
           </div>
         </div>
       </div>
-      <!--<div class="col-lg-2 visible-lg">
-      </div>-->
     </div>
   </section>
 </template>
@@ -37,26 +39,40 @@
   import $ from 'jquery'
   import LoadingIcon from "./LoadingIcon";
 
+
   export default {
     components: {LoadingIcon},
     name: 'analyses',
     data() {
       return {
         analyses: {},
-        loading: true
+        loading: true,
+        // TODO Fix location
+        ws: new WebSocket("ws://localhost:8080/ws/analyses")
       }
     },
     mounted() {
-      this.getAnalyses()
+      this.getAnalyses();
+      this.ws.onerror = () => {
+          console.log("Socket error.")
+      };
+
+      this.ws.onopen = () => {
+        console.log("Connected");
+      };
+
+      this.ws.onmessage = (response) => {
+        console.log(response.data.toString());
+      };
     },
     methods: {
       getAnalyses() {
         this.loading = true;
         $.getJSON("/api/getAnalyses").then((data) => {
-            this.analyses = data;
-            this.loading = false;
+          this.analyses = data;
+          this.loading = false;
         });
-      }
+      },
     }
   }
 </script>

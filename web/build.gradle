@@ -64,7 +64,7 @@ dependencies {
     compile "org.esciencecloud:kt-async-http-client:0.1.2"
     compile group: 'info.cukes', name: 'cucumber-java', version: '1.2.5'
     compile group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.7.1'
-
+    compile group: 'io.ktor', name: 'ktor-websockets', version: "$ktor_version"
 }
 
 mainClassName = 'io.ktor.server.netty.DevelopmentEngine'

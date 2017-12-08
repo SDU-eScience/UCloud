@@ -19,11 +19,12 @@ import io.ktor.application.*
 import io.ktor.content.files
 import io.ktor.content.static
 import io.ktor.jackson.jackson
-import io.ktor.request.receiveParameters
 import io.ktor.routing.get
 import io.ktor.routing.route
 import io.ktor.sessions.*
 import io.ktor.util.escapeHTML
+import io.ktor.websocket.*
+import webSockets
 import java.io.File
 
 @location("/")
@@ -57,6 +58,7 @@ class EScienceCloudUIApp {
         install(ConditionalHeaders)
         install(PartialContentSupport)
         install(Locations)
+        install(WebSockets)
         install(ContentNegotiation) {
             jackson {
                 registerModule(KotlinModule())
@@ -81,6 +83,10 @@ class EScienceCloudUIApp {
             }
 
             login(hashFunction)
+
+            route("/ws/") {
+                webSockets()
+            }
 
             route("/api/") {
                 ajaxOperations()
