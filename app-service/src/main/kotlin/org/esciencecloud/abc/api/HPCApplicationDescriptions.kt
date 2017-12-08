@@ -7,7 +7,7 @@ import org.esciencecloud.client.*
 import org.esciencecloud.service.KafkaRequest
 
 object HPCApplicationDescriptions : RESTDescriptions() {
-    val baseContext = "/hpc/apps/"
+    val baseContext = "/api/hpc/apps/"
 
     init {
         register(FindAllByName.description)
@@ -19,7 +19,7 @@ object HPCApplicationDescriptions : RESTDescriptions() {
 
     data class FindAllByName(val name: String) {
         companion object {
-            @JvmStatic val description = callDescription<FindAllByName, List<ApplicationDescription>, List<ApplicationDescription>> {
+            val description = callDescription<FindAllByName, List<ApplicationDescription>, List<ApplicationDescription>> {
                 path {
                     using(baseContext)
                     +boundTo(FindAllByName::name)
@@ -32,7 +32,7 @@ object HPCApplicationDescriptions : RESTDescriptions() {
 
     data class FindByNameAndVersion(val name: String, val version: String) {
         companion object {
-            @JvmStatic val description = callDescription<FindByNameAndVersion, ApplicationDescription, String> {
+            val description = callDescription<FindByNameAndVersion, ApplicationDescription, String> {
                 path {
                     using(baseContext)
                     +boundTo(FindByNameAndVersion::name)
@@ -46,7 +46,7 @@ object HPCApplicationDescriptions : RESTDescriptions() {
 
     object ListAll {
         // TODO Pagination will be required for this
-        @JvmStatic val description = callDescription<Unit, List<ApplicationDescription>, List<ApplicationDescription>> {
+        val description = callDescription<Unit, List<ApplicationDescription>, List<ApplicationDescription>> {
             path { using(baseContext) }
         }
 
@@ -63,7 +63,7 @@ object HPCApplicationDescriptions : RESTDescriptions() {
     sealed class AppRequest {
         data class Start(val application: NameAndVersion, val parameters: Map<String, Any>) : AppRequest() {
             companion object {
-                @JvmStatic val description = kafkaDescription<Start> {
+                val description = kafkaDescription<Start> {
                     method = HttpMethod.POST
 
                     path {
@@ -82,7 +82,7 @@ object HPCApplicationDescriptions : RESTDescriptions() {
 
         data class Cancel(val jobId: Long) : AppRequest() {
             companion object {
-                @JvmStatic val description = kafkaDescription<Cancel> {
+                val description = kafkaDescription<Cancel> {
                     method = HttpMethod.DELETE
 
                     path {
@@ -97,10 +97,7 @@ object HPCApplicationDescriptions : RESTDescriptions() {
         }
 
         companion object {
-            // TODO This is not a robust solution. Will crash if not lazy
-            val descriptions: KafkaCallDescriptionBundle<AppRequest> by lazy {
-                listOf(AppRequest.Start.description, AppRequest.Cancel.description)
-            }
+
         }
     }
 }

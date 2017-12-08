@@ -2,6 +2,7 @@ package org.esciencecloud.abc
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.github.zafarkhaja.semver.Version
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -11,6 +12,7 @@ import io.ktor.request.authorization
 import io.ktor.response.respond
 import io.ktor.routing.route
 import io.ktor.util.AttributeKey
+import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -18,6 +20,8 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
+import org.apache.zookeeper.ZooDefs
+import org.esciencecloud.abc.api.HPCApplicationDescriptions
 import org.esciencecloud.abc.http.AppController
 import org.esciencecloud.abc.http.JobController
 import org.esciencecloud.abc.http.ToolController
@@ -27,6 +31,7 @@ import org.esciencecloud.abc.processors.StartProcessor
 import org.esciencecloud.abc.services.*
 import org.esciencecloud.abc.services.ssh.SSHConnectionPool
 import org.esciencecloud.abc.services.ssh.SimpleSSHConfig
+import org.esciencecloud.service.*
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.StorageConnection
 import org.esciencecloud.storage.ext.StorageConnectionFactory
@@ -91,6 +96,17 @@ class ApplicationStreamProcessor(
         // TODO This would most likely be a lot better if we could use DI in this
         if (initialized) throw IllegalStateException("Already started!")
 
+        val serviceDefinition = ServiceDefinition("apps", Version.forIntegers(1, 0, 0))
+        val instance = ServiceInstance(serviceDefinition, hostname, rpcPort)
+
+        val (zk, node) = runBlocking {
+            val zk = ZooKeeperConnection(listOf(ZooKeeperHostInfo("localhost"))).connect()
+            val node = zk.registerService(instance,
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE)
+
+            Pair(zk, node)
+        }
+
         log.info("Init Core Services")
         val streamBuilder = StreamsBuilder()
         val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
@@ -98,6 +114,15 @@ class ApplicationStreamProcessor(
 
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
+
+        // TODO THIS IS A GIANT HACK. NEED TO LOAD THIS GUY FIRST
+        // TODO THIS IS A GIANT HACK. NEED TO LOAD THIS GUY FIRST
+        // TODO THIS IS A GIANT HACK. NEED TO LOAD THIS GUY FIRST
+        // Should we use DI?
+        // It will, however, make the API so much worse. It is only really a problem with the Kafka streams though.
+        // It is, however, even worse that we have to hack in the order of which the static initializers run.
+        HPCApplicationDescriptions
+
         val hpcStore = HPCStore(hostname, rpcPort, config.rpc)
         val streamService = HPCStreamService(storageConnectionFactory, streamBuilder, producer)
         val sbatchGenerator = SBatchGenerator()
@@ -162,6 +187,8 @@ class ApplicationStreamProcessor(
 
         log.info("Ready!")
         initialized = true
+
+        runBlocking { zk.markServiceAsReady(node, instance) }
     }
 
     fun stop() {

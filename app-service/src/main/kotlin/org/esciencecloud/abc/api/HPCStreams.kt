@@ -1,9 +1,10 @@
 package org.esciencecloud.abc.api
 
 import org.esciencecloud.service.KafkaDescriptions
+import org.esciencecloud.abc.api.HPCApplicationDescriptions.AppRequest.*
 
 object HPCStreams : KafkaDescriptions() {
-    val AppRequests = HPCApplicationDescriptions.AppRequest.descriptions.mappedAtGateway("request.hpcApp") {
+    val AppRequests = listOf(Start.description, Cancel.description).mappedAtGateway("request.hpcApp") {
         Pair(it.header.uuid, it)
     }
     val AppEvents = stream<String, HPCAppEvent>("hpcAppEvents")
