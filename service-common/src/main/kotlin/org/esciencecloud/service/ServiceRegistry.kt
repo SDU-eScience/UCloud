@@ -204,7 +204,6 @@ class ZooKeeperConnection(val hosts: List<ZooKeeperHostInfo>) {
                 var zk: ZooKeeper? = null
 
                 val watcher = Watcher {
-                    println("Hello! $it")
                     when (it.state) {
                         SyncConnected -> {
                             cont.resume(zk!!)

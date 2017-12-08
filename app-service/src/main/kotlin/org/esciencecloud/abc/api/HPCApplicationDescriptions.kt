@@ -97,7 +97,9 @@ object HPCApplicationDescriptions : RESTDescriptions() {
         }
 
         companion object {
-
+            val descriptions: KafkaCallDescriptionBundle<AppRequest> by lazy {
+                listOf(Start.description, Cancel.description)
+            }
         }
     }
 }

@@ -115,14 +115,6 @@ class ApplicationStreamProcessor(
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
 
-        // TODO THIS IS A GIANT HACK. NEED TO LOAD THIS GUY FIRST
-        // TODO THIS IS A GIANT HACK. NEED TO LOAD THIS GUY FIRST
-        // TODO THIS IS A GIANT HACK. NEED TO LOAD THIS GUY FIRST
-        // Should we use DI?
-        // It will, however, make the API so much worse. It is only really a problem with the Kafka streams though.
-        // It is, however, even worse that we have to hack in the order of which the static initializers run.
-        HPCApplicationDescriptions
-
         val hpcStore = HPCStore(hostname, rpcPort, config.rpc)
         val streamService = HPCStreamService(storageConnectionFactory, streamBuilder, producer)
         val sbatchGenerator = SBatchGenerator()
