@@ -1,29 +1,32 @@
 package org.esciencecloud.abc.http
 
-import io.ktor.application.call
-import io.ktor.response.respond
 import io.ktor.routing.Route
-import io.ktor.routing.get
+import io.ktor.routing.route
+import org.esciencecloud.abc.api.HPCJobDescriptions
+import org.esciencecloud.abc.api.StandardError
 import org.esciencecloud.abc.services.HPCStore
 import org.esciencecloud.abc.storageConnection
 import org.esciencecloud.service.KafkaRPCException
+import org.esciencecloud.service.implement
 
 class JobController(private val store: HPCStore) {
     fun configure(routing: Route) = with(routing) {
-        get("jobs/{id}") {
-            try {
-                call.respond(store.queryJobIdToStatus(call.parameters["id"]!!, allowRetries = false))
-            } catch (ex: KafkaRPCException) {
-                call.respond(ex.httpStatusCode)
+        route("jobs") {
+            implement(HPCJobDescriptions.findById) {
+                try {
+                    ok(store.queryJobIdToStatus(it.id, allowRetries = false))
+                } catch (ex: KafkaRPCException) {
+                    error(StandardError(ex.message ?: "Error"), ex.httpStatusCode)
+                }
             }
-        }
 
-        get("jobs") {
-            val user = call.storageConnection.connectedUser.displayName
-            try {
-                call.respond(store.queryRecentJobsByUser(user, allowRetries = false))
-            } catch (ex: KafkaRPCException) {
-                call.respond(ex.httpStatusCode)
+            implement(HPCJobDescriptions.listRecent) {
+                val user = call.storageConnection.connectedUser.displayName
+                try {
+                    ok(store.queryRecentJobsByUser(user, allowRetries = false))
+                } catch (ex: KafkaRPCException) {
+                    error(StandardError(ex.message ?: "Error"), ex.httpStatusCode)
+                }
             }
         }
     }

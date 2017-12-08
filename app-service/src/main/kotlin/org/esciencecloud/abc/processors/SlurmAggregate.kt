@@ -1,29 +1,15 @@
 package org.esciencecloud.abc.processors
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.annotation.JsonSerialize
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer
-import com.fasterxml.jackson.databind.node.ArrayNode
-import com.fasterxml.jackson.databind.node.ObjectNode
-import com.fasterxml.jackson.databind.node.TextNode
-import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.Serialized
 import org.esciencecloud.abc.api.*
-import org.esciencecloud.abc.api.HPCApplicationDescriptions.AppRequest
 import org.esciencecloud.abc.services.HPCStreamService
 import org.esciencecloud.abc.services.SlurmPollAgent
 import org.esciencecloud.service.JsonSerde.jsonSerde
 import org.esciencecloud.service.aggregate
 import org.esciencecloud.service.filterIsInstance
 import org.esciencecloud.service.toTable
-import java.util.*
 
 class SlurmAggregate(
         private val streamServices: HPCStreamService,

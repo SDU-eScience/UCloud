@@ -2,7 +2,6 @@ package org.esciencecloud.abc.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import org.esciencecloud.abc.api.HPCApplicationDescriptions.AppRequest
 import org.esciencecloud.service.KafkaRequest
 import org.esciencecloud.storage.Error
 
