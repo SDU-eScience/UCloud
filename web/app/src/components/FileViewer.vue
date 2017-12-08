@@ -13,6 +13,10 @@
             <h3 class="text-center"><small>There are no files in current folder</small></h3>
           </div>
           <div v-else class="card-body">
+            <div class="center-block text-center hidden-lg">
+              <button class="btn btn-link btn-lg" @click="getFavourites()"><i class="icon ion-star"></i></button>
+              <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
+            </div>
             <table class="table-datatable table table-striped table-hover mv-lg">
               <thead>
               <tr role="row">
@@ -134,7 +138,7 @@
               <button class="btn btn-default btn-block ripple ion-ios-photos" :title="getTitle('move')">
                 Move folder
               </button>
-            </p> <!-- TODO When is this allowed? -->
+            </p>
             <p>
               <button type="button" class="btn btn-default btn-block ripple ion-ios-compose"
                       v-on:click="renameFile(selectedFiles[0].path.name, 'folder')" :title="getTitle('rename')"
