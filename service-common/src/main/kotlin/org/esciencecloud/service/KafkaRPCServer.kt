@@ -12,6 +12,7 @@ import io.ktor.routing.route
 import kotlinx.coroutines.experimental.delay
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.errors.InvalidStateStoreException
 import org.apache.kafka.streams.state.HostInfo
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.StreamsMetadata
@@ -107,6 +108,8 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
                     is NotFoundRPCException -> if (!allowRetries) throw ex
                     else -> throw ex
                 }
+            } catch (ex: InvalidStateStoreException) {
+                throw NotFoundRPCException(key.toString())
             }
 
             log.debug("Retrying: $allowRetries")
