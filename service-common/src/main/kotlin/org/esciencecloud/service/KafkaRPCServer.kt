@@ -1,24 +1,14 @@
 package org.esciencecloud.service
 
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
-import io.ktor.application.install
-import io.ktor.features.CallLogging
-import io.ktor.features.ContentNegotiation
-import io.ktor.features.DefaultHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.jackson.jackson
 import io.ktor.request.header
 import io.ktor.request.httpMethod
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.route
-import io.ktor.routing.routing
-import io.ktor.server.cio.CIO
-import io.ktor.server.engine.ApplicationEngine
-import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.experimental.delay
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.KafkaStreams
@@ -129,36 +119,17 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
 }
 
 class KafkaRPCServer(
-        private val hostname: String,
-        private val port: Int,
+        hostname: String,
+        port: Int,
         private val endpoints: List<KafkaRPCEndpoint<Any, Any>>,
         private val streams: KafkaStreams,
         private val secretToken: String
 ) {
-    private var server: ApplicationEngine? = null
     private val thisHost = HostInfo(hostname, port)
 
     companion object {
         const val APP_TOKEN_HEADER = "App-Token"
         private val log = LoggerFactory.getLogger(KafkaRPCServer::class.java)
-    }
-
-    fun start(wait: Boolean = false) {
-        if (this.server != null) throw IllegalStateException("RPC Server already started!")
-
-        val server = embeddedServer(CIO, port = port) {
-            install(CallLogging)
-            install(DefaultHeaders)
-            install(ContentNegotiation) {
-                jackson { registerKotlinModule() }
-            }
-
-            routing { configureExisting(this) }
-        }
-
-        server.start(wait = wait)
-
-        this.server = server
     }
 
     fun configureExisting(routing: Route) = with(routing) {
@@ -203,9 +174,5 @@ class KafkaRPCServer(
                 }
             }
         }
-    }
-
-    fun stop(gracePeriod: Long, timeout: Long, timeUnit: TimeUnit) {
-        this.server!!.stop(gracePeriod, timeout, timeUnit)
     }
 }

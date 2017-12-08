@@ -6,7 +6,7 @@ import org.apache.kafka.streams.state.HostInfo
 import org.esciencecloud.abc.RPCConfiguration
 import org.esciencecloud.abc.api.HPCAppEvent
 import org.esciencecloud.abc.api.HPCStreams
-import org.esciencecloud.abc.processors.MyJobs
+import org.esciencecloud.abc.api.MyJobs
 import org.esciencecloud.service.KafkaRPCEndpoint
 import org.esciencecloud.service.KafkaRPCServer
 

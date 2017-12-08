@@ -10,11 +10,10 @@ import java.util.*
 import java.util.jar.JarFile
 
 data class ServiceDefinition(
-        val name: String,
+        val manifest: ServiceManifest,
         val restDescriptions: List<RESTDescriptions>,
         val kafkaDescriptions: List<KafkaDescriptions>
 )
-
 
 class ServiceManager(vararg val targets: File) {
     companion object {
@@ -23,7 +22,9 @@ class ServiceManager(vararg val targets: File) {
 
     fun load(): List<ServiceDefinition> {
         log.info("Reloading services from ${targets.size} targets...")
-        val jarFiles = targets.flatMap { it.listFiles { file: File -> file.extension == "jar" }.toList() }
+        val jarFiles = targets.flatMap {
+            it.listFiles { file: File -> file.extension == "jar" }?.toList() ?: emptyList()
+        }
 
         log.info("Found ${jarFiles.size} services!")
         if (log.isDebugEnabled) {
@@ -56,7 +57,7 @@ class ServiceManager(vararg val targets: File) {
                             .filterIsInstance<KafkaDescriptions>()
 
                     ServiceDefinition(
-                            name = loader.source,
+                            manifest = loader.manifest,
                             restDescriptions = restDescriptions,
                             kafkaDescriptions = kafkaDescriptions
                     )
@@ -78,6 +79,11 @@ class ServiceManager(vararg val targets: File) {
             }
 
             log.warn("Found no suitable constructor for service loaded from $source")
+            return null
+        } catch (ex: NoClassDefFoundError) {
+            log.warn("Could not find class while trying to load $it from $source")
+            log.warn("Make sure that the API jar is _ONLY_ exporting stuff available from within the API")
+            log.warn("The class we could not find was: ${ex.message}")
             return null
         } catch (ex: Exception) {
             log.warn("Unable to create instance of service! Service loaded from: " +

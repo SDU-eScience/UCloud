@@ -12,22 +12,53 @@ import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
+import org.apache.zookeeper.ZooKeeper
 import org.esciencecloud.client.HttpClient
 import org.esciencecloud.client.addBasicAuth
 import org.esciencecloud.service.ProxyClient
 import org.esciencecloud.service.RequestHeader
+import org.esciencecloud.service.listServicesWithStatus
+import org.esciencecloud.transactions.util.stackTraceToString
+import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.net.URL
 import java.util.*
 
-class RESTProxy(val targets: List<ServiceDefinition>) {
+sealed class RESTProxyException(message: String, val code: HttpStatusCode) : Exception(message)
+class RESTNoServiceAvailable : RESTProxyException("Gateway timeout", HttpStatusCode.GatewayTimeout)
+
+class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
+    private val random = Random()
+    companion object {
+        private val log = LoggerFactory.getLogger(RESTProxy::class.java)
+    }
+
     fun configure(route: Route): Unit = with(route) {
         targets.forEach { service ->
-            service.restDescriptions.flatMap { it.descriptions }.filter { !it.shouldProxyFromGateway }.forEach {
+            service.restDescriptions.flatMap { it.descriptions }.filter { it.shouldProxyFromGateway }.forEach {
                 route(it.template) {
                     method(HttpMethod.parse(it.method.name())) {
                         handle {
-                            call.proxyJobTo(findService(service))
+                            try {
+                                call.proxyJobTo(findService(service))
+                            } catch (ex: RESTProxyException) {
+                                when (ex) {
+                                    is RESTNoServiceAvailable -> {
+                                        log.warn("Unable to proxy request to target service. Unable to find " +
+                                                "any running service!")
+                                        log.warn("Service is: ${service.manifest}")
+                                    }
+
+                                    else -> {
+                                        log.debug("Caught non-critical exception while proxying")
+                                        log.debug(ex.stackTraceToString())
+                                    }
+                                }
+                                call.respond(ex.code)
+                            } catch (ex: Exception) {
+                                log.warn("Caught unexpected exception while proxying")
+                                log.warn(ex.stackTraceToString())
+                            }
                         }
                     }
                 }
@@ -35,8 +66,14 @@ class RESTProxy(val targets: List<ServiceDefinition>) {
         }
     }
 
-    private fun findService(service: ServiceDefinition): URL {
-        TODO()
+    private suspend fun findService(service: ServiceDefinition): URL {
+        val services = with (service.manifest) {
+            zk.listServicesWithStatus(name, version).values.firstOrNull()
+        }?.takeIf { it.isNotEmpty() } ?: throw RESTNoServiceAvailable()
+
+        // TODO FIXME proxying using https
+        val resolvedService = services[random.nextInt(services.size)]
+        return URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}")
     }
 
     private suspend fun ApplicationCall.proxyJobTo(

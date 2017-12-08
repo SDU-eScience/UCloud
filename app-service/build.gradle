@@ -56,7 +56,7 @@ dependencies {
     // ------------
     // ktor
     // ------------
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
 
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"

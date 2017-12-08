@@ -53,9 +53,7 @@ abstract class RESTDescriptions {
                 deserializerError = mapper.readerFor(jacksonTypeRef<E>())
         )
         builder.body()
-        val result = builder.build(additionalRequestConfiguration)
-        register(result)
-        return result
+        return builder.build(additionalRequestConfiguration)
     }
 
     /**

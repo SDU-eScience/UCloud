@@ -2,6 +2,7 @@ package org.esciencecloud.transactions.new
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
+import io.ktor.routing.route
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.esciencecloud.client.GatewayJobResponse
 import org.esciencecloud.service.*
@@ -13,18 +14,21 @@ class KafkaProxy(val targets: List<ServiceDefinition>, val producer: KafkaProduc
     }
 
     fun configure(route: Route): Unit = with(route) {
-        targets.forEach { service ->
-            service.kafkaDescriptions.flatMap { it.descriptions }.forEach { mapping ->
-                mapping.targets.forEach { target ->
+        // NOTE: Do _NOT_ replace with .forEach { ... } as this will break the code.
+        for (service in targets) {
+            for (mapping in service.kafkaDescriptions.flatMap { it.descriptions }) {
+                for (target in mapping.targets) {
                     @Suppress("UNCHECKED_CAST")
                     val producer = EventProducer(
                             producer,
                             StreamDescription(mapping.topicName, mapping.keySerde, mapping.valueSerde)
                     ) as EventProducer<Any, Any>
 
-                    implement(target) { request ->
-                        @Suppress("UNCHECKED_CAST")
-                        proxyKafka(mapping as KafkaMappingDescription<Any, Any, Any>, producer, request)
+                    route(target.path.basePath) {
+                        implement(target) { request ->
+                            @Suppress("UNCHECKED_CAST")
+                            proxyKafka(mapping as KafkaMappingDescription<Any, Any, Any>, producer, request)
+                        }
                     }
                 }
             }

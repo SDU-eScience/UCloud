@@ -24,27 +24,27 @@ repositories {
 }
 
 dependencies {
+    // Kotlin
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: '1.1.51'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
 
     // Kafka
     compile group: 'org.apache.kafka', name: 'kafka-clients', version: '1.0.0'
     compile group: 'org.apache.kafka', name: 'kafka-streams', version: '1.0.0'
 
-    // Logging
-    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
-
     // Serialization
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
 
+    // Client dependencies (needed to export definitions to clients)
     compile "org.esciencecloud.client:core:0.1.0-SNAPSHOT"
 
     // ktor
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
-
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
-    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
-    compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
+
+    // Service discovery
+    compile group: "org.apache.zookeeper", name: "zookeeper", version: "3.4.11"
+    compile group: "com.github.zafarkhaja", name: "java-semver", version: "0.9.0"
 
     // Testing
     testCompile group: 'junit', name: 'junit', version: '4.12'

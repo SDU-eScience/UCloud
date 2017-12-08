@@ -1,8 +1,4 @@
 {
   "name": "apps",
-  "restEndpoints": [
-    "/apps/{...}",
-    "/jobs/{...}",
-    "/tools/{...}"
-  ]
+  "version": "1.0.0"
 }

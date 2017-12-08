@@ -12,8 +12,7 @@ import java.util.jar.JarFile
 
 data class ServiceManifest(
         val name: String,
-        val restEndpoints: List<String>? = null,
-        val kafkaProxies: List<String>? = null
+        val version: String
 )
 
 class ServiceClassLoader(private val jarFile: JarFile) : ClassLoader(), Closeable {
@@ -37,7 +36,7 @@ class ServiceClassLoader(private val jarFile: JarFile) : ClassLoader(), Closeabl
             mapper.readValue(jarFile.getInputStream(manifestEntry))
         } else {
             log.warn("Missing service manifest for service ${jarFile.name}")
-            ServiceManifest(jarFile.name)
+            ServiceManifest(jarFile.name, "1.0.0")
         }
 
         val entries = jarFile.entries().toList()

@@ -32,8 +32,6 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
-    compile "org.esciencecloud:kt-async-http-client:0.1.2"
-
 
     // ktor
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
@@ -42,7 +40,6 @@ dependencies {
 
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
 
-    compile "org.esciencecloud:kafka-common:0.3.0"
     compile "org.esciencecloud:storage-api:0.1.3"
 
     compile "com.fasterxml.jackson.core:jackson-core:2.0.22"
