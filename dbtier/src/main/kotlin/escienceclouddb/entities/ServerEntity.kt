@@ -7,7 +7,8 @@ import org.jetbrains.exposed.dao.IntIdTable
 
 object Server : IntIdTable() {
     val hostname = text("hostname").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val ip = text("ip").nullable()
     val servertext = text("servertext").nullable()
     val health = integer("health").nullable()
@@ -16,7 +17,8 @@ class ServerEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object: IntEntityClass<ServerEntity>(Server)
 
     var hostname by Server.hostname
-    var lastmodified by Server.lastmodified
+    var created_ts by Server.created_ts
+    var modified_ts by Server.modified_ts
     var ip by Server.ip
     var servertext by Server.servertext
     var health by Server.health

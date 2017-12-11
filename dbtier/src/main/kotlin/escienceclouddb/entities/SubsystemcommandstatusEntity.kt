@@ -6,12 +6,14 @@ import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.IntIdTable
 
 object Subsystemcommandstatus : IntIdTable() {
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val subsystemcommandstatustext = text("subsystemcommandstatustext").nullable()
 }
 class SubsystemcommandstatusEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object: IntEntityClass<SubsystemcommandstatusEntity>(Subsystemcommandstatus)
 
-    var lastmodified by Subsystemcommandstatus.lastmodified
+    var created_ts by Subsystemcommandstatus.created_ts
+    var modified_ts by Subsystemcommandstatus.modified_ts
     var subsystemcommandstatustext by Subsystemcommandstatus.subsystemcommandstatustext
 }

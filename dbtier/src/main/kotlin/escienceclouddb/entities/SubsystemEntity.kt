@@ -9,7 +9,8 @@ object Subsystem : IntIdTable() {
     val ip_prod = text("ip_prod").nullable()
     val subsystemtext = text("subsystemtext").nullable()
     val ip_test = text("ip_test").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val port_dev = text("port_dev").nullable()
     val health = integer("health").nullable()
     val port_test = text("port_test").nullable()
@@ -22,7 +23,8 @@ class SubsystemEntity(id: EntityID<Int>) : IntEntity(id) {
     var ip_prod by Subsystem.ip_prod
     var subsystemtext by Subsystem.subsystemtext
     var ip_test by Subsystem.ip_test
-    var lastmodified by Subsystem.lastmodified
+    var created_ts by Subsystem.created_ts
+    var modified_ts by Subsystem.modified_ts
     var port_dev by Subsystem.port_dev
     var health by Subsystem.health
     var port_test by Subsystem.port_test

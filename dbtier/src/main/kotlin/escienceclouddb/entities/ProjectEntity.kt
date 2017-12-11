@@ -11,7 +11,8 @@ object Project : IntIdTable() {
     val projectstart = datetime("projectstart").nullable()
     val projectshortname = text("projectshortname").nullable()
     val projectend = datetime("projectend").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val active = integer("active").nullable()
     val irodsgroupadmin = text("irodsgroupadmin").nullable()
     val irodsgroupidmap = integer("irodsgroupidmap").nullable()
@@ -23,7 +24,8 @@ class ProjectEntity(id: EntityID<Int>) : IntEntity(id) {
     var projectstart by Project.projectstart
     var projectshortname by Project.projectshortname
     var projectend by Project.projectend
-    var lastmodified by Project.lastmodified
+    var created_ts by Project.created_ts
+    var modified_ts by Project.modified_ts
     var active by Project.active
     var irodsgroupadmin by Project.irodsgroupadmin
     var irodsgroupidmap by Project.irodsgroupidmap

@@ -11,7 +11,8 @@ import org.jetbrains.exposed.dao.IntIdTable
 object App : IntIdTable() {
     val appdescriptiontext = text("appdescriptiontext").nullable()
     val apptext = text("apptext").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val active = integer("active").nullable()
     val personrefid = reference("personrefid", Person)
 
@@ -22,7 +23,8 @@ class AppEntity(id: EntityID<Int>) : IntEntity(id) {
 
     var appdescriptiontext by App.appdescriptiontext
     var apptext by App.apptext
-    var lastmodified by App.lastmodified
+    var created_ts by App.created_ts
+    var modified_ts by App.modified_ts
     var active by App.active
     var personrefid by App.personrefid
     var person by PersonEntity referencedOn Projectpersonrel.personrefid

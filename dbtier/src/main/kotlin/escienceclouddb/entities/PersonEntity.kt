@@ -20,7 +20,8 @@ object Person : IntIdTable() {
     val personfirstname = text("personfirstname").nullable()
     val irodsusername = text("irodsusername").nullable()
     val personlastname = text("personlastname").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val personphoneno = text("personphoneno").nullable()
     val personworkemail = text("personworkemail").nullable()
     val fullname = text("name").nullable()
@@ -43,7 +44,8 @@ class PersonEntity(id: EntityID<Int>) : IntEntity(id) {
     var personfirstname by Person.personfirstname
     var irodsusername by Person.irodsusername
     var personlastname by Person.personlastname
-    var lastmodified by Person.lastmodified
+    var created_ts by Person.created_ts
+    var modified_ts by Person.modified_ts
     var personphoneno by Person.personphoneno
     var personworkemail by Person.personworkemail
     var fullname by Person.fullname

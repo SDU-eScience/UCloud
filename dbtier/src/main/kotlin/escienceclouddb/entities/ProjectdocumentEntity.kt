@@ -7,7 +7,8 @@ import org.jetbrains.exposed.dao.IntIdTable
 
 object Projectdocument : IntIdTable() {
     val projectdocumentfilename = text("projectdocumentfilename").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val active = integer("active").nullable()
     val projectdocumentbin = blob("projectdocumentbin").nullable()
     val documenttypedescription = text("documenttypedescription").nullable()
@@ -16,7 +17,8 @@ class ProjectdocumentEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object: IntEntityClass<ProjectdocumentEntity>(Projectdocument)
 
     var projectdocumentfilename by Projectdocument.projectdocumentfilename
-    var lastmodified by Projectdocument.lastmodified
+    var created_ts by Projectdocument.created_ts
+    var modified_ts by Projectdocument.modified_ts
     var active by Projectdocument.active
     var projectdocumentbin by Projectdocument.projectdocumentbin
     var documenttypedescription by Projectdocument.documenttypedescription

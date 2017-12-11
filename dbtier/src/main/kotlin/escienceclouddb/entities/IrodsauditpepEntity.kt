@@ -9,7 +9,8 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 object Irodsauditpep : IntIdTable() {
     val phase = text("phase").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val parm = text("parm").nullable()
     val active = integer("active").nullable()
     val type = text("type").nullable()
@@ -19,7 +20,8 @@ class IrodsauditpepEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object: IntEntityClass<IrodsauditpepEntity>(Irodsauditpep)
 
     var phase by Irodsauditpep.phase
-    var lastmodified by Irodsauditpep.lastmodified
+    var created_ts by Irodsauditpep.created_ts
+    var modified_ts by Irodsauditpep.modified_ts
     var parm by Irodsauditpep.parm
     var active by Irodsauditpep.active
     var type by Irodsauditpep.type

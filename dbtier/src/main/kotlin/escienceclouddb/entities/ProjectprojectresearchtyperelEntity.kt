@@ -8,7 +8,8 @@ import org.jetbrains.exposed.dao.IntIdTable
 object Projectprojectresearchtyperel : IntIdTable() {
     val projectrefid = reference("projectrefid", Project)
     val projectresearchtyperefid = reference("projectresearchtyperefid", Projectresearchtype)
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val active = integer("active").nullable()
 }
 class ProjectprojectresearchtyperelEntity(id: EntityID<Int>) : IntEntity(id) {
@@ -18,6 +19,7 @@ class ProjectprojectresearchtyperelEntity(id: EntityID<Int>) : IntEntity(id) {
     var project by ProjectEntity referencedOn Projectprojectresearchtyperel.projectrefid
     var projectresearchtyperefid by Projectprojectresearchtyperel.projectresearchtyperefid
     var projectresearchtype by ProjectresearchtypeEntity referencedOn Projectprojectresearchtyperel.projectresearchtyperefid
-    var lastmodified by Projectprojectresearchtyperel.lastmodified
+    var created_ts by Projectprojectresearchtyperel.created_ts
+    var modified_ts by Projectprojectresearchtyperel.modified_ts
     var active by Projectprojectresearchtyperel.active
 }

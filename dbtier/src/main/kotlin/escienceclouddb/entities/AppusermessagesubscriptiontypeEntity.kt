@@ -7,14 +7,16 @@ import org.jetbrains.exposed.dao.IntIdTable
 
 object Appusermessagesubscriptiontype : IntIdTable() {
     val appusermessagesubscriptiontypetext = text("appusermessagesubscriptiontypetext").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val active = integer("active").nullable()
 }
 class AppusermessagesubscriptiontypeEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object: IntEntityClass<AppusermessagesubscriptiontypeEntity>(Appusermessagesubscriptiontype)
 
     var appusermessagesubscriptiontypetext by Appusermessagesubscriptiontype.appusermessagesubscriptiontypetext
-    var lastmodified by Appusermessagesubscriptiontype.lastmodified
+    var created_ts by Appusermessagesubscriptiontype.created_ts
+    var modified_ts by Appusermessagesubscriptiontype.modified_ts
     var active by Appusermessagesubscriptiontype.active
 }
 

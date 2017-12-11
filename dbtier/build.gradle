@@ -26,6 +26,9 @@ repositories {
 }
 
 dependencies {
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
     compile 'org.jetbrains.exposed:exposed:0.8.6'
     compile "org.jetbrains.ktor:ktor-core:$ktor_version"
@@ -34,6 +37,7 @@ dependencies {
     compile "org.jetbrains.ktor:ktor-netty:$ktor_version"
     compile group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
     compile group: 'io.codearte.jfairy', name: 'jfairy', version: '0.5.8'
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.7'
 }
 
 compileKotlin {

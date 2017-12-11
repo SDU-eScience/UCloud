@@ -10,7 +10,8 @@ object Subsystemcommandqueue : IntIdTable() {
     val subsystemcommandstatusrefid  = reference("subsystemcommandstatusrefid ", Subsystemcommandstatus)
     val personsessionhistoryrefid  = reference("personsessionhistoryrefid ", Personsessionhistory)
     val payload = text("payload").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val subsystemcommandrefid  = reference("subsystemcommandrefid ", Subsystemcommand)
 
 }
@@ -22,7 +23,8 @@ class SubsystemcommandqueueEntity(id: EntityID<Int>) : IntEntity(id) {
     var personsessionhistoryrefid by Subsystemcommandqueue.personsessionhistoryrefid
     var personsessionhistory by PersonsessionhistoryEntity referencedOn Subsystemcommandqueue.subsystemcommandstatusrefid
     var payload by Subsystemcommandqueue.payload
-    var lastmodified by Subsystemcommandqueue.lastmodified
+    var created_ts by Subsystemcommandqueue.created_ts
+    var modified_ts by Subsystemcommandqueue.modified_ts
     var subsystemcommandrefid by Subsystemcommandqueue.subsystemcommandrefid
     var subsystemcommand by SubsystemcommandEntity referencedOn Subsystemcommandqueue.subsystemcommandrefid
 }

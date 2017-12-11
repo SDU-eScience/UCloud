@@ -8,7 +8,8 @@ import org.jetbrains.exposed.dao.IntIdTable
 
 object Systemrolepersonrel : IntIdTable() {
     val systemrolerefid = reference("systemrolerefid", Systemrole)
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val active = integer("active").nullable()
     val personrefid = reference("personrefid", Person)
 }
@@ -17,7 +18,8 @@ class SystemrolepersonrelEntity(id: EntityID<Int>) : IntEntity(id) {
 
     var systemrolerefid by Systemrolepersonrel.systemrolerefid
     var systemrole by SystemroleEntity referencedOn Systemrolepersonrel.systemrolerefid
-    var lastmodified by Systemrolepersonrel.lastmodified
+    var created_ts by Systemrolepersonrel.created_ts
+    var modified_ts by Systemrolepersonrel.modified_ts
     var active by Systemrolepersonrel.active
     var personrefid by Systemrolepersonrel.personrefid
     var person by PersonEntity referencedOn Systemrolepersonrel.personrefid

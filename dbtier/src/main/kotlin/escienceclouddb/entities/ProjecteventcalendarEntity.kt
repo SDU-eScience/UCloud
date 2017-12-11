@@ -9,7 +9,8 @@ import org.jetbrains.exposed.dao.IntIdTable
 object Projecteventcalendar : IntIdTable() {
     val projectrefid = reference("projectrefid", Project)
     val eventend = datetime("eventend").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val active = integer("active").nullable()
     val eventtext = text("eventtext").nullable()
     val eventstart = datetime("eventstart").nullable()
@@ -20,7 +21,8 @@ class ProjecteventcalendarEntity(id: EntityID<Int>) : IntEntity(id) {
     var projectrefid by Projecteventcalendar.projectrefid
     var project by ProjectEntity referencedOn Projecteventcalendar.projectrefid
     var eventend by Projecteventcalendar.eventend
-    var lastmodified by Projecteventcalendar.lastmodified
+    var created_ts by Projecteventcalendar.created_ts
+    var modified_ts by Projecteventcalendar.modified_ts
     var active by Projecteventcalendar.active
     var eventtext by Projecteventcalendar.eventtext
     var eventstart by Projecteventcalendar.eventstart

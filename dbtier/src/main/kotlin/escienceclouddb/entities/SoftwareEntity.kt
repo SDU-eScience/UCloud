@@ -8,7 +8,8 @@ import org.jetbrains.exposed.dao.IntIdTable
 object Software : IntIdTable() {
     val rpms = text("rpms").nullable()
     val softwaretext = text("softwaretext").nullable()
-    val lastmodified = datetime("lastmodified")
+    val created_ts = datetime("created_ts")
+    val modified_ts = datetime("modified_ts")
     val serverrefid  = reference("serverrefid ", Server)
     val devstagerefid  = reference("devstagerefid ", Devstage)
     val downloadurl = text("downloadurl").nullable()
@@ -21,7 +22,8 @@ class SoftwareEntity(id: EntityID<Int>) : IntEntity(id) {
 
     var rpms by Software.rpms
     var softwaretext by Software.softwaretext
-    var lastmodified by Software.lastmodified
+    var created_ts by Software.created_ts
+    var modified_ts by Software.modified_ts
     var serverrefid by Software.serverrefid
     var server by ServerEntity referencedOn Software.serverrefid
     var devstagerefid by Software.devstagerefid
