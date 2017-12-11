@@ -265,7 +265,8 @@
         this.currentPage = pageNumber;
       },
       getFilePage() {
-        return this.files.slice(this.currentPage * this.filesPerPage, this.currentPage * this.filesPerPage + this.filesPerPage);
+        let filesPerPage = parseInt(this.filesPerPage);
+        return this.files.slice(this.currentPage * filesPerPage, this.currentPage * filesPerPage + filesPerPage);
       },
       getTitle(buttonName) {
         if (buttonName === 'rename') {
