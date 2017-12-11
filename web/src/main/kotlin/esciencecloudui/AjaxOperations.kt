@@ -11,6 +11,7 @@ import io.ktor.routing.Route
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.addBasicAuth
 import org.esciencecloud.asynchttp.asJson
+import java.util.*
 
 
 @location("/getFiles")
@@ -45,6 +46,12 @@ class StartJob
 
 @location("/getAnalyses")
 class Analyses
+
+@location("/getMessages")
+class GetMessages
+
+@location("/getNotifications")
+class GetNotifications
 
 @location("/getApplicationInfo")
 data class GetApplicationInfo(val name: String, val version: String)
@@ -100,17 +107,17 @@ fun Route.ajaxOperations() {
 
     get<RecentWorkFlowStatus> {
         // TODO Get actual workflow statuses
-        call.respond(MockAnalyses.analyses.subList(0, 10))
+        call.respond(analyses.subList(0, 10))
     }
 
     get<WorkFlows> {
         // TODO Get actual workflows
-        call.respond(WorkflowObject.workflows)
+        call.respond(workflows)
     }
 
     get<GetApplications> {
         // TODO Get actual applications
-        call.respond(ApplicationsAbacus.applications)
+        call.respond(applications)
     }
 
     get<Favourites> {
@@ -124,7 +131,7 @@ fun Route.ajaxOperations() {
     }
 
     get<Analyses> {
-        call.respond(MockAnalyses.analyses)
+        call.respond(analyses)
     }
 
     post<StartJob> {
@@ -133,6 +140,14 @@ fun Route.ajaxOperations() {
     }
 
     get<CreateDirectory> {
+        call.respond(200)
+    }
+
+    get<GetMessages> {
+        call.respond(messages)
+    }
+
+    get<GetNotifications> {
         call.respond(200)
     }
 }
@@ -198,28 +213,31 @@ private suspend fun ApplicationCall.getFavouriteFiles(): List<StorageFile> {
 
 /* Possible types: integer, text, float, input_file, output_file */
 data class ApplicationField(val name: String, val prettyName: String, val description: String, val type: String, val defaultValue: String?, val isOptional: Boolean)
-
 data class ApplicationAbacus(val info: ApplicationInfo, val parameters: List<ApplicationField>)
 data class ApplicationInfo(val name: String, val version: String, val rating: Double = 5.0, val isPrivate: Boolean = false, val description: String = "An app to be run on Abacus", val author: String = "Anyone")
 data class Workflow(val name: String, val applications: ArrayList<ApplicationAbacus>)
 data class Analysis(val name: String, val status: String)
+data class Message(val from:String, val fromDate:Long, val content:String)
 
-object WorkflowObject {
-    val workflows = arrayListOf(Workflow("Particle Simulation and Video Generation", ApplicationsAbacus.applications))
-}
+val messages = arrayListOf<Message>(
+        Message("Dan Sebastian Thrane", 1, "I have a genuine dislike of iRODS."),
+        Message("Jonas Malte Hinchely", 12903, "I writing to you from the future to warn you about the inconsistencies in date formats around the world.."),
+        Message("Peter Alberg Schulz", 214980, "Time for lunch? Please reply soon..")
+)
 
-object ApplicationsAbacus {
-    val applications = arrayListOf(
+
+val applications = arrayListOf(
             ApplicationAbacus(ApplicationInfo("Particle Simulator", "1.0"),
                     arrayListOf(ApplicationField("input", "Input File","The input file for the application.", "input_file", null, false),
                             ApplicationField("speed", "MPI Threads", "The number of MPI threads to be used.", "integer", "4",true))),
             ApplicationAbacus(ApplicationInfo("Particle Simulation Video Generator", "5.0"),
                     arrayListOf(ApplicationField("input", "Input file", "The input file containing the results of a particle simulation.", "input_file", null, false),
                             ApplicationField("format", "File format", "The format which the file should be outputted as. Possible values: ogg (default)", "text", "ogg",true))))
-}
 
-object MockAnalyses {
-    val analyses = arrayListOf(
+val workflows = arrayListOf(Workflow("Particle Simulation and Video Generation", applications))
+
+
+val analyses = arrayListOf(
             Analysis("My analysis", "Completed"),
             Analysis("Test analysis", "Pending"),
             Analysis("File conversion", "Failed"),
@@ -230,8 +248,7 @@ object MockAnalyses {
             Analysis("Thesis analysis", "In Progress"),
             Analysis("Particle Simulation", "In Progress"),
             Analysis("Abacus benchmarking", "Completed")
-    )
-}
+)
 
 /* Why coroutines are better
 fun main(args: Array<String>) {

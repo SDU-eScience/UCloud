@@ -147,16 +147,14 @@ class EScienceCloudUIApp {
                 }
             }
 
-            get("/new_messages") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/read_messages") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/deleted_messages") {
-                call.respondRedirect("underconstruction.html")
+            route("/activity/") {
+                requireAuthentication()
+                get("/messages") {
+                    call.renderDashboard(ModelAndTemplate("messages.ftl", mapOf("title" to "Messages")))
+                }
+                get("/notifications") {
+                    call.renderDashboard(ModelAndTemplate("notifications.ftl", mapOf("title" to "Notifications")))
+                }
             }
 
             get("/pending_commands") {
@@ -194,7 +192,7 @@ class EScienceCloudUIApp {
 }
 
 fun getApp(applicationName: String, applicationVersion: String): ApplicationAbacus? =
-        ApplicationsAbacus.applications.first { it.info.name == applicationName && it.info.version == applicationVersion }
+        applications.first { it.info.name == applicationName && it.info.version == applicationVersion }
 
 data class OptionNode(val name: String, var icon: String, var href: String? = null, var children: ArrayList<OptionNode>? = null)
 
@@ -206,10 +204,9 @@ object DashboardOptions {
                     (OptionNode("Applications", "", "/applications")),
                     (OptionNode("Workflows", "", "/workflows")),
                     (OptionNode("Analyses", "", "/analyses")))),
-            OptionNode("Messages", "", children = arrayListOf(
-                    (OptionNode("New", "", "/new_messages")),
-                    (OptionNode("Read", "", "/read_messages")),
-                    (OptionNode("Deleted", "", "/deleted_messages")))),
+            OptionNode("Activity", "", children = arrayListOf(
+                    (OptionNode("Messages", "", "/activity/messages")),
+                    (OptionNode("Notifications", "", "/activity/notifications")))),
             OptionNode("Commands", "", children = arrayListOf(
                     (OptionNode("Pending", "", "/pending_commands")),
                     (OptionNode("Processing", "", "/in_process")),
@@ -230,22 +227,3 @@ class CertificateGenerator {
         }
     }
 }
-//suspend fun ApplicationCall.redirect(location: Any) {
-//    val host = request.host() ?: "localhost"
-//    val portSpec = request.port().let { if (it == 80) "" else ":$it" }
-//    val address = host + portSpec
-//
-//    respondRedirect("http://$address${application.locations.href(location)}")
-//}
-//
-//fun ApplicationCall.securityCode(date: Long, user: User, hashFunction: (String) -> String) =
-//        hashFunction("$date:${user.userId}:${request.host()}:${refererHost()}")
-//
-//fun ApplicationCall.verifyCode(date: Long, user: User, code: String, hashFunction: (String) -> String) =
-//        securityCode(date, user, hashFunction) == code
-//                && (System.currentTimeMillis() - date).let { it > 0 && it < TimeUnit.MILLISECONDS.convert(2, TimeUnit.HOURS) }
-//
-//fun ApplicationCall.refererHost() = request.header(HttpHeaders.Referrer)?.let { URI.create(it).host }
-//
-//private val userIdPattern = "[a-zA-Z0-9_\\.]+".toRegex()
-//internal fun userNameValid(userId: String) = userId.matches(userIdPattern)

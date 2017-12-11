@@ -18,6 +18,9 @@ module.exports = {
     "applications": "./src/applications.js",
     "workflows": "./src/workflows.js",
     "analyses": "./src/analyses.js",
+    "activity": "./src/activity.js",
+    "notifications": "./src/notifications.js",
+    "messages": "./src/messages.js",
   },
   output: {
     path: config.build.assetsRoot,

@@ -189,7 +189,6 @@
           lastModified: false,
           owners: false
         },
-        // FIXME Intended as titles for buttons
         buttonTitles: {
           rename: {
             normal: 'Click to rename the selected file.',
