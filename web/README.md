@@ -8,6 +8,7 @@ The technology used is:
 - Ktor (Jetbrains Kotlin based web framework)
 - Webpack (Through NPM)
 - VueJS
+- VueRouter
 
 ## Running
 
