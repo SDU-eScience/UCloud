@@ -14,7 +14,7 @@
           </div>
           <div v-else class="card-body">
             <div class="center-block text-center hidden-lg">
-              <button class="btn btn-link btn-lg" @click="getFavourites()"><i class="icon ion-star"></i></button>
+              <router-link class="btn btn-link btn-lg" to="/retrieveFavourites"><i class="icon ion-star"></i></router-link>
               <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
             </div>
             <table class="table-datatable table table-striped table-hover mv-lg">
@@ -89,7 +89,7 @@
           <button class="previous btn-default btn btn-circle" @click="previousPage()" :disabled="currentPage === 0"
                   id="datatable1_previous"><em class="ion-ios-arrow-left"></em></button>
           <span v-for="n in paginationPages">
-            <button class="paginate_button btn btn-default btn-circle" :class="{  'btn-info': n - 1 === currentPage }" :disabled="n - 1 === currentPage"
+            <button class="paginate_button btn btn-default btn-circle" :class="{ 'btn-info': n - 1 === currentPage }" :disabled="n - 1 === currentPage"
                     @click="toPage(n - 1)">{{ n }}</button>
           </span>
           <button class="paginate_button next btn-default btn btn-circle ion-ios-arrow-right" @click="nextPage()"
@@ -99,7 +99,7 @@
       <div class="col-lg-2 visible-lg">
         <div>
           <div class="center-block text-center">
-            <button class="btn btn-link btn-lg" @click="getFavourites()"><i class="icon ion-star"></i></button>
+            <router-link class="btn btn-link btn-lg" to="/retrieveFavourites"><i class="icon ion-star"></i></router-link>
             <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
           </div>
           <hr>
@@ -239,19 +239,17 @@
           rightsLevel: lowestPrivilegeOptions
         }
       },
-      isEmptyFolder() {
-        return this.files.length === 0;
-      },
       paginationPages() {
         return Math.ceil(this.files.length / this.filesPerPage)
       }
     },
     watch: {
       '$route'(to, fr) {
-        this.getFiles(to.path);
-      },
-      filesPerPage() {
-        this.currentPage = 0;
+        if (to.path === '/retrieveFavourites') {
+          this.getFavourites();
+        } else {
+          this.getFiles(to.path);
+        }
       }
     },
     methods: {
@@ -309,7 +307,7 @@
         $.getJSON("/api/getFavourites").then((files) => {
           this.files = files;
           this.breadcrumbs = [{
-            first: "home",
+            first: "Favourites",
             second: ""
           }];
           this.masterCheckbox = false;
