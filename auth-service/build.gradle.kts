@@ -30,8 +30,8 @@ apply {
 val kotlin_version: String by extra
 val ktor_version: String by extra
 
-fun DependencyHandlerScope.ktorModule(name: String): String {
-    return "io.ktor:$name:$ktor_version"
+fun DependencyHandler.ktorModule(name: String): String {
+    return "io.ktor:ktor-$name:$ktor_version"
 }
 
 repositories {
@@ -44,15 +44,15 @@ repositories {
 
 dependencies {
     compile(kotlinModule("stdlib-jdk8", kotlin_version))
-    //compile(group = "org.opensaml", name = "opensaml-core", version = "3.3.0")
     compile(group = "org.esciencecloud", name = "service-common", version = "0.4.0-SNAPSHOT")
     compile(group = "com.onelogin", name = "java-saml-core", version = "2.2.0")
 
-    compile(ktorModule("ktor-server-core"))
-    compile(ktorModule("ktor-server-cio"))
-    compile(ktorModule("ktor-jackson"))
+    compile(ktorModule("server-core"))
+    compile(ktorModule("server-cio"))
+    compile(ktorModule("jackson"))
 
     compile(group = "org.apache.logging.log4j", name = "log4j-slf4j-impl", version = "2.9.1")
+    compile(group = "com.auth0", name = "java-jwt", version = "3.0.1")
 }
 
 tasks.withType<KotlinCompile> {
