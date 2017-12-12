@@ -10,4 +10,7 @@ fun Route.webSockets() {
     webSocket("/activity") {
 
     }
+    webSocket("/notifications") {
+
+    }
 }

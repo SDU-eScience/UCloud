@@ -157,20 +157,11 @@ class EScienceCloudUIApp {
                 }
             }
 
-            get("/pending_commands") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/in_process") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/in_error_commands") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/finalized_commands") {
-                call.respondRedirect("underconstruction.html")
+            route("/projects") {
+                // FIXME
+                get {
+                    call.respondRedirect("underconstruction.html")
+                }
             }
         }
     }
@@ -200,18 +191,14 @@ object DashboardOptions {
     val nodes = arrayListOf(
             OptionNode("Dashboard", "nav-icon", "/dashboard"),
             OptionNode("Files", "nav-icon", "/files"),
+            OptionNode("Projects", "", "/projects"),
             OptionNode("Apps", "nav-icon", children = arrayListOf(
                     (OptionNode("Applications", "", "/applications")),
                     (OptionNode("Workflows", "", "/workflows")),
                     (OptionNode("Analyses", "", "/analyses")))),
             OptionNode("Activity", "", children = arrayListOf(
-                    (OptionNode("Messages", "", "/activity/messages")),
-                    (OptionNode("Notifications", "", "/activity/notifications")))),
-            OptionNode("Commands", "", children = arrayListOf(
-                    (OptionNode("Pending", "", "/pending_commands")),
-                    (OptionNode("Processing", "", "/in_process")),
-                    (OptionNode("Error", "", "/in_error_commands")),
-                    (OptionNode("Completed", "", "/finalized_commands")))))
+                    // (OptionNode("Messages", "", "/activity/messages")),
+                    (OptionNode("Notifications", "", "/activity/notifications")))))
 }
 
 class CertificateGenerator {
