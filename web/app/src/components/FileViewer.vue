@@ -17,7 +17,7 @@
               <router-link class="btn btn-link btn-lg" to="/retrieveFavourites"><i class="icon ion-star"></i></router-link>
               <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
             </div>
-            <table class="table-datatable table table-striped table-hover mv-lg">
+            <table class="table-datatable table table-hover mv-lg">
               <thead>
               <tr role="row">
                 <th class="select-cell disabled">
@@ -39,8 +39,9 @@
               </tr>
               </thead>
               <tbody v-cloak>
-              <tr class="row-settings clickable-row" v-for="file in getFilePage()" @click="openFile(file)">
-                <td class="select-cell"><label class="mda-checkbox"><input
+              <tr class="row-settings clickable-row" v-for="file in getFilePage()" :style="{ cursor: file.type === 'DIRECTORY' ? 'pointer' : '' }" @click="openFile(file)">
+                <td class="select-cell"><label class="mda-checkbox">
+                  <input
                   name="select" class="select-box" :value="file" v-model="selectedFiles" @click="prevent"
                   type="checkbox"><em
                   class="bg-info"></em></label></td>
@@ -57,8 +58,7 @@
                       <div class="pull-right dropdown">
                           <button type="button" data-toggle="dropdown"
                                   class="btn btn-flat btn-flat-icon"
-                                  aria-expanded="false"><em
-                            class="ion-android-more-vertical"></em></button>
+                                  aria-expanded="false"><em class="ion-android-more-vertical"></em></button>
                           <ul role="menu" class="dropdown-menu md-dropdown-menu dropdown-menu-right">
                               <li><a class="btn btn-info ripple btn-block"
                                      v-on:click="sendToAbacus()"> Send to Abacus 2.0</a></li>
@@ -249,6 +249,10 @@
         } else {
           this.getFiles(to.path);
         }
+      },
+      filesPerPage() {
+        // Don't delete me, I am useful
+        this.currentPage = 0
       }
     },
     methods: {

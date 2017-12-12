@@ -3,7 +3,7 @@
     <loading-icon v-if="loading"></loading-icon>
     <div class="card" v-else>
       <div v-if="!messages.length">
-        <h3><small>No messages found.</small></h3>
+        <h3 class="text-center"><small>No messages found.</small></h3>
       </div>
       <table class="table table-hover table-fixed va-middle">
         <tbody>
@@ -30,13 +30,13 @@
     <!-- Floating button for compose-->
     <div class="floatbutton">
       <ul class="mfb-component--br mfb-zoomin">
-        <li class="mfb-component__wrap"><a id="compose" class="mfb-component__button--main"><i class="mfb-component__main-icon--resting ion-edit"></i><i class="mfb-component__main-icon--active ion-edit"></i></a>
+        <li class="mfb-component__wrap"><a @click="showComposeMessage()" class="mfb-component__button--main"><i class="mfb-component__main-icon--resting ion-edit"></i><i class="mfb-component__main-icon--active ion-edit"></i></a>
           <ul class="mfb-component__list"></ul>
         </li>
       </ul>
     </div>
     <!-- Modal content example for compose-->
-    <div tabindex="-1" role="dialog" class="modal fade modal-compose" style="display: none;">
+    <div role="dialog" class="modal fade modal-compose">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-body">
@@ -55,7 +55,7 @@
                   <label>Message</label>
                 </div>
               </div>
-              <button type="button" data-dismiss="modal" @click="sendMessage()" class="btn btn-success">Send</button>
+              <button type="button" @click="sendMessage()" class="btn btn-success">Send</button>
             </form>
           </div>
         </div>
@@ -94,6 +94,7 @@
           this.messages = messages.sort((a, b) => {
             return b.fromDate - a.fromDate;
           });
+
           this.loading = false;
         });
       },
@@ -110,6 +111,9 @@
             this.composeMessage.to = "";
           }
         });
+      },
+      showComposeMessage() {
+        this.showCompose = true
       }
     }
   }
