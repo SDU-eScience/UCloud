@@ -59,6 +59,9 @@ data class GetApplicationInfo(val name: String, val version: String)
 @location("/createDir")
 data class CreateDirectory(val dirPath: String)
 
+@location("/sendMessage")
+class SendMessage
+
 //TODO - modifications must be made by backend provider
 
 fun Route.ajaxOperations() {
@@ -149,6 +152,14 @@ fun Route.ajaxOperations() {
 
     get<GetNotifications> {
         call.respond(200)
+    }
+    post<SendMessage> {
+        val parameters = call.receiveParameters()
+        val to = parameters["to"]
+        val content = parameters["content"]
+        println(to)
+        println(content)
+        call.respond("")
     }
 }
 
