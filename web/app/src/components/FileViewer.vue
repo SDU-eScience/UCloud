@@ -10,16 +10,19 @@
         <loading-icon v-if="loading"></loading-icon>
         <div v-cloak class="card" v-if="!loading">
           <div v-if="!files.length">
-            <h3 class="text-center"><small>There are no files in current folder</small></h3>
+            <h3 class="text-center">
+              <small>There are no files in current folder</small>
+            </h3>
           </div>
           <div v-else class="card-body">
             <div class="center-block text-center hidden-lg">
-              <router-link class="btn btn-link btn-lg" to="/retrieveFavourites"><i class="icon ion-star"></i></router-link>
+              <router-link class="btn btn-link btn-lg" to="/retrieveFavourites"><i class="icon ion-star"></i>
+              </router-link>
               <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
             </div>
             <table class="table-datatable table table-hover mv-lg">
               <thead>
-              <tr role="row">
+              <tr>
                 <th class="select-cell disabled">
                   <label class="mda-checkbox">
                     <input name="select" class="select-box"
@@ -28,22 +31,23 @@
                            value="all"
                            type="checkbox"><em
                     class="bg-info"></em></label></th>
-                <th class="text-left" @click="orderByName"><span class="text">Filename </span><span
+                <th class="text-left" @click="orderByName"><span class="text-left">Filename</span><span
                   :class="['icon', getIcon('filename')]"></span></th>
                 <th class="text-left" @click="orderByFavourite"><span><a class="ion-star"></a></span><span
                   :class="['icon', getIcon('favourite')]"></span></th>
-                <th class="text-left" @click="orderByDate"><span class="text">Last Modified </span><span
+                <th class="text-left" @click="orderByDate"><span class="text-left">Last Modified</span><span
                   :class="['icon', getIcon('lastModified')]"></span></th>
-                <th class="text-left" @click="orderByOwner"><span class="text">File Owner</span><span
-                  :class="['icon', getIcon('owners')]"></span></th>
+                <th class="text-left" @click="orderByOwner"><span class="text-left">File Owner</span><span
+                  :class="[getIcon('owners')]" class="icon"></span></th>
               </tr>
               </thead>
               <tbody v-cloak>
-              <tr class="row-settings clickable-row" v-for="file in getFilePage()" :style="{ cursor: file.type === 'DIRECTORY' ? 'pointer' : '' }" @click="openFile(file)">
+              <tr class="row-settings clickable-row" v-for="file in getFilePage()"
+                  :style="{ cursor: file.type === 'DIRECTORY' ? 'pointer' : '' }" @click="openFile(file)">
                 <td class="select-cell"><label class="mda-checkbox">
                   <input
-                  name="select" class="select-box" :value="file" v-model="selectedFiles" @click="prevent"
-                  type="checkbox"><em
+                    name="select" class="select-box" :value="file" v-model="selectedFiles" @click="prevent"
+                    type="checkbox"><em
                   class="bg-info"></em></label></td>
                 <td v-if="file.type === 'FILE'">
                   <a class="ion-android-document"></a> {{ file.path.name }}
@@ -89,7 +93,8 @@
           <button class="previous btn-default btn btn-circle" @click="previousPage()" :disabled="currentPage === 0"
                   id="datatable1_previous"><em class="ion-ios-arrow-left"></em></button>
           <span v-for="n in paginationPages">
-            <button class="paginate_button btn btn-default btn-circle" :class="{ 'btn-info': n - 1 === currentPage }" :disabled="n - 1 === currentPage"
+            <button class="paginate_button btn btn-default btn-circle" :class="{ 'btn-info': n - 1 === currentPage }"
+                    :disabled="n - 1 === currentPage"
                     @click="toPage(n - 1)">{{ n }}</button>
           </span>
           <button class="paginate_button next btn-default btn btn-circle ion-ios-arrow-right" @click="nextPage()"
@@ -99,7 +104,8 @@
       <div class="col-lg-2 visible-lg">
         <div>
           <div class="center-block text-center">
-            <router-link class="btn btn-link btn-lg" to="/retrieveFavourites"><i class="icon ion-star"></i></router-link>
+            <router-link class="btn btn-link btn-lg" to="/retrieveFavourites"><i class="icon ion-star"></i>
+            </router-link>
             <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
           </div>
           <hr>
@@ -112,7 +118,7 @@
           <hr>
           <h3 v-if="selectedFiles.length" v-cloak>
             {{ 'Rights level: ' + options.rightsName }}<br>
-            {{ selectedFiles.length > 1 ? selectedFiles.length + ' files selected.' : selectedFiles[0].path.name }}</h3>
+            {{ fileText }}</h3>
           <div v-if="selectedFiles.length" v-cloak>
             <p>
               <button class="btn btn-info rippple btn-block"
@@ -240,6 +246,9 @@
       },
       paginationPages() {
         return Math.ceil(this.files.length / this.filesPerPage)
+      },
+      fileText() {
+        return this.selectedFiles.length > 1 ? this.selectedFiles.length + ' files selected.' : this.selectedFiles[0].path.name
       }
     },
     watch: {
@@ -250,8 +259,7 @@
           this.getFiles(to.path);
         }
       },
-      filesPerPage() {
-        // Don't delete me, I am useful
+      filesPerPage() { // Don't delete me, I am useful
         this.currentPage = 0
       }
     },
@@ -327,11 +335,7 @@
       },
       getBreadcrumbs(path) {
         $.getJSON("/api/getBreadcrumbs", {path: path}).then((breadcrumbs) => {
-          if (breadcrumbs.length) {
-            this.breadcrumbs = breadcrumbs;
-          } else {
-            this.breadcrumbs = [];
-          }
+          this.breadcrumbs = breadcrumbs;
         });
       },
       getIcon(name) {
@@ -365,7 +369,7 @@
           this.getBreadcrumbs(path);
         });
       },
-      orderByName() {
+      orderByName($event) {
         let order = this.sortOrders.filename ? 1 : -1;
         this.sortOrders.filename = !this.sortOrders.filename;
         this.sortOrders.lastSorted = "filename";
@@ -379,7 +383,7 @@
           }
         });
       },
-      orderByFavourite() {
+      orderByFavourite($event) {
         let order = this.sortOrders.favourite ? 1 : -1;
         this.sortOrders.favourite = !this.sortOrders.favourite;
         this.sortOrders.lastSorted = "favourite";
