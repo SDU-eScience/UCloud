@@ -10,6 +10,7 @@ import com.onelogin.saml2.settings.Saml2Settings
 import com.onelogin.saml2.util.Constants
 import com.onelogin.saml2.util.Util
 import io.ktor.application.ApplicationCall
+import io.ktor.util.ValuesMap
 import org.apache.commons.lang3.StringUtils
 import org.joda.time.DateTime
 import org.joda.time.Instant
@@ -34,7 +35,9 @@ fun Saml2Settings.validateOrThrow(): Saml2Settings {
 
 // This is a ktor port of the provided Auth class by java-saml-toolkit
 // For the most part this just copy & pastes the solution and replaces servlet parts with ktor equivalents
-class Auth(private val settings: Saml2Settings, private val call: ApplicationCall) {
+// TODO The paramsMap is a hack. We can only call receive once, this is why we need it.
+class Auth(private val settings: Saml2Settings, private val call: ApplicationCall,
+           private val paramsMap: ValuesMap? = null) {
     /**
      * NameID.
      */
@@ -201,7 +204,7 @@ class Auth(private val settings: Saml2Settings, private val call: ApplicationCal
     @Throws(Exception::class)
     suspend fun processResponse(requestId: String? = null) {
         authenticated = false
-        val httpRequest = KtorUtils.makeHttpRequest(this.call)
+        val httpRequest = KtorUtils.makeHttpRequest(this.call, paramsMap)
         val samlResponseParameter = httpRequest.getParameter("SAMLResponse")
 
         if (samlResponseParameter != null) {
@@ -238,7 +241,7 @@ class Auth(private val settings: Saml2Settings, private val call: ApplicationCal
             keepLocalSession: Boolean = false,
             requestId: String? = null
     ) {
-        val httpRequest = KtorUtils.makeHttpRequest(this.call)
+        val httpRequest = KtorUtils.makeHttpRequest(this.call, paramsMap)
 
         val samlRequestParameter = httpRequest.getParameter("SAMLRequest")
         val samlResponseParameter = httpRequest.getParameter("SAMLResponse")

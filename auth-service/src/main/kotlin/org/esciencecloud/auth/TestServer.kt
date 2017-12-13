@@ -36,6 +36,7 @@ import org.esciencecloud.auth.saml.Auth
 import org.esciencecloud.auth.saml.KtorUtils
 import org.esciencecloud.auth.saml.validateOrThrow
 import java.io.File
+import java.net.URLDecoder
 import java.net.URLEncoder
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
@@ -45,6 +46,8 @@ import java.util.*
 
 data class RequestAndRefreshToken(val accessToken: String, val refreshToken: String)
 data class AccessToken(val accessToken: String)
+
+private const val SAML_RELAY_STATE_PREFIX = "/saml/login?service="
 
 class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPrivateKey) {
     private val jwtAlg = Algorithm.RSA256(privKey)
@@ -58,7 +61,6 @@ class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPriva
                 .withSubject(user.primaryKey)
                 .withClaim("roles", user.roles.joinToString(",") { it.name })
                 .withClaim("name", user.fullName)
-                .withClaim("nickname", user.nickname)
                 .withClaim("email", user.email)
                 .withIssuer("https://auth.cloud.sdu.dk")
                 .withExpiresAt(exp)
@@ -77,22 +79,20 @@ class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPriva
         return RequestAndRefreshToken(token, refreshToken)
     }
 
-    private fun processSAMLAuthentication(auth: Auth) {
-        println(auth.authenticated)
-        repeat(3) { println() }
+    private fun processSAMLAuthentication(auth: Auth): User? {
         if (auth.authenticated) {
-            println(auth.attributes[AttributeURIs.Email])
-            println(auth.attributes[AttributeURIs.CommonName])
-            println(auth.attributes[AttributeURIs.FamilyName])
-            println(auth.attributes[AttributeURIs.EduPersonPrincipalName])
-            println(auth.attributes[AttributeURIs.EduPersonPrimaryAffiliation])
-            println(auth.attributes[AttributeURIs.EduPersonTargetedId])
-            println(auth.attributes[AttributeURIs.SchacHomeOrganization])
-            println(auth.authenticated)
+            // THIS MIGHT NOT BE AN ACTUAL EMAIL
+            val email = auth.attributes[AttributeURIs.EduPersonPrincipalName]?.firstOrNull() ?: return null
+            val name = auth.attributes[AttributeURIs.CommonName]?.firstOrNull() ?: return null
+
+            // TODO Fire of Kafka message and validate origin of user
+            return UserDAO.findById(email) ?: User.createUserNoPassword(name, email, listOf(Role.USER))
         }
+        return null
     }
 
     private val String.urlEncoded: String get() = URLEncoder.encode(this, "UTF-8")
+    private val String.urlDecoded: String get() = URLDecoder.decode(this, "UTF-8")
 
     fun createServer(): ApplicationEngine =
             embeddedServer(Netty, port = 8080) {
@@ -115,7 +115,7 @@ class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPriva
                             }
 
                             val relayState = KtorUtils.getSelfURLhost(call) +
-                                    "/saml/login?service=${service.urlEncoded}"
+                                    "$SAML_RELAY_STATE_PREFIX${service.urlEncoded}"
 
                             val auth = Auth(authSettings, call)
                             val samlRequestTarget = auth.login(
@@ -131,12 +131,30 @@ class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPriva
                         }
 
                         post("acs") {
-                            val auth = Auth(authSettings, call)
-                            auth.processResponse()
-                            processSAMLAuthentication(auth)
-                            println(call.receiveParameters()["RelayState"])
+                            val params = call.receiveParameters()
+                            val service = params["RelayState"]?.let {
+                                val index = it.indexOf(SAML_RELAY_STATE_PREFIX)
+                                if (index == -1) return@let null
 
-                            call.respondRedirect("/yay")
+                                it.substring(index + SAML_RELAY_STATE_PREFIX.length).urlDecoded
+                            } ?: return@post run {
+                                call.respond(HttpStatusCode.BadRequest)
+                            }
+
+                            val auth = Auth(authSettings, call, params)
+                            auth.processResponse()
+
+                            val user = processSAMLAuthentication(auth)
+                            if (user == null) {
+                                call.respond(HttpStatusCode.Unauthorized)
+                            } else {
+                                val token = createAndRegisterTokenFor(user)
+                                call.respondRedirect("/login-redirect?" +
+                                        "service=${service.urlEncoded}" +
+                                        "&accessToken=${token.accessToken.urlEncoded}" +
+                                        "&refreshToken=${token.refreshToken.urlEncoded}"
+                                )
+                            }
                         }
                     }
 

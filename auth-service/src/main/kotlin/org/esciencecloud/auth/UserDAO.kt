@@ -14,7 +14,6 @@ enum class Role {
 }
 
 class User internal constructor(
-        val nickname: String,
         val fullName: String,
         val email: String,
         val roles: List<Role>,
@@ -27,11 +26,10 @@ class User internal constructor(
         private val ITERATIONS = 10000
         private val KEY_LENGTH = 256
 
-        fun createUserWithPassword(nickname: String, fullName: String, email: String, roles: List<Role>,
+        fun createUserWithPassword(fullName: String, email: String, roles: List<Role>,
                                    password: String): User {
             val (hashed, salt) = hashPassword(password)
             return User(
-                    nickname,
                     fullName,
                     email,
                     roles,
@@ -40,8 +38,8 @@ class User internal constructor(
             )
         }
 
-        fun createUserNoPassword(nickname: String, fullName: String, email: String, roles: List<Role>): User {
-            return User(nickname, fullName, email, roles)
+        fun createUserNoPassword(fullName: String, email: String, roles: List<Role>): User {
+            return User(fullName, email, roles)
         }
 
         private fun hashPassword(password: String, salt: ByteArray = genSalt()): HashedPasswordAndSalt {
@@ -73,8 +71,7 @@ object UserDAO {
     private val inMemoryDb = HashMap<String, User>()
 
     init {
-        insert(User.createUserNoPassword("myself", "Myself and I", "myself@testshib.org", listOf(Role.USER)))
-        insert(User.createUserWithPassword("dan", "dan", "dan@localhost", listOf(Role.USER, Role.ADMIN), "password"))
+        insert(User.createUserWithPassword("dan", "dan@localhost", listOf(Role.USER, Role.ADMIN), "password"))
     }
 
     fun findById(id: String): User? {

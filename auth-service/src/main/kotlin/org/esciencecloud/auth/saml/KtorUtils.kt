@@ -7,6 +7,7 @@ import io.ktor.features.origin
 import io.ktor.http.parseUrlEncodedParameters
 import io.ktor.request.*
 import io.ktor.response.respondRedirect
+import io.ktor.util.ValuesMap
 import java.io.IOException
 import java.util.*
 
@@ -18,15 +19,12 @@ object KtorUtils {
      * @param call the incoming HttpServletRequest
      * @return a HttpRequest
      */
-    suspend fun makeHttpRequest(call: ApplicationCall): HttpRequest {
+    suspend fun makeHttpRequest(call: ApplicationCall, bodyParams: ValuesMap?): HttpRequest {
         val requestUrl = getSelfURLhost(call) + "/" + call.request.uri.removePrefix("/")
         val queryString = call.request.queryString()
         val paramsAsList = HashMap<String, List<String>>()
         call.parameters.forEach { s, list -> paramsAsList[s] = list }
 
-        val bodyParams = call.receiveOrNull<String>()?.parseUrlEncodedParameters(
-                call.request.contentCharset() ?: Charsets.UTF_8
-        )
         bodyParams?.forEach { s, list -> paramsAsList[s] = list }
         return HttpRequest(requestUrl, paramsAsList, queryString)
     }
