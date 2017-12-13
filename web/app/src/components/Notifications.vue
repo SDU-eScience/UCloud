@@ -10,7 +10,7 @@
             <small>Websockets are not supported in this browser. Notifications won't be updated automatically.</small>
           </h3>
           <tbody>
-          <tr class="msg-display clickable" v-for="notification in recentList">
+          <tr class="msg-display clickable" v-for="notification in recentList" @click="updateCurrentNotification(notification)" data-toggle="modal" data-target="#notificationModal">
             <td class="wd-xxs">
               <div v-if="notification.type === 'Complete'" class="initial32 bg-green-500">✓</div>
               <div v-else-if="notification.type === 'In Progress'" class="initial32 bg-blue-500">...</div>
@@ -35,7 +35,7 @@
             <small>Websockets are not supported in this browser. Notifications won't be updated automatically.</small>
           </h3>
           <tbody>
-          <tr class="msg-display clickable" v-for="notification in remainingList">
+          <tr class="msg-display clickable" v-for="notification in remainingList" @click="updateCurrentNotification(notification)" data-toggle="modal" data-target="#notificationModal">
             <td class="wd-xxs">
               <div v-if="notification.type === 'Complete'" class="initial32 bg-green-500">✓</div>
               <div v-else-if="notification.type === 'In Progress'" class="initial32 bg-blue-500">...</div>
@@ -54,6 +54,26 @@
         <button @click="showMoreRemaining" class="btn btn-info ion-ios-arrow-down" v-if="notificationsShownRemaining < remaining.length"></button>
       </div>
     </div>
+
+
+    <div id="notificationModal" class="modal fade" role="dialog">
+      <div class="modal-dialog">
+        <!-- Modal content-->
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title"> {{ currentNotification.message }}<br><small>{{ new Date(currentNotification.timestamp).toLocaleString() }}</small></h4>
+          </div>
+          <div class="modal-body">
+            <p>{{ currentNotification.body }}</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </section>
 </template>
 
@@ -67,6 +87,7 @@
     data() {
       return {
         loading: true,
+        currentNotification: {},
         hasWebsocketSupport: "WebSocket" in window,
         ws: new WebSocket("ws://localhost:8080/ws/notifications"),
         recent: [],
@@ -94,6 +115,9 @@
       },
     },
     methods: {
+      updateCurrentNotification(notification) {
+        this.currentNotification = notification;
+      },
       getShorterBody(body) {
         let bodyLength = body.length;
         const maxLength = 30;
