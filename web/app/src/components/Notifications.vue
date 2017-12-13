@@ -106,7 +106,6 @@
         this.recent.sort( (a, b) => {
           return b.timestamp - a.timestamp;
         });
-        console.log(Math.min(this.notificationsShownRecent, lastElement));
         return this.recent.slice(0, Math.min(this.notificationsShownRecent, lastElement));
       },
       remainingList() {
