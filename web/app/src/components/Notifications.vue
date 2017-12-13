@@ -55,7 +55,11 @@
     computed: {
       recentNotifications() {
         let lastElement = this.notifications.length - 1;
-        return this.notifications.slice(Math.max(lastElement - this.notificationsShown, 0), lastElement);
+        this.notifications.sort((a, b) => {
+          return b.timestamp - a.timestamp
+        });
+        console.log(lastElement)
+        return this.notifications.slice(0, Math.min(this.notificationsShown, lastElement));
       }
     },
     methods: {
@@ -74,9 +78,6 @@
           notifications.forEach( (it) => {
             this.notifications.push(it);
           });
-          this.notifications.sort((a, b) => {
-            return b.timestamp - a.timestamp
-          });
           this.loading = false;
         });
       },
@@ -94,9 +95,6 @@
 
         this.ws.onmessage = response => {
           this.notifications.push(JSON.parse(response.data));
-          this.notifications.sort((a, b) => {
-            return b.timestamp - a.timestamp
-          });
         };
       },
     }
