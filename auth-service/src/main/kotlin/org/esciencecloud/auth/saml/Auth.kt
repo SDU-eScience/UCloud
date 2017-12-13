@@ -106,7 +106,7 @@ class Auth(private val settings: Saml2Settings, private val call: ApplicationCal
      * (SAMLResponse, LogoutResponse). If the SAMLResponse was
      * encrypted, by default tries to return the decrypted XML
      */
-    private var lastResponse: String? = null
+    var lastResponse: String? = null
 
     // --  Computed from settings --
     val ssoUrl: String get() = settings.idpSingleSignOnServiceUrl.toString()

@@ -40,7 +40,7 @@ object KtorUtils {
      *
      * @return the HOST URL
      */
-    private fun getSelfURLhost(call: ApplicationCall): String {
+    fun getSelfURLhost(call: ApplicationCall): String {
         val serverPort = call.request.port()
         val scheme = call.request.origin.scheme
         val name = call.request.origin.host
