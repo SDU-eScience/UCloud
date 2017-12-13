@@ -440,19 +440,28 @@
         });
       },
       createFolder() {
+        let currentDir = this.breadcrumbs[this.breadcrumbs.length - 1].second;
         swal({
           title: "Create a folder",
           text: "Input the folder name:",
           input: "text",
           showCancelButton: true,
-          inputPlaceholder: "Folder name..."
-        }).then((inputValue) => {
-          if (inputValue === false) return false;
-          if (inputValue === "") {
-            swal.showInputError("You need to enter a folder name.");
-            return false
+          inputPlaceholder: "Folder name...",
+          confirmButtonText: "Create folder",
+          preConfirm: (text) => {
+            if (text === "")
+              swal.showValidationError("You need to enter a folder name.");
           }
-          swal("Success", "Folder " + inputValue.value + " created", "success");
+        }).then((inputValue) => {
+          if (inputValue.dismiss !== 'cancel') {
+            $.getJSON("/api/createDir", {dirPath: currentDir + inputValue.value}, (result) => {
+              if (result === 200) {
+                swal("Success", "Folder " + currentDir + inputValue.value + " created", "success");
+              } else {
+                swal("Error", "Folder " + currentDir + inputValue.value + " was not created", "error");
+              }
+            });
+          }
         });
       },
       sendToAbacus() {

@@ -140,6 +140,7 @@
           input: "text",
           showCancelButton: true,
           inputPlaceholder: "Folder name...",
+          confirmButtonText: "Create folder",
           preConfirm: (text) => {
             if (text === "")
               swal.showValidationError("You need to enter a folder name.");
