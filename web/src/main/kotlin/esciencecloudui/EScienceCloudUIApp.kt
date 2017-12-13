@@ -26,6 +26,7 @@ import io.ktor.util.escapeHTML
 import io.ktor.websocket.*
 import webSockets
 import java.io.File
+import java.time.Duration
 
 @location("/")
 class Index
@@ -58,7 +59,9 @@ class EScienceCloudUIApp {
         install(ConditionalHeaders)
         install(PartialContentSupport)
         install(Locations)
-        install(WebSockets)
+        install(WebSockets) {
+            pingPeriod = Duration.ofSeconds(30)
+        }
         install(ContentNegotiation) {
             jackson {
                 registerModule(KotlinModule())

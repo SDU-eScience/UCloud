@@ -11,7 +11,6 @@ import io.ktor.routing.Route
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.addBasicAuth
 import org.esciencecloud.asynchttp.asJson
-import java.sql.Timestamp
 import java.util.*
 
 
