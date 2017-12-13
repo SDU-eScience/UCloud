@@ -161,9 +161,9 @@ class EScienceCloudUIApp {
             }
 
             route("/projects") {
-                // FIXME
+                requireAuthentication()
                 get {
-                    call.respondRedirect("underconstruction.html")
+                    call.renderDashboard(ModelAndTemplate("projects.ftl", mapOf("title" to "Projects")))
                 }
             }
         }
