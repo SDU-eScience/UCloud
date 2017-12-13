@@ -257,8 +257,14 @@ val notifications = arrayListOf(
         Notification("Job AGOB-424 failed", "Job AGOB-424 has failed.", 1503090081037, "Failed", "AGOB-424"),
         Notification("Job BGOA-401 in progress", "Job BGOA-401 is in progress.", 1512090181037, "In Progress", "BGOA-401"),
         Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
-        Notification("Job ABGO-999 completed", "Job ABGO-999 has completed.", 1613170181037, "Complete", "AOGB-999")
-
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is complete", "Job ABGG-111 is complete.", 1413090181037, "Complete", "ABGG-111"),
+        Notification("Job ABGG-111 is in progress", "Job ABGG-111 is in progress.", 1413090181037, "In Progress", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is complete", "Job ABGG-111 is complete.", 1413090181037, "Complete", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111")
 )
 
 val workflows = arrayListOf(Workflow("Particle Simulation and Video Generation", applications))

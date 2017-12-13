@@ -60,7 +60,7 @@ class EScienceCloudUIApp {
         install(PartialContentSupport)
         install(Locations)
         install(WebSockets) {
-            pingPeriod = Duration.ofSeconds(30)
+            pingPeriod = Duration.ofSeconds(10)
         }
         install(ContentNegotiation) {
             jackson {
