@@ -15,7 +15,7 @@
           <p><strong>Description:</strong></p>
           <div class="pl-lg mb-lg">Ut turpis urna, tristique sed adipiscing nec, luctus quis leo. Fusce nec volutpat ante.</div>
           <p><strong>Members:</strong></p>
-          <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/03.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="img/user/07.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/06.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="7img/user/05.jpg" alt="project member" class="img-circle thumb32"></a></div>
+          <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/03.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/07.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/06.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/05.jpg" alt="project member" class="img-circle thumb32"></a></div>
           <p><strong>Activity:</strong></p>
           <div class="pl-lg">
             <ul class="list-inline m0">
@@ -56,7 +56,7 @@
           <p><strong>Description:</strong></p>
           <div class="pl-lg mb-lg">Ut turpis urna, tristique sed adipiscing nec, luctus quis leo. Fusce nec volutpat ante.</div>
           <p><strong>Members:</strong></p>
-          <div class="pl-lg mb-lg"><a href="" class="inline"><img src="img/user/02.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/04.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/05.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/06.jpg" alt="project member" class="img-circle thumb32"></a></div>
+          <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/02.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/04.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/05.jpg" alt="project member" class="img-circle thumb32"></a><a href="" class="inline"><img src="/img/user/06.jpg" alt="project member" class="img-circle thumb32"></a></div>
           <p><strong>Activity:</strong></p>
           <div class="pl-lg">
             <ul class="list-inline m0">

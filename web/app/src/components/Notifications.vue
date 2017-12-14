@@ -89,6 +89,7 @@
         loading: true,
         currentNotification: {},
         hasWebsocketSupport: "WebSocket" in window,
+        // TODO: WSS
         ws: new WebSocket("ws://localhost:8080/ws/notifications"),
         recent: [],
         remaining: [],
