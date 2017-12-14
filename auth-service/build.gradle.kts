@@ -37,6 +37,7 @@ fun DependencyHandler.ktorModule(name: String): String {
 repositories {
     mavenLocal()
     mavenCentral()
+    jcenter()
 
     maven { url = URI("http://dl.bintray.com/kotlin/ktor") }
     maven { url = URI("https://dl.bintray.com/kotlin/kotlinx") }
@@ -44,12 +45,13 @@ repositories {
 
 dependencies {
     compile(kotlinModule("stdlib-jdk8", kotlin_version))
-    compile(group = "org.esciencecloud", name = "service-common", version = "0.4.0-SNAPSHOT")
+    //compile(group = "org.esciencecloud", name = "service-common", version = "0.4.0-SNAPSHOT")
     compile(group = "com.onelogin", name = "java-saml-core", version = "2.2.0")
 
     compile(ktorModule("server-core"))
-    compile(ktorModule("server-cio"))
+    compile(ktorModule("server-netty"))
     compile(ktorModule("jackson"))
+    compile(ktorModule("html-builder"))
 
     compile(group = "org.apache.logging.log4j", name = "log4j-slf4j-impl", version = "2.9.1")
     compile(group = "com.auth0", name = "java-jwt", version = "3.0.1")
