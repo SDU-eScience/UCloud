@@ -109,7 +109,7 @@
             <a class="btn btn-link btn-lg" href="#/"><i class="icon ion-ios-home"></i></a>
           </div>
           <hr>
-          <button class="btn btn-primary ripple btn-block ion-android-upload"> Upload Files</button>
+          <button class="btn btn-primary ripple btn-block ion-android-upload" v-on:click="uploadFile"> Upload Files</button>
           <br>
           <button class="btn btn-default ripple btn-block ion-folder" v-on:click="createFolder"> New
             folder
@@ -435,8 +435,11 @@
           showCancelButton: true,
           confirmButtonClass: "btn-danger",
           confirmButtonText: "Yes, delete it!",
-        }).then((name) => {
-          swal("Deleted!", "Your file " + name.value + " has been deleted.", "success");
+        }).then((input) => {
+          if (!input.dismiss) {
+            swal("Deleted!", "Your file " + fileName + " has been deleted.", "success");
+            // TODO: Send URI or bubble up request.
+          }
         });
       },
       createFolder() {
@@ -478,23 +481,20 @@
           }
         });
       },
-      shareFile: function (name, type) {
+      shareFile(name, type) {
         swal({
           title: "Share a " + type,
           text: "Enter the mail of the person you want to share with:",
           input: "email",
           showCancelButton: true,
           inputPlaceholder: "Mail..."
-        }).then((inputValue) => {
-          if (inputValue === false) return false;
-          if (inputValue === "") {
-            swal.showInputError("You need to enter an e-mail.");
-            return false
+        }).then((input) => {
+          if (!input.dismiss) {
+            swal("Success", name + " shared with " + input.value, "success");
           }
-          swal("Success", name + " shared with " + inputValue.value, "success");
         });
       },
-      renameFile: function (name, type) {
+      renameFile(name, type) {
         swal({
           title: "Rename " + type + " " + name,
           text: "Enter a new name for file " + name + ":",
@@ -512,6 +512,22 @@
             return false
           }
           swal("Success", name + " renamed to " + inputValue.value, "success");
+        });
+      },
+      uploadFile() {
+        swal({
+          title: "Upload file",
+          input: "file",
+          showCancelButton: true,
+          preConfirm: (file) => {
+            if (file === null || file === '') {
+              swal.showValidationError("Please select a file.")
+            }
+          }
+        }).then( (file) => {
+          if (!file.dismiss) {
+            console.log(file.value);
+          }
         });
       }
     }
