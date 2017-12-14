@@ -2,7 +2,6 @@
   <!-- Page content-->
   <section xmlns:v-on="http://www.w3.org/1999/xhtml">
     <div class="container-fluid">
-      <!-- DATATABLE DEMO 1-->
       <div class="col-lg-10">
         <loading-icon v-if="loading"></loading-icon>
         <div v-cloak class="card" v-else>
@@ -17,20 +16,47 @@
                 <th>Workflow Name</th>
                 <th>Job Id</th>
                 <th>Status</th>
+                <th>Comments</th>
               </tr>
               </thead>
               <tbody v-cloak>
               <tr class="gradeA row-settings" v-for="analysis in analyses">
                 <td>{{ analysis.name }}</td>
-                <td>{{ Math.floor(Math.random() * 100000) + '-' + Math.floor(Math.random() * 100000) + '-' +
-                  Math.floor(Math.random() * 100000) }}
+                <td>{{ analysis.jobId }}
                 </td>
                 <td>{{ analysis.status }}</td>
+                <td>
+                  <button v-if="analysis.comments.length" data-toggle="modal" data-target="#commentsModal" class="btn btn-info" @click="setCurrentAnalysis(analysis)">Show {{ analysis.comments.length  }} comments</button>
+                  <button v-else>Write comment</button>
+                </td>
               </tr>
               </tbody>
             </table>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="commentsModal" class="modal fade" role="dialog">
+      <div class="modal-dialog">
+        <!-- Modal content-->
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title"> {{ modalAnalysis.name }}<br><small>Comments</small></h4>
+          </div>
+          <div class="modal-body">
+            <div v-for="comment in modalAnalysis.comments">
+              <b>{{ comment.author }} @</b> <i>{{ new Date(comment.timestamp).toLocaleString() + ':' }}</i> <br><span>{{ comment.content }}</span>
+            </div>
+          <hr>
+            <span>You: <input v-model="newComment" type="text"/></span><button @click="postComment()" type="button" class="btn btn-info">Send</button>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
@@ -47,10 +73,12 @@
     data() {
       return {
         analyses: {},
+        newComment: "",
         websocketSupport: "WebSocket" in window,
         loading: true,
         // TODO Fix location
-        ws: new WebSocket("ws://localhost:8080/ws/analyses")
+        ws: new WebSocket("ws://localhost:8080/ws/analyses"),
+        modalAnalysis: {}
       }
     },
     mounted() {
@@ -63,7 +91,9 @@
         $.getJSON("/api/getAnalyses").then(data => {
           this.analyses = data;
           this.loading = false;
-          this.subscribeToProgress();
+          this.analyses.forEach((it) => {
+            it.jobId = Math.floor(Math.random() * 100000) + '-' + Math.floor(Math.random() * 100000) + '-' + Math.floor(Math.random() * 100000)
+          });
         });
       },
       wsInit() {
@@ -79,9 +109,14 @@
           console.log(response.data.toString());
         };
       },
-      subscribeToProgress() {
-        let subscriptionList = this.analyses.filter(analysis => analysis.status === 'In Progress' || analysis.status === 'Pending');
-        this.ws.send(subscriptionList);
+      setCurrentAnalysis(analysis) {
+        this.modalAnalysis = analysis;
+      },
+      postComment() {
+        if (this.newComment) {
+          this.modalAnalysis.comments.push({author: "You", content: this.newComment, timestamp: new Date()});
+        }
+        // TODO Actually post comment
       }
     }
   }

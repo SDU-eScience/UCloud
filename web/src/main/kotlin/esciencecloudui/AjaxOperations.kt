@@ -227,8 +227,9 @@ data class ApplicationField(val name: String, val prettyName: String, val descri
 data class ApplicationAbacus(val info: ApplicationInfo, val parameters: List<ApplicationField>)
 data class ApplicationInfo(val name: String, val version: String, val rating: Double = 5.0, val isPrivate: Boolean = false, val description: String = "An app to be run on Abacus", val author: String = "Anyone")
 data class Workflow(val name: String, val applications: ArrayList<ApplicationAbacus>)
-data class Analysis(val name: String, val status: String)
+data class Analysis(val name: String, val status: String, var comments: List<Comment> = emptyList())
 data class Notification(val message: String, val body: String, val timestamp: Long, val type: String, val jobId: String)
+data class Comment(val author: String, val content: String, val timestamp: Long = 0)
 data class Message(val from:String, val fromDate:Long, val content:String)
 
 val messages = arrayListOf(
@@ -271,8 +272,8 @@ val workflows = arrayListOf(Workflow("Particle Simulation and Video Generation",
 
 
 val analyses = arrayListOf(
-            Analysis("My analysis", "Completed"),
-            Analysis("Test analysis", "Pending"),
+            Analysis("My analysis", "Completed", listOf(Comment("You", "That was fast."), Comment("You", "#"))),
+            Analysis("Test analysis", "Pending", listOf(Comment("Person McPerson", "sudo start app"), Comment("You", "That doesn't work."))),
             Analysis("File conversion", "Failed"),
             Analysis("Group analysis", "Completed"),
             Analysis("Large analysis", "Pending"),
