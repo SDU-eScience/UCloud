@@ -26,7 +26,7 @@
                 </td>
                 <td>{{ analysis.status }}</td>
                 <td>
-                  <button v-if="analysis.comments.length" data-toggle="modal" data-target="#commentsModal" class="btn btn-info" @click="setCurrentAnalysis(analysis)">Show {{ analysis.comments.length  }} comments</button>
+                  <button v-if="analysis.comments.length" data-toggle="modal" data-target="#commentsModal" class="btn btn-primary" @click="setCurrentAnalysis(analysis)">Show {{ analysis.comments.length  }} comments</button>
                   <button v-else>Write comment</button>
                 </td>
               </tr>
@@ -50,7 +50,7 @@
               <b>{{ comment.author }} @</b> <i>{{ new Date(comment.timestamp).toLocaleString() + ':' }}</i> <br><span>{{ comment.content }}</span>
             </div>
           <hr>
-            <span>You: <input v-model="newComment" type="text"/></span><button @click="postComment()" type="button" class="btn btn-info">Send</button>
+            <div>You: <input v-model="newComment" type="text"/> <button @click="postComment()" type="button" class="btn btn-primary text-right">Send</button></div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
