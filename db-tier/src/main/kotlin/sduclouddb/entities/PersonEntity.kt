@@ -4,7 +4,7 @@ import org.jetbrains.exposed.dao.*
 
 
 object Person : IntIdTable() {
-    val personsessionhistoryrefid = reference("personsessionhistoryrefid", Personsessionhistory)
+    val personjwthistoryrefid = reference("personsessionhistoryrefid", Personjwthistory)
     val personmiddlename = text("personmiddlename").nullable()
     val persontitle = text("persontitle").nullable()
     val latitude = decimal("latitude", 10, 5).nullable()
@@ -13,14 +13,13 @@ object Person : IntIdTable() {
     val active = integer("active").nullable()
     val orcid = text("orcid").nullable()
     val irodsuseridmap = integer("irodsuseridmap").nullable()
-    val personsessionhistory = integer("personsessionhistory").nullable()
+    val personjwthistory = integer("personsessionhistory").nullable()
     val personfirstname = text("personfirstname").nullable()
     val irodsusername = text("irodsusername").nullable()
     val personlastname = text("personlastname").nullable()
     val created_ts = datetime("created_ts")
     val modified_ts = datetime("modified_ts")
     val personphoneno = text("personphoneno").nullable()
-    val personworkemail = text("personworkemail").nullable()
     val fullname = text("fullname").nullable()
     val logintyperefid = reference("logintyperefid", Logintype)
     val longitude = decimal("longitude", 10, 5).nullable()
@@ -28,8 +27,8 @@ object Person : IntIdTable() {
 class PersonEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object: IntEntityClass<PersonEntity>(Person)
 
-    var personsessionhistoryrefid by Person.personsessionhistoryrefid
-    var personsessionhistory by PersonsessionhistoryEntity referencedOn Person.personsessionhistoryrefid
+    var personjwthistoryrefid by Person.personjwthistoryrefid
+    var personjwthistory by PersonjwthistoryEntity referencedOn Person.personjwthistoryrefid
     var personmiddlename by Person.personmiddlename
     var persontitle by Person.persontitle
     var latitude by Person.latitude
@@ -44,7 +43,6 @@ class PersonEntity(id: EntityID<Int>) : IntEntity(id) {
     var created_ts by Person.created_ts
     var modified_ts by Person.modified_ts
     var personphoneno by Person.personphoneno
-    var personworkemail by Person.personworkemail
     var fullname by Person.fullname
     var logintyperefid by Person.logintyperefid
     var logintype by LogintypeEntity referencedOn Person.logintyperefid

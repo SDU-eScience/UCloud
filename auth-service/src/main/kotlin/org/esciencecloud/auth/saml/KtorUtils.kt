@@ -39,13 +39,18 @@ object KtorUtils {
      * @return the HOST URL
      */
     fun getSelfURLhost(call: ApplicationCall): String {
-        val serverPort = call.request.port()
-        val scheme = call.request.origin.scheme
-        val name = call.request.origin.host
-        return if (serverPort == 80 || serverPort == 443 || serverPort == 0) {
-            String.format("%s://%s", scheme, name)
+        // TODO This approach won't work with proxies
+        if (false) {
+            val serverPort = call.request.port()
+            val scheme = call.request.origin.scheme
+            val name = call.request.origin.host
+            return if (serverPort == 80 || serverPort == 443 || serverPort == 0) {
+                String.format("%s://%s", scheme, name)
+            } else {
+                String.format("%s://%s:%s", scheme, name, serverPort)
+            }
         } else {
-            String.format("%s://%s:%s", scheme, name, serverPort)
+            return "https://cloud.sdu.dk"
         }
     }
 

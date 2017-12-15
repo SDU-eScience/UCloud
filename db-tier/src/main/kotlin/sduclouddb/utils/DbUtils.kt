@@ -2,26 +2,26 @@ package sduclouddb.utils
 
 import org.jetbrains.exposed.sql.Database
 
-class DbUtils()
+class DbUtils
 {
-    protected val url = "jdbc:postgresql://localhost:5432/sduclouddb"
-    protected val user = "postgres"
-    protected val pass = "Rasmus12"
-    protected val driver = "org.postgresql.Driver"
+    private val url = "jdbc:postgresql://localhost:5432/sduclouddb"
+    private val user = "postgres"
+    private val pass = "Rasmus12"
+    private val driver = "org.postgresql.Driver"
 
 
     fun dbConnect(): Database {
         return Database.connect(url, driver = driver, user = user, password = pass)
     }
 
-    fun recordExists(nameParm:String):String
+    fun recordExists(nameParam:String):String
     {
-        return "record allready exist, nameParm: " + nameParm
+        return "record already exist, nameParam: " + nameParam
     }
 
-    fun recordNotExists(idParm:Int):String
+    fun recordNotExists(idParam:Int):String
     {
-        return "record does not exist, idParm: " + idParm
+        return "record does not exist, idParam: " + idParam
     }
 
     fun dbConnectionError():String
