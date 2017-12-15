@@ -8,7 +8,7 @@ import org.jetbrains.exposed.dao.IntIdTable
 
 object Subsystemcommandqueue : IntIdTable() {
     val subsystemcommandstatusrefid  = reference("subsystemcommandstatusrefid ", Subsystemcommandstatus)
-    val personsessionhistoryrefid  = reference("personsessionhistoryrefid ", Personsessionhistory)
+    val personsessionhistoryrefid  = reference("personsessionhistoryrefid ", Personjwthistory)
     val payload = text("payload").nullable()
     val created_ts = datetime("created_ts")
     val modified_ts = datetime("modified_ts")
@@ -21,7 +21,7 @@ class SubsystemcommandqueueEntity(id: EntityID<Int>) : IntEntity(id) {
     var subsystemcommandstatusrefid by Subsystemcommandqueue.subsystemcommandstatusrefid
     var subsystemcommandstatus by SubsystemcommandstatusEntity referencedOn Subsystemcommandqueue.subsystemcommandstatusrefid
     var personsessionhistoryrefid by Subsystemcommandqueue.personsessionhistoryrefid
-    var personsessionhistory by PersonsessionhistoryEntity referencedOn Subsystemcommandqueue.subsystemcommandstatusrefid
+    var personsessionhistory by PersonjwthistoryEntity referencedOn Subsystemcommandqueue.subsystemcommandstatusrefid
     var payload by Subsystemcommandqueue.payload
     var created_ts by Subsystemcommandqueue.created_ts
     var modified_ts by Subsystemcommandqueue.modified_ts

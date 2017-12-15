@@ -8,7 +8,7 @@ import org.jetbrains.exposed.dao.IntIdTable
 object Logintype : IntIdTable() {
     val created_ts = datetime("created_ts")
     val modified_ts = datetime("modified_ts")
-    val logintypetext = text("logintypetext").nullable()
+    val logintypename = text("logintypename").nullable()
     val active = integer("active").nullable()
 }
 class LogintypeEntity(id: EntityID<Int>) : IntEntity(id) {
@@ -16,6 +16,6 @@ class LogintypeEntity(id: EntityID<Int>) : IntEntity(id) {
 
     var created_ts by Logintype.created_ts
     var modified_ts by Logintype.modified_ts
-    var logintypetext by Logintype.logintypetext
+    var logintypename by Logintype.logintypename
     var active by Logintype.active
 }

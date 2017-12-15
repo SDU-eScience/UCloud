@@ -8,6 +8,7 @@ import org.jetbrains.exposed.sql.upperCase
 import org.joda.time.LocalDateTime
 import org.slf4j.LoggerFactory
 import sduclouddb.entities.App
+import sduclouddb.entities.App.appname
 import sduclouddb.entities.AppEntity
 import sduclouddb.utils.Utilities
 import sduclouddb.utils.DbUtils

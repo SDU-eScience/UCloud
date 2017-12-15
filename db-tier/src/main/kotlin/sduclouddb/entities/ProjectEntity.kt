@@ -16,6 +16,7 @@ object Project : IntIdTable() {
     val active = integer("active").nullable()
     val irodsgroupadmin = text("irodsgroupadmin").nullable()
     val irodsgroupidmap = integer("irodsgroupidmap").nullable()
+    val projecttyperefid = reference("projecttyperefid", Projecttype)
 }
 class ProjectEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object: IntEntityClass<ProjectEntity>(Project)
@@ -29,4 +30,6 @@ class ProjectEntity(id: EntityID<Int>) : IntEntity(id) {
     var active by Project.active
     var irodsgroupadmin by Project.irodsgroupadmin
     var irodsgroupidmap by Project.irodsgroupidmap
+    var projecttyperefid by Projecttype.id
+    var projecttype by ProjecttypeEntity referencedOn Project.projecttyperefid
 }
