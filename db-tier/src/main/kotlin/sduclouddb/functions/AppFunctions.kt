@@ -26,7 +26,7 @@ class AppFunctions {
         transaction {
             //  logger.addLogger(StdOutSqlLogger())
 
-            var checkExist = AppEntity.find { (App.appname).upperCase() eq appnameParm.toUpperCase() }
+            val checkExist = AppEntity.find { (App.appname).upperCase() eq appnameParm.toUpperCase() }
 
             try {
 

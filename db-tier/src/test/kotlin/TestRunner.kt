@@ -1,14 +1,11 @@
-
-
 import org.slf4j.LoggerFactory
 import sduclouddb.functions.AppFunctions
 import sduclouddb.utils.Utilities
 
-
 fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger(AppFunctions::class.java)
-    val utilities : Utilities = Utilities()
-    var appFunctions:AppFunctions= AppFunctions()
+    val utilities = Utilities()
+    val appFunctions = AppFunctions()
 
     utilities.catchAll(log, "App.create")
     {
@@ -24,12 +21,12 @@ fun main(args: Array<String>) {
 //        appFunctions.delete(1)
 //    }
 
-    utilities.catchAll(log,"setActive")
+    utilities.catchAll(log, "setActive")
     {
-        appFunctions.setActive( 2)
+        appFunctions.setActive(2)
     }
 
-    utilities.catchAll(log,"setInActive")
+    utilities.catchAll(log, "setInActive")
     {
         appFunctions.setInActive(2)
     }
@@ -38,6 +35,4 @@ fun main(args: Array<String>) {
     {
         appFunctions.getByName("hest")
     }
-
-
 }
