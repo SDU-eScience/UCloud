@@ -39,12 +39,12 @@ dokka {
 }
 
 dependencies {
-    testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version:'2.10.0'
-    testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version:'2.10.0'
-    testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version:'2.10.0'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version:"$log4j_version"
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version:"$log4j_version"
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version:"$log4j_version"
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
-    compile group: 'org.slf4j', name: 'slf4j-api', version:'1.7.25'
-    compile "ch.qos.logback:logback-classic:1.2.1"
+    compile group: 'org.slf4j', name: 'slf4j-api', version:"$slf4j_version"
+    compile "ch.qos.logback:logback-classic:$logback_version"
 
 }
 
