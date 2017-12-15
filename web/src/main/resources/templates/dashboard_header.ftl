@@ -89,9 +89,9 @@
     <aside class="sidebar-container">
         <div class="sidebar-header">
             <div class="pull-right pt-lg text-muted hidden"><em class="ion-close-round"></em></div>
-            <a href="#" class="sidebar-header-logo"><img src="/app/img/logo.png" data-svg-replace="/img/logo.svg"
+            <a href="/" class="sidebar-header-logo"><img src="/app/img/logo.png" data-svg-replace="/img/logo.svg"
                                                          alt="Logo"><span
-                    class="sidebar-header-logo-text">eScienceCloud</span></a>
+                    class="sidebar-header-logo-text">SDUCloud</span></a>
         </div>
         <div class="sidebar-content">
             <div class="sidebar-toolbar text-center"><a href=""><img src="/img/user/01.jpg" alt="Profile"

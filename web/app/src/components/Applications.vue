@@ -4,10 +4,8 @@
     <div class="container-fluid">
       <!-- DATATABLE DEMO 1-->
       <div class="col-lg-10">
-        <div class="file-loading">
-          <h1 class="app-loading-content">Loading Applications...</h1>
-        </div>
-        <div v-cloak class="card" v-if="applications[0] != null">
+        <loading-icon v-if="!applications.length"></loading-icon>
+        <div v-cloak class="card" v-if="applications.length">
           <div class="card-body">
             <table id="table-options" class="table-datatable table table-striped table-hover mv-lg">
               <thead>
@@ -25,7 +23,7 @@
                 <td v-if="app.info.private"
                     title="The app is private and can only be seen by the creator and people it was shared with">
                   <em class="ion-locked"></em></td>
-                <td v-else title='The application is openly available for everyone'><em
+                <td title="The application is openly available for everyone" v-else ><em
                   class="ion-unlocked"></em></td>
                 <td v-bind:title="app.info.description">{{ app.info.name }}</td>
                 <td v-bind:title="app.info.description">{{ app.info.author }}</td>
@@ -42,7 +40,7 @@
       </div>
       <div class="col-lg-2 visible-lg">
         <div>
-          <button class="btn btn-primary ripple btn-block ion-android-upload"> Upload Application</button>
+          <button class="btn btn-primary ripple btn-block ion-android-upload" @click="newApplication()"> Upload Application</button>
           <br>
           <hr>
         </div>
@@ -53,8 +51,11 @@
 
 <script>
   import $ from 'jquery'
+  import swal from 'sweetalert2'
+  import LoadingIcon from "./LoadingIcon";
 
   export default {
+    components: {LoadingIcon},
     name: 'applications',
     data() {
       return {
@@ -65,20 +66,21 @@
       this.getApplications();
     },
     methods: {
-      getApplications: function () {
+      getApplications() {
         $.getJSON("/api/getApplications").then((data) => {
-          if (data[0] === undefined) {
-            $(".app-loading-content").text("No applications found.");
-          } else {
-            $(".app-loading-content").text("");
-            this.applications = data
-          }
+          this.applications = data;
         });
       },
-      newApplication: function () {
-        console.log("Empty");
+      newApplication() {
+        swal({
+          input: 'file',
+        }).then((input) => {
+          this.uploadApplication(input)
+        });
+      },
+      uploadApplication(file) {
+        console.log(file);
       }
     }
   }
-
 </script>

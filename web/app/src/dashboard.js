@@ -7,5 +7,5 @@ Vue.config.productionTip = false;
 new Vue({
   el: '#app',
   template: '<DashboardComponent/>',
-  components: {DashboardComponent} // TODO move to component
+  components: {DashboardComponent}
 });

@@ -1,21 +1,17 @@
 package esciencecloudui
 
-import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
 import io.ktor.locations.get
 import io.ktor.locations.location
 import io.ktor.locations.post
-import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
-import io.ktor.response.respondRedirect
 import io.ktor.routing.Route
-import io.ktor.routing.post
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.addBasicAuth
 import org.esciencecloud.asynchttp.asJson
+import java.util.*
 
 
 @location("/getFiles")
@@ -51,8 +47,20 @@ class StartJob
 @location("/getAnalyses")
 class Analyses
 
+@location("/getMessages")
+class GetMessages
+
+@location("/getNotifications")
+class GetNotifications
+
 @location("/getApplicationInfo")
 data class GetApplicationInfo(val name: String, val version: String)
+
+@location("/createDir")
+data class CreateDirectory(val dirPath: String)
+
+@location("/sendMessage")
+class SendMessage
 
 //TODO - modifications must be made by backend provider
 
@@ -102,17 +110,17 @@ fun Route.ajaxOperations() {
 
     get<RecentWorkFlowStatus> {
         // TODO Get actual workflow statuses
-        call.respond(MockAnalyses.analyses.subList(0, 10))
+        call.respond(analyses.subList(0, 10))
     }
 
     get<WorkFlows> {
         // TODO Get actual workflows
-        call.respond(WorkflowObject.workflows)
+        call.respond(workflows)
     }
 
     get<GetApplications> {
         // TODO Get actual applications
-        call.respond(ApplicationsAbacus.applications)
+        call.respond(applications)
     }
 
     get<Favourites> {
@@ -122,17 +130,36 @@ fun Route.ajaxOperations() {
     }
 
     get<GetApplicationInfo> {
-        val app = getApp(it.name, it.version)!!
-        call.respond(app)
+        call.respond(getApp(it.name, it.version) ?: "failure")
     }
 
     get<Analyses> {
-        call.respond(MockAnalyses.analyses)
+        call.respond(analyses)
     }
 
     post<StartJob> {
         val application = call.receiveParameters()["application"]
         call.respond(200)
+    }
+
+    get<CreateDirectory> {
+        call.respond(200)
+    }
+
+    get<GetMessages> {
+        call.respond(messages)
+    }
+
+    get<GetNotifications> {
+        call.respond(notifications)
+    }
+    post<SendMessage> {
+        val parameters = call.receiveParameters()
+        val to = parameters["to"]
+        val content = parameters["content"]
+        println(to)
+        println(content)
+        call.respond("")
     }
 }
 
@@ -195,32 +222,58 @@ private suspend fun ApplicationCall.getFavouriteFiles(): List<StorageFile> {
 }
 
 
-/* Possible types: integer, text, float, input_file, output_file */
+/* Possible types: integer, text, float, input_file, ~output_file~ */
 data class ApplicationField(val name: String, val prettyName: String, val description: String, val type: String, val defaultValue: String?, val isOptional: Boolean)
-
 data class ApplicationAbacus(val info: ApplicationInfo, val parameters: List<ApplicationField>)
 data class ApplicationInfo(val name: String, val version: String, val rating: Double = 5.0, val isPrivate: Boolean = false, val description: String = "An app to be run on Abacus", val author: String = "Anyone")
 data class Workflow(val name: String, val applications: ArrayList<ApplicationAbacus>)
-data class Analysis(val name: String, val status: String)
+data class Analysis(val name: String, val status: String, var comments: List<Comment> = emptyList())
+data class Notification(val message: String, val body: String, val timestamp: Long, val type: String, val jobId: String)
+data class Comment(val author: String, val content: String, val timestamp: Long = 0)
+data class Message(val from:String, val fromDate:Long, val content:String)
 
-object WorkflowObject {
-    val workflows = arrayListOf(Workflow("Particle Simulation and Video Generation", ApplicationsAbacus.applications))
-}
+val messages = arrayListOf(
+        Message("Dan Sebastian Thrane", 1, "I have a genuine dislike of iRODS."),
+        Message("Jonas Malte Hinchely", 12903, "I writing to you from the future to warn you about the inconsistencies in date formats around the world.."),
+        Message("Peter Alberg Schulz", 214980, "Time for lunch? Please reply soon.."),
+        Message("Firstname Lastname", 1412, "Is this necessary?"),
+        Message("Firstname Lastname", 1212, "Is this necessary?"),
+        Message("Firstname Lastname", 1242, "Is this necessary?"),
+        Message("Firstname Lastname", 1241, "Is this necessary?"),
+        Message("Firstname Lastname", 12412, "Is this necessary?")
+)
 
-object ApplicationsAbacus {
-    val applications = arrayListOf(
+val applications = arrayListOf(
             ApplicationAbacus(ApplicationInfo("Particle Simulator", "1.0"),
                     arrayListOf(ApplicationField("input", "Input File","The input file for the application.", "input_file", null, false),
                             ApplicationField("speed", "MPI Threads", "The number of MPI threads to be used.", "integer", "4",true))),
             ApplicationAbacus(ApplicationInfo("Particle Simulation Video Generator", "5.0"),
                     arrayListOf(ApplicationField("input", "Input file", "The input file containing the results of a particle simulation.", "input_file", null, false),
                             ApplicationField("format", "File format", "The format which the file should be outputted as. Possible values: ogg (default)", "text", "ogg",true))))
-}
 
-object MockAnalyses {
-    val analyses = arrayListOf(
-            Analysis("My analysis", "Completed"),
-            Analysis("Test analysis", "Pending"),
+
+/* Types: Complete, In Progress, Pending, Failed */
+val notifications = arrayListOf(
+        Notification("Job ABGO-104 completed", "Job ABGO-104 has completed.", 1413090181037, "Complete", "AOGB-1133"),
+        Notification("Job AGOB-424 failed", "Job AGOB-424 has failed.", 1503090081037, "Failed", "AGOB-424"),
+        Notification("Job BGOA-401 in progress", "Job BGOA-401 is in progress.", 1512090181037, "In Progress", "BGOA-401"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is complete", "Job ABGG-111 is complete.", 1413090181037, "Complete", "ABGG-111"),
+        Notification("Job ABGG-111 is in progress", "Job ABGG-111 is in progress.", 1413090181037, "In Progress", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is complete", "Job ABGG-111 is complete.", 1413090181037, "Complete", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111")
+)
+
+val workflows = arrayListOf(Workflow("Particle Simulation and Video Generation", applications))
+
+
+val analyses = arrayListOf(
+            Analysis("My analysis", "Completed", listOf(Comment("You", "That was fast."), Comment("You", "#"))),
+            Analysis("Test analysis", "Pending", listOf(Comment("Person McPerson", "sudo start app"), Comment("You", "That doesn't work."))),
             Analysis("File conversion", "Failed"),
             Analysis("Group analysis", "Completed"),
             Analysis("Large analysis", "Pending"),
@@ -229,8 +282,7 @@ object MockAnalyses {
             Analysis("Thesis analysis", "In Progress"),
             Analysis("Particle Simulation", "In Progress"),
             Analysis("Abacus benchmarking", "Completed")
-    )
-}
+)
 
 /* Why coroutines are better
 fun main(args: Array<String>) {

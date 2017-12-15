@@ -19,12 +19,14 @@ import io.ktor.application.*
 import io.ktor.content.files
 import io.ktor.content.static
 import io.ktor.jackson.jackson
-import io.ktor.request.receiveParameters
 import io.ktor.routing.get
 import io.ktor.routing.route
 import io.ktor.sessions.*
 import io.ktor.util.escapeHTML
+import io.ktor.websocket.*
+import webSockets
 import java.io.File
+import java.time.Duration
 
 @location("/")
 class Index
@@ -57,6 +59,9 @@ class EScienceCloudUIApp {
         install(ConditionalHeaders)
         install(PartialContentSupport)
         install(Locations)
+        install(WebSockets) {
+            pingPeriod = Duration.ofSeconds(10)
+        }
         install(ContentNegotiation) {
             jackson {
                 registerModule(KotlinModule())
@@ -78,11 +83,13 @@ class EScienceCloudUIApp {
                 files("resources/app/vendor")
                 files("resources/app/server")
                 files("resources/app")
-                // Getting escience SVG FIXME replace with SDUcloud file
-                files("resources/")
             }
 
             login(hashFunction)
+
+            route("/ws/") {
+                webSockets()
+            }
 
             route("/api/") {
                 ajaxOperations()
@@ -143,32 +150,21 @@ class EScienceCloudUIApp {
                 }
             }
 
-            get("/new_messages") {
-                call.respondRedirect("underconstruction.html")
+            route("/activity/") {
+                requireAuthentication()
+                get("/messages") {
+                    call.renderDashboard(ModelAndTemplate("messages.ftl", mapOf("title" to "Messages")))
+                }
+                get("/notifications") {
+                    call.renderDashboard(ModelAndTemplate("notifications.ftl", mapOf("title" to "Notifications")))
+                }
             }
 
-            get("/read_messages") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/deleted_messages") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/pending_commands") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/in_process") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/in_error_commands") {
-                call.respondRedirect("underconstruction.html")
-            }
-
-            get("/finalized_commands") {
-                call.respondRedirect("underconstruction.html")
+            route("/projects") {
+                requireAuthentication()
+                get {
+                    call.renderDashboard(ModelAndTemplate("projects.ftl", mapOf("title" to "Projects")))
+                }
             }
         }
     }
@@ -190,7 +186,7 @@ class EScienceCloudUIApp {
 }
 
 fun getApp(applicationName: String, applicationVersion: String): ApplicationAbacus? =
-        ApplicationsAbacus.applications.first { it.info.name == applicationName && it.info.version == applicationVersion }
+        applications.first { it.info.name == applicationName && it.info.version == applicationVersion }
 
 data class OptionNode(val name: String, var icon: String, var href: String? = null, var children: ArrayList<OptionNode>? = null)
 
@@ -198,19 +194,14 @@ object DashboardOptions {
     val nodes = arrayListOf(
             OptionNode("Dashboard", "nav-icon", "/dashboard"),
             OptionNode("Files", "nav-icon", "/files"),
+            OptionNode("Projects", "", "/projects"),
             OptionNode("Apps", "nav-icon", children = arrayListOf(
                     (OptionNode("Applications", "", "/applications")),
                     (OptionNode("Workflows", "", "/workflows")),
                     (OptionNode("Analyses", "", "/analyses")))),
-            OptionNode("Messages", "", children = arrayListOf(
-                    (OptionNode("New", "", "/new_messages")),
-                    (OptionNode("Read", "", "/read_messages")),
-                    (OptionNode("Deleted", "", "/deleted_messages")))),
-            OptionNode("Commands", "", children = arrayListOf(
-                    (OptionNode("Pending", "", "/pending_commands")),
-                    (OptionNode("Processing", "", "/in_process")),
-                    (OptionNode("Error", "", "/in_error_commands")),
-                    (OptionNode("Completed", "", "/finalized_commands")))))
+            OptionNode("Activity", "", children = arrayListOf(
+                    // (OptionNode("Messages", "", "/activity/messages")),
+                    (OptionNode("Notifications", "", "/activity/notifications")))))
 }
 
 class CertificateGenerator {
@@ -226,22 +217,3 @@ class CertificateGenerator {
         }
     }
 }
-//suspend fun ApplicationCall.redirect(location: Any) {
-//    val host = request.host() ?: "localhost"
-//    val portSpec = request.port().let { if (it == 80) "" else ":$it" }
-//    val address = host + portSpec
-//
-//    respondRedirect("http://$address${application.locations.href(location)}")
-//}
-//
-//fun ApplicationCall.securityCode(date: Long, user: User, hashFunction: (String) -> String) =
-//        hashFunction("$date:${user.userId}:${request.host()}:${refererHost()}")
-//
-//fun ApplicationCall.verifyCode(date: Long, user: User, code: String, hashFunction: (String) -> String) =
-//        securityCode(date, user, hashFunction) == code
-//                && (System.currentTimeMillis() - date).let { it > 0 && it < TimeUnit.MILLISECONDS.convert(2, TimeUnit.HOURS) }
-//
-//fun ApplicationCall.refererHost() = request.header(HttpHeaders.Referrer)?.let { URI.create(it).host }
-//
-//private val userIdPattern = "[a-zA-Z0-9_\\.]+".toRegex()
-//internal fun userNameValid(userId: String) = userId.matches(userIdPattern)

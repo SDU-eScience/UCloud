@@ -13,11 +13,15 @@ module.exports = {
   entry: {
     app: './src/main.js',
     "file-viewer": "./src/files.js",
-    "runApp": "./src/runApp.js", // FIXME I am temporary. I should be included in relevant pages
+    "runApp": "./src/runApp.js",
     "dashboard": "./src/dashboard.js",
     "applications": "./src/applications.js",
     "workflows": "./src/workflows.js",
     "analyses": "./src/analyses.js",
+    "activity": "./src/activity.js",
+    "notifications": "./src/notifications.js",
+    "messages": "./src/messages.js",
+    "projects": "./src/projects.js",
   },
   output: {
     path: config.build.assetsRoot,
