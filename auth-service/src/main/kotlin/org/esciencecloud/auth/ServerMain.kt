@@ -78,6 +78,31 @@ fun main(args: Array<String>) {
                 }
                 log.info("OK")
             }
+            "create-user" -> {
+                Database.connect(
+                        url = config.database.url,
+                        driver = config.database.driver,
+
+                        user = config.database.username,
+                        password = config.database.password
+                )
+
+                val console = System.console()
+                val name = console.readLine("Full name: ")
+                val role = console.readLine("Role (String): ").let { Role.valueOf(it) }
+
+                val email = console.readLine("Email: ")
+                val password = console.readPassword("Password: ")
+
+                transaction {
+                    UserDAO.insert(UserUtils.createUserWithPassword(
+                            fullName = name,
+                            email = email,
+                            role = role,
+                            password = String(password)
+                    ))
+                }
+            }
         }
     }
 }
