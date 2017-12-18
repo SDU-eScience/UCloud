@@ -71,74 +71,30 @@
         </div>
       </div>
       <div class="col-sm-3 ">
-        <div class="card">
-          <h5 class="card-heading">Activity</h5>
-          <div class="card-body pb0">
-            <p class="pull-left mr"><em class="ion-record text-info"></em></p>
-            <div class="oh">
-              <p><strong class="mr-sm">Added</strong><span class="mr-sm">a new issue</span><a
-                href="#">#5478</a></p>
-              <div class="clearfix">
-                <div class="pull-left text-muted"><em
-                  class="ion-android-time mr-sm"></em><span>an hour ago</span></div>
-              </div>
-            </div>
-          </div>
-          <div class="card-body pb0">
-            <p class="pull-left mr"><em class="ion-record text-danger"></em></p>
-            <div class="oh">
-              <p><strong class="mr-sm">Commented</strong><span class="mr-sm"> on the project</span><a
-                href="#">Material</a></p>
-              <p class="bl pl"><i>That's awesome!</i></p>
-              <div class="clearfix">
-                <div class="pull-left text-muted"><em
-                  class="ion-android-time mr-sm"></em><span>2 hours ago</span></div>
-              </div>
-            </div>
-          </div>
-          <div class="card-body pb0">
-            <p class="pull-left mr"><em class="ion-record text-success"></em></p>
-            <div class="oh">
-              <p><strong class="mr-sm">Completed</strong><span> all tasks asigned this week</span></p>
-              <div class="clearfix">
-                <div class="pull-left text-muted"><em
-                  class="ion-android-time mr-sm"></em><span>3 hours ago</span></div>
-              </div>
-            </div>
-          </div>
-          <div class="card-body pb0">
-            <p class="pull-left mr"><em class="ion-record text-info"></em></p>
-            <div class="oh">
-              <p><strong class="mr-sm">Published</strong><span class="mr-sm"> new photos on the album</span><a
-                href="#">WorldTrip</a></p>
-              <p><a href="#"><img src="/img/pic4.jpg" alt="Pic" class="mr-sm thumb48"></a><a href="#"><img
-                src="/img/pic5.jpg" alt="Pic" class="mr-sm thumb48"></a><a href="#"><img
-                src="/img/pic6.jpg" alt="Pic" class="mr-sm thumb48"></a></p>
-              <div class="clearfix">
-                <div class="pull-left text-muted"><em
-                  class="ion-android-time mr-sm"></em><span>4 hours ago</span></div>
-              </div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="clearfix">
-              <p class="pull-left mr"><em class="ion-record text-primary"></em></p>
-              <div class="oh">
-                <p><strong class="mr-sm">Following</strong><span class="mr-sm">Jane Kuhn</span></p>
-                <p><span class="image-list"><a href="#"><img src="img/user/03.jpg" alt="User"
-                                                             class="img-circle thumb32"></a><a href="#"><img
-                  src="/img/user/04.jpg" alt="User" class="img-circle thumb32"></a><a href="#"><img
-                  src="/img/user/05.jpg" alt="User" class="img-circle thumb32"></a><a href="#"><img
-                  src="/img/user/06.jpg" alt="User" class="img-circle thumb32"></a><a href="#"><img
-                  src="/img/user/07.jpg" alt="User" class="img-circle thumb32"></a><strong><a href="#"
-                                                                                              class="ml-sm link-unstyled">+200</a></strong></span>
-                </p>
-                <div class="clearfix">
-                  <div class="pull-left text-muted"><em class="ion-android-time mr-sm"></em><span>yesterday</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div class="card" v-cloak>
+          <h5 class="card-heading pb0">
+            Notifications
+          </h5>
+          <loading-icon v-if="notificationsLoading"></loading-icon>
+          <div>
+              <table class="table-datatable table table-striped table-hover mv-lg">
+                <tbody>
+                <tr class="msg-display clickable" v-for="notification in notifications">
+                  <td class="wd-xxs">
+                    <div v-if="notification.type === 'Complete'" class="initial32 bg-green-500">✓</div>
+                    <div v-else-if="notification.type === 'In Progress'" class="initial32 bg-blue-500">...</div>
+                    <div v-else-if="notification.type === 'Pending'" class="initial32 bg-blue-500"></div>
+                    <div v-else-if="notification.type === 'Failed'" class="initial32 bg-red-500">&times;</div>
+                  </td>
+                  <th class="mda-list-item-text mda-2-line">
+                    <small>{{ notification.message }}</small>
+                    <br>
+                    <small class="text-muted">{{ new Date(notification.timestamp).toLocaleString() }}</small>
+                  </th>
+                  <td class="text">{{ getShorterBody(notification.body) }}</td>
+                </tr>
+                </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -160,13 +116,16 @@
         mostRecentlyUsed: [],
         mostRecentlyUsedLoading: false,
         analyses: [],
-        analysesLoading: false
+        analysesLoading: false,
+        notifications: [],
+        notificationsLoading: false,
       }
     },
     mounted() {
       this.getFavourites();
       this.getMostRecentFiles();
       this.getWorkflowStatuses();
+      this.getRecentActivity();
     },
     methods: {
       getFavourites() {
@@ -189,6 +148,22 @@
           this.analyses = data;
           this.analysesLoading = false;
         });
+      },
+      getRecentActivity() {
+        this.notificationsLoading = true;
+        $.getJSON("/api/getRecentActivity").then( (notifications) => {
+          this.notifications = notifications;
+            this.notificationsLoading = false;
+        });
+      },
+      getShorterBody(body) {
+        let bodyLength = body.length;
+        const maxLength = 30;
+        if (bodyLength < maxLength) {
+          return body;
+        } else {
+          return body.substring(0, maxLength) + "..."
+        }
       }
     }
   }

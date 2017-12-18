@@ -22,8 +22,7 @@
               <tbody v-cloak>
               <tr class="gradeA row-settings" v-for="analysis in analyses">
                 <td>{{ analysis.name }}</td>
-                <td>{{ analysis.jobId }}
-                </td>
+                <td>{{ analysis.jobId }}</td>
                 <td>{{ analysis.status }}</td>
                 <td>
                   <button v-if="analysis.comments.length" data-toggle="modal" data-target="#commentsModal" class="btn btn-primary" @click="setCurrentAnalysis(analysis)">Show {{ analysis.comments.length  }} comments</button>

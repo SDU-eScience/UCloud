@@ -62,6 +62,9 @@ data class CreateDirectory(val dirPath: String)
 @location("/sendMessage")
 class SendMessage
 
+@location("/getRecentActivity")
+class RecentActivity
+
 //TODO - modifications must be made by backend provider
 
 fun Route.ajaxOperations() {
@@ -160,6 +163,11 @@ fun Route.ajaxOperations() {
         println(to)
         println(content)
         call.respond("")
+    }
+    get<RecentActivity> {
+        val subset = notifications.subList(0, Math.min(10, notifications.size))
+        subset.sortByDescending { it.timestamp }
+        call.respond(subset)
     }
 }
 
