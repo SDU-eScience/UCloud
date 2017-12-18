@@ -65,6 +65,9 @@ class SendMessage
 @location("/getRecentActivity")
 class RecentActivity
 
+@location("/getStatus")
+class Status
+
 //TODO - modifications must be made by backend provider
 
 fun Route.ajaxOperations() {
@@ -169,7 +172,14 @@ fun Route.ajaxOperations() {
         subset.sortByDescending { it.timestamp }
         call.respond(subset)
     }
+    get<Status> {
+        call.respond(status)
+    }
 }
+
+data class StatusNotification(val title: String, val body: String)
+
+val status = StatusNotification("No issues", "No scheduled maintenance.")
 
 suspend fun ApplicationCall.getAbacusApplication(name: String, version: String): ApplicationAbacus? {
     val user = irodsUser

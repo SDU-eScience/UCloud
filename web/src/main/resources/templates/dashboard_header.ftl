@@ -71,7 +71,7 @@
             </ul>
             <h2 class="header-title">${title}</h2>
             <ul class="pull-right">
-                <li><button class="btn btn-info">Status: No issues</button></li>
+                <li><button class="btn btn-info" data-toggle="modal" data-target="#statusModal">Status: No issues</button></li>
                 <li><a id="header-search" href="#" class="ripple"><em class="ion-ios-search-strong"></em></a></li>
                 <li class="dropdown"><a href="#" data-toggle="dropdown" class="dropdown-toggle has-badge ripple"><em
                         class="ion-person"></em><sup class="badge bg-danger"></sup></a>

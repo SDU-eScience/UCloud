@@ -62,6 +62,7 @@
       </div>
     </div>
     <!-- End Modal content example for compose-->
+    <status-page></status-page>
   </div>
 </template>
 
@@ -69,10 +70,13 @@
   import $ from 'jquery'
   import Vue from 'vue'
   import LoadingIcon from './LoadingIcon'
+  import StatusPage from "./Status";
 
   export default {
     name: 'messages',
-    components: {LoadingIcon},
+    components: {
+      StatusPage,
+      LoadingIcon},
     data() {
       return {
         loading: true,

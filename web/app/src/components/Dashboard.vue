@@ -8,7 +8,7 @@
           </h5>
           <loading-icon v-if="favouritesLoading"></loading-icon>
           <h3 v-else-if="!favourites.length" class="text-center"><small>No favourites found.</small></h3>
-          <table class="table-datatable table table-striped table-hover mv-lg" v-else>
+          <table class="table-datatable table table-hover mv-lg" v-else>
             <thead>
             <tr>
               <th>File</th>
@@ -31,7 +31,7 @@
           </h5>
           <loading-icon v-if="mostRecentlyUsedLoading"></loading-icon>
           <h3 v-else-if="!mostRecentlyUsed.length" class="text-center"><small>No recently used files found.</small></h3>
-          <table class="table-datatable table table-striped table-hover mv-lg" v-else>
+          <table class="table-datatable table table-hover mv-lg" v-else>
             <thead>
             <tr>
               <th>File</th>
@@ -54,7 +54,7 @@
           </h5>
           <loading-icon v-if="analysesLoading"></loading-icon>
           <h3 v-else-if="!analyses.length" class="text-center"><small>No analyses found.</small></h3>
-          <table class="table-datatable table table-striped table-hover mv-lg" v-else>
+          <table class="table-datatable table table-hover mv-lg" v-else>
             <thead>
             <tr>
               <th>Name</th>
@@ -76,8 +76,9 @@
             Notifications
           </h5>
           <loading-icon v-if="notificationsLoading"></loading-icon>
+          <h3 v-else-if="!notifications.length" class="text-center"><small>No activity found.</small></h3>
           <div>
-              <table class="table-datatable table table-striped table-hover mv-lg">
+              <table class="table-datatable table table-hover mv-lg">
                 <tbody>
                 <tr class="msg-display clickable" v-for="notification in notifications">
                   <td class="wd-xxs">
@@ -99,15 +100,18 @@
         </div>
       </div>
     </div>
+    <status-page></status-page>
   </div>
 </template>
 
 <script>
-  import Vue from 'vue'
   import $ from 'jquery'
   import LoadingIcon from "./LoadingIcon";
+  import StatusPage from "./Status";
   export default {
-    components: {LoadingIcon},
+    components: {
+      StatusPage,
+      LoadingIcon},
     name: 'dashboard-component',
     data() {
       return {

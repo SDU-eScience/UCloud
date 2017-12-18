@@ -163,6 +163,7 @@
         </div>
       </div>
     </div>
+    <status-page></status-page>
   </section>
 </template>
 
@@ -172,11 +173,14 @@
   import Vue from 'vue'
   import VueRouter from 'vue-router'
   import LoadingIcon from "./LoadingIcon";
+  import StatusPage from "./Status";
 
   Vue.use(VueRouter);
 
   export default {
-    components: {LoadingIcon},
+    components: {
+      StatusPage,
+      LoadingIcon},
     name: 'file-viewer',
 
     data() {

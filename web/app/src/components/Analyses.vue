@@ -58,16 +58,20 @@
 
       </div>
     </div>
+    <status-page></status-page>
   </section>
 </template>
 
 <script>
   import $ from 'jquery'
   import LoadingIcon from "./LoadingIcon";
+  import StatusPage from "./Status";
 
 
   export default {
-    components: {LoadingIcon},
+    components: {
+      StatusPage,
+      LoadingIcon},
     name: 'analyses',
     data() {
       return {

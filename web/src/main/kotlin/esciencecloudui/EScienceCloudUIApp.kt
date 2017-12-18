@@ -31,12 +31,6 @@ import java.time.Duration
 @location("/")
 class Index
 
-@location("/login")
-data class Login(val accountName: String = "", val accountPassword: String = "")
-
-@location("/logout")
-class Logout
-
 data class EScienceCloudUISession(val userId: String)
 
 class EScienceCloudUIApp {

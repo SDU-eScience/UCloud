@@ -5,6 +5,7 @@ import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.freemarker.FreeMarkerContent
 import io.ktor.locations.get
+import io.ktor.locations.location
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
@@ -18,6 +19,12 @@ import io.ktor.sessions.set
 import io.ktor.util.nextNonce
 import org.esciencecloud.asynchttp.HttpClient
 import org.esciencecloud.asynchttp.addBasicAuth
+
+@location("/login")
+data class Login(val accountName: String = "", val accountPassword: String = "")
+
+@location("/logout")
+class Logout
 
 fun Route.login(/*dao: DAOFacade,*/ hash: (String) -> String) {
     post("/login") {
