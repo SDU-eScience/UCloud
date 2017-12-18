@@ -28,16 +28,20 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import kotlinx.coroutines.experimental.launch
 import kotlinx.html.*
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.streams.KafkaStreams
+import org.esciencecloud.auth.api.*
 import org.esciencecloud.auth.saml.AttributeURIs
 import org.esciencecloud.auth.saml.Auth
 import org.esciencecloud.auth.saml.KtorUtils
 import org.esciencecloud.auth.saml.validateOrThrow
+import org.esciencecloud.service.EventProducer
 import java.io.File
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.security.interfaces.RSAPrivateKey
-import java.security.interfaces.RSAPublicKey
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.*
@@ -47,9 +51,17 @@ data class AccessToken(val accessToken: String)
 
 private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
 
-class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPrivateKey) {
+class AuthServer(
+        properties: Properties,
+        privKey: RSAPrivateKey,
+        eventProducer: KafkaProducer<String, String>,
+        kafkaStreams: KafkaStreams
+) {
     private val jwtAlg = Algorithm.RSA256(privKey)
     private val authSettings = SettingsBuilder().fromProperties(properties).build().validateOrThrow()
+
+    private val userEventProducer = EventProducer(eventProducer, AuthStreams.UserUpdateStream)
+    private val tokenEventProducer = EventProducer(eventProducer, RefreshTokenStreams.RefreshTokenStream)
 
     private fun createAccessTokenForExistingSession(user: User): AccessToken {
         val zone = ZoneId.of("GMT")
@@ -69,12 +81,18 @@ class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPriva
     }
 
     private fun createAndRegisterTokenFor(user: User): RequestAndRefreshToken {
-        val token = createAccessTokenForExistingSession(user).accessToken
+        val accessToken = createAccessTokenForExistingSession(user).accessToken
         val refreshToken = UUID.randomUUID().toString()
-        if (!RefreshTokenAndUserDAO.insert(RefreshTokenAndUser(user.primaryKey, refreshToken))) {
-            throw RuntimeException("Unable to insert refresh token")
+
+        launch {
+            val createEvent = RefreshTokenEvent.Created(refreshToken, user.primaryKey)
+            tokenEventProducer.emit(createEvent.key, createEvent)
+
+            val invokeEvent = RefreshTokenEvent.Invoked(refreshToken, accessToken)
+            tokenEventProducer.emit(invokeEvent.key, invokeEvent)
         }
-        return RequestAndRefreshToken(token, refreshToken)
+
+        return RequestAndRefreshToken(accessToken, refreshToken)
     }
 
     private fun processSAMLAuthentication(auth: Auth): User? {
@@ -122,8 +140,25 @@ class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPriva
             val email = auth.attributes[AttributeURIs.EduPersonPrincipalName]?.firstOrNull() ?: return null
             val name = auth.attributes[AttributeURIs.CommonName]?.firstOrNull() ?: return null
 
-            // TODO Fire of Kafka message and validate origin of user
-            return UserDAO.findById(email) ?: User.createUserNoPassword(name, email, listOf(Role.USER))
+            val existing = UserDAO.findById(email)
+            return if (existing == null) {
+                // In a replay, what do we actually replay? Just the initial requests? Or do we practically turn off
+                // most processing and only replay state changes?
+                // https://softwareengineering.stackexchange.com/questions/310176/event-sourcing-replaying-and-versioning#310323
+                // It seems that we should (and hopefully this is quite close to what we're doing) make a distinction
+                // between requests (commands) and events. Only the events cause state changes.
+
+                // TODO We need a proper strategy from how to handle replays.
+                // Should this block? Where do we store this in the DB?
+                // From a performance perspective in makes no sense to go through Kafka before we create in DB.
+                // But from a replay perspective we have to do that...
+                val userCreated = UserUtils.createUserNoPassword(name, email, listOf(Role.USER))
+                launch { userEventProducer.emit(email, UserEvent.Created(email, userCreated)) }
+
+                userCreated
+            } else {
+                existing
+            }
         }
         return null
     }
@@ -421,6 +456,7 @@ class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPriva
                         }
 
                         post("refresh") {
+                            // TODO Don't implement directly in route handler
                             val header = call.request.header(HttpHeaders.Authorization) ?: return@post run {
                                 call.respond(HttpStatusCode.Unauthorized)
                             }
@@ -438,11 +474,39 @@ class AuthServer(properties: Properties, pubKey: RSAPublicKey, privKey: RSAPriva
                                 call.respond(HttpStatusCode.Unauthorized)
                             }
 
-                            call.respond(createAccessTokenForExistingSession(user))
+                            val accessToken = createAccessTokenForExistingSession(user)
+                            launch {
+                                val invokeEvent = RefreshTokenEvent.Invoked(rawToken, accessToken.accessToken)
+                                tokenEventProducer.emit(invokeEvent.key, invokeEvent)
+                            }
+
+                            call.respond(accessToken)
+                        }
+
+                        post("logout") {
+                            // TODO Invalidate at WAYF
+                            // TODO Don't implement here
+                            // TODO Share code with refresh
+                            val header = call.request.header(HttpHeaders.Authorization) ?: return@post run {
+                                call.respond(HttpStatusCode.Unauthorized)
+                            }
+
+                            if (!header.startsWith("Bearer ")) return@post call.respond(HttpStatusCode.Unauthorized)
+                            val rawToken = header.removePrefix("Bearer ")
+
+                            val token = RefreshTokenAndUserDAO.findById(rawToken) ?: return@post run {
+                                call.respond(HttpStatusCode.Unauthorized)
+                            }
+
+                            launch {
+                                val event = RefreshTokenEvent.Invalidated(token.token)
+                                tokenEventProducer.emit(event.key, event)
+                            }
+
+                            call.respond(HttpStatusCode.NoContent)
                         }
                     }
                 }
             }
 }
-
 

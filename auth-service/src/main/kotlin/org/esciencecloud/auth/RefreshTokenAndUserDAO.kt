@@ -17,9 +17,9 @@ object RefreshTokenAndUserDAO {
         return false
     }
 
-    fun delete(tokenAndUser: RefreshTokenAndUser): Boolean {
-        if (tokenAndUser.token in inMemoryDb) {
-            inMemoryDb.remove(tokenAndUser.token)
+    fun delete(token: String): Boolean {
+        if (token in inMemoryDb) {
+            inMemoryDb.remove(token)
             return true
         }
         return false

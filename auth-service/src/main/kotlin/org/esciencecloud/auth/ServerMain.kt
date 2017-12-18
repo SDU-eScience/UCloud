@@ -34,5 +34,5 @@ fun main(args: Array<String>) {
     }
     val (pub, priv) = loadKeysAndInsertIntoProps(properties)
 
-    AuthServer(properties, pub, priv).createServer().start(wait = true)
+    AuthServer(properties, priv, TODO(), TODO()).createServer().start(wait = true)
 }
