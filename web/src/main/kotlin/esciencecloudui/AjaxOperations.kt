@@ -177,9 +177,9 @@ fun Route.ajaxOperations() {
     }
 }
 
-data class StatusNotification(val title: String, val body: String)
+data class StatusNotification(val title: String, val level: String, val body: String)
 
-val status = StatusNotification("No issues", "No scheduled maintenance.")
+val status = StatusNotification("No issues", "NO ISSUES", "No scheduled maintenance.")
 
 suspend fun ApplicationCall.getAbacusApplication(name: String, version: String): ApplicationAbacus? {
     val user = irodsUser
