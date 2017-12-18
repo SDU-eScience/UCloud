@@ -2,7 +2,7 @@ group 'org.esciencecloud'
 version '1.0.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.0'
+    ext.kotlin_version = '1.2.10'
     ext.ktor_version = '0.9.1-alpha-8'
 
     repositories {
@@ -27,6 +27,7 @@ repositories {
     mavenLocal()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+    maven { url "https://dl.bintray.com/kotlin/exposed" }
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
@@ -50,6 +51,10 @@ dependencies {
     compile "com.auth0:java-jwt:3.0.1"
     compile "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
     compile group: "com.onelogin", name: "java-saml-core", version: "2.2.0"
+
+    // Temporary database
+    compile group: 'com.h2database', name: 'h2', version: '1.4.196'
+    compile 'org.jetbrains.exposed:exposed:0.9.1'
 }
 
 kotlin {

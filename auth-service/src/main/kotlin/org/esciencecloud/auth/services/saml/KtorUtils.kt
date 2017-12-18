@@ -1,10 +1,9 @@
-package org.esciencecloud.auth.saml
+package org.esciencecloud.auth.services.saml
 
 import com.onelogin.saml2.http.HttpRequest
 import com.onelogin.saml2.util.Util
 import io.ktor.application.ApplicationCall
 import io.ktor.features.origin
-import io.ktor.http.parseUrlEncodedParameters
 import io.ktor.request.*
 import io.ktor.response.respondRedirect
 import io.ktor.util.ValuesMap
