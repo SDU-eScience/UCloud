@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.http
+package dk.sdu.cloud.auth.http
 
 import com.onelogin.saml2.settings.Saml2Settings
 import io.ktor.application.call
@@ -12,11 +12,11 @@ import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
-import org.esciencecloud.auth.services.saml.Auth
-import org.esciencecloud.auth.services.saml.KtorUtils
-import org.esciencecloud.auth.services.TokenService
-import org.esciencecloud.auth.util.urlDecoded
-import org.esciencecloud.auth.util.urlEncoded
+import dk.sdu.cloud.auth.services.saml.Auth
+import dk.sdu.cloud.auth.services.saml.KtorUtils
+import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.util.urlDecoded
+import dk.sdu.cloud.auth.util.urlEncoded
 
 private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
 
@@ -37,7 +37,7 @@ class SAMLController (
                     }
 
                     val relayState = KtorUtils.getSelfURLhost(call) +
-                            "$SAML_RELAY_STATE_PREFIX${service.urlEncoded}"
+                            "${SAML_RELAY_STATE_PREFIX}${service.urlEncoded}"
 
                     val auth = Auth(authSettings, call)
                     val samlRequestTarget = auth.login(

@@ -1,13 +1,13 @@
-package org.esciencecloud.auth
+package dk.sdu.cloud.auth
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.onelogin.saml2.util.Util
-import org.esciencecloud.auth.api.Role
-import org.esciencecloud.auth.services.RefreshTokens
-import org.esciencecloud.auth.services.UserDAO
-import org.esciencecloud.auth.services.UserUtils
-import org.esciencecloud.auth.services.Users
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.services.RefreshTokens
+import dk.sdu.cloud.auth.services.UserDAO
+import dk.sdu.cloud.auth.services.UserUtils
+import dk.sdu.cloud.auth.services.Users
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.jetbrains.exposed.sql.transactions.transaction

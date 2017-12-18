@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.services
+package dk.sdu.cloud.auth.services
 
 data class Service(val name: String, val endpoint: String)
 

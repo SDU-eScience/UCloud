@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.util
+package dk.sdu.cloud.auth.util
 
 import java.net.URLDecoder
 import java.net.URLEncoder

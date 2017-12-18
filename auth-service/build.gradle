@@ -1,4 +1,4 @@
-group 'org.esciencecloud'
+group 'dk.sdu.cloud'
 version '1.0.0-SNAPSHOT'
 
 buildscript {

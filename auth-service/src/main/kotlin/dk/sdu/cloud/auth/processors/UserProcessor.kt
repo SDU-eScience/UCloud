@@ -1,9 +1,9 @@
-package org.esciencecloud.auth.processors
+package dk.sdu.cloud.auth.processors
 
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Predicate
-import org.esciencecloud.auth.services.UserDAO
-import org.esciencecloud.auth.api.UserEvent
+import dk.sdu.cloud.auth.services.UserDAO
+import dk.sdu.cloud.auth.api.UserEvent
 
 class UserProcessor(
         private val stream: KStream<String, UserEvent>
