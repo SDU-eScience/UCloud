@@ -35,14 +35,17 @@
         </div>
       </div>
     </div>
+    <status-page></status-page>
   </section>
 </template>
 
 <script>
   import $ from 'jquery'
   import Vue from 'vue'
+  import StatusPage from "./Status";
 
   export default {
+    components: {StatusPage},
     name: 'workflows',
     data() {
       return {

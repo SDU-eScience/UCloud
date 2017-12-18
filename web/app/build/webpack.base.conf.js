@@ -22,7 +22,6 @@ module.exports = {
     "notifications": "./src/notifications.js",
     "messages": "./src/messages.js",
     "projects": "./src/projects.js",
-    "status": "./src/status.js",
   },
   output: {
     path: config.build.assetsRoot,

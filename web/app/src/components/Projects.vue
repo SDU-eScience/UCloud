@@ -322,12 +322,15 @@
         </div>
       </div>
     </div>
-
+  <status-page></status-page>
   </section>
 </template>
 
 <script>
+  import StatusPage from "./Status";
+
   export default {
+    components: {StatusPage},
     name: "projects"
   }
 </script>

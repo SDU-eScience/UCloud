@@ -31,12 +31,6 @@ import java.time.Duration
 @location("/")
 class Index
 
-@location("/login")
-data class Login(val accountName: String = "", val accountPassword: String = "")
-
-@location("/logout")
-class Logout
-
 data class EScienceCloudUISession(val userId: String)
 
 class EScienceCloudUIApp {
@@ -157,13 +151,6 @@ class EScienceCloudUIApp {
                 }
                 get("/notifications") {
                     call.renderDashboard(ModelAndTemplate("notifications.ftl", mapOf("title" to "Notifications")))
-                }
-            }
-
-            route("/status/") {
-                requireAuthentication()
-                get {
-                    call.renderDashboard(ModelAndTemplate("status.ftl", mapOf("title" to "Status")))
                 }
             }
 
