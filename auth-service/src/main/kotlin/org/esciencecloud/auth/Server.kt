@@ -1,512 +1,143 @@
 package org.esciencecloud.auth
 
-import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.github.zafarkhaja.semver.Version
 import com.onelogin.saml2.settings.SettingsBuilder
-import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.application.log
-import io.ktor.content.files
-import io.ktor.content.static
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
-import io.ktor.html.respondHtml
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
-import io.ktor.request.header
-import io.ktor.request.receiveParameters
-import io.ktor.response.respond
-import io.ktor.response.respondRedirect
-import io.ktor.response.respondText
-import io.ktor.routing.get
-import io.ktor.routing.post
-import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import kotlinx.coroutines.experimental.launch
-import kotlinx.html.*
+import kotlinx.coroutines.experimental.runBlocking
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.streams.KafkaStreams
-import org.esciencecloud.auth.api.*
-import org.esciencecloud.auth.saml.AttributeURIs
-import org.esciencecloud.auth.saml.Auth
-import org.esciencecloud.auth.saml.KtorUtils
+import org.apache.kafka.streams.StreamsBuilder
+import org.apache.kafka.streams.StreamsConfig
+import org.apache.zookeeper.ZooDefs
+import org.esciencecloud.auth.api.AuthStreams
+import org.esciencecloud.auth.api.RefreshTokenStreams
+import org.esciencecloud.auth.http.CoreAuthController
+import org.esciencecloud.auth.http.SAMLController
+import org.esciencecloud.auth.processors.RefreshTokenProcessor
+import org.esciencecloud.auth.processors.UserProcessor
 import org.esciencecloud.auth.saml.validateOrThrow
-import org.esciencecloud.service.EventProducer
-import java.io.File
-import java.net.URLDecoder
-import java.net.URLEncoder
+import org.esciencecloud.auth.services.TokenService
+import org.esciencecloud.service.*
 import java.security.interfaces.RSAPrivateKey
-import java.time.LocalDateTime
-import java.time.ZoneId
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 data class RequestAndRefreshToken(val accessToken: String, val refreshToken: String)
 data class AccessToken(val accessToken: String)
 
-private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
+data class KafkaConfiguration(val servers: List<String>)
+
+data class AuthConfiguration(
+        val kafka: KafkaConfiguration
+)
 
 class AuthServer(
-        properties: Properties,
+        samlSettings: Properties,
         privKey: RSAPrivateKey,
-        eventProducer: KafkaProducer<String, String>,
-        kafkaStreams: KafkaStreams
+        private val config: AuthConfiguration,
+        private val hostname: String,
+        private val port: Int = 42300
 ) {
     private val jwtAlg = Algorithm.RSA256(privKey)
-    private val authSettings = SettingsBuilder().fromProperties(properties).build().validateOrThrow()
+    private val authSettings = SettingsBuilder().fromProperties(samlSettings).build().validateOrThrow()
+    private lateinit var eventProducer: KafkaProducer<String, String>
+    private lateinit var streams: KafkaStreams
+    private lateinit var server: ApplicationEngine
 
-    private val userEventProducer = EventProducer(eventProducer, AuthStreams.UserUpdateStream)
-    private val tokenEventProducer = EventProducer(eventProducer, RefreshTokenStreams.RefreshTokenStream)
-
-    private fun createAccessTokenForExistingSession(user: User): AccessToken {
-        val zone = ZoneId.of("GMT")
-        val iat = Date.from(LocalDateTime.now().atZone(zone).toInstant())
-        val exp = Date.from(LocalDateTime.now().plusMinutes(30).atZone(zone).toInstant())
-        val token = JWT.create()
-                .withSubject(user.primaryKey)
-                .withClaim("roles", user.roles.joinToString(",") { it.name })
-                .withClaim("name", user.fullName)
-                .withClaim("email", user.email)
-                .withIssuer("https://cloud.sdu.dk/auth")
-                .withExpiresAt(exp)
-                .withIssuedAt(iat)
-                .sign(jwtAlg)
-
-        return AccessToken(token)
+    private fun retrieveKafkaStreamsConfiguration(): Properties = Properties().apply {
+        this[StreamsConfig.APPLICATION_ID_CONFIG] = "auth"
+        this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
+        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
+        this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$port"
     }
 
-    private fun createAndRegisterTokenFor(user: User): RequestAndRefreshToken {
-        val accessToken = createAccessTokenForExistingSession(user).accessToken
-        val refreshToken = UUID.randomUUID().toString()
+    private fun retrieveKafkaProducerConfiguration(): Properties = Properties().apply {
+        this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
+        this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+        this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+    }
 
-        launch {
-            val createEvent = RefreshTokenEvent.Created(refreshToken, user.primaryKey)
-            tokenEventProducer.emit(createEvent.key, createEvent)
+    fun start(wait: Boolean = true) {
+        // TODO Service registration needs to be easier
+        val serviceDefinition = ServiceDefinition("auth", Version.forIntegers(1, 0, 0))
+        val instance = ServiceInstance(serviceDefinition, hostname, port)
+        val (zk, node) = runBlocking {
+            val zk = ZooKeeperConnection(listOf(ZooKeeperHostInfo("localhost"))).connect()
+            val node = zk.registerService(instance,
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE)
 
-            val invokeEvent = RefreshTokenEvent.Invoked(refreshToken, accessToken)
-            tokenEventProducer.emit(invokeEvent.key, invokeEvent)
+            Pair(zk, node)
         }
 
-        return RequestAndRefreshToken(accessToken, refreshToken)
-    }
+        val streamsBuilder = StreamsBuilder()
+        eventProducer = KafkaProducer(retrieveKafkaProducerConfiguration())
 
-    private fun processSAMLAuthentication(auth: Auth): User? {
-        if (auth.authenticated) {
-            // THIS MIGHT NOT BE AN ACTUAL EMAIL
-            println("I have received the following attributes:")
-            auth.attributes.forEach { k, v -> println("  $k: $v") }
+        val tokenService = TokenService(jwtAlg, eventProducer, streamsBuilder)
+        val coreController = CoreAuthController(tokenService)
+        val samlController = SAMLController(authSettings, tokenService)
 
-            /*
-            I have received the following attributes:
-              schacCountryOfCitizenship: [DK, GB]
-              preferredLanguage: [en]
-              urn:oid:1.3.6.1.4.1.2428.90.1.4: [12345678]
-              mail: [lars.larsen@institution.dk]
-              norEduPersonLIN: [12345678]
-              urn:oid:2.5.4.10: [Institution]
-              eduPersonAssurance: [2]
-              eduPersonPrimaryAffiliation: [staff]
-              eduPersonScopedAffiliation: [staff@testidp.wayf.dk]
-              eduPersonTargetedID: [WAYF-DK-5e9d51a044ff4466fab46ad94a758510723baa13]
-              schacHomeOrganization: [testidp.wayf.dk]
-              eduPersonPrincipalName: [ll@testidp.wayf.dk]
-              sn: [Larsen]
-              urn:oid:2.5.4.4: [Larsen]
-              urn:oid:2.5.4.3: [Lars L]
-              urn:oid:2.16.840.1.113730.3.1.39: [en]
-              eduPersonEntitlement: [test]
-              urn:oid:1.3.6.1.4.1.25178.1.2.15: [urn:mace:terena.org:schac:personalUniqueID:dk:CPR:0304741234]
-              organizationName: [Institution]
-              urn:oid:0.9.2342.19200300.100.1.3: [lars.larsen@institution.dk]
-              gn: [Lars]
-              schacPersonalUniqueID: [urn:mace:terena.org:schac:personalUniqueID:dk:CPR:0304741234]
-              urn:oid:2.5.4.42: [Lars]
-              urn:oid:1.3.6.1.4.1.5923.1.1.1.10: [WAYF-DK-5e9d51a044ff4466fab46ad94a758510723baa13]
-              cn: [Lars L]
-              urn:oid:1.3.6.1.4.1.5923.1.1.1.11: [2]
-              urn:oid:1.3.6.1.4.1.25178.1.2.9: [testidp.wayf.dk]
-              urn:oid:1.3.6.1.4.1.25178.1.2.5: [DK, GB]
-              urn:oid:1.3.6.1.4.1.5923.1.1.1.6: [ll@testidp.wayf.dk]
-              urn:oid:1.3.6.1.4.1.5923.1.1.1.5: [staff]
-              urn:oid:1.3.6.1.4.1.5923.1.1.1.9: [staff@testidp.wayf.dk]
-              urn:oid:1.3.6.1.4.1.5923.1.1.1.7: [test]
-             */
+        val refreshTokenProcessor = RefreshTokenProcessor(streamsBuilder.stream(RefreshTokenStreams.RefreshTokenStream))
+        val userProcessor = UserProcessor(streamsBuilder.stream(AuthStreams.UserUpdateStream))
 
-            val email = auth.attributes[AttributeURIs.EduPersonPrincipalName]?.firstOrNull() ?: return null
-            val name = auth.attributes[AttributeURIs.CommonName]?.firstOrNull() ?: return null
+        refreshTokenProcessor.init()
+        userProcessor.init()
 
-            val existing = UserDAO.findById(email)
-            return if (existing == null) {
-                // In a replay, what do we actually replay? Just the initial requests? Or do we practically turn off
-                // most processing and only replay state changes?
-                // https://softwareengineering.stackexchange.com/questions/310176/event-sourcing-replaying-and-versioning#310323
-                // It seems that we should (and hopefully this is quite close to what we're doing) make a distinction
-                // between requests (commands) and events. Only the events cause state changes.
+        server = embeddedServer(Netty, port = port) {
+            install(DefaultHeaders)
+            install(ContentNegotiation) {
+                jackson {
+                    registerKotlinModule()
+                    configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                    configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+                }
+            }
 
-                // TODO We need a proper strategy from how to handle replays.
-                // Should this block? Where do we store this in the DB?
-                // From a performance perspective in makes no sense to go through Kafka before we create in DB.
-                // But from a replay perspective we have to do that...
-                val userCreated = UserUtils.createUserNoPassword(name, email, listOf(Role.USER))
-                launch { userEventProducer.emit(email, UserEvent.Created(email, userCreated)) }
-
-                userCreated
-            } else {
-                existing
+            routing {
+                coreController.configure(this)
+                samlController.configure(this)
             }
         }
-        return null
+
+        streams = KafkaStreams(streamsBuilder.build(), retrieveKafkaStreamsConfiguration())
+        streams.setUncaughtExceptionHandler { _, _ -> stop() }
+        streams.start()
+
+        server.start(wait = wait)
+
+        runBlocking { zk.markServiceAsReady(node, instance) }
     }
 
-    private val String.urlEncoded: String get() = URLEncoder.encode(this, "UTF-8")
-    private val String.urlDecoded: String get() = URLDecoder.decode(this, "UTF-8")
+    fun stop() {
+        try {
+            streams.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
-    fun createServer(): ApplicationEngine =
-            embeddedServer(Netty, port = 42300) {
-                install(DefaultHeaders)
-                install(ContentNegotiation) {
-                    jackson {
-                        registerKotlinModule()
-                    }
-                }
+        try {
+            server.stop(0, 5, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
-                routing {
-                    // TODO Redirect to error pages, and not just return a status
-                    route("auth") {
-                        static {
-                            val folder = File("static")
-                            //file("login", File(folder, "login.html"))
-                            files(folder)
-                        }
-
-                        route("saml") {
-                            get("metadata") {
-                                call.respondText(authSettings.spMetadata, ContentType.Application.Xml)
-                            }
-
-                            get("login") {
-                                val service = call.parameters["service"] ?: return@get run {
-                                    call.respondRedirect("/auth/login")
-                                }
-
-                                val relayState = KtorUtils.getSelfURLhost(call) +
-                                        "$SAML_RELAY_STATE_PREFIX${service.urlEncoded}"
-
-                                val auth = Auth(authSettings, call)
-                                val samlRequestTarget = auth.login(
-                                        setNameIdPolicy = true,
-                                        returnTo = relayState,
-                                        stay = true
-                                )
-
-                                call.respondRedirect(samlRequestTarget, permanent = false)
-                            }
-
-                            post("acs") {
-                                val params = call.receiveParameters()
-                                val service = params["RelayState"]?.let {
-                                    val index = it.indexOf(SAML_RELAY_STATE_PREFIX)
-                                    if (index == -1) return@let null
-
-                                    it.substring(index + SAML_RELAY_STATE_PREFIX.length).urlDecoded
-                                } ?: return@post run {
-                                    call.respondRedirect("/auth/login")
-                                }
-
-                                val auth = Auth(authSettings, call, params)
-                                auth.processResponse()
-
-                                val user = processSAMLAuthentication(auth)
-                                if (user == null) {
-                                    call.respond(HttpStatusCode.Unauthorized)
-                                } else {
-                                    val token = createAndRegisterTokenFor(user)
-                                    call.respondRedirect("/auth/login-redirect?" +
-                                            "service=${service.urlEncoded}" +
-                                            "&accessToken=${token.accessToken.urlEncoded}" +
-                                            "&refreshToken=${token.refreshToken.urlEncoded}"
-                                    )
-                                }
-                            }
-                        }
-
-                        get("login") {
-                            val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
-                            val isInvalid = call.parameters["invalid"] != null
-
-
-                            fun FlowContent.formControlField(name: String, text: String, iconType: String,
-                                                             type: String = "text") {
-                                div(classes = "mda-form-group float-label mda-input-group") {
-                                    div(classes = "mda-form-control") {
-                                        input(classes = "form-control") {
-                                            this.type = InputType.valueOf(type)
-                                            this.name = name
-                                            this.id = name
-                                        }
-
-                                        div(classes = "mda-form-control-line")
-
-                                        label {
-                                            htmlFor = name
-                                            +text
-                                        }
-                                    }
-                                    span(classes = "mda-input-group-addon") {
-                                        em(classes = "ion-ios-$iconType icon-lg")
-                                    }
-                                }
-                            }
-
-                            call.respondHtml {
-                                head {
-                                    title("SDU Cloud | Login")
-
-                                    meta(charset = "utf-8")
-                                    meta(
-                                            name = "viewport",
-                                            content = "width=device-width, initial-scale=1, maximum-scale=1"
-                                    )
-
-                                    link(rel = "stylesheet", href = "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css")
-                                    link(rel = "stylesheet", href = "/auth/css/ionicons.css")
-                                    link(rel = "stylesheet", href = "/auth/css/colors.css")
-                                    link(rel = "stylesheet", href = "/auth/css/app.css")
-                                }
-
-                                body {
-                                    div(classes = "layout-container") {
-                                        div(classes = "page-container bg-blue-grey-900") {
-                                            div(classes = "container-full") {
-                                                div(classes = "container container-xs") {
-                                                    img(
-                                                            alt = "SDU Cloud Logo",
-                                                            src = "sdu_plain_white.png",
-                                                            classes = "mv-lg block-center img-responsive"
-                                                    )
-                                                    if (service == null) {
-                                                        div(classes = "alert alert-danger") {
-                                                            +"An error has occurred. Try again later."
-                                                        }
-                                                    } else {
-                                                        if (isInvalid) {
-                                                            div(classes = "alert alert-danger") {
-                                                                +"Invalid username or password"
-                                                            }
-                                                        }
-                                                        form(classes = "card b0 form-validate") {
-                                                            method = FormMethod.post
-                                                            action = "/auth/login"
-
-                                                            div(classes = "card-offset pb0")
-                                                            div(classes = "card-heading") {
-                                                                div(classes = "card-title text-center") {
-                                                                    +"Login"
-                                                                }
-                                                            }
-                                                            div(classes = "card-body") {
-                                                                input {
-                                                                    type = InputType.hidden
-                                                                    value = service.name
-                                                                    name = "service"
-                                                                }
-
-                                                                formControlField(
-                                                                        name = "username",
-                                                                        text = "Username",
-                                                                        iconType = "email-outline"
-                                                                )
-
-                                                                formControlField(
-                                                                        name = "password",
-                                                                        text = "Password",
-                                                                        iconType = "locked-outline",
-                                                                        type = "password"
-                                                                )
-                                                            }
-                                                            button(type = ButtonType.submit) {
-                                                                classes = setOf("btn", "btn-primary", "btn-flat")
-                                                                +"Authenticate"
-                                                            }
-
-                                                            div {
-                                                                a(
-                                                                        href = "/auth/saml/login?service=${service.name}",
-                                                                        classes = "btn btn-flat btn-block btn-info"
-                                                                ) {
-                                                                    +"Login using WAYF"
-                                                                    img(alt = "WAYF Logo", src = "wayf_logo.png") {
-                                                                        height = "32px"
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        post("login") {
-                            // TODO We end up throwing away the service arg if invalid pass
-                            // Endpoint for handling basic password logins
-                            val params = try {
-                                call.receiveParameters()
-                            } catch (ex: Exception) {
-                                return@post call.respondRedirect("/auth/login?invalid")
-                            }
-
-                            val username = params["username"]
-                            val password = params["password"]
-                            val service = params["service"] ?: return@post run {
-                                call.respondRedirect("/auth/login?invalid")
-                            }
-
-                            if (username == null || password == null) {
-                                return@post call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
-                            }
-
-                            val user = UserDAO.findById(username) ?: return@post run {
-                                call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
-                            }
-
-                            val validPassword = user.checkPassword(password)
-                            if (!validPassword) return@post run {
-                                call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
-                            }
-
-                            val token = createAndRegisterTokenFor(user)
-                            call.respondRedirect("/auth/login-redirect?" +
-                                    "service=${service.urlEncoded}" +
-                                    "&accessToken=${token.accessToken.urlEncoded}" +
-                                    "&refreshToken=${token.refreshToken.urlEncoded}"
-                            )
-                        }
-
-                        get("login-redirect") {
-                            val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) } ?:
-                                    return@get run {
-                                        log.info("missing service")
-                                        call.respondRedirect("/auth/login")
-                                    }
-
-                            val token = call.parameters["accessToken"] ?: return@get run {
-                                log.info("missing access token")
-                                call.respondRedirect("/auth/login")
-                            }
-
-                            val refreshToken = call.parameters["refreshToken"]
-
-                            call.respondHtml {
-                                head {
-                                    meta("charset", "UTF-8")
-                                    title("SDU Login Redirection")
-                                }
-
-                                body {
-                                    onLoad = "main()"
-
-                                    p {
-                                        +("If your browser does not automatically redirect you, then please " +
-                                                "click submit.")
-                                    }
-
-                                    form {
-                                        method = FormMethod.post
-                                        action = service.endpoint
-                                        id = "form"
-
-                                        input(InputType.hidden) {
-                                            name = "accessToken"
-                                            value = token
-                                        }
-
-                                        if (refreshToken != null) {
-                                            input(InputType.hidden) {
-                                                name = "refreshToken"
-                                                value = refreshToken
-                                            }
-                                        }
-
-                                        input(InputType.submit) {
-                                            value = "Submit"
-                                        }
-                                    }
-
-                                    script {
-                                        unsafe {
-                                            //language=JavaScript
-                                            +"""
-                                            function main() {
-                                                document.querySelector("#form").submit();
-                                            }
-                                            """.trimIndent()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        post("refresh") {
-                            // TODO Don't implement directly in route handler
-                            val header = call.request.header(HttpHeaders.Authorization) ?: return@post run {
-                                call.respond(HttpStatusCode.Unauthorized)
-                            }
-
-                            if (!header.startsWith("Bearer ")) return@post call.respond(HttpStatusCode.Unauthorized)
-                            val rawToken = header.removePrefix("Bearer ")
-
-                            val token = RefreshTokenAndUserDAO.findById(rawToken) ?: return@post run {
-                                call.respond(HttpStatusCode.Unauthorized)
-                            }
-
-                            val user = UserDAO.findById(token.associatedUser) ?: return@post run {
-                                log.warn("Received a valid token, but was unable to resolve the associated user: " +
-                                        token.associatedUser)
-                                call.respond(HttpStatusCode.Unauthorized)
-                            }
-
-                            val accessToken = createAccessTokenForExistingSession(user)
-                            launch {
-                                val invokeEvent = RefreshTokenEvent.Invoked(rawToken, accessToken.accessToken)
-                                tokenEventProducer.emit(invokeEvent.key, invokeEvent)
-                            }
-
-                            call.respond(accessToken)
-                        }
-
-                        post("logout") {
-                            // TODO Invalidate at WAYF
-                            // TODO Don't implement here
-                            // TODO Share code with refresh
-                            val header = call.request.header(HttpHeaders.Authorization) ?: return@post run {
-                                call.respond(HttpStatusCode.Unauthorized)
-                            }
-
-                            if (!header.startsWith("Bearer ")) return@post call.respond(HttpStatusCode.Unauthorized)
-                            val rawToken = header.removePrefix("Bearer ")
-
-                            val token = RefreshTokenAndUserDAO.findById(rawToken) ?: return@post run {
-                                call.respond(HttpStatusCode.Unauthorized)
-                            }
-
-                            launch {
-                                val event = RefreshTokenEvent.Invalidated(token.token)
-                                tokenEventProducer.emit(event.key, event)
-                            }
-
-                            call.respond(HttpStatusCode.NoContent)
-                        }
-                    }
-                }
-            }
+        try {
+            eventProducer.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
 

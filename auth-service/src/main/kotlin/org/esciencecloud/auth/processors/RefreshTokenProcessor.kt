@@ -2,8 +2,8 @@ package org.esciencecloud.auth.processors
 
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Predicate
-import org.esciencecloud.auth.RefreshTokenAndUser
-import org.esciencecloud.auth.RefreshTokenAndUserDAO
+import org.esciencecloud.auth.services.RefreshTokenAndUser
+import org.esciencecloud.auth.services.RefreshTokenAndUserDAO
 import org.esciencecloud.auth.api.RefreshTokenEvent
 
 class RefreshTokenProcessor(

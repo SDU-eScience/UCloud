@@ -1,5 +1,7 @@
 package org.esciencecloud.auth
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.onelogin.saml2.util.Util
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
@@ -29,10 +31,13 @@ fun main(args: Array<String>) {
         )
     }
 
-    val properties = Properties().apply {
+    val samlProperties = Properties().apply {
         load(AuthServer::class.java.classLoader.getResourceAsStream("saml.properties"))
     }
-    val (pub, priv) = loadKeysAndInsertIntoProps(properties)
+    val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
 
-    AuthServer(properties, priv, TODO(), TODO()).createServer().start(wait = true)
+    val mapper = jacksonObjectMapper()
+    val config = mapper.readValue<AuthConfiguration>(File("auth_config.json"))
+
+    AuthServer(samlProperties, priv, config, "localhost").start()
 }

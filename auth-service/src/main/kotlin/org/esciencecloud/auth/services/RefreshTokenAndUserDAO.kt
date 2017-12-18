@@ -1,4 +1,4 @@
-package org.esciencecloud.auth
+package org.esciencecloud.auth.services
 
 data class RefreshTokenAndUser(val associatedUser: String, val token: String)
 

@@ -2,8 +2,7 @@ package org.esciencecloud.auth.processors
 
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Predicate
-import org.esciencecloud.auth.ServiceDAO
-import org.esciencecloud.auth.UserDAO
+import org.esciencecloud.auth.services.UserDAO
 import org.esciencecloud.auth.api.UserEvent
 
 class UserProcessor(

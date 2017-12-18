@@ -1,4 +1,4 @@
-package org.esciencecloud.auth
+package org.esciencecloud.auth.services
 
 import org.esciencecloud.auth.api.Role
 import org.esciencecloud.auth.api.User
