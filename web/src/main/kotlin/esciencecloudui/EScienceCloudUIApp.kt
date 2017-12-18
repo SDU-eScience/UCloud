@@ -160,6 +160,13 @@ class EScienceCloudUIApp {
                 }
             }
 
+            route("/status/") {
+                requireAuthentication()
+                get {
+                    call.renderDashboard(ModelAndTemplate("status.ftl", mapOf("title" to "Status")))
+                }
+            }
+
             route("/projects") {
                 requireAuthentication()
                 get {
