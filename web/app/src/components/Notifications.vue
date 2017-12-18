@@ -40,7 +40,7 @@
               <div v-if="notification.type === 'Complete'" class="initial32 bg-green-500">✓</div>
               <div v-else-if="notification.type === 'In Progress'" class="initial32 bg-blue-500">...</div>
               <div v-else-if="notification.type === 'Pending'" class="initial32 bg-blue-500"></div>
-              <div v-else-if="notification.type === 'Failed'" class="initial32 bg-red-500">✖</div>
+              <div v-else-if="notification.type === 'Failed'" class="initial32 bg-red-500">&times;</div>
             </td>
             <th class="mda-list-item-text mda-2-line">
               <small>{{ notification.message }}</small>
