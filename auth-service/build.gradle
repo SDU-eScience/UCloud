@@ -52,8 +52,8 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
     compile group: "com.onelogin", name: "java-saml-core", version: "2.2.0"
 
-    // Temporary SQLite database
-    compile group: 'org.xerial', name: 'sqlite-jdbc', version: '3.21.0.1'
+    // Temporary database
+    compile group: 'com.h2database', name: 'h2', version: '1.4.196'
     compile 'org.jetbrains.exposed:exposed:0.9.1'
 }
 

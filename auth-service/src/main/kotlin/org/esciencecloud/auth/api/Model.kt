@@ -11,7 +11,7 @@ enum class Role {
 data class User(
         val fullName: String,
         val email: String,
-        val roles: List<Role>,
+        val role: Role,
         val hashedPassword: ByteArray? = null,
         val salt: ByteArray? = null
 ) {
@@ -23,7 +23,7 @@ data class User(
 
         if (fullName != other.fullName) return false
         if (email != other.email) return false
-        if (roles != other.roles) return false
+        if (role != other.role) return false
         if (!Arrays.equals(hashedPassword, other.hashedPassword)) return false
         if (!Arrays.equals(salt, other.salt)) return false
 
@@ -33,7 +33,7 @@ data class User(
     override fun hashCode(): Int {
         var result = fullName.hashCode()
         result = 31 * result + email.hashCode()
-        result = 31 * result + roles.hashCode()
+        result = 31 * result + role.hashCode()
         result = 31 * result + (hashedPassword?.let { Arrays.hashCode(it) } ?: 0)
         result = 31 * result + (salt?.let { Arrays.hashCode(it) } ?: 0)
         return result

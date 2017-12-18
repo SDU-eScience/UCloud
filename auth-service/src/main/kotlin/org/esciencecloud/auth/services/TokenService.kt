@@ -4,11 +4,10 @@ import com.auth0.jwt.JWT
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
 import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.streams.StreamsBuilder
 import org.esciencecloud.auth.*
 import org.esciencecloud.auth.api.*
-import org.esciencecloud.auth.saml.AttributeURIs
-import org.esciencecloud.auth.saml.Auth
+import org.esciencecloud.auth.services.saml.AttributeURIs
+import org.esciencecloud.auth.services.saml.Auth
 import org.esciencecloud.service.forStream
 import org.slf4j.LoggerFactory
 import java.time.LocalDateTime
@@ -18,14 +17,13 @@ import java.util.*
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
 
 class TokenService(
-        val jwtAlg: JWTAlgorithm,
-        eventProducer: KafkaProducer<String, String>,
-        streamsBuilder: StreamsBuilder
+        private val jwtAlg: JWTAlgorithm,
+        eventProducer: KafkaProducer<String, String>
 ) {
     private val log = LoggerFactory.getLogger(TokenService::class.java)
 
     private val userEventProducer = eventProducer.forStream(AuthStreams.UserUpdateStream)
-    private val tokenEventProducer = eventProducer.forStream(RefreshTokenStreams.RefreshTokenStream)
+    private val tokenEventProducer = eventProducer.forStream(AuthStreams.RefreshTokenStream)
 
     private fun createAccessTokenForExistingSession(user: User): AccessToken {
         val zone = ZoneId.of("GMT")
@@ -33,7 +31,7 @@ class TokenService(
         val exp = Date.from(LocalDateTime.now().plusMinutes(30).atZone(zone).toInstant())
         val token = JWT.create()
                 .withSubject(user.primaryKey)
-                .withClaim("roles", user.roles.joinToString(",") { it.name })
+                .withClaim("role", user.role.name)
                 .withClaim("name", user.fullName)
                 .withClaim("email", user.email)
                 .withIssuer("https://cloud.sdu.dk/auth")
@@ -116,7 +114,7 @@ class TokenService(
                 // Should this block? Where do we store this in the DB?
                 // From a performance perspective in makes no sense to go through Kafka before we create in DB.
                 // But from a replay perspective we have to do that...
-                val userCreated = UserUtils.createUserNoPassword(name, email, listOf(Role.USER))
+                val userCreated = UserUtils.createUserNoPassword(name, email, Role.USER)
                 launch { userEventProducer.emit(email, UserEvent.Created(email, userCreated)) }
 
                 userCreated

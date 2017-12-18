@@ -12,8 +12,8 @@ import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
-import org.esciencecloud.auth.saml.Auth
-import org.esciencecloud.auth.saml.KtorUtils
+import org.esciencecloud.auth.services.saml.Auth
+import org.esciencecloud.auth.services.saml.KtorUtils
 import org.esciencecloud.auth.services.TokenService
 import org.esciencecloud.auth.util.urlDecoded
 import org.esciencecloud.auth.util.urlEncoded

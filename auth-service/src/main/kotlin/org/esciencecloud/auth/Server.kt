@@ -23,14 +23,14 @@ import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.zookeeper.ZooDefs
 import org.esciencecloud.auth.api.AuthStreams
-import org.esciencecloud.auth.api.RefreshTokenStreams
 import org.esciencecloud.auth.http.CoreAuthController
 import org.esciencecloud.auth.http.SAMLController
 import org.esciencecloud.auth.processors.RefreshTokenProcessor
 import org.esciencecloud.auth.processors.UserProcessor
-import org.esciencecloud.auth.saml.validateOrThrow
 import org.esciencecloud.auth.services.TokenService
+import org.esciencecloud.auth.services.saml.validateOrThrow
 import org.esciencecloud.service.*
+import org.jetbrains.exposed.sql.Database
 import java.security.interfaces.RSAPrivateKey
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -39,9 +39,16 @@ data class RequestAndRefreshToken(val accessToken: String, val refreshToken: Str
 data class AccessToken(val accessToken: String)
 
 data class KafkaConfiguration(val servers: List<String>)
+data class DatabaseConfiguration(
+        val url: String,
+        val driver: String,
+        val username: String,
+        val password: String
+)
 
 data class AuthConfiguration(
-        val kafka: KafkaConfiguration
+        val kafka: KafkaConfiguration,
+        val database: DatabaseConfiguration
 )
 
 class AuthServer(
@@ -82,14 +89,22 @@ class AuthServer(
             Pair(zk, node)
         }
 
+        Database.connect(
+                url = config.database.url,
+                driver = config.database.driver,
+
+                user = config.database.username,
+                password = config.database.password
+        )
+
         val streamsBuilder = StreamsBuilder()
         eventProducer = KafkaProducer(retrieveKafkaProducerConfiguration())
 
-        val tokenService = TokenService(jwtAlg, eventProducer, streamsBuilder)
+        val tokenService = TokenService(jwtAlg, eventProducer)
         val coreController = CoreAuthController(tokenService)
         val samlController = SAMLController(authSettings, tokenService)
 
-        val refreshTokenProcessor = RefreshTokenProcessor(streamsBuilder.stream(RefreshTokenStreams.RefreshTokenStream))
+        val refreshTokenProcessor = RefreshTokenProcessor(streamsBuilder.stream(AuthStreams.RefreshTokenStream))
         val userProcessor = UserProcessor(streamsBuilder.stream(AuthStreams.UserUpdateStream))
 
         refreshTokenProcessor.init()
@@ -101,7 +116,6 @@ class AuthServer(
                 jackson {
                     registerKotlinModule()
                     configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                    configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
                 }
             }
 
