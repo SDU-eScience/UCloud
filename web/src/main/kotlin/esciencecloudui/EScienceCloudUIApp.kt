@@ -129,6 +129,12 @@ class EScienceCloudUIApp {
                     call.renderDashboard(ModelAndTemplate("analyses.ftl", mapOf("title" to "Analyses")))
                 }
             }
+            route("/statusoverview") {
+                requireAuthentication()
+                get {
+                    call.renderDashboard(ModelAndTemplate("statusoverview.ftl", mapOf("title" to "Status Overview")))
+                }
+            }
 
             route("/runApp/{appName}/{appVersion}") {
                 requireAuthentication()

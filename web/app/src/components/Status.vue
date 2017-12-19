@@ -1,5 +1,5 @@
 <template>
-    <button class="btn dropdown" data-toggle="tooltip" :title="status.body" :class="[statusToButton()]">{{ status.title }}</button>
+    <a href="/statusoverview" class="btn btn-info" :title="status.body" :class="[statusToButton()]">{{ status.title }}</a>
 </template>
 
 <script>
