@@ -55,10 +55,8 @@ class LoginStepDef {
     @Then("^I should be on the \"([^\"]*)\" page$")
     fun iShouldBeOnThePage(page: String) {
         // Wait 2 seconds for redirection
-        WebDriverWait(driver, 3).until { d ->
-            println(page)
-            println(d?.title)
-            d!!.title.toLowerCase() == page.toLowerCase() }
+        WebDriverWait(driver, 3).until {
+            d -> d!!.title.toLowerCase() == page.toLowerCase() }
     }
 
     @And("^I should see \"([^\"]*)\"$")

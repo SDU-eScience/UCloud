@@ -9,7 +9,7 @@ Scenario: Login with valid credentials
   Then I should be on the "eScienceCloud - Dashboard" page
   And I should see "pica"
 
-Scenario: Login with valid credentials
+Scenario: Login with invalid credentials
  Given I am on the login page
  When I fill in username with "picaWrong"
  And I fill in password with "picaWrong"
