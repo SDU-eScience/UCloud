@@ -20,6 +20,10 @@ npm run dev
 
 The website will be available at localhost:9090
 
+## Tests
+
+Run the project, followed by running the tests. Running the tests requires the [GeckoDriver](https://github.com/mozilla/geckodriver/releases)
+
 ### Issues
 
 Currently, sessions persist in the browser between restarts of the frontend server, which can lead to inconsistent data retrieval.
