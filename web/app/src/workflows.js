@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Workflows from './components/Workflows.vue'
+import Status from './status'
 
 Vue.config.productionTip = false;
 
@@ -10,3 +11,5 @@ new Vue({
   template: '<Workflows/>',
   components: { Workflows }
 });
+
+Status();

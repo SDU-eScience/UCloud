@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Analyses from './components/Analyses.vue'
+import Status from './status'
 
 Vue.config.productionTip = false;
 
@@ -10,3 +11,5 @@ new Vue({
   template: '<Analyses/>',
   components: {Analyses}
 });
+
+Status();

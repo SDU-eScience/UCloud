@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Activity from './components/Activity.vue'
+import Status from './status'
 
 Vue.config.productionTip = false;
 
@@ -10,3 +11,5 @@ new Vue({
   template: '<Activity/>',
   components: {Activity}
 });
+
+Status();

@@ -100,17 +100,14 @@
         </div>
       </div>
     </div>
-    <status-page></status-page>
   </div>
 </template>
 
 <script>
   import $ from 'jquery'
   import LoadingIcon from "./LoadingIcon";
-  import StatusPage from "./Status";
   export default {
     components: {
-      StatusPage,
       LoadingIcon},
     name: 'dashboard-component',
     data() {

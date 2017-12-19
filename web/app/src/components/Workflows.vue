@@ -42,10 +42,9 @@
 <script>
   import $ from 'jquery'
   import Vue from 'vue'
-  import StatusPage from "./Status";
 
   export default {
-    components: {StatusPage},
+    components: {},
     name: 'workflows',
     data() {
       return {

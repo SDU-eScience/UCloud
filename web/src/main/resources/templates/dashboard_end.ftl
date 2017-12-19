@@ -11,4 +11,5 @@
 <script src="/vendor/jquery-validation/dist/jquery.validate.js"></script>
 <script src="/vendor/jquery-validation/dist/additional-methods.js"></script>
 <script src="/js/app.js"></script>
+
 </html>

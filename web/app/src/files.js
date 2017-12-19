@@ -2,6 +2,7 @@
 // (runtime-only or standalone) has been set in webpack.base.conf with an alias.
 import Vue from 'vue'
 import FileViewer from './components/FileViewer.vue'
+import Status from './status'
 
 Vue.config.productionTip = false;
 
@@ -11,3 +12,5 @@ new Vue({
   template: '<FileViewer/>',
   components: { FileViewer }
 });
+
+Status();

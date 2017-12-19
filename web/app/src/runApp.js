@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import RunAppComponent from './components/RunAppComponent.vue'
 import $ from 'jquery'
+import Status from './status'
 
 Vue.config.productionTip = false;
 
@@ -22,3 +23,5 @@ new Vue({
     });
   }
 });
+
+Status();

@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Messages from './components/Messages'
+import Status from './status'
 
 Vue.config.productionTip = false;
 
@@ -10,3 +11,5 @@ new Vue({
   template: '<Messages/>',
   components: {Messages}
 });
+
+Status();

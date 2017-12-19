@@ -1,25 +1,6 @@
 <template>
-  <div id="statusModal" class="modal fade" role="dialog">
-    <div class="modal-dialog" v-cloak>
-      <!-- Modal content-->
-      <loading-icon v-if="statusLoading"></loading-icon>
-      <div v-else class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-          <h4 class="modal-title"> {{ status.title }}<br></h4>
-        </div>
-        <div class="modal-body">
-          <p>{{ status.body }}</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
+    <button class="btn dropdown" data-toggle="tooltip" :title="status.body" :class="[statusToButton()]">{{ status.title }}</button>
 </template>
-
-data class StatusNotification(val title: String, val level: String, val body: String)
 
 <script>
   import $ from 'jquery'
@@ -29,7 +10,7 @@ data class StatusNotification(val title: String, val level: String, val body: St
   const status2 = {
     title: "Scheduled maintenance",
     level: "MAINTENANCE",
-    body: "Maintenance is currently in progress.",
+    body: "Maintenance is scheduled from 18 PM until midnight CET.",
   };
   const status3 = {
     title: "An error has occurred",
@@ -37,7 +18,7 @@ data class StatusNotification(val title: String, val level: String, val body: St
     body: "An error has occurred. The site will be back momentarily."
   };
   const status4 = {
-    title: "No issues",
+    title: "No issues, upcoming maintenance",
     level: "UPCOMING MAINTENANCE",
     body: "Maintenance is scheduled from 18 PM until midnight CET."
   };
@@ -45,7 +26,7 @@ data class StatusNotification(val title: String, val level: String, val body: St
 
   export default {
     components: {LoadingIcon},
-    name: "status-page",
+    name: "status",
     data() {
       return {
         status: {},
@@ -62,7 +43,8 @@ data class StatusNotification(val title: String, val level: String, val body: St
           this.status = status;
           this.statusLoading = false;
         });
-        // TODO REMOVE WHEN SHOWN
+
+        // TODO REMOVE AFTER IT IS SHOWN
         setTimeout(() => {
           this.status = status2;
           setTimeout(() => {
@@ -70,16 +52,17 @@ data class StatusNotification(val title: String, val level: String, val body: St
             setTimeout(() => this.status = status4, 10000);
           }, 10000);
         }, 10000);
+        // END TODO REMOVE AFTER IT IS SHOWN
       },
       statusToButton() {
         if (this.status.level === 'NO ISSUES') {
           return "btn-success";
-        } else if ('UPCOMING MAINTENANCE') {
-          return "btn-info";
+        } else if (this.status.level === 'UPCOMING MAINTENANCE') {
+          return "btn-warning";
         } else if (this.status.level === 'MAINTENANCE') {
-          return "btn-warning"
+          return "btn-warning";
         } else if (this.status.level === 'ERROR') {
-          return "btn-danger"
+          return "btn-danger";
         }
       }
     }

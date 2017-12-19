@@ -10,7 +10,8 @@
             <small>Websockets are not supported in this browser. Notifications won't be updated automatically.</small>
           </h3>
           <tbody>
-          <tr class="msg-display clickable" v-for="notification in recentList" @click="updateCurrentNotification(notification)" data-toggle="modal" data-target="#notificationModal">
+          <tr class="msg-display clickable" v-for="notification in recentList"
+              @click="updateCurrentNotification(notification)" data-toggle="modal" data-target="#notificationModal">
             <td class="wd-xxs">
               <div v-if="notification.type === 'Complete'" class="initial32 bg-green-500">✓</div>
               <div v-else-if="notification.type === 'In Progress'" class="initial32 bg-blue-500">...</div>
@@ -26,7 +27,8 @@
           </tr>
           </tbody>
         </table>
-        <button @click="showMoreRecent" class="btn btn-info ion-ios-arrow-down" v-if="notificationsShownRecent < recent.length"></button>
+        <button @click="showMoreRecent" class="btn btn-info ion-ios-arrow-down"
+                v-if="notificationsShownRecent < recent.length"></button>
       </div>
       <p v-if="!loading" class="ph">Older</p>
       <div class="card" v-cloak v-if="remaining.length">
@@ -35,7 +37,8 @@
             <small>Websockets are not supported in this browser. Notifications won't be updated automatically.</small>
           </h3>
           <tbody>
-          <tr class="msg-display clickable" v-for="notification in remainingList" @click="updateCurrentNotification(notification)" data-toggle="modal" data-target="#notificationModal">
+          <tr class="msg-display clickable" v-for="notification in remainingList"
+              @click="updateCurrentNotification(notification)" data-toggle="modal" data-target="#notificationModal">
             <td class="wd-xxs">
               <div v-if="notification.type === 'Complete'" class="initial32 bg-green-500">✓</div>
               <div v-else-if="notification.type === 'In Progress'" class="initial32 bg-blue-500">...</div>
@@ -51,7 +54,8 @@
           </tr>
           </tbody>
         </table>
-        <button @click="showMoreRemaining" class="btn btn-info ion-ios-arrow-down" v-if="notificationsShownRemaining < remaining.length"></button>
+        <button @click="showMoreRemaining" class="btn btn-info ion-ios-arrow-down"
+                v-if="notificationsShownRemaining < remaining.length"></button>
       </div>
     </div>
 
@@ -62,7 +66,9 @@
         <div class="modal-content">
           <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal">&times;</button>
-            <h4 class="modal-title"> {{ currentNotification.message }}<br><small>{{ new Date(currentNotification.timestamp).toLocaleString() }}</small></h4>
+            <h4 class="modal-title"> {{ currentNotification.message }}<br>
+              <small>{{ new Date(currentNotification.timestamp).toLocaleString() }}</small>
+            </h4>
           </div>
           <div class="modal-body">
             <p>{{ currentNotification.body }}</p>
@@ -71,23 +77,20 @@
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
           </div>
         </div>
-
       </div>
     </div>
-    <status-page></status-page>
   </section>
 </template>
 
 <script>
   import $ from 'jquery'
   import LoadingIcon from './LoadingIcon'
-  import StatusPage from "./Status";
 
   export default {
     name: 'notifications',
     components: {
-      StatusPage,
-      LoadingIcon},
+      LoadingIcon
+    },
     data() {
       return {
         loading: true,
@@ -108,7 +111,7 @@
     computed: {
       recentList() {
         let lastElement = this.recent.length;
-        this.recent.sort( (a, b) => {
+        this.recent.sort((a, b) => {
           return b.timestamp - a.timestamp;
         });
         return this.recent.slice(0, Math.min(this.notificationsShownRecent, lastElement));
@@ -135,14 +138,14 @@
         this.loading = true;
         let yesterday = new Date().getTime() - 24 * 60 * 60 * 1000;
         $.getJSON("/api/getNotifications").then((notifications) => {
-          notifications.forEach( (it) => {
+          notifications.forEach((it) => {
             if (it.timestamp > yesterday) {
               this.recent.push(it);
             } else {
               this.remaining.push(it);
             }
           });
-          this.remaining.sort( (a, b) => {
+          this.remaining.sort((a, b) => {
             return b.timestamp - a.timestamp;
           });
           this.loading = false;

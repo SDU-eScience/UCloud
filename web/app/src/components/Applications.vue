@@ -46,7 +46,6 @@
         </div>
       </div>
     </div>
-    <status-page></status-page>
   </section>
 </template>
 
@@ -54,11 +53,9 @@
   import $ from 'jquery'
   import swal from 'sweetalert2'
   import LoadingIcon from "./LoadingIcon";
-  import StatusPage from "./Status";
 
   export default {
     components: {
-      StatusPage,
       LoadingIcon},
     name: 'applications',
     data() {

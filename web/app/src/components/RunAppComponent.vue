@@ -72,19 +72,16 @@
         </div>
       </div>
     </div>
-    <status-page></status-page>
   </section>
 </template>
 
 <script>
   import Vue from 'vue'
   import FileSelector from './FileSelector.vue'
-  import StatusPage from "./Status";
 
   Vue.component('file-selector', FileSelector);
 
   export default {
-    components: {StatusPage},
     name: 'run-app-component',
     props: {application: Object},
     methods: {

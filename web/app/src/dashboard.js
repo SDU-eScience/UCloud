@@ -1,5 +1,7 @@
 import Vue from 'vue'
 import DashboardComponent from './components/Dashboard.vue'
+import Status from './status'
+
 
 Vue.config.productionTip = false;
 
@@ -9,3 +11,5 @@ new Vue({
   template: '<DashboardComponent/>',
   components: {DashboardComponent}
 });
+
+Status();
