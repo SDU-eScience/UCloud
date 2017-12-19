@@ -182,22 +182,6 @@ class EScienceCloudUIApp {
 fun getApp(applicationName: String, applicationVersion: String): ApplicationAbacus? =
         applications.first { it.info.name == applicationName && it.info.version == applicationVersion }
 
-data class OptionNode(val name: String, var icon: String, var href: String? = null, var children: ArrayList<OptionNode>? = null)
-
-object DashboardOptions {
-    val nodes = arrayListOf(
-            OptionNode("Dashboard", "nav-icon", "/dashboard"),
-            OptionNode("Files", "nav-icon", "/files"),
-            OptionNode("Projects", "", "/projects"),
-            OptionNode("Apps", "nav-icon", children = arrayListOf(
-                    (OptionNode("Applications", "", "/applications")),
-                    (OptionNode("Workflows", "", "/workflows")),
-                    (OptionNode("Analyses", "", "/analyses")))),
-            OptionNode("Activity", "", children = arrayListOf(
-                    // (OptionNode("Messages", "", "/activity/messages")),
-                    (OptionNode("Notifications", "", "/activity/notifications")))))
-}
-
 class CertificateGenerator {
     companion object {
         @JvmStatic
