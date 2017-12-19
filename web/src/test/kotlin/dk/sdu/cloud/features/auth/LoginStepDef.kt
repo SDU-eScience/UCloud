@@ -8,11 +8,8 @@ import cucumber.api.java.en.Then
 import cucumber.api.java.en.When
 import org.openqa.selenium.By
 import org.openqa.selenium.WebDriver
-import org.openqa.selenium.WebElement
 import org.openqa.selenium.firefox.FirefoxDriver
-import org.openqa.selenium.support.ui.ExpectedCondition
 import org.openqa.selenium.support.ui.WebDriverWait
-
 
 
 class LoginStepDef {
@@ -54,7 +51,6 @@ class LoginStepDef {
 
     @Then("^I should be on the \"([^\"]*)\" page$")
     fun iShouldBeOnThePage(page: String) {
-        // Wait 2 seconds for redirection
         WebDriverWait(driver, 3).until {
             d -> d!!.title.toLowerCase() == page.toLowerCase() }
     }
