@@ -1,13 +1,14 @@
-package org.esciencecloud.auth.services
+package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
 import org.apache.kafka.clients.producer.KafkaProducer
-import org.esciencecloud.auth.*
-import org.esciencecloud.auth.api.*
-import org.esciencecloud.auth.services.saml.AttributeURIs
-import org.esciencecloud.auth.services.saml.Auth
+import dk.sdu.cloud.auth.AccessToken
+import dk.sdu.cloud.auth.RequestAndRefreshToken
+import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.services.saml.AttributeURIs
+import dk.sdu.cloud.auth.services.saml.Auth
 import org.esciencecloud.service.forStream
 import org.slf4j.LoggerFactory
 import java.time.LocalDateTime

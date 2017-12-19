@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.api
+package dk.sdu.cloud.auth.api
 
 import org.esciencecloud.service.KafkaDescriptions
 

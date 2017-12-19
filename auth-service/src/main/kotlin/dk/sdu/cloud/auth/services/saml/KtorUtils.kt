@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.services.saml
+package dk.sdu.cloud.auth.services.saml
 
 import com.onelogin.saml2.http.HttpRequest
 import com.onelogin.saml2.util.Util

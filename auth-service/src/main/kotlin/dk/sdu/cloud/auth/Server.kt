@@ -1,4 +1,4 @@
-package org.esciencecloud.auth
+package dk.sdu.cloud.auth
 
 import com.auth0.jwt.algorithms.Algorithm
 import com.fasterxml.jackson.databind.DeserializationFeature
@@ -22,13 +22,13 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.zookeeper.ZooDefs
-import org.esciencecloud.auth.api.AuthStreams
-import org.esciencecloud.auth.http.CoreAuthController
-import org.esciencecloud.auth.http.SAMLController
-import org.esciencecloud.auth.processors.RefreshTokenProcessor
-import org.esciencecloud.auth.processors.UserProcessor
-import org.esciencecloud.auth.services.TokenService
-import org.esciencecloud.auth.services.saml.validateOrThrow
+import dk.sdu.cloud.auth.api.AuthStreams
+import dk.sdu.cloud.auth.http.CoreAuthController
+import dk.sdu.cloud.auth.http.SAMLController
+import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
+import dk.sdu.cloud.auth.processors.UserProcessor
+import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import org.esciencecloud.service.*
 import org.jetbrains.exposed.sql.Database
 import java.security.interfaces.RSAPrivateKey

@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.api
+package dk.sdu.cloud.auth.api
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes

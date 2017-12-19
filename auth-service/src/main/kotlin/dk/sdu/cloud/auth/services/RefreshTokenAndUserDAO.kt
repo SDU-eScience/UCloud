@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.services
+package dk.sdu.cloud.auth.services
 
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction

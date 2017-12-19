@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.http
+package dk.sdu.cloud.auth.http
 
 import io.ktor.application.call
 import io.ktor.content.files
@@ -16,11 +16,11 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
 import kotlinx.html.*
-import org.esciencecloud.auth.services.ServiceDAO
-import org.esciencecloud.auth.services.TokenService
-import org.esciencecloud.auth.services.UserDAO
-import org.esciencecloud.auth.services.checkPassword
-import org.esciencecloud.auth.util.urlEncoded
+import dk.sdu.cloud.auth.services.ServiceDAO
+import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.UserDAO
+import dk.sdu.cloud.auth.services.checkPassword
+import dk.sdu.cloud.auth.util.urlEncoded
 import org.slf4j.LoggerFactory
 import java.io.File
 

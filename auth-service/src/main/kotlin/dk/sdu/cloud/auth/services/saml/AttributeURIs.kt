@@ -1,4 +1,4 @@
-package org.esciencecloud.auth.services.saml
+package dk.sdu.cloud.auth.services.saml
 
 object AttributeURIs {
     const val DisplayName = "urn:oid:2.16.840.1.113730.3.1.241"

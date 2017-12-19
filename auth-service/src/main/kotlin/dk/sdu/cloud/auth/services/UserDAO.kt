@@ -1,7 +1,7 @@
-package org.esciencecloud.auth.services
+package dk.sdu.cloud.auth.services
 
-import org.esciencecloud.auth.api.Role
-import org.esciencecloud.auth.api.User
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.User
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.statements.InsertStatement
 import org.jetbrains.exposed.sql.statements.Statement
