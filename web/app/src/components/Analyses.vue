@@ -26,7 +26,7 @@
                 <td>{{ analysis.status }}</td>
                 <td>
                   <button v-if="analysis.comments.length" data-toggle="modal" data-target="#commentsModal" class="btn btn-primary" @click="setCurrentAnalysis(analysis)">Show {{ analysis.comments.length  }} comments</button>
-                  <button v-else>Write comment</button>
+                  <button class="btn btn-secondary" v-else>Write comment</button>
                 </td>
               </tr>
               </tbody>
