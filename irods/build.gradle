@@ -9,8 +9,8 @@ buildscript {
     }
 }
 
-group 'org.esciencecloud'
-version '0.4.3'
+group 'dk.sdu.cloud'
+version '0.5.0'
 
 apply plugin: 'java'
 apply plugin: 'kotlin'
