@@ -2,8 +2,7 @@ package dk.sdu.cloud.abc.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import org.esciencecloud.service.KafkaRequest
-import org.esciencecloud.storage.Error
+import dk.sdu.cloud.service.KafkaRequest
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
@@ -41,7 +40,7 @@ sealed class HPCAppEvent {
         override val success: Boolean = true
     }
 
-    data class UnsuccessfullyCompleted(val reason: Error<Any>) : Ended() {
+    object UnsuccessfullyCompleted : Ended() {
         override val success: Boolean = false
     }
 

@@ -1,8 +1,8 @@
-package org.escienceclud.abc
+package dk.sdu.cloud.abc
 
-import org.esciencecloud.abc.services.SlurmEvent
-import org.esciencecloud.abc.services.SlurmEventBegan
-import org.esciencecloud.abc.services.SlurmEventEnded
+import dk.sdu.cloud.abc.services.SlurmEvent
+import dk.sdu.cloud.abc.services.SlurmEventBegan
+import dk.sdu.cloud.abc.services.SlurmEventEnded
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Duration

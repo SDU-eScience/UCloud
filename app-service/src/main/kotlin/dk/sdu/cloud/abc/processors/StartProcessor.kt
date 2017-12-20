@@ -10,11 +10,12 @@ import dk.sdu.cloud.abc.services.ssh.sbatch
 import dk.sdu.cloud.abc.services.ssh.scpUpload
 import dk.sdu.cloud.abc.stackTraceToString
 import dk.sdu.cloud.abc.util.BashEscaper
-import org.esciencecloud.service.KafkaRequest
+import dk.sdu.cloud.service.KafkaRequest
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.StorageConnection
+import org.esciencecloud.storage.ext.StorageConnectionFactory
 import org.esciencecloud.storage.ext.StorageException
 import org.esciencecloud.storage.model.FileStat
 import org.esciencecloud.storage.model.StoragePath
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory
 import java.net.URI
 
 class StartProcessor(
+        private val connectionFactory: StorageConnectionFactory,
         private val sBatchGenerator: SBatchGenerator,
         private val sshPool: SSHConnectionPool,
         private val sshUser: String,
@@ -152,12 +154,12 @@ class StartProcessor(
             val result = handleStartEvent(connection, request as KafkaRequest<AppRequest.Start>)
             when (result) {
                 is Ok -> result.result
-                is Error -> HPCAppEvent.UnsuccessfullyCompleted(result)
+                is Error -> HPCAppEvent.UnsuccessfullyCompleted
             }
         }
 
         is AppRequest.Cancel -> {
-            HPCAppEvent.UnsuccessfullyCompleted(Error.internalError())
+            HPCAppEvent.UnsuccessfullyCompleted
         }
     }
 
@@ -166,15 +168,16 @@ class StartProcessor(
                 target = HPCStreams.AppEvents,
 
                 onAuthenticated = { _, e ->
-                    try {
-                        handle(e.connection, e.originalRequest)
-                    } finally {
-                        e.connection.close() // TODO This should be easier
-                    }
+                    val connection = connectionFactory.createForAccount(
+                            e.decoded.subject!!,
+                            e.header.performedFor
+                    ).capture()
+
+                    connection?.use { handle(it, e.originalRequest) } ?: HPCAppEvent.UnsuccessfullyCompleted
                 },
 
-                onUnauthenticated = { _, e ->
-                    HPCAppEvent.UnsuccessfullyCompleted(e.error)
+                onUnauthenticated = { _, _ ->
+                    HPCAppEvent.UnsuccessfullyCompleted
                 }
         )
     }

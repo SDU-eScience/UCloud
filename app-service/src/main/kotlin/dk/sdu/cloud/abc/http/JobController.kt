@@ -4,10 +4,10 @@ import dk.sdu.cloud.abc.api.HPCJobDescriptions
 import dk.sdu.cloud.abc.api.StandardError
 import dk.sdu.cloud.abc.services.HPCStore
 import dk.sdu.cloud.abc.storageConnection
+import dk.sdu.cloud.service.KafkaRPCException
+import dk.sdu.cloud.service.implement
 import io.ktor.routing.Route
 import io.ktor.routing.route
-import org.esciencecloud.service.KafkaRPCException
-import org.esciencecloud.service.implement
 
 class JobController(private val store: HPCStore) {
     fun configure(routing: Route) = with(routing) {

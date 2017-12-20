@@ -4,12 +4,11 @@ import dk.sdu.cloud.abc.RPCConfiguration
 import dk.sdu.cloud.abc.api.HPCAppEvent
 import dk.sdu.cloud.abc.api.HPCStreams
 import dk.sdu.cloud.abc.api.MyJobs
+import dk.sdu.cloud.service.KafkaRPCEndpoint
+import dk.sdu.cloud.service.KafkaRPCServer
 import io.ktor.routing.Routing
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.state.HostInfo
-
-import org.esciencecloud.service.KafkaRPCEndpoint
-import org.esciencecloud.service.KafkaRPCServer
 
 class HPCStore(private val hostname: String, private val port: Int, private val rpc: RPCConfiguration) {
     private var server: KafkaRPCServer? = null

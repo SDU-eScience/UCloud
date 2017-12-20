@@ -12,6 +12,7 @@ import dk.sdu.cloud.abc.processors.StartProcessor
 import dk.sdu.cloud.abc.services.*
 import dk.sdu.cloud.abc.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.abc.services.ssh.SimpleSSHConfig
+import dk.sdu.cloud.service.*
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -30,7 +31,6 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.zookeeper.ZooDefs
-import org.esciencecloud.service.*
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.StorageConnection
 import org.esciencecloud.storage.ext.StorageConnectionFactory
@@ -115,14 +115,15 @@ class ApplicationStreamProcessor(
         val sshPool = SSHConnectionPool(config.ssh)
 
         val hpcStore = HPCStore(hostname, rpcPort, config.rpc)
-        val streamService = HPCStreamService(storageConnectionFactory, streamBuilder, producer)
+        val streamService = HPCStreamService(streamBuilder, producer)
         val sbatchGenerator = SBatchGenerator()
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
         log.info("Init Event Processors")
         val slurmProcessor = SlurmProcessor(hpcStore, sshPool, storageConnectionFactory, slurmPollAgent, streamService)
         val slurmAggregate = SlurmAggregate(streamService, slurmPollAgent)
-        val startProcessor = StartProcessor(sbatchGenerator, sshPool, config.ssh.user, streamService)
+        val startProcessor = StartProcessor(storageConnectionFactory, sbatchGenerator, sshPool, config.ssh.user,
+                streamService)
 
         log.info("Starting Event Processors")
         slurmProcessor.init()

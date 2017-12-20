@@ -1,9 +1,9 @@
-package org.escienceclud.abc
+package dk.sdu.cloud.abc
 
-import org.esciencecloud.abc.services.MixedNode
-import org.esciencecloud.abc.services.TemplateParser
-import org.esciencecloud.abc.services.VariableNode
-import org.esciencecloud.abc.services.WordNode
+import dk.sdu.cloud.abc.services.MixedNode
+import dk.sdu.cloud.abc.services.TemplateParser
+import dk.sdu.cloud.abc.services.VariableNode
+import dk.sdu.cloud.abc.services.WordNode
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

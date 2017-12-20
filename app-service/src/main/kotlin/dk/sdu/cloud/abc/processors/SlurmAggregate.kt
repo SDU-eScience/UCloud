@@ -5,10 +5,11 @@ import dk.sdu.cloud.abc.services.*
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.Serialized
-import org.esciencecloud.service.JsonSerde.jsonSerde
-import org.esciencecloud.service.aggregate
-import org.esciencecloud.service.filterIsInstance
-import org.esciencecloud.service.toTable
+import dk.sdu.cloud.service.JsonSerde.jsonSerde
+import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.aggregate
+import dk.sdu.cloud.service.filterIsInstance
+import dk.sdu.cloud.service.toTable
 
 class SlurmAggregate(
         private val streamServices: HPCStreamService,
@@ -39,11 +40,10 @@ class SlurmAggregate(
                     value
                 }
 
-        // These are not authenticated, but this doesn't matter when we join them with the event stream.
-        // This means we only use the requests that we acted upon regardless (i.e. authenticated requests).
         val ownerByJobId = streamServices.rawAppRequests
                 .filter { _, value -> value.event is AppRequest.Start }
-                .mapValues { it.header.performedFor.username }
+                .mapValues { TokenValidation.validateOrNull(it.header.performedFor)?.subject }
+                .filter { _, value -> value != null }
                 .toTable(Serdes.String(), Serdes.String())
 
         val runningJobsByOwner = streamServices.appEvents.join(ownerByJobId) { event, owner ->

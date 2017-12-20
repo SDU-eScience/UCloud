@@ -2,10 +2,10 @@ package dk.sdu.cloud.abc.http
 
 import dk.sdu.cloud.abc.api.HPCApplicationDescriptions
 import dk.sdu.cloud.abc.services.ApplicationDAO
+import dk.sdu.cloud.service.implement
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
-import org.esciencecloud.service.implement
 
 class AppController(private val source: ApplicationDAO) {
     fun configure(routing: Route) = with(routing) {

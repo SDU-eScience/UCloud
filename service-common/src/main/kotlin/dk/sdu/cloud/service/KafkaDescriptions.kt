@@ -43,10 +43,10 @@ data class KafkaRequest<out EventType>(val header: RequestHeader, val event: Eve
 
 data class RequestHeader(
         val uuid: String,
-        val performedFor: JWTToken
+        val performedFor: RawAuthToken
 )
 
-typealias JWTToken = String
+typealias RawAuthToken = String
 
 class KafkaMappingDescription<R : Any, K : Any, V : Any>(
         val topicName: String,

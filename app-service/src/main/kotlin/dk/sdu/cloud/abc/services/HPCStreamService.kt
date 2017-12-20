@@ -1,19 +1,17 @@
 package dk.sdu.cloud.abc.services
 
+import com.auth0.jwt.exceptions.JWTVerificationException
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.abc.api.HPCStreams
+import dk.sdu.cloud.service.*
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.kstream.KStream
-import org.esciencecloud.service.*
-import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.Ok
-import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.ext.StorageConnectionFactory
+import org.apache.kafka.streams.kstream.Predicate
 import kotlin.reflect.KClass
 
 class HPCStreamService(
-        private val storageConnectionFactory: StorageConnectionFactory,
         builder: StreamsBuilder,
         producer: KafkaProducer<String, String>
 ) {
@@ -23,21 +21,20 @@ class HPCStreamService(
     val appEventsProducer = producer.forStream(HPCStreams.AppEvents)
 
     private fun <K, T : Any, V : KafkaRequest<T>> KStream<K, V>.authenticate(): AuthenticatedStream<K, T> {
-        val (auth, unauth) = mapValues { request ->
-            val conn = with(request.header.performedFor) {
-                storageConnectionFactory.createForAccount(username, password)
+        val branches = mapValues { request ->
+            val token: DecodedJWT? = try {
+                TokenValidation.validate(request.header.performedFor)
+            } catch (ex: JWTVerificationException) {
+                null
             }
+            Pair(token, request)
+        }.branch(
+                Predicate { _, value -> value.first != null },
+                Predicate { _, value -> value.first == null }
+        )
 
-            Pair(conn, request)
-        }.diverge { _, value ->
-            value.first is Ok
-        }
-
-        val authMapped = auth.mapValues { RequestAfterAuthentication.Authenticated(it.second, it.first.orThrow()) }
-        val unauthMapped = unauth.mapValues {
-            RequestAfterAuthentication.Unauthenticated(it.second, it.first as Error<Any>)
-        }
-
+        val authMapped = branches[0].mapValues { RequestAfterAuthentication.Authenticated(it.second, it.first!!) }
+        val unauthMapped = branches[1].mapValues { RequestAfterAuthentication.Unauthenticated(it.second) }
         return AuthenticatedStream(authMapped, unauthMapped)
     }
 }
@@ -88,12 +85,11 @@ sealed class RequestAfterAuthentication<out T> {
 
     class Authenticated<out T>(
             override val originalRequest: KafkaRequest<T>,
-            val connection: StorageConnection
+            val decoded: DecodedJWT
     ) : RequestAfterAuthentication<T>()
 
     class Unauthenticated<out T>(
-            override val originalRequest: KafkaRequest<T>,
-            val error: Error<Any>
+            override val originalRequest: KafkaRequest<T>
     ) : RequestAfterAuthentication<T>()
 }
 

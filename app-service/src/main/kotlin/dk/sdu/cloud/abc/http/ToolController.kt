@@ -3,10 +3,10 @@ package dk.sdu.cloud.abc.http
 import dk.sdu.cloud.abc.api.HPCToolDescriptions
 import dk.sdu.cloud.abc.api.StandardError
 import dk.sdu.cloud.abc.services.ToolDAO
+import dk.sdu.cloud.service.implement
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
-import org.esciencecloud.service.implement
 
 class ToolController(private val source: ToolDAO) {
     fun configure(routing: Route) = with(routing) {

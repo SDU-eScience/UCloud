@@ -1,10 +1,10 @@
-package org.escienceclud.abc
+package dk.sdu.cloud.abc
 
-import org.esciencecloud.abc.api.*
-import org.esciencecloud.abc.services.ApplicationDAO
-import org.esciencecloud.abc.services.SBatchGenerator
-import org.esciencecloud.abc.services.ToolDAO
-import org.esciencecloud.service.JsonSerde.jsonSerde
+import dk.sdu.cloud.abc.api.*
+import dk.sdu.cloud.abc.services.ApplicationDAO
+import dk.sdu.cloud.abc.services.SBatchGenerator
+import dk.sdu.cloud.abc.services.ToolDAO
+import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.hamcrest.CoreMatchers.*
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Test

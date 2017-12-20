@@ -1,6 +1,6 @@
 package dk.sdu.cloud.abc.api
 
-import org.esciencecloud.service.KafkaDescriptions
+import dk.sdu.cloud.service.KafkaDescriptions
 
 object HPCStreams : KafkaDescriptions() {
     val AppRequests = HPCApplicationDescriptions.appRequestBundle.mappedAtGateway("request.hpcApp") {

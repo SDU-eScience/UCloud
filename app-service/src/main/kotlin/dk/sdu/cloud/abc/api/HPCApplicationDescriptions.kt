@@ -2,11 +2,11 @@ package dk.sdu.cloud.abc.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.service.KafkaRequest
 import io.netty.handler.codec.http.HttpMethod
 import org.esciencecloud.client.KafkaCallDescriptionBundle
 import org.esciencecloud.client.RESTDescriptions
 import org.esciencecloud.client.bindEntireRequestFromBody
-import org.esciencecloud.service.KafkaRequest
 
 object HPCApplicationDescriptions : RESTDescriptions() {
     private val baseContext = "/api/hpc/apps/"

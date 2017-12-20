@@ -9,6 +9,7 @@ import dk.sdu.cloud.abc.services.ssh.scpDownload
 import dk.sdu.cloud.abc.services.ssh.stat
 import dk.sdu.cloud.abc.util.BashEscaper
 import dk.sdu.cloud.abc.util.BashEscaper.safeBashArgument
+import dk.sdu.cloud.service.TokenValidation
 import kotlinx.coroutines.experimental.runBlocking
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.ext.PermissionException
@@ -65,8 +66,11 @@ class SlurmProcessor(
                 .map { it.map(appParameters[it.name]) }
 
         val storage = with(pendingEvent.originalRequest.header.performedFor) {
-            storageConnectionFactory.createForAccount(username, password)
-        }.capture() ?: return Pair(key, HPCAppEvent.UnsuccessfullyCompleted(Error.invalidAuthentication()))
+            val rawToken = pendingEvent.originalRequest.header.performedFor
+            val token = TokenValidation.validateOrNull(rawToken) ?: return@with null
+
+            storageConnectionFactory.createForAccount(token.subject, rawToken).capture()
+        } ?: return Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
 
         return try {
             sshPool.use {
@@ -101,7 +105,7 @@ class SlurmProcessor(
                             log.warn("Status: $status")
                             log.warn("Output: $output")
 
-                            return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted(Error.internalError()))
+                            return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
                         }
 
                         TODO("Handle directory uploads")
@@ -117,9 +121,7 @@ class SlurmProcessor(
                             }
                         }
 
-                        if (permissionDenied) return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted(
-                                Error.permissionDenied("Could not transfer file to ${transfer.destination}")
-                        ))
+                        if (permissionDenied) return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
                     }
                 }
 
