@@ -1,4 +1,4 @@
-package org.esciencecloud.transactions.new
+package dk.sdu.cloud.transactions
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route

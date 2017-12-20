@@ -1,4 +1,4 @@
-package org.esciencecloud.transactions.util
+package dk.sdu.cloud.transactions.util
 
 import java.io.PrintWriter
 import java.io.StringWriter

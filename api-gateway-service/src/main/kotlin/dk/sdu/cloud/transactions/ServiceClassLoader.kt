@@ -1,4 +1,4 @@
-package org.esciencecloud.transactions.new
+package dk.sdu.cloud.transactions
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue

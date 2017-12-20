@@ -1,4 +1,4 @@
-package org.esciencecloud.transactions.new
+package dk.sdu.cloud.transactions
 
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
@@ -18,7 +18,7 @@ import org.esciencecloud.client.addBasicAuth
 import org.esciencecloud.service.ProxyClient
 import org.esciencecloud.service.RequestHeader
 import org.esciencecloud.service.listServicesWithStatus
-import org.esciencecloud.transactions.util.stackTraceToString
+import dk.sdu.cloud.transactions.util.stackTraceToString
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.net.URL

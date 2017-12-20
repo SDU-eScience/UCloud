@@ -1,4 +1,4 @@
-package org.esciencecloud.transactions.new
+package dk.sdu.cloud.transactions
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.ktor.application.install
@@ -14,7 +14,7 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.esciencecloud.service.ZooKeeperConnection
 import org.esciencecloud.service.ZooKeeperHostInfo
-import org.esciencecloud.transactions.util.stackTraceToString
+import dk.sdu.cloud.transactions.util.stackTraceToString
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
