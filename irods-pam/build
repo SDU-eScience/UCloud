@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+g++ -fPIC -fno-stack-protector -c pam.cpp -lstdc++ -static -s -Wall
+g++ pam.o -shared -o /usr/lib64/security/pam_jwt_irods.so
