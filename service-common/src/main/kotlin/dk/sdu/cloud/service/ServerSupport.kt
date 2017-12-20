@@ -1,4 +1,4 @@
-package org.esciencecloud.service
+package dk.sdu.cloud.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper

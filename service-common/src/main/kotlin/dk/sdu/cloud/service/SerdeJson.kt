@@ -1,4 +1,4 @@
-package org.esciencecloud.service
+package dk.sdu.cloud.service
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.MapperFeature
@@ -110,21 +110,21 @@ object JsonSerde {
 
     @Suppress("UNCHECKED_CAST")
     fun <T> jsonSerdeFromClass(klass: Class<T>): Serde<T> {
-        val existing = JsonSerde.cachedSerdes[klass]
+        val existing = cachedSerdes[klass]
         if (existing != null) return existing as Serde<T>
         val (serializer, deserializer) = createJsonSerializersFromClass(klass)
         val newSerde = Serdes.serdeFrom(serializer, deserializer)
-        JsonSerde.cachedSerdes[klass] = newSerde
+        cachedSerdes[klass] = newSerde
         return newSerde
     }
 
     @Suppress("UNCHECKED_CAST")
     fun <T> jsonSerdeFromTypeRef(ref: TypeReference<T>): Serde<T> {
-        val existing = JsonSerde.cachedSerdes[ref]
+        val existing = cachedSerdes[ref]
         if (existing != null) return existing as Serde<T>
         val (serializer, deserializer) = createJsonSerializersFromTypeRef(ref)
         val newSerde = Serdes.serdeFrom(serializer, deserializer)
-        JsonSerde.cachedSerdes[ref] = newSerde
+        cachedSerdes[ref] = newSerde
         return newSerde
     }
 

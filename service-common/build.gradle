@@ -1,5 +1,5 @@
-group 'org.esciencecloud'
-version '0.4.0-SNAPSHOT'
+group 'dk.sdu.cloud'
+version '0.5.0-SNAPSHOT'
 
 buildscript {
     ext.kotlin_version = '1.2.0'

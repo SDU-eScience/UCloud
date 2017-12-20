@@ -1,4 +1,4 @@
-package org.esciencecloud.service
+package dk.sdu.cloud.service
 
 import com.github.zafarkhaja.semver.Version
 import org.apache.zookeeper.*
@@ -97,7 +97,7 @@ suspend fun ZooKeeper.listServicesWithStatus(
 
 suspend fun ZooKeeper.listServices(name: String, version: Version): List<String> =
         try {
-            aGetChildren(computeServicePath(name, version)).map { "$ROOT_NODE/$name/$version/$it" }
+            aGetChildren(computeServicePath(name, version)).map { "${ROOT_NODE}/$name/$version/$it" }
         } catch (ex: KeeperException.NoNodeException) {
             emptyList()
         }

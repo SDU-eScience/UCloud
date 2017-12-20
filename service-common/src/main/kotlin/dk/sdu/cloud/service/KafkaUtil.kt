@@ -1,4 +1,4 @@
-package org.esciencecloud.service
+package dk.sdu.cloud.service
 
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord

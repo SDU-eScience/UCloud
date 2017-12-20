@@ -48,11 +48,6 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
                                                 "any running service!")
                                         log.warn("Service is: ${service.manifest}")
                                     }
-
-                                    else -> {
-                                        log.debug("Caught non-critical exception while proxying")
-                                        log.debug(ex.stackTraceToString())
-                                    }
                                 }
                                 call.respond(ex.code)
                             } catch (ex: Exception) {

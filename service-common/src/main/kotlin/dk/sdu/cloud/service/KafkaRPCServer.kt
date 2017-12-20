@@ -1,4 +1,4 @@
-package org.esciencecloud.service
+package dk.sdu.cloud.service
 
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call

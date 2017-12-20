@@ -1,4 +1,4 @@
-package org.esciencecloud.service
+package dk.sdu.cloud.service
 
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
@@ -12,11 +12,9 @@ import org.apache.kafka.streams.kstream.Serialized
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore
 import org.apache.kafka.streams.state.StreamsMetadata
-import org.esciencecloud.client.GatewayJobResponse
 import org.esciencecloud.client.KafkaCallDescription
 import org.esciencecloud.client.KafkaCallDescriptionBundle
-import org.esciencecloud.client.RESTCallDescription
-import org.esciencecloud.service.JsonSerde.jsonSerde
+import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 
