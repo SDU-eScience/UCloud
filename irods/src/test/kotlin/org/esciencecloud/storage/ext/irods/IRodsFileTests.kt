@@ -5,6 +5,7 @@ import org.esciencecloud.storage.ext.StorageConnectionFactory
 import org.esciencecloud.storage.AbstractFileTests
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE
+import org.irods.jargon.core.connection.ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REQUIRE
 import org.junit.Before
 
 class IRodsFileTests : AbstractFileTests() {
@@ -20,7 +21,7 @@ class IRodsFileTests : AbstractFileTests() {
                 zone = "tempZone",
                 storageResource = "radosRandomResc",
                 authScheme = AuthScheme.STANDARD,
-                sslNegotiationPolicy = CS_NEG_REFUSE
+                sslNegotiationPolicy = CS_NEG_REQUIRE
         ))
         adminStorageConnection = connFactoryStorage.createForAccount("rods", "rods").orThrow()
         userStorageConnection = connFactoryStorage.createForAccount("test", "test").orThrow()

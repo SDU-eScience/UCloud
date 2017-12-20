@@ -3,6 +3,7 @@ package org.esciencecloud.storage.ext.irods
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
+import org.esciencecloud.storage.SDUCloudTrustManager
 import org.esciencecloud.storage.ext.*
 import org.esciencecloud.storage.model.User
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
@@ -57,6 +58,7 @@ class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConn
                 account.clientServerNegotiationPolicy = csPolicy
 
                 val fs = IRODSFileSystem.instance()
+                fs.irodsSession.x509TrustManager = SDUCloudTrustManager.trustManager
                 Ok(IRodsStorageConnection(AccountServices(fs, account, connectionInformation)))
             } catch (ex: AuthenticationException) {
                 Error.invalidAuthentication()
