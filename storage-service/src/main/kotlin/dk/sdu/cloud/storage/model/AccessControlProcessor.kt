@@ -2,7 +2,6 @@ package dk.sdu.cloud.storage.model
 
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.apache.kafka.common.serialization.Serdes
-import org.esciencecloud.storage.model.AccessEntry
 
 object AccessControlProcessor {
     /**

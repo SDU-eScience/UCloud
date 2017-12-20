@@ -3,8 +3,8 @@ package dk.sdu.cloud.storage.model
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
+import dk.sdu.cloud.service.KafkaRequest
 import org.apache.kafka.common.serialization.Serdes
-import org.esciencecloud.storage.model.UserType
 
 // Shared interface stuff. Should be published as a separate artifact
 // These artifacts should be shared with others, such that they may be used for types
@@ -12,16 +12,6 @@ import org.esciencecloud.storage.model.UserType
 // TODO This should also include certain types of the storage interfaces, but no longer the storage interface themselves
 // this will have to be changed later.
 
-data class Request<out EventType>(val header: RequestHeader, val event: EventType) {
-    companion object {
-        const val TYPE_PROPERTY = "type"
-    }
-}
-
-data class RequestHeader(
-        val uuid: String,
-        val performedFor: ProxyClient
-)
 
 // This will change over time. Should use a token instead of a straight password. We won't need the username at that
 // point, since we could retrieve this from the auth service instead.
@@ -30,13 +20,13 @@ data class ProxyClient(val username: String, val password: String)
 class Response<out InputType : Any>(
         val successful: Boolean,
         val errorMessage: String?,
-        val input: Request<InputType>
+        val input: KafkaRequest<InputType>
 )
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
-        property = Request.TYPE_PROPERTY)
+        property = KafkaRequest.TYPE_PROPERTY)
 @JsonSubTypes(
         JsonSubTypes.Type(value = UserEvent.Create::class, name = "create"),
         JsonSubTypes.Type(value = UserEvent.Modify::class, name = "modify"),

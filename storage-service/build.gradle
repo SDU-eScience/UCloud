@@ -1,4 +1,4 @@
-group 'org.esciencecloud'
+group 'dk.sdu.cloud'
 version '1.0-SNAPSHOT'
 
 buildscript {
@@ -33,12 +33,12 @@ repositories {
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
     // ------------
     // iRODS
     // ------------
-    compile "org.esciencecloud:cloud-storage:0.4.1"
+    compile "dk.sdu.cloud:cloud-storage:0.5.0-SNAPSHOT"
     // ------------
 
     // ------------

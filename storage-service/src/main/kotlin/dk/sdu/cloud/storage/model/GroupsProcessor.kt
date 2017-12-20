@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.model
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
+import dk.sdu.cloud.service.KafkaRequest
 import org.apache.kafka.common.serialization.Serdes
 
 object GroupsProcessor {
@@ -12,7 +13,7 @@ object GroupsProcessor {
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.PROPERTY,
-        property = Request.TYPE_PROPERTY)
+        property = KafkaRequest.TYPE_PROPERTY)
 @JsonSubTypes(
         JsonSubTypes.Type(value = GroupEvent.Create::class, name = "create"),
         JsonSubTypes.Type(value = GroupEvent.AddMember::class, name = "addMember"),

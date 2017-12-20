@@ -1,11 +1,11 @@
 package dk.sdu.cloud.storage.processor
 
+import dk.sdu.cloud.service.KafkaRequest
 import org.apache.kafka.streams.StreamsBuilder
-import org.esciencecloud.storage.Result
-import org.esciencecloud.storage.ext.StorageConnection
+import dk.sdu.cloud.storage.Result
+import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.model.GroupEvent
 import dk.sdu.cloud.storage.model.GroupsProcessor
-import dk.sdu.cloud.storage.model.Request
 
 class Groups(private val storageService: StorageService) {
     fun initStream(builder: StreamsBuilder) {
@@ -16,24 +16,24 @@ class Groups(private val storageService: StorageService) {
             connection.use {
                 @Suppress("UNCHECKED_CAST")
                 when (request.event) {
-                    is GroupEvent.Create -> createGroup(connection, request as Request<GroupEvent.Create>)
-                    is GroupEvent.AddMember -> addMember(connection, request as Request<GroupEvent.AddMember>)
-                    is GroupEvent.RemoveMember -> removeMember(connection, request as Request<GroupEvent.RemoveMember>)
-                    is GroupEvent.Delete -> deleteGroup(connection, request as Request<GroupEvent.Delete>)
+                    is GroupEvent.Create -> createGroup(connection, request as KafkaRequest<GroupEvent.Create>)
+                    is GroupEvent.AddMember -> addMember(connection, request as KafkaRequest<GroupEvent.AddMember>)
+                    is GroupEvent.RemoveMember -> removeMember(connection, request as KafkaRequest<GroupEvent.RemoveMember>)
+                    is GroupEvent.Delete -> deleteGroup(connection, request as KafkaRequest<GroupEvent.Delete>)
                 }
             }
         }
     }
 
-    private fun createGroup(connection: StorageConnection, request: Request<GroupEvent.Create>): Result<Unit> =
+    private fun createGroup(connection: StorageConnection, request: KafkaRequest<GroupEvent.Create>): Result<Unit> =
             connection.groups.createGroup(request.event.groupName)
 
-    private fun addMember(connection: StorageConnection, request: Request<GroupEvent.AddMember>): Result<Unit> =
+    private fun addMember(connection: StorageConnection, request: KafkaRequest<GroupEvent.AddMember>): Result<Unit> =
             connection.groups.addUserToGroup(request.event.groupName, request.event.username)
 
-    private fun removeMember(connection: StorageConnection, request: Request<GroupEvent.RemoveMember>): Result<Unit> =
+    private fun removeMember(connection: StorageConnection, request: KafkaRequest<GroupEvent.RemoveMember>): Result<Unit> =
             connection.groups.removeUserFromGroup(request.event.groupName, request.event.username)
 
-    private fun deleteGroup(connection: StorageConnection, request: Request<GroupEvent.Delete>): Result<Unit> =
+    private fun deleteGroup(connection: StorageConnection, request: KafkaRequest<GroupEvent.Delete>): Result<Unit> =
             connection.groups.deleteGroup(request.event.groupName, request.event.force)
 }

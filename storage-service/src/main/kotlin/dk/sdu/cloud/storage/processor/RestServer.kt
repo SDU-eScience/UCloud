@@ -1,6 +1,7 @@
 package dk.sdu.cloud.storage.processor
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import dk.sdu.cloud.service.RequestHeader
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -24,19 +25,25 @@ import io.ktor.routing.routing
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.util.AttributeKey
-import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.Ok
-import org.esciencecloud.storage.Result
-import org.esciencecloud.storage.ext.StorageConnection
-import dk.sdu.cloud.storage.model.ProxyClient
-import dk.sdu.cloud.storage.model.RequestHeader
-import org.esciencecloud.storage.model.StoragePath
+import dk.sdu.cloud.storage.Error
+import dk.sdu.cloud.storage.Ok
+import dk.sdu.cloud.storage.Result
+import dk.sdu.cloud.storage.ext.StorageConnection
+import dk.sdu.cloud.storage.model.StoragePath
 import dk.sdu.cloud.storage.processor.tus.TusController
+import io.ktor.http.HttpHeaders
+import io.ktor.request.header
 import java.util.*
 
 class StorageRestServer(private val configuration: Configuration, private val storageService: StorageService) {
     companion object {
         val StorageSession = AttributeKey<StorageConnection>("StorageSession")
+    }
+
+    private fun ApplicationRequest.bearer(): String? {
+        val header = header(HttpHeaders.Authorization) ?: return null
+        if (header.startsWith("Bearer ")) return null
+        return header.substringAfter("Bearer ")
     }
 
     fun create() = embeddedServer(CIO, port = configuration.service.port) {
@@ -50,7 +57,7 @@ class StorageRestServer(private val configuration: Configuration, private val st
         }
 
         intercept(ApplicationCallPipeline.Infrastructure) {
-            val (username, password) = call.request.basicAuth() ?: run {
+            val token = call.request.bearer() ?: run {
                 call.respond(HttpStatusCode.Unauthorized)
                 return@intercept
             }
@@ -60,7 +67,7 @@ class StorageRestServer(private val configuration: Configuration, private val st
                 return@intercept
             }
 
-            val header = RequestHeader(uuid, ProxyClient(username, password))
+            val header = RequestHeader(uuid, token)
             val connection = storageService.validateRequest(header).capture() ?: run {
                 call.respond(HttpStatusCode.Unauthorized)
                 finish()

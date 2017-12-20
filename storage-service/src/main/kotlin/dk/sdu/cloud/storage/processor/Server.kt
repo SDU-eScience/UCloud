@@ -2,15 +2,16 @@ package dk.sdu.cloud.storage.processor
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.service.RequestHeader
+import dk.sdu.cloud.service.TokenValidation
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.Result
-import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.ext.StorageConnectionFactory
-import org.esciencecloud.storage.ext.irods.IRodsConnectionInformation
-import org.esciencecloud.storage.ext.irods.IRodsStorageConnectionFactory
-import dk.sdu.cloud.storage.model.RequestHeader
+import dk.sdu.cloud.storage.Error
+import dk.sdu.cloud.storage.Result
+import dk.sdu.cloud.storage.ext.StorageConnection
+import dk.sdu.cloud.storage.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
+import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
 import dk.sdu.cloud.storage.model.addShutdownHook
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
@@ -43,9 +44,7 @@ data class StorageConfiguration(
         val zone: String,
         val resource: String,
         val authScheme: String?,
-        val sslPolicy: String?,
-        val adminUsername: String,
-        val adminPassword: String
+        val sslPolicy: String?
 )
 
 data class ServiceConfiguration(val port: Int)
@@ -84,10 +83,7 @@ fun main(args: Array<String>) {
                             ClientServerNegotiationPolicy.SslNegotiationPolicy.valueOf(sslPolicy)
                         else
                             ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE
-                ),
-
-                adminUsername = adminUsername,
-                adminPassword = adminPassword
+                )
         )
     }
 
@@ -130,7 +126,6 @@ fun main(args: Array<String>) {
 
 abstract class StorageService {
     abstract val storageFactory: StorageConnectionFactory
-    //abstract val adminConnection: StorageConnection
 
     /**
      * Should validate the StorageRequest and provide us with an appropriate StorageConnection. For internal
@@ -145,27 +140,16 @@ abstract class StorageService {
      * because we want to retry at a later point.
      */
     fun validateRequest(header: RequestHeader): Result<StorageConnection> {
-        // TODO
-        /*
-        if (header.performedFor.username == "internal-service-super-secret-obviously-dont-use-this") {
-            // This should use API tokens or just plain certificates for validating that this is an internal service
-            // making the request.
-            return Ok(adminConnection)
-        }
-        */
-
         // TODO We need to close the storage connections.
-        return with(header.performedFor) { storageFactory.createForAccount(username, password) }
+        return with(header) {
+            val validated = TokenValidation.validateOrNull(performedFor) ?: return Error.invalidAuthentication()
+            storageFactory.createForAccount(validated.subject, validated.token)
+        }
     }
 }
 
 class IRodsStorageService(
-        connectionInformation: IRodsConnectionInformation,
-        adminUsername: String,
-        adminPassword: String
+        connectionInformation: IRodsConnectionInformation
 ) : StorageService() {
     override val storageFactory: StorageConnectionFactory = IRodsStorageConnectionFactory(connectionInformation)
-
-    //override val adminConnection: StorageConnection =
-    //       storageFactory.createForAccount(adminUsername, adminPassword).orThrow()
 }

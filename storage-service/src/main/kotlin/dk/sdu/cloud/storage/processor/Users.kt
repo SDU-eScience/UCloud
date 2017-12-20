@@ -1,11 +1,11 @@
 package dk.sdu.cloud.storage.processor
 
+import dk.sdu.cloud.service.KafkaRequest
 import org.apache.kafka.streams.StreamsBuilder
-import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.Ok
-import org.esciencecloud.storage.Result
-import org.esciencecloud.storage.ext.StorageConnection
-import dk.sdu.cloud.storage.model.Request
+import dk.sdu.cloud.storage.Error
+import dk.sdu.cloud.storage.Ok
+import dk.sdu.cloud.storage.Result
+import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.model.UserEvent
 import dk.sdu.cloud.storage.model.UserProcessor
 
@@ -18,27 +18,28 @@ class Users(private val storageService: StorageService) {
             connection.use {
                 @Suppress("UNCHECKED_CAST")
                 when (request.event) {
-                    is UserEvent.Create -> createUser(connection, request as Request<UserEvent.Create>)
-                    is UserEvent.Modify -> modifyUser(connection, request as Request<UserEvent.Modify>)
-                    is UserEvent.Delete -> deleteUser(connection, request as Request<UserEvent.Delete>)
+                    is UserEvent.Create -> createUser(connection, request as KafkaRequest<UserEvent.Create>)
+                    is UserEvent.Modify -> modifyUser(connection, request as KafkaRequest<UserEvent.Modify>)
+                    is UserEvent.Delete -> deleteUser(connection, request as KafkaRequest<UserEvent.Delete>)
                 }
             }
         }
     }
 
-    private fun createUser(connection: StorageConnection, request: Request<UserEvent.Create>): Result<Unit> {
+    private fun createUser(connection: StorageConnection, request: KafkaRequest<UserEvent.Create>): Result<Unit> {
         val userAdmin = connection.userAdmin ?: return Error.permissionDenied()
         return userAdmin.createUser(request.event.username, request.event.password)
     }
 
-    private fun modifyUser(connection: StorageConnection, request: Request<UserEvent.Modify>): Result<Unit> {
+    private fun modifyUser(connection: StorageConnection, request: KafkaRequest<UserEvent.Modify>): Result<Unit> {
         return when {
             connection.userAdmin != null -> {
                 val userAdmin = connection.userAdmin!!
                 // We can do whatever
                 // TODO Rolling back if any of these fail is not trivial
-                if (request.event.newPassword != null) {
-                    userAdmin.modifyPassword(request.event.currentUsername, request.event.newPassword).capture() ?:
+                val newPassword = request.event.newPassword
+                if (newPassword != null) {
+                    userAdmin.modifyPassword(request.event.currentUsername, newPassword).capture() ?:
                             return Result.lastError()
                 }
 
@@ -54,9 +55,10 @@ class Users(private val storageService: StorageService) {
                 // And even then, we only allow certain things
 
                 if (request.event.newUserType != null) return Error.permissionDenied()
-                if (request.event.newPassword != null) {
-                    val currentPassword = request.header.performedFor.password // TODO This shouldn't be available directly
-                    connection.users.modifyMyPassword(currentPassword, request.event.newPassword)
+                val newPassword = request.event.newPassword
+                if (newPassword != null) {
+                    val currentPassword = request.header.performedFor
+                    connection.users.modifyMyPassword(currentPassword, newPassword)
                 }
                 Ok.empty()
             }
@@ -65,5 +67,6 @@ class Users(private val storageService: StorageService) {
         }
     }
 
-    private fun deleteUser(connection: StorageConnection, request: Request<UserEvent.Delete>): Result<Unit> = TODO()
+    private fun deleteUser(connection: StorageConnection, request: KafkaRequest<UserEvent.Delete>): Result<Unit> =
+            TODO()
 }
