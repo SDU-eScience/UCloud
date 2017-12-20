@@ -1,7 +1,10 @@
-package org.esciencecloud.storage.processor
+package dk.sdu.cloud.storage.processor
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import io.ktor.application.*
+import io.ktor.application.ApplicationCall
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.Compression
 import io.ktor.features.ContentNegotiation
@@ -9,7 +12,6 @@ import io.ktor.features.DefaultHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
-import io.ktor.pipeline.intercept
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.authorization
 import io.ktor.response.ApplicationSendPipeline
@@ -26,10 +28,10 @@ import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.model.ProxyClient
-import org.esciencecloud.storage.model.RequestHeader
+import dk.sdu.cloud.storage.model.ProxyClient
+import dk.sdu.cloud.storage.model.RequestHeader
 import org.esciencecloud.storage.model.StoragePath
-import org.esciencecloud.storage.processor.tus.TusController
+import dk.sdu.cloud.storage.processor.tus.TusController
 import java.util.*
 
 class StorageRestServer(private val configuration: Configuration, private val storageService: StorageService) {

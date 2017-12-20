@@ -1,4 +1,4 @@
-package org.esciencecloud.storage.processor.tus
+package dk.sdu.cloud.storage.processor.tus
 
 import com.ceph.rados.Completion
 import com.ceph.rados.IoCTX

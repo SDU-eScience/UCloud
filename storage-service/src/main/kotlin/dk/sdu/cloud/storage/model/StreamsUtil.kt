@@ -1,5 +1,6 @@
-package org.esciencecloud.storage.model
+package dk.sdu.cloud.storage.model
 
+import dk.sdu.cloud.service.StreamDescription
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -7,13 +8,14 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.KeyValue
-import org.apache.kafka.streams.kstream.KStreamBuilder
-import org.esciencecloud.kafka.StreamDescription
+import org.apache.kafka.streams.StreamsBuilder
+import org.apache.kafka.streams.kstream.Produced
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
 
 // Potential candidates for inclusion in kafka-common if they prove useful
+// TODO This is potentially outdated
 const val REQUEST = "request"
 const val RESPONSE = "response"
 
@@ -25,13 +27,13 @@ class RequestResponseStream<KeyType : Any, RequestType : Any>(
         private val responseSerde: Serde<Response<RequestType>>
 ) {
     val requestStream = StreamDescription(
-            "$REQUEST.$topicName",
+            "${REQUEST}.$topicName",
             keySerde,
             requestSerde
     )
 
     val responseStream = StreamDescription(
-            "$RESPONSE.$topicName",
+            "${RESPONSE}.$topicName",
             Serdes.String(),
             responseSerde
     )
@@ -48,17 +50,17 @@ class RequestResponseStream<KeyType : Any, RequestType : Any>(
     }
 
     private fun <OutputKey : Any> map(
-            builder: KStreamBuilder,
+            builder: StreamsBuilder,
             outputKeySerde: Serde<OutputKey>,
             mapper: (KeyType, Request<RequestType>) -> Pair<OutputKey, Response<RequestType>>
     ) {
         requestStream.stream(builder).map { key, value ->
             val (a, b) = mapper(key, value)
             KeyValue.pair(a, b)
-        }.to(outputKeySerde, responseStream.valueSerde, responseStream.name)
+        }.to(responseStream.name, Produced.with(outputKeySerde, responseStream.valueSerde))
     }
 
-    fun process(builder: KStreamBuilder, mapper: (KeyType, Request<RequestType>) -> (Result<*>)) {
+    fun process(builder: StreamsBuilder, mapper: (KeyType, Request<RequestType>) -> (Result<*>)) {
         return map(builder, Serdes.String()) { key, request ->
             Pair(request.header.uuid, mapper(key, request).toResponse(request))
         }

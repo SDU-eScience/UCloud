@@ -1,13 +1,13 @@
-package org.esciencecloud.storage.processor
+package dk.sdu.cloud.storage.processor
 
-import org.apache.kafka.streams.kstream.KStreamBuilder
+import org.apache.kafka.streams.StreamsBuilder
 import org.esciencecloud.storage.Result
-import org.esciencecloud.storage.model.AccessControlProcessor
-import org.esciencecloud.storage.model.Request
-import org.esciencecloud.storage.model.UpdateACLRequest
+import dk.sdu.cloud.storage.model.AccessControlProcessor
+import dk.sdu.cloud.storage.model.Request
+import dk.sdu.cloud.storage.model.UpdateACLRequest
 
 class AccessControl(private val storageService: StorageService) {
-    fun initStream(builder: KStreamBuilder) {
+    fun initStream(builder: StreamsBuilder) {
         AccessControlProcessor.UpdateACL.process(builder) { _, request -> updateACL(request) }
     }
 

@@ -26,7 +26,7 @@ import java.io.StringWriter
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaType
 
-private val log = LoggerFactory.getLogger("org.esciencecloud.service.ServerSupport")
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.ServerSupport")
 
 internal fun Exception.stackTraceToString(): String = StringWriter().apply {
     printStackTrace(PrintWriter(this))

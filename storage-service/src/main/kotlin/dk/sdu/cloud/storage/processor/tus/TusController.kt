@@ -1,4 +1,4 @@
-package org.esciencecloud.storage.processor.tus
+package dk.sdu.cloud.storage.processor.tus
 
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
@@ -13,14 +13,13 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.*
-import org.esciencecloud.storage.processor.StorageRestServer
-import org.esciencecloud.storage.processor.TusConfiguration
+import dk.sdu.cloud.storage.processor.StorageRestServer
+import dk.sdu.cloud.storage.processor.TusConfiguration
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URI
 import java.nio.ByteBuffer
 import java.util.*
-import java.util.concurrent.atomic.AtomicInteger
 
 class TusController(private val config: TusConfiguration) {
     private val activeTransfers = HashMap<String, InitiatedTransferState>()

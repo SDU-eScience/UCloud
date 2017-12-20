@@ -1,8 +1,8 @@
-package org.esciencecloud.storage.processor
+package dk.sdu.cloud.storage.processor
 
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
-import org.apache.kafka.streams.kstream.KStreamBuilder
 import java.util.*
 
 class StorageStreamProcessor(private val storageService: StorageService, private val kafkaConfig: KafkaConfiguration) {
@@ -18,7 +18,7 @@ class StorageStreamProcessor(private val storageService: StorageService, private
         return properties
     }
 
-    fun constructStreams(builder: KStreamBuilder) {
+    fun constructStreams(builder: StreamsBuilder) {
         userProcessor.initStream(builder)
         acProcessor.initStream(builder)
         groupProcessor.initStream(builder)

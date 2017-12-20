@@ -1,14 +1,14 @@
-package org.esciencecloud.storage.processor
+package dk.sdu.cloud.storage.processor
 
-import org.apache.kafka.streams.kstream.KStreamBuilder
+import org.apache.kafka.streams.StreamsBuilder
 import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.model.GroupEvent
-import org.esciencecloud.storage.model.GroupsProcessor
-import org.esciencecloud.storage.model.Request
+import dk.sdu.cloud.storage.model.GroupEvent
+import dk.sdu.cloud.storage.model.GroupsProcessor
+import dk.sdu.cloud.storage.model.Request
 
 class Groups(private val storageService: StorageService) {
-    fun initStream(builder: KStreamBuilder) {
+    fun initStream(builder: StreamsBuilder) {
         GroupsProcessor.Groups.process(builder) { _, request ->
             val connection = storageService.validateRequest(request.header).capture() ?:
                     return@process Result.lastError<Unit>()

@@ -1,4 +1,4 @@
-package org.esciencecloud.storage.processor.tus
+package dk.sdu.cloud.storage.processor.tus
 
 import io.tus.java.client.TusClient
 import io.tus.java.client.TusURLMemoryStore

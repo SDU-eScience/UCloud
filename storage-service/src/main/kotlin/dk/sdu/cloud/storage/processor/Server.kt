@@ -1,17 +1,17 @@
-package org.esciencecloud.storage.processor
+package dk.sdu.cloud.storage.processor
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.apache.kafka.streams.KafkaStreams
-import org.apache.kafka.streams.kstream.KStreamBuilder
+import org.apache.kafka.streams.StreamsBuilder
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.StorageConnection
 import org.esciencecloud.storage.ext.StorageConnectionFactory
 import org.esciencecloud.storage.ext.irods.IRodsConnectionInformation
 import org.esciencecloud.storage.ext.irods.IRodsStorageConnectionFactory
-import org.esciencecloud.storage.model.RequestHeader
-import org.esciencecloud.storage.model.addShutdownHook
+import dk.sdu.cloud.storage.model.RequestHeader
+import dk.sdu.cloud.storage.model.addShutdownHook
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
@@ -95,7 +95,7 @@ fun main(args: Array<String>) {
     val restServer = StorageRestServer(configuration, storageService).create()
 
     val streams = KafkaStreams(
-            KStreamBuilder().apply { streamProcessor.constructStreams(this) },
+            StreamsBuilder().apply { streamProcessor.constructStreams(this) }.build(),
             streamProcessor.retrieveKafkaConfiguration()
     )
 
@@ -167,5 +167,5 @@ class IRodsStorageService(
     override val storageFactory: StorageConnectionFactory = IRodsStorageConnectionFactory(connectionInformation)
 
     //override val adminConnection: StorageConnection =
-     //       storageFactory.createForAccount(adminUsername, adminPassword).orThrow()
+    //       storageFactory.createForAccount(adminUsername, adminPassword).orThrow()
 }

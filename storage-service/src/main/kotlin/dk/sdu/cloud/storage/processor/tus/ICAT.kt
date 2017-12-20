@@ -1,6 +1,6 @@
-package org.esciencecloud.storage.processor.tus
+package dk.sdu.cloud.storage.processor.tus
 
-import org.esciencecloud.storage.processor.TusConfiguration
+import dk.sdu.cloud.storage.processor.TusConfiguration
 import java.sql.Connection
 import java.sql.DriverManager
 

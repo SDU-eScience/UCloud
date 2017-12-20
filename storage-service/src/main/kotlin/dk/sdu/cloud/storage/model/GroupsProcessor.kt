@@ -1,9 +1,9 @@
-package org.esciencecloud.storage.model
+package dk.sdu.cloud.storage.model
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.apache.kafka.common.serialization.Serdes
-import org.esciencecloud.kafka.JsonSerde.jsonSerde
 
 object GroupsProcessor {
     val Groups = RequestResponseStream<String, GroupEvent>("groups", Serdes.String(), jsonSerde(), jsonSerde())

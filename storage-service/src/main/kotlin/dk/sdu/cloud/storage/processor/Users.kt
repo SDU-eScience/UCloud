@@ -1,16 +1,16 @@
-package org.esciencecloud.storage.processor
+package dk.sdu.cloud.storage.processor
 
-import org.apache.kafka.streams.kstream.KStreamBuilder
+import org.apache.kafka.streams.StreamsBuilder
 import org.esciencecloud.storage.Error
 import org.esciencecloud.storage.Ok
 import org.esciencecloud.storage.Result
 import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.model.Request
-import org.esciencecloud.storage.model.UserEvent
-import org.esciencecloud.storage.model.UserProcessor
+import dk.sdu.cloud.storage.model.Request
+import dk.sdu.cloud.storage.model.UserEvent
+import dk.sdu.cloud.storage.model.UserProcessor
 
 class Users(private val storageService: StorageService) {
-    fun initStream(builder: KStreamBuilder) {
+    fun initStream(builder: StreamsBuilder) {
         UserProcessor.UserEvents.process(builder) { _, request ->
             val connection = storageService.validateRequest(request.header).capture() ?:
                     return@process Result.lastError<Unit>()

@@ -1,9 +1,10 @@
-package org.esciencecloud.storage.model
+package dk.sdu.cloud.storage.model
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.apache.kafka.common.serialization.Serdes
-import org.esciencecloud.kafka.JsonSerde.jsonSerde
+import org.esciencecloud.storage.model.UserType
 
 // Shared interface stuff. Should be published as a separate artifact
 // These artifacts should be shared with others, such that they may be used for types
