@@ -1,6 +1,8 @@
 package dk.sdu.cloud.transactions
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import dk.sdu.cloud.service.ZooKeeperConnection
+import dk.sdu.cloud.service.ZooKeeperHostInfo
 import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
@@ -12,8 +14,6 @@ import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
-import org.esciencecloud.service.ZooKeeperConnection
-import org.esciencecloud.service.ZooKeeperHostInfo
 import dk.sdu.cloud.transactions.util.stackTraceToString
 import org.slf4j.LoggerFactory
 import java.io.File

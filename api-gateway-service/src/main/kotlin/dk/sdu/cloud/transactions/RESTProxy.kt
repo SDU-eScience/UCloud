@@ -1,5 +1,7 @@
 package dk.sdu.cloud.transactions
 
+import dk.sdu.cloud.service.RequestHeader
+import dk.sdu.cloud.service.listServicesWithStatus
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.ContentType
@@ -14,10 +16,6 @@ import io.ktor.routing.method
 import io.ktor.routing.route
 import org.apache.zookeeper.ZooKeeper
 import org.esciencecloud.client.HttpClient
-import org.esciencecloud.client.addBasicAuth
-import org.esciencecloud.service.ProxyClient
-import org.esciencecloud.service.RequestHeader
-import org.esciencecloud.service.listServicesWithStatus
 import dk.sdu.cloud.transactions.util.stackTraceToString
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
@@ -86,7 +84,7 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
         // TODO We also currently assume this to be text
         val resp = try {
             HttpClient.get(endpointUrl.toString()) {
-                addBasicAuth(header.performedFor.username, header.performedFor.password)
+                setHeader(HttpHeaders.Authorization, "Bearer ${header.performedFor}")
                 setHeader(HttpHeaders.Accept, ContentType.Application.Json.toString())
                 setHeader("Job-Id", header.uuid)
 
@@ -105,20 +103,18 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
 suspend fun ApplicationCall.validateRequestAndPrepareJobHeader(respond: Boolean = true): RequestHeader? {
     // TODO This probably shouldn't do a response for us
     val jobId = UUID.randomUUID().toString()
-    val (username, password) = request.basicAuth() ?: return run {
+    val token = request.bearer() ?: return run {
         if (respond) respond(HttpStatusCode.Unauthorized)
         else response.status(HttpStatusCode.Unauthorized)
 
         null
     }
-    return RequestHeader(jobId, ProxyClient(username, password))
+    return RequestHeader(jobId, token)
 }
 
-fun ApplicationRequest.basicAuth(): Pair<String, String>? {
+fun ApplicationRequest.bearer(): String? {
     val auth = authorization() ?: return null
-    if (!auth.startsWith("Basic ")) return null
-    val decoded = String(Base64.getDecoder().decode(auth.substringAfter("Basic ")))
-    if (decoded.indexOf(':') == -1) return null
+    if (!auth.startsWith("Bearer ")) return null
 
-    return Pair(decoded.substringBefore(':'), decoded.substringAfter(':'))
+    return auth.substringAfter("Bearer ")
 }

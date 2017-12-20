@@ -43,10 +43,10 @@ data class KafkaRequest<out EventType>(val header: RequestHeader, val event: Eve
 
 data class RequestHeader(
         val uuid: String,
-        val performedFor: ProxyClient
+        val performedFor: JWTToken
 )
 
-data class ProxyClient(val username: String, val password: String)
+typealias JWTToken = String
 
 class KafkaMappingDescription<R : Any, K : Any, V : Any>(
         val topicName: String,

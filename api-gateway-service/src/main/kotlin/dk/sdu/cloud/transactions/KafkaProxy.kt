@@ -1,11 +1,11 @@
 package dk.sdu.cloud.transactions
 
+import dk.sdu.cloud.service.*
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.esciencecloud.client.GatewayJobResponse
-import org.esciencecloud.service.*
 import org.slf4j.LoggerFactory
 
 class KafkaProxy(val targets: List<ServiceDefinition>, val producer: KafkaProducer<String, String>) {
@@ -35,14 +35,6 @@ class KafkaProxy(val targets: List<ServiceDefinition>, val producer: KafkaProduc
         }
     }
 
-    // TODO Something wrong with types...
-    /*
-    private suspend fun <R : Any, K : Any, V : Any> RESTHandler<R, GatewayJobResponse, GatewayJobResponse>.proxyKafka(
-            mappingDescription: KafkaMappingDescription<R, K, V>,
-            producer: EventProducer<K, V>,
-            request: R
-    ) {
-    */
     private suspend fun RESTHandler<*, GatewayJobResponse, GatewayJobResponse>.proxyKafka(
             mappingDescription: KafkaMappingDescription<Any, Any, Any>,
             producer: EventProducer<Any, Any>,

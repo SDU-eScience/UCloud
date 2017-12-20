@@ -1,9 +1,9 @@
 package dk.sdu.cloud.transactions
 
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import org.esciencecloud.client.RESTDescriptions
-import org.esciencecloud.service.KafkaDescriptions
+import dk.sdu.cloud.service.KafkaDescriptions
 import dk.sdu.cloud.transactions.util.stackTraceToString
+import org.esciencecloud.client.RESTDescriptions
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
