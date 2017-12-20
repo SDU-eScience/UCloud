@@ -1,5 +1,5 @@
 <template>
-    <a href="/statusoverview" class="btn btn-info" :title="status.body" :class="[statusToButton()]">{{ status.title }}</a>
+    <a href="/statusoverview" class="btn btn-info hidden-md center-text" :title="status.body" :class="[statusToButton()]">{{ status.title }}</a>
 </template>
 
 <script>

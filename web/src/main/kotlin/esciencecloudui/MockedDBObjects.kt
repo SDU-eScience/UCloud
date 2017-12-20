@@ -2,13 +2,14 @@ package esciencecloudui
 
 /* Possible types: integer, text, float, input_file, ~output_file~ */
 data class ApplicationField(val name: String, val prettyName: String, val description: String, val type: String, val defaultValue: String?, val isOptional: Boolean)
+
 data class ApplicationAbacus(val info: ApplicationInfo, val parameters: List<ApplicationField>)
 data class ApplicationInfo(val name: String, val version: String, val rating: Double = 5.0, val isPrivate: Boolean = false, val description: String = "An app to be run on Abacus", val author: String = "Anyone")
 data class Workflow(val name: String, val applications: ArrayList<ApplicationAbacus>)
 data class Analysis(val name: String, val status: String, var comments: List<Comment> = emptyList())
 data class Notification(val message: String, val body: String, val timestamp: Long, val type: String, val jobId: String)
 data class Comment(val author: String, val content: String, val timestamp: Long = 0)
-data class Message(val from:String, val fromDate:Long, val content:String)
+data class Message(val from: String, val fromDate: Long, val content: String)
 
 val messages = arrayListOf(
         Message("Dan Sebastian Thrane", 1, "I have a genuine dislike of iRODS."),
@@ -23,11 +24,11 @@ val messages = arrayListOf(
 
 val applications = arrayListOf(
         ApplicationAbacus(ApplicationInfo("Particle Simulator", "1.0"),
-                arrayListOf(ApplicationField("input", "Input File","The input file for the application.", "input_file", null, false),
-                        ApplicationField("speed", "MPI Threads", "The number of MPI threads to be used.", "integer", "4",true))),
+                arrayListOf(ApplicationField("input", "Input File", "The input file for the application.", "input_file", null, false),
+                        ApplicationField("speed", "MPI Threads", "The number of MPI threads to be used.", "integer", "4", true))),
         ApplicationAbacus(ApplicationInfo("Particle Simulation Video Generator", "5.0"),
                 arrayListOf(ApplicationField("input", "Input file", "The input file containing the results of a particle simulation.", "input_file", null, false),
-                        ApplicationField("format", "File format", "The format which the file should be outputted as. Possible values: ogg (default)", "text", "ogg",true))))
+                        ApplicationField("format", "File format", "The format which the file should be outputted as. Possible values: ogg (default)", "text", "ogg", true))))
 
 
 /* Types: Complete, In Progress, Pending, Failed */
@@ -77,3 +78,24 @@ object DashboardOptions {
                     // (OptionNode("Messages", "", "/activity/messages")),
                     (OptionNode("Notifications", "", "/activity/notifications")))))
 }
+
+data class Member(val name: String, val orcid: String = "")
+data class Project(val name: String, val members: List<Member>, val role: String, val type: String, val projectstart: Long, val projectend: Long, val description: String = "This is the placeholder description")
+
+val memberList = arrayListOf(Member("Thomas Andersen"),  Member("Anders Thomasen"), Member("Josiah Carberry", "0000-0002-1825-0097"))
+
+val dayInMillis = 1000 * 60 * 60 * 24
+val nowInMillis = System.currentTimeMillis()
+val tomorrowInMillis = nowInMillis + dayInMillis
+val yesterdayInMillis = nowInMillis - dayInMillis
+val weekInMillis = dayInMillis * 7
+
+val projects = arrayListOf(
+        Project("Scientific Software Designing", memberList + memberList + memberList, "ADMIN", "Type Field", yesterdayInMillis - (2 * dayInMillis), tomorrowInMillis + (2 * dayInMillis)),
+        Project("JSON Webtoken improvement", memberList, "Project lead", "Type field", nowInMillis + weekInMillis, nowInMillis + 2 * weekInMillis),
+        Project("JSON Webtoken improvement 2", memberList, "Project lead", "Type field", nowInMillis + weekInMillis, nowInMillis + 2 * weekInMillis),
+        Project("JSON Webtoken improvement 3", memberList, "Project lead", "Type field", nowInMillis + weekInMillis, nowInMillis + 2 * weekInMillis),
+        Project("JSON Webtoken improvement 4", memberList, "Project lead", "Type field", nowInMillis + weekInMillis, nowInMillis + 2 * weekInMillis),
+        Project("JSON Webtoken improvement 5", memberList, "Project lead", "Type field", nowInMillis + weekInMillis, nowInMillis + 2 * weekInMillis),
+        Project("JSON Webtoken improvement 6", memberList, "Project lead", "Type field", nowInMillis - 2 * weekInMillis, nowInMillis - weekInMillis)
+)

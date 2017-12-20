@@ -16,7 +16,7 @@
             <div class="card-body">
               <h3 data-type="textarea"
                   class="text-inherit editable editable-pre-wrapped editable-click editable-disabled" tabindex="-1">{{
-                status.body }}</h3>
+                 status.body }}</h3>
             </div>
           </form>
         </div>

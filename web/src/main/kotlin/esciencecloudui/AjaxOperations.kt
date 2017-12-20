@@ -68,6 +68,9 @@ class RecentActivity
 @location("/getStatus")
 class Status
 
+@location("/getProjects")
+class Projects
+
 //TODO - modifications must be made by backend provider
 
 fun Route.ajaxOperations() {
@@ -174,6 +177,10 @@ fun Route.ajaxOperations() {
     }
     get<Status> {
         call.respond(status)
+    }
+
+    get<Projects> {
+        call.respond(projects)
     }
 }
 

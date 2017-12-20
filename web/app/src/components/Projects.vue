@@ -1,324 +1,38 @@
 <template>
   <section>
     <div class="container container-fluid">
-      <div class="row">
-        <div class="col-md-6 col-lg-4">
-          <!-- Project card-->
+      <loading-icon v-cloak v-if="projectsLoading"></loading-icon>
+      <h4 v-if="!projects.length"><small>No projects associated with user found.</small></h4>
+      <div class="row" v-else>
+        <div v-for="project in projects" class="col-md-6 col-lg-4">
           <div class="card">
             <div class="card-heading">
               <div class="pull-right">
-                <div class="label label-info">active</div>
+                <div class="label" :class="labelColor(project)">{{ toStatusString(project) }}</div>
               </div>
-              <div class="card-title">Project #D</div>
-              <small>Web development</small>
+              <div class="card-title">{{ project.name}}</div>
+              <small>{{ project.type }}</small>
             </div>
-            <div class="card-body">
-              <p><strong>Description:</strong></p>
-              <div class="pl-lg mb-lg">Ut turpis urna, tristique sed adipiscing nec, luctus quis leo. Fusce nec volutpat
-                ante.
-              </div>
-              <p><strong>Members:</strong></p>
-              <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/03.jpg" alt="project member"
-                                                                      class="img-circle thumb32"></a><a href=""
-                                                                                                        class="inline"><img
-                src="/img/user/07.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/06.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/05.jpg" alt="project member" class="img-circle thumb32"></a></div>
+            <div class="card-body"><p><strong>Description:</strong></p>
+              <div class="pl-lg mb-lg">{{ project.description }}</div>
+              <p><strong>Team members:</strong></p>
+              <span class="pl-lg mb-lg" v-for="person in project.members">
+                <a v-if="person.orcid" class="inline" :href="'https://orcid.org/' + person.orcid">{{ person.name }}</a>
+                <span v-else>{{ person.name }}</span>
+                </span>
               <p><strong>Activity:</strong></p>
               <div class="pl-lg">
                 <ul class="list-inline m0">
-                  <li class="mr">
-                    <h4 class="m0">17</h4>
-                    <p class="text-muted">Issues</p>
-                  </li>
-                  <li class="mr">
-                    <h4 class="m0">780</h4>
-                    <p class="text-muted">Posts</p>
-                  </li>
-                  <li>
-                    <h4 class="m0">23</h4>
-                    <p class="text-muted">Tests</p>
-                  </li>
+                  <li class="mr"><h4 class="m0">{{ new
+                    Date(project.projectstart).toLocaleString() }}</h4>
+                    <p class="text-muted">Start time</p></li>
+                  <li class="mr"><h4 class="m0">{{ new
+                    Date(project.projectend).toLocaleString() }}</h4>
+                    <p class="text-muted">End time</p></li>
                 </ul>
               </div>
             </div>
-            <div class="card-footer">
-              <p>
-                <small>36%</small>
-              </p>
-              <div class="progress progress-xs m0">
-                <div style="width:36%" class="progress-bar progress-bar-warning"></div>
-              </div>
-            </div>
           </div>
-          <!-- end Project card-->
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <!-- Project card-->
-          <div class="card">
-            <div class="card-heading">
-              <div class="pull-right">
-                <div class="label label-info">active</div>
-              </div>
-              <div class="card-title">Project #A</div>
-              <small>Web development</small>
-            </div>
-            <div class="card-body">
-              <p><strong>Description:</strong></p>
-              <div class="pl-lg mb-lg">Ut turpis urna, tristique sed adipiscing nec, luctus quis leo. Fusce nec volutpat
-                ante.
-              </div>
-              <p><strong>Members:</strong></p>
-              <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/02.jpg" alt="project member"
-                                                                      class="img-circle thumb32"></a><a href=""
-                                                                                                        class="inline"><img
-                src="/img/user/04.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/05.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/06.jpg" alt="project member" class="img-circle thumb32"></a></div>
-              <p><strong>Activity:</strong></p>
-              <div class="pl-lg">
-                <ul class="list-inline m0">
-                  <li class="mr">
-                    <h4 class="m0">17</h4>
-                    <p class="text-muted">Issues</p>
-                  </li>
-                  <li class="mr">
-                    <h4 class="m0">780</h4>
-                    <p class="text-muted">Posts</p>
-                  </li>
-                  <li>
-                    <h4 class="m0">23</h4>
-                    <p class="text-muted">Tests</p>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="card-footer">
-              <p>
-                <small>56%</small>
-              </p>
-              <div class="progress progress-xs m0">
-                <div style="width:56%" class="progress-bar progress-bar-info"></div>
-              </div>
-            </div>
-          </div>
-          <!-- end Project card-->
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <!-- Project card-->
-          <div class="card">
-            <div class="card-heading">
-              <div class="pull-right">
-                <div class="label label-success">completed</div>
-              </div>
-              <div class="card-title">Project #B</div>
-              <small>Web development</small>
-            </div>
-            <div class="card-body">
-              <p><strong>Description:</strong></p>
-              <div class="pl-lg mb-lg">Ut turpis urna, tristique sed adipiscing nec, luctus quis leo. Fusce nec volutpat
-                ante.
-              </div>
-              <p><strong>Members:</strong></p>
-              <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/04.jpg" alt="project member"
-                                                                      class="img-circle thumb32"></a><a href=""
-                                                                                                        class="inline"><img
-                src="/img/user/03.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/07.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/03.jpg" alt="project member" class="img-circle thumb32"></a></div>
-              <p><strong>Activity:</strong></p>
-              <div class="pl-lg">
-                <ul class="list-inline m0">
-                  <li class="mr">
-                    <h4 class="m0">17</h4>
-                    <p class="text-muted">Issues</p>
-                  </li>
-                  <li class="mr">
-                    <h4 class="m0">780</h4>
-                    <p class="text-muted">Posts</p>
-                  </li>
-                  <li>
-                    <h4 class="m0">23</h4>
-                    <p class="text-muted">Tests</p>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="card-footer">
-              <p>
-                <small>100%</small>
-              </p>
-              <div class="progress progress-xs m0">
-                <div style="width:100%" class="progress-bar progress-bar-success"></div>
-              </div>
-            </div>
-          </div>
-          <!-- end Project card-->
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <!-- Project card-->
-          <div class="card">
-            <div class="card-heading">
-              <div class="pull-right">
-                <div class="label label-warning">paused</div>
-              </div>
-              <div class="card-title">Project #C</div>
-              <small>Web development</small>
-            </div>
-            <div class="card-body">
-              <p><strong>Description:</strong></p>
-              <div class="pl-lg mb-lg">Ut turpis urna, tristique sed adipiscing nec, luctus quis leo. Fusce nec volutpat
-                ante.
-              </div>
-              <p><strong>Members:</strong></p>
-              <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/04.jpg" alt="project member"
-                                                                      class="img-circle thumb32"></a><a href=""
-                                                                                                        class="inline"><img
-                src="/img/user/03.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/07.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/03.jpg" alt="project member" class="img-circle thumb32"></a></div>
-              <p><strong>Activity:</strong></p>
-              <div class="pl-lg">
-                <ul class="list-inline m0">
-                  <li class="mr">
-                    <h4 class="m0">17</h4>
-                    <p class="text-muted">Issues</p>
-                  </li>
-                  <li class="mr">
-                    <h4 class="m0">780</h4>
-                    <p class="text-muted">Posts</p>
-                  </li>
-                  <li>
-                    <h4 class="m0">23</h4>
-                    <p class="text-muted">Tests</p>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="card-footer">
-              <p>
-                <small>64%</small>
-              </p>
-              <div class="progress progress-xs m0">
-                <div style="width:64%" class="progress-bar progress-bar-success"></div>
-              </div>
-            </div>
-          </div>
-          <!-- end Project card-->
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <!-- Project card-->
-          <div class="card">
-            <div class="card-heading">
-              <div class="pull-right">
-                <div class="label label-info">active</div>
-              </div>
-              <div class="card-title">Project #D</div>
-              <small>Web development</small>
-            </div>
-            <div class="card-body">
-              <p><strong>Description:</strong></p>
-              <div class="pl-lg mb-lg">Ut turpis urna, tristique sed adipiscing nec, luctus quis leo. Fusce nec volutpat
-                ante.
-              </div>
-              <p><strong>Members:</strong></p>
-              <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/03.jpg" alt="project member"
-                                                                      class="img-circle thumb32"></a><a href=""
-                                                                                                        class="inline"><img
-                src="/img/user/07.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/06.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/05.jpg" alt="project member" class="img-circle thumb32"></a></div>
-              <p><strong>Activity:</strong></p>
-              <div class="pl-lg">
-                <ul class="list-inline m0">
-                  <li class="mr">
-                    <h4 class="m0">17</h4>
-                    <p class="text-muted">Issues</p>
-                  </li>
-                  <li class="mr">
-                    <h4 class="m0">780</h4>
-                    <p class="text-muted">Posts</p>
-                  </li>
-                  <li>
-                    <h4 class="m0">23</h4>
-                    <p class="text-muted">Tests</p>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="card-footer">
-              <p>
-                <small>36%</small>
-              </p>
-              <div class="progress progress-xs m0">
-                <div style="width:36%" class="progress-bar progress-bar-warning"></div>
-              </div>
-            </div>
-          </div>
-          <!-- end Project card-->
-        </div>
-        <div class="col-md-6 col-lg-4">
-          <!-- Project card-->
-          <div class="card">
-            <div class="card-heading">
-              <div class="pull-right">
-                <div class="label label-info">active</div>
-              </div>
-              <div class="card-title">Project #A</div>
-              <small>Web development</small>
-            </div>
-            <div class="card-body">
-              <p><strong>Description:</strong></p>
-              <div class="pl-lg mb-lg">Ut turpis urna, tristique sed adipiscing nec, luctus quis leo. Fusce nec volutpat
-                ante.
-              </div>
-              <p><strong>Members:</strong></p>
-              <div class="pl-lg mb-lg"><a href="" class="inline"><img src="/img/user/02.jpg" alt="project member"
-                                                                      class="img-circle thumb32"></a><a href=""
-                                                                                                        class="inline"><img
-                src="/img/user/04.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/05.jpg" alt="project member" class="img-circle thumb32"></a><a href=""
-                                                                                              class="inline"><img
-                src="/img/user/06.jpg" alt="project member" class="img-circle thumb32"></a></div>
-              <p><strong>Activity:</strong></p>
-              <div class="pl-lg">
-                <ul class="list-inline m0">
-                  <li class="mr">
-                    <h4 class="m0">17</h4>
-                    <p class="text-muted">Issues</p>
-                  </li>
-                  <li class="mr">
-                    <h4 class="m0">780</h4>
-                    <p class="text-muted">Posts</p>
-                  </li>
-                  <li>
-                    <h4 class="m0">23</h4>
-                    <p class="text-muted">Tests</p>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="card-footer">
-              <p>
-                <small>56%</small>
-              </p>
-              <div class="progress progress-xs m0">
-                <div style="width:56%" class="progress-bar progress-bar-info"></div>
-              </div>
-            </div>
-          </div>
-          <!-- end Project card-->
         </div>
       </div>
     </div>
@@ -326,13 +40,72 @@
 </template>
 
 <script>
+  import $ from 'jquery';
+  import LoadingIcon from "./LoadingIcon";
 
   export default {
-    components: {},
-    name: "projects"
+    components: {LoadingIcon},
+    name: "projects",
+    data() {
+      return {
+        projectsLoading: false,
+        projects: {}
+      }
+    },
+    mounted() {
+      this.projectsLoading = true;
+      $.getJSON("/api/getProjects/").then( (projects) => {
+        this.projects = projects;
+        this.projects.forEach( (it) => {
+          it.members.sort((a, b) => {
+            return a.name.localeCompare(b.name)
+          });
+        });
+        this.projectsLoading = false;
+      });
+    },
+    methods: {
+      toInitials(name) {
+        let initials = "";
+        name.split(" ").forEach((it) => {
+          initials +=  it[0];
+        });
+        return initials;
+      },
+      toStatusString(project) {
+        let now = new Date();
+        if (now < project.projectstart) {
+          return "Upcoming";
+        } else if (now < project.projectend) {
+          return "Active";
+        } else {
+          return "Completed";
+        }
+      },
+      labelColor(project) {
+        let name = this.toStatusString(project);
+        switch (name) {
+          case "Upcoming":
+            return "label-info";
+          case "Active":
+            return "label-success";
+          case "Completed":
+            return "label-primary";
+          default:
+            return "label-basic";
+        }
+      }
+    }
   }
 </script>
 
 <style scoped>
-
+  .flex-container {
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    -ms-flex-wrap: wrap;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+  }
 </style>
