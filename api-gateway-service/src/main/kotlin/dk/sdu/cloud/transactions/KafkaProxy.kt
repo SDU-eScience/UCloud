@@ -5,7 +5,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.apache.kafka.clients.producer.KafkaProducer
-import org.esciencecloud.client.GatewayJobResponse
+import dk.sdu.cloud.client.GatewayJobResponse
 import org.slf4j.LoggerFactory
 
 class KafkaProxy(val targets: List<ServiceDefinition>, val producer: KafkaProducer<String, String>) {

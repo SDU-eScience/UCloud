@@ -11,14 +11,14 @@ import dk.sdu.cloud.abc.services.ssh.scpUpload
 import dk.sdu.cloud.abc.stackTraceToString
 import dk.sdu.cloud.abc.util.BashEscaper
 import dk.sdu.cloud.service.KafkaRequest
-import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.Ok
-import org.esciencecloud.storage.Result
-import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.ext.StorageConnectionFactory
-import org.esciencecloud.storage.ext.StorageException
-import org.esciencecloud.storage.model.FileStat
-import org.esciencecloud.storage.model.StoragePath
+import dk.sdu.cloud.storage.Error
+import dk.sdu.cloud.storage.Ok
+import dk.sdu.cloud.storage.Result
+import dk.sdu.cloud.storage.ext.StorageConnection
+import dk.sdu.cloud.storage.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.ext.StorageException
+import dk.sdu.cloud.storage.model.FileStat
+import dk.sdu.cloud.storage.model.StoragePath
 import org.slf4j.LoggerFactory
 import java.net.URI
 

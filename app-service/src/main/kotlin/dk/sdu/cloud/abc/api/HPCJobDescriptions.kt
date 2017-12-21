@@ -1,7 +1,6 @@
 package dk.sdu.cloud.abc.api
 
-import kotlinx.coroutines.experimental.runBlocking
-import org.esciencecloud.client.*
+import dk.sdu.cloud.client.*
 
 object HPCJobDescriptions : RESTDescriptions() {
     private val baseContext = "/api/hpc/jobs"
@@ -24,11 +23,3 @@ object HPCJobDescriptions : RESTDescriptions() {
 data class FindByName(val name: String)
 data class FindByNameAndVersion(val name: String, val version: String)
 data class FindById(val id: String)
-
-fun main() = runBlocking {
-    val cloud = EScienceCloud("")
-    val authenticated = cloud.basicAuth("", "k")
-
-    HPCJobDescriptions.listRecent.call(authenticated)
-    HPCJobDescriptions.findById.call(FindById("test"), authenticated)
-}

@@ -1,4 +1,4 @@
-package org.esciencecloud.client
+package dk.sdu.cloud.client
 
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.Response

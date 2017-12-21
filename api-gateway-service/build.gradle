@@ -21,8 +21,16 @@ repositories {
     mavenCentral()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
         credentials {
             username(eScienceCloudUser)
             password(eScienceCloudPassword)

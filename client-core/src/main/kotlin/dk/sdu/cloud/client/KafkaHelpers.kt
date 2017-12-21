@@ -1,4 +1,4 @@
-package org.esciencecloud.client
+package dk.sdu.cloud.client
 
 typealias KafkaCallDescription<R> = RESTCallDescription<R, GatewayJobResponse, GatewayJobResponse>
 typealias KafkaCallDescriptionBundle<R> = List<RESTCallDescription<out R, GatewayJobResponse, GatewayJobResponse>>

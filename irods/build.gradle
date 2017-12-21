@@ -32,7 +32,20 @@ repositories {
     maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
     maven { url "http://download.osgeo.org/webdav/geotools" }
 
-    maven { url(eScienceCloudRepository) }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
 }
 
 dependencies {
@@ -70,7 +83,10 @@ publishing {
 
     repositories {
         maven {
-            url("https://cloud.sdu.dk/archiva/repository/internal")
+            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
+            else resolvedUrl += "internal"
+            url(resolvedUrl)
             credentials {
                 username(eScienceCloudUser)
                 password(eScienceCloudPassword)

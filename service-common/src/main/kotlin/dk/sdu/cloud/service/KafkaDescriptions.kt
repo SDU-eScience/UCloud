@@ -12,8 +12,8 @@ import org.apache.kafka.streams.kstream.Serialized
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore
 import org.apache.kafka.streams.state.StreamsMetadata
-import org.esciencecloud.client.KafkaCallDescription
-import org.esciencecloud.client.KafkaCallDescriptionBundle
+import dk.sdu.cloud.client.KafkaCallDescription
+import dk.sdu.cloud.client.KafkaCallDescriptionBundle
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer

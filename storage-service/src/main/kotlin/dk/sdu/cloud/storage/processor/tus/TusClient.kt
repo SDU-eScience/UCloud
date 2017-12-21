@@ -16,6 +16,7 @@ fun main(args: Array<String>) {
     urlStore[upload.fingerprint] = URL("http://localhost:42100/api/tus/74c2dbf9-c444-4d88-9b42-e292eaf204a5")
     //urlStore[upload.fingerprint] = URL("http://localhost:8080/")
     val auth = Base64.getEncoder().encode("rods:rods".toByteArray()).toString(Charsets.UTF_8)
+    // TODO This will need to be tweaked to use JWTs (obviously)
     client.headers = mapOf(
             "Authorization" to "Basic $auth",
             "Job-Id" to "1234"

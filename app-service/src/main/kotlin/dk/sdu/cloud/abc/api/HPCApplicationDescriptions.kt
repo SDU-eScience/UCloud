@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaRequest
 import io.netty.handler.codec.http.HttpMethod
-import org.esciencecloud.client.KafkaCallDescriptionBundle
-import org.esciencecloud.client.RESTDescriptions
-import org.esciencecloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.client.KafkaCallDescriptionBundle
+import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.bindEntireRequestFromBody
 
 object HPCApplicationDescriptions : RESTDescriptions() {
     private val baseContext = "/api/hpc/apps/"

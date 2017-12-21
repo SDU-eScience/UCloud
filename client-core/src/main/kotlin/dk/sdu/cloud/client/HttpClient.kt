@@ -1,4 +1,4 @@
-package org.esciencecloud.client
+package dk.sdu.cloud.client
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper

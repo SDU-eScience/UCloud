@@ -2,7 +2,7 @@ group 'org.esciencecloud'
 version '0.1.0'
 
 buildscript {
-    ext.kotlin_version = '1.2.0'
+    ext.kotlin_version = '1.2.10'
     ext.ktor_version = '0.9.1-alpha-8'
 
     repositories {
@@ -24,6 +24,15 @@ repositories {
     mavenLocal()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
+
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
@@ -46,7 +55,7 @@ dependencies {
     // ------------
     // iRODS
     // ------------
-    compile "org.esciencecloud:cloud-storage:0.4.3"
+    compile "dk.sdu.cloud:cloud-storage:0.5.0-SNAPSHOT"
 
     // ------------
     // Logging
@@ -71,7 +80,7 @@ dependencies {
     // ------------
     compile 'com.google.guava:guava:23.4-jre'
 
-    compile 'org.esciencecloud.client:core:0.1.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:client-core:0.1.0-SNAPSHOT'
     compile 'dk.sdu.cloud:service-common:0.5.0-SNAPSHOT'
 }
 

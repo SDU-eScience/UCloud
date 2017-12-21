@@ -154,12 +154,4 @@ class StorageRestServer(private val configuration: Configuration, private val st
         return param.toBoolean()
     }
 
-    private fun ApplicationRequest.basicAuth(): Pair<String, String>? {
-        val auth = authorization() ?: return null
-        if (!auth.startsWith("Basic ")) return null
-        val decoded = String(Base64.getDecoder().decode(auth.substringAfter("Basic ")))
-        if (decoded.indexOf(':') == -1) return null
-
-        return Pair(decoded.substringBefore(':'), decoded.substringAfter(':'))
-    }
 }

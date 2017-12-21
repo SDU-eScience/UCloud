@@ -1,8 +1,8 @@
-group 'org.esciencecloud.client'
+group 'dk.sdu.cloud'
 version '0.1.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.0'
+    ext.kotlin_version = '1.2.10'
 
     repositories {
         mavenCentral()
@@ -18,8 +18,20 @@ apply plugin: 'maven-publish'
 repositories {
     mavenCentral()
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
     }
 }
 
@@ -62,7 +74,11 @@ publishing {
 
     repositories {
         maven {
-            url(eScienceCloudRepository)
+            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
+            else resolvedUrl += "internal"
+            url(resolvedUrl)
+
             credentials {
                 username(eScienceCloudUser)
                 password(eScienceCloudPassword)

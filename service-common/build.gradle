@@ -21,6 +21,21 @@ repositories {
     mavenCentral()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
 }
 
 dependencies {
@@ -39,7 +54,7 @@ dependencies {
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
 
     // Client dependencies (needed to export definitions to clients)
-    compile "org.esciencecloud.client:core:0.1.0-SNAPSHOT"
+    compile "dk.sdu.cloud:client-core:0.1.0-SNAPSHOT"
 
     // ktor
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
@@ -95,7 +110,11 @@ publishing {
     //
     repositories {
         maven {
-            url(eScienceCloudRepository)
+            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
+            else resolvedUrl += "internal"
+            url(resolvedUrl)
+
             credentials {
                 username(eScienceCloudUser)
                 password(eScienceCloudPassword)

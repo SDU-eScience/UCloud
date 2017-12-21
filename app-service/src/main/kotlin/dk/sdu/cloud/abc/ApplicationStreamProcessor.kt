@@ -31,11 +31,11 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.zookeeper.ZooDefs
-import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.ext.StorageConnection
-import org.esciencecloud.storage.ext.StorageConnectionFactory
-import org.esciencecloud.storage.ext.irods.IRodsConnectionInformation
-import org.esciencecloud.storage.ext.irods.IRodsStorageConnectionFactory
+import dk.sdu.cloud.storage.Error
+import dk.sdu.cloud.storage.ext.StorageConnection
+import dk.sdu.cloud.storage.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
+import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
@@ -145,27 +145,25 @@ class ApplicationStreamProcessor(
 
             route("api") {
                 route("hpc") {
-                    fun ApplicationRequest.basicAuth(): Pair<String, String>? {
+                    fun ApplicationRequest.bearer(): String? {
                         val auth = authorization() ?: return null
-                        if (!auth.startsWith("Basic ")) return null
-                        val decoded = String(Base64.getDecoder().decode(auth.substringAfter("Basic ")))
-                        if (decoded.indexOf(':') == -1) return null
-
-                        return Pair(decoded.substringBefore(':'), decoded.substringAfter(':'))
+                        if (!auth.startsWith("Bearer ")) return null
+                        return auth.substringAfter("Bearer ")
                     }
 
                     intercept(ApplicationCallPipeline.Infrastructure) {
-                        val (username, password) = call.request.basicAuth() ?: return@intercept run {
-                            call.respond(HttpStatusCode.Unauthorized)
-                            finish()
-                        }
-
-                        val connection = storageConnectionFactory.createForAccount(username, password).capture() ?:
+                        val token = call.request.bearer()?.let { TokenValidation.validateOrNull(it) } ?:
                                 return@intercept run {
                                     call.respond(HttpStatusCode.Unauthorized)
                                     finish()
-                                    return@intercept
                                 }
+
+                        val connection = storageConnectionFactory.createForAccount(token.subject,
+                                token.token).capture() ?: return@intercept run {
+                            call.respond(HttpStatusCode.Unauthorized)
+                            finish()
+                            return@intercept
+                        }
 
                         call.attributes.put(storageConnectionKey, connection)
                     }

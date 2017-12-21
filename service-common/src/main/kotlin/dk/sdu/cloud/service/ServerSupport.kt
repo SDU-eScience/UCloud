@@ -16,10 +16,10 @@ import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.util.DataConversionException
-import org.esciencecloud.client.RESTBody
-import org.esciencecloud.client.RESTCallDescription
-import org.esciencecloud.client.RESTPathSegment
-import org.esciencecloud.client.toKtorTemplate
+import dk.sdu.cloud.client.RESTBody
+import dk.sdu.cloud.client.RESTCallDescription
+import dk.sdu.cloud.client.RESTPathSegment
+import dk.sdu.cloud.client.toKtorTemplate
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
 import java.io.StringWriter

@@ -1,6 +1,6 @@
 package dk.sdu.cloud.abc.api
 
-import org.esciencecloud.client.RESTDescriptions
+import dk.sdu.cloud.client.RESTDescriptions
 
 object HPCToolDescriptions : RESTDescriptions() {
     private val baseContext = "/api/hpc/tools"

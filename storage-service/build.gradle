@@ -23,7 +23,20 @@ repositories {
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
     maven { url "https://dl.bintray.com/tus/maven" }
-    maven { url("https://cloud.sdu.dk/archiva/repository/internal") }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
 
     // Repositories required for iRODS to work
     maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
@@ -112,7 +125,10 @@ publishing {
 
     repositories {
         maven {
-            url("http://cloud.sdu.dk:8080/archiva/repository/internal")
+            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
+            else resolvedUrl += "internal"
+            url(resolvedUrl)
             credentials {
                 username(eScienceCloudUser)
                 password(eScienceCloudPassword)

@@ -16,7 +16,7 @@ import org.apache.kafka.streams.errors.InvalidStateStoreException
 import org.apache.kafka.streams.state.HostInfo
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.StreamsMetadata
-import org.esciencecloud.client.HttpClient
+import dk.sdu.cloud.client.HttpClient
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 

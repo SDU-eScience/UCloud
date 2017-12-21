@@ -15,7 +15,7 @@ import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
 import org.apache.zookeeper.ZooKeeper
-import org.esciencecloud.client.HttpClient
+import dk.sdu.cloud.client.HttpClient
 import dk.sdu.cloud.transactions.util.stackTraceToString
 import org.slf4j.LoggerFactory
 import java.net.ConnectException

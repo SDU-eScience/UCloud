@@ -9,7 +9,7 @@ import dk.sdu.cloud.auth.RequestAndRefreshToken
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.Auth
-import org.esciencecloud.service.forStream
+import dk.sdu.cloud.service.forStream
 import org.slf4j.LoggerFactory
 import java.time.LocalDateTime
 import java.time.ZoneId

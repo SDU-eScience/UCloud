@@ -2,13 +2,13 @@ package dk.sdu.cloud.abc.services.ssh
 
 import dk.sdu.cloud.abc.util.BashEscaper
 import dk.sdu.cloud.abc.util.CappedInputStream
-import org.esciencecloud.storage.ext.GuardedOutputStream
+import dk.sdu.cloud.storage.ext.GuardedOutputStream
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
-private val log = LoggerFactory.getLogger("org.esciencecloud.abc.scp")
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.abc.scp")
 
 private fun scpCheckAck(ins: InputStream): Int {
     val b = ins.read()

@@ -2,7 +2,6 @@ package dk.sdu.cloud.abc.processors
 
 import dk.sdu.cloud.abc.api.ApplicationParameter
 import dk.sdu.cloud.abc.api.HPCAppEvent
-import dk.sdu.cloud.abc.internalError
 import dk.sdu.cloud.abc.services.*
 import dk.sdu.cloud.abc.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.abc.services.ssh.scpDownload
@@ -10,11 +9,10 @@ import dk.sdu.cloud.abc.services.ssh.stat
 import dk.sdu.cloud.abc.util.BashEscaper
 import dk.sdu.cloud.abc.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.storage.ext.PermissionException
+import dk.sdu.cloud.storage.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.model.StoragePath
 import kotlinx.coroutines.experimental.runBlocking
-import org.esciencecloud.storage.Error
-import org.esciencecloud.storage.ext.PermissionException
-import org.esciencecloud.storage.ext.StorageConnectionFactory
-import org.esciencecloud.storage.model.StoragePath
 import org.irods.jargon.core.exception.FileNotFoundException
 import org.slf4j.LoggerFactory
 import java.net.URI
