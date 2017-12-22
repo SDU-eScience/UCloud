@@ -2,6 +2,7 @@ package dk.sdu.cloud.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import dk.sdu.cloud.client.*
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
 import io.ktor.application.application
@@ -16,10 +17,6 @@ import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.util.DataConversionException
-import dk.sdu.cloud.client.RESTBody
-import dk.sdu.cloud.client.RESTCallDescription
-import dk.sdu.cloud.client.RESTPathSegment
-import dk.sdu.cloud.client.toKtorTemplate
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -69,6 +66,18 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                         return@handle call.respond(HttpStatusCode.BadRequest)
                     }
 
+                    // Retrive arguments from query parameters (if any)
+                    val valuesFromParams = try {
+                        restCall.params?.let {
+                            it.parameters.mapNotNull { it.bindValuesFromCall(call) }.toMap()
+                        }
+                    } catch (ex: IllegalArgumentException) {
+                        return@handle call.respond(HttpStatusCode.BadRequest)
+                    } ?: emptyMap()
+
+                    val allValuesFromRequest = valuesFromPath + valuesFromParams
+
+                    // TODO We need to handle this case for params too. That is, if the entire thing is bound
                     if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
                         val constructor = restCall.requestType.primaryConstructor ?:
                                 restCall.requestType.constructors.single()
@@ -79,7 +88,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                                         "type. Please use a data class instead to solve this problem.")
                             }
 
-                            if (name !in valuesFromPath) {
+                            if (name !in allValuesFromRequest) {
                                 // If not found in path, check if this is param bound to the body
                                 if (restCall.body is RESTBody.BoundToSubProperty<*, *>) {
                                     val body = restCall.body as RESTBody.BoundToSubProperty
@@ -94,7 +103,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                                 throw IllegalStateException("The property '$name' was not bound in description!")
                             }
 
-                            it to valuesFromPath[name]
+                            it to allValuesFromRequest[name]
                         }.toMap()
 
                         try {
@@ -198,5 +207,31 @@ fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair
         }
 
         else -> null
+    }
+}
+
+fun <R : Any> RESTQueryParameter<R>.bindValuesFromCall(call: ApplicationCall): Pair<String, Any?>? {
+    return when (this) {
+        is RESTQueryParameter.Property<R, *> -> {
+            val parameter = call.request.queryParameters[property.name]
+            if (!property.returnType.isMarkedNullable && parameter == null) {
+                throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
+            }
+
+            val converted = if (parameter != null) {
+                try {
+                    call.application.conversionService.fromValues(listOf(parameter), property.returnType.javaType)
+                } catch (ex: DataConversionException) {
+                    throw IllegalArgumentException(ex)
+                } catch (ex: NoSuchElementException) {
+                    // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                    throw IllegalArgumentException(ex)
+                }
+            } else {
+                null
+            }
+
+            Pair(property.name, converted)
+        }
     }
 }

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.netty.handler.codec.http.HttpMethod
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.Response
+import java.net.URLEncoder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
@@ -14,6 +15,7 @@ data class RESTCallDescription<R : Any, S, E>(
         val method: HttpMethod,
         val path: RESTPath<R>,
         val body: RESTBody<R, *>?,
+        val params: RESTParams<R>?,
         val requestType: KClass<R>,
         val shouldProxyFromGateway: Boolean,
         val deserializerSuccess: ObjectReader,
@@ -32,7 +34,27 @@ data class RESTCallDescription<R : Any, S, E>(
             }
         }.joinToString("/")
 
-        val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath
+        val queryPathMap = params?.let {
+            it.parameters.mapNotNull {
+                when (it) {
+                    is RESTQueryParameter.Property<R, *> -> {
+                        it.property.get(payload)?.let { value ->
+                            Pair(it.property.name, value.toString())
+                        }
+                    }
+                }
+            }.toMap()
+        } ?: emptyMap()
+
+        fun String.urlEncode() = URLEncoder.encode(this, "UTF-8")
+
+        val queryPath = queryPathMap
+                .map { it.key.urlEncode() + "=" + it.value.urlEncode() }
+                .joinToString("&")
+                .takeIf { it.isNotEmpty() }
+                ?.let { "?$it" } ?: ""
+
+        val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
         return object : PreparedRESTCall<S, E>(resolvedPath) {
             override fun deserializeSuccess(response: Response): S {
                 return deserializerSuccess.readValue(response.responseBody)
@@ -87,6 +109,12 @@ sealed class RESTPathSegment<R : Any> {
     data class Simple<R : Any>(val text: String) : RESTPathSegment<R>()
     data class Property<R : Any, P>(val property: KProperty1<R, P>) : RESTPathSegment<R>()
     class Remaining<R : Any> : RESTPathSegment<R>()
+}
+
+data class RESTParams<R : Any>(val parameters: List<RESTQueryParameter<R>>)
+
+sealed class RESTQueryParameter<R : Any> {
+    data class Property<R : Any, P>(val property: KProperty1<R, P>) : RESTQueryParameter<R>()
 }
 
 inline fun <reified T : Any, reified E : Any> preparedCallWithJsonOutput(

@@ -20,6 +20,7 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
     var shouldProxyFromGateway: Boolean = true
     internal var path: RESTPath<R>? = null
     internal var body: RESTBody<R, *>? = null
+    internal var params: RESTParams<R>? = null
 
     fun path(body: RESTCallPathBuilder<R>.() -> Unit) {
         if (path != null) throw RESTDSLException("Cannot supply two path blocks!")
@@ -31,6 +32,11 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
         body = RESTCallBodyBuilder(this).also(builderBody).body ?: throw RESTDSLException("Missing entries in body{}")
     }
 
+    fun params(builderBody: RESTCallQueryParamsBuilder<R>.() -> Unit) {
+        if (params != null) throw RESTDSLException("Cannot supply two param blocks!")
+        params = RESTCallQueryParamsBuilder<R>().also(builderBody).build()
+    }
+
     fun build(additionalConfiguration: (BoundRequestBuilder.(R) -> Unit)?): RESTCallDescription<R, S, E> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
 
@@ -38,6 +44,7 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
                 method,
                 path,
                 body,
+                params,
                 requestType,
                 shouldProxyFromGateway,
                 deserializerSuccess,
@@ -45,6 +52,25 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
                 additionalConfiguration
         )
     }
+}
+
+@RESTCallDSL
+class RESTCallQueryParamsBuilder<R : Any> {
+    private val params = ArrayList<RESTQueryParameter<R>>()
+
+    private fun addParam(param: RESTQueryParameter<R>) {
+        params.add(param)
+    }
+
+    operator fun RESTQueryParameter<R>.unaryPlus() {
+        addParam(this)
+    }
+
+    fun boundTo(property: KProperty1<R, *>): RESTQueryParameter<R> {
+        return RESTQueryParameter.Property(property)
+    }
+
+    fun build(): RESTParams<R> = RESTParams(params)
 }
 
 @RESTCallDSL
