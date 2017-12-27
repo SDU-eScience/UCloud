@@ -19,7 +19,7 @@
               <span class="pl-lg mb-lg" v-for="person in project.members">
                 <a v-if="person.orcid" class="inline" :href="'https://orcid.org/' + person.orcid">{{ person.name }}</a>
                 <span v-else>{{ person.name }}</span>
-                </span>
+              </span>
               <p><strong>Activity:</strong></p>
               <div class="pl-lg">
                 <ul class="list-inline m0">

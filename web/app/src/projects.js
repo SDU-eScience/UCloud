@@ -1,15 +1,9 @@
-import Vue from 'vue'
-import Projects from './components/Projects'
-import Status from './status'
 
-Vue.config.productionTip = false;
+import React from 'react';
+import { ProjectsOverviewComponent } from './components/Projects'
+import ReactDOM from 'react-dom';
 
-
-/* eslint-disable no-new */
-new Vue({
-  el: '#app',
-  template: '<Projects/>',
-  components: { Projects }
-});
-
-Status();
+ReactDOM.render(
+  <ProjectsOverviewComponent/>,
+  document.getElementById('app')
+);

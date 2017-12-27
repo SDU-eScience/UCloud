@@ -211,7 +211,7 @@ function DashboardRecentActivity(props) {
       </td>
       <th className="mda-list-item-text mda-2-line">
         <small>{ activity.message }</small>
-        <br></br>
+        <br/>
           <small className="text-muted">{ new Date(activity.timestamp).toLocaleString() }</small>
       </th>
       <td className="text">{ activity.body }</td>
@@ -244,7 +244,7 @@ function NotificationIcon(props) {
   } else if (props.type === "In Progress") {
     return (<div className="initial32 bg-blue-500">...</div>)
   } else if (props.type === "Pending") {
-    return (<div className="initial32 bg-blue-500"></div>)
+    return (<div className="initial32 bg-blue-500"/>)
   } else if (props.type === "Failed") {
     return (<div className="initial32 bg-red-500">&times;</div>)
   } else {
