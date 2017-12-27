@@ -21,8 +21,11 @@ import java.net.URI
 import java.nio.ByteBuffer
 import java.util.*
 
-class TusController(private val config: TusConfiguration) {
+class TusController(config: TusConfiguration) {
+    // TODO Store this in a persistent store
+    // (We can use something simple for this initially, just be careful not to bottleneck)
     private val activeTransfers = HashMap<String, InitiatedTransferState>()
+
     private val log = LoggerFactory.getLogger("TUS")
     private val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
     private val icat = ICAT(config)

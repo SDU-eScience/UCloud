@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.processor
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import dk.sdu.cloud.service.RequestHeader
+import dk.sdu.cloud.service.implement
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -14,7 +15,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
-import io.ktor.request.authorization
 import io.ktor.response.ApplicationSendPipeline
 import io.ktor.response.respond
 import io.ktor.response.respondText
@@ -28,12 +28,12 @@ import io.ktor.util.AttributeKey
 import dk.sdu.cloud.storage.Error
 import dk.sdu.cloud.storage.Ok
 import dk.sdu.cloud.storage.Result
+import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.model.StoragePath
 import dk.sdu.cloud.storage.processor.tus.TusController
 import io.ktor.http.HttpHeaders
 import io.ktor.request.header
-import java.util.*
 
 class StorageRestServer(private val configuration: Configuration, private val storageService: StorageService) {
     companion object {
@@ -93,6 +93,18 @@ class StorageRestServer(private val configuration: Configuration, private val st
                     val connection = call.attributes[StorageSession]
                     val path = queryParamOrBad("path") ?: return@get
                     produceResult(call, connection.fileQuery.listAt(connection.parsePath(path)))
+                }
+                route("files") {
+                    implement(FileDescriptions.listAtPath) {
+                        val connection = call.attributes[StorageSession]
+                        val result = connection.fileQuery.listAt(connection.parsePath(it.path)).capture()
+                        val err = Result.lastError<Any>()
+                        if (result != null) {
+                            ok(result)
+                        } else {
+                            error("status" to err.message, HttpStatusCode.InternalServerError)
+                        }
+                    }
                 }
 
                 get("acl") {

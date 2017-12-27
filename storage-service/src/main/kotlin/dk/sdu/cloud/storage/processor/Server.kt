@@ -12,7 +12,7 @@ import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
-import dk.sdu.cloud.storage.model.addShutdownHook
+import dk.sdu.cloud.storage.util.addShutdownHook
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
@@ -87,39 +87,8 @@ fun main(args: Array<String>) {
         )
     }
 
-    val streamProcessor = StorageStreamProcessor(storageService, configuration.kafka)
     val restServer = StorageRestServer(configuration, storageService).create()
-
-    val streams = KafkaStreams(
-            StreamsBuilder().apply { streamProcessor.constructStreams(this) }.build(),
-            streamProcessor.retrieveKafkaConfiguration()
-    )
-
-    streams.setStateListener { newState, _ ->
-        when (newState) {
-            KafkaStreams.State.PENDING_SHUTDOWN, KafkaStreams.State.NOT_RUNNING, KafkaStreams.State.ERROR -> {
-                restServer.stop(0, 30, TimeUnit.SECONDS)
-            }
-
-            else -> {
-                // Ignore
-            }
-        }
-    }
-
-    // From this we can't even extract which job was the problem. We probably need to handle this some other way.
-    // We do not want a single bad job to take down the entire thing.
-    streams.setUncaughtExceptionHandler { _, _ ->
-        // We should probably still log what happened...
-        // mapResult could help with exception handling though.
-    }
-
-    // Start the stream processor
-    log.info("Starting stream processor")
-    streams.start()
-    streams.addShutdownHook()
-
-    // Start the rest model
+    // Start the REST server
     log.info("Starting REST service")
     restServer.start()
 }

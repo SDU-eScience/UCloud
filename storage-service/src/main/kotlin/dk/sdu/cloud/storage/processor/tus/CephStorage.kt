@@ -13,7 +13,7 @@ import kotlin.coroutines.experimental.suspendCoroutine
 
 interface IReadChannel : Closeable {
     /**
-     * Reads from the channel and places the information in th [dst] array.
+     * Reads from the channel and places the information in the [dst] array.
      *
      * @return The amount of bytes read or -1 if none were read and no more data is available
      */
