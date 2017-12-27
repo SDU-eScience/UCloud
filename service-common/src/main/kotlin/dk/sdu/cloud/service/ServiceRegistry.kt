@@ -24,7 +24,7 @@ data class RunningService(val instance: ServiceInstance, val status: ServiceStat
 // The ACL should probably use x509 as scheme (client certificate). At this point it is just a matter of how we
 // do the identity.
 // https://cwiki.apache.org/confluence/display/ZOOKEEPER/ZooKeeper+SSL+User+Guide
-suspend fun ZooKeeper.registerService(instance: ServiceInstance, acl: List<ACL>): String {
+suspend fun ZooKeeper.registerService(instance: ServiceInstance, acl: List<ACL> = ZooDefs.Ids.OPEN_ACL_UNSAFE): String {
     val service = RunningService(instance, ServiceStatus.STARTING)
     val path = computeServicePath(instance)
 
@@ -78,8 +78,12 @@ suspend fun ZooKeeper.listServices(name: String): Map<Version, List<String>> {
     }
 }
 
-suspend fun ZooKeeper.listServices(name: String, versionExpression: String): Map<Version, List<String>> =
-        listServices(name).filterKeys { it.satisfies(versionExpression) }
+suspend fun ZooKeeper.listServices(name: String, versionExpression: String): Map<Version, List<String>> {
+    if (versionExpression.contains("-SNAPSHOT")) {
+        throw IllegalArgumentException("Version metadata not allowed in version expression")
+    }
+    return listServices(name).filterKeys { it.satisfies(versionExpression) }
+}
 
 suspend fun ZooKeeper.listServicesWithStatus(name: String): Map<Version, List<RunningService>> =
         listServices(name).mapValues { it.value.map { deserializeRunningService(aGetData(it)) } }
@@ -282,7 +286,12 @@ private fun computeServicePath(name: String, version: Version? = null, hostname:
             append(name)
             if (version != null) {
                 append('/')
-                append(version)
+                // Don't write version metadata
+                append(version.majorVersion)
+                append('.')
+                append(version.minorVersion)
+                append('.')
+                append(version.patchVersion)
 
                 if (hostname != null) {
                     append('/')

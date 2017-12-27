@@ -35,7 +35,7 @@ class TokenService(
                 .withClaim("role", user.role.name)
                 .withClaim("name", user.fullName)
                 .withClaim("email", user.email)
-                .withIssuer("https://cloud.sdu.dk/auth")
+                .withIssuer("cloud.sdu.dk")
                 .withExpiresAt(exp)
                 .withIssuedAt(iat)
                 .sign(jwtAlg)

@@ -3,6 +3,7 @@ package dk.sdu.cloud.transactions
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.service.ZooKeeperConnection
 import dk.sdu.cloud.service.ZooKeeperHostInfo
+import dk.sdu.cloud.transactions.util.stackTraceToString
 import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
@@ -14,7 +15,6 @@ import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
-import dk.sdu.cloud.transactions.util.stackTraceToString
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
@@ -24,7 +24,11 @@ import java.util.concurrent.TimeUnit
 fun main(args: Array<String>) = runBlocking {
     val log = LoggerFactory.getLogger("Gateway")
 
-    val manager = ServiceManager(File("/tmp/gw-target"), File("/Users/dthrane/Dropbox/work/sdu-cloud/app-service/build/libs"))
+    val manager = ServiceManager(
+            File("/tmp/gw-target"),
+            File("/Users/dthrane/Dropbox/work/sdu-cloud/app-service/build/libs"),
+            File("/Users/dthrane/Dropbox/work/sdu-cloud/storage-service/build/libs")
+    )
     val scanner = Scanner(System.`in`)
 
     val producerConfig = mapOf(

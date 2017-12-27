@@ -2,22 +2,20 @@ package dk.sdu.cloud.storage.processor
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.service.RequestHeader
-import dk.sdu.cloud.service.TokenValidation
-import org.apache.kafka.streams.KafkaStreams
-import org.apache.kafka.streams.StreamsBuilder
+import com.github.zafarkhaja.semver.Version
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.Error
 import dk.sdu.cloud.storage.Result
+import dk.sdu.cloud.storage.api.StorageBuildConfig
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
-import dk.sdu.cloud.storage.util.addShutdownHook
+import kotlinx.coroutines.experimental.runBlocking
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 /*
  * This file starts the Storage model. This will start up both the REST service and the Kafka consumer.
@@ -29,6 +27,7 @@ data class Configuration(
         val storage: StorageConfiguration,
         val service: ServiceConfiguration,
         val kafka: KafkaConfiguration,
+        val zookeeper: ZooKeeperHostInfo,
         val tus: TusConfiguration?
 ) {
     companion object {
@@ -47,7 +46,7 @@ data class StorageConfiguration(
         val sslPolicy: String?
 )
 
-data class ServiceConfiguration(val port: Int)
+data class ServiceConfiguration(val hostname: String, val port: Int)
 data class KafkaConfiguration(val servers: List<String>)
 
 data class TusConfiguration(
@@ -70,6 +69,15 @@ fun main(args: Array<String>) {
 
     val configuration = Configuration.parseFile(filePath)
 
+    val definition = ServiceDefinition(StorageBuildConfig.Name, Version.valueOf(StorageBuildConfig.Version))
+    val instance = ServiceInstance(definition, configuration.service.hostname, configuration.service.port)
+
+    val (zk, node) = runBlocking {
+        val zk = ZooKeeperConnection(listOf(configuration.zookeeper)).connect()
+        val node = zk.registerService(instance)
+        Pair(zk, node)
+    }
+
     val storageService = with(configuration.storage) {
         IRodsStorageService(
                 IRodsConnectionInformation(
@@ -91,6 +99,8 @@ fun main(args: Array<String>) {
     // Start the REST server
     log.info("Starting REST service")
     restServer.start()
+
+    runBlocking { zk.markServiceAsReady(node, instance) }
 }
 
 abstract class StorageService {
@@ -109,10 +119,9 @@ abstract class StorageService {
      * because we want to retry at a later point.
      */
     fun validateRequest(header: RequestHeader): Result<StorageConnection> {
-        // TODO We need to close the storage connections.
         return with(header) {
-            val validated = TokenValidation.validateOrNull(performedFor) ?: return Error.invalidAuthentication()
-            storageFactory.createForAccount(validated.subject, validated.token)
+            val decoded = TokenValidation.validateOrNull(performedFor) ?: return Error.invalidAuthentication()
+            storageFactory.createForAccount(decoded.subject, decoded.token)
         }
     }
 }

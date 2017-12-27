@@ -1,0 +1,17 @@
+{
+  "storage": {
+    "host": "localhost",
+    "port": 1247,
+    "zone": "tempZone",
+    "resource": "radosRandomResc",
+    "authScheme": "PAM",
+    "sslPolicy": "CS_NEG_REQUIRE"
+  },
+  "service": {
+    "port": 42000
+  },
+  "kafka": {
+    "servers": []
+  },
+  "tus": null
+}

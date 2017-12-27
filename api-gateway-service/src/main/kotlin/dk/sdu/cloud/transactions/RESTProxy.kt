@@ -1,5 +1,6 @@
 package dk.sdu.cloud.transactions
 
+import com.github.zafarkhaja.semver.Version
 import dk.sdu.cloud.service.RequestHeader
 import dk.sdu.cloud.service.listServicesWithStatus
 import io.ktor.application.ApplicationCall
@@ -60,8 +61,12 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
     }
 
     private suspend fun findService(service: ServiceDefinition): URL {
+        println(service.manifest)
+        val parsedVersion = Version.valueOf(service.manifest.version)
+        val onlyIntegerVersion = with (parsedVersion) { "$majorVersion.$minorVersion.$patchVersion" }
+
         val services = with (service.manifest) {
-            zk.listServicesWithStatus(name, version).values.firstOrNull()
+            zk.listServicesWithStatus(name, onlyIntegerVersion).values.firstOrNull()
         }?.takeIf { it.isNotEmpty() } ?: throw RESTNoServiceAvailable()
 
         // TODO FIXME proxying using https

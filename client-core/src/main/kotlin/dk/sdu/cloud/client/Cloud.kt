@@ -69,17 +69,18 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String) {
     }
 }
 
-class EScienceCloud(endpoint: String) {
+class SDUCloud(endpoint: String) {
     val endpoint = endpoint.removeSuffix("/")
 }
 
 interface AuthenticatedCloud {
-    val parent: EScienceCloud
+    val parent: SDUCloud
     fun BoundRequestBuilder.configureCall()
 }
 
+@Deprecated(message = "Use JWT auth instead", replaceWith = ReplaceWith("JWTAuthenticatedCloud(token)"))
 class BasicAuthenticatedCloud(
-        override val parent: EScienceCloud,
+        override val parent: SDUCloud,
         val username: String,
         val password: String
 ) : AuthenticatedCloud {
@@ -88,4 +89,16 @@ class BasicAuthenticatedCloud(
     }
 }
 
-fun EScienceCloud.basicAuth(username: String, password: String) = BasicAuthenticatedCloud(this, username, password)
+class JWTAuthenticatedCloud(
+        override val parent: SDUCloud,
+        val token: String
+) : AuthenticatedCloud {
+    override fun BoundRequestBuilder.configureCall() {
+        setHeader("Authorization", "Bearer $token")
+    }
+}
+
+@Deprecated(message = "Use JWT auth instead", replaceWith = ReplaceWith("jwtAuth", "dk.sdu.cloud.client.jwtAuth"))
+fun SDUCloud.basicAuth(username: String, password: String) = BasicAuthenticatedCloud(this, username, password)
+
+fun SDUCloud.jwtAuth(token: String) = JWTAuthenticatedCloud(this, token)
