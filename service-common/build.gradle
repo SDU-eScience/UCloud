@@ -1,5 +1,5 @@
-group 'org.esciencecloud'
-version '0.4.0-SNAPSHOT'
+group 'dk.sdu.cloud'
+version '0.5.0-SNAPSHOT'
 
 buildscript {
     ext.kotlin_version = '1.2.0'
@@ -17,10 +17,24 @@ apply plugin: 'kotlin'
 apply plugin: 'maven-publish'
 
 repositories {
-    mavenLocal()
     mavenCentral()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
 }
 
 dependencies {
@@ -39,7 +53,7 @@ dependencies {
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
 
     // Client dependencies (needed to export definitions to clients)
-    compile "org.esciencecloud.client:core:0.1.0-SNAPSHOT"
+    compile "dk.sdu.cloud:client-core:0.1.0-SNAPSHOT"
 
     // ktor
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
@@ -49,6 +63,9 @@ dependencies {
         exclude(group: "org.slf4j", module: "slf4j-log4j12")
     }
     compile group: "com.github.zafarkhaja", name: "java-semver", version: "0.9.0"
+
+    // JWTs
+    compile "com.auth0:java-jwt:3.0.1"
 
     // Testing
     testCompile group: 'junit', name: 'junit', version: '4.12'
@@ -92,7 +109,11 @@ publishing {
     //
     repositories {
         maven {
-            url(eScienceCloudRepository)
+            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
+            else resolvedUrl += "internal"
+            url(resolvedUrl)
+
             credentials {
                 username(eScienceCloudUser)
                 password(eScienceCloudPassword)

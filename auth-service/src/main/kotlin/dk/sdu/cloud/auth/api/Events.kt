@@ -3,7 +3,7 @@ package dk.sdu.cloud.auth.api
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import org.esciencecloud.service.KafkaRequest
+import dk.sdu.cloud.service.KafkaRequest
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
@@ -16,8 +16,8 @@ sealed class UserEvent {
     abstract val userId: String
     @get:JsonIgnore val key: String get() = userId
 
-    class Created(override val userId: String, val userCreated: User) : UserEvent()
-    class Updated(override val userId: String, val updatedUser: User) : UserEvent()
+    data class Created(override val userId: String, val userCreated: User) : UserEvent()
+    data class Updated(override val userId: String, val updatedUser: User) : UserEvent()
 }
 
 @JsonTypeInfo(
@@ -32,7 +32,7 @@ sealed class RefreshTokenEvent {
     abstract val token: String
     @get:JsonIgnore val key: String get() = token
 
-    class Created(override val token: String, val associatedUser: String) : RefreshTokenEvent()
-    class Invoked(override val token: String, val generatedAccessToken: String) : RefreshTokenEvent()
-    class Invalidated(override val token: String) : RefreshTokenEvent()
+    data class Created(override val token: String, val associatedUser: String) : RefreshTokenEvent()
+    data class Invoked(override val token: String, val generatedAccessToken: String) : RefreshTokenEvent()
+    data class Invalidated(override val token: String) : RefreshTokenEvent()
 }

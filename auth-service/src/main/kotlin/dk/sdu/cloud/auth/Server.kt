@@ -29,7 +29,7 @@ import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
 import dk.sdu.cloud.auth.processors.UserProcessor
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
-import org.esciencecloud.service.*
+import dk.sdu.cloud.service.*
 import org.jetbrains.exposed.sql.Database
 import java.security.interfaces.RSAPrivateKey
 import java.util.*

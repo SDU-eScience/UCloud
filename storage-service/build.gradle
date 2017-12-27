@@ -1,9 +1,9 @@
-group 'org.esciencecloud'
+group 'dk.sdu.cloud'
 version '1.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.1.61'
-    ext.ktor_version = '0.9.0'
+    ext.kotlin_version = '1.2.10'
+    ext.ktor_version = '0.9.1-alpha-8'
 
     repositories {
         mavenCentral()
@@ -22,7 +22,20 @@ repositories {
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
     maven { url "https://dl.bintray.com/tus/maven" }
-    maven { url("http://cloud.sdu.dk:8080/archiva/repository/internal") }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        credentials {
+            username(eScienceCloudUser)
+            password(eScienceCloudPassword)
+        }
+    }
 
     // Repositories required for iRODS to work
     maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
@@ -32,12 +45,12 @@ repositories {
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
     // ------------
     // iRODS
     // ------------
-    compile "org.esciencecloud:cloud-storage:0.4.1"
+    compile "dk.sdu.cloud:cloud-storage:0.5.0-SNAPSHOT"
     // ------------
 
     // ------------
@@ -60,16 +73,14 @@ dependencies {
     // ------------
     // ktor
     // ------------
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'
-
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
 
     // ------------
-    // Kafka
+    // Service
     // ------------
-    compile "org.esciencecloud:kafka-common:0.3.0"
+    compile "dk.sdu.cloud:service-common:0.5.0-SNAPSHOT"
 }
 
 kotlin {
@@ -113,7 +124,10 @@ publishing {
 
     repositories {
         maven {
-            url("http://cloud.sdu.dk:8080/archiva/repository/internal")
+            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
+            else resolvedUrl += "internal"
+            url(resolvedUrl)
             credentials {
                 username(eScienceCloudUser)
                 password(eScienceCloudPassword)

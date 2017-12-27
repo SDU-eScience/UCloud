@@ -1,9 +1,9 @@
 package org.esciencecloud.service
 
 import io.netty.handler.codec.http.HttpMethod
-import org.esciencecloud.client.AuthenticatedCloud
-import org.esciencecloud.client.RESTDescriptions
-import org.esciencecloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.bindEntireRequestFromBody
 
 class RESTCallDescriptionsTest {
     // TODO Actually write tests for these things

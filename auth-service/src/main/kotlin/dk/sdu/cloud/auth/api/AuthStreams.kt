@@ -1,6 +1,6 @@
 package dk.sdu.cloud.auth.api
 
-import org.esciencecloud.service.KafkaDescriptions
+import dk.sdu.cloud.service.KafkaDescriptions
 
 object AuthStreams : KafkaDescriptions() {
     val UserUpdateStream = stream<String, UserEvent>("auth.user")
