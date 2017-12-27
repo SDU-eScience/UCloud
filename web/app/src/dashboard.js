@@ -1,15 +1,8 @@
-import Vue from 'vue'
-import DashboardComponent from './components/Dashboard.vue'
-import Status from './status'
+import React from 'react';
+import { DashboardComponent } from './components/DashboardComponent'
+import ReactDOM from 'react-dom';
 
-
-Vue.config.productionTip = false;
-
-/* eslint-disable no-new */
-new Vue({
-  el: '#app',
-  template: '<DashboardComponent/>',
-  components: {DashboardComponent}
-});
-
-Status();
+ReactDOM.render(
+  <DashboardComponent/>,
+  document.getElementById('app')
+);

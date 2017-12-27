@@ -1,6 +1,6 @@
-import Vue from 'vue'
-import Notifications from './components/Notifications'
-import Status from './status'
+import Vue from 'vue';
+import Notifications from './components/Notifications';
+import Status from './status';
 
 Vue.config.productionTip = false;
 
