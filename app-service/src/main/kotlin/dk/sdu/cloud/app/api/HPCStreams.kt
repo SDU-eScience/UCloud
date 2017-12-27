@@ -3,7 +3,7 @@ package dk.sdu.cloud.app.api
 import dk.sdu.cloud.service.KafkaDescriptions
 
 object HPCStreams : KafkaDescriptions() {
-    val AppRequests = HPCApplicationDescriptions.appRequestBundle.mappedAtGateway("request.hpcApp") {
+    val AppRequests = HPCJobDescriptions.appRequestBundle.mappedAtGateway("request.hpcApp") {
         Pair(it.header.uuid, it)
     }
     val AppEvents = stream<String, HPCAppEvent>("hpcAppEvents")

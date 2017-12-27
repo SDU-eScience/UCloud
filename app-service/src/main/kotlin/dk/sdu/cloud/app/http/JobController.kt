@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.HPCJobDescriptions
-import dk.sdu.cloud.app.api.StandardError
 import dk.sdu.cloud.app.services.HPCStore
 import dk.sdu.cloud.app.storageConnection
 import dk.sdu.cloud.service.KafkaRPCException
@@ -16,7 +16,7 @@ class JobController(private val store: HPCStore) {
                 try {
                     ok(store.queryJobIdToStatus(it.id, allowRetries = false))
                 } catch (ex: KafkaRPCException) {
-                    error(StandardError(ex.message ?: "Error"), ex.httpStatusCode)
+                    error(CommonErrorMessage(ex.message ?: "Error"), ex.httpStatusCode)
                 }
             }
 
@@ -25,7 +25,7 @@ class JobController(private val store: HPCStore) {
                 try {
                     ok(store.queryRecentJobsByUser(user, allowRetries = false))
                 } catch (ex: KafkaRPCException) {
-                    error(StandardError(ex.message ?: "Error"), ex.httpStatusCode)
+                    error(CommonErrorMessage(ex.message ?: "Error"), ex.httpStatusCode)
                 }
             }
         }

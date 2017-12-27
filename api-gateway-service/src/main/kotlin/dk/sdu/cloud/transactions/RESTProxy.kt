@@ -61,7 +61,6 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
     }
 
     private suspend fun findService(service: ServiceDefinition): URL {
-        println(service.manifest)
         val parsedVersion = Version.valueOf(service.manifest.version)
         val onlyIntegerVersion = with (parsedVersion) { "$majorVersion.$minorVersion.$patchVersion" }
 

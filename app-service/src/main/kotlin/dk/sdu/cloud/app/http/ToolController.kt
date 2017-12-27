@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.HPCToolDescriptions
-import dk.sdu.cloud.app.api.StandardError
 import dk.sdu.cloud.app.services.ToolDAO
 import dk.sdu.cloud.service.implement
 import io.ktor.http.HttpStatusCode
@@ -13,13 +13,13 @@ class ToolController(private val source: ToolDAO) {
         route("tools") {
             implement(HPCToolDescriptions.findByName) {
                 val result = source.findAllByName(it.name)
-                if (result.isEmpty()) error(StandardError("Not found"), HttpStatusCode.NotFound)
+                if (result.isEmpty()) error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
                 else ok(result)
             }
 
             implement(HPCToolDescriptions.findByNameAndVersion) {
                 val result = source.findByNameAndVersion(it.name, it.version)
-                if (result == null) error(StandardError("Not found"), HttpStatusCode.NotFound)
+                if (result == null) error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
                 else ok(result)
             }
 

@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.FindByName
 import dk.sdu.cloud.service.KafkaRequest
 import io.netty.handler.codec.http.HttpMethod
 import dk.sdu.cloud.client.KafkaCallDescriptionBundle
@@ -30,30 +31,7 @@ object HPCApplicationDescriptions : RESTDescriptions() {
         path { using(baseContext) }
     }
 
-    val startApp = kafkaDescription<AppRequest.Start> {
-        method = HttpMethod.POST
 
-        path {
-            using(baseContext)
-            +"jobs"
-        }
-
-        body {
-            bindEntireRequestFromBody()
-        }
-    }
-
-    val cancelApp = kafkaDescription<AppRequest.Cancel> {
-        method = HttpMethod.DELETE
-
-        path {
-            using(baseContext)
-            +"jobs"
-            +boundTo(AppRequest.Cancel::jobId)
-        }
-    }
-
-    val appRequestBundle: KafkaCallDescriptionBundle<AppRequest> = listOf(startApp, cancelApp)
 }
 
 @JsonTypeInfo(
