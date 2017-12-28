@@ -1,6 +1,8 @@
 import $ from 'jquery'
 import React from 'react'
 import LoadingIcon from './LoadingIconComponent'
+import { NotificationIcon } from "./UtilityFunctions";
+
 
 class DashboardComponent extends React.Component {
   constructor(props) {
@@ -236,20 +238,6 @@ function DashboardRecentActivity(props) {
       </div>
     </div>
   )
-}
-
-function NotificationIcon(props) {
-  if (props.type === "Complete") {
-    return (<div className="initial32 bg-green-500">✓</div>)
-  } else if (props.type === "In Progress") {
-    return (<div className="initial32 bg-blue-500">...</div>)
-  } else if (props.type === "Pending") {
-    return (<div className="initial32 bg-blue-500"/>)
-  } else if (props.type === "Failed") {
-    return (<div className="initial32 bg-red-500">&times;</div>)
-  } else {
-    return (<div>Unknown type</div>)
-  }
 }
 
 export { DashboardComponent }

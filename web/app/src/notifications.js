@@ -1,15 +1,8 @@
-import Vue from 'vue';
-import Notifications from './components/Notifications';
-import Status from './status';
+import React from 'react';
+import { NotificationsComponent } from './components/Notifications.js'
+import ReactDOM from 'react-dom';
 
-Vue.config.productionTip = false;
-
-
-/* eslint-disable no-new */
-new Vue({
-  el: '#app',
-  template: '<Notifications/>',
-  components: { Notifications }
-});
-
-Status();
+ReactDOM.render(
+  <NotificationsComponent/>,
+  document.getElementById('app')
+);
