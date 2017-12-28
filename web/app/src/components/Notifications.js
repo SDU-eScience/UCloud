@@ -10,6 +10,7 @@ class NotificationsComponent extends React.Component {
       recent: [],
       remaining: [],
       loading: true,
+      hasWebsocketSupport: "WebSocket" in window,
       currentNotification: {
         body: "",
         timestamp: 0,
