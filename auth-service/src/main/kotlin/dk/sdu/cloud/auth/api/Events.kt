@@ -16,8 +16,8 @@ sealed class UserEvent {
     abstract val userId: String
     @get:JsonIgnore val key: String get() = userId
 
-    data class Created(override val userId: String, val userCreated: User) : UserEvent()
-    data class Updated(override val userId: String, val updatedUser: User) : UserEvent()
+    data class Created(override val userId: String, val userCreated: Principal) : UserEvent()
+    data class Updated(override val userId: String, val updatedUser: Principal) : UserEvent()
 }
 
 @JsonTypeInfo(

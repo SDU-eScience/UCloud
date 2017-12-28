@@ -1,5 +1,7 @@
 package dk.sdu.cloud.auth.http
 
+import dk.sdu.cloud.auth.api.Person
+import dk.sdu.cloud.auth.services.*
 import io.ktor.application.call
 import io.ktor.content.files
 import io.ktor.content.static
@@ -16,11 +18,8 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
 import kotlinx.html.*
-import dk.sdu.cloud.auth.services.ServiceDAO
-import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.UserDAO
-import dk.sdu.cloud.auth.services.checkPassword
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.service.TokenValidation
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -184,7 +183,7 @@ class CoreAuthController(
                     return@post call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
                 }
 
-                val user = UserDAO.findById(username) ?: return@post run {
+                val user = UserDAO.findById(username) as? Person.ByPassword ?: return@post run {
                     call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
                 }
 
@@ -210,10 +209,22 @@ class CoreAuthController(
 
                 val token = call.parameters["accessToken"] ?: return@get run {
                     log.info("missing access token")
-                    call.respondRedirect("/auth/login")
+                    call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
                 }
 
                 val refreshToken = call.parameters["refreshToken"]
+                // We don't validate the refresh token for performance. It might also not yet have been serialized into
+                // the database. This is not really a problem since it most likely does reach the database before it
+                // will be invoked (when the access token expires). Purposefully passing a bad token here might cause
+                // the user to be logged out though, and it will require a valid access token. This makes the attack
+                // a bit useless.
+
+
+                if (TokenValidation.validateOrNull(token) == null) {
+                    log.info("Invalid access token")
+                    call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
+                    return@get
+                }
 
                 call.respondHtml {
                     head {
@@ -255,10 +266,10 @@ class CoreAuthController(
                             unsafe {
                                 //language=JavaScript
                                 +"""
-                            function main() {
-                                document.querySelector("#form").submit();
-                            }
-                            """.trimIndent()
+                                function main() {
+                                    document.querySelector("#form").submit();
+                                }
+                                """.trimIndent()
                             }
                         }
                     }
@@ -282,8 +293,6 @@ class CoreAuthController(
 
             post("logout") {
                 // TODO Invalidate at WAYF
-                // TODO Don't implement here
-                // TODO Share code with refresh
                 val refreshToken = call.request.bearerToken ?: return@post run {
                     call.respond(HttpStatusCode.Unauthorized)
                 }

@@ -24,14 +24,13 @@ object RefreshTokenAndUserDAO {
         }
     }
 
-    fun insert(tokenAndUser: RefreshTokenAndUser): Boolean {
+    fun insert(tokenAndUser: RefreshTokenAndUser) {
         transaction {
             RefreshTokens.insert {
                 it[token] = tokenAndUser.token
                 it[associatedUser] = tokenAndUser.associatedUser
             }
         }
-        return true
     }
 
     fun delete(token: String): Boolean {

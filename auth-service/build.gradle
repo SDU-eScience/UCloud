@@ -21,10 +21,8 @@ mainClassName = "dk.sdu.cloud.auth.ServerMainKt"
 
 repositories {
     mavenCentral()
-    mavenLocal()
     jcenter()
 
-    mavenLocal()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
     maven { url "https://dl.bintray.com/kotlin/exposed" }

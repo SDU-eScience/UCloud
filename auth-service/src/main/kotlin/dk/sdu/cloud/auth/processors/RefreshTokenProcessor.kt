@@ -1,14 +1,17 @@
 package dk.sdu.cloud.auth.processors
 
-import org.apache.kafka.streams.kstream.KStream
-import org.apache.kafka.streams.kstream.Predicate
+import dk.sdu.cloud.auth.api.RefreshTokenEvent
 import dk.sdu.cloud.auth.services.RefreshTokenAndUser
 import dk.sdu.cloud.auth.services.RefreshTokenAndUserDAO
-import dk.sdu.cloud.auth.api.RefreshTokenEvent
+import org.apache.kafka.streams.kstream.KStream
+import org.apache.kafka.streams.kstream.Predicate
+import org.slf4j.LoggerFactory
 
 class RefreshTokenProcessor(
         val stream: KStream<String, RefreshTokenEvent>
 ) {
+    private val log = LoggerFactory.getLogger(RefreshTokenProcessor::class.java)
+
     fun init() {
         val branches = stream.branch(
                 Predicate { _, value -> value is RefreshTokenEvent.Created },
