@@ -25,7 +25,6 @@ class NotificationsComponent extends React.Component {
 
   componentDidMount() {
     this.getNotifications();
-    if (this.state.hasWebSocketSupport) this.initWS();
   }
 
   getNotifications() {
@@ -48,6 +47,7 @@ class NotificationsComponent extends React.Component {
         recent: recentNotifications,
         remaining: remainingNotifications,
       });
+      if (this.state.hasWebSocketSupport) this.initWS();
     });
   }
 
