@@ -96,7 +96,7 @@ class NotificationsComponent extends React.Component {
           <p className="ph">Last 24 hours</p>
           <div className="card">
             <table className="table table-hover table-fixed va-middle">
-              <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)} notifications={this.state.recent} showCount={this.state.remainingShown}/>
+              <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)} notifications={this.state.recent} showCount={this.state.recentShown}/>
             </table>
             <ShowButton onClick={() => this.showMore("recent")} hasMoreNotifications={this.state.recent.length > this.state.recentShown}/>
           </div>
@@ -108,31 +108,14 @@ class NotificationsComponent extends React.Component {
             <ShowButton onClick={() => this.showMore("remaining")} hasMoreNotifications={this.state.remaining.length > this.state.remainingShown}/>
           </div>
         </div>
-
-        <div id="notificationModal" className="modal fade" role="dialog">
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <button type="button" className="close" data-dismiss="modal">&times;</button>
-                <h4 className="modal-title"> {this.state.currentNotification.message}<br/>
-                  <small>{new Date(this.state.currentNotification.timestamp).toLocaleString()}</small>
-                </h4>
-              </div>
-              <div className="modal-body">
-                <p>{this.state.currentNotification.body}</p>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-default" data-dismiss="modal">Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <MessageModal notification={this.state.currentNotification}/>
       </section>)
   }
 }
 
 function NotificationList(props) {
   if (!props.notifications) return (<div/>);
+  console.log(props.notifications);
   const notifications = props.notifications.slice(0, Math.min(props.showCount, props.notifications.length));
   let i = 0;
   const notificationsList = notifications.map((notification) =>
@@ -163,6 +146,28 @@ function ShowButton(props) {
   } else {
     return (<div/>)
   }
+}
+
+function MessageModal(props) {
+  return (
+  <div id="notificationModal" className="modal fade" role="dialog">
+    <div className="modal-dialog">
+      <div className="modal-content">
+        <div className="modal-header">
+          <button type="button" className="close" data-dismiss="modal">&times;</button>
+          <h4 className="modal-title"> {props.notification.message}<br/>
+            <small>{new Date(props.notification.timestamp).toLocaleString()}</small>
+          </h4>
+        </div>
+        <div className="modal-body">
+          <p>{props.notification.body}</p>
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>)
 }
 
 export { NotificationsComponent }
