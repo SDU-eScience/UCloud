@@ -24,8 +24,7 @@ class NotificationsComponent extends React.Component {
 
   componentDidMount() {
     this.getNotifications();
-    // FIXME
-    if (true) this.initWS();
+    if (this.state.hasWebsocketSupport) this.initWS();
   }
 
   getNotifications() {
