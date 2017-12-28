@@ -14,12 +14,12 @@ function NotificationIcon(props) {
   }
 }
 
-function WebsocketSupport() {
-  let hasWebsocketSupport = "WebSocket" in window;
-  if (!hasWebsocketSupport)
+function WebSocketSupport() {
+  let hasWebSocketSupport = "WebSocket" in window;
+  if (!hasWebSocketSupport)
     return (
       <h3>
-        <small>Websockets are not supported in this browser. Notifications won't be updated automatically.
+        <small>WebSockets are not supported in this browser. Notifications won't be updated automatically.
         </small>
       </h3>);
   else {
@@ -27,4 +27,4 @@ function WebsocketSupport() {
   }
 }
 
-export {NotificationIcon, WebsocketSupport}
+export {NotificationIcon, WebSocketSupport}
