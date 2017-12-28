@@ -1,7 +1,7 @@
 import React from 'react';
 import $ from 'jquery';
 import LoadingIcon from './LoadingIconComponent.js'
-import { NotificationIcon, WebsocketSupport } from './UtilityFunctions.js'
+import { NotificationIcon, WebSocketSupport } from './UtilityFunctions.js'
 
 class NotificationsComponent extends React.Component {
   constructor(props) {
@@ -10,12 +10,13 @@ class NotificationsComponent extends React.Component {
       recent: [],
       remaining: [],
       loading: true,
-      hasWebsocketSupport: "WebSocket" in window,
+      hasWebSocketSupport: "WebSocket" in window,
       currentNotification: {
         body: "",
         timestamp: 0,
         message: "",
       },
+      // FIXME: Should be WSS
       ws: new WebSocket("ws://localhost:8080/ws/notifications"),
       recentShown: 10,
       remainingShown: 10,
@@ -24,7 +25,6 @@ class NotificationsComponent extends React.Component {
 
   componentDidMount() {
     this.getNotifications();
-    if (this.state.hasWebsocketSupport) this.initWS();
   }
 
   getNotifications() {
@@ -47,6 +47,7 @@ class NotificationsComponent extends React.Component {
         recent: recentNotifications,
         remaining: remainingNotifications,
       });
+      if (this.state.hasWebSocketSupport) this.initWS();
     });
   }
 
@@ -62,7 +63,6 @@ class NotificationsComponent extends React.Component {
     this.state.ws.onmessage = response => {
       let recentList = this.state.recent.slice();
       recentList.push(JSON.parse(response.data));
-      console.log(recentList);
       this.setState({
         recent: recentList,
       });
@@ -92,7 +92,7 @@ class NotificationsComponent extends React.Component {
       <section>
         <div className="container container-md">
           <LoadingIcon loading={this.state.loading}/>
-          <WebsocketSupport/>
+          <WebSocketSupport/>
           <p className="ph">Last 24 hours</p>
           <div className="card">
             <table className="table table-hover table-fixed va-middle">
@@ -115,7 +115,6 @@ class NotificationsComponent extends React.Component {
 
 function NotificationList(props) {
   if (!props.notifications) return (<div/>);
-  console.log(props.notifications);
   const notifications = props.notifications.slice(0, Math.min(props.showCount, props.notifications.length));
   let i = 0;
   const notificationsList = notifications.map((notification) =>

@@ -15,6 +15,7 @@
     "jquery": "^3.2.1",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
+    "react-modal": "^3.1.10",
     "sweetalert2": "^7.0.5",
     "vue": "^2.5.2",
     "vue-router": "^3.0.1"

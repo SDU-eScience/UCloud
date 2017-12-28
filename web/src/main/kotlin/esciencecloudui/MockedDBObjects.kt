@@ -44,7 +44,7 @@ val notifications = arrayListOf(
         Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
         Notification("Job ABGG-111 is complete", "Job ABGG-111 is complete.", 1413090181037, "Complete", "ABGG-111"),
         Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111"),
-        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution.", 1413090181037, "Pending", "ABGG-111")
+        Notification("Job ABGG-111 is pending", "Job ABGG-111 is pending execution. , and this is a needlessly long message., and this is a needlessly long message., and this is a needlessly long message., and this is a needlessly long message., and this is a needlessly long message.", 1413090181037, "Pending", "ABGG-111")
 )
 
 val workflows = arrayListOf(Workflow("Particle Simulation and Video Generation", applications))
