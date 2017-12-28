@@ -1,12 +1,15 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.auth.api.Person
+import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.User
+import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.auth.services.saml.AttributeURIs
+import dk.sdu.cloud.auth.services.saml.Auth
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.statements.InsertStatement
-import org.jetbrains.exposed.sql.statements.Statement
 import org.jetbrains.exposed.sql.statements.UpdateBuilder
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.joda.time.DateTime
 import java.security.NoSuchAlgorithmException
 import java.security.SecureRandom
 import java.security.spec.InvalidKeySpecException
@@ -15,26 +18,55 @@ import javax.crypto.spec.PBEKeySpec
 
 data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteArray)
 
-internal object UserUtils {
+internal object PersonUtils {
     private val RNG = SecureRandom()
     private val SALT_LENGTH = 16
     private val ITERATIONS = 10000
     private val KEY_LENGTH = 256
 
-    fun createUserWithPassword(fullName: String, email: String, role: Role,
-                               password: String): User {
+    fun createUserByPassword(firstNames: String, lastName: String, email: String, role: Role,
+                             password: String): Person.ByPassword {
         val (hashed, salt) = hashPassword(password)
-        return User(
-                fullName,
-                email,
-                role,
-                hashed,
-                salt
+        return Person.ByPassword(
+                id = email,
+                role = role,
+                title = null,
+                firstNames = firstNames,
+                lastName = lastName,
+                phoneNumber = null,
+                orcId = null,
+                emailAddresses = listOf(email),
+                preferredEmailAddress = email,
+                password = hashed,
+                salt = salt
         )
     }
 
-    fun createUserNoPassword(fullName: String, email: String, role: Role): User {
-        return User(fullName, email, role)
+    fun createUserByWAYF(authenticatedUser: Auth): Person.ByWAYF {
+        if (!authenticatedUser.authenticated) throw IllegalStateException("User is not authenticated")
+        val id = authenticatedUser.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull() ?:
+                throw IllegalArgumentException("Missing EduPersonTargetedId")
+        val firstNames = authenticatedUser.attributes["gn"]?.firstOrNull() ?:
+                throw IllegalArgumentException("Missing gn")
+        val lastNames = authenticatedUser.attributes["sn"]?.firstOrNull() ?:
+                throw IllegalArgumentException("Missing sn")
+        val organization = authenticatedUser.attributes["schacHomeOrganization"]?.firstOrNull() ?:
+                throw IllegalArgumentException("Missing schacHomeOrganization")
+
+        val role = Role.USER
+
+        return Person.ByWAYF(
+                id = id,
+                firstNames = firstNames,
+                lastName = lastNames,
+                role = role,
+                title = null,
+                phoneNumber = null,
+                orcId = null,
+                emailAddresses = emptyList(),
+                preferredEmailAddress = null,
+                organizationId = organization
+        )
     }
 
     fun hashPassword(password: String, salt: ByteArray = genSalt()): HashedPasswordAndSalt {
@@ -54,80 +86,201 @@ internal object UserUtils {
     private fun genSalt(): ByteArray = ByteArray(SALT_LENGTH).also { RNG.nextBytes(it) }
 }
 
-fun User.checkPassword(plainPassword: String): Boolean {
-    if (hashedPassword == null || salt == null) return false
-
-    val incomingPasswordHashed = UserUtils.hashPassword(plainPassword, salt)
-    return incomingPasswordHashed.hashedPassword.contentEquals(hashedPassword)
+fun Person.ByPassword.checkPassword(plainPassword: String): Boolean {
+    val incomingPasswordHashed = PersonUtils.hashPassword(plainPassword, salt)
+    return incomingPasswordHashed.hashedPassword.contentEquals(password)
 }
 
-object Users : Table() {
-    val email = varchar("email", 255).primaryKey()
-    val fullName = varchar("full_name", 255)
-    val role = integer("role")
+class CommonTable {
+    lateinit var modifiedAt: Column<DateTime>
+        private set
+    lateinit var createdAt: Column<DateTime>
+        private set
+    lateinit var markedForDelete: Column<Boolean>
+        private set
+    lateinit var active: Column<Boolean>
+        private set
+
+    companion object {
+        fun register(table: Table) = with(table) {
+            CommonTable().apply {
+                modifiedAt = datetime("modified_at")
+                createdAt = datetime("created_at")
+                markedForDelete = bool("markedfordelete")
+                active = bool("active")
+            }
+        }
+    }
+
+    fun setValuesForUpdate(row: UpdateBuilder<*>) {
+        row[modifiedAt] = DateTime.now()
+    }
+
+    fun setValuesForCreation(row: UpdateBuilder<*>, active: Boolean = true) {
+        row[modifiedAt] = DateTime.now()
+        row[createdAt] = DateTime.now()
+        row[markedForDelete] = false
+        row[this.active] = active
+    }
+}
+
+object Principals : Table() {
+    val id = varchar("id", 255).primaryKey()
+    val loginType = varchar("logintype", 32)
+    val role = varchar("role", 32)
+
+    // Common
+    val common = CommonTable.register(this)
+
+    // Person
+    val title = varchar("title", 255).nullable()
+    val firstNames = varchar("firstname", 255).nullable()
+    val lastName = varchar("lastname", 255).nullable()
+    val phoneNumber = varchar("phoneno", 255).nullable()
+    val orcId = varchar("orcid", 255).nullable()
+
+    // Person by WAYF
+    val orgId = varchar("orgid", 255).nullable()
+
+    // Person by password
     val hashed = binary("hashed_password", 512).nullable() // TODO I don't remember how large the hash is
     val salt = binary("salt", 16).nullable()
 }
 
 object UserDAO {
-    init {
-        //insert(UserUtils.createUserWithPassword("dan", "dan@localhost", Role.ADMIN, "password"))
-    }
-
-    fun findById(id: String): User? {
+    fun findById(id: String): Principal? {
         val users = transaction {
-            Users.select { Users.email eq id }.limit(1).toList()
+            Principals.select { Principals.id eq id }.limit(1).toList()
         }
 
         return users.singleOrNull()?.let {
-            User(
-                    fullName = it[Users.fullName],
-                    email = it[Users.email],
-                    role = Role.values()[it[Users.role]],
-                    hashedPassword = it[Users.hashed],
-                    salt = it[Users.salt]
-            )
-        }
-    }
+            val rowId = it[Principals.id]
+            val role = Role.valueOf(it[Principals.role])
+            val loginType = LoginType.valueOf(it[Principals.loginType])
 
-    private fun mapFieldsIntoStatement(it: UpdateBuilder<*>, user: User) {
-        it[Users.email] = user.email
-        it[Users.fullName] = user.fullName
-        it[Users.role] = user.role.ordinal
-        it[Users.hashed] = user.hashedPassword
-        it[Users.salt] = user.salt
-    }
+            when (loginType) {
+                LoginType.WAYF, LoginType.PASSWORD -> {
+                    val title = it[Principals.title]
+                    val firstNames = it[Principals.firstNames]!!
+                    val lastName = it[Principals.lastName]!!
+                    val phoneNumber = it[Principals.phoneNumber]
+                    val orcId = it[Principals.orcId]
 
-    fun insert(user: User): Boolean {
-        return try {
-            transaction {
-                Users.insert {
-                    mapFieldsIntoStatement(it, user)
+                    when (loginType) {
+                        LoginType.WAYF -> {
+                            val organizationId = it[Principals.orgId]!!
+
+                            Person.ByWAYF(
+                                    id = rowId,
+                                    title = title,
+                                    role = role,
+                                    firstNames = firstNames,
+                                    lastName = lastName,
+                                    phoneNumber = phoneNumber,
+                                    orcId = orcId,
+                                    organizationId = organizationId,
+
+                                    // TODO
+                                    emailAddresses = emptyList(),
+                                    preferredEmailAddress = null
+                            )
+                        }
+
+                        LoginType.PASSWORD -> {
+                            val password = it[Principals.hashed]!!
+                            val salt = it[Principals.salt]!!
+
+                            Person.ByPassword(
+                                    id = rowId,
+                                    title = title,
+                                    role = role,
+                                    firstNames = firstNames,
+                                    lastName = lastName,
+                                    phoneNumber = phoneNumber,
+                                    orcId = orcId,
+                                    password = password,
+                                    salt = salt,
+
+                                    // TODO
+                                    emailAddresses = emptyList(),
+                                    preferredEmailAddress = null
+                            )
+                        }
+
+                        else -> throw IllegalStateException()
+                    }
                 }
 
-                true
+                LoginType.SERVICE -> {
+                    ServicePrincipal(rowId, role)
+                }
             }
-        } catch (_: Exception) {
-            // TODO Shouldn't just ignore all exceptions
-            false
         }
     }
 
-    fun update(user: User): Boolean {
+    enum class LoginType {
+        WAYF,
+        PASSWORD,
+        SERVICE
+    }
+
+    private fun principalToType(principal: Principal): LoginType = when (principal) {
+        is Person.ByWAYF -> LoginType.WAYF
+        is Person.ByPassword -> LoginType.PASSWORD
+        is ServicePrincipal -> LoginType.SERVICE
+    }
+
+    private fun mapFieldsIntoStatement(it: UpdateBuilder<*>, user: Principal) {
+        it[Principals.id] = user.id
+        it[Principals.role] = user.role.name
+        it[Principals.loginType] = principalToType(user).name
+
+        when (user) {
+            is Person -> {
+                it[Principals.title] = user.title
+                it[Principals.firstNames] = user.firstNames
+                it[Principals.lastName] = user.lastName
+                it[Principals.phoneNumber] = user.phoneNumber
+                it[Principals.orcId] = user.orcId
+                when (user) {
+                    is Person.ByPassword -> {
+                        it[Principals.hashed] = user.password
+                        it[Principals.salt] = user.salt
+                    }
+
+                    is Person.ByWAYF -> {
+                        it[Principals.orgId] = user.organizationId
+                    }
+                }
+            }
+        }
+    }
+
+    fun insert(user: Principal) {
         return transaction {
-            Users.update(
+            Principals.insert {
+                mapFieldsIntoStatement(it, user)
+                Principals.common.setValuesForCreation(it)
+            }
+        }
+    }
+
+    fun update(user: Principal): Boolean {
+        return transaction {
+            Principals.update(
                     limit = 1,
-                    where = { Users.email eq user.email },
-                    body = { mapFieldsIntoStatement(it, user) }
+                    where = { Principals.id eq user.id },
+                    body = {
+                        mapFieldsIntoStatement(it, user)
+                        Principals.common.setValuesForUpdate(it)
+                    }
             )
         } == 1
     }
 
-    fun delete(user: User): Boolean {
-        return transaction { Users.deleteWhere { Users.email eq user.email } } == 1
+    fun delete(user: Principal): Boolean {
+        return transaction { Principals.deleteWhere { Principals.id eq user.id } } == 1
     }
 
 }
 
-// We don't know, yet, which identifiers we can use that are unique. For now assume this is
-val User.primaryKey: String get() = email

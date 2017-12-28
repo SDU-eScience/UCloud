@@ -3,11 +3,17 @@ package dk.sdu.cloud.auth
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.onelogin.saml2.util.Util
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.Principals
 import dk.sdu.cloud.auth.services.RefreshTokens
-import dk.sdu.cloud.auth.services.UserDAO
-import dk.sdu.cloud.auth.services.UserUtils
-import dk.sdu.cloud.auth.services.Users
+import dk.sdu.cloud.service.forStream
+import kotlinx.coroutines.experimental.runBlocking
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerConfig
+import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.kafka.streams.StreamsConfig
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -39,11 +45,28 @@ private fun loadKeysAndInsertIntoProps(properties: Properties): Pair<RSAPublicKe
     )
 }
 
+
 fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger("ServerMain")
 
     val mapper = jacksonObjectMapper()
     val config = mapper.readValue<AuthConfiguration>(File("auth_config.json"))
+
+    val hostname = "localhost"
+    val port = 42300
+
+    fun retrieveKafkaStreamsConfiguration(): Properties = Properties().apply {
+        this[StreamsConfig.APPLICATION_ID_CONFIG] = "auth"
+        this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
+        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
+        this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$port"
+    }
+
+    fun retrieveKafkaProducerConfiguration(): Properties = Properties().apply {
+        this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
+        this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+        this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+    }
 
     if (args.isEmpty()) {
         val samlProperties = Properties().apply {
@@ -51,7 +74,14 @@ fun main(args: Array<String>) {
         }
         val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
 
-        AuthServer(samlProperties, priv, config, "localhost").start()
+        AuthServer(
+                samlSettings = samlProperties,
+                privKey = priv,
+                kafkaStreamsConfiguration = retrieveKafkaStreamsConfiguration(),
+                kafkaProducerConfiguration = retrieveKafkaProducerConfiguration(),
+                config = config,
+                hostname = "localhost"
+        ).start()
     } else {
         when (args[0]) {
             "generate-db" -> {
@@ -68,40 +98,56 @@ fun main(args: Array<String>) {
 
                 log.info("Creating tables...")
                 transaction {
-                    create(Users, RefreshTokens)
-                    UserDAO.insert(UserUtils.createUserWithPassword(
-                            fullName = "Dan Sebastian Thrane",
-                            email = "dthrane@imada.sdu.dk",
-                            role = Role.ADMIN,
-                            password = "test"
-                    ))
+                    create(Principals, RefreshTokens)
                 }
                 log.info("OK")
             }
-            "create-user" -> {
-                Database.connect(
-                        url = config.database.url,
-                        driver = config.database.driver,
 
-                        user = config.database.username,
-                        password = config.database.password
-                )
+            "create-user" -> {
+                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
+                val userEvents = producer.forStream(AuthStreams.UserUpdateStream)
 
                 val console = System.console()
-                val name = console.readLine("Full name: ")
+                val firstNames = console.readLine("First names: ")
+                val lastName = console.readLine("Last name: ")
+
                 val role = console.readLine("Role (String): ").let { Role.valueOf(it) }
 
                 val email = console.readLine("Email: ")
-                val password = console.readPassword("Password: ")
+                val password = String(console.readPassword("Password: "))
 
-                transaction {
-                    UserDAO.insert(UserUtils.createUserWithPassword(
-                            fullName = name,
-                            email = email,
-                            role = role,
-                            password = String(password)
-                    ))
+                val person = PersonUtils.createUserByPassword(firstNames, lastName, email, role, password)
+
+                log.info("Creating user: ")
+                log.info(person.toString())
+
+                runBlocking {
+                    userEvents.emit(person.id, UserEvent.Created(person.id, person))
                 }
+
+                log.info("OK")
+            }
+
+            "create-api-token" -> {
+                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
+                val userEvents = producer.forStream(AuthStreams.UserUpdateStream)
+                val tokenEvents = producer.forStream(AuthStreams.RefreshTokenStream)
+
+                val scanner = Scanner(System.`in`)
+                print("Service name: ")
+                val serviceName = scanner.nextLine()
+
+                val token = UUID.randomUUID().toString()
+                val principal = ServicePrincipal("_$serviceName", Role.SERVICE)
+
+                runBlocking {
+                    userEvents.emit(principal.id, UserEvent.Created(principal.id, principal))
+                    val event = RefreshTokenEvent.Created(token, principal.id)
+                    tokenEvents.emit(event.key, event)
+                }
+
+                log.info("Created a service user: ${principal.id}")
+                log.info("Active refresh token: $token")
             }
         }
     }
