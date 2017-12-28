@@ -1,8 +1,6 @@
 package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
-import dk.sdu.cloud.auth.AccessToken
-import dk.sdu.cloud.auth.RequestAndRefreshToken
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.Auth
@@ -12,8 +10,6 @@ import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.time.LocalDateTime
-import java.time.ZoneId
 import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm

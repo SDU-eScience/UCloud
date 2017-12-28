@@ -13,8 +13,8 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.*
-import dk.sdu.cloud.storage.processor.StorageRestServer
-import dk.sdu.cloud.storage.processor.TusConfiguration
+import dk.sdu.cloud.storage.StorageRestServer
+import dk.sdu.cloud.storage.TusConfiguration
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URI

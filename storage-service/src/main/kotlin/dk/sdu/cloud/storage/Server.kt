@@ -1,17 +1,19 @@
-package dk.sdu.cloud.storage.processor
+package dk.sdu.cloud.storage
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.zafarkhaja.semver.Version
+import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.Error
-import dk.sdu.cloud.storage.Result
 import dk.sdu.cloud.storage.api.StorageBuildConfig
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
+import dk.sdu.cloud.storage.processor.UserProcessor
 import kotlinx.coroutines.experimental.runBlocking
+import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.StreamsBuilder
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
@@ -94,6 +96,39 @@ fun main(args: Array<String>) {
                 )
         )
     }
+
+    // TODO We need the iRODS PAM module to accept JWTs from services that grant access to an admin account
+    val giantHack = with(configuration.storage) {
+        IRodsStorageConnectionFactory(
+                IRodsConnectionInformation(
+                        host = host,
+                        port = port,
+                        zone = zone,
+                        storageResource = resource,
+                        authScheme = AuthScheme.STANDARD,
+                        sslNegotiationPolicy =
+                        if (sslPolicy != null)
+                            ClientServerNegotiationPolicy.SslNegotiationPolicy.valueOf(sslPolicy)
+                        else
+                            ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE
+                )
+        )
+    }
+
+    val adminAccount = giantHack.createForAccount("rods", "rods").orThrow()
+
+    val builder = StreamsBuilder()
+    UserProcessor(builder.stream(AuthStreams.UserUpdateStream), adminAccount).init()
+    val kafkaStreams = KafkaStreams(builder.build(), KafkaUtil.retrieveKafkaStreamsConfiguration(
+            configuration.kafka.servers,
+            StorageBuildConfig.Name,
+            configuration.service.hostname,
+            configuration.service.port
+    ))
+
+    kafkaStreams.start()
+    // TODO Catch exceptions in Kafka
+
 
     val restServer = StorageRestServer(configuration, storageService).create()
     // Start the REST server

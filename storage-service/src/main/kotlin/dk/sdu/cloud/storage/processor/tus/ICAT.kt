@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.processor.tus
 
-import dk.sdu.cloud.storage.processor.TusConfiguration
+import dk.sdu.cloud.storage.TusConfiguration
 import java.sql.Connection
 import java.sql.DriverManager
 

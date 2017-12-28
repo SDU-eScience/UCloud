@@ -1,15 +1,20 @@
 package dk.sdu.cloud.service
 
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.common.utils.Bytes
 import org.apache.kafka.streams.Consumed
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.StreamsBuilder
+import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.*
 import org.apache.kafka.streams.state.KeyValueStore
+import java.util.*
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.reflect.KClass
 
@@ -53,7 +58,7 @@ fun <K, V, A> StreamsBuilder.aggregate(
         initializer: () -> A? = { null },
         aggregate: (K, V, A?) -> A
 ): KTable<K, A> {
-    val materializedAs = Materialized.`as`<K, A,KeyValueStore<Bytes, ByteArray>>(tableDescription.name)
+    val materializedAs = Materialized.`as`<K, A, KeyValueStore<Bytes, ByteArray>>(tableDescription.name)
             .withKeySerde(tableDescription.keySerde)
             .withValueSerde(tableDescription.valueSerde)
 
@@ -69,7 +74,7 @@ fun <K, V, A> KGroupedStream<K, V>.aggregate(
         initializer: () -> A? = { null },
         aggregate: (K, V, A?) -> A
 ) {
-    val materializedAs = Materialized.`as`<K, A,KeyValueStore<Bytes, ByteArray>>(target.name)
+    val materializedAs = Materialized.`as`<K, A, KeyValueStore<Bytes, ByteArray>>(target.name)
             .withKeySerde(target.keySerde)
             .withValueSerde(target.valueSerde)
     aggregate(initializer, aggregate, materializedAs)
@@ -93,3 +98,23 @@ fun <K, V> KStream<K, V>.to(description: StreamDescription<K, V>) {
 }
 
 data class DivergedStream<K, V>(val predicateTrue: KStream<K, V>, val predicateFalse: KStream<K, V>)
+
+object KafkaUtil {
+    fun retrieveKafkaStreamsConfiguration(
+            kafkaServers: List<String>,
+            serviceName: String,
+            hostname: String,
+            port: Int
+    ): Properties = Properties().apply {
+        this[StreamsConfig.APPLICATION_ID_CONFIG] = serviceName
+        this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.joinToString(",")
+        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
+        this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$port"
+    }
+
+    fun retrieveKafkaProducerConfiguration(kafkaServers: List<String>): Properties = Properties().apply {
+        this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.joinToString(",")
+        this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+        this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+    }
+}

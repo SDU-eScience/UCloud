@@ -139,7 +139,7 @@ task generateBuildConfig() {
         package $packageName
 
         object $className {
-            val Name: String = "${project.name}"
+            val Name: String = "${project.name.replace("-service", "")}"
             val Version: String = "${project.version}"
         }
     """.stripIndent().trim()
@@ -153,7 +153,7 @@ task generateServiceManifest() {
     manifestFile.delete()
     manifestFile << """
         {
-            "name": "${project.name}",
+            "name": "${project.name.replace("-service", "")}",
             "version": "${project.version}"
         }
     """.stripIndent().trim()

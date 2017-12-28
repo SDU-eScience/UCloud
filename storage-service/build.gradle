@@ -86,6 +86,7 @@ dependencies {
     // Service
     // ------------
     compile "dk.sdu.cloud:service-common:0.5.0-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
 }
 
 kotlin {
@@ -101,22 +102,11 @@ compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
 }
 
-task fatJar(type: Jar) {
-    manifest {
-        attributes(['Implementation-Title'  : 'Storage FatJar',
-                    'Implementation-Version': version,
-                    'Main-Class'            : 'org.esciencecloud.storage.processor.ServerKt'])
-    }
-    baseName = project.name + '-all'
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-    with jar
-}
-
 publishing {
     publications {
         api(MavenPublication) {
             groupId(project.group)
-            artifactId(project.name)
+            artifactId(project.name.replace("-service", "") + "-api")
             artifact apiJar
         }
     }
@@ -176,7 +166,7 @@ task generateBuildConfig() {
         package $packageName
 
         object $className {
-            val Name: String = "${project.name}"
+            val Name: String = "${project.name.replace("-service", "")}"
             val Version: String = "${project.version}"
         }
     """.stripIndent().trim()
@@ -190,7 +180,7 @@ task generateServiceManifest() {
     manifestFile.delete()
     manifestFile << """
         {
-            "name": "${project.name}",
+            "name": "${project.name.replace("-service", "")}",
             "version": "${project.version}"
         }
     """.stripIndent().trim()

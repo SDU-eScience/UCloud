@@ -7,6 +7,9 @@ import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.Principals
 import dk.sdu.cloud.auth.services.RefreshTokens
+import dk.sdu.cloud.service.KafkaUtil
+import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaProducerConfiguration
+import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaStreamsConfiguration
 import dk.sdu.cloud.service.forStream
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -55,19 +58,6 @@ fun main(args: Array<String>) {
     val hostname = "localhost"
     val port = 42300
 
-    fun retrieveKafkaStreamsConfiguration(): Properties = Properties().apply {
-        this[StreamsConfig.APPLICATION_ID_CONFIG] = "auth"
-        this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
-        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
-        this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$port"
-    }
-
-    fun retrieveKafkaProducerConfiguration(): Properties = Properties().apply {
-        this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",")
-        this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
-        this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
-    }
-
     if (args.isEmpty()) {
         val samlProperties = Properties().apply {
             load(AuthServer::class.java.classLoader.getResourceAsStream("saml.properties"))
@@ -77,8 +67,13 @@ fun main(args: Array<String>) {
         AuthServer(
                 samlSettings = samlProperties,
                 privKey = priv,
-                kafkaStreamsConfiguration = retrieveKafkaStreamsConfiguration(),
-                kafkaProducerConfiguration = retrieveKafkaProducerConfiguration(),
+                kafkaStreamsConfiguration = retrieveKafkaStreamsConfiguration(
+                        config.kafka.servers,
+                        AuthBuildConfig.Name,
+                        hostname,
+                        port
+                ),
+                kafkaProducerConfiguration = retrieveKafkaProducerConfiguration(config.kafka.servers),
                 config = config,
                 hostname = "localhost"
         ).start()
@@ -104,7 +99,7 @@ fun main(args: Array<String>) {
             }
 
             "create-user" -> {
-                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
+                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(config.kafka.servers))
                 val userEvents = producer.forStream(AuthStreams.UserUpdateStream)
 
                 val console = System.console()
@@ -129,7 +124,7 @@ fun main(args: Array<String>) {
             }
 
             "create-api-token" -> {
-                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration())
+                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(config.kafka.servers))
                 val userEvents = producer.forStream(AuthStreams.UserUpdateStream)
                 val tokenEvents = producer.forStream(AuthStreams.RefreshTokenStream)
 

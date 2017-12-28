@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.zafarkhaja.semver.Version
 import com.onelogin.saml2.settings.SettingsBuilder
+import dk.sdu.cloud.auth.api.AuthBuildConfig
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.SAMLController
@@ -25,7 +26,6 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.zookeeper.ZooDefs
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
@@ -33,9 +33,6 @@ import java.io.StringWriter
 import java.security.interfaces.RSAPrivateKey
 import java.util.*
 import java.util.concurrent.TimeUnit
-
-data class RequestAndRefreshToken(val accessToken: String, val refreshToken: String)
-data class AccessToken(val accessToken: String)
 
 data class KafkaConfiguration(val servers: List<String>)
 data class DatabaseConfiguration(
@@ -47,6 +44,7 @@ data class DatabaseConfiguration(
 
 data class AuthConfiguration(
         val kafka: KafkaConfiguration,
+        val zookeeper: ZooKeeperHostInfo,
         val database: DatabaseConfiguration
 )
 
@@ -68,14 +66,12 @@ class AuthServer(
 
 
     fun start(wait: Boolean = true) {
-        // TODO ServicePrincipal registration needs to be easier
-        val serviceDefinition = ServiceDefinition("auth", Version.forIntegers(1, 0, 0))
+        val serviceDefinition = ServiceDefinition(AuthBuildConfig.Name, Version.valueOf(AuthBuildConfig.Version))
+
         val instance = ServiceInstance(serviceDefinition, hostname, port)
         val (zk, node) = runBlocking {
-            val zk = ZooKeeperConnection(listOf(ZooKeeperHostInfo("localhost"))).connect()
-            val node = zk.registerService(instance,
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE)
-
+            val zk = ZooKeeperConnection(listOf(config.zookeeper)).connect()
+            val node = zk.registerService(instance)
             Pair(zk, node)
         }
 

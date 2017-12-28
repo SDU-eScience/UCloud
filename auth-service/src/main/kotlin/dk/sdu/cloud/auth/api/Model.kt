@@ -161,3 +161,8 @@ data class ServicePrincipal(
         if (!id.startsWith("_")) throw IllegalArgumentException("A service's ID should start with a single underscore")
     }
 }
+
+
+data class RequestAndRefreshToken(val accessToken: String, val refreshToken: String)
+data class AccessToken(val accessToken: String)
+

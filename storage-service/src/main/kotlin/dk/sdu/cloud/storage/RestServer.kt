@@ -1,11 +1,9 @@
-package dk.sdu.cloud.storage.processor
+package dk.sdu.cloud.storage
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RequestHeader
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.storage.Error
-import dk.sdu.cloud.storage.Ok
 import dk.sdu.cloud.storage.api.ACLDescriptions
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.GroupDescriptions
@@ -16,7 +14,6 @@ import dk.sdu.cloud.storage.processor.tus.TusController
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.features.CallLogging
 import io.ktor.features.Compression
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
