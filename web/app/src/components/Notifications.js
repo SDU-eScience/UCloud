@@ -16,6 +16,7 @@ class NotificationsComponent extends React.Component {
         timestamp: 0,
         message: "",
       },
+      // FIXME: Should be WSS
       ws: new WebSocket("ws://localhost:8080/ws/notifications"),
       recentShown: 10,
       remainingShown: 10,
@@ -62,7 +63,6 @@ class NotificationsComponent extends React.Component {
     this.state.ws.onmessage = response => {
       let recentList = this.state.recent.slice();
       recentList.push(JSON.parse(response.data));
-      console.log(recentList);
       this.setState({
         recent: recentList,
       });
