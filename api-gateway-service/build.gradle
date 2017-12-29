@@ -13,8 +13,11 @@ buildscript {
     }
 }
 
+apply plugin: 'application'
 apply plugin: 'kotlin'
 apply plugin: 'java'
+
+mainClassName = "dk.sdu.cloud.transactions.GatewayKt"
 
 repositories {
     mavenCentral()

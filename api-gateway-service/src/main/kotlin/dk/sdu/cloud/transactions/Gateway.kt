@@ -1,5 +1,7 @@
 package dk.sdu.cloud.transactions
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.service.ZooKeeperConnection
 import dk.sdu.cloud.service.ZooKeeperHostInfo
@@ -20,19 +22,30 @@ import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
 
+data class GatewayConfiguration(
+        val targets: List<String>,
+        val hostname: String,
+        val zookeeper: ZooKeeperHostInfo,
+        val kafka: KafkaConfiguration
+)
+
+data class KafkaConfiguration(
+        val servers: List<String>
+)
 
 fun main(args: Array<String>) = runBlocking {
     val log = LoggerFactory.getLogger("Gateway")
-
-    val manager = ServiceManager(
-            File("/tmp/gw-target"),
-            File("/Users/dthrane/Dropbox/work/sdu-cloud/app-service/build/libs"),
-            File("/Users/dthrane/Dropbox/work/sdu-cloud/storage-service/build/libs")
+    val objectMapper = jacksonObjectMapper()
+    val config = objectMapper.readValue<GatewayConfiguration>(
+            File(args.getOrElse(0) { "/etc/gateway/config.json" })
     )
+
+    val targets = config.targets.map { File(it) }
+    val manager = ServiceManager(*targets.toTypedArray())
     val scanner = Scanner(System.`in`)
 
     val producerConfig = mapOf(
-            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to "localhost:9092",
+            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to config.kafka.servers.joinToString(","),
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to "org.apache.kafka.common.serialization.StringSerializer",
             ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to "org.apache.kafka.common.serialization.StringSerializer"
     )
@@ -40,7 +53,7 @@ fun main(args: Array<String>) = runBlocking {
     val kafkaProducer = KafkaProducer<String, String>(producerConfig)
 
     log.info("Connecting to ZooKeeper")
-    val zk = ZooKeeperConnection(listOf(ZooKeeperHostInfo("localhost"))).connect()
+    val zk = ZooKeeperConnection(listOf(config.zookeeper)).connect()
     log.info("Connected!")
 
     var currentServer: ApplicationEngine? = null

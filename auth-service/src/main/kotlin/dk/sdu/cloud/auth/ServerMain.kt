@@ -50,7 +50,7 @@ fun main(args: Array<String>) {
     val mapper = jacksonObjectMapper()
     val config = mapper.readValue<AuthConfiguration>(File("auth_config.json"))
 
-    val hostname = "localhost"
+    val hostname = config.hostname
     val port = 42300
 
     if (args.isEmpty()) {
@@ -70,7 +70,7 @@ fun main(args: Array<String>) {
                 ),
                 kafkaProducerConfiguration = retrieveKafkaProducerConfiguration(config.kafka.servers),
                 config = config,
-                hostname = "localhost"
+                hostname = hostname
         ).start()
     } else {
         when (args[0]) {

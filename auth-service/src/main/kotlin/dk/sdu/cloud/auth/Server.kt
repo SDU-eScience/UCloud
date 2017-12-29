@@ -45,7 +45,8 @@ data class DatabaseConfiguration(
 data class AuthConfiguration(
         val kafka: KafkaConfiguration,
         val zookeeper: ZooKeeperHostInfo,
-        val database: DatabaseConfiguration
+        val database: DatabaseConfiguration,
+        val hostname: String
 )
 
 class AuthServer(
