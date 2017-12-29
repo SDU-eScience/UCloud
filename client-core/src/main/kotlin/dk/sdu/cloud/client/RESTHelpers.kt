@@ -20,6 +20,7 @@ data class RESTCallDescription<R : Any, S, E>(
         val shouldProxyFromGateway: Boolean,
         val deserializerSuccess: ObjectReader,
         val deserializerError: ObjectReader,
+        val owner: ServiceDescription,
         val requestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null
 ) {
     fun prepare(payload: R): PreparedRESTCall<S, E> {
@@ -55,7 +56,7 @@ data class RESTCallDescription<R : Any, S, E>(
                 ?.let { "?$it" } ?: ""
 
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
-        return object : PreparedRESTCall<S, E>(resolvedPath) {
+        return object : PreparedRESTCall<S, E>(resolvedPath, owner) {
             override fun deserializeSuccess(response: Response): S {
                 return deserializerSuccess.readValue(response.responseBody)
             }
@@ -119,13 +120,14 @@ sealed class RESTQueryParameter<R : Any> {
 
 inline fun <reified T : Any, reified E : Any> preparedCallWithJsonOutput(
         endpoint: String,
+        owner: ServiceDescription,
         mapper: ObjectMapper = HttpClient.defaultMapper,
         crossinline configureBody: BoundRequestBuilder.() -> Unit = {}
 ): PreparedRESTCall<T, E> {
     val successRef = mapper.readerFor(jacksonTypeRef<T>())
     val errorRef = mapper.readerFor(jacksonTypeRef<E>())
 
-    return object : PreparedRESTCall<T, E>(endpoint) {
+    return object : PreparedRESTCall<T, E>(endpoint, owner) {
         override fun BoundRequestBuilder.configure() {
             configureBody()
         }

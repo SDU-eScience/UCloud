@@ -6,7 +6,7 @@ import dk.sdu.cloud.storage.model.StorageFile
 
 data class FindByPath(val path: String)
 
-object FileDescriptions : RESTDescriptions() {
+object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
 
     val listAtPath = callDescription<FindByPath, List<StorageFile>, CommonErrorMessage> {

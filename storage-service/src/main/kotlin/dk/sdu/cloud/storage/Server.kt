@@ -4,8 +4,9 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.zafarkhaja.semver.Version
 import dk.sdu.cloud.auth.api.AuthStreams
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.api.StorageBuildConfig
+import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
@@ -48,7 +49,7 @@ data class StorageConfiguration(
         val sslPolicy: String?
 )
 
-data class ServiceConfiguration(val hostname: String, val port: Int)
+data class ServiceConfiguration(val hostname: String, val port: Int, val refreshToken: String)
 data class KafkaConfiguration(val servers: List<String>)
 
 data class TusConfiguration(
@@ -71,7 +72,10 @@ fun main(args: Array<String>) {
 
     val configuration = Configuration.parseFile(filePath)
 
-    val definition = ServiceDefinition(StorageBuildConfig.Name, Version.valueOf(StorageBuildConfig.Version))
+    val definition = ServiceDefinition(
+            StorageServiceDescription.name,
+            Version.valueOf(StorageServiceDescription.version)
+    )
     val instance = ServiceInstance(definition, configuration.service.hostname, configuration.service.port)
 
     val (zk, node) = runBlocking {
@@ -81,7 +85,7 @@ fun main(args: Array<String>) {
     }
 
     val storageService = with(configuration.storage) {
-        IRodsStorageService(
+        IRodsStorageConnectionFactory(
                 IRodsConnectionInformation(
                         host = host,
                         port = port,
@@ -97,31 +101,17 @@ fun main(args: Array<String>) {
         )
     }
 
-    // TODO We need the iRODS PAM module to accept JWTs from services that grant access to an admin account
-    val giantHack = with(configuration.storage) {
-        IRodsStorageConnectionFactory(
-                IRodsConnectionInformation(
-                        host = host,
-                        port = port,
-                        zone = zone,
-                        storageResource = resource,
-                        authScheme = AuthScheme.STANDARD,
-                        sslNegotiationPolicy =
-                        if (sslPolicy != null)
-                            ClientServerNegotiationPolicy.SslNegotiationPolicy.valueOf(sslPolicy)
-                        else
-                            ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE
-                )
-        )
+    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.service.refreshToken)
+    val adminAccount = run {
+        val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
+        storageService.createForAccount("_storage", currentAccessToken).orThrow()
     }
-
-    val adminAccount = giantHack.createForAccount("rods", "rods").orThrow()
 
     val builder = StreamsBuilder()
     UserProcessor(builder.stream(AuthStreams.UserUpdateStream), adminAccount).init()
     val kafkaStreams = KafkaStreams(builder.build(), KafkaUtil.retrieveKafkaStreamsConfiguration(
             configuration.kafka.servers,
-            StorageBuildConfig.Name,
+            StorageServiceDescription.name,
             configuration.service.hostname,
             configuration.service.port
     ))
@@ -138,31 +128,3 @@ fun main(args: Array<String>) {
     runBlocking { zk.markServiceAsReady(node, instance) }
 }
 
-abstract class StorageService {
-    abstract val storageFactory: StorageConnectionFactory
-
-    /**
-     * Should validate the StorageRequest and provide us with an appropriate StorageConnection. For internal
-     * services this should simply match an appropriate AdminConnection.
-     *
-     * For operations performed by an end-user this should match their internal storage user.
-     *
-     * If the supplied credentials are incorrect we should return an [Error]
-     *
-     * If any of our collaborators are unavailable we should throw an exception (after perhaps internally re-trying).
-     * This will cause Kafka to _not_ commit this message as having been consumed by this sub-system. Which is good,
-     * because we want to retry at a later point.
-     */
-    fun validateRequest(header: RequestHeader): Result<StorageConnection> {
-        return with(header) {
-            val decoded = TokenValidation.validateOrNull(performedFor) ?: return Error.invalidAuthentication()
-            storageFactory.createForAccount(decoded.subject, decoded.token)
-        }
-    }
-}
-
-class IRodsStorageService(
-        connectionInformation: IRodsConnectionInformation
-) : StorageService() {
-    override val storageFactory: StorageConnectionFactory = IRodsStorageConnectionFactory(connectionInformation)
-}

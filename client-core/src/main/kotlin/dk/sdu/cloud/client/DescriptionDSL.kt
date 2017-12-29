@@ -37,7 +37,10 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
         params = RESTCallQueryParamsBuilder<R>().also(builderBody).build()
     }
 
-    fun build(additionalConfiguration: (BoundRequestBuilder.(R) -> Unit)?): RESTCallDescription<R, S, E> {
+    fun build(
+            owner: ServiceDescription,
+            additionalConfiguration: (BoundRequestBuilder.(R) -> Unit)?
+    ): RESTCallDescription<R, S, E> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
 
         return RESTCallDescription(
@@ -49,6 +52,7 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
                 shouldProxyFromGateway,
                 deserializerSuccess,
                 deserializerError,
+                owner,
                 additionalConfiguration
         )
     }

@@ -5,7 +5,7 @@ import dk.sdu.cloud.FindByName
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.storage.model.User
 
-object GroupDescriptions : RESTDescriptions() {
+object GroupDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/groups"
     val findByName = callDescription<FindByName, List<User>, CommonErrorMessage> {
         path { using(baseContext) }
