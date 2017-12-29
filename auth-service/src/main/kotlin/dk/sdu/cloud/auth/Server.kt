@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.zafarkhaja.semver.Version
 import com.onelogin.saml2.settings.SettingsBuilder
-import dk.sdu.cloud.auth.api.AuthBuildConfig
+import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.SAMLController
@@ -66,7 +66,10 @@ class AuthServer(
 
 
     fun start(wait: Boolean = true) {
-        val serviceDefinition = ServiceDefinition(AuthBuildConfig.Name, Version.valueOf(AuthBuildConfig.Version))
+        val serviceDefinition = ServiceDefinition(
+                AuthServiceDescription.name,
+                Version.valueOf(AuthServiceDescription.version)
+        )
 
         val instance = ServiceInstance(serviceDefinition, hostname, port)
         val (zk, node) = runBlocking {

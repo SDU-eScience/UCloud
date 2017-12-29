@@ -8,7 +8,8 @@
     "sslPolicy": "CS_NEG_REQUIRE"
   },
   "service": {
-    "port": 42000
+    "port": 42000,
+    "refreshToken": "TODO"
   },
   "kafka": {
     "servers": []

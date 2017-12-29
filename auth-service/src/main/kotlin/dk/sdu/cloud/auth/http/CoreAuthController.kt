@@ -145,7 +145,7 @@ class CoreAuthController(
 
                                                 div {
                                                     a(
-                                                            href = "/auth/saml/login?service=${service.name}",
+                                                            href = "/auth/saml/login?service=${service.name.urlEncoded}",
                                                             classes = "btn btn-flat btn-block btn-info"
                                                     ) {
                                                         +"Login using WAYF"

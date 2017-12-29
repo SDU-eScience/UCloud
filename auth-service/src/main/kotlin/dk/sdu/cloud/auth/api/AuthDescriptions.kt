@@ -3,7 +3,7 @@ package dk.sdu.cloud.auth.api
 import dk.sdu.cloud.client.RESTDescriptions
 import io.netty.handler.codec.http.HttpMethod
 
-object AuthDescriptions : RESTDescriptions() {
+object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     // This is a bit weird.
     //
     // For the frontends the proxying (and load balancing) will be performed by the apache server which is in front

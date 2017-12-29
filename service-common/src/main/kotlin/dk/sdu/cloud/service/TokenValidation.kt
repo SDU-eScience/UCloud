@@ -2,6 +2,7 @@ package dk.sdu.cloud.service
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.exceptions.JWTDecodeException
 import com.auth0.jwt.exceptions.JWTVerificationException
 import com.auth0.jwt.interfaces.DecodedJWT
 import java.io.ByteArrayInputStream
@@ -28,6 +29,8 @@ object TokenValidation {
     fun validateOrNull(token: RawAuthToken): DecodedJWT? = try {
         verifier.verify(token)
     } catch (ex: JWTVerificationException) {
+        null
+    } catch (ex: JWTDecodeException) {
         null
     }
 

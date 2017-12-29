@@ -7,16 +7,11 @@ import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.Principals
 import dk.sdu.cloud.auth.services.RefreshTokens
-import dk.sdu.cloud.service.KafkaUtil
 import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaProducerConfiguration
 import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaStreamsConfiguration
 import dk.sdu.cloud.service.forStream
 import kotlinx.coroutines.experimental.runBlocking
-import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.clients.producer.ProducerConfig
-import org.apache.kafka.common.serialization.StringSerializer
-import org.apache.kafka.streams.StreamsConfig
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -69,7 +64,7 @@ fun main(args: Array<String>) {
                 privKey = priv,
                 kafkaStreamsConfiguration = retrieveKafkaStreamsConfiguration(
                         config.kafka.servers,
-                        AuthBuildConfig.Name,
+                        AuthServiceDescription.name,
                         hostname,
                         port
                 ),

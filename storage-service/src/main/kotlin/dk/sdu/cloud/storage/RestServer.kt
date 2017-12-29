@@ -3,12 +3,14 @@ package dk.sdu.cloud.storage
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RequestHeader
+import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.storage.api.ACLDescriptions
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.GroupDescriptions
 import dk.sdu.cloud.storage.api.UserDescriptions
 import dk.sdu.cloud.storage.ext.StorageConnection
+import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.model.StoragePath
 import dk.sdu.cloud.storage.processor.tus.TusController
 import io.ktor.application.ApplicationCallPipeline
@@ -30,9 +32,17 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.AttributeKey
 
-class StorageRestServer(private val configuration: Configuration, private val storageService: StorageService) {
+class StorageRestServer(
+        private val configuration: Configuration,
+        private val storageService: StorageConnectionFactory
+) {
     companion object {
         val StorageSession = AttributeKey<StorageConnection>("StorageSession")
+    }
+
+    fun validateRequest(header: RequestHeader): StorageConnection? {
+        val validated = TokenValidation.validateOrNull(header.performedFor) ?: return null
+        return storageService.createForAccount(validated.subject, validated.token).capture()
     }
 
     private fun ApplicationRequest.bearer(): String? {
@@ -64,7 +74,7 @@ class StorageRestServer(private val configuration: Configuration, private val st
             }
 
             val header = RequestHeader(uuid, token)
-            val connection = storageService.validateRequest(header).capture() ?: run {
+            val connection = validateRequest(header) ?: run {
                 call.respond(HttpStatusCode.Unauthorized)
                 finish()
                 return@intercept
