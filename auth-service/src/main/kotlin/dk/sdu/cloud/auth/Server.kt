@@ -124,9 +124,9 @@ class AuthServer(
             log.warn(StringWriter().apply { b.printStackTrace(PrintWriter(this)) }.toString())
             stop()
         }
-        streams.start()
 
-        server.start(wait = wait)
+        streams.start()
+        server.start(wait = false)
 
         runBlocking { zk.markServiceAsReady(node, instance) }
     }

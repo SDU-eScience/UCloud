@@ -7,8 +7,6 @@ import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
-import dk.sdu.cloud.storage.ext.StorageConnection
-import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
 import dk.sdu.cloud.storage.processor.UserProcessor
@@ -104,6 +102,7 @@ fun main(args: Array<String>) {
     val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.service.refreshToken)
     val adminAccount = run {
         val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
+        println(currentAccessToken)
         storageService.createForAccount("_storage", currentAccessToken).orThrow()
     }
 
@@ -118,7 +117,8 @@ fun main(args: Array<String>) {
 
     kafkaStreams.start()
     // TODO Catch exceptions in Kafka
-
+    // TODO We need to be better at crashing the entire thing on critical errors
+    // TODO Need to close admin connection when server stops
 
     val restServer = StorageRestServer(configuration, storageService).create()
     // Start the REST server

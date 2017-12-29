@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.processor
 
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.storage.ext.StorageConnection
+import dk.sdu.cloud.storage.Error
 import org.apache.kafka.streams.kstream.KStream
 import org.slf4j.LoggerFactory
 
@@ -19,7 +20,13 @@ class UserProcessor(
         when (event) {
             is UserEvent.Created -> {
                 log.info("Creating a matching user in iRODS: $event")
-                adminConnection.userAdmin!!.createUser(event.userId).orThrow()
+                val result = adminConnection.userAdmin!!.createUser(event.userId)
+                if (result is Error) {
+                    // TODO Duplicate. We need to get rid of these Error types
+                    if (result.errorCode != 2) {
+                        result.orThrow() // This will throw
+                    }
+                }
             }
         }
     }
