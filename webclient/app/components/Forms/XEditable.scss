@@ -1,0 +1,17 @@
+/**
+ * Forms Xeditable
+ */
+
+// Fullwidth Textareas
+
+[data-type="textarea"] {
+
+    + .editable-container.editable-inline {
+        width: 100%;
+        .editableform .control-group,
+        .editable-input,
+        .editableform textarea.form-control {
+            width: 100%;
+        }
+    }
+}

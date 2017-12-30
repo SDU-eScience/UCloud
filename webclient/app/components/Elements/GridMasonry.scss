@@ -1,0 +1,75 @@
+/**
+ * Grid Masonry Deck
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+
+/* clear fix */
+.grid:after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+/* ---- Masonry grid -- customize percentage values ---- */
+
+.grid-sizer,
+.grid-item {
+  width: 50%;
+}
+@media #{$min-tablet} {
+    .grid-sizer,
+    .grid-item {
+      width: 33.3333%;
+    }
+}
+
+@media #{$min-desktop} {
+    .grid-sizer,
+    .grid-item {
+      width: 25%;
+    }
+}
+
+.grid-item {
+  float: left;
+}
+
+// The photo card
+// -----------------------------------
+
+.photo {
+    background-color: #fff;
+    border: 1px solid rgba(0, 0, 0, .15);
+    border-radius: 3px;
+    margin: 0 10px 10px 0;
+    position: relative;
+    @include transition(box-shadow .2s ease);
+    &:hover {
+            @include box-shadow($material-shadow-z3);
+    }
+    .photo-loader {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding-top: 40%;
+        z-index: 1;
+    }
+
+    img {
+        position: relative;
+        z-index: 2;
+    }
+
+    .photo-wrapper {
+        min-height: 100px;
+    }
+
+    .photo-description {
+        padding:15px;
+    }
+}

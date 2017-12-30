@@ -1,0 +1,41 @@
+/**
+ * Forms Validation
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+//
+// Styles for validation results
+//
+
+.form-validate {
+    .form-control {
+
+        // Invalid input
+        &.error {
+            border-color: $brand-danger;
+        }
+        // Valid input
+        &.valid,
+        &.valid:focus {
+                border-color: $brand-success;
+        }
+
+    }
+
+    .has-error .form-control {
+        border-color: $brand-danger !important;
+    }
+
+    // custom checkbox and radio
+    .c-checkbox, .c-radio {
+        input {
+            // Invalid input
+            &.error + span {
+                    border-color: $brand-danger;
+            }
+        }
+    }
+
+}

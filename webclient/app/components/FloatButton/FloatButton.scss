@@ -1,0 +1,16 @@
+/**
+ * Float Button
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.floatbutton {
+    position: relative;
+    z-index: 1000;
+    .mfb-component__button--child,
+    .mfb-component__button--main {
+        color: #fff;
+        // background-color: $mdc-pink-400;
+    }
+}

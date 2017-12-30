@@ -1,0 +1,95 @@
+/**
+ * Material Lists
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.mda-list {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    > .mda-list-item {
+        @include clearfix;
+        padding: 0 22px;
+
+        > .mda-list-item-img,
+        > .mda-list-item-icon,
+        > .mda-list-item-initial {
+            float: left;
+            width: $mda-list-img-wd;
+            height: $mda-list-img-wd;
+            margin-top: 20px;
+            margin-bottom: 8px;
+            margin-right: $mda-list-img-mr;
+            border-radius: 50%;
+        }
+        > .mda-list-item-icon {
+            line-height: 42px;
+            text-align: center;
+            > em, > i { line-height: inherit; }
+        }
+        > .mda-list-item-initial {
+            line-height: 50px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 300;
+        }
+
+        > .mda-list-item-text {
+            float: left;
+            padding: 20px 0;
+
+            &.mda-2-line {
+                padding-top: 26px;
+            }
+
+            h3 {
+                font-size: 16px;
+                font-weight: 400;
+                letter-spacing: .01em;
+                margin: 0 0 6px;
+                line-height: .75em;
+            }
+            h4 {
+                font-size: 14px;
+                letter-spacing: .01em;
+                font-weight: 400;
+                margin: 10px 0 5px;
+                line-height: .75em;
+            }
+            p {
+                font-size: 14px;
+                font-weight: 500;
+                margin: 0;
+                line-height: 1.6em
+            }
+        }
+        &:first-child > .mda-list-item-text {
+            // padding-top: 0;
+        }
+
+        // float left never breaks lines
+        // can not be used with float:right elements
+        > .mda-list-item-img,
+        > .mda-list-item-initial {
+            + .mda-list-item-text {
+                $sp: $mda-list-img-wd + $mda-list-img-mr;
+                width: calc(100% - #{$sp});
+            }
+        }
+
+    } //.mda-list-item
+    &.mda-list-bordered {
+        > .mda-list-item {
+            border-bottom: 1px solid rgba($gray-base,.16);
+
+        }
+    }
+}
+// clear last border when inside cards
+.card > .mda-list-bordered {
+    > .mda-list-item:last-child {
+        border-bottom: 0;
+    }
+}

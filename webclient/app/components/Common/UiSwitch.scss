@@ -1,0 +1,100 @@
+/**
+ * Forms - Switch
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+// Material Switches
+
+$ui-fg-color: $mdc-pink-400;
+$ui-bg-color: #9e9e9e;
+
+@mixin switch-color-variant($color) {
+    input:checked + span {
+        background-color: $color;
+        &:after {
+            background-color: $color;
+        }
+    }
+
+    &.switch-warn input:checked + span {
+        background-color: rgba($color,.50);
+    }
+}
+
+///////
+
+.switch {
+    .form-control {
+        padding-top: 7px;
+        margin-bottom: 0;
+    }
+}
+
+.switch * {
+    cursor: pointer;
+}
+
+.switch input {
+    opacity: 0;
+    position: absolute;
+    z-index: -1;
+}
+
+.switch {
+    margin-right: 8px;
+    span {
+        position: relative;
+        display: inline-block;
+        width: 35px; height: 15px;
+        background-color: $ui-bg-color;
+        border: 0;
+        border-radius: 8px;
+        vertical-align: middle;
+        @include transition(all .2s cubic-bezier(.35,0,.25,1) .1s);
+    }
+
+    span:after {
+        content: "";
+        position: absolute;
+        background-color: #fff;
+        top: -2px;
+        left: 0;
+        height: 20px; width: 20px;
+        border: 0;
+        border-radius: 400px;
+        box-shadow: 0 3px 1px -2px rgba(0,0,0,.14),0 2px 2px 0 rgba(0,0,0,.098),0 1px 5px 0 rgba(0,0,0,.084);
+        @include transition(all .3s cubic-bezier(.35,0,.25,1))
+    }
+
+    &.switch-primary { @include switch-color-variant($brand-primary); }
+    &.switch-info { @include switch-color-variant($brand-info); }
+    &.switch-danger { @include switch-color-variant($brand-danger); }
+    &.switch-warning { @include switch-color-variant($brand-warning); }
+    &.switch-success { @include switch-color-variant($brand-success); }
+    &.switch-purple { @include switch-color-variant($mdc-deep-purple-400); }
+
+}
+
+.switch input:checked + span {
+    background-color: $ui-fg-color;
+    &:after {
+        background-color: $ui-fg-color;
+    }
+}
+
+.switch.switch-warn input:checked + span {
+    background-color: rgba($ui-fg-color,.50);
+}
+
+.switch input:checked + span:after {
+    left: 50%;
+}
+
+.switch input:disabled + span {
+    background-color: rgba($ui-bg-color, .50) !important;
+    &:after {
+        background-color: #fff !important;
+    }
+}

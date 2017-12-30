@@ -1,0 +1,180 @@
+/**
+ * Main Layout
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+// Angular
+[ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
+    display: none !important;
+}
+[ng-click], [data-ng-click], .nav, .pagination, .carousel, .panel-title a {
+    cursor: pointer
+}
+
+// Scaffolding
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  background-color: $body-bg;
+  min-width: 320px;
+  direction:ltr;
+}
+
+body {
+  font-family: $font-family;
+  color: $text-color;
+}
+
+// Layout
+// -----------------------------------
+
+.layout-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.page-container {
+    &, & > div {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+// Main Content
+// -----------------------------------
+
+.main-container {
+    position: relative;
+    height: calc(100% - #{$header-hg});
+    // background-color: $main-content-bg;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    @media #{$min-desktop} {
+        margin-left: $sidebar-wd;
+    }
+
+    > section {
+        min-height: calc(100% - #{$footer-hg});
+    }
+
+}
+
+.content-heading {
+    padding: 16px;
+    box-shadow: 0 1px 0 rgba(20, 20, 20, 0.075);
+}
+
+// Footer
+
+footer {
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: $footer-hg;
+    border-top: 1px solid rgba(160,160,160, .12);
+    padding: 20px;
+    z-index: 109;
+}
+
+// Container variants
+
+.container-full {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    // min-height: calc(100vh - #{$header-hg});
+    > .row {
+        margin: 0;
+        > [class*="col-"] {
+            &:first-child { padding-left: 0; }
+            &:last-child { padding-right: 0; }
+        }
+    }
+}
+
+
+.container-fluid,
+.container-lg,
+.container-md,
+.container-sm,
+.container-xs {
+    padding: 8px;
+    width: auto;
+
+    @media #{$min-mobile} {
+        padding: 16px;
+    }
+
+    @media #{$min-desktop} {
+        padding: 24px;
+    }
+}
+
+.container-lg {
+    max-width: $screen-lg-min;
+}
+
+.container-md {
+    max-width: $screen-md-min;
+}
+
+.container-sm {
+    max-width: $screen-sm-min;
+}
+
+.container-xs {
+    max-width: $screen-xs-min;
+}
+
+// remove extra spaces on mobile
+@media #{$max-desktop} {
+    .container-unwrap {
+        padding: 0;
+        > .row {
+            margin: 0;
+            > [class*="col-"] {
+                padding-left: 0;
+                padding-right: 0;
+            }
+        }
+        .card { margin-bottom: 0; }
+
+    }
+}
+
+.container-overlap {
+    position: relative;
+    padding: 32px 16px 64px 16px;
+    + .container-fluid,
+    + .container-lg,
+    + .container-md,
+    + .container-sm,
+    + .container-xs {
+        padding-top: 0;
+        margin-top: -32px;
+        .push-down {
+            display: block;
+            height: (32px + 16px);
+        }
+    }
+    &:before {
+        background-color: inherit;
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: -1;
+    }
+}

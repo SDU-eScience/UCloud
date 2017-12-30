@@ -1,0 +1,258 @@
+/**
+ * Buttons Extras
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+// global button styles
+
+.input-group-btn > .btn {
+    border-color: rgba(0,0,0,.26);
+}
+
+// Button inverse variant
+.btn-inverse {
+    @include button-variant(#fff, $brand-inverse, $brand-inverse);
+}
+
+// Material like flat buttons (show bg on hover)
+
+@mixin btn-flat-colors($color) {
+    color: $color;
+    &:hover, &:focus { color: #fff  }
+    &[disabled], &.disabled {
+        color: rgba($color, .75) !important;
+    }
+}
+
+.btn-flat {
+    border-color: transparent !important;
+    border-radius: 2px;
+    background-color: transparent;
+    text-transform: uppercase;
+    @include box-shadow(0 0 0 #000 !important);
+
+    &.btn-primary {
+        @include btn-flat-colors($brand-primary);
+    }
+    &.btn-success {
+        @include btn-flat-colors($brand-success);
+    }
+    &.btn-danger {
+        @include btn-flat-colors($brand-danger);
+    }
+    &.btn-warning {
+        @include btn-flat-colors($brand-warning);
+    }
+    &.btn-info {
+        @include btn-flat-colors($brand-info);
+    }
+    &.btn-inverse {
+        @include btn-flat-colors($brand-inverse);
+    }
+
+    &.text-white { color: #fff !important; }
+
+    &[disabled],
+    &.disabled {
+        // color: rgba(255,255,255,.45) !important;
+        background-color: transparent !important;
+    }
+
+    &.btn-flat-icon {
+        border-radius: 50%;
+        font-size: 24px;
+        height: 32px;
+        width: 32px;
+        padding: 0;
+        overflow: hidden;
+        color: inherit !important;
+        > em {
+            line-height: 32px;
+        }
+        &:hover, &:focus, &:active {
+            background-color: rgba(158,158,158,.2) !important;
+        }
+    }
+}
+
+// Show a box shadow when active
+.btn-raised {
+    border: 0;
+    @include box-shadow($material-shadow-z1);
+    &:hover, &:active, &.active {
+        @include box-shadow(0 4px 8px 0 rgba(0,0,0,0.4) !important);
+    }
+}
+
+// adjust button icon under float
+.pull-right > .btn-flat-icon {
+    margin-top: -4px;
+}
+
+// A circle button
+.btn-circle {
+    width: 46px;
+    height: 46px;
+    overflow: hidden;
+    border-radius: 50% !important;
+    line-height: 46px;
+    padding: 0;
+    text-align: center;
+}
+
+// Extension for Bootstrap buttons
+// ------------------------------------
+
+.btn-outline {
+    background-color: transparent;
+    border-color: #fff;
+    &:hover, &:focus {
+        background-color: #fff;
+        color: $brand-primary;
+    }
+}
+
+// Extra size
+.btn-xl {
+    padding: 20px 16px;
+    font-size: 18px;
+}
+
+// Button square
+.btn-square {
+    border-radius: 0;
+}
+
+// Button pill
+.btn-pill-left {
+    border-top-left-radius: 50px;
+    border-bottom-left-radius: 50px;
+    padding-left: 18px;
+}
+
+.btn-pill-right {
+    border-top-right-radius: 50px;
+    border-bottom-right-radius: 50px;
+    padding-right: 18px;
+}
+
+// Rounded buttons
+.btn-oval {
+    @extend .btn-pill-right;
+    @extend .btn-pill-left;
+}
+
+// Labels for buttons
+// --------------------------------------------------
+
+// BUTTONS LABEL mixin
+@mixin button-label-size($padding-vertical, $padding-horizontal, $border-radius) {
+    padding: $padding-vertical $padding-horizontal;
+    left: (-1 * $padding-horizontal);
+    border-radius: ($border-radius - 1px) 0 0 ($border-radius - 1px);
+
+    &.btn-label-right {
+        left: auto;
+        right: (-1 * $padding-horizontal);
+        border-radius: 0 ($border-radius - 1px) ($border-radius - 1px) 0;
+    }
+}
+
+.btn-labeled {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.btn-label {
+    position: relative;
+    background: transparent;
+    // background: rgba(0, 0, 0, 0.05);
+    display: inline-block;
+    @include button-label-size(6px, 16px, 4px);
+    &:after {
+        content: "";
+        position: absolute;
+        top: 5px;
+        bottom: 5px;
+        right: 0;
+        width: 1px;
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    &.btn-label-right {
+        text-indent: -2px;
+        &:after {
+            left: 0;
+            right: auto;
+        }
+    }
+}
+
+.btn-lg .btn-label { @include button-label-size(10px, 20px, 6px); }
+.btn-sm .btn-label { @include button-label-size(5px, 10px, 3px); }
+.btn-xs .btn-label { @include button-label-size(1px, 5px, 3px); }
+
+
+// Fixed width buttons
+// --------------------------------------------------
+
+$btn-fw-default:  80px;
+$btn-fw-sm:       40px;
+$btn-fw-md:       60px;
+$btn-fw-lg:       140px;
+
+.btn-fw {
+    min-width: $btn-fw-default;
+    &.btn-sm {
+        min-width: $btn-fw-sm;
+    }
+    &.btn-md {
+        min-width: $btn-fw-md;
+    }
+    &.btn-lg {
+        min-width: $btn-fw-lg;
+    }
+}
+
+// defualt buttons transition delays the effect
+// of hide/show buttons in some components
+.btn[ng-if],
+.btn[ng-show] {
+    //@include transition(none 0s);
+}
+
+
+// Pagination rounded
+.pagination-rounded {
+    li > a,
+    li > span {
+        border-radius: 50% !important;
+        margin-right: 4px;
+        margin-left: 4px;
+        width: 35px;
+        height: 35px;
+        line-height: 35px;
+        padding: 0;
+        text-align: center;
+        > span {
+            position: relative;
+            top: -1px;
+        }
+    }
+    &.pagination-lg {
+        li > a,
+        li > span {
+            width: 44px;
+            height: 44px;
+            line-height: 44px;
+
+        }
+    }
+}
+
+.pull-left.btn-group,
+.pull-right.btn-group {
+    position: relative;
+    z-index: 1;
+}
