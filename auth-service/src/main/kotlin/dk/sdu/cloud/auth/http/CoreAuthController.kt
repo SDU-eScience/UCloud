@@ -1,7 +1,9 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.auth.api.Person
-import dk.sdu.cloud.auth.services.*
+import dk.sdu.cloud.auth.services.ServiceDAO
+import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.call
 import io.ktor.content.files
 import io.ktor.content.static
@@ -10,7 +12,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.header
-import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Routing
@@ -18,14 +19,14 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
 import kotlinx.html.*
-import dk.sdu.cloud.auth.util.urlEncoded
-import dk.sdu.cloud.service.TokenValidation
 import org.slf4j.LoggerFactory
 import java.io.File
 
 // TODO Bad name
 class CoreAuthController(
-        private val tokenService: TokenService
+        private val tokenService: TokenService,
+        private val enablePasswords: Boolean,
+        private val enableWayf: Boolean
 ) {
     private val ApplicationRequest.bearerToken: String?
         get() {
@@ -109,48 +110,50 @@ class CoreAuthController(
                                                 }
                                             }
                                             form(classes = "card b0 form-validate") {
-                                                method = FormMethod.post
-                                                action = "/auth/login"
+                                                if (enablePasswords) {
+                                                    method = FormMethod.post
+                                                    action = "/auth/login"
 
-                                                div(classes = "card-offset pb0")
-                                                div(classes = "card-heading") {
-                                                    div(classes = "card-title text-center") {
-                                                        +"Login"
+                                                    div(classes = "card-offset pb0")
+                                                    div(classes = "card-heading") {
+                                                        div(classes = "card-title text-center") {
+                                                            +"Login"
+                                                        }
+                                                    }
+                                                    div(classes = "card-body") {
+                                                        input {
+                                                            type = InputType.hidden
+                                                            value = service.name
+                                                            name = "service"
+                                                        }
+
+                                                        formControlField(
+                                                                name = "username",
+                                                                text = "Username",
+                                                                iconType = "email-outline"
+                                                        )
+
+                                                        formControlField(
+                                                                name = "password",
+                                                                text = "Password",
+                                                                iconType = "locked-outline",
+                                                                type = "password"
+                                                        )
+                                                    }
+                                                    button(type = ButtonType.submit) {
+                                                        classes = setOf("btn", "btn-primary", "btn-flat")
+                                                        +"Authenticate"
                                                     }
                                                 }
-                                                div(classes = "card-body") {
-                                                    input {
-                                                        type = InputType.hidden
-                                                        value = service.name
-                                                        name = "service"
-                                                    }
 
-                                                    formControlField(
-                                                            name = "username",
-                                                            text = "Username",
-                                                            iconType = "email-outline"
-                                                    )
-
-                                                    formControlField(
-                                                            name = "password",
-                                                            text = "Password",
-                                                            iconType = "locked-outline",
-                                                            type = "password"
-                                                    )
-                                                }
-                                                button(type = ButtonType.submit) {
-                                                    classes = setOf("btn", "btn-primary", "btn-flat")
-                                                    +"Authenticate"
-                                                }
-
-                                                div {
-                                                    a(
-                                                            href = "/auth/saml/login?service=${service.name.urlEncoded}",
-                                                            classes = "btn btn-flat btn-block btn-info"
-                                                    ) {
-                                                        +"Login using WAYF"
-                                                        img(alt = "WAYF Logo", src = "wayf_logo.png") {
-                                                            height = "32px"
+                                                if (enableWayf) {
+                                                    div {
+                                                        a(href = "/auth/saml/login?service=${service.name.urlEncoded}",
+                                                                classes = "btn btn-flat btn-block btn-info") {
+                                                            +"Login using WAYF"
+                                                            img(alt = "WAYF Logo", src = "wayf_logo.png") {
+                                                                height = "32px"
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -162,42 +165,6 @@ class CoreAuthController(
                         }
                     }
                 }
-            }
-
-            post("login") {
-                // TODO We end up throwing away the service arg if invalid pass
-                // Endpoint for handling basic password logins
-                val params = try {
-                    call.receiveParameters()
-                } catch (ex: Exception) {
-                    return@post call.respondRedirect("/auth/login?invalid")
-                }
-
-                val username = params["username"]
-                val password = params["password"]
-                val service = params["service"] ?: return@post run {
-                    call.respondRedirect("/auth/login?invalid")
-                }
-
-                if (username == null || password == null) {
-                    return@post call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
-                }
-
-                val user = UserDAO.findById(username) as? Person.ByPassword ?: return@post run {
-                    call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
-                }
-
-                val validPassword = user.checkPassword(password)
-                if (!validPassword) return@post run {
-                    call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
-                }
-
-                val token = tokenService.createAndRegisterTokenFor(user)
-                call.respondRedirect("/auth/login-redirect?" +
-                        "service=${service.urlEncoded}" +
-                        "&accessToken=${token.accessToken.urlEncoded}" +
-                        "&refreshToken=${token.refreshToken.urlEncoded}"
-                )
             }
 
             get("login-redirect") {

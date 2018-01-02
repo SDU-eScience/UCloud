@@ -1,6 +1,11 @@
 package dk.sdu.cloud.auth.http
 
 import com.onelogin.saml2.settings.Saml2Settings
+import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.saml.Auth
+import dk.sdu.cloud.auth.services.saml.KtorUtils
+import dk.sdu.cloud.auth.util.urlDecoded
+import dk.sdu.cloud.auth.util.urlEncoded
 import io.ktor.application.call
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -12,18 +17,13 @@ import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
-import dk.sdu.cloud.auth.services.saml.Auth
-import dk.sdu.cloud.auth.services.saml.KtorUtils
-import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.util.urlDecoded
-import dk.sdu.cloud.auth.util.urlEncoded
 
 private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
 
-class SAMLController (
+class SAMLController(
         private val authSettings: Saml2Settings,
         private val tokenService: TokenService
-){
+) {
     fun configure(routing: Routing): Unit = with(routing) {
         route("auth") {
             route("saml") {
@@ -37,7 +37,7 @@ class SAMLController (
                     }
 
                     val relayState = KtorUtils.getSelfURLhost(call) +
-                            "${SAML_RELAY_STATE_PREFIX}${service.urlEncoded}"
+                            "$SAML_RELAY_STATE_PREFIX${service.urlEncoded}"
 
                     val auth = Auth(authSettings, call)
                     val samlRequestTarget = auth.login(

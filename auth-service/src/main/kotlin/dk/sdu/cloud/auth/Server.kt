@@ -3,17 +3,19 @@ package dk.sdu.cloud.auth
 import com.auth0.jwt.algorithms.Algorithm
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.github.zafarkhaja.semver.Version
 import com.onelogin.saml2.settings.SettingsBuilder
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.http.CoreAuthController
+import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
 import dk.sdu.cloud.auth.processors.UserProcessor
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaProducerConfiguration
+import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaStreamsConfiguration
 import io.ktor.application.install
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
@@ -34,7 +36,6 @@ import java.security.interfaces.RSAPrivateKey
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-data class KafkaConfiguration(val servers: List<String>)
 data class DatabaseConfiguration(
         val url: String,
         val driver: String,
@@ -43,20 +44,16 @@ data class DatabaseConfiguration(
 )
 
 data class AuthConfiguration(
-        val kafka: KafkaConfiguration,
-        val zookeeper: ZooKeeperHostInfo,
+        val enablePasswords: Boolean = true,
+        val enableWayf: Boolean = false,
         val database: DatabaseConfiguration,
-        val hostname: String
+        val connection: RawConnectionConfig
 )
 
 class AuthServer(
         samlSettings: Properties,
         privKey: RSAPrivateKey,
-        private val kafkaStreamsConfiguration: Properties,
-        private val kafkaProducerConfiguration: Properties,
-        private val config: AuthConfiguration,
-        private val hostname: String,
-        private val port: Int = 42300
+        private val config: AuthConfiguration
 ) {
     private val log = LoggerFactory.getLogger(AuthServer::class.java)
     private val jwtAlg = Algorithm.RSA256(privKey)
@@ -65,19 +62,26 @@ class AuthServer(
     private lateinit var streams: KafkaStreams
     private lateinit var server: ApplicationEngine
 
+    fun start() {
+        val connConfig = config.connection.processed
 
-    fun start(wait: Boolean = true) {
-        val serviceDefinition = ServiceDefinition(
-                AuthServiceDescription.name,
-                Version.valueOf(AuthServiceDescription.version)
-        )
-
-        val instance = ServiceInstance(serviceDefinition, hostname, port)
+        // Register service
+        val instance = AuthServiceDescription.instance(connConfig)
         val (zk, node) = runBlocking {
-            val zk = ZooKeeperConnection(listOf(config.zookeeper)).connect()
+            val zk = ZooKeeperConnection(connConfig.zookeeper.servers).connect()
             val node = zk.registerService(instance)
             Pair(zk, node)
         }
+
+        // Services
+        val streamsBuilder = StreamsBuilder()
+        eventProducer = KafkaProducer(retrieveKafkaProducerConfiguration(connConfig))
+
+        val tokenService = TokenService(
+                jwtAlg,
+                eventProducer.forStream(AuthStreams.UserUpdateStream),
+                eventProducer.forStream(AuthStreams.RefreshTokenStream)
+        )
 
         Database.connect(
                 url = config.database.url,
@@ -87,24 +91,21 @@ class AuthServer(
                 password = config.database.password
         )
 
-        val streamsBuilder = StreamsBuilder()
-        eventProducer = KafkaProducer(kafkaProducerConfiguration)
-
-        val tokenService = TokenService(
-                jwtAlg,
-                eventProducer.forStream(AuthStreams.UserUpdateStream),
-                eventProducer.forStream(AuthStreams.RefreshTokenStream)
-        )
-        val coreController = CoreAuthController(tokenService)
+        // HTTP Controllers
+        val coreController = CoreAuthController(tokenService, config.enablePasswords, config.enableWayf)
         val samlController = SAMLController(authSettings, tokenService)
+        val passwordController = PasswordController(tokenService)
 
+        // Kafka Processors
         val refreshTokenProcessor = RefreshTokenProcessor(streamsBuilder.stream(AuthStreams.RefreshTokenStream))
         val userProcessor = UserProcessor(streamsBuilder.stream(AuthStreams.UserUpdateStream))
 
+        // Processor Initialization
         refreshTokenProcessor.init()
         userProcessor.init()
 
-        server = embeddedServer(Netty, port = port) {
+        // HTTP Server Initialization
+        server = embeddedServer(Netty, port = connConfig.service.port) {
             install(DefaultHeaders)
             install(ContentNegotiation) {
                 jackson {
@@ -115,17 +116,20 @@ class AuthServer(
 
             routing {
                 coreController.configure(this)
-                samlController.configure(this)
+                if (config.enableWayf) samlController.configure(this)
+                if (config.enablePasswords) passwordController.configure(this)
             }
         }
 
-        streams = KafkaStreams(streamsBuilder.build(), kafkaStreamsConfiguration)
+        // Streams Initialization
+        streams = KafkaStreams(streamsBuilder.build(), retrieveKafkaStreamsConfiguration(connConfig))
         streams.setUncaughtExceptionHandler { _, b ->
             log.warn("Caught critical exception in Kafka!")
             log.warn(StringWriter().apply { b.printStackTrace(PrintWriter(this)) }.toString())
             stop()
         }
 
+        // Start HTTP Server and Kafka Streams
         streams.start()
         server.start(wait = false)
 
