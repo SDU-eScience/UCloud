@@ -145,6 +145,10 @@ sourceSets {
     }
 }
 
+jar {
+    from sourceSets.generated.output
+}
+
 task cleanGenerated() {
     File outputDir = file("src/generated")
     outputDir.absolutePath
