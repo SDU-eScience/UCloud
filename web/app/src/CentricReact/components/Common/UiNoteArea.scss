@@ -1,0 +1,43 @@
+/**
+ * Forms - Note Editor
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+//
+// Note editor
+//
+
+.note-area {
+    > textarea {
+        background-image: -webkit-linear-gradient(rgba($gray-base,.26) .1em, transparent .1em);
+        background-image: linear-gradient(rgba($gray-base,.26) .1em, transparent .1em);
+
+        background-size: 100% 20px;
+        background-color: transparent !important;
+
+        line-height: 20px;
+        margin-top: 5px;
+        padding: 0;
+        padding-bottom: 1px;
+        border: none !important;
+        $margin-color: $brand-warning;
+    }
+    &.note-area-margin {
+        position: relative;
+        > textarea {
+            padding-left: 55px;
+        }
+        &:after {
+            content: "";
+            display: block;
+            position: absolute;
+            top:0;
+            bottom: 0;
+            left: 45px;
+            width: 5px;
+            background-color: rgba($brand-warning, .50);
+        }
+    }
+}

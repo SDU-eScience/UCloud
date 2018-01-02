@@ -1,0 +1,193 @@
+/**
+ * Header menu links (animated hamburguer toggles)
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+// Transformed Navigation Link
+
+.header-container > nav > ul > li > .menu-link {
+    height: $header-hg;
+    padding-top: 25px;
+}
+
+// Transforma hamburger menu into a close icon
+.menu-link-close {
+    display: block;
+    position: relative;
+    span {
+        position: relative;
+        display: block;
+    }
+    // line size and styles
+    span,
+    span:before,
+    span:after {
+        width: 18px;
+        height: 0;
+        border-bottom: 2px solid;
+        will-change: transform;
+        @include transition-transform(0.4s);
+    }
+    span {
+        @include transition(border-color 0.4s);
+    }
+    // position lines
+    span:before,
+    span:after {
+        content: " ";
+        position: absolute;
+    }
+    span:before {
+        top: 6px;
+    }
+    span:after {
+        top: 12px;
+    }
+}
+// Close styles
+.active .menu-link-close {
+    span {
+        border-color: transparent;
+    }
+    span:before {
+        -webkit-transform: rotate(45deg) translate(1px,0px);
+        -moz-transform: rotate(45deg) translate(1px,0px);
+        -ms-transform: rotate(45deg) translate(1px,0px);
+        -o-transform: rotate(45deg) translate(1px,0px);
+        transform: rotate(45deg) translate(1px,0px);
+    }
+    span:after {
+        -webkit-transform: rotate(-45deg) translate(4px, -3px);
+        -moz-transform: rotate(-45deg) translate(4px, -3px);
+        -ms-transform: rotate(-45deg) translate(4px, -3px);
+        -o-transform: rotate(-45deg) translate(4px, -3px);
+        transform: rotate(-45deg) translate(4px, -3px);
+    }
+}
+
+// Slide a small arrow from one side another
+.menu-link-slide {
+    display: block;
+    position: relative;
+    span {
+        position: relative;
+        display: block;
+    }
+    // line size and styles
+    span,
+    span:before,
+    span:after {
+        width: 18px;
+        height: 0;
+        border-bottom: 2px solid;
+        @include transition(all 0.4s);
+    }
+
+    // position lines
+    span:before,
+    span:after {
+        content: " ";
+        position: absolute;
+    }
+    span:before {
+        top: 7px;
+        left: 0;
+        width: 60%;
+        will-change: left;
+    }
+    span:after {
+        top: 14px;
+    }
+    // arrow
+    em {
+        position: absolute;
+        top: 4px;
+        right: 0;
+        width: 0;
+        height: 0;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        border-left: 4px solid;
+        @include transition(all 0.4s);
+        will-change: right, transform;
+    }
+
+}
+// Close styles
+.active .menu-link-slide{
+    span {
+        &:before {
+            left: 40%;
+        }
+        em {
+            right: 80%;
+            -webkit-transform: rotate(180deg);
+            -moz-transform: rotate(180deg);
+            -ms-transform: rotate(180deg);
+            -o-transform: rotate(180deg);
+            transform: rotate(180deg);
+        }
+    }
+}
+
+// Transforma hamburger menu into an arrow
+.menu-link-arrow {
+    display: block;
+    position: relative;
+    span {
+        position: relative;
+        display: block;
+        will-change: transform;
+        height: 14px; // needed for correct rotation
+        width: 18px;
+        @include transition-transform(0.4s);
+    }
+    // line size and styles
+    em,
+    em:before,
+    em:after {
+        content: " ";
+        position: absolute;
+        display: block;
+        width: 18px;
+        height: 0;
+        border-bottom: 2px solid;
+        will-change: transform;
+        @include transition-transform(0.4s);
+    }
+    em {
+        @include transition(border-color 0.4s);
+    }
+    // position lines
+    em:before {
+        top: -6px;
+    }
+    em {
+        top: 6px;
+    }
+    em:after {
+        top: 6px;
+    }
+}
+// Close styles
+.active .menu-link-arrow {
+    span {
+        -webkit-transform: rotate(180deg);
+        -ms-transform: rotate(180deg);
+        -o-transform: rotate(180deg);
+        transform: rotate(180deg);
+        em:before {
+            width: 12px;
+            transform: translateX(6px) translateY(1px) rotate(45deg);
+            -webkit-transform: translateX(6px) translateY(1px) rotate(45deg);
+        }
+
+        em:after {
+            width: 12px;
+            transform: translateX(6px) translateY(-1px) rotate(-45deg);
+            -webkit-transform: translateX(6px) translateY(-1px) rotate(-45deg);
+        }
+    }
+}

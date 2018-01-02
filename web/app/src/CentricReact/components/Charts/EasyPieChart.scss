@@ -1,0 +1,38 @@
+/**
+ * Easy Pie Chart
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+
+// Makes possible to show the percetage
+// centered in the middle of the pie
+
+.easypie-chart {
+    display: inline-block;
+    position: relative;
+    padding: 0 6px;
+
+    span,
+    .percentage {
+        display: block;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 100%;
+        margin-left: -50%;
+        height: 30px;
+        margin-top: -15px;
+        line-height: 25px;
+        text-align: center;
+    }
+    span {
+        font-size: 20px;
+    }
+
+    canvas {
+        max-width: 100%;
+    }
+
+}

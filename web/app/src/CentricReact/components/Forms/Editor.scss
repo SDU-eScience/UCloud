@@ -1,0 +1,39 @@
+/**
+ * Form Editors
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.note-editor {
+    .note-editing-area .note-editable {
+        color: inherit !important;
+    }
+    .note-statusbar {
+        background-color: rgba($gray-base,.26) !important;
+    }
+    &.note-frame {
+        border-color: rgba(162, 162, 162, 0.26) !important;
+    }
+
+    .dropdown-menu {
+        max-height: 280px;
+        overflow: auto;
+    }
+}
+
+.summernote-air {
+    + .note-editor .note-editing-area .note-editable {
+        background-color: transparent !important;
+    }
+}
+
+@font-face {
+    font-family: "summernote";
+    font-style: normal;
+    font-weight: normal;
+    src: url("../../fonts/summernote.eot?ad8d7e2d177d2473aecd9b35d16211fb");
+    src: url("../../fonts/summernote.eot?#iefix") format("embedded-opentype"),
+         url("../../fonts/summernote.woff?ad8d7e2d177d2473aecd9b35d16211fb") format("woff"),
+         url("../../fonts/summernote.ttf?ad8d7e2d177d2473aecd9b35d16211fb") format("truetype")
+}

@@ -1,0 +1,233 @@
+/**
+ * Cards
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+// Cards works similar to panels
+.card {
+    position: relative;
+    border-radius: 3px;
+    background-color: #fff;
+    color: #4F5256;
+    border: 1px solid rgba(0,0,0,0.12);
+    // @include box-shadow($material-shadow-z1);
+
+    margin-bottom: 8px;
+
+    @media #{$min-mobile} {
+        margin-bottom: 16px;
+    }
+
+    @media #{$min-desktop} {
+        margin-bottom: 24px;
+    }
+
+    .card-heading {
+        padding: $card-padding;
+        margin: 0;
+        > .card-title {
+            margin: 0;
+            font-size: 18px;
+        }
+        > .card-icon {
+            float: right;
+            color: rgba(255,255,255,.87);
+            font-size: 20px;
+        }
+        // quick use subheadings
+        > small {
+            color: rgba($gray-base,.92);
+            letter-spacing: .01em;
+        }
+    }
+    .card-body {
+        position: relative;
+        padding: $card-padding;
+    }
+    .card-footer {
+        padding: $card-padding;
+        border-top: 1px solid rgba($gray-base,.12);
+    }
+
+    // Item spaces for images in cards
+    .card-item {
+        position: relative;
+        display: block;
+        min-height: 120px;
+        > .card-item-text {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0,0,0,0.35);
+            margin: 0;
+            color: #fff;
+            padding: 8px;
+            a { color: inherit; }
+        }
+        > .card-item-image {
+            display: block;
+            width: 100%;
+            height: 190px;
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: cover;
+        }
+        &.card-media {
+            min-height: 280px;
+            background-repeat: repeat;
+            background-position: 50% 50%;
+            background-size: cover;
+            background-attachment: scroll;
+            background-origin: padding-box;
+            // large centered text
+            .card-media-quote {
+                padding: 16px;
+                font-size: 35px;
+                @media #{$min-tablet} {
+                    font-size: 45px;
+                }
+                > a {
+                    color: inherit;
+                    text-decoration: none;
+                }
+                &:before {
+                    content: '“';
+                    display: block;
+                    font-size: 2em;
+                    line-height: 1;
+                    margin-top: 0.25em;
+                }
+            }
+        }
+    }
+
+    &.card-transparent {
+        background-color: transparent;
+        border: 0;
+        @include box-shadow(0 0 0 #000);
+    }
+
+    // Set elements with a negative offset
+    .card-offset {
+        position: relative;
+        padding-bottom: 36px;
+        z-index: 10;
+        > .card-offset-item {
+            position: absolute;
+            top: -24px; // half of button circle
+            left: 15px;
+            right: 15px;
+            // @include translate(0, -50%);
+        }
+    }
+
+    .card-toolbar {
+        position: relative;
+        width: 100%;
+        min-height: 64px;
+        font-size: 18px;
+        line-height: 64px;
+        padding-left: 22px;
+        z-index: 2;
+    }
+
+    // Subtitle for cards
+    .card-subheader {
+        padding: 16px 0 16px 16px;
+        line-height: .75em;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: .01em;
+        color: rgba(0,0,0,0.54);
+        // Adjustmen for list next to subheader
+        + .mda-list > .mda-list-item:first-child {
+            > .mda-list-item-text {
+                padding-top: 16px;
+            }
+            > .mda-list-item-img,
+            > .mda-list-item-icon,
+            > .mda-list-item-initial {
+                margin-top: 10px;
+            }
+        }
+    }
+
+    .card-divider {
+        display: block;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(0,0,0,0.12);
+        + .card-offset {
+            margin-top: -10px;
+        }
+    }
+
+    // Special behavior for BootstrapUI datepicker
+    > .ui-datepicker,
+    > .ui-datepicker-responsive > .ui-datepicker {
+        width: 100%;
+        @include box-shadow(0 0 0 #000);
+        margin: 0;
+        > table {
+            width: 100%;
+        }
+    }
+
+    .editable-wrap { width: 100%; }
+
+    // Special behavior for List groups
+    > .list-group {
+        > .list-group-item {
+            border-left: 0;
+            border-right: 0;
+            &:first-child {
+                border-top-left-radius: 0;
+                border-top-right-radius: 0;
+            }
+            &:last-child {
+                border-bottom-right-radius: 0;
+                border-bottom-left-radius: 0;
+                border-bottom: 0;
+            }
+        }
+    }
+
+    // Tables
+    > .table-responsive > .table,
+    > .table {
+        margin-bottom: 0;
+    }
+    > .table-responsive {
+        border: 0;
+    }
+
+    // Full size buttons
+    > .btn {
+        border-radius: 0;
+        width: 100%;
+        padding-top: $card-padding;
+        padding-bottom: $card-padding;
+        text-align: center;
+        &:last-child {
+            border-bottom-right-radius: 2px;
+            border-bottom-left-radius: 2px;
+        }
+    }
+
+    // Card with a map and bottom floated and transparent footer
+    &.card-map {
+        min-height: 280px;
+        .card-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border: 0;
+            background-color: transparent;
+        }
+    }
+
+} //.card

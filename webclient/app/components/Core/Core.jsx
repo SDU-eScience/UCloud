@@ -6,7 +6,8 @@ import './LayoutVariants.scss';
 
 import Header from '../Header/Header';
 import HeaderSearch from '../Header/HeaderSearch';
-import Sidebar from '../Sidebar/Sidebar';
+//import Sidebar from '../Sidebar/Sidebar';
+import Sidebar from '../../SiteComponents/Sidebar';
 import Settings from '../Settings/Settings';
 
 class Core extends React.Component {
@@ -36,7 +37,7 @@ class Core extends React.Component {
 
                     {/* Page footer */}
                     <footer>
-                        <span>2017 - Centric app.</span>
+                        <span>2018 - SDUCloud.</span>
                     </footer>
                 </ReactCSSTransitionGroup>
 
@@ -46,7 +47,7 @@ class Core extends React.Component {
                 {/* Settings template */}
                 <Settings/>
 
-                {/*> yield region="bodyChild" }*/}
+                {/*> yield region="bodyChild"} */}
 
             </div>
         );

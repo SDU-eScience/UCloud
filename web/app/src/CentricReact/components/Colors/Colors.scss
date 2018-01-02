@@ -1,0 +1,68 @@
+/**
+ * Google Material Colors (customization)
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+// Google material colors customization
+// https://github.com/shuhei/material-colors
+
+// Some background colors may need to be redeclared here
+// if they are used togheter with an element that declares
+// its own background color
+
+.bg-pink-500 { @include make-bg($mdc-pink-500); }
+.bg-purple-400 { @include make-bg($mdc-purple-400); }
+.bg-purple-500 { @include make-bg($mdc-purple-500); }
+.bg-deep-purple-500 { @include make-bg($mdc-deep-purple-500); }
+.bg-indigo-500 { @include make-bg($mdc-indigo-500); }
+.bg-green-50 { @include make-bg($mdc-green-50); }
+.bg-green-500 { @include make-bg($mdc-green-500); }
+.bg-blue-500 { @include make-bg($mdc-blue-500); }
+.bg-blue-grey-900 { @include make-bg($mdc-blue-grey-900); }
+.bg-red-500 { @include make-bg($mdc-red-500); }
+
+// White color for some backgrounds
+.bg-primary,
+.bg-red-800,.bg-red-900,
+.bg-pink-700,.bg-pink-800,.bg-pink-900,
+.bg-purple,.bg-purple-500,.bg-purple-600,.bg-purple-700,.bg-purple-800,.bg-purple-900,
+.bg-deep-purple,.bg-deep-purple-500,.bg-deep-purple-600,.bg-deep-purple-700,.bg-deep-purple-800,.bg-deep-purple-900,.bg-deep-purple-a400,.bg-deep-purple-a700,
+.bg-indigo,.bg-indigo-500,.bg-indigo-600,.bg-indigo-700,.bg-indigo-800,.bg-indigo-900,.bg-indigo-a700,.bg-blue-800,
+.bg-blue-900,.bg-light-blue-900,
+.bg-cyan-900,.bg-teal-800,.bg-teal-900,
+.bg-green-800,.bg-green-900,
+.bg-brown,.bg-brown-500,.bg-brown-600,.bg-brown-700,.bg-brown-800,.bg-brown-900,.bg-blue-grey-600,
+.bg-blue-grey-700,.bg-blue-grey-800,.bg-blue-grey-900,.bg-grey-600,
+.bg-grey-700,.bg-grey-800,.bg-grey-900 {
+    color: rgba(255,255,255,0.97);
+    .text-muted {
+        color: rgba(255,255,255,0.57);
+    }
+    .text-soft {
+        color: rgba(255,255,255,0.26);
+    }
+}
+
+.bg-red,.bg-red-500,.bg-red-600,.bg-red-700,.bg-red-a200,.bg-red-a400,.bg-red-a700,.bg-pink,
+.bg-pink-500,.bg-pink-600,.bg-pink-a200,.bg-pink-a400,.bg-pink-a700,.bg-purple-300,
+.bg-purple-400,.bg-purple-a200,.bg-purple-a400,.bg-purple-a700,.bg-deep-purple-300,
+.bg-deep-purple-400,.bg-deep-purple-a200,
+.bg-indigo-300,.bg-indigo-400,.bg-indigo-a200,.bg-indigo-a400,.bg-blue,
+.bg-blue-500,.bg-blue-600,.bg-blue-700,.bg-blue-a200,.bg-blue-a400,.bg-blue-a700,.bg-light-blue,
+.bg-light-blue-500,.bg-light-blue-600,.bg-light-blue-700,.bg-light-blue-800,.bg-light-blue-a700,.bg-cyan,
+.bg-cyan-500,.bg-cyan-600,.bg-cyan-700,.bg-cyan-800,.bg-teal,
+.bg-teal-500,.bg-teal-600,.bg-teal-700,
+.bg-green,.bg-green-500,.bg-green-600,.bg-green-700,.bg-light-green-800,.bg-light-green-900,
+.bg-lime-900,.bg-orange-800,.bg-orange-900,
+.bg-deep-orange,.bg-deep-orange-500,.bg-deep-orange-600,.bg-deep-orange-700,.bg-deep-orange-800,.bg-deep-orange-900,.bg-deep-orange-a400,.bg-deep-orange-a700,.bg-brown-300,
+.bg-brown-400,.bg-blue-grey,.bg-blue-grey-400,.bg-blue-grey-500 {
+    color: #fff;
+    .text-muted {
+        color: rgba(255,255,255,0.57);
+    }
+    .text-soft {
+        color: rgba(255,255,255,0.26);
+    }
+}

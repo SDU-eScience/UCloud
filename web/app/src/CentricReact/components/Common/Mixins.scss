@@ -1,0 +1,189 @@
+// Custom Mixins
+// --------------------------------------------------
+
+@import '../Common/Variables';
+@import '../Bootstrap/Mixins';
+
+$colors: (
+  'brand-primary':       $brand-primary,
+  'brand-success':       $brand-success,
+  'brand-info':          $brand-info,
+  'brand-warning':       $brand-warning,
+  'brand-danger':        $brand-danger
+);
+
+
+@function color($key) {
+  @return map-get($colors, $key);
+}
+
+// Utilities mixins
+
+@mixin bgcolor-variant($bgcolor, $text-color: #fff) {
+    & {
+        background-color: color($bgcolor) !important;
+        color: $text-color !important;
+    }
+    .text-muted {
+        color: rgba($text-color, .5);
+    }
+    small {
+        color: inherit;
+    }
+}
+
+@mixin make-bg($bgcolor, $text-color: #fff) {
+    background-color: $bgcolor !important;
+    color: $text-color !important;
+}
+
+@mixin thumnbail-size($sz: 8px) {
+    width: $sz !important;
+    height: $sz !important;
+}
+
+@mixin initial-size($sz: 8px) {
+    width: $sz !important;
+    height: $sz !important;
+    line-height: $sz;
+    text-align: center;
+    border-radius: 50%;
+}
+
+// Icons sizes
+@mixin icon-size($size) {
+    .icon-#{$size} {
+        font-size: $size * 1px;
+        vertical-align: $size * -1 * 1%;
+    }
+}
+
+
+//== Themes mixins
+
+@mixin theme-header($header-bg, $header-color) {
+    .layout-container {
+        > header {
+            background-color: $header-bg;
+            color: $header-color;
+        }
+    }
+}
+
+@mixin theme-sidebar($sidebar-bg, $sidebar-color, $sidebar-header-bg, $sidebar-header-color) {
+    .layout-container {
+        > aside {
+            background-color: $sidebar-bg;
+            color: $sidebar-color;
+            > .sidebar-header {
+                background-color: $sidebar-header-bg;
+                color: $sidebar-header-color;
+            }
+        }
+    }
+}
+
+@mixin theme-sidebar-items($color1, $color2) {
+    .sidebar-header-logo,
+    .nav-icon {
+        > svg, > em {
+            color: $color1 !important;
+            fill: $color2 !important;
+        }
+    }
+}
+
+
+@mixin theme-content($content-color) {
+    .layout-container {
+        > main {
+            background-color: $content-color;
+        }
+    }
+}
+
+@mixin theme-content-dark($content-color) {
+    background-color: darken($content-color, 4%);
+    .layout-container {
+        > main {
+            @include is-dark($content-color);
+        }
+    }
+}
+
+
+//== Dark theme setup
+
+@mixin is-dark($base-color) {
+    background-color: darken($base-color, 4%);
+    color: #f1f1f1;
+
+    .bg-white,
+    .panel,
+    .card,
+    .panel-default > .panel-heading {
+        &:not([class*='bg-']) {
+            background-color: darken($base-color, 1%);
+            color: inherit;
+        }
+    }
+    .bg-white {
+        background-color: darken($base-color, 1%) !important;
+        color: inherit !important;
+    }
+    .well, .jumbotron, .breadcrumb, .modal-content {
+        background-color: darken($base-color, 1%);
+        color: inherit;
+    }
+    .btn-default {
+        @include button-variant(#fff, $base-color, darken($base-color, 5%));
+    }
+    .open > .dropdown-toggle.btn-default {
+        &, &:hover, &:active, &.active, &:focus {
+            color: #fff;
+            background-color: $base-color;
+            border-color: darken($base-color, 5%);
+        }
+    }
+    .form-control {
+        color: inherit;
+        background-color: rgba(240,240,240,.1);
+        border-color: rgba(240,240,240,.12);
+        &:focus {
+            border-color: rgba(240,240,240,.36)
+        }
+    }
+    .form-control[disabled],
+    .form-control[readonly],
+    fieldset[disabled] .form-control {
+        background-color: rgba(240,240,240,.1);
+    }
+    select:not([multiple]) {
+        option {
+            color: $text-color;
+        }
+    }
+    .input-group-addon,
+    .input-group-button {
+        background-color: transparent;
+        border: 1px solid rgba($gray-base,.26);
+        color: inherit;
+    }
+    .nav-tabs>li.active {
+        color: #fff;
+    }
+    .note-editor .note-editing-area .note-editable {
+        background-color: rgba(240,240,240,.1);
+    }
+    .photo {
+        background-color: $base-color;
+    }
+}
+
+// Preview for settings panel
+@mixin preview-theme($prev-header, $prev-sidebar, $prev-content) {
+    .preview-header { background-color: $prev-header; }
+    .preview-sidebar { background-color: $prev-sidebar; }
+    .preview-content { background-color: $prev-content; }
+}
+

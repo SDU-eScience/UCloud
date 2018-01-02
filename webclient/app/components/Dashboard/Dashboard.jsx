@@ -27,7 +27,7 @@ class Dashboard extends React.Component {
                             Centric dashboard</h4><small>Bootstrap admin dashboard template</small>
                         </Col>
                         <Col sm={3} className="text-right hidden-xs">
-                            <button type="button" className="mt-sm btn btn-labeled btn-default ripple">Apps<span className="btn-label btn-label-right"><i className="ion-plus-round"></i></span></button>
+                            <button type="button" className="mt-sm btn btn-labeled btn-default ripple">Apps<span className="btn-label btn-label-right"><i className="ion-plus-round"/></span></button>
                         </Col>
                     </Row>
                 </div>
@@ -38,10 +38,10 @@ class Dashboard extends React.Component {
                                 <div className="card-body pv">
                                     <div className="clearfix">
                                         <div className="pull-left">
-                                            <h4 className="m0 text-thin">350</h4><small className="m0 text-muted"><em className="mr-sm ion-arrow-up-b"></em>New visitors</small>
+                                            <h4 className="m0 text-thin">350</h4><small className="m0 text-muted"><em className="mr-sm ion-arrow-up-b"/>New visitors</small>
                                         </div>
                                         <div className="pull-right mt-lg">
-                                            <div id="sparkline2" data-line-color="#4caf50" className="sparkline"></div>
+                                            <div id="sparkline2" data-line-color="#4caf50" className="sparkline"/>
                                         </div>
                                     </div>
                                 </div>
@@ -52,10 +52,10 @@ class Dashboard extends React.Component {
                                 <div className="card-body pv">
                                     <div className="clearfix">
                                         <div className="pull-left">
-                                            <h4 className="m0 text-thin">10,200</h4><small className="m0 text-muted"><em className="mr-sm ion-arrow-down-b"></em>Page views</small>
+                                            <h4 className="m0 text-thin">10,200</h4><small className="m0 text-muted"><em className="mr-sm ion-arrow-down-b"/>Page views</small>
                                         </div>
                                         <div className="pull-right mt-lg">
-                                            <div id="sparkline1" data-line-color="#03A9F4" className="sparkline"></div>
+                                            <div id="sparkline1" data-line-color="#03A9F4" className="sparkline"/>
                                         </div>
                                     </div>
                                 </div>
@@ -66,11 +66,9 @@ class Dashboard extends React.Component {
                                 <div className="card-body pv">
                                     <div className="clearfix">
                                         <div className="pull-left">
-                                            <h4 className="m0 text-thin">880</h4><small className="m0 text-muted"><em className="mr-sm ion-arrow-up-b"></em>Last income</small>
+                                            <h4 className="m0 text-thin">880</h4><small className="m0 text-muted"><em className="mr-sm ion-arrow-up-b"/>Last income</small>
                                         </div>
-                                        <div className="pull-right mt-lg">
-                                            <div id="sparkline3" data-line-color="#ab47bc" className="sparkline"></div>
-                                        </div>
+                                        <div className="pull-right mt-lg"/>
                                     </div>
                                 </div>
                             </div>

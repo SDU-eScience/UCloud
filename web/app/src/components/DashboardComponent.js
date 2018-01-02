@@ -108,7 +108,7 @@ function DashboardFavouriteFiles(props) {
   const filesList = files.map( (file) =>
     <tr key={file.path.uri}>
       <td><a href="#">{ file.path.name }</a></td>
-      <td><em className="ion-star"></em></td>
+      <td><em className="ion-star"/></td>
     </tr>
   );
 

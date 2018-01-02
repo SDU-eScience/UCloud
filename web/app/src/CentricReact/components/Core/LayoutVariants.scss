@@ -1,0 +1,42 @@
+/**
+ * Layout Variants
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.sidebar-offcanvas {
+    .sidebar-container {
+        top: $header-hg;
+        @include translate3d(-100%, 0, 0);
+        .sidebar-header {
+            @include box-shadow(0 0 0 #000);
+        }
+    }
+    .header-container {
+        z-index: 30;
+    }
+    .main-container,
+    .header-container{
+        margin-left: 0;
+    }
+
+    &.offcanvas-visible {
+        .sidebar-container {
+            @include translate3d(0, 0, 0);
+        }
+    }
+}
+// old browsers
+.no-csstransforms3d .sidebar-offcanvas {
+    .sidebar-offcanvas {
+        .sidebar-container {
+            margin-left: -$sidebar-wd;
+        }
+        &.offcanvas-visible {
+            .sidebar-container {
+                margin-left: 0;
+            }
+        }
+    }
+}

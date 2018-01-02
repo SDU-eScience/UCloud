@@ -1,0 +1,270 @@
+/**
+ * Sidebar
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.sidebar-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: $sidebar-wd;
+    overflow-y: auto;
+    overflow-x: visible;
+    -webkit-overflow-scrolling: touch;
+    background-color: $sidebar-bg;
+    color: rgba(255,255,255,.75);
+    z-index: 20;
+
+    // link colors in sidebar
+    a.sb-link {
+        color: rgba(255,255,255,.75);
+        text-decoration: none;
+    }
+}
+
+// Sidebar header with brand logo
+.sidebar-header {
+    height: $sidebar-header-hg;
+    // background-color: $sidebar-header-bg;
+    padding: 0 16px;
+    box-shadow: $sidebar-header-shadow;
+    > .sidebar-header-logo {
+        display: inline-block;
+        height: 100%;
+        line-height: $sidebar-header-hg;
+        text-decoration: none;
+        color: inherit;
+        font-size: 22px;
+        letter-spacing: .023em;
+        > img,
+        > svg {
+            $sz: 24px;
+            display: inline-block;
+            width: $sz;
+            height: $sz;
+            vertical-align: -5%;
+            + .sidebar-header-logo-text {
+                margin-left: 16px;
+            }
+        }
+        > svg {
+            fill: #fff;
+        }
+    }
+    > .sidebar-header-logo-text {
+        font-weight: 500;
+        font-size: 20px;
+        vertical-align: middle;
+    }
+}
+
+// moves the scroll bar to the sidebar (below the header)
+.sidebar-header + .sidebar-content {
+    height: calc(100% - #{$sidebar-header-hg});
+    overflow: auto;
+}
+// white background needs a soft border
+.sidebar-content {
+    border-right: 1px solid rgba(0,0,0,.11);
+}
+
+// Sidebar area for profile
+.sidebar-toolbar {
+    position: relative;
+    z-index: -1;
+    // height: $sidebar-toolbar-hg;
+    background-color: $sidebar-toolbar-bg;
+    // background-image: url('../img/profile-background.png');
+    background-repeat: no-repeat;
+    background-position: left top;
+    background-size: 100%;
+    padding: 60px 20px;
+    // margin-right: -1px; // move over right border
+    + .sidebar-nav {
+        padding-top: 0;
+    }
+}
+
+// offcanvas setup
+
+.sidebar-container {
+    @include translate3d(-100%, 0, 0);
+    @include transition-transform(.28s ease-in-out);
+    will-change: transform;
+    @media #{$min-desktop} {
+        @include translate3d(0, 0, 0);
+    }
+}
+
+// backdrop to hide main content and dismiss sidebar
+.sidebar-layout-obfuscator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    z-index: 2;
+    visibility: hidden;
+    opacity: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    will-change: opacity;
+    @include transition("opacity .28s ease-in-out, visibility .28s ease-in-out");
+    @media #{$min-desktop} {
+        display: none;
+    }
+}
+
+@media #{$max-tablet} {
+    .sidebar-visible {
+        overflow: hidden;
+        .sidebar-container {
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.15);
+            @include translate3d(0, 0, 0);
+        }
+        .sidebar-layout-obfuscator {
+            opacity: 1;
+            visibility: visible;
+        }
+    }
+}
+
+
+.no-csstransforms3d {
+    .sidebar-container {
+        margin-left: -$sidebar-wd;
+        @media #{$min-desktop} {
+            margin-left: 0;
+        }
+    }
+    @media #{$max-desktop} {
+        .sidebar-visible {
+            .sidebar-container {
+                margin-left: 0;
+            }
+        }
+    }
+}
+
+// Navigation menu styles
+// -----------------------------------
+.sidebar-nav {
+    padding-top: 16px;
+    font-weight: 500;
+    background-color: inherit;
+    ul {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+        > li > a {
+            display: block;
+            padding: 0 16px;
+            height: 50px;
+            line-height: 50px;
+            text-decoration: none;
+            letter-spacing: 0.0125em;
+            color: inherit;
+            overflow: hidden;
+            > .nav-icon {
+                position: relative;
+                display: inline-block;
+                width: 1em;
+                height: 1em;
+                margin-right: 16px;
+                text-align: center;
+                font-size: 24px;
+                vertical-align: middle;
+                // color: $sidebar-icon-color;
+                > em,
+                > img,
+                > svg {
+                    position: absolute;
+                    display: inline-block;
+                    color: inherit;
+                    top:0; left: 0;
+                    width: 100%;
+                    height: 100%;
+                    line-height: 1;
+                    // for use with SVG
+                    color: $sidebar-icon-color-active;
+                    fill: $mdc-blue-300;
+                }
+            }
+            // Labels an carets
+            > .nav-label,
+            > .nav-caret {
+                line-height: inherit;
+            }
+            > .nav-label {
+                margin-right: 16px;
+                margin-top: -2px;
+            }
+            > .nav-caret {
+                margin-left: 11px; // small icons width are ~5px
+                + .nav-label {
+                    margin-right: 0;
+                }
+            }
+        }
+
+        // Hover an active states
+        > li > a:hover,
+        > li > a:focus {
+            background-color: rgba($gray-base,.09);
+            > .nav-icon em {
+                color: $sidebar-icon-color-active;
+            }
+        }
+        > li.active {
+            background-color: rgba($gray-base,.026);
+
+            > a > .nav-icon em {
+                color: $sidebar-icon-color-active;
+            }
+            > ul li.active a {
+                // color: $brand-primary;
+                background-color: rgba($gray-base,.026);
+            }
+        }
+
+        // supports up to 3 leves (more isn't recommended)
+        > li ul > li {
+            > a { padding-left: 40px + (16px * 2); }
+            ul > li > a {  padding-left: 40px + (16px * 3); }
+        }
+
+        // Styles to animate collapsible sub menu
+        > li {
+            > ul {
+                height: 0;
+                overflow: hidden;
+                @include transition(height 0.55s cubic-bezier(0.35, 0, 0.25, 1));
+                // "slide from" subitems animation
+                > li > a {
+                    margin-left: -20px;
+                    opacity: 0;
+                    @include transition(.5s ease);
+                    @include transition-property("opacity, margin-left")
+                }
+            }
+            > a > .nav-caret {
+                @include transition-transform(.2s ease);
+            }
+            &.active {
+                > ul {
+                    height: auto;
+                    > li > a {
+                        opacity: 1;
+                        margin-left: 0;
+                    }
+                }
+                > a > .nav-caret {
+                    @include rotate(90deg);
+                }
+            }
+        }
+
+    }
+}

@@ -1,0 +1,82 @@
+/**
+ * Settings
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.setting-color {
+    padding: 0 5px;
+
+    > label {
+        display: block;
+        position: relative;
+        height: 30px;
+        margin: 0 10px;
+        border-radius: 1px;
+        // overflow: hidden;
+        // border: 1px solid rgba(0,0,0,.1);
+        cursor: pointer;
+        // border: 1px solid $gray;
+        box-shadow: $material-shadow-z1;
+
+        &:first-child { margin-left: 0}
+        &:last-child { margin-right: 0}
+
+        .t-grid, .t-row {
+            max-width: 60px;
+            height: 100%;
+            margin: 0;
+        }
+
+        $baseHg: 15px;
+        > .color {
+            display: block;
+            height: $baseHg * 1.2;
+        }
+
+        > .split {
+            @include clearfix;
+            display: block;
+            > .color {
+                display: block;
+                height: $baseHg * 2.5;
+                &:first-child {
+                    float: left;
+                    width: 70%;
+                }
+                &:last-child {
+                    float: right;
+                    width: 30%;
+                }
+            }
+        }
+
+        // icon checked
+        > .ion-checkmark-round {
+            position: absolute;
+            display: block;
+            right: -5px;
+            top: -10px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 14px;
+            color: $brand-success;
+            background-color: #fff;
+            box-shadow: $material-shadow-z1;
+            @include transition-transform(.2s ease);
+            @include scale(0);
+        }
+
+        > input[type="radio"] {
+            position: absolute;
+            visibility: hidden;
+            &:checked + .ion-checkmark-round {
+                opacity: 1 !important;
+                @include scale(1);
+            }
+        }
+    }
+}
