@@ -7,12 +7,25 @@
     "authScheme": "PAM",
     "sslPolicy": "CS_NEG_REQUIRE"
   },
-  "service": {
-    "port": 42000,
-    "refreshToken": "TODO"
+
+  "connection": {
+    "kafka": {
+      "servers": [
+        {
+          "hostname": "localhost"
+        }
+      ]
+    },
+    "zookeeper": {
+      "servers": [
+        {
+          "hostname": "localhost"
+        }
+      ]
+    }
   },
-  "kafka": {
-    "servers": []
-  },
-  "tus": null
+
+  "tus": null,
+
+  "refreshToken": "TODO"
 }

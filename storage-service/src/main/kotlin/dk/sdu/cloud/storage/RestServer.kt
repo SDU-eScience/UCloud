@@ -53,7 +53,7 @@ class StorageRestServer(
         return header.substringAfter("Bearer ")
     }
 
-    fun create() = embeddedServer(Netty, port = configuration.service.port) {
+    fun create() = embeddedServer(Netty, port = configuration.connection.processed.service.port) {
         install(Compression)
         install(DefaultHeaders)
         install(ContentNegotiation) {

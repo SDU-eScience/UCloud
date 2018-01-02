@@ -32,7 +32,7 @@ fun main(args: Array<String>) {
         val totalBytes = upload.size
         val bytesUploaded = uploader.offset
         println("Uploaded: $bytesUploaded")
-        val progress = bytesUploaded.toDouble() / totalBytes * 100
+        //val progress = bytesUploaded.toDouble() / totalBytes * 100
         //System.out.printf("Upload at %06.2f%%.\n", progress)
     } while (uploader.uploadChunk() > -1)
 

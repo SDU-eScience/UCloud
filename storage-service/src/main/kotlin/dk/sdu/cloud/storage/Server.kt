@@ -2,7 +2,6 @@ package dk.sdu.cloud.storage
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.github.zafarkhaja.semver.Version
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
@@ -20,15 +19,18 @@ import java.io.File
 
 data class Configuration(
         val storage: StorageConfiguration,
-        val service: ServiceConfiguration,
-        val kafka: KafkaConfiguration,
-        val zookeeper: ZooKeeperHostInfo,
-        val tus: TusConfiguration?
+        val connection: RawConnectionConfig,
+        val tus: TusConfiguration?,
+        val refreshToken: String
 ) {
     companion object {
         private val mapper = jacksonObjectMapper()
 
-        fun parseFile(file: File) = mapper.readValue<Configuration>(file)
+        fun parseFile(file: File): Configuration {
+            val result = mapper.readValue<Configuration>(file)
+            result.connection.configure(StorageServiceDescription, 42000)
+            return result
+        }
     }
 }
 
@@ -40,9 +42,6 @@ data class StorageConfiguration(
         val authScheme: String?,
         val sslPolicy: String?
 )
-
-data class ServiceConfiguration(val hostname: String, val port: Int, val refreshToken: String)
-data class KafkaConfiguration(val servers: List<String>)
 
 data class TusConfiguration(
         val icatJdbcUrl: String,
@@ -63,15 +62,12 @@ fun main(args: Array<String>) {
     }
 
     val configuration = Configuration.parseFile(filePath)
+    val connConfig = configuration.connection.processed
 
-    val definition = ServiceDefinition(
-            StorageServiceDescription.name,
-            Version.valueOf(StorageServiceDescription.version)
-    )
-    val instance = ServiceInstance(definition, configuration.service.hostname, configuration.service.port)
+    val instance = StorageServiceDescription.instance(connConfig)
 
     val (zk, node) = runBlocking {
-        val zk = ZooKeeperConnection(listOf(configuration.zookeeper)).connect()
+        val zk = ZooKeeperConnection(connConfig.zookeeper.servers).connect()
         val node = zk.registerService(instance)
         Pair(zk, node)
     }
@@ -93,7 +89,7 @@ fun main(args: Array<String>) {
         )
     }
 
-    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.service.refreshToken)
+    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
     val adminAccount = run {
         val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
         println(currentAccessToken)
@@ -102,12 +98,7 @@ fun main(args: Array<String>) {
 
     val builder = StreamsBuilder()
     UserProcessor(builder.stream(AuthStreams.UserUpdateStream), adminAccount).init()
-    val kafkaStreams = KafkaStreams(builder.build(), KafkaUtil.retrieveKafkaStreamsConfiguration(
-            configuration.kafka.servers,
-            StorageServiceDescription.name,
-            configuration.service.hostname,
-            configuration.service.port
-    ))
+    val kafkaStreams = KafkaStreams(builder.build(), KafkaUtil.retrieveKafkaStreamsConfiguration(connConfig))
 
     kafkaStreams.start()
     // TODO Catch exceptions in Kafka
