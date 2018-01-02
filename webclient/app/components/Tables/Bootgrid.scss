@@ -1,0 +1,63 @@
+/**
+ * Tables - Bootgrid
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.bootgrid {
+    .table > thead > tr > td.active, .table > tbody > tr > td.active, .table > tfoot > tr > td.active, .table > thead > tr > th.active, .table > tbody > tr > th.active, .table > tfoot > tr > th.active, .table > thead > tr.active > td, .table > tbody > tr.active > td, .table > tfoot > tr.active > td, .table > thead > tr.active > th, .table > tbody > tr.active > th, .table > tfoot > tr.active > th {
+        background-color: $gray-lighter;
+    }
+}
+
+.bootgrid-header {
+    .search {
+        .form-control {
+            border: 0 !important;
+            border-bottom: 1px solid rgba($gray-base,.12) !important;
+            border-radius: 0;
+            background-color: transparent !important;
+            &:focus {
+                border-bottom-color: $brand-primary !important;
+            }
+        }
+        .input-group-addon {
+            border: 0 !important;
+            background-color: transparent;
+        }
+        &.form-group {
+            float: left;
+        }
+    }
+
+    .dropdown {
+        > .btn {
+            border: 0;
+            &:hover, &:focus {
+                @include box-shadow($material-shadow-z1);
+            }
+        }
+        .dropdown-item {
+            color: #555;
+        }
+        .active > .dropdown-item {
+            color: #fff;
+        }
+    }
+}
+
+.bootgrid-table th {
+    > .column-header-anchor {
+        color: inherit;
+    }
+    &:hover, &:active {
+        background-color: rgba($gray-base,.12);
+    }
+}
+
+
+// Active cells background
+.bootgrid .table > thead > tr > td.active, .bootgrid .table > tbody > tr > td.active, .bootgrid .table > tfoot > tr > td.active, .bootgrid .table > thead > tr > th.active, .bootgrid .table > tbody > tr > th.active, .bootgrid .table > tfoot > tr > th.active, .bootgrid .table > thead > tr.active > td, .bootgrid .table > tbody > tr.active > td, .bootgrid .table > tfoot > tr.active > td, .bootgrid .table > thead > tr.active > th, .bootgrid .table > tbody > tr.active > th, .bootgrid .table > tfoot > tr.active > th {
+    background-color: rgba($gray-base,.12);
+}

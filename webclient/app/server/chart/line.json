@@ -1,0 +1,43 @@
+[{
+    "label": "Complete",
+    "color": "#00BCD4",
+    "data": [
+        ["Jan", 50],
+        ["Feb", 93],
+        ["Mar", 120],
+        ["Apr", 140],
+        ["May", 130],
+        ["Jun", 110],
+        ["Jul", 80],
+        ["Aug", 70],
+        ["Sep", 80]
+    ]
+}, {
+    "label": "In Progress",
+    "color": "#CDDC39",
+    "data": [
+        ["Jan", 153],
+        ["Feb", 116],
+        ["Mar", 136],
+        ["Apr", 119],
+        ["May", 148],
+        ["Jun", 133],
+        ["Jul", 118],
+        ["Aug", 161],
+        ["Sep", 130]
+    ]
+}, {
+    "label": "Cancelled",
+    "color": "#FF5722",
+    "data": [
+        ["Jan", 111],
+        ["Feb", 97],
+        ["Mar", 93],
+        ["Apr", 110],
+        ["May", 90],
+        ["Jun", 75],
+        ["Jul", 92],
+        ["Aug", 92],
+        ["Sep", 44]
+    ]
+}]

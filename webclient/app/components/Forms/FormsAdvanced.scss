@@ -1,0 +1,306 @@
+/**
+ * Forms - Advanced plugins
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+// Range slider (noUiSlider)
+// -----------------------------------
+
+.noUi-handle {
+    border-radius: 50%;
+    border: 0;
+    @include box-shadow(0 0 0 rgba(0,0,0,0));
+    background-color: $brand-primary;
+}
+.noUi-horizontal .noUi-handle {
+    width: 24px;
+    height: 24px;
+    top: -10px;
+    &:before, &:after {
+        display: none;
+    }
+}
+.noUi-connect {
+    background-color: $brand-primary;
+}
+
+.noUi-horizontal {
+    height: 4px;
+    border: 0;
+    background-color: $gray-lighter;
+}
+.noUi-target.noUi-connect {
+    background-color: $brand-primary;
+    @include box-shadow(0 0 0 rgba(0,0,0,0));
+}
+// color variants
+
+@mixin ui-slider-variant($color) {
+    .noUi-handle {
+        background-color: $color;
+    }
+    .noUi-connect {
+        background-color: $color;
+    }
+    .noUi-target.noUi-connect {
+        background-color: $color;
+    }
+}
+
+.ui-slider-success { @include ui-slider-variant($brand-success) };
+.ui-slider-info { @include ui-slider-variant($brand-info) };
+.ui-slider-warning { @include ui-slider-variant($brand-warning) };
+.ui-slider-danger { @include ui-slider-variant($brand-danger) };
+.ui-slider-inverse { @include ui-slider-variant($brand-inverse) };
+
+
+/* Select2
+   ----------------------------------- */
+
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    position: relative;
+    background-color: transparent;
+    color: inherit;
+    border: 0;
+    border-radius: 0;
+    border-bottom: 1px solid rgba(0,0,0,.14);
+    min-height: 32px;
+    &:after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 50%;
+        right: 50%;
+        height: 2px;
+        @include transition(all .3s ease);
+    }
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: inherit;
+}
+
+.select2-container--open,
+.select2-container--focus {
+    &.select2-container--default .select2-selection--single,
+    &.select2-container--default .select2-selection--multiple {
+        border: 0;
+        &:after {
+            background-color: $brand-primary;
+            left: 0; right: 0;
+        }
+    }
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    border-radius: 20px;
+    border: 0;
+    background-color: rgba($gray-base,.12);
+    padding: 4px 12px;
+    margin: 0 8px 4px 0 !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice,
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: inherit;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 0;
+    border-bottom: 1px solid #aaa;
+}
+
+.select2-dropdown {
+    top: 1px;
+    @include transform-origin(top left);
+    @include animation(zoomIn .2s ease);
+}
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: $mdc-grey-300;
+}
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: $mdc-grey-300;
+    color: $gray-darker;
+}
+
+/* Clockpicker
+   ----------------------------------- */
+
+.clockpicker-popover {
+    @include transform-origin(top left);
+    @include animation(zoomIn .2s ease);
+    .arrow {
+        display: none;
+    }
+    &.popover.bottom {
+        margin-top: 1px;
+    }
+}
+
+/* Colorpicker
+   -----------------------------------*/
+
+.colorpicker {
+    @include transform-origin(top right);
+    @include animation(zoomIn .2s ease);
+    &:before, &:after {
+        display: none;
+    }
+}
+
+.colorpicker-2x {
+    .colorpicker-saturation {
+        width: 200px;
+        height: 200px;
+    }
+    .colorpicker-hue,
+    .colorpicker-alpha {
+        width: 30px;
+        height: 200px;
+    }
+    .colorpicker-color,
+    .colorpicker-color div{
+        height: 30px;
+    }
+}
+
+/* Datepicker
+   -----------------------------------*/
+
+// wrapper to show a scrollbar
+.ui-datepicker-responsive {
+    max-width: 100%;
+    overflow: auto;
+}
+
+.ui-datepicker {
+    background-color: transparent;
+    @include box-shadow($material-shadow-z1);
+
+    &.ui-datepicker-popup {
+        @include box-shadow(0 0 0 #000);
+    }
+
+    .datepicker-inline {
+        display: inline-block;
+        padding: 0;
+        width: 100%;
+    }
+
+    .datepicker table {
+        width: 100%;
+    }
+
+    .datepicker table tr td,
+    .datepicker table tr th {
+        border-radius: 0;
+        padding: 16px 12px;
+        @include transition(all .2s ease);
+        font-size: 12px;
+    }
+    .datepicker tbody tr td {
+        padding: 12px 12px;
+    }
+    .datepicker table tr td.day:hover {
+        background: rgba($gray-base,.12);
+    }
+    .datepicker table thead tr:last-child th {
+        padding: 0;
+        line-height: 36px;
+        font-size: 85%;
+    }
+
+    .datepicker thead tr:first-child th:hover, .datepicker tfoot tr th:hover {
+        background-image: none;
+        background-color: $mdc-pink-500;
+        color: #fff;
+    }
+    .datepicker table tr td.active:hover, .datepicker table tr td.active:hover:hover, .datepicker table tr td.active.disabled:hover, .datepicker table tr td.active.disabled:hover:hover, .datepicker table tr td.active:focus, .datepicker table tr td.active:hover:focus, .datepicker table tr td.active.disabled:focus, .datepicker table tr td.active.disabled:hover:focus, .datepicker table tr td.active:active, .datepicker table tr td.active:hover:active, .datepicker table tr td.active.disabled:active, .datepicker table tr td.active.disabled:hover:active, .datepicker table tr td.active.active, .datepicker table tr td.active:hover.active, .datepicker table tr td.active.disabled.active, .datepicker table tr td.active.disabled:hover.active, .open .dropdown-toggle.datepicker table tr td.active, .open .dropdown-toggle.datepicker table tr td.active:hover, .open .dropdown-toggle.datepicker table tr td.active.disabled, .open .dropdown-toggle.datepicker table tr td.active.disabled:hover {
+        background-image: none;
+        background-color: $mdc-pink-500;
+        color: #fff;
+    }
+    .datepicker table tr td span.active:hover, .datepicker table tr td span.active:hover:hover, .datepicker table tr td span.active.disabled:hover, .datepicker table tr td span.active.disabled:hover:hover, .datepicker table tr td span.active:focus, .datepicker table tr td span.active:hover:focus, .datepicker table tr td span.active.disabled:focus, .datepicker table tr td span.active.disabled:hover:focus, .datepicker table tr td span.active:active, .datepicker table tr td span.active:hover:active, .datepicker table tr td span.active.disabled:active, .datepicker table tr td span.active.disabled:hover:active, .datepicker table tr td span.active.active, .datepicker table tr td span.active:hover.active, .datepicker table tr td span.active.disabled.active, .datepicker table tr td span.active.disabled:hover.active, .open .dropdown-toggle.datepicker table tr td span.active, .open .dropdown-toggle.datepicker table tr td span.active:hover, .open .dropdown-toggle.datepicker table tr td span.active.disabled, .open .dropdown-toggle.datepicker table tr td span.active.disabled:hover,
+    .datepicker .datepicker-switch:hover, .datepicker .prev:hover, .datepicker .next:hover, .datepicker tfoot tr th:hover {
+        background-image: none;
+        background-color: $mdc-pink-500;
+        color: #fff;
+    }
+
+    &.mda-form-control,
+    &.mda-input-group {
+        @include box-shadow(0 0 0 #000);
+    }
+    .input-daterange .input-group-addon {
+        background: transparent;
+        border: 0 !important;
+        vertical-align: baseline;
+    }
+}
+
+// Popup datepicker removes standard space from dropdowns
+.datepicker.dropdown-menu {
+    margin: 0;
+    padding: 0 0 5px 0;
+    border: 0;
+    &.datepicker-orient-top {
+        @include transform-origin(top left);
+    }
+    &.datepicker-orient-bottom {
+        @include transform-origin(bottom left);
+    }
+    @include animation(zoomIn .2s ease);
+    table tr td, table tr th {
+        border-radius: 0
+    }
+    // hide arrow
+    &:after, &:before {
+        display: none;
+    }
+}
+
+// Datepicker color Variants
+
+@mixin dp-theme-variant($color) {
+    .datepicker table thead tr:first-child th {
+        background-color: $color;
+        color: #fff;
+    }
+    .datepicker table thead tr:last-child th {
+        background-color: darken($color, 5%);
+        color: #fff;
+    }
+    .datepicker thead tr:first-child th:hover, .datepicker tfoot tr th:hover {
+        background-color: $color;
+        color: #fff;
+    }
+    .datepicker table tr td.active:hover, .datepicker table tr td.active:hover:hover, .datepicker table tr td.active.disabled:hover, .datepicker table tr td.active.disabled:hover:hover, .datepicker table tr td.active:focus, .datepicker table tr td.active:hover:focus, .datepicker table tr td.active.disabled:focus, .datepicker table tr td.active.disabled:hover:focus, .datepicker table tr td.active:active, .datepicker table tr td.active:hover:active, .datepicker table tr td.active.disabled:active, .datepicker table tr td.active.disabled:hover:active, .datepicker table tr td.active.active, .datepicker table tr td.active:hover.active, .datepicker table tr td.active.disabled.active, .datepicker table tr td.active.disabled:hover.active, .open .dropdown-toggle.datepicker table tr td.active, .open .dropdown-toggle.datepicker table tr td.active:hover, .open .dropdown-toggle.datepicker table tr td.active.disabled, .open .dropdown-toggle.datepicker table tr td.active.disabled:hover,
+    .datepicker .datepicker-switch:hover, .datepicker .prev:hover, .datepicker .next:hover, .datepicker tfoot tr th:hover{
+        background-color: $color;
+        color: #fff;
+    }
+
+    &.datepicker-standalone .datepicker {
+        .datepicker-switch, .prev, .next, tfoot tr th{
+            background-color: $color;
+            color: #fff;
+        }
+    }
+
+    .datepicker table tr td span.active:hover, .datepicker table tr td span.active:hover:hover, .datepicker table tr td span.active.disabled:hover, .datepicker table tr td span.active.disabled:hover:hover, .datepicker table tr td span.active:focus, .datepicker table tr td span.active:hover:focus, .datepicker table tr td span.active.disabled:focus, .datepicker table tr td span.active.disabled:hover:focus, .datepicker table tr td span.active:active, .datepicker table tr td span.active:hover:active, .datepicker table tr td span.active.disabled:active, .datepicker table tr td span.active.disabled:hover:active, .datepicker table tr td span.active.active, .datepicker table tr td span.active:hover.active, .datepicker table tr td span.active.disabled.active, .datepicker table tr td span.active.disabled:hover.active, .open .dropdown-toggle.datepicker table tr td span.active, .open .dropdown-toggle.datepicker table tr td span.active:hover, .open .dropdown-toggle.datepicker table tr td span.active.disabled, .open .dropdown-toggle.datepicker table tr td span.active.disabled:hover {
+        background-color: $color;
+        color: #fff;
+    }
+}
+
+.dp-theme-primary { @include dp-theme-variant($brand-primary); }
+.dp-theme-success { @include dp-theme-variant($brand-success); }
+.dp-theme-warning { @include dp-theme-variant($brand-warning); }
+.dp-theme-info { @include dp-theme-variant($brand-info); }
+.dp-theme-danger { @include dp-theme-variant($brand-danger); }
+.dp-theme-pink { @include dp-theme-variant($mdc-pink-500); }
+.dp-theme-purple { @include dp-theme-variant($mdc-deep-purple-400); }

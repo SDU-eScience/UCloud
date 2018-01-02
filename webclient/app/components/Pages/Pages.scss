@@ -1,0 +1,33 @@
+/**
+ * Pages
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+/* Fix blueimp-gallery image paths for distribution */
+
+.blueimp-gallery > .slides > .slide > .video-content > a {
+  background: url(../../img/video-play.png) center no-repeat;
+}
+.blueimp-gallery > .slides > .slide > .video-loading > a {
+  background: url(../../img/loading.gif) center no-repeat;
+}
+body:last-child .blueimp-gallery > .slides > .slide > .video-content:not(.video-loading) > a {
+  background-image: url(../../img/video-play.svg);
+}
+.blueimp-gallery > .slides > .slide-loading {
+  background: url(../../img/loading.gif) center no-repeat;
+}
+.blueimp-gallery > .slides > .slide-error {
+  background: url(../../img/error.png) center no-repeat;
+}
+.blueimp-gallery > .play-pause {
+  background: url(../../img/play-pause.png) 0 0 no-repeat;
+}
+body:last-child .blueimp-gallery > .slides > .slide-error {
+  background-image: url(../../img/error.svg);
+}
+body:last-child .blueimp-gallery > .play-pause {
+  background-image: url(../../img/play-pause.svg);
+}

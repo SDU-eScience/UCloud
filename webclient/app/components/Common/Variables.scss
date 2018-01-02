@@ -1,0 +1,211 @@
+//
+// Variables
+// --------------------------------------------------
+
+//== Colors
+
+@import 'MaterialColors';
+
+// Redefined Gray colors for theme
+$gray-darker:            #263238;
+$gray-dark:              #455A64;
+$gray:                   #607D8B;
+$gray-light:             #90A4AE;
+$gray-lighter:           #ECEFF1;
+
+// Classic brand colors
+
+$brand-primary:          $mdc-blue-A200;
+$brand-success:          #4CAF50;
+$brand-info:             #03A9F4;
+$brand-warning:          #FFB300;
+$brand-danger:           #F44336;
+
+$brand-inverse:          #37474F;
+
+// Gray base
+$gray-base:              #a2a2a2;
+
+//== Scaffolding
+
+//** Background color for `<body>`.
+$body-bg:               #f1f2f3;
+//** Global text color on `<body>`.
+$text-color:            #6C7177;
+//** Global textual link color.
+$link-color:            $brand-primary;
+//** Link hover color set via `darken()` function.
+$link-hover-color:      darken($link-color, 15%);
+
+//== Typography
+
+$font-family:           "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
+$font-size-base:        14px;
+
+//== Layout
+
+$header-hg:                     65px;
+$header-bg:                     #fff;
+$header-item-color:             #555;
+$header-shadow:                 0 0 1px 1px rgba(0, 0, 0, 0.14);
+
+$sidebar-wd:                    240px;
+$sidebar-wd-collapsed:          70px;
+$sidebar-bg:                    #263238;
+$sidebar-header-hg:             $header-hg;
+$sidebar-header-bg:             $sidebar-bg;
+$sidebar-header-shadow:         $header-shadow;
+$sidebar-toolbar-hg:            150px;
+$sidebar-toolbar-bg:            inherit;
+$sidebar-icon-color:            #868B90;
+$sidebar-icon-color-active:     $brand-primary;
+
+$main-content-bg:               $body-bg;
+
+$footer-hg:                     60px;
+
+//== Media queries breakpoints
+
+// Extra small screen / phone
+$screen-xs-min:              480px;
+// Small screen / tablet
+$screen-sm-min:              768px;
+// Medium screen / desktop
+$screen-md-min:              992px;
+// Large screen / wide desktop
+$screen-lg-min:              1200px;
+// So media queries don't overlap when required, provide a maximum
+$screen-xs-max:              ($screen-sm-min - 1);
+$screen-sm-max:              ($screen-md-min - 1);
+$screen-md-max:              ($screen-lg-min - 1);
+
+//== Media queria shortcodes
+$min-desktop-lg:             "only screen and (min-width: #{$screen-lg-min})";
+$min-desktop:                "only screen and (min-width: #{$screen-md-min})";
+$min-tablet:                 "only screen and (min-width: #{$screen-sm-min})";
+$min-mobile:                 "only screen and (min-width: #{$screen-xs-min})";
+
+$max-desktop:                "only screen and (max-width: #{$screen-md-max})";
+$max-tablet:                 "only screen and (max-width: #{$screen-sm-max})";
+$max-mobile:                 "only screen and (max-width: #{$screen-xs-max})";
+
+$text-muted:                 $gray-base;
+$input-border:               $gray-lighter;
+$btn-default-border:         #eaeaea;
+
+//== Card padding
+
+$card-padding:          16px;
+
+//== Grid customization
+
+$bs-grid-gutter:        24px;
+$bs-grid-gutter-md:     16px;
+$bs-grid-gutter-sm:     8px;
+
+//== Animations
+
+$animate-fade-distance:     18px;
+$animate-duration:          .5s;
+
+//== Custom Checkbox/Radio
+
+$chkradio-fg-color:         $brand-primary;
+$chkradio-bg-color:         rgba($gray-base,.12);
+
+//== List (material)
+
+$mda-list-img-wd: 48px;
+$mda-list-img-mr: 20px;
+
+//== Loading Bar
+
+$loading-bar-bg:        $brand-info;
+$loading-bar-hg:        3px;
+
+//== Vector Map
+
+$vectormap-label-bg:            #313232;
+$vectormap-zoom-ctrl-bg:        #515253;
+
+//== Site Preloader
+
+$site-preloader-bg:             #fff;
+$site-preloader-wd:             100px;
+$site-preloader-hg:             30px;
+
+//== Wizard
+
+$wizard-primary-color:        $brand-primary;
+$wizard-steps-bg:             transparent;
+$wizard-steps-bg-active:      $wizard-primary-color;
+
+$wizard-heading-color:        inherit;
+$wizard-subheading-color:     $text-muted;
+
+//== Timeline
+
+$timeline-badge-size: 20px;
+$timeline-datetime-height: 20px;
+$timeline-separator-width: 120px;
+
+//== Other BS variables for easy customization
+
+$progress-bg:                #f1f1f1;
+$progress-height-sm:         16px;
+$progress-height-xs:         8px;
+
+$border-radius-base:         4px;
+$border-radius-large:        6px;
+$border-radius-small:        3px;
+
+//== Material Shadows
+
+$material-shadow-z1: 0 3px 1px -2px rgba(0,0,0,.14),0 2px 2px 0 rgba(0,0,0,.098),0 1px 5px 0 rgba(0,0,0,.014);
+$material-shadow-z2: 0 2px 4px -1px rgba(0,0,0,.14),0 4px 5px 0 rgba(0,0,0,.098),0 1px 10px 0 rgba(0,0,0,.014);
+$material-shadow-z3: 0 3px 5px -1px rgba(0,0,0,.14),0 6px 10px 0 rgba(0,0,0,.098),0 1px 18px 0 rgba(0,0,0,.014);
+$material-shadow-z4: 0 5px 5px -3px rgba(0,0,0,.14),0 8px 10px 1px rgba(0,0,0,.098),0 3px 14px 2px rgba(0,0,0,.014);
+$material-shadow-z5: 0 8px 10px -5px rgba(0,0,0,.14),0 16px 24px 2px rgba(0,0,0,.098),0 6px 30px 5px rgba(0,0,0,.014);
+
+
+//== Utilities
+
+$margin-base:           16px;
+$margin-sm:             8px;
+$margin-lg:             24px;
+$margin-xl:             32px;
+
+$padding-xl:            32px;
+$padding-lg:            24px;
+$padding-base:          16px;
+$padding-sm:            4px;
+
+$text-alpha:            rgba(255,255,255,.5);
+$text-alpha-inverse:    rgba(0,0,0,.5);
+
+$text-sm:               $font-size-base * .85;
+$text-md:               $font-size-base * 1.9;
+$text-lg:               $font-size-base * 3;
+
+$border-color:          rgba($gray-base,.32);
+
+$wd-xxs:                60px;
+$wd-xs:                 90px;
+$wd-sm:                 150px;
+$wd-sd:                 200px; // sd == standard
+$wd-md:                 240px;
+$wd-lg:                 280px;
+$wd-xl:                 320px;
+$wd-xxl:                360px;
+$wd-wide:               100%;
+$wd-auto:               auto;
+$wd-zero:               0;
+
+//== Placeholders
+
+$placeholder-margin-vertical:                   15px;
+$placeholder-padding:                           20px;
+$placeholder-border:                            rgba($gray-base,.26);
+$placeholder-background:                        transparent;
+$placeholder-color:                             inherit;
+$placeholder-large-padding-vertical:            80px;

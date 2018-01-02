@@ -1,0 +1,70 @@
+/**
+ * Dropzone
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.dropzone {
+    border: 0;
+
+    .dz-default.dz-message {
+        font-size: 35px;
+    }
+    // customized image preview and detials position
+    .dz-preview.dz-image-preview {
+        @include box-shadow($material-shadow-z1);
+        .dz-image {
+            border-radius: 1px;
+        }
+        .dz-details {
+            position: relative;
+            line-height: 1;
+            padding: 6px 4px;
+            margin: 0;
+            opacity: 1;
+            font-size: 14px;
+        }
+    }
+    // image hover effect
+    .dz-preview .dz-image img {
+        @include transition-transform(.2s ease);
+    }
+    .dz-preview:hover .dz-image img {
+        -webkit-filter: none;
+        filter: none;
+        @include scale(2);
+        @include transition-transform(.5s ease);
+    }
+    // pre image upload box
+    .dz-preview.dz-file-preview .dz-image {
+        border-radius: 1px;
+        background-image: none;
+        background-color: $gray-lighter;
+    }
+    // hide filename
+    .dz-filename {
+        display: none;
+    }
+    // remove link
+    .dz-preview .dz-remove {
+        color: $text-muted;
+        font-size: 12px;
+        &:hover {
+            color: $brand-danger;
+            text-decoration: none;
+        }
+    }
+
+    .dz-preview .dz-error-message {
+        top: 130px;
+        border-radius: 2px;
+        @include transition(all .2s ease);
+        &:after {
+            display: none;
+        }
+    }
+    .dz-preview.dz-error:hover .dz-error-message {
+        top: 100px;
+    }
+}

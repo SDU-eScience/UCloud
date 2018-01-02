@@ -1,0 +1,120 @@
+/**
+ * Header
+ */
+
+@import '../Common/Variables';
+@import '../Common/Mixins';
+
+.header-container {
+    position: relative;
+    background-color: $header-bg;
+    z-index: 1;
+    @media #{$min-desktop} {
+        margin-left: $sidebar-wd;
+    }
+    > nav {
+        min-height: $header-hg;
+        line-height: $header-hg - 1;
+        box-shadow: $header-shadow;
+        @include clearfix;
+
+        > .header-title {
+            display: none;
+            position: relative;
+            float: left;
+            margin: 0;
+            padding: 0 16px;
+            font-size: 20px;
+            line-height: inherit;
+            letter-spacing: .02em;
+            font-weight: 400;
+
+            @media (min-width: 340px) {
+                display: block;
+            }
+            @media (max-width: 420px) {
+                // hide large titles with ellipsis
+                max-width: 140px;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                overflow: hidden;
+            }
+        }
+
+        > ul {
+            float: left;
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            @include clearfix;
+            > li {
+                float: left;
+                > a {
+                    display: block;
+                    padding: 0 16px;
+                    text-decoration: none;
+                    color: inherit;
+                    > span > em, // react
+                    > em {
+                        font-size: 24px;
+                        vertical-align: -24%;
+                        line-height: 1;
+                    }
+                }
+            }
+            // > li.active > a,
+            > li > a:hover {
+                background-color: rgba(0,0,0,.025);
+            }
+        }
+
+    }
+
+}
+
+// Offcanvas toggler
+
+#offcanvas-toggler {
+    display: none;
+}
+.sidebar-offcanvas #offcanvas-toggler {
+    display: block;
+}
+
+// Form search
+.header-form-search {
+    position: relative;
+    margin: 0;
+    overflow: hidden;
+    @include transition(width .2s cubic-bezier(.4,0,.2,1));
+
+    .btn,
+    .form-control {
+        margin: 0;
+        border: 0;
+        background-color: transparent;
+        box-shadow: 0 0 0 #000;
+    }
+    .btn {
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+    .form-control:focus + .focus-bottom-line {
+        left: 40px;
+        right: 40px;
+        visibility: visible;
+    }
+
+    .focus-bottom-line {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 45%;
+        right: 45%;
+        height: 2px;
+        visibility: hidden;
+        background-color: rgba(120,120,120,.15);
+        @include transition(.2s cubic-bezier(.4,0,.2,1));
+    }
+
+}
