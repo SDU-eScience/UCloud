@@ -42,7 +42,7 @@ fun main(args: Array<String>) = runBlocking {
 
     val targets = config.targets.map { File(it) }
     val manager = ServiceManager(*targets.toTypedArray())
-    val scanner = Scanner(System.`in`)
+    //val scanner = Scanner(System.`in`)
 
     val producerConfig = mapOf(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to config.kafka.servers.joinToString(","),
@@ -85,7 +85,9 @@ fun main(args: Array<String>) = runBlocking {
             }.start(wait = false)
             log.info("New server is ready!")
 
-            scanner.nextLine()
+            //scanner.nextLine()
+            if (true) break // TODO Need to implement another way of doing reloading than listen on stdin
+            // (does not work well with systemd)
         } catch (ex: Exception) {
             log.warn("Caught exception while reloading service definitions!")
             log.warn(ex.stackTraceToString())

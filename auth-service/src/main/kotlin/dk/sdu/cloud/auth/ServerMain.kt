@@ -8,7 +8,6 @@ import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.Principals
 import dk.sdu.cloud.auth.services.RefreshTokens
 import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaProducerConfiguration
-import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaStreamsConfiguration
 import dk.sdu.cloud.service.forStream
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
@@ -49,9 +48,7 @@ fun main(args: Array<String>) {
 
     val mapper = jacksonObjectMapper()
     val config = mapper.readValue<AuthConfiguration>(File("auth_config.json"))
-
-    val hostname = config.hostname
-    val port = 42300
+    config.connection.configure(AuthServiceDescription, 42300)
 
     if (args.isEmpty()) {
         val samlProperties = Properties().apply {
@@ -62,15 +59,7 @@ fun main(args: Array<String>) {
         AuthServer(
                 samlSettings = samlProperties,
                 privKey = priv,
-                kafkaStreamsConfiguration = retrieveKafkaStreamsConfiguration(
-                        config.kafka.servers,
-                        AuthServiceDescription.name,
-                        hostname,
-                        port
-                ),
-                kafkaProducerConfiguration = retrieveKafkaProducerConfiguration(config.kafka.servers),
-                config = config,
-                hostname = hostname
+                config = config
         ).start()
     } else {
         when (args[0]) {
@@ -94,7 +83,9 @@ fun main(args: Array<String>) {
             }
 
             "create-user" -> {
-                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(config.kafka.servers))
+                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(
+                        config.connection.processed)
+                )
                 val userEvents = producer.forStream(AuthStreams.UserUpdateStream)
 
                 val console = System.console()
@@ -119,7 +110,9 @@ fun main(args: Array<String>) {
             }
 
             "create-api-token" -> {
-                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(config.kafka.servers))
+                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(
+                        config.connection.processed
+                ))
                 val userEvents = producer.forStream(AuthStreams.UserUpdateStream)
                 val tokenEvents = producer.forStream(AuthStreams.RefreshTokenStream)
 

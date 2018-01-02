@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import com.github.zafarkhaja.semver.Version
+import dk.sdu.cloud.client.ServiceDescription
 import org.apache.zookeeper.*
 import org.apache.zookeeper.Watcher.Event.KeeperState.AuthFailed
 import org.apache.zookeeper.Watcher.Event.KeeperState.SyncConnected
@@ -16,6 +17,10 @@ enum class ServiceStatus {
 }
 
 private const val ROOT_NODE = "/services"
+
+fun ServiceDescription.definition(): ServiceDefinition = ServiceDefinition(name, Version.valueOf(version))
+fun ServiceDescription.instance(config: ConnectionConfig): ServiceInstance =
+        ServiceInstance(definition(), config.service.hostname, config.service.port)
 
 data class ServiceDefinition(val name: String, val version: Version) : Serializable
 data class ServiceInstance(val definition: ServiceDefinition, val hostname: String, val port: Int) : Serializable

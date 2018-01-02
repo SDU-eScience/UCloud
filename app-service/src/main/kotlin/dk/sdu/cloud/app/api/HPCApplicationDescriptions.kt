@@ -9,7 +9,7 @@ import dk.sdu.cloud.client.KafkaCallDescriptionBundle
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 
-object HPCApplicationDescriptions : RESTDescriptions() {
+object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
     private val baseContext = "/api/hpc/apps/"
 
     val findByName = callDescription<FindByName, List<ApplicationDescription>, List<ApplicationDescription>> {

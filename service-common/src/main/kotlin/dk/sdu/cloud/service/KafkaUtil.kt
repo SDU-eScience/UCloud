@@ -14,6 +14,7 @@ import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.*
 import org.apache.kafka.streams.state.KeyValueStore
+import java.io.File
 import java.util.*
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.reflect.KClass
@@ -100,20 +101,29 @@ fun <K, V> KStream<K, V>.to(description: StreamDescription<K, V>) {
 data class DivergedStream<K, V>(val predicateTrue: KStream<K, V>, val predicateFalse: KStream<K, V>)
 
 object KafkaUtil {
-    fun retrieveKafkaStreamsConfiguration(
-            kafkaServers: List<String>,
-            serviceName: String,
-            hostname: String,
-            port: Int
-    ): Properties = Properties().apply {
-        this[StreamsConfig.APPLICATION_ID_CONFIG] = serviceName
-        this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.joinToString(",")
-        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
-        this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$port"
+    fun retrieveKafkaStreamsConfiguration(config: ConnectionConfig): Properties {
+        return retrieveKafkaStreamsConfiguration(config.kafka, config.service)
     }
 
-    fun retrieveKafkaProducerConfiguration(kafkaServers: List<String>): Properties = Properties().apply {
-        this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.joinToString(",")
+    fun retrieveKafkaStreamsConfiguration(
+            kafkaConnectionConfig: KafkaConnectionConfig,
+            serviceConfig: ServiceConnectionConfig
+    ): Properties = Properties().apply {
+        this[StreamsConfig.APPLICATION_ID_CONFIG] = serviceConfig.description.name
+        this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaConnectionConfig.servers.joinToString(",") { it.toString() }
+        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
+        this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "${serviceConfig.hostname}:${serviceConfig.port}"
+
+        // The defaults do not use java.io.tmpdir
+        this[StreamsConfig.STATE_DIR_CONFIG] = File(System.getProperty("java.io.tmpdir"), "kafka-streams").absolutePath
+    }
+
+    fun retrieveKafkaProducerConfiguration(config: ConnectionConfig): Properties {
+        return retrieveKafkaProducerConfiguration(config.kafka)
+    }
+
+    fun retrieveKafkaProducerConfiguration(kafkaServers: KafkaConnectionConfig): Properties = Properties().apply {
+        this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.servers.joinToString(",") { it.toString() }
         this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
         this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
     }

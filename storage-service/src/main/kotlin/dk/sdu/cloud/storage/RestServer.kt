@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RequestHeader
@@ -38,6 +39,7 @@ class StorageRestServer(
 ) {
     companion object {
         val StorageSession = AttributeKey<StorageConnection>("StorageSession")
+        val JwtToken = AttributeKey<DecodedJWT>("JWT")
     }
 
     fun validateRequest(header: RequestHeader): StorageConnection? {
@@ -51,7 +53,7 @@ class StorageRestServer(
         return header.substringAfter("Bearer ")
     }
 
-    fun create() = embeddedServer(Netty, port = configuration.service.port) {
+    fun create() = embeddedServer(Netty, port = configuration.connection.processed.service.port) {
         install(Compression)
         install(DefaultHeaders)
         install(ContentNegotiation) {
@@ -80,6 +82,7 @@ class StorageRestServer(
                 return@intercept
             }
             call.attributes.put(StorageSession, connection)
+            call.attributes.put(JwtToken, TokenValidation.validate(token))
         }
 
         // TODO Not sure if this is the correct phase to use
@@ -124,6 +127,11 @@ class StorageRestServer(
 
                 route("users") {
                     implement(UserDescriptions.findByName) {
+                        val principal = call.attributes[JwtToken]
+                        if (principal.getClaim("role").asString() != "ADMIN") {
+                            call.respond(HttpStatusCode.Unauthorized)
+                            return@implement
+                        }
                         val connection = call.attributes[StorageSession]
                         val admin = connection.userAdmin ?: return@implement run {
                             error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
@@ -139,6 +147,12 @@ class StorageRestServer(
 
                 route("groups") {
                     implement(GroupDescriptions.findByName) {
+                        val principal = call.attributes[JwtToken]
+                        if (principal.getClaim("role").asString() != "ADMIN") {
+                            call.respond(HttpStatusCode.Unauthorized)
+                            return@implement
+                        }
+
                         val connection = call.attributes[StorageSession]
                         try {
                             val listAt = connection.groups.listGroupMembers(it.name)

@@ -202,7 +202,7 @@ suspend fun IoCTX.aWrite(
 
 suspend fun IoCTX.aRead(
         oid: String
-) = suspendCoroutine<Unit> { continuation ->
+) = suspendCoroutine<Unit> { _ ->
     // rados_aio_read not actually supported by rados-java
     // TODO We will have to fork it for this functionality, it makes no sense that it isn't included already
     TODO()

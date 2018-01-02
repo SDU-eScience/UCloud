@@ -4,7 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByName
 import dk.sdu.cloud.client.RESTDescriptions
 
-object HPCToolDescriptions : RESTDescriptions() {
+object HPCToolDescriptions : RESTDescriptions(AppServiceDescription) {
     private val baseContext = "/api/hpc/tools"
 
     val findByNameAndVersion = callDescription<FindByNameAndVersion, ToolDescription, CommonErrorMessage> {
