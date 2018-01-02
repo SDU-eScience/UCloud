@@ -4,7 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.*
 import io.netty.handler.codec.http.HttpMethod
 
-object HPCJobDescriptions : RESTDescriptions() {
+object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
     private val baseContext = "/api/hpc/jobs"
 
     val findById = callDescription<FindById, HPCAppEvent, CommonErrorMessage> {

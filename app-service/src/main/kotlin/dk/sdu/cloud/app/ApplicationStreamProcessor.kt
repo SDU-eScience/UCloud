@@ -3,7 +3,7 @@ package dk.sdu.cloud.app
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.zafarkhaja.semver.Version
-import dk.sdu.cloud.app.api.AppBuildConfig
+import dk.sdu.cloud.app.api.AppServiceDescription
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.JobController
 import dk.sdu.cloud.app.http.ToolController
@@ -52,7 +52,8 @@ data class HPCConfig(
         val kafka: KafkaConfiguration,
         val ssh: SimpleSSHConfig,
         val storage: StorageConfiguration,
-        val rpc: RPCConfiguration
+        val rpc: RPCConfiguration,
+        val zookeeper: ZooKeeperHostInfo
 )
 
 data class StorageConfiguration(val host: String, val port: Int, val zone: String)
@@ -95,11 +96,12 @@ class ApplicationStreamProcessor(
         // TODO This would most likely be a lot better if we could use DI in this
         if (initialized) throw IllegalStateException("Already started!")
 
-        val serviceDefinition = ServiceDefinition(AppBuildConfig.Name, Version.valueOf(AppBuildConfig.Version))
+        val serviceDefinition = ServiceDefinition(AppServiceDescription.name,
+                Version.valueOf(AppServiceDescription.version))
         val instance = ServiceInstance(serviceDefinition, hostname, rpcPort)
 
         val (zk, node) = runBlocking {
-            val zk = ZooKeeperConnection(listOf(ZooKeeperHostInfo("localhost"))).connect()
+            val zk = ZooKeeperConnection(listOf(config.zookeeper)).connect()
             val node = zk.registerService(instance)
 
             Pair(zk, node)

@@ -18,7 +18,7 @@ apply plugin: 'kotlin'
 apply plugin: 'application'
 
 sourceCompatibility = 1.8
-mainClassName = "dk.sdu.cloud.abc.ApplicationStreamProcessorKt"
+mainClassName = "dk.sdu.cloud.app.ApplicationStreamProcessorKt"
 
 repositories {
     mavenCentral()
@@ -100,6 +100,9 @@ compileTestKotlin {
 
 sourceSets {
     generated {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+
         kotlin {
             srcDir 'src/generated/kotlin'
         }
@@ -113,6 +116,10 @@ sourceSets {
         compileClasspath += generated.output
         runtimeClasspath += generated.output
     }
+}
+
+jar {
+    from sourceSets.generated.output
 }
 
 task cleanGenerated() {
@@ -132,15 +139,17 @@ task generateBuildConfig() {
     File packagePath = file("$outputDir/${packageName.replace('.', '/')}")
     if (!packagePath.exists()) packagePath.mkdirs()
 
-    String className = "${simpleName.capitalize()}BuildConfig"
+    String className = "${simpleName.capitalize()}ServiceDescription"
     File configFile = file("$packagePath/${className}.kt")
     configFile.delete()
     configFile << """
         package $packageName
 
-        object $className {
-            val Name: String = "${project.name.replace("-service", "")}"
-            val Version: String = "${project.version}"
+        import dk.sdu.cloud.client.ServiceDescription
+
+        object $className : ServiceDescription {
+            override val name: String = "${project.name.replace("-service", "")}"
+            override val version: String = "${project.version}"
         }
     """.stripIndent().trim()
 }

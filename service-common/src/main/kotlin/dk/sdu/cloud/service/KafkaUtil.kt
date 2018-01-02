@@ -14,6 +14,7 @@ import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.*
 import org.apache.kafka.streams.state.KeyValueStore
+import java.io.File
 import java.util.*
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.reflect.KClass
@@ -110,6 +111,8 @@ object KafkaUtil {
         this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.joinToString(",")
         this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
         this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "$hostname:$port"
+        // The defaults do not use java.io.tmpdir
+        this[StreamsConfig.STATE_DIR_CONFIG] = File(System.getProperty("java.io.tmpdir"), "kafka-streams").absolutePath
     }
 
     fun retrieveKafkaProducerConfiguration(kafkaServers: List<String>): Properties = Properties().apply {

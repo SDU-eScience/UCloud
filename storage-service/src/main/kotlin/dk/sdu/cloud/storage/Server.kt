@@ -18,12 +18,6 @@ import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
 import java.io.File
 
-/*
- * This file starts the Storage model. This will start up both the REST service and the Kafka consumer.
- * It might make sense to split these, but currently it seems that it actually makes quite a bit of sense to keep
- * these together. It will also be simpler, so we should do this for now.
- */
-
 data class Configuration(
         val storage: StorageConfiguration,
         val service: ServiceConfiguration,
