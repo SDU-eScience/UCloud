@@ -36,7 +36,7 @@ class Sidebar extends React.Component {
                 <div className="sidebar-content">
                     <div className="sidebar-toolbar text-center">
                         <a href=""><img src="img/user/01.jpg" alt="Profile" className="img-circle thumb64" /></a>
-                        <div className="mt">Welcome, Willie Webb</div>
+                        <div className="mt">Welcome, Jonas Hinchely</div>
                     </div>
                     <nav className="sidebar-nav">
                         <ul>
