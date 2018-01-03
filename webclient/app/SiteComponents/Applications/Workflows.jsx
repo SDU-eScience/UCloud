@@ -25,7 +25,7 @@ class Workflows extends React.Component {
             this.setState({
                 loading: false,
                 workflows: data,
-            })
+            });
         });
     }
 
@@ -44,9 +44,7 @@ class Workflows extends React.Component {
                                         <th>Applications</th>
                                     </tr>
                                     </thead>
-                                    <tbody>
                                     <WorkflowsList workflows={this.state.workflows}/>
-                                    </tbody>
                                 </Table>
                             </div>
                         </div>
@@ -73,9 +71,9 @@ function WorkflowsList(props) {
         </tr>
     );
     return (
-        <tr className="gradeA row-settings">
+        <tbody>
             {workflowsList}
-        </tr>)
+        </tbody>)
 }
 
 function ApplicationList(props) {
@@ -90,3 +88,5 @@ function ApplicationList(props) {
         {applicationsList}
     </td>)
 }
+
+export default Workflows

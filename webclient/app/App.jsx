@@ -24,9 +24,8 @@ import Translate from './components/Translate/Translate';
 import Dashboard from './SiteComponents/Dashboard'
 import Notifications from './SiteComponents/Activity/Notifications.jsx'
 import Applications from './SiteComponents/Applications/Applications'
+import Workflows from './SiteComponents/Applications/Workflows'
 import Analyses from './SiteComponents/Applications/Analyses'
-
-
 
 import User from './components/User/User';
 
@@ -63,7 +62,7 @@ ReactDOM.render(
 
             <Route path="apps">
                 <Route path="applications" component={Applications}/>
-                <Route path="workflows" component={NotFound}/>
+                <Route path="workflows" component={Workflows}/>
                 <Route path="analyses" component={Analyses}/>
             </Route>
             <Route path="runApp/:appName/:appVersion" component={Dashboard} />
