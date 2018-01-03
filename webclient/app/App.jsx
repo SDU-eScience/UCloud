@@ -20,15 +20,13 @@ import Common from './components/Common/Common';
 import Colors from './components/Colors/Colors';
 import FloatButton from './components/FloatButton/FloatButton';
 import Translate from './components/Translate/Translate';
-
 import Dashboard from './SiteComponents/Dashboard'
 import Notifications from './SiteComponents/Activity/Notifications.jsx'
 import Applications from './SiteComponents/Applications/Applications'
+import RunApp from './SiteComponents/Applications/RunApp'
 import Workflows from './SiteComponents/Applications/Workflows'
 import Analyses from './SiteComponents/Applications/Analyses'
-
 import User from './components/User/User';
-
 import Utils from './components/Utils/Utils';
 
 Translate();
@@ -65,13 +63,12 @@ ReactDOM.render(
                 <Route path="workflows" component={Workflows}/>
                 <Route path="analyses" component={Analyses}/>
             </Route>
-            <Route path="runApp/:appName/:appVersion" component={Dashboard} />
+            <Route path="runApp/:appName/:appVersion" component={RunApp} />
 
             <Route path="activity">
                 <Route path="notifications" component={Notifications}/>
             </Route>
 
-            {/* Not found handler */}
             <Route path="*" component={NotFound}/>
 
         </Route>

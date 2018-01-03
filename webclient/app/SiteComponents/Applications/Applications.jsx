@@ -1,7 +1,7 @@
 import React from 'react';
 import LoadingIcon from '../LoadingIcon';
 import {Applications as apps} from "../../MockObjects";
-import {Link, BrowserRouter} from 'react-router'
+import {Link} from 'react-router'
 
 import {Table} from 'react-bootstrap';
 import {Card, CardHeading} from "../Cards";
@@ -71,7 +71,7 @@ class Applications extends React.Component {
 function ApplicationsList(props) {
     let applications = props.applications.slice();
     let i = 0;
-    let applicationsList = applications.map((app) =>
+    let applicationsList = applications.map(app =>
         <SingleApplication key={i++} app={app}/>
     );
     return (
@@ -89,7 +89,6 @@ function SingleApplication(props) {
             <td title="Rating for the application">{props.app.info.rating} / 5</td>
             <td title={props.app.info.description}>{props.app.info.version}</td>
             <th>
-
                 <Link to={'/runApp/' + props.app.info.name + '/' + props.app.info.version}>
                     <button className="btn btn-info">Run</button>
                 </Link>
@@ -99,7 +98,6 @@ function SingleApplication(props) {
 }
 
 function PrivateIcon(props) {
-    console.log("Is private");
     if (props.isPrivate) {
         return (
             <td title="The app is private and can only be seen by the creator and people it was shared with">

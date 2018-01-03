@@ -97,9 +97,6 @@ class ApplicationField {
     }
 }
 
-
-
-
 const Applications = [
     new ApplicationAbacus(new ApplicationInfo("Particle Simulator", "1.0"),
         [ new ApplicationField("input", "Input File", "The input file for the application.", "input_file", null, false),
@@ -109,8 +106,10 @@ const Applications = [
             new ApplicationField("format", "File format", "The format which the file should be outputted as. Possible values: ogg (default)", "text", "ogg", true) ])
 ];
 
-
+function getMockApp(name, version) {
+    return Applications.first(app => app.info.name === name && app.info.version === version );
+}
 
 // FIXME END
 
-export { SidebarOptionsList, Applications }
+export { SidebarOptionsList, Applications, getMockApp }
