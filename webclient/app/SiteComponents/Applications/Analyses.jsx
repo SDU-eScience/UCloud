@@ -2,6 +2,7 @@ import $ from 'jquery';
 import React from 'react';
 import LoadingIcon from '../LoadingIcon'
 import {WebSocketSupport} from '../../UtilityFunctions'
+import pubsub from "pubsub-js";
 
 class Analyses extends React.Component {
     constructor(props) {
@@ -15,6 +16,7 @@ class Analyses extends React.Component {
     }
 
     componentDidMount() {
+        pubsub.publish('setPageTitle', this.constructor.name);
         this.getAnalyses();
     }
 

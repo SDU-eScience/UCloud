@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table} from 'react-bootstrap';
 import LoadingIcon from '../LoadingIcon'
+import pubsub from "pubsub-js";
 
 
 class Workflows extends React.Component {
@@ -13,7 +14,8 @@ class Workflows extends React.Component {
     }
 
     componentDidMount() {
-        this.getWorkflows()
+        this.getWorkflows();
+        pubsub.publish('setPageTitle', this.constructor.name);
     }
 
     getWorkflows() {

@@ -3,6 +3,7 @@ import React from 'react'
 import LoadingIcon from './LoadingIcon'
 import { NotificationIcon } from "./../UtilityFunctions";
 import { Table } from 'react-bootstrap'
+import pubsub from "pubsub-js";
 
 class Dashboard extends React.Component {
     constructor(props) {
@@ -20,6 +21,7 @@ class Dashboard extends React.Component {
     }
 
     componentDidMount() {
+        pubsub.publish('setPageTitle', this.constructor.name);
         this.getFavouriteFiles();
         this.getMostRecentFiles();
         this.getRecentAnalyses();

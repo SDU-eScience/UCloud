@@ -5,13 +5,32 @@ import {Link, BrowserRouter} from 'react-router'
 
 import {Table} from 'react-bootstrap';
 import {Card, CardHeading} from "../Cards";
+import pubsub from "pubsub-js";
 
 class Applications extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            applications: apps
+            loading: false,
+            applications: [],
         }
+    }
+
+    componentDidMount() {
+        pubsub.publish('setPageTitle', this.constructor.name);
+        this.getApplications();
+    }
+
+    getApplications() {
+        this.setState({ loading: true });
+        // FIXME: Get apps from DB
+        {
+            this.setState({
+                applications: apps,
+            });
+            this.setState({ loading: false });
+        }
+        // FIXME END
     }
 
     render() {
@@ -38,8 +57,7 @@ class Applications extends React.Component {
                     </div>
                     <div className="col-lg-2 visible-lg">
                         <div>
-                            <button className="btn btn-primary ripple btn-block ion-android-upload"
-                                    onClick="newApplication()"> Upload Application
+                            <button className="btn btn-primary ripple btn-block ion-android-upload"> Upload Application
                             </button>
                             <br/>
                             <hr/>
@@ -51,7 +69,6 @@ class Applications extends React.Component {
 }
 
 function ApplicationsList(props) {
-    console.log("Applications");
     let applications = props.applications.slice();
     let i = 0;
     let applicationsList = applications.map((app) =>
@@ -59,7 +76,7 @@ function ApplicationsList(props) {
     );
     return (
         <tbody>
-        {applicationsList}
+            {applicationsList}
         </tbody>)
 }
 
