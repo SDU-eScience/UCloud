@@ -46,6 +46,7 @@ repositories {
     maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
     maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
     maven { url "http://download.osgeo.org/webdav/geotools" }
+    maven { url "https://dl.bintray.com/kotlin/exposed" }
 }
 
 dependencies {
@@ -83,6 +84,8 @@ dependencies {
 
     compile 'dk.sdu.cloud:client-core:0.1.0-SNAPSHOT'
     compile 'dk.sdu.cloud:service-common:0.5.0-SNAPSHOT'
+
+    compile 'org.jetbrains.exposed:exposed:0.9.1'
 }
 
 kotlin {

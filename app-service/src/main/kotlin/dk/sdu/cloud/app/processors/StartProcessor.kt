@@ -151,10 +151,13 @@ class StartProcessor(
     @Suppress("UNCHECKED_CAST")
     fun handle(connection: StorageConnection, request: KafkaRequest<AppRequest>): HPCAppEvent = when (request.event) {
         is AppRequest.Start -> {
+            log.info("Handling event: $request")
             val result = handleStartEvent(connection, request as KafkaRequest<AppRequest.Start>)
             when (result) {
                 is Ok -> result.result
                 is Error -> HPCAppEvent.UnsuccessfullyCompleted
+            }.also {
+                log.info("${request.header}: $it")
             }
         }
 
