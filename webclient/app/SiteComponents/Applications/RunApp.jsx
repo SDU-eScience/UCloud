@@ -1,5 +1,6 @@
 import React from 'react';
-import {getMockApp} from '../../MockObjects'
+import { getMockApp } from '../../MockObjects'
+import FileSelector from '../FileSelector'
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -79,9 +80,7 @@ function ApplicationHeader(props) {
 
 
 function Parameters(props) {
-    if (!props.app) {
-        return null
-    }
+    if (!props.app) { return null }
     let parameters = props.app.parameters.slice();
     let i = 0;
     let parametersList = parameters.map(parameter =>
@@ -118,12 +117,11 @@ function Parameter(props) {
 }
 
 function InputFileParameter(props) {
-    console.log(props.parameter);
     return (
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
-                <file-selector select="updateParam(index, 'source', $event)" id="parameter.name + '-src'"/>
+                <FileSelector/>
                 <span><em/></span>
                 <span className="help-block">Source of the file</span>
                 <input
