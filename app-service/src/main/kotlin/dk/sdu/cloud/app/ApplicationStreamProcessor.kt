@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.AppServiceDescription
@@ -12,11 +13,11 @@ import dk.sdu.cloud.app.processors.StartProcessor
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaProducerConfiguration
 import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaStreamsConfiguration
 import dk.sdu.cloud.storage.Error
-import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
@@ -35,6 +36,9 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SchemaUtils.create
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.PrintWriter
@@ -43,18 +47,27 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
+data class DatabaseConfiguration(
+        val url: String,
+        val driver: String,
+        val username: String,
+        val password: String
+)
+
 data class HPCConfig(
         val connection: RawConnectionConfig,
         val ssh: SimpleSSHConfig,
         val storage: StorageConfiguration,
-        val rpc: RPCConfiguration
+        val rpc: RPCConfiguration,
+        val refreshToken: String,
+        val database: DatabaseConfiguration
 )
 
 data class StorageConfiguration(val host: String, val port: Int, val zone: String)
 data class RPCConfiguration(val secretToken: String)
 
-private val storageConnectionKey = AttributeKey<StorageConnection>("StorageSession")
-val ApplicationCall.storageConnection get() = attributes[storageConnectionKey]
+private val jwtKey = AttributeKey<DecodedJWT>("Jwt")
+val ApplicationCall.validatedJwt get() = attributes[jwtKey]
 
 class ApplicationStreamProcessor(
         private val config: HPCConfig,
@@ -89,16 +102,42 @@ class ApplicationStreamProcessor(
         val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(connConfig))
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
 
+        val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), config.refreshToken)
+        Database.connect(
+                url = config.database.url,
+                driver = config.database.driver,
+
+                user = config.database.username,
+                password = config.database.password
+        )
+
+
+
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
 
         val hpcStore = HPCStore(connConfig.service.hostname, connConfig.service.port, config.rpc)
         val streamService = HPCStreamService(streamBuilder, producer)
         val sbatchGenerator = SBatchGenerator()
+
+        if (false) {
+            streamService.appEvents.foreach { key, value ->  }
+            streamService.appRequests.unauthenticated.foreach { _, _ -> }
+            streamService.appRequests.authenticated.foreach { _, _ -> }
+        }
+
+        if (false) {
+            transaction {
+                create(JobsTable, JobStatusTable)
+            }
+            println("OK")
+            return
+        }
+
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
         log.info("Init Event Processors")
-        val slurmProcessor = SlurmProcessor(hpcStore, sshPool, storageConnectionFactory, slurmPollAgent, streamService)
+        val slurmProcessor = SlurmProcessor(cloud, sshPool, storageConnectionFactory, slurmPollAgent, streamService)
         val slurmAggregate = SlurmAggregate(streamService, slurmPollAgent)
         val startProcessor = StartProcessor(storageConnectionFactory, sbatchGenerator, sshPool, config.ssh.user,
                 streamService)
@@ -119,8 +158,6 @@ class ApplicationStreamProcessor(
         log.info("Starting HTTP Server")
         rpcServer = HTTPServer(connConfig.service.hostname, connConfig.service.port)
         rpcServer.start {
-            hpcStore.init(streamProcessor, this)
-
             route("api") {
                 route("hpc") {
                     fun ApplicationRequest.bearer(): String? {
@@ -137,15 +174,7 @@ class ApplicationStreamProcessor(
                                     finish()
                                 }
 
-                        // TODO We can likely remove this for most paths
-                        val connection = storageConnectionFactory.createForAccount(token.subject,
-                                token.token).capture() ?: return@intercept run {
-                            call.respond(HttpStatusCode.Unauthorized)
-                            finish()
-                            return@intercept
-                        }
-
-                        call.attributes.put(storageConnectionKey, connection)
+                        call.attributes.put(jwtKey, token)
                     }
 
                     AppController(ApplicationDAO).configure(this)
