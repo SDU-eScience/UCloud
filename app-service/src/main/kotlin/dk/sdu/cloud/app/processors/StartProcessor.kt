@@ -66,7 +66,7 @@ class StartProcessor(
         return Ok(result)
     }
 
-    private fun handleStartEvent(
+    private fun handleStartCommand(
             storage: StorageConnection,
             request: KafkaRequest<AppRequest.Start>
     ): Result<HPCAppEvent.Pending> {
@@ -149,22 +149,24 @@ class StartProcessor(
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun handle(connection: StorageConnection, request: KafkaRequest<AppRequest>): HPCAppEvent = when (request.event) {
-        is AppRequest.Start -> {
-            log.info("Handling event: $request")
-            val result = handleStartEvent(connection, request as KafkaRequest<AppRequest.Start>)
-            when (result) {
-                is Ok -> result.result
-                is Error -> HPCAppEvent.UnsuccessfullyCompleted
-            }.also {
-                log.info("${request.header}: $it")
-            }
-        }
+    private fun handle(connection: StorageConnection, request: KafkaRequest<AppRequest>): HPCAppEvent =
+            when (request.event) {
+                is AppRequest.Start -> {
+                    log.info("Handling event: $request")
+                    val result = handleStartCommand(connection, request as KafkaRequest<AppRequest.Start>)
+                    when (result) {
+                        is Ok -> result.result
+                        is Error -> HPCAppEvent.UnsuccessfullyCompleted
+                    }.also {
+                        log.info("${request.header}: $it")
+                    }
+                }
 
-        is AppRequest.Cancel -> {
-            HPCAppEvent.UnsuccessfullyCompleted
-        }
-    }
+                is AppRequest.Cancel -> {
+                    // TODO This won't really cancel anything?
+                    HPCAppEvent.UnsuccessfullyCompleted
+                }
+            }
 
     fun init() {
         streamService.appRequests.respond(

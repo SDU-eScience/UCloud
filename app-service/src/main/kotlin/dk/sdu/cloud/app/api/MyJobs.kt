@@ -50,7 +50,7 @@ class MyJobs {
 
         private fun JsonGenerator.writeRunningStatus(status: RunningJobStatus) {
             writeStartObject()
-            writeStringField("id", status.jobId)
+            writeStringField("systemId", status.jobId)
             writeStringField("status", status.status.name)
             writeEndObject()
         }
@@ -92,7 +92,7 @@ class MyJobs {
 
     object Deserializer : StdDeserializer<MyJobs>(MyJobs::class.java) {
         private fun readRunningStatus(it: JsonNode) = RunningJobStatus(
-                (it["id"] as TextNode).textValue(),
+                (it["systemId"] as TextNode).textValue(),
                 JobStatus.valueOf((it["status"] as TextNode).textValue())
         )
 

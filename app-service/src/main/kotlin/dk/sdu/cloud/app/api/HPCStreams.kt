@@ -6,12 +6,9 @@ object HPCStreams : KafkaDescriptions() {
     val AppRequests = HPCJobDescriptions.appRequestBundle.mappedAtGateway("request.hpcApp") {
         Pair(it.header.uuid, it)
     }
+
+    /**
+     * An event stream of [HPCAppEvent]. The events use the slurm ID for their keys.
+     */
     val AppEvents = stream<String, HPCAppEvent>("hpcAppEvents")
-
-    // TODO We can clean up in these
-    val JobIdToApp = table<String, HPCAppEvent.Pending>("hpcJobToApp")
-    val SlurmIdToJobId = table<Long, String>("hpcSlurmIdToJobId")
-    val JobIdToStatus = table<String, HPCAppEvent>("hpcJobToStatus")
-
-    val RecentlyCompletedJobs = table<String, MyJobs>("hpcRecentJobs")
 }

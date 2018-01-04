@@ -11,6 +11,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.state.HostInfo
 
 class HPCStore(private val hostname: String, private val port: Int, private val rpc: RPCConfiguration) {
+    /*
     private var server: KafkaRPCServer? = null
     private val hostInfo = HostInfo(hostname, port)
     private val endpoints = ArrayList<KafkaRPCEndpoint<Any, Any>>()
@@ -73,4 +74,5 @@ class HPCStore(private val hostname: String, private val port: Int, private val 
         endpoints.add(endpoint as KafkaRPCEndpoint<Any, Any>)
         return endpoint
     }
+    */
 }

@@ -59,24 +59,28 @@ class SlurmPollAgent(
     }
 
     private fun tick() {
-        log.debug("Ticking: ${active.size}")
-        if (active.isEmpty()) return
+        try {
+            log.debug("Ticking: ${active.size}")
+            if (active.isEmpty()) return
 
-        ssh.use {
-            val events = pollSlurmStatus(lastPoll)
-            runBlocking {
-                synchronized(lock) {
-                    events.filter { it.jobId in active }
-                }.forEach {
-                    if (it is SlurmEventEnded) {
-                        log.debug("Removing ${it.jobId}")
-                        active.remove(it.jobId)
+            ssh.use {
+                val events = pollSlurmStatus(lastPoll)
+                runBlocking {
+                    synchronized(lock) {
+                        events.filter { it.jobId in active }
+                    }.forEach {
+                        if (it is SlurmEventEnded) {
+                            log.debug("Removing ${it.jobId}")
+                            active.remove(it.jobId)
+                        }
+
+                        listeners.forEach { listener -> listener(it) }
                     }
-
-                    listeners.forEach { listener -> listener(it) }
                 }
+                lastPoll = ZonedDateTime.now()
             }
-            lastPoll = ZonedDateTime.now()
+        } catch (ex: Exception) {
+            ex.printStackTrace()
         }
     }
 
