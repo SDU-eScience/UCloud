@@ -5,6 +5,7 @@ import '../components/Sidebar/Sidebar.scss';
 
 import SidebarRun from './../components/Sidebar/Sidebar.run';
 import {initSvgReplace} from '../components/Utils/Utils';
+import { Cloud } from '../../authentication/SDUCloudObject'
 
 class Sidebar extends React.Component {
 
@@ -24,7 +25,7 @@ class Sidebar extends React.Component {
     }
 
     getUserName() {
-        this.setState({username: "Jonas Hinchely"});
+        this.setState(() => ({username: Cloud.userInfo.firstNames}));
     }
 
     getUserOptions() {
@@ -51,7 +52,7 @@ class Sidebar extends React.Component {
                 </div>
                 <div className="sidebar-content">
                     <div className="sidebar-toolbar text-center">
-                        <a href=""><img src="/img/user/01.jpg" alt="Profile" className="img-circle thumb64"/></a>
+                        <a href=""><img src="img/user/01.jpg" alt="Profile" className="img-circle thumb64"/></a>
                         <div className="mt">Welcome, {this.state.username}</div>
                     </div>
                     <nav className="sidebar-nav">

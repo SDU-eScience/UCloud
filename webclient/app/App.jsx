@@ -28,10 +28,13 @@ import Workflows from './SiteComponents/Applications/Workflows'
 import Analyses from './SiteComponents/Applications/Analyses'
 import User from './components/User/User';
 import Utils from './components/Utils/Utils';
+import { Cloud } from '../authentication/SDUCloudObject'
 
 Translate();
 
 $(() => {
+    console.log(Cloud.receiveAccessTokenOrRefreshIt());
+
     // prevent page reload when using dummy anchors
     $(document).on('click', '[href=""],[href="#"]', () => {
         return false;
@@ -56,7 +59,7 @@ ReactDOM.render(
             {/* Default route*/}
             <IndexRoute component={Dashboard}/>
 
-            <Route path="dashboard" component={Dashboard}/>
+            <Route path="dashboard" component={Dashboard} />
 
             <Route path="apps">
                 <Route path="applications" component={Applications}/>
