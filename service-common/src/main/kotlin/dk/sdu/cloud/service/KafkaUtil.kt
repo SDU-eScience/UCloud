@@ -44,8 +44,24 @@ class EventProducer<in K, in V>(
     }
 }
 
+class MappedEventProducer<in K, in V>(
+        private val producer: KafkaProducer<String, String>,
+        private val description: MappedStreamDescription<K, V>
+) {
+    private val delegate = EventProducer(producer, description)
+
+    suspend fun emit(value: V) {
+        val key = description.mapper(value)
+        delegate.emit(key, value)
+    }
+}
+
 fun <K, V> KafkaProducer<String, String>.forStream(description: StreamDescription<K, V>): EventProducer<K, V> =
         EventProducer(this, description)
+
+fun <K, V> KafkaProducer<String, String>.forStream(
+        description: MappedStreamDescription<K, V>
+): MappedEventProducer<K, V> = MappedEventProducer(this, description)
 
 fun <K, V> StreamsBuilder.stream(description: StreamDescription<K, V>): KStream<K, V> =
         stream(description.name, Consumed.with(description.keySerde, description.valueSerde))

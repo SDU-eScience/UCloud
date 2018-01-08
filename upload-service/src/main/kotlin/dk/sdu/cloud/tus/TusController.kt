@@ -1,5 +1,7 @@
 package dk.sdu.cloud.tus
 
+import dk.sdu.cloud.tus.api.TusUploadEvent
+import dk.sdu.cloud.tus.api.UploadEventProducer
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -13,19 +15,23 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.*
+import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.net.URI
 import java.nio.ByteBuffer
 import java.util.*
 
-class TusController(private val config: ICatDatabaseConfig) {
+class TusController(
+        private val config: ICatDatabaseConfig,
+        private val rados: RadosStorage,
+        private val producer: UploadEventProducer
+) {
     // TODO Store this in a persistent store
     // (We can use something simple for this initially, just be careful not to bottleneck)
     private val activeTransfers = HashMap<String, InitiatedTransferState>()
 
+    // TODO These should be moved to the constructor
     private val log = LoggerFactory.getLogger("TUS")
-    private val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
     private val icat = ICAT(config)
 
     fun registerTusEndpoint(routing: Route, contextPath: String) {
@@ -96,6 +102,17 @@ class TusController(private val config: ICatDatabaseConfig) {
                     return@post call.respond(HttpStatusCode(413, "Request Entity Too Large"))
                 }
 
+                producer.emit(TusUploadEvent.Created(
+                        id = id,
+                        sizeInBytes = length,
+                        owner = principal.subject,
+                        zone = config.defaultZone,
+                        targetCollection = "/${config.defaultZone}/home/${principal.subject}",
+                        targetName = id,
+                        doChecksum = false
+                ))
+
+                // TODO This should be moved
                 activeTransfers[id] = InitiatedTransferState(
                         id = id,
                         length = length,
@@ -162,9 +179,12 @@ class TusController(private val config: ICatDatabaseConfig) {
         }
 
         val task = rados.createUpload(id, wrappedChannel, claimedOffset, transferState.length)
-        task.onProgress = { transferState.set(it) }
+        task.onProgress = {
+            runBlocking { producer.emit(TusUploadEvent.ChunkVerified(id, it, null)) }
+        }
         task.upload()
 
+        // TODO This should be moved out such that we react to the events
         if (transferState.offset == transferState.length) {
             val irodsUser = transferState.irodsUser
             val irodsZone = transferState.irodsZone

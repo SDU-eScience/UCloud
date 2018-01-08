@@ -6,6 +6,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.tus.api.TusServiceDescription
+import dk.sdu.cloud.tus.api.TusStreams
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
@@ -24,6 +25,9 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.runBlocking
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -58,18 +62,18 @@ private val ApplicationRequest.bearer: String?
         return header.substringAfter("Bearer ")
     }
 
-private val JwtKey = AttributeKey<DecodedJWT>("JWT")
-private val JobIdKey = AttributeKey<String>("job-id")
+private val jwtKey = AttributeKey<DecodedJWT>("JWT")
+private val jobIdKey = AttributeKey<String>("job-id")
 
-val ApplicationRequest.validatedPrincipal: DecodedJWT get() = call.attributes[JwtKey]
-val ApplicationRequest.jobId: String get() = call.attributes[JobIdKey]
+val ApplicationRequest.validatedPrincipal: DecodedJWT get() = call.attributes[jwtKey]
+val ApplicationRequest.jobId: String get() = call.attributes[jobIdKey]
 
 fun main(args: Array<String>) {
     log.info("Starting server!")
 
     val configuration = run {
         // Load configuration from file. Can use first argument to program or automatically look at /etc/tus/config.json
-        val configFile = (args.firstOrNull() ?: "/etc/tus/config.json").let { File(it) }
+        val configFile = (args.firstOrNull() ?: "/etc/${TusServiceDescription.name}/config.json").let { File(it) }
 
         log.debug("Reading configuration from ${configFile.absolutePath}")
         if (!configFile.exists()) {
@@ -93,8 +97,16 @@ fun main(args: Array<String>) {
         Pair(zk, node)
     }
 
+    log.info("Connecting to Kafka")
+    val producer = KafkaProducer<String, String>(KafkaUtil.retrieveKafkaProducerConfiguration(configuration.connConfig))
+    val kBuilder = StreamsBuilder()
+
     log.info("Creating services")
-    val tus = TusController(configuration.database)
+    val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
+    val tus = TusController(configuration.database, rados, producer.forStream(TusStreams.UploadEvents))
+
+    log.info("Creating processors")
+    UploadStateProcessor(TusStreams.UploadEvents.stream(kBuilder)).also { it.init() }
 
     log.info("Preparing HTTP server")
     val server = embeddedServer(Netty, port = configuration.connConfig.service.port) {
@@ -129,8 +141,8 @@ fun main(args: Array<String>) {
                     return@intercept
                 }
 
-                call.attributes.put(JwtKey, validated)
-                call.attributes.put(JobIdKey, uuid)
+                call.attributes.put(jwtKey, validated)
+                call.attributes.put(jobIdKey, uuid)
             }
 
             route("api") {
@@ -144,7 +156,12 @@ fun main(args: Array<String>) {
     log.info("Starting server")
     server.start()
 
+    log.info("Starting Kafka Streams")
+    val streams = KafkaStreams(kBuilder.build(), KafkaUtil.retrieveKafkaStreamsConfiguration(configuration.connConfig))
+    streams.start()
+
     log.info("Marking service as ready in Zookeeper")
     runBlocking { zk.markServiceAsReady(node, instance) }
+
     log.info("Server is ready!")
 }

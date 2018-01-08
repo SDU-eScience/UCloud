@@ -144,3 +144,5 @@ auth-service/dev.db.mv.db
 auth-service/dev.db.trace.db
 service-common/service-common.iml
 service-registry/service-registry.iml
+app-service/dev.db.mv.db
+app-service/dev.db.trace.db

@@ -3,13 +3,19 @@ package org.esciencecloud.service
 import io.netty.handler.codec.http.HttpMethod
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.ServiceDescription
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 
 class RESTCallDescriptionsTest {
     // TODO Actually write tests for these things
 }
 
-object Descriptions : RESTDescriptions() {
+private object TestService : ServiceDescription {
+    override val name: String = "Test"
+    override val version: String = "1.0.0"
+}
+
+object Descriptions : RESTDescriptions(TestService) {
     val baseContext = "/foo"
 
     // Model

@@ -18,13 +18,30 @@ import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 
-class StreamDescription<Key, Value>(val name: String, val keySerde: Serde<Key>, val valueSerde: Serde<Value>) {
-    fun stream(builder: StreamsBuilder): KStream<Key, Value> =
-            builder.stream(name, Consumed.with(keySerde, valueSerde))
+interface StreamDescription<K, V> {
+    val name: String
+    val keySerde: Serde<K>
+    val valueSerde: Serde<V>
 
+    fun stream(builder: StreamsBuilder): KStream<K, V> =
+        builder.stream(name, Consumed.with(keySerde, valueSerde))
+}
+
+class SimpleStreamDescription<Key, Value>(
+        override val name: String,
+        override val keySerde: Serde<Key>,
+        override val valueSerde: Serde<Value>
+) : StreamDescription<Key, Value> {
     fun groupByKey(builder: StreamsBuilder): KGroupedStream<Key, Value> =
             stream(builder).groupByKey(Serialized.with(keySerde, valueSerde))
 }
+
+class MappedStreamDescription<K, V>(
+        override val name: String,
+        override val keySerde: Serde<K>,
+        override val valueSerde: Serde<V>,
+        val mapper: (V) -> K
+) : StreamDescription<K, V>
 
 class TableDescription<Key, Value>(val name: String, val keySerde: Serde<Key>, val valueSerde: Serde<Value>) {
     fun findStreamMetadata(streams: KafkaStreams, key: Key): StreamsMetadata {
@@ -98,7 +115,16 @@ abstract class KafkaDescriptions {
             keySerde: Serde<K> = defaultSerdeOrJson(),
             valueSerde: Serde<V> = defaultSerdeOrJson()
     ): StreamDescription<K, V> {
-        return StreamDescription(topicName, keySerde, valueSerde)
+        return SimpleStreamDescription(topicName, keySerde, valueSerde)
+    }
+
+    inline fun <reified K : Any, reified V : Any> stream(
+            topicName: String,
+            keySerde: Serde<K> = defaultSerdeOrJson(),
+            valueSerde: Serde<V> = defaultSerdeOrJson(),
+            noinline keyMapper: (V) -> K
+    ): MappedStreamDescription<K, V> {
+        return MappedStreamDescription(topicName, keySerde, valueSerde, keyMapper)
     }
 
     inline fun <reified K : Any, reified V : Any> table(
