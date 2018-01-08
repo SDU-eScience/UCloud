@@ -4,7 +4,7 @@
   "description": "Centric - Bootstrap Admin App + ReactJS",
   "author": "@themicon_co",
   "scripts": {
-    "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 3000 --open",
+    "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000 --open",
     "clean": "rimraf dist/",
     "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -45,6 +45,7 @@
     "ika": "^1.0.5",
     "imagesloaded": "4.1.1",
     "ionicons": "2.0.1",
+    "jsonwebtoken": "^8.1.0",
     "jquery": "^2.2.4",
     "jquery-bootgrid": "1.3.1",
     "jquery-knob": "1.2.11",

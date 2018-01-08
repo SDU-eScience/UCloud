@@ -19,7 +19,9 @@ import io.ktor.application.*
 import io.ktor.content.files
 import io.ktor.content.static
 import io.ktor.jackson.jackson
+import io.ktor.request.receiveParameters
 import io.ktor.routing.get
+import io.ktor.routing.post
 import io.ktor.routing.route
 import io.ktor.sessions.*
 import io.ktor.util.escapeHTML
@@ -88,6 +90,15 @@ class EScienceCloudUIApp {
             route("/api/") {
                 ajaxOperations()
             }
+
+
+            post("/auth") {
+                val parameters = call.receiveParameters()
+                val access = parameters["accessToken"]!!
+                val refresh = parameters["refreshToken"]!!
+                call.respond(FreeMarkerContent("Auth.ftl", mapOf("accessToken" to access.escapeHTML(), "refreshToken" to refresh.escapeHTML())))
+            }
+
 
             // Home
             get("/") {

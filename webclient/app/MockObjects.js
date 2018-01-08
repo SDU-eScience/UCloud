@@ -67,6 +67,7 @@ const SidebarOptionsList = [
     DashboardOption, FilesOptions, ProjectsOption, AppsOptions, ActivityOptions
 ];
 // FIXME END
+
 // FIXME START GET APPS FROM DB
 class ApplicationAbacus {
     constructor(applicationInfo, parameters) {
@@ -111,5 +112,57 @@ function getMockApp(name, version) {
 }
 
 // FIXME END
+
+// FIXME START GET FILES FROM SERVER
+
+class AccessEntry {
+    constructor(entity, right) {
+        this.entity = entity;
+        this.right = right;
+    }
+}
+
+class StoragePath {
+    constructor(uri, path, host, name) {
+        this.uri = uri;
+        this.path = path;
+        this.host = host;
+        this.name = name;
+    }
+}
+
+let FileType = {
+    FILE: 0,
+    DIRECTORY: 1,
+};
+
+class StorageFile {
+    constructor(type, path, createdAt, modifiedAt, size, acl) {
+        this.type = type;
+        this.path = path;
+        this.createdAt = createdAt;
+        this.modifiedAt = modifiedAt;
+        this.size = size;
+        this.acl = acl;
+    }
+}
+
+let  AccessRight = {
+    NONE: 0,
+    READ: 1,
+    READ_WRITE: 2,
+    OWN: 3,
+};
+
+class iRODSUser {
+    constructor(name, displayname, zone, type) {
+        this.name = name;
+        this.displayName = displayname;
+        this.zone = zone;
+        this.type = type;
+    }
+}
+
+// FIXME END GET FILES FROM SERVER
 
 export { SidebarOptionsList, Applications, getMockApp }
