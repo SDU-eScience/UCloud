@@ -183,9 +183,10 @@ task apiJar(type: Jar) {
     String simpleName = project.name.replace("-service", "")
     String packageName = "${project.group}.${simpleName}.api"
     String folderName = packageName.replace('.', '/')
-
-    // Not the best idea to include directly from storage/model. It can cause conflicts
     include("**/$folderName/**", "service_manifest.json")
+
+    // without this several kotlin features will not work (including extension functions)
+    include("META-INF/**/${project.name}.kotlin_module")
     with jar
 }
 apiJar.dependsOn(generateServiceManifest)

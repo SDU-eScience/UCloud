@@ -57,6 +57,7 @@ dependencies {
 
     // ktor
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
+    compile "io.ktor:ktor-jackson:$ktor_version"
 
     // Service discovery
     compile(group: "org.apache.zookeeper", name: "zookeeper", version: "3.4.11") {

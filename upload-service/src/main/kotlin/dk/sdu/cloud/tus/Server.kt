@@ -1,6 +1,7 @@
 package dk.sdu.cloud.tus
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -45,6 +46,7 @@ data class Configuration(
         private val connection: RawConnectionConfig,
         val database: ICatDatabaseConfig
 ) {
+    @get:JsonIgnore
     val connConfig: ConnectionConfig get() = connection.processed
 
     internal fun configure() {
