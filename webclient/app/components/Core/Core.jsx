@@ -6,7 +6,6 @@ import './LayoutVariants.scss';
 
 import Header from '../Header/Header';
 import HeaderSearch from '../Header/HeaderSearch';
-//import Sidebar from '../Sidebar/Sidebar';
 import Sidebar from '../../SiteComponents/Sidebar';
 import Settings from '../Settings/Settings';
 

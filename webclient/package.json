@@ -4,7 +4,7 @@
   "description": "Centric - Bootstrap Admin App + ReactJS",
   "author": "@themicon_co",
   "scripts": {
-    "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000 --open",
+    "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rimraf dist/",
     "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
     "test": "echo \"Error: no test specified\" && exit 1",

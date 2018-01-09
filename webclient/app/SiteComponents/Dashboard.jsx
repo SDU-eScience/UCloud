@@ -4,6 +4,9 @@ import LoadingIcon from './LoadingIcon'
 import { NotificationIcon } from "./../UtilityFunctions";
 import { Table } from 'react-bootstrap'
 import pubsub from "pubsub-js";
+import { Cloud } from '../../authentication/SDUCloudObject'
+
+
 
 class Dashboard extends React.Component {
     constructor(props) {
@@ -32,6 +35,8 @@ class Dashboard extends React.Component {
         this.setState({
             favouriteLoading: true,
         });
+        //Cloud.get("/api/files?path=/home/test/");
+
         $.getJSON("/api/getFavouritesSubset").then( (files) => {
             files.sort((a, b) => {
                 if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
