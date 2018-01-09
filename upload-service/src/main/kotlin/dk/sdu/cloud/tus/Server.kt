@@ -49,7 +49,6 @@ class Server(
                 config = configuration.database,
                 rados = rados,
                 producer = kafka.producer.forStream(TusStreams.UploadEvents),
-                icat = icat,
                 transferState = transferState
         )
         log.info("Core services constructed!")
@@ -59,7 +58,11 @@ class Server(
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            UploadStateProcessor(TusStreams.UploadEvents.stream(kBuilder)).also { it.init() }
+            UploadStateProcessor(
+                    TusStreams.UploadEvents.stream(kBuilder),
+                    transferState,
+                    icat
+            ).also { it.init() }
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {

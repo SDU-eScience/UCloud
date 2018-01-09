@@ -27,7 +27,8 @@ sealed class TusUploadEvent {
 
     data class ChunkVerified(
             override val id: String,
-            val chunk: Long
+            val chunk: Long,
+            val numChunks: Long
     ) : TusUploadEvent()
 
     data class Completed(override val id: String) : TusUploadEvent()
