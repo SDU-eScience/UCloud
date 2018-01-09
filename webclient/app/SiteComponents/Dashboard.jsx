@@ -25,8 +25,8 @@ class Dashboard extends React.Component {
     componentDidMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
         this.getFavouriteFiles();
-        /*this.getMostRecentFiles();
-        this.getRecentAnalyses();
+        this.getMostRecentFiles();
+        /*this.getRecentAnalyses();
         this.getRecentActivity();*/
     }
 
@@ -56,13 +56,14 @@ class Dashboard extends React.Component {
         this.setState({
             recentLoading: true
         });
-        $.getJSON("/api/getMostRecentFiles").then((files) => {
-            files.sort((a, b) => {
+        Cloud.get("/files?path=/home/test/").then(favourites => {
+            favourites.slice(0, 10);
+            favourites.sort((a, b) => {
                 return b.modifiedAt - a.modifiedAt;
             });
             this.setState({
+                recentFiles: favourites,
                 recentLoading: false,
-                recentFiles: files
             });
         });
     }
@@ -244,7 +245,7 @@ function DashboardRecentActivity(props) {
                 <div>
                     <Table className="table-datatable table table-hover mv-lg">
                         <tbody>
-                        {activityList}
+                            {activityList}
                         </tbody>
                     </Table>
                 </div>
