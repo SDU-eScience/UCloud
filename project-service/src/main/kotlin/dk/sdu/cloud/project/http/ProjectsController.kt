@@ -13,9 +13,6 @@ class ProjectsController(private val projects: ProjectsDAO) {
         implement(ProjectDescriptions.findMyProjects) {
             val who = call.request.validatedPrincipal.subject
             ok(projects.findAllMyProjects(who))
-
-            // use error() when an error occurs
-            // error(CommonErrorMessage("Something went wrong!", HttpStatusCode.InternalServerError))
         }
 
         implement(ProjectDescriptions.findById) {
@@ -24,6 +21,15 @@ class ProjectsController(private val projects: ProjectsDAO) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
             } else {
                 ok(project)
+            }
+        }
+
+        implement(ProjectDescriptions.findByIdWithMembers) {
+            val projectWithMembers = projects.findByIdWithMembers(it.id)
+            if (projectWithMembers == null) {
+                error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
+            } else {
+                ok(projectWithMembers)
             }
         }
     }

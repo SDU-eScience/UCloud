@@ -1,72 +1,53 @@
 package dk.sdu.cloud.project.services
 
-import dk.sdu.cloud.project.api.Project
-import org.jetbrains.exposed.dao.*
-import org.jetbrains.exposed.sql.Column
+import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.util.EnumTable
+import dk.sdu.cloud.project.util.commonAttributes
+import dk.sdu.cloud.project.util.enumCache
+import dk.sdu.cloud.project.util.mapSingle
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.joda.time.DateTime
-
-interface CommonAttributes {
-    var modifiedAt: DateTime
-    var createdAt: DateTime
-    var markedForDelete: Boolean
-    var active: Boolean
-}
-
-class CommonColumns(
-        // TODO Are the timestamps bound to event time or event processing?
-        val modifiedAt: Column<DateTime>,
-        val createdAt: Column<DateTime>,
-        val markedForDelete: Column<Boolean>,
-        val active: Column<Boolean>
-)
-
-fun IdTable<*>.commonAttributes(): CommonColumns =
-        CommonColumns(
-                modifiedAt = datetime("modified_ts"),
-                createdAt = datetime("created_ts"),
-                markedForDelete = bool("markedfordelete"),
-                active = bool("active")
-        )
-
-fun <ID : Any> Entity<ID>.commonAttributes(columns: CommonColumns): CommonAttributes =
-        object : CommonAttributes {
-            // TODO Not sure how to bind to the delegate. This should still work though.
-            private val entity = this@commonAttributes
-
-            override var modifiedAt: DateTime
-                get() = columns.modifiedAt.getValue(entity, this::modifiedAt)
-                set(value) {
-                    columns.modifiedAt.setValue(entity, this::modifiedAt, value)
-                }
-
-            override var createdAt: DateTime
-                get() = columns.createdAt.getValue(entity, this::createdAt)
-                set(value) {
-                    columns.createdAt.setValue(entity, this::createdAt, value)
-                }
-
-            override var markedForDelete: Boolean
-                get() = columns.markedForDelete.getValue(entity, this::markedForDelete)
-                set(value) {
-                    columns.markedForDelete.setValue(entity, this::markedForDelete, value)
-                }
-
-            override var active: Boolean
-                get() = columns.active.getValue(entity, this::active)
-                set(value) {
-                    columns.active.setValue(entity, this::active, value)
-                }
-        }
 
 class ProjectsDAO {
+    private fun mapProjectRow(it: ResultRow): Project = with(ProjectsTable) {
+        Project(it[id], it[name], it[startAt].millis, it[endAt].millis, it[shortName])
+    }
+
     fun findAllMyProjects(who: String): List<Project> = TODO()
 
     fun findById(id: Long): Project? =
-            transaction { ProjectRow.findById(id)?.toProject() }
+            transaction { ProjectsTable.select { ProjectsTable.id eq id }.mapSingle(::mapProjectRow) }
+
+    fun findByIdWithMembers(id: Long): ProjectWithMembers? {
+        val rows = transaction {
+            (ProjectsTable leftJoin ProjectPersonRelTable)
+                    .select { ProjectsTable.id eq id }
+                    .toList()
+        }
+
+        if (rows.isEmpty()) return null
+        val project = mapProjectRow(rows[0])
+        val members = if (rows[0].hasValue(ProjectPersonRelTable.person)) {
+            // Project exists with members
+            rows.map {
+                ProjectMember(
+                        it[ProjectPersonRelTable.person],
+                        ProjectRoleTable.resolveById(it[ProjectPersonRelTable.role])
+                )
+            }
+        } else {
+            // Project exists but has no members
+            emptyList()
+        }
+
+        return ProjectWithMembers(project, members)
+    }
 }
 
-object ProjectsTable : LongIdTable("project") {
+object ProjectsTable : Table("project") {
+    val id = long("id").primaryKey()
     val name = varchar("projectname", 256)
     val startAt = datetime("projectstart")
     val endAt = datetime("projectend")
@@ -78,26 +59,31 @@ object ProjectsTable : LongIdTable("project") {
     val irodsGroupId = long("irodsgroupidmap")
 }
 
-// TODO This might just be a bit redundant since we need create the type for communication
-class ProjectRow(id: EntityID<Long>) : LongEntity(id) {
-    companion object : LongEntityClass<ProjectRow>(ProjectsTable)
+object ProjectPersonRelTable : Table("projectpersonrel") {
+    val id = long("id").primaryKey()
+    val project = long("projectrefid") references ProjectsTable.id
 
-    var name by ProjectsTable.name
-    var startAt by ProjectsTable.startAt
-    var endAt by ProjectsTable.endAt
-    var shortName by ProjectsTable.shortName
-    var irodsGroupAdmin by ProjectsTable.irodsGroupAdmin
-    var irodsGroupId by ProjectsTable.irodsGroupId
-    val common = commonAttributes(ProjectsTable.common)
+    // TODO Foreign keys to table owned by different service
+    // Having a foreign key to person seems odd and bad for performance (unless we want to violate access
+    // to private tables)
+    val person = long("personrefid")
 
-    // TODO This is not ideal, but we cannot export the database rows to other clients
-    // TODO Should we export the common attributes too?
-    fun toProject(): Project = Project(
-            id = id.value,
-            name = name,
-            startAt = startAt.millis,
-            endAt = endAt.millis,
-            shortName = shortName
-    )
+    val role = long("projectrolerefid")
+    val common = commonAttributes()
 }
 
+object ProjectTypeTable : Table("projecttype"), EnumTable<Long, ProjectType> {
+    val id = long("id").primaryKey()
+    val name = varchar("projecttypeename", 128)
+    val common = commonAttributes()
+
+    override val enumResolver = enumCache(id, name, ProjectType.UNKNOWN) { it.typeName }
+}
+
+object ProjectRoleTable : Table("projectrole"), EnumTable<Long, ProjectRole> {
+    val id = long("id").primaryKey()
+    val name = varchar("projectrolename", 128)
+    val common = commonAttributes()
+
+    override val enumResolver = enumCache(id, name, ProjectRole.UNKNOWN) { it.roleName }
+}
