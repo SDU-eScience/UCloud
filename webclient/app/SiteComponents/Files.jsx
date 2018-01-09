@@ -1,6 +1,8 @@
 import React from 'react';
 import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
+import { HashRouter } from 'react-router'
+import { Button } from 'react-bootstrap';
 
 class Files extends React.Component {
     constructor(props) {
@@ -13,6 +15,21 @@ class Files extends React.Component {
             filesPerPage: 10,
             masterCheckbox: false,
         }
+    }
+
+    getFavourites() {
+        // TODO
+        console.log("GET FAVOURITES TODO")
+    }
+
+    favourite(file) {
+        // TODO
+        console.log("FAVOURITE TODO")
+    }
+
+    prevent() {
+        // TODO
+        console.log("PREVENT TODO")
     }
 
     getFiles() {
@@ -43,17 +60,17 @@ class Files extends React.Component {
 
     render() {
         return (
-            <section>
-                <div className="container-fluid">
-                    <div className="col-lg-10">
-                        <Breadcrumbs selectedFile={this.state.selectedFile}/>
-                        <LoadingIcon loading={this.state.loading}/>
-                        <div className="card">
-                            <FilesTable files={this.state.files} loading={this.state.loading}/>
+                <section>
+                    <div className="container-fluid">
+                        <div className="col-lg-10">
+                            <Breadcrumbs selectedFile={this.state.selectedFile}/>
+                            <LoadingIcon loading={this.state.loading}/>
+                            <div className="card">
+                                <FilesTable files={this.state.files} loading={this.state.loading} getFavourites={this.getFavourites} favourite={() => this.favourite} prevent={this.prevent}/>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </section>)
+                </section>)
     }
 }
 
@@ -66,8 +83,8 @@ function FilesTable(props) {
     </div>);
     return (
         <div className="card-body">
-            <Shortcuts/>
-                {noFiles}
+            <Shortcuts getFavourites={props.getFavourites}/>
+            {noFiles}
             <div className="card">
                 <div className="card-body">
                     <table className="table-datatable table table-hover mv-lg">
@@ -84,7 +101,7 @@ function FilesTable(props) {
                             <th><span className="text-left">File Owner</span></th>
                         </tr>
                         </thead>
-                        <FilesList files={props.files}/>
+                        <FilesList files={props.files} favourite={props.favourite}  prevent={props.prevent} />
                     </table>
                 </div>
             </div>
@@ -94,9 +111,7 @@ function FilesTable(props) {
 function Shortcuts(props) {
     return (
         <div className="center-block text-center hidden-lg">
-            <router-link class="btn btn-link btn-lg" to="/retrieveFavourites"><i className="icon ion-star"/>
-            </router-link>
-            <a className="btn btn-link btn-lg" href="#/"><i className="icon ion-ios-home"/></a>
+            <Button onClick={props.getFavourites}><i className="icon ion-ios-home"/></Button>
         </div>)
 }
 
@@ -117,16 +132,16 @@ function Breadcrumbs(props) {
 }
 
 function FilesList(props) {
-    let files = props.files.slice(); // If they are readonly, is this necessary?
-    let filesList = files.map(file =>
-        <tr className="row-settings clickable-row"
-            style={{cursor: file.type === "DIRECTORY" ? "pointer" : ""}} click="openFile(file)">
+    let i = 0;
+    let filesList = props.files.map(file =>
+        <tr key={i++} className="row-settings clickable-row"
+            style={{cursor: file.type === "DIRECTORY" ? "pointer" : ""}} onClick={() => props.openFile(file)}>
             <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" className="select-box" value="file" click="prevent"
+                <input name="select" className="select-box" value="file" onClick={() => props.prevent}
                        type="checkbox"/><em
                 className="bg-info"/></label></td>
             <FileType file={file}/>
-            <Favourited file={file}/>
+            <Favourited file={file} favourite={props.favourite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
             <td>
@@ -136,7 +151,7 @@ function FilesList(props) {
     );
     return (
         <tbody>
-            {filesList}
+        {filesList}
         </tbody>
     )
 }
@@ -155,12 +170,14 @@ function FileType(props) {
 
 function Favourited(props) {
     if (props.file.isStarred) {
-        return (<td><a click="favourite(file)" className="ion-star"/></td>)
+        return (<td><a onClick={() => props.favourite(props.file)} className="ion-star"/></td>)
     }
-    return (<td><a className="ion-star" click="favourite(file.path.uri, $event)"/></td>);
+    return (<td><a className="ion-star" onClick={() => props.favourite(props.file.path.uri)}/></td>);
 }
 
 function MobileButtons() {
+    return null;
+    /*
     return (
         <span className="hidden-lg">
                       <div className="pull-right dropdown">
@@ -169,19 +186,19 @@ function MobileButtons() {
                                   aria-expanded="false"><em className="ion-android-more-vertical"/></button>
                           <ul role="menu" className="dropdown-menu md-dropdown-menu dropdown-menu-right">
                               <li><a className="btn btn-info ripple btn-block"
-                                     click="sendToAbacus()"> Send to Abacus 2.0</a></li>
+                                     onClick={sendToAbacus()}> Send to Abacus 2.0</a></li>
                               <li><a className="btn btn-default ripple btn-block ion-share"
-                                     click="shareFile(file.path.name, 'file')"> Share file</a></li>
+                                     onClick="shareFile(file.path.name, 'file')"> Share file</a></li>
                               <li><a
                                   className="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
                               <li><a className="btn btn-default ripple ion-ios-photos"> Move file</a></li>
                               <li><a className="btn btn-default ripple ion-ios-compose"
-                                     click="renameFile(file.path.name, 'file')"> Rename file</a></li>
+                                     onClick="renameFile(file.path.name, 'file')"> Rename file</a></li>
                               <li><a className="btn btn-danger ripple ion-ios-trash"
-                                     click="showFileDeletionPrompt(file.path)"> Delete file</a></li>
+                                     onClick="showFileDeletionPrompt(file.path)"> Delete file</a></li>
                           </ul>
                       </div>
-                  </span>)
+                  </span>)*/
 }
 
 export default Files;

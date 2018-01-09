@@ -36,7 +36,7 @@ class Header extends React.Component {
 
     render() {
         const ddMenuItem = (<span>
-                                <em className="ion-person"></em><sup className="badge bg-danger">3</sup>
+                                <em className="ion-person"/><sup className="badge bg-danger">3</sup>
                             </span>);
 
         return (
@@ -61,28 +61,18 @@ class Header extends React.Component {
                         </li>
                         <Dropdown id="basic-nav-dropdown" pullRight componentClass="li">
                             <Dropdown.Toggle useAnchor noCaret className="has-badge ripple">
-                              <em className="ion-person"></em>
-                              <sup className="badge bg-danger">3</sup>
+                              <em className="ion-person"/>
+                              <sup className="badge bg-danger"/>
                             </Dropdown.Toggle>
                             <Dropdown.Menu className="md-dropdown-menu" >
-                                <LinkContainer to="pages/profile">
-                                    <MenuItem eventKey={3.1}>
-                                        <em className="ion-home icon-fw"></em>
-                                        Profile
-                                    </MenuItem>
-                                </LinkContainer>
-                                <LinkContainer to="pages/messages">
-                                    <MenuItem eventKey={3.2}><em className="ion-gear-a icon-fw"></em>Messages</MenuItem>
-                                </LinkContainer>
-                                <MenuItem divider />
                                 <LinkContainer to="/login">
-                                    <MenuItem eventKey={3.3}><em className="ion-log-out icon-fw"></em>Logout</MenuItem>
+                                    <MenuItem eventKey={3.3}><em className="ion-log-out icon-fw"/>Logout</MenuItem>
                                 </LinkContainer>
                             </Dropdown.Menu>
                         </Dropdown>
                         <li>
                             <a href="#" className="ripple" onClick={this.showSettings}>
-                                <em className="ion-gear-b"></em>
+                                <em className="ion-gear-b"/>
                             </a>
                         </li>
                     </ul>
