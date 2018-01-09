@@ -1,5 +1,6 @@
-package dk.sdu.cloud.tus
+package dk.sdu.cloud.tus.services
 
+import dk.sdu.cloud.tus.ICatDatabaseConfig
 import java.sql.Connection
 import java.sql.DriverManager
 

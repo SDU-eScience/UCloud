@@ -1,7 +1,13 @@
-package dk.sdu.cloud.tus
+package dk.sdu.cloud.tus.http
 
+import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.tus.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusUploadEvent
-import dk.sdu.cloud.tus.api.UploadEventProducer
+import dk.sdu.cloud.tus.api.internal.UploadEventProducer
+import dk.sdu.cloud.tus.services.ICAT
+import dk.sdu.cloud.tus.services.ICATAccessEntry
+import dk.sdu.cloud.tus.services.IReadChannel
+import dk.sdu.cloud.tus.services.RadosStorage
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -180,7 +186,7 @@ class TusController(
 
         val task = rados.createUpload(id, wrappedChannel, claimedOffset, transferState.length)
         task.onProgress = {
-            runBlocking { producer.emit(TusUploadEvent.ChunkVerified(id, it, null)) }
+            runBlocking { producer.emit(TusUploadEvent.ChunkVerified(id, it)) }
         }
         task.upload()
 

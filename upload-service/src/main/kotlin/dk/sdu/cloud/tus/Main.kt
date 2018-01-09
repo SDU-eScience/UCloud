@@ -1,11 +1,11 @@
-package dk.sdu.cloud.project
+package dk.sdu.cloud.tus
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.project.api.ProjectServiceDescription
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.tus.api.TusServiceDescription
 import io.ktor.application.Application
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
@@ -22,20 +22,6 @@ import java.util.*
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.project.MainKt")
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
 
-class Configuration(
-        private val connection: RawConnectionConfig,
-        val refreshToken: String,
-        val database: DatabaseConfiguration
-) {
-    @get:JsonIgnore
-    val connConfig: ConnectionConfig
-        get() = connection.processed
-
-    internal fun configure() {
-        connection.configure(ProjectServiceDescription, 42500)
-    }
-}
-
 class KafkaServices(
         private val streamsConfig: Properties,
         val producer: KafkaProducer<String, String>
@@ -45,11 +31,31 @@ class KafkaServices(
     }
 }
 
+data class ICatDatabaseConfig(
+        val jdbcUrl: String,
+        val user: String,
+        val password: String,
+        val defaultZone: String
+)
+
+data class Configuration(
+        private val connection: RawConnectionConfig,
+        val database: ICatDatabaseConfig,
+        val refreshToken: String
+) {
+    @get:JsonIgnore
+    val connConfig: ConnectionConfig get() = connection.processed
+
+    internal fun configure() {
+        connection.configure(TusServiceDescription, 42400)
+    }
+}
+
 fun main(args: Array<String>) {
     val configuration = run {
         log.info("Reading configuration...")
         val configMapper = jacksonObjectMapper()
-        val configFilePath = args.getOrNull(0) ?: "/etc/${ProjectServiceDescription.name}/config.json"
+        val configFilePath = args.getOrNull(0) ?: "/etc/${TusServiceDescription.name}/config.json"
         val configFile = File(configFilePath)
         log.debug("Using path: $configFilePath. This has resolved to: ${configFile.absolutePath}")
         if (!configFile.exists()) {
@@ -80,17 +86,6 @@ fun main(args: Array<String>) {
     val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
     log.info("Connected to Zookeeper")
 
-    log.info("Connecting to database")
-    // TODO I'm pretty sure we only have to do this once.
-    // But if we end up with exceptions then that is probably not true.
-    Database.connect(
-            url = configuration.database.url,
-            driver = configuration.database.driver,
-
-            user = configuration.database.username,
-            password = configuration.database.password
-    )
-    log.info("Connected to database")
 
     val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
 

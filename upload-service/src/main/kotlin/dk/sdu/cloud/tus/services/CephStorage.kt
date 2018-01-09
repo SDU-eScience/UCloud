@@ -1,4 +1,4 @@
-package dk.sdu.cloud.tus
+package dk.sdu.cloud.tus.services
 
 import com.ceph.rados.Completion
 import com.ceph.rados.IoCTX

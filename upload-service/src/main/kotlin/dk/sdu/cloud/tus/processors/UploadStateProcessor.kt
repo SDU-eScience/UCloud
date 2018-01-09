@@ -1,7 +1,7 @@
-package dk.sdu.cloud.tus
+package dk.sdu.cloud.tus.processors
 
 import dk.sdu.cloud.tus.api.TusUploadEvent
-import dk.sdu.cloud.tus.api.UploadEventStream
+import dk.sdu.cloud.tus.api.internal.UploadEventStream
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
