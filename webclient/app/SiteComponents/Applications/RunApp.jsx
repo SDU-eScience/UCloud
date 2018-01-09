@@ -24,8 +24,6 @@ class RunApp extends React.Component {
 
     handleInputChange(parameterName, event) {
         let app = this.state.app;
-        console.log(app.parameters[parameterName]);
-        console.log(event.target.value);
         app.parameters[parameterName].value = event.target.value;
         this.setState({app: app});
         event.preventDefault();

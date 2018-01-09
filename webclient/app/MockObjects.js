@@ -164,5 +164,30 @@ class iRODSUser {
 }
 
 // FIXME END GET FILES FROM SERVER
+// FIXME START GET ACTUAL STATUS
+const status1 = {
+    title: "No Issues",
+    level: "NO ISSUES",
+    body: "The system is running as intended.",
+};
 
-export { SidebarOptionsList, Applications, getMockApp }
+const status2 = {
+    title: "Scheduled maintenance",
+    level: "MAINTENANCE",
+    body: "Maintenance is scheduled from 18 PM until midnight CET.",
+};
+const status3 = {
+    title: "An error has occurred",
+    level: "ERROR",
+    body: "An error has occurred. The site will be back momentarily."
+};
+const status4 = {
+    title: "No issues, upcoming maintenance",
+    level: "UPCOMING MAINTENANCE",
+    body: "Maintenance is scheduled from 18 PM until midnight CET."
+};
+// FIXME END GET ACTUAL STATUS
+
+const Statuses = [ status1, status2, status3, status4 ];
+
+export { SidebarOptionsList, Applications, getMockApp, Statuses }

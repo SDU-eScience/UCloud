@@ -20,12 +20,13 @@ import Common from './components/Common/Common';
 import Colors from './components/Colors/Colors';
 import FloatButton from './components/FloatButton/FloatButton';
 import Translate from './components/Translate/Translate';
-import Dashboard from './SiteComponents/Dashboard'
-import Notifications from './SiteComponents/Activity/Notifications.jsx'
-import Applications from './SiteComponents/Applications/Applications'
-import RunApp from './SiteComponents/Applications/RunApp'
-import Workflows from './SiteComponents/Applications/Workflows'
-import Analyses from './SiteComponents/Applications/Analyses'
+import Dashboard from './SiteComponents/Dashboard';
+import Notifications from './SiteComponents/Activity/Notifications.jsx';
+import Applications from './SiteComponents/Applications/Applications';
+import RunApp from './SiteComponents/Applications/RunApp';
+import Workflows from './SiteComponents/Applications/Workflows';
+import Analyses from './SiteComponents/Applications/Analyses';
+import StatusPage from './SiteComponents/StatusPage'
 import User from './components/User/User';
 import Utils from './components/Utils/Utils';
 import { Cloud } from '../authentication/SDUCloudObject'
@@ -33,8 +34,7 @@ import { Cloud } from '../authentication/SDUCloudObject'
 Translate();
 
 $(() => {
-    console.log(Cloud.receiveAccessTokenOrRefreshIt());
-
+    Cloud.receiveAccessTokenOrRefreshIt();
     // prevent page reload when using dummy anchors
     $(document).on('click', '[href=""],[href="#"]', () => {
         return false;
@@ -60,7 +60,7 @@ ReactDOM.render(
             <IndexRoute component={Dashboard}/>
 
             <Route path="dashboard" component={Dashboard} />
-
+            <Route path="status" component={StatusPage} />
             <Route path="apps">
                 <Route path="applications" component={Applications}/>
                 <Route path="workflows" component={Workflows}/>

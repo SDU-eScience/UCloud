@@ -34,9 +34,9 @@ class Dashboard extends React.Component {
         this.setState({
             favouriteLoading: true,
         });
-        Cloud.get("/files?path=/home/test/").then(favourites => {
-            favourites.slice(0, 10);
-            favourites.sort((a, b) => {
+        Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favourites => {
+            let subsetFavorites = favourites.slice(0, 10);
+            subsetFavorites.sort((a, b) => {
                 if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
                     return -1;
                 else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
@@ -46,7 +46,7 @@ class Dashboard extends React.Component {
                 }
             });
             this.setState({
-                favouriteFiles: favourites,
+                favouriteFiles: subsetFavorites,
                 favouriteLoading: false,
             });
         });
@@ -56,13 +56,13 @@ class Dashboard extends React.Component {
         this.setState({
             recentLoading: true
         });
-        Cloud.get("/files?path=/home/test/").then(favourites => {
-            favourites.slice(0, 10);
-            favourites.sort((a, b) => {
+        Cloud.get(`/files?path=/home/${Cloud.username}/`).then(recent => {
+            let recentSubset = recent.slice(0, 10);
+            recentSubset.sort((a, b) => {
                 return b.modifiedAt - a.modifiedAt;
             });
             this.setState({
-                recentFiles: favourites,
+                recentFiles: recentSubset,
                 recentLoading: false,
             });
         });
