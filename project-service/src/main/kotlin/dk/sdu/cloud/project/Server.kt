@@ -10,6 +10,9 @@ import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.instance
 import dk.sdu.cloud.service.markServiceAsReady
 import dk.sdu.cloud.service.registerService
+import io.ktor.application.call
+import io.ktor.response.respondText
+import io.ktor.routing.get
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -74,20 +77,18 @@ class Server(
 
             routing {
                 route("api/projects") {
+                    get("ehh") {
+                        call.respondText("Text")
+                    }
                     // Route.protect() allows us to protect a single route. This should only be called once per
                     // route. This will check the JWT and fail if it is not present. It is also possible to provide
                     // a list of roles that are suitable for the route.
+
+                    // TODO This should probably be on by default on all routes.
+                    // Look into this when making a feature out of this?
                     protect()
 
                     ProjectsController(projectsDao).also { it.configure(this) }
-
-                    /*
-                        // From within a route it is possible to read the authenticated user with
-                        // call.request.validatedPrincipal
-                        get("whoami") {
-                            call.respondText(call.request.validatedPrincipal.subject)
-                        }
-                    */
                 }
             }
 
@@ -115,4 +116,3 @@ class Server(
         private val log = LoggerFactory.getLogger(Server::class.java)
     }
 }
-

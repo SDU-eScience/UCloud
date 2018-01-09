@@ -1,9 +1,8 @@
 package dk.sdu.cloud.project.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindById
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.client.*
-import dk.sdu.cloud.service.KafkaRequest
 import io.netty.handler.codec.http.HttpMethod
 
 /**
@@ -46,12 +45,12 @@ object ProjectDescriptions : RESTDescriptions(ProjectServiceDescription) {
         path { using(baseContext) }
     }
 
-    val findById = callDescription<FindById<Long>, Project, CommonErrorMessage> {
+    val findById = callDescription<FindByLongId, Project, CommonErrorMessage> {
         method = HttpMethod.GET
 
         path {
             using(baseContext)
-            +boundTo(FindById<Long>::id)
+            +boundTo(FindByLongId::id)
         }
     }
 }

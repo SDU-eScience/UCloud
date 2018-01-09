@@ -14,6 +14,7 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.Topology
+import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
@@ -21,9 +22,17 @@ import java.util.*
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.project.MainKt")
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
 
+data class DatabaseConfiguration(
+        val url: String,
+        val driver: String,
+        val username: String,
+        val password: String
+)
+
 class Configuration(
         private val connection: RawConnectionConfig,
-        val refreshToken: String
+        val refreshToken: String,
+        val database: DatabaseConfiguration
 ) {
     @get:JsonIgnore
     val connConfig: ConnectionConfig
@@ -77,6 +86,18 @@ fun main(args: Array<String>) {
     log.info("Connecting to Zookeeper")
     val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
     log.info("Connected to Zookeeper")
+
+    log.info("Connecting to database")
+    // TODO I'm pretty sure we only have to do this once.
+    // But if we end up with exceptions then that is probably not true.
+    Database.connect(
+            url = configuration.database.url,
+            driver = configuration.database.driver,
+
+            user = configuration.database.username,
+            password = configuration.database.password
+    )
+    log.info("Connected to database")
 
     val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
 

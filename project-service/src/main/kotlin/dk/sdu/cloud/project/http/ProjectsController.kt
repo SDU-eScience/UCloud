@@ -1,9 +1,11 @@
 package dk.sdu.cloud.project.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.project.api.ProjectDescriptions
 import dk.sdu.cloud.project.services.ProjectsDAO
 import dk.sdu.cloud.service.implement
+import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 
 class ProjectsController(private val projects: ProjectsDAO) {
@@ -17,7 +19,12 @@ class ProjectsController(private val projects: ProjectsDAO) {
         }
 
         implement(ProjectDescriptions.findById) {
-            // TODO Implement
+            val project = projects.findById(it.id)
+            if (project == null) {
+                error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
+            } else {
+                ok(project)
+            }
         }
     }
 }
