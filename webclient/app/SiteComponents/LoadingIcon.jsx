@@ -15,6 +15,6 @@ export default function(props) {
         </div>
       </div>)
   } else {
-    return(<div></div>)
+    return null;
   }
 }

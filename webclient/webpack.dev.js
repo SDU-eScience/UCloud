@@ -30,8 +30,13 @@ module.exports = webpackMerge(commonConfig, {
         stats: 'minimal',
         inline: true,
         hot: true,
-        proxy: {
-            "/auth": "http://localhost:8080",
-        }
+        proxy: [{
+            context: ["/auth/login", "/auth/login-redirect", "/api"],
+            target: "https://cloud.sdu.dk",
+            secure: false, // FIXME HTTPS Should be secure
+        }, {
+            context: "/auth",
+            target: "http://localhost:8080",
+        } ],
     }
 });

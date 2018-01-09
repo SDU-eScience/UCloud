@@ -1,9 +1,11 @@
 import $ from 'jquery'
 import React from 'react'
 import LoadingIcon from './LoadingIcon'
-import { NotificationIcon } from "./../UtilityFunctions";
-import { Table } from 'react-bootstrap'
+import {NotificationIcon} from "./../UtilityFunctions";
+import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
+import {Cloud} from '../../authentication/SDUCloudObject'
+
 
 class Dashboard extends React.Component {
     constructor(props) {
@@ -24,16 +26,17 @@ class Dashboard extends React.Component {
         pubsub.publish('setPageTitle', this.constructor.name);
         this.getFavouriteFiles();
         this.getMostRecentFiles();
-        this.getRecentAnalyses();
-        this.getRecentActivity();
+        /*this.getRecentAnalyses();
+        this.getRecentActivity();*/
     }
 
     getFavouriteFiles() {
         this.setState({
             favouriteLoading: true,
         });
-        $.getJSON("/api/getFavouritesSubset").then( (files) => {
-            files.sort((a, b) => {
+        Cloud.get("/files?path=/home/test/").then(favourites => {
+            favourites.slice(0, 10);
+            favourites.sort((a, b) => {
                 if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
                     return -1;
                 else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
@@ -43,7 +46,7 @@ class Dashboard extends React.Component {
                 }
             });
             this.setState({
-                favouriteFiles: files,
+                favouriteFiles: favourites,
                 favouriteLoading: false,
             });
         });
@@ -53,13 +56,14 @@ class Dashboard extends React.Component {
         this.setState({
             recentLoading: true
         });
-        $.getJSON("/api/getMostRecentFiles").then( (files) => {
-            files.sort( (a, b) => {
+        Cloud.get("/files?path=/home/test/").then(favourites => {
+            favourites.slice(0, 10);
+            favourites.sort((a, b) => {
                 return b.modifiedAt - a.modifiedAt;
             });
             this.setState({
+                recentFiles: favourites,
                 recentLoading: false,
-                recentFiles: files
             });
         });
     }
@@ -81,7 +85,7 @@ class Dashboard extends React.Component {
         this.setState({
             activityLoading: true
         });
-        $.getJSON("/api/getRecentActivity").then( (activity) => {
+        $.getJSON("/api/getRecentActivity").then((activity) => {
             activity.sort();
             this.setState({
                 activity: activity,
@@ -91,7 +95,7 @@ class Dashboard extends React.Component {
     }
 
     render() {
-        return(
+        return (
             <section>
                 <div className="container-fluid">
                     <DashboardFavouriteFiles files={this.state.favouriteFiles} isLoading={this.state.favouriteLoading}/>
@@ -105,11 +109,13 @@ class Dashboard extends React.Component {
 }
 
 function DashboardFavouriteFiles(props) {
-    const noFavourites = props.files.length ? '' : <h3 className="text-center"><small>No favourites found.</small></h3>;
+    const noFavourites = props.files.length || props.isLoading ? '' : <h3 className="text-center">
+        <small>No favourites found.</small>
+    </h3>;
     const files = props.files;
-    const filesList = files.map( (file) =>
+    const filesList = files.map((file) =>
         <tr key={file.path.uri}>
-            <td><a href="#">{ file.path.name }</a></td>
+            <td><a href="#">{file.path.name}</a></td>
             <td><em className="ion-star"/></td>
         </tr>
     );
@@ -121,7 +127,7 @@ function DashboardFavouriteFiles(props) {
                     Favourite files
                 </h5>
                 <LoadingIcon loading={props.isLoading}/>
-                {noFavourites}
+                    {noFavourites}
                 <Table responsive className="table-datatable table table-hover mv-lg">
                     <thead>
                     <tr>
@@ -130,7 +136,7 @@ function DashboardFavouriteFiles(props) {
                     </tr>
                     </thead>
                     <tbody>
-                        {filesList}
+                    {filesList}
                     </tbody>
                 </Table>
             </div>
@@ -138,12 +144,14 @@ function DashboardFavouriteFiles(props) {
 }
 
 function DashboardRecentFiles(props) {
-    const noRecents = props.files.length ? '' : <h3 className="text-center"><small>No recent files found</small></h3>;
+    const noRecents = props.files.length || props.isLoading  ? '' : <h3 className="text-center">
+        <small>No recent files found</small>
+    </h3>;
     const files = props.files;
-    const filesList = files.map( (file) =>
+    const filesList = files.map((file) =>
         <tr key={file.path.uri}>
-            <td><a href="#">{ file.path.name }</a></td>
-            <td>{ new Date(file.modifiedAt).toLocaleString() }</td>
+            <td><a href="#">{file.path.name}</a></td>
+            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
         </tr>
     );
 
@@ -163,7 +171,7 @@ function DashboardRecentFiles(props) {
                     </tr>
                     </thead>
                     <tbody>
-                        {filesList}
+                    {filesList}
                     </tbody>
                 </Table>
             </div>
@@ -172,12 +180,14 @@ function DashboardRecentFiles(props) {
 }
 
 function DashboardAnalyses(props) {
-    const noAnalyses = props.analyses.length ? '' : <h3 className="text-center"><small>No analyses found</small></h3>;
+    const noAnalyses = props.analyses.length || props.isLoading ? '' : <h3 className="text-center">
+        <small>No analyses found</small>
+    </h3>;
     const analyses = props.analyses;
-    const analysesList = analyses.map( (analysis) =>
+    const analysesList = analyses.map((analysis) =>
         <tr key={analysis.name}>
-            <td><a href="#">{ analysis.name }</a></td>
-            <td>{ analysis.status }</td>
+            <td><a href="#">{analysis.name}</a></td>
+            <td>{analysis.status}</td>
         </tr>
     );
 
@@ -197,7 +207,7 @@ function DashboardAnalyses(props) {
                     </tr>
                     </thead>
                     <tbody>
-                        {analysesList}
+                    {analysesList}
                     </tbody>
                 </Table>
             </div>
@@ -205,20 +215,22 @@ function DashboardAnalyses(props) {
 }
 
 function DashboardRecentActivity(props) {
-    const noActivity = props.activities.length ? '' : <h3 className="text-center"><small>No activity found</small></h3>;
+    const noActivity = props.activities.length || props.isLoading ? '' : <h3 className="text-center">
+        <small>No activity found</small>
+    </h3>;
     const activities = props.activities;
     let i = 0;
-    const activityList = activities.map( (activity) =>
+    const activityList = activities.map((activity) =>
         <tr key={i++} className="msg-display clickable">
             <td className="wd-xxs">
                 <NotificationIcon type={activity.type}/>
             </td>
             <th className="mda-list-item-text mda-2-line">
-                <small>{ activity.message }</small>
+                <small>{activity.message}</small>
                 <br/>
-                <small className="text-muted">{ new Date(activity.timestamp).toLocaleString() }</small>
+                <small className="text-muted">{new Date(activity.timestamp).toLocaleString()}</small>
             </th>
-            <td className="text">{ activity.body }</td>
+            <td className="text">{activity.body}</td>
         </tr>
     );
 
@@ -233,7 +245,7 @@ function DashboardRecentActivity(props) {
                 <div>
                     <Table className="table-datatable table table-hover mv-lg">
                         <tbody>
-                        {activityList}
+                            {activityList}
                         </tbody>
                     </Table>
                 </div>
