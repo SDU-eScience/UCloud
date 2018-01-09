@@ -7,7 +7,9 @@ import dk.sdu.cloud.tus.api.TusServiceDescription
 import dk.sdu.cloud.tus.api.internal.TusStreams
 import dk.sdu.cloud.tus.http.TusController
 import dk.sdu.cloud.tus.processors.UploadStateProcessor
+import dk.sdu.cloud.tus.services.ICAT
 import dk.sdu.cloud.tus.services.RadosStorage
+import dk.sdu.cloud.tus.services.TransferStateService
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -41,7 +43,15 @@ class Server(
 
         log.info("Creating core services")
         val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
-        val tus = TusController(configuration.database, rados, kafka.producer.forStream(TusStreams.UploadEvents))
+        val transferState = TransferStateService()
+        val icat = ICAT(configuration.database)
+        val tus = TusController(
+                config = configuration.database,
+                rados = rados,
+                producer = kafka.producer.forStream(TusStreams.UploadEvents),
+                icat = icat,
+                transferState = transferState
+        )
         log.info("Core services constructed!")
 
         kStreams = run {

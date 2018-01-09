@@ -4,10 +4,7 @@ import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.tus.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusUploadEvent
 import dk.sdu.cloud.tus.api.internal.UploadEventProducer
-import dk.sdu.cloud.tus.services.ICAT
-import dk.sdu.cloud.tus.services.ICATAccessEntry
-import dk.sdu.cloud.tus.services.IReadChannel
-import dk.sdu.cloud.tus.services.RadosStorage
+import dk.sdu.cloud.tus.services.*
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -30,16 +27,10 @@ import java.util.*
 class TusController(
         private val config: ICatDatabaseConfig,
         private val rados: RadosStorage,
-        private val producer: UploadEventProducer
+        private val producer: UploadEventProducer,
+        private val transferState: TransferStateService,
+        private val icat: ICAT
 ) {
-    // TODO Store this in a persistent store
-    // (We can use something simple for this initially, just be careful not to bottleneck)
-    private val activeTransfers = HashMap<String, InitiatedTransferState>()
-
-    // TODO These should be moved to the constructor
-    private val log = LoggerFactory.getLogger("TUS")
-    private val icat = ICAT(config)
-
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
             val serverConfiguration = InternalConfig(
@@ -68,15 +59,16 @@ class TusController(
             // These use the ID returned from the Creation extension
             head("{id}") {
                 val id = call.parameters["id"] ?: return@head call.respond(HttpStatusCode.BadRequest)
-                val transferState = activeTransfers[id] ?: return@head call.respond(HttpStatusCode.NotFound)
+                val summary = transferState.retrieveSummary(call.request.validatedPrincipal.subject, id) ?:
+                        return@head call.respond(HttpStatusCode.NotFound)
 
                 // Disable cache
                 call.response.header(HttpHeaders.CacheControl, "no-store")
 
                 // Write current transfer state
                 call.response.tusVersion(serverConfiguration.tusVersion)
-                call.response.tusLength(transferState.length)
-                call.response.tusOffset(transferState.offset)
+                call.response.tusLength(summary.length)
+                call.response.tusOffset(summary.offset)
 
                 // Response contains no body
                 call.respond(HttpStatusCode.NoContent)
@@ -118,15 +110,6 @@ class TusController(
                         doChecksum = false
                 ))
 
-                // TODO This should be moved
-                activeTransfers[id] = InitiatedTransferState(
-                        id = id,
-                        length = length,
-                        irodsUser = principal.subject,
-                        irodsZone = config.defaultZone,
-                        targetCollection = "/${config.defaultZone}/home/${principal.subject}",
-                        targetName = id
-                )
                 call.response.header(HttpHeaders.Location, "${serverConfiguration.prefix}/$id")
                 call.respond(HttpStatusCode.Created)
             }
@@ -143,12 +126,13 @@ class TusController(
         }
     }
 
+    // TODO Move this out
     private suspend fun PipelineContext<Unit, ApplicationCall>.upload() {
-        // TODO For deferred lengths we should accept the length header here.
         log.info("Hi, we are going!")
         // Check and retrieve transfer state
         val id = call.parameters["id"] ?: return call.respond(HttpStatusCode.BadRequest)
-        val transferState = activeTransfers[id] ?: return call.respond(HttpStatusCode.NotFound)
+        val state = transferState.retrieveState(call.request.validatedPrincipal.subject, id) ?:
+                return call.respond(HttpStatusCode.NotFound)
 
         // Check content type
         val contentType = call.request.header(HttpHeaders.ContentType) ?:
@@ -161,7 +145,7 @@ class TusController(
         // support
         val claimedOffset = call.request.header(TusHeaders.UploadOffset)?.toLongOrNull() ?:
                 return call.respond(HttpStatusCode.BadRequest)
-        if (claimedOffset != transferState.offset) {
+        if (claimedOffset != state.offset) {
             return call.respond(HttpStatusCode.Conflict)
         }
 
@@ -184,23 +168,23 @@ class TusController(
             }
         }
 
-        val task = rados.createUpload(id, wrappedChannel, claimedOffset, transferState.length)
+        val task = rados.createUpload(id, wrappedChannel, claimedOffset, state.length)
         task.onProgress = {
             runBlocking { producer.emit(TusUploadEvent.ChunkVerified(id, it)) }
         }
         task.upload()
 
         // TODO This should be moved out such that we react to the events
-        if (transferState.offset == transferState.length) {
-            val irodsUser = transferState.irodsUser
-            val irodsZone = transferState.irodsZone
+        if (state.offset == state.length) {
+            val irodsUser = state.user
+            val irodsZone = state.zone
 
-            val uri = URI(transferState.targetCollection)
+            val uri = URI(state.targetCollection)
             val irodsCollection = "/${uri.host}${uri.path}"
-            val irodsFileName = transferState.targetName
+            val irodsFileName = state.targetName
 
             // Finalize upload
-            log.info("Upload ${transferState.id} has been completed!")
+            log.info("Upload ${state.id} has been completed!")
             icat.useConnection {
                 autoCommit = false
                 log.info("Registration of object...")
@@ -210,7 +194,7 @@ class TusController(
                 log.info("ACL Entry: $entry")
                 // TODO This is really primitive and even worse, potentially wrong
                 if (entry != null && (entry.accessType == 1200L || entry.accessType == 1120L)) {
-                    val objectId = registerDataObject(entry.objectId, transferState.id, transferState.length,
+                    val objectId = registerDataObject(entry.objectId, state.id, state.length,
                             irodsFileName, irodsUser, irodsZone, resource) ?:
                             return@useConnection run { rollback() }
 
@@ -224,7 +208,7 @@ class TusController(
             }
         }
 
-        call.response.tusOffset(transferState.offset)
+        call.response.tusOffset(state.offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))
         call.respond(HttpStatusCode.NoContent)
     }
@@ -329,20 +313,7 @@ class TusController(
         const val SduArchives = "SduArchive"
     }
 
-    private class InitiatedTransferState(val id: String, val length: Long, val irodsUser: String,
-                                         val irodsZone: String, val targetCollection: String,
-                                         val targetName: String) {
-        var offset: Long = 0
-            private set
-
-        fun set(newOffset: Long) {
-            assert(newOffset >= offset)
-            offset = newOffset
-        }
-
-        fun advance(byBytes: Long) {
-            assert(byBytes >= 0)
-            offset += byBytes
-        }
+    companion object {
+        private val log = LoggerFactory.getLogger(TusController::class.java)
     }
 }

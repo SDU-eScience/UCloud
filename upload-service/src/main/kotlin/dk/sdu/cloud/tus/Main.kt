@@ -86,7 +86,6 @@ fun main(args: Array<String>) {
     val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
     log.info("Connected to Zookeeper")
 
-
     val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
 
     val serverProvider: HttpServerProvider = { block ->

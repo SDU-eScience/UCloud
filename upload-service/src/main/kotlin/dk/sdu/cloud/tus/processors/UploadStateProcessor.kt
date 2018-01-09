@@ -2,7 +2,8 @@ package dk.sdu.cloud.tus.processors
 
 import dk.sdu.cloud.tus.api.TusUploadEvent
 import dk.sdu.cloud.tus.api.internal.UploadEventStream
-import org.jetbrains.exposed.sql.Table
+import dk.sdu.cloud.tus.services.UploadDescriptions
+import dk.sdu.cloud.tus.services.UploadProgress
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -45,19 +46,4 @@ class UploadStateProcessor(
             }
         }
     }
-}
-
-object UploadDescriptions : Table() {
-    val id = varchar("id", 36).primaryKey()
-    val sizeInBytes = long("size_in_bytes")
-    val owner = varchar("owner", 256)
-    val zone = varchar("zone", 256)
-    val targetCollection = varchar("target_collection", 2048)
-    val targetName = varchar("target_name", 1024)
-    val doChecksum = bool("do_checksum")
-}
-
-object UploadProgress : Table() {
-    val id = varchar("id", 36) references UploadDescriptions.id
-    val numChunksVerified = long("num_chunks_verified")
 }
