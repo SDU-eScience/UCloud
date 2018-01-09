@@ -8,15 +8,18 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 
 class TransferStateService {
-    fun retrieveSummary(authenticatedPrincipal: String, id: String): TransferSummary? {
+    fun retrieveSummary(id: String, authenticatedPrincipal: String? = null): TransferSummary? {
         // TODO Should admins be allowed to do this regardless of who they are?
         return transaction {
             (UploadDescriptions innerJoin UploadProgress)
                     .slice(UploadDescriptions.id, UploadDescriptions.owner, UploadDescriptions.sizeInBytes,
                             UploadProgress.numChunksVerified)
                     .select {
-                        (UploadDescriptions.id eq id) and
-                                (UploadDescriptions.owner eq authenticatedPrincipal)
+                        var q = (UploadDescriptions.id eq id)
+                        if (authenticatedPrincipal != null) {
+                            q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
+                        }
+                        return@select q
                     }
                     .toList()
         }.singleOrNull()?.let {
@@ -28,10 +31,17 @@ class TransferStateService {
         }
     }
 
-    fun retrieveState(authenticatedPrincipal: String, id: String): TransferState? {
+    fun retrieveState(id: String, authenticatedPrincipal: String? = null): TransferState? {
         return transaction {
             (UploadDescriptions innerJoin UploadProgress)
-                    .select { (UploadDescriptions.id eq id) and (UploadDescriptions.owner eq authenticatedPrincipal) }
+                    .select {
+                        var q = (UploadDescriptions.id eq id)
+                        if (authenticatedPrincipal != null) {
+                            q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
+                        }
+
+                        return@select q
+                    }
                     .toList()
         }.singleOrNull()?.let {
             TransferState(

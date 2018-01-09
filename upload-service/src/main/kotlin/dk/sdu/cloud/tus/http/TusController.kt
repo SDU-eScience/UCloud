@@ -4,7 +4,9 @@ import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.tus.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusUploadEvent
 import dk.sdu.cloud.tus.api.internal.UploadEventProducer
-import dk.sdu.cloud.tus.services.*
+import dk.sdu.cloud.tus.services.IReadChannel
+import dk.sdu.cloud.tus.services.RadosStorage
+import dk.sdu.cloud.tus.services.TransferStateService
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -20,7 +22,6 @@ import io.ktor.response.respondText
 import io.ktor.routing.*
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
-import java.net.URI
 import java.nio.ByteBuffer
 import java.util.*
 
@@ -28,8 +29,7 @@ class TusController(
         private val config: ICatDatabaseConfig,
         private val rados: RadosStorage,
         private val producer: UploadEventProducer,
-        private val transferState: TransferStateService,
-        private val icat: ICAT
+        private val transferState: TransferStateService
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
@@ -59,7 +59,7 @@ class TusController(
             // These use the ID returned from the Creation extension
             head("{id}") {
                 val id = call.parameters["id"] ?: return@head call.respond(HttpStatusCode.BadRequest)
-                val summary = transferState.retrieveSummary(call.request.validatedPrincipal.subject, id) ?:
+                val summary = transferState.retrieveSummary(id, call.request.validatedPrincipal.subject) ?:
                         return@head call.respond(HttpStatusCode.NotFound)
 
                 // Disable cache
@@ -126,26 +126,38 @@ class TusController(
         }
     }
 
-    // TODO Move this out
     private suspend fun PipelineContext<Unit, ApplicationCall>.upload() {
-        log.info("Hi, we are going!")
+        log.debug("Handling incoming upload request")
         // Check and retrieve transfer state
-        val id = call.parameters["id"] ?: return call.respond(HttpStatusCode.BadRequest)
-        val state = transferState.retrieveState(call.request.validatedPrincipal.subject, id) ?:
-                return call.respond(HttpStatusCode.NotFound)
+        val id = call.parameters["id"] ?: return run {
+            log.debug("Missing ID parameter")
+            call.respond(HttpStatusCode.BadRequest)
+        }
+
+        val state = transferState.retrieveState(id, call.request.validatedPrincipal.subject) ?: return run {
+            log.debug("Missing upload state for transfer with id: $id")
+            call.respond(HttpStatusCode.NotFound)
+        }
 
         // Check content type
-        val contentType = call.request.header(HttpHeaders.ContentType) ?:
-                return call.respond(HttpStatusCode.BadRequest)
+        val contentType = call.request.header(HttpHeaders.ContentType) ?: return run {
+            log.debug("Missing ContentType header")
+            call.respond(HttpStatusCode.BadRequest)
+        }
+
         if (contentType != "application/offset+octet-stream") {
             return call.respondText("Invalid content type", status = HttpStatusCode.BadRequest)
         }
 
         // Check that claimed offset matches internal state. These must match without partial extension
         // support
-        val claimedOffset = call.request.header(TusHeaders.UploadOffset)?.toLongOrNull() ?:
-                return call.respond(HttpStatusCode.BadRequest)
+        val claimedOffset = call.request.header(TusHeaders.UploadOffset)?.toLongOrNull() ?: return run {
+            log.debug("Missing upload offset header")
+            call.respond(HttpStatusCode.BadRequest)
+        }
+
         if (claimedOffset != state.offset) {
+            log.debug("Claimed offset was $claimedOffset but expected ${state.offset}")
             return call.respond(HttpStatusCode.Conflict)
         }
 
@@ -170,44 +182,17 @@ class TusController(
 
         val task = rados.createUpload(id, wrappedChannel, claimedOffset, state.length)
         task.onProgress = {
-            runBlocking { producer.emit(TusUploadEvent.ChunkVerified(id, it)) }
+            runBlocking {
+                producer.emit(TusUploadEvent.ChunkVerified(
+                        id = id,
+                        chunk = it,
+                        numChunks = Math.ceil(state.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+                ))
+            }
         }
         task.upload()
 
-        // TODO This should be moved out such that we react to the events
-        if (state.offset == state.length) {
-            val irodsUser = state.user
-            val irodsZone = state.zone
-
-            val uri = URI(state.targetCollection)
-            val irodsCollection = "/${uri.host}${uri.path}"
-            val irodsFileName = state.targetName
-
-            // Finalize upload
-            log.info("Upload ${state.id} has been completed!")
-            icat.useConnection {
-                autoCommit = false
-                log.info("Registration of object...")
-                val resource = findResourceByNameAndZone("child_01", "tempZone") ?: return@useConnection
-                log.info("Using resource $resource. $irodsUser, $irodsZone, $irodsCollection")
-                val entry = findAccessRightForUserInCollection(irodsUser, irodsZone, irodsCollection)
-                log.info("ACL Entry: $entry")
-                // TODO This is really primitive and even worse, potentially wrong
-                if (entry != null && (entry.accessType == 1200L || entry.accessType == 1120L)) {
-                    val objectId = registerDataObject(entry.objectId, state.id, state.length,
-                            irodsFileName, irodsUser, irodsZone, resource) ?:
-                            return@useConnection run { rollback() }
-
-                    log.info("Auto-generated ID is $objectId")
-                    val now = System.currentTimeMillis()
-
-                    registerAccessEntry(ICATAccessEntry(objectId, entry.userId, 1200, now, now))
-                    log.info("Done!")
-                    commit()
-                }
-            }
-        }
-
+        // TODO The offset needs to be updated to reflect the current offset!
         call.response.tusOffset(state.offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))
         call.respond(HttpStatusCode.NoContent)
