@@ -5,6 +5,7 @@ import { LinkContainer } from 'react-router-bootstrap';
 
 import './Header.scss';
 import './HeaderMenuLinks.scss';
+import StatusBar from "../../SiteComponents/StatusBar";
 
 class Header extends React.Component {
 
@@ -42,17 +43,20 @@ class Header extends React.Component {
             <header className="header-container">
                 <nav>
                     <ul className="visible-xs visible-sm">
-                        <li><a id="sidebar-toggler" href="#" className="menu-link menu-link-slide"><span><em></em></span></a></li>
+                        <li><a id="sidebar-toggler" href="#" className="menu-link menu-link-slide"><span><em/></span></a></li>
                     </ul>
                     <ul className="hidden-xs">
-                        <li><a id="offcanvas-toggler" href="#" className="menu-link menu-link-slide"><span><em></em></span></a></li>
+                        <li><a id="offcanvas-toggler" href="#" className="menu-link menu-link-slide"><span><em/></span></a></li>
                     </ul>
                     <h2 className="header-title">{this.state.pageTitle}</h2>
 
                     <ul className="pull-right">
                         <li>
+                            <StatusBar/>
+                        </li>
+                        <li>
                             <a href="#" className="ripple" onClick={this.showSearch}>
-                                <em className="ion-ios-search-strong"></em>
+                                <em className="ion-ios-search-strong"/>
                             </a>
                         </li>
                         <Dropdown id="basic-nav-dropdown" pullRight componentClass="li">

@@ -21,7 +21,7 @@ class Core extends React.Component {
                 <Header />
 
                 <Sidebar />
-                <div className="sidebar-layout-obfuscator"></div>
+                <div className="sidebar-layout-obfuscator"/>
 
                 <ReactCSSTransitionGroup
                   component="main"
