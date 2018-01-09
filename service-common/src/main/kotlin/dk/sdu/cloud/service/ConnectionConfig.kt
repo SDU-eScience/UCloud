@@ -13,6 +13,13 @@ data class KafkaHostConfig(
     override fun toString(): String = "$hostname:$port"
 }
 
+data class DatabaseConfiguration(
+        val url: String,
+        val driver: String,
+        val username: String,
+        val password: String
+)
+
 data class KafkaConnectionConfig(val servers: List<KafkaHostConfig>)
 
 data class ZookeeperConnectionConfig(val servers: List<ZooKeeperHostInfo>)
@@ -32,7 +39,8 @@ data class RawConnectionConfig(
         // All private to encourage correct usage
         private val kafka: KafkaConnectionConfig,
         private val zookeeper: ZookeeperConnectionConfig,
-        private val service: RawServiceConnectionConfig?
+        private val service: RawServiceConnectionConfig?,
+        private val database: DatabaseConfiguration?
 ) {
     @get:JsonIgnore
     private var _processed: ConnectionConfig? = null
@@ -55,7 +63,7 @@ data class RawConnectionConfig(
             ServiceConnectionConfig(description, service.hostname, service.port)
         }
 
-        val result = ConnectionConfig(kafka, zookeeper, processedService)
+        val result = ConnectionConfig(kafka, zookeeper, processedService, database)
         _processed = result
         return result
     }
@@ -87,5 +95,6 @@ data class RawConnectionConfig(
 data class ConnectionConfig(
         val kafka: KafkaConnectionConfig,
         val zookeeper: ZookeeperConnectionConfig,
-        val service: ServiceConnectionConfig
+        val service: ServiceConnectionConfig,
+        val database: DatabaseConfiguration?
 )

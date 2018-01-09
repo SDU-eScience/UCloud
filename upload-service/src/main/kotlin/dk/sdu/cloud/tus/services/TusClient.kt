@@ -1,4 +1,4 @@
-package dk.sdu.cloud.tus
+package dk.sdu.cloud.tus.services
 
 import io.tus.java.client.TusClient
 import io.tus.java.client.TusURLMemoryStore

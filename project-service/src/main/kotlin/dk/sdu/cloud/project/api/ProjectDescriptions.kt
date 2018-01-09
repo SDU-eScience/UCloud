@@ -53,4 +53,13 @@ object ProjectDescriptions : RESTDescriptions(ProjectServiceDescription) {
             +boundTo(FindByLongId::id)
         }
     }
+
+    val findByIdWithMembers = callDescription<FindByLongId, ProjectWithMembers, CommonErrorMessage> {
+        method = HttpMethod.GET
+        path {
+            using(baseContext)
+            +boundTo(FindByLongId::id)
+            +"members"
+        }
+    }
 }

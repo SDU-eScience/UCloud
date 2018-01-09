@@ -77,9 +77,6 @@ class Server(
 
             routing {
                 route("api/projects") {
-                    get("ehh") {
-                        call.respondText("Text")
-                    }
                     // Route.protect() allows us to protect a single route. This should only be called once per
                     // route. This will check the JWT and fail if it is not present. It is also possible to provide
                     // a list of roles that are suitable for the route.
