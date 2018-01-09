@@ -18,7 +18,6 @@ class Datatable extends React.Component {
         return (
             <section>
                 <div className="container-fluid">
-                    {/* DATATABLE DEMO 1 */}
                     <div className="card">
                         <div className="card-heading">Zero configuration</div>
                         <div className="card-body">
