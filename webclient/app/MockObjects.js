@@ -10,7 +10,7 @@ const DashboardOption = {
 const FilesOptions = {
     name: "Files",
     icon: "nav-icon",
-    href: "/files",
+    href: "/files/",
     children: null
 };
 

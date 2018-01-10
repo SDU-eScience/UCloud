@@ -1,12 +1,14 @@
 import React from 'react';
 import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
-import { HashRouter } from 'react-router'
-import { Button } from 'react-bootstrap';
+import {Link} from 'react-router'
+import {Button} from 'react-bootstrap';
+
 
 class Files extends React.Component {
     constructor(props) {
         super(props);
+        let currentPath = (!props.routeParams.splat) ? `/home/${Cloud.username}` : props.routeParams.splat;
         this.state = {
             files: [],
             loading: false,
@@ -14,7 +16,9 @@ class Files extends React.Component {
             currentPage: 0,
             filesPerPage: 10,
             masterCheckbox: false,
-        }
+            currentPath: currentPath,
+        };
+        this.getFiles = this.getFiles.bind(this);
     }
 
     getFavourites() {
@@ -36,7 +40,7 @@ class Files extends React.Component {
         this.setState({
             favouriteLoading: true,
         });
-        Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favourites => {
+        Cloud.get("files?path=" + this.state.currentPath).then(favourites => {
             favourites.sort((a, b) => {
                 if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
                     return -1;
@@ -60,17 +64,19 @@ class Files extends React.Component {
 
     render() {
         return (
-                <section>
-                    <div className="container-fluid">
-                        <div className="col-lg-10">
-                            <Breadcrumbs selectedFile={this.state.selectedFile}/>
-                            <LoadingIcon loading={this.state.loading}/>
-                            <div className="card">
-                                <FilesTable files={this.state.files} loading={this.state.loading} getFavourites={this.getFavourites} favourite={() => this.favourite} prevent={this.prevent}/>
-                            </div>
+            <section>
+                <div className="container-fluid">
+                    <div className="col-lg-10">
+                        <Breadcrumbs selectedFile={this.state.selectedFile}/>
+                        <LoadingIcon loading={this.state.loading}/>
+                        <div className="card">
+                            <FilesTable files={this.state.files} loading={this.state.loading}
+                                        getFavourites={this.getFavourites} favourite={() => this.favourite}
+                                        prevent={this.prevent}/>
                         </div>
                     </div>
-                </section>)
+                </div>
+            </section>)
     }
 }
 
@@ -101,7 +107,7 @@ function FilesTable(props) {
                             <th><span className="text-left">File Owner</span></th>
                         </tr>
                         </thead>
-                        <FilesList files={props.files} favourite={props.favourite}  prevent={props.prevent} />
+                        <FilesList files={props.files} favourite={props.favourite} prevent={props.prevent}/>
                     </table>
                 </div>
             </div>
@@ -133,11 +139,13 @@ function Breadcrumbs(props) {
 
 function FilesList(props) {
     let i = 0;
-    let filesList = props.files.map(file =>
+    let directories = props.files.filter(it => it.type === "DIRECTORY");
+    let files = props.files.filter(it => it.type !== "DIRECTORY");
+    let filesList = directories.map(file =>
         <tr key={i++} className="row-settings clickable-row"
-            style={{cursor: file.type === "DIRECTORY" ? "pointer" : ""}} onClick={() => props.openFile(file)}>
+            style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" className="select-box" value="file" onClick={() => props.prevent}
+                <input name="select" className="select-box" value="file"
                        type="checkbox"/><em
                 className="bg-info"/></label></td>
             <FileType file={file}/>
@@ -164,7 +172,9 @@ function FileType(props) {
             </td>);
     return (
         <td>
-            <a className="ion-android-folder"/> {props.file.path.name}
+            <Link to={`/files/${props.file.path.path}`}>
+                <a className="ion-android-folder"/> {props.file.path.name}
+            </Link>
         </td>);
 }
 

@@ -61,7 +61,7 @@ ReactDOM.render(
             <IndexRoute component={Dashboard}/>
 
             <Route path="dashboard" component={Dashboard} />
-            <Route path="files" component={Files} />
+            <Route path="files(/**)" component={Files} />
             <Route path="status" component={StatusPage} />
             <Route path="apps">
                 <Route path="applications" component={Applications}/>
