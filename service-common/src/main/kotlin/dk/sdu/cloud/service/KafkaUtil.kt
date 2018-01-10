@@ -14,6 +14,7 @@ import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.*
 import org.apache.kafka.streams.state.KeyValueStore
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 import kotlin.coroutines.experimental.suspendCoroutine
@@ -37,10 +38,15 @@ class EventProducer<in K, in V>(
         val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
         val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
 
+        log.debug("Emitting event: $stringKey : $stringValue")
         producer.send(ProducerRecord(description.name, stringKey, stringValue)) { result, ex ->
             if (ex == null) cont.resume(result)
             else cont.resumeWithException(ex)
         }
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(EventProducer::class.java)
     }
 }
 

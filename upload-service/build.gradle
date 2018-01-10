@@ -61,6 +61,9 @@ dependencies {
 
     compile "dk.sdu.cloud:service-common:0.5.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
+
+    testCompile "junit:junit:4.12"
+    testCompile "io.mockk:mockk:1.6.3"
 }
 
 compileKotlin {
