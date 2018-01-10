@@ -1,6 +1,5 @@
 package esciencecloudui
 
-import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.locations.get
 import io.ktor.locations.location
@@ -8,10 +7,6 @@ import io.ktor.locations.post
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Route
-import org.esciencecloud.asynchttp.HttpClient
-import org.esciencecloud.asynchttp.addBasicAuth
-import org.esciencecloud.asynchttp.asJson
-import java.util.*
 
 
 @location("/getFiles")
@@ -74,47 +69,10 @@ class Projects
 //TODO - modifications must be made by backend provider
 
 fun Route.ajaxOperations() {
-    requireAuthentication()
-
-    get<GetFiles> {
-        val fixedPath = when (it.path) {
-            "/" -> "/home/${call.irodsUser.username}/"
-            else -> it.path.removePrefix("storage://tempZone")
-        }
-        val files = call.getFiles(fixedPath)
-        call.respond(files)
-    }
-
-    get<GetBreadCrumbs> {
-        val cleanedPath = it.path.removePrefix("/home/${call.irodsUser.username}/")
-        val paths = cleanedPath.split("/").filterNot { it == "" }
-        val breadcrumbs = arrayListOf(Pair("home", "/home/${call.irodsUser.username}/"))
-        paths.forEachIndexed { index, s ->
-            var currentPath = "/home/${call.irodsUser.username}/"
-            (0..index).forEach { i ->
-                currentPath += paths[i] + "/"
-            }
-            breadcrumbs.add(Pair(s, currentPath))
-        }
-        call.respond(breadcrumbs)
-    }
 
     get<FavouriteFile> {
         println("Favouriting files is not yet implemented!")
         call.respond(200)
-    }
-
-    get<FavouriteSubset> {
-        // TODO Get actual favourites
-        val files = call.getFiles("/home/${call.irodsUser.username}/")
-        call.respond(files.subList(0, minOf(files.size, 10)))
-    }
-
-    get<RecentlyModified> {
-        // TODO Get actual most recently used files
-        val files = call.getFiles("/home/${call.irodsUser.username}/")
-        val sorted = files.sortedByDescending(StorageFile::modifiedAt)
-        call.respond(sorted.subList(0, minOf(sorted.size, 10)))
     }
 
     get<RecentWorkFlowStatus> {
@@ -130,12 +88,6 @@ fun Route.ajaxOperations() {
     get<GetApplications> {
         // TODO Get actual applications
         call.respond(applications)
-    }
-
-    get<Favourites> {
-        // TODO get actual favourite files
-        val wrongFavouriteFiles = call.getFavouriteFiles()
-        call.respond(wrongFavouriteFiles)
     }
 
     get<GetApplicationInfo> {
@@ -187,64 +139,6 @@ fun Route.ajaxOperations() {
 data class StatusNotification(val title: String, val level: String, val body: String)
 
 val status = StatusNotification("No issues", "NO ISSUES", "No scheduled maintenance.")
-
-suspend fun ApplicationCall.getAbacusApplication(name: String, version: String): ApplicationAbacus? {
-    val user = irodsUser
-    val response = HttpClient.get("http://cloud.sdu.dk:8080/api/hpc/apps/$name/$version") {
-        addBasicAuth(user.username, user.password)
-    }
-    return when (response.statusCode == 200) {
-        true -> response.asJson()
-        false -> null
-    }
-}
-
-private suspend fun ApplicationCall.getAbacusApplications(): List<ApplicationAbacus> {
-    val user = irodsUser
-    val response = HttpClient.get("http://cloud.sdu.dk:8080/api/hpc/apps") {
-        addBasicAuth(user.username, user.password)
-    }
-    return when (response.statusCode == 200) {
-        true -> response.asJson()
-        false -> emptyList()
-    }
-}
-
-private suspend fun ApplicationCall.getHPCJobs(): List<Analysis> {
-    val user = irodsUser
-    val response = HttpClient.get("http://cloud.sdu.dk:8080/api/hpc/myjobs") {
-        addBasicAuth(user.username, user.password)
-    }
-    return when (response.statusCode == 200) {
-        true -> response.asJson()
-        false -> emptyList()
-    }
-}
-
-private suspend fun ApplicationCall.getFiles(path: String): List<StorageFile> {
-    val user = irodsUser
-    val response = HttpClient.get("http://cloud.sdu.dk:8080/api/files?path=$path") {
-        addBasicAuth(user.username, user.password)
-    }
-
-    return when (response.statusCode == 200) {
-        true -> response.asJson()
-        false -> emptyList()
-    }
-}
-
-private suspend fun ApplicationCall.getFavouriteFiles(): List<StorageFile> {
-    val user = irodsUser
-    // TODO -- Get correct favourites
-    val wrongLocation = "http://cloud.sdu.dk:8080/api/files?path=/home/"
-    val response = HttpClient.get(wrongLocation) {
-        addBasicAuth(user.username, user.password)
-    }
-    return when (response.statusCode == 200) {
-        true -> response.asJson()
-        false -> emptyList()
-    }
-}
 
 /* Why coroutines are better
 fun main(args: Array<String>) {

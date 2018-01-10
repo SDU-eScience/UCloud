@@ -40,13 +40,6 @@ repositories {
     maven { url "https://dl.bintray.com/kotlin/ktor" }
     maven { url "http://dl.bintray.com/kotlin/exposed" }
     maven { url "https://mvnrepository.com/artifact/org.postgresql/postgresql" }
-    maven {
-        url("https://cloud.sdu.dk/archiva/repository/internal")
-        credentials {
-            username(eScienceCloudUser)
-            password(eScienceCloudPassword)
-        }
-    }
 }
 
 dependencies {
@@ -61,7 +54,6 @@ dependencies {
     compile group: 'io.ktor', name: 'ktor-locations', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-freemarker', version: "$ktor_version"
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
-    compile "org.esciencecloud:kt-async-http-client:0.1.2"
     compile group: 'info.cukes', name: 'cucumber-java', version: '1.2.5'
     compile group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.7.1'
     compile group: 'io.ktor', name: 'ktor-websockets', version: "$ktor_version"
