@@ -63,9 +63,6 @@ object ProjectPersonRelTable : Table("projectpersonrel") {
     val id = long("id").primaryKey()
     val project = long("projectrefid") references ProjectsTable.id
 
-    // TODO Foreign keys to table owned by different service
-    // Having a foreign key to person seems odd and bad for performance (unless we want to violate access
-    // to private tables)
     val person = long("personrefid")
 
     val role = long("projectrolerefid")
@@ -74,7 +71,7 @@ object ProjectPersonRelTable : Table("projectpersonrel") {
 
 object ProjectTypeTable : Table("projecttype"), EnumTable<Long, ProjectType> {
     val id = long("id").primaryKey()
-    val name = varchar("projecttypeename", 128)
+    val name = varchar("projecttypename", 128)
     val common = commonAttributes()
 
     override val enumResolver = enumCache(id, name, ProjectType.UNKNOWN) { it.typeName }

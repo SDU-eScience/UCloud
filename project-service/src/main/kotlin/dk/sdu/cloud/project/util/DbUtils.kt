@@ -8,19 +8,19 @@ import org.slf4j.LoggerFactory
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.util.DbUtils")
 
 class CommonColumns(
-        // TODO Are the timestamps bound to event time or event processing?
+        // TODO Timestamps are bound to event time ?
         val modifiedAt: Column<DateTime>,
         val createdAt: Column<DateTime>,
-        val markedForDelete: Column<Boolean>,
-        val active: Column<Boolean>
+        val markedForDelete: Column<Int>,
+        val active: Column<Int>
 )
 
 fun Table.commonAttributes(): CommonColumns =
         CommonColumns(
                 modifiedAt = datetime("modified_ts"),
                 createdAt = datetime("created_ts"),
-                markedForDelete = bool("markedfordelete"),
-                active = bool("active")
+                markedForDelete = integer("markedfordelete"),
+                active = integer("active")
         )
 
 fun <R> Query.mapSingle(mapper: (ResultRow) -> R): R? = toList().singleOrNull()?.let(mapper)
