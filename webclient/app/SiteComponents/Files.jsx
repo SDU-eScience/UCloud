@@ -8,11 +8,10 @@ import {Button} from 'react-bootstrap';
 class Files extends React.Component {
     constructor(props) {
         super(props);
-        let currentPath = (!props.routeParams.splat) ? `/home/${Cloud.username}` : props.routeParams.splat;
+        let currentPath = (!props.routeParams.splat) ? `home/${Cloud.username}` : props.routeParams.splat;
         this.state = {
             files: [],
             loading: false,
-            selectedFile: null,
             currentPage: 0,
             filesPerPage: 10,
             masterCheckbox: false,
@@ -38,9 +37,9 @@ class Files extends React.Component {
 
     getFiles() {
         this.setState({
-            favouriteLoading: true,
+            loading: true,
         });
-        Cloud.get("files?path=" + this.state.currentPath).then(favourites => {
+        Cloud.get("files?path=/" + this.state.currentPath).then(favourites => {
             favourites.sort((a, b) => {
                 if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
                     return -1;
@@ -67,8 +66,8 @@ class Files extends React.Component {
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <Breadcrumbs selectedFile={this.state.selectedFile}/>
                         <LoadingIcon loading={this.state.loading}/>
+                        <Breadcrumbs currentPath={this.state.currentPath}/>
                         <div className="card">
                             <FilesTable files={this.state.files} loading={this.state.loading}
                                         getFavourites={this.getFavourites} favourite={() => this.favourite}
@@ -122,13 +121,24 @@ function Shortcuts(props) {
 }
 
 function Breadcrumbs(props) {
-    if (!props.selectedFile) {
+    if (!props.currentPath) {
         return null;
     }
-    let paths = props.selectedFile.path.split("/");
-    let breadcrumbs = paths.map(path =>
-        <li className="breadcrumb-item">
-            <router-link to="{ path: breadcrumb.second }" append>{breadcrumb.first}</router-link>
+    let paths = props.currentPath.split("/");
+    console.log(paths);
+    let pathsMapping = [];
+    for (let i = 0; i < paths.length; i++) {
+        let actualPath = "";
+        for (let j = 0; j <= i; j++) {
+            actualPath += paths[j] + "/";
+        }
+        pathsMapping.push({ actualPath: actualPath, local: paths[i],})
+    }
+    console.log(pathsMapping);
+    let i = 0;
+    let breadcrumbs = pathsMapping.map(path =>
+        <li key={i++} className="breadcrumb-item">
+            <Link to={ `files/${path.actualPath}` }>{path.local}</Link>
         </li>
     );
     return (
