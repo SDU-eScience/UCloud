@@ -141,7 +141,7 @@ function FilesList(props) {
     let i = 0;
     let directories = props.files.filter(it => it.type === "DIRECTORY");
     let files = props.files.filter(it => it.type !== "DIRECTORY");
-    let filesList = directories.map(file =>
+    let directoryList = directories.map(file =>
         <tr key={i++} className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
@@ -157,9 +157,25 @@ function FilesList(props) {
             </td>
         </tr>
     );
+    let filesList = files.map(file =>
+        <tr key={i++} className="row-settings clickable-row">
+            <td className="select-cell"><label className="mda-checkbox">
+                <input name="select" className="select-box" value="file"
+                       type="checkbox"/><em
+                className="bg-info"/></label></td>
+            <FileType file={file}/>
+            <Favourited file={file} favourite={props.favourite}/>
+            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+            <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
+            <td>
+                <MobileButtons/>
+            </td>
+        </tr>
+    );
     return (
         <tbody>
-        {filesList}
+            {directoryList}
+            {filesList}
         </tbody>
     )
 }
@@ -173,7 +189,7 @@ function FileType(props) {
     return (
         <td>
             <Link to={`/files/${props.file.path.path}`}>
-                <a className="ion-android-folder"/> {props.file.path.name}
+                <span className="ion-android-folder"/> {props.file.path.name}
             </Link>
         </td>);
 }
