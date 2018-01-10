@@ -161,6 +161,7 @@ class TusController(
             return call.respond(HttpStatusCode.Conflict)
         }
 
+        log.info("Starting upload for: $state")
         // Start reading some contents
         val channel = call.receiveChannel()
         val internalBuffer = ByteBuffer.allocate(1024 * 32)
@@ -192,8 +193,7 @@ class TusController(
         }
         task.upload()
 
-        // TODO The offset needs to be updated to reflect the current offset!
-        call.response.tusOffset(state.offset)
+        call.response.tusOffset(task.offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))
         call.respond(HttpStatusCode.NoContent)
     }
