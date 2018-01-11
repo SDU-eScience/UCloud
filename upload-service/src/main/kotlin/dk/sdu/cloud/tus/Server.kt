@@ -96,6 +96,7 @@ class Server(
                 header(TusController.TusHeaders.UploadLength)
                 header(TusController.TusHeaders.UploadOffset)
                 header(TusController.TusHeaders.Version)
+                header("upload-metadata")
 
                 exposeHeader(HttpHeaders.Location)
                 exposeHeader(TusController.TusHeaders.Extension)
