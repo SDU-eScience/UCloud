@@ -7,9 +7,9 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.tus.api.TusServiceDescription
 import io.ktor.application.Application
+import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KafkaStreams
@@ -41,6 +41,7 @@ data class ICatDatabaseConfig(
 data class Configuration(
         private val connection: RawConnectionConfig,
         val database: ICatDatabaseConfig,
+        val appDatabaseUrl: String, // TODO This should be fixed
         val refreshToken: String
 ) {
     @get:JsonIgnore
@@ -89,8 +90,15 @@ fun main(args: Array<String>) {
     val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
 
     val serverProvider: HttpServerProvider = { block ->
-        embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
+        embeddedServer(CIO, port = configuration.connConfig.service.port, module = block)
     }
+
+    Database.connect(
+            url = configuration.appDatabaseUrl,
+            driver = "org.postgresql.Driver",
+            user = configuration.database.user,
+            password = configuration.database.password
+    )
 
     val server = Server(configuration, kafka, zk, serverProvider, cloud)
     server.start()

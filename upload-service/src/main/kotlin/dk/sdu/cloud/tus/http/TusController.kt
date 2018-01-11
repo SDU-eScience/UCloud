@@ -22,6 +22,7 @@ import io.ktor.response.respondText
 import io.ktor.routing.*
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.nio.ByteBuffer
 import java.util.*
 
@@ -166,14 +167,43 @@ class TusController(
         val channel = call.receiveChannel()
         val internalBuffer = ByteBuffer.allocate(1024 * 32)
         val wrappedChannel = object : IReadChannel {
-            suspend override fun read(dst: ByteArray): Int {
-                val read = channel.read(internalBuffer)
-                if (read != -1) {
-                    internalBuffer.flip()
-                    internalBuffer.get(dst, 0, read)
-                    internalBuffer.clear()
+            var shouldRead = true
+
+            suspend override fun read(dst: ByteArray, offset: Int): Int {
+                val maxSize = dst.size - offset
+                assert(maxSize > 0)
+
+                if (shouldRead) {
+                    val read = channel.read(internalBuffer)
+                    if (read != -1) {
+                        internalBuffer.flip()
+                        return if (maxSize > read) {
+                            internalBuffer.get(dst, offset, read)
+                            internalBuffer.clear()
+                            read
+                        } else {
+                            internalBuffer.get(dst, offset, maxSize)
+
+                            // We need to deposit the remainder of our internal buffer
+                            // So we don't clear and set the state to shouldRead = false
+                            shouldRead = false
+                            maxSize
+                        }
+                    } else {
+                        // Input channel has no more data
+                        return -1
+                    }
+                } else {
+                    val depositSize = Math.min(internalBuffer.remaining(), maxSize)
+                    internalBuffer.get(dst, offset, depositSize)
+
+                    if (!internalBuffer.hasRemaining()) {
+                        // We have deposited what we had left in the buffer. Go back to reading state
+                        internalBuffer.clear()
+                        shouldRead = true
+                    }
+                    return depositSize
                 }
-                return read
             }
 
             override fun close() {
@@ -186,12 +216,14 @@ class TusController(
             runBlocking {
                 producer.emit(TusUploadEvent.ChunkVerified(
                         id = id,
-                        chunk = it,
+                        chunk = it + 1, // Chunks are 1-indexed, callbacks are 0-indexed
                         numChunks = Math.ceil(state.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
                 ))
             }
         }
         task.upload()
+
+        log.info("Upload complete! Offset is: ${task.offset}. ${state.length}")
 
         call.response.tusOffset(task.offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))

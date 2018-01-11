@@ -21,12 +21,12 @@ import org.slf4j.LoggerFactory
 class RadosStorageTest {
     class ByteArrayReadChannel(val byteArray: ByteArray) : IReadChannel {
         var pointer = 0
-        suspend override fun read(dst: ByteArray): Int {
+        suspend override fun read(dst: ByteArray, offset: Int): Int {
             val remaining = byteArray.size - pointer
             if (remaining <= 0) return -1
 
-            val copySize = Math.min(remaining, dst.size)
-            System.arraycopy(byteArray, pointer, dst, 0, copySize)
+            val copySize = Math.min(remaining, dst.size - offset)
+            System.arraycopy(byteArray, pointer, dst, offset, copySize)
             pointer += copySize
             return copySize
         }
@@ -39,8 +39,8 @@ class RadosStorageTest {
     class DelayedByteArrayReadChanne(byteArray: ByteArray, val delayPer1MOfDataInMs: Long) : IReadChannel {
         private val delegate = ByteArrayReadChannel(byteArray)
 
-        suspend override fun read(dst: ByteArray): Int {
-            val result = delegate.read(dst)
+        suspend override fun read(dst: ByteArray, offset: Int): Int {
+            val result = delegate.read(dst, offset)
             val sleep = (result / (1024 * 1024).toDouble() * delayPer1MOfDataInMs).toLong()
             log.debug("Read $result bytes. Sleeping for $sleep ms")
             delay(sleep)
@@ -53,6 +53,29 @@ class RadosStorageTest {
 
         companion object {
             private val log = LoggerFactory.getLogger(DelayedByteArrayReadChanne::class.java)
+        }
+    }
+
+    class CappedAndDelayedByteArrayReadChannel(
+            val byteArray: ByteArray,
+            val chunkSize: Int,
+            val delayPerChunk: Long
+    ) : IReadChannel {
+        var pointer = 0
+
+        suspend override fun read(dst: ByteArray, offset: Int): Int {
+            val remaining = byteArray.size - pointer
+            if (remaining <= 0) return -1
+
+            val copySize = Math.min(Math.min(remaining, chunkSize), dst.size - offset)
+            System.arraycopy(byteArray, pointer, dst, offset, copySize)
+            pointer += copySize
+            delay(delayPerChunk)
+            return copySize
+        }
+
+        override fun close() {
+            // Do nothing
         }
     }
 
@@ -357,6 +380,39 @@ class RadosStorageTest {
             assertEquals(expectedOids, actualOids)
 
             assertThat(verified, hasItem(numBlocks + 3.toLong()))
+        }
+    }
+
+    @Test
+    fun testUploadWithSmallChunkSizeAndNoDelay() {
+        val numBlocks = 1
+        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks) { it.toByte() }
+        val checksum = byteArray.sum()
+        val readChannel = CappedAndDelayedByteArrayReadChannel(byteArray, chunkSize = 1024, delayPerChunk = 0)
+        val objectId = "medium-oid"
+
+        val oids = arrayListOf<String>()
+        val buffers = arrayListOf<ByteArray>()
+        val verified = arrayListOf<Long>()
+        val ctx: IoCTX = mockk(relaxed = true)
+
+        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+
+            val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
+            upload.onProgress = { verified += it }
+            runBlocking { upload.upload() }
+
+            assertEquals(numBlocks, buffers.size)
+
+            val actualSum = buffers.map { it.sum() }.sum()
+            assertEquals(checksum, actualSum)
+
+            val expectedOids = (0 until numBlocks).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+            val actualOids = oids.sorted()
+            assertEquals(expectedOids, actualOids)
+
+            assertThat(verified, hasItem(numBlocks - 1.toLong()))
         }
     }
 }

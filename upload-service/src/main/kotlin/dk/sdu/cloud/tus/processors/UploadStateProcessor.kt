@@ -44,7 +44,7 @@ class UploadStateProcessor(
 
                 is TusUploadEvent.ChunkVerified -> {
                     transaction {
-                        UploadProgress.update({ UploadProgress.id eq event.id }, limit = 1) {
+                        UploadProgress.update({ UploadProgress.id eq event.id }) {
                             it[numChunksVerified] = event.chunk
                         }
                     }
@@ -54,8 +54,7 @@ class UploadStateProcessor(
                         val irodsUser = state.user
                         val irodsZone = state.zone
 
-                        val uri = URI(state.targetCollection)
-                        val irodsCollection = "/${uri.host}${uri.path}"
+                        val irodsCollection = state.targetCollection
                         val irodsFileName = state.targetName
 
                         // Finalize upload
@@ -92,6 +91,8 @@ class UploadStateProcessor(
                                 commit()
 
                                 log.info("Object has been registered: $event")
+                            } else {
+                                log.info("User does not have permission to upload file to target resource!")
                             }
                         }
                     }

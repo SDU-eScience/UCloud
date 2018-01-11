@@ -17,7 +17,7 @@ interface IReadChannel : Closeable {
      *
      * @return The amount of bytes read or -1 if none were read and no more data is available
      */
-    suspend fun read(dst: ByteArray): Int
+    suspend fun read(dst: ByteArray, offset: Int): Int
 }
 
 class RadosStorage(clientName: String, configurationFile: File, pool: String) {
@@ -145,8 +145,9 @@ class RadosUpload(
                     if (maxSize.toInt() == RadosStorage.BLOCK_SIZE) preAllocatedBlocks[freeIndex]
                     else ByteArray(maxSize.toInt())
 
+            // internalPtr should be used to where in the buffer it should place the data.
             while (internalPtr < maxSize && hasMoreData) {
-                val read = readChannel.read(buffer)
+                val read = readChannel.read(buffer, internalPtr)
 
                 if (read == -1) {
                     hasMoreData = false

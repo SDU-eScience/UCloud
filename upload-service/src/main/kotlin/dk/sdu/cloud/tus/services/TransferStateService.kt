@@ -23,11 +23,12 @@ class TransferStateService {
                     }
                     .toList()
         }.singleOrNull()?.let {
-            TransferSummary(
-                    it[UploadDescriptions.id],
-                    it[UploadDescriptions.sizeInBytes],
-                    it[UploadProgress.numChunksVerified] * RadosStorage.BLOCK_SIZE
-            )
+            val sizeInBytes = it[UploadDescriptions.sizeInBytes]
+            val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+            val chunksVerified = it[UploadProgress.numChunksVerified]
+            val offset = if (numChunks == chunksVerified) sizeInBytes + 1 else chunksVerified * RadosStorage.BLOCK_SIZE
+
+            TransferSummary(it[UploadDescriptions.id], sizeInBytes, offset)
         }
     }
 
@@ -44,10 +45,15 @@ class TransferStateService {
                     }
                     .toList()
         }.singleOrNull()?.let {
+            val sizeInBytes = it[UploadDescriptions.sizeInBytes]
+            val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+            val chunksVerified = it[UploadProgress.numChunksVerified]
+            val offset = if (numChunks == chunksVerified) sizeInBytes + 1 else chunksVerified * RadosStorage.BLOCK_SIZE
+
             TransferState(
                     id = it[UploadDescriptions.id],
-                    length = it[UploadDescriptions.sizeInBytes],
-                    offset = it[UploadProgress.numChunksVerified] * RadosStorage.BLOCK_SIZE,
+                    length = sizeInBytes,
+                    offset = offset,
                     user = it[UploadDescriptions.owner],
                     zone = it[UploadDescriptions.zone],
                     targetCollection = it[UploadDescriptions.targetCollection],
