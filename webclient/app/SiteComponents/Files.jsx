@@ -4,7 +4,6 @@ import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button} from 'react-bootstrap';
 
-
 class Files extends React.Component {
     constructor(props) {
         super(props);
@@ -19,6 +18,43 @@ class Files extends React.Component {
             selectedFiles: [],
         };
         this.getFiles = this.getFiles.bind(this);
+        this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
+        this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
+    }
+
+    selectOrDeselectAllFiles(event) {
+        if (event.target.checked) {
+            this.setState(() => ({
+                selectedFiles: this.state.files,
+             }));
+        } else {
+            this.setState(() => ({
+                selectedFiles: [],
+            }))
+        }
+    }
+
+    static sendToAbacus() {
+        console.log("Send to Abacus TODO!")
+    }
+
+    static shareFile() {
+        console.log("Share file")
+    }
+
+    static uploadFile() {
+        console.log("Upload file TODO!")
+    }
+    static getTitle(name) {
+        console.log("GET TITLE TODO!")
+    }
+
+    static renameFile() {
+        console.log("TODO");
+    }
+
+    static showFileDeletionPrompt() {
+
     }
 
     getFavourites() {
@@ -36,22 +72,57 @@ class Files extends React.Component {
         console.log("PREVENT TODO")
     }
 
+    static getCurrentRights(files) {
+        const rightsMap = {
+            'NONE': 1,
+            'READ': 2,
+            'READ_WRITE': 3,
+            'OWN': 4
+        }
+    
+        let lowestPrivilegeOptions = rightsMap['OWN'];
+        files.forEach((it) => {
+            it.acl.forEach((acl) => {
+            lowestPrivilegeOptions = Math.min(rightsMap[acl.right], lowestPrivilegeOptions);
+            });
+        });
+        return {
+            rightsName: Object.keys(rightsMap)[lowestPrivilegeOptions - 1],
+            rightsLevel: lowestPrivilegeOptions
+        }
+    }
+
+    addOrRemoveFile(event, newFile) {
+        let size = this.state.selectedFiles.length;
+        let currentFiles = this.state.selectedFiles.slice().filter(file => file.path.uri !== newFile.path.uri);
+        if (event.target.checked && currentFiles.length === size) {
+            currentFiles.push(newFile);
+        }
+        this.setState(() => ({
+            selectedFiles: currentFiles,
+        }));
+    }
+
+    static sortFiles(files) {
+        files.sort((a, b) => {
+            if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
+                return -1;
+            else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
+                return 1;
+            else {
+                return a.path.name.localeCompare(b.path.name);
+            }
+        });
+        return files;
+    }
+
     getFiles() {
         this.setState({
             loading: true,
         });
         Cloud.get("files?path=/" + this.state.currentPath).then(favourites => {
-            favourites.sort((a, b) => {
-                if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
-                    return -1;
-                else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
-                    return 1;
-                else {
-                    return a.path.name.localeCompare(b.path.name);
-                }
-            });
             this.setState(() => ({
-                files: favourites,
+                files: Files.sortFiles(favourites),
                 loading: false,
             }));
         });
@@ -71,7 +142,7 @@ class Files extends React.Component {
                         <div className="card">
                             <FilesTable files={this.state.files} loading={this.state.loading}
                                         getFavourites={() => this.getFavourites} favourite={() => this.favourite}
-                                        prevent={this.prevent}/>
+                                        prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile} selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         </div>
                     </div>
                     <ContextBar selectedFiles={this.state.selectedFiles} getFavourites={() => this.getFavourites()}/>
@@ -91,11 +162,11 @@ function ContextBar(props) {
                         className="icon ion-ios-home"/></Link>
                 </div>
                 <hr/>
-                <button className="btn btn-primary ripple btn-block ion-android-upload" onClick="uploadFile"> Upload
+                <button className="btn btn-primary ripple btn-block ion-android-upload" onClick={Files.uploadFile}> Upload
                     Files
                 </button>
                 <br/>
-                <button className="btn btn-default ripple btn-block ion-folder" onClick="createFolder">
+                <button className="btn btn-default ripple btn-block ion-folder" onClick={Files.createFolder}>
                     New folder
                 </button>
                 <br/>
@@ -107,56 +178,60 @@ function ContextBar(props) {
 }
 
 function FileOptions(props) {
-    if (!props.selectedFiles.length) {
-        return null;
-    }
-    let rightsLevel = (<h3 if="selectedFiles.length">
-        {'Rights level: ' + options.rightsName}<br/>
-        {fileText}</h3>);
+    if (!props.selectedFiles.length) { return null; }
+    let rights = Files.getCurrentRights(props.selectedFiles);
+    const fileText = props.selectedFiles.length > 1 ? `${props.selectedFiles.length} files selected.` : props.selectedFiles[0].path.name
+    const rightsLevel = <RightsLevel rights={rights} fileText={fileText}/>
     return (
         <div>
+            {rightsLevel}
             <p>
                 <button className="btn btn-info rippple btn-block"
-                        click="sendToAbacus()"> Send to Abacus 2.0
+                        onClick={Files.sendToAbacus()}> Send to Abacus 2.0
                 </button>
             </p>
             <p>
-                <button type="button" className="btn btn-default ripple btn-block ion-share"
-                        title="getTitle('share')"
-                        click="shareFile(selectedFiles[0].path.name, 'folder')"> Share selected
+                <button type="button" className="btn btn-default ripple btn-block"
+                        title={Files.getTitle('share')}
+                        onClick={Files.shareFile(props.selectedFiles[0].path.name, 'folder')}> <span className="ion-share"/> Share selected
                     files
                 </button>
             </p>
             <p>
-                <button className="btn btn-default ripple btn-block ion-ios-download"
-                        title="getTitle('download')">
+                <button className="btn btn-default ripple btn-block"
+                        title={Files.getTitle("download")}>
+                        <span className="ion-ios-download"/>
                     Download selected files
                 </button>
             </p>
             <p>
-                <button type="button" class="btn btn-default btn-block ripple ion-android-star">
+                <button type="button" className="btn btn-default btn-block ripple">
+                <span className="ion-android-star"/>
                     Favourite selected files
                 </button>
             </p>
             <p>
-                <button class="btn btn-default btn-block ripple ion-ios-photos"
-                        title="getTitle('move')">
+                <button className="btn btn-default btn-block ripple"
+                        title={Files.getTitle('move')}>
+                        <span className="ion-ios-photos" />
                     Move folder
                 </button>
             </p>
             <p>
-                <button type="button" class="btn btn-default btn-block ripple ion-ios-compose"
-                        click="renameFile(selectedFiles[0].path.name, 'folder')"
-                        title="getTitle('rename')"
-                        disabled="options.rightsLevel < 3 || selectedFiles.length !== 1">
+                <button type="button" className="btn btn-default btn-block ripple"
+                        onClick={Files.renameFile(props.selectedFiles[0].path.name, 'folder')}
+                        title={Files.getTitle("rename")}
+                        disabled={rights.rightsLevel < 3 || props.selectedFiles.length !== 1}>
+                        <span className="ion-ios-compose" />
                     Rename file
                 </button>
             </p>
             <p>
-                <button class="btn btn-danger btn-block ripple ion-ios-trash"
-                        title="getTitle('delete')"
-                        disabled="options.rightsLevel < 3"
-                        click="showFileDeletionPrompt(selectedFiles[0].path)">
+                <button className="btn btn-danger btn-block ripple"
+                        title={Files.getTitle('delete')}
+                        disabled={rights.rightsLevel < 3}
+                        onClick={Files.showFileDeletionPrompt(props.selectedFiles[0].path)}>
+                        <em className="ion-ios-trash"/>
                     Delete selected files
                 </button>
             </p>
@@ -182,8 +257,8 @@ function FilesTable(props) {
                         <tr>
                             <th className="select-cell disabled"><label className="mda-checkbox">
                                 <input name="select" className="select-box"
-                                       value="all"
-                                       type="checkbox"/><em
+                                       defaultChecked={false}
+                                       type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e)}/><em
                                 className="bg-info"/></label></th>
                             <th><span className="text-left">Filename</span></th>
                             <th><span><em className="ion-star"/></span></th>
@@ -191,7 +266,7 @@ function FilesTable(props) {
                             <th><span className="text-left">File Owner</span></th>
                         </tr>
                         </thead>
-                        <FilesList files={props.files} favourite={props.favourite} prevent={props.prevent}/>
+                        <FilesList files={props.files} favourite={props.favourite} addOrRemoveFile={props.addOrRemoveFile} prevent={props.prevent}/>
                     </table>
                 </div>
             </div>
@@ -205,30 +280,12 @@ function Shortcuts(props) {
         </div>)
 }
 
-function Breadcrumbs(props) {
-    if (!props.currentPath) {
-        return null;
-    }
-    let paths = props.currentPath.split("/");
-    console.log(paths);
-    let pathsMapping = [];
-    for (let i = 0; i < paths.length; i++) {
-        let actualPath = "";
-        for (let j = 0; j <= i; j++) {
-            actualPath += paths[j] + "/";
-        }
-        pathsMapping.push({actualPath: actualPath, local: paths[i],})
-    }
-    let i = 0;
-    let breadcrumbs = pathsMapping.map(path =>
-        <li key={i++} className="breadcrumb-item">
-            <Link to={`files/${path.actualPath}`}>{path.local}</Link>
-        </li>
-    );
+function RightsLevel(props) {
     return (
-        <ol className="breadcrumb">
-            {breadcrumbs}
-        </ol>)
+        <h3>
+            {`Rights level: ${props.rights.rightsLevel}`}<br/>
+            {props.fileText}
+        </h3>);
 }
 
 function FilesList(props) {
@@ -239,8 +296,8 @@ function FilesList(props) {
         <tr key={i++} className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" className="select-box" value="file"
-                       type="checkbox"/><em
+                <input name="select" defaultChecked={false} className="select-box" value={file}
+                       type="checkbox" onChange={e => props.addOrRemoveFile(e, file)}  /><em
                 className="bg-info"/></label></td>
             <FileType file={file}/>
             <Favourited file={file} favourite={props.favourite}/>
@@ -254,7 +311,7 @@ function FilesList(props) {
     let filesList = files.map(file =>
         <tr key={i++} className="row-settings clickable-row">
             <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" className="select-box" value="file"
+                <input name="select" className="select-box"
                        type="checkbox"/><em
                 className="bg-info"/></label></td>
             <FileType file={file}/>
@@ -268,8 +325,8 @@ function FilesList(props) {
     );
     return (
         <tbody>
-        {directoryList}
-        {filesList}
+            {directoryList}
+            {filesList}
         </tbody>
     )
 }
@@ -278,7 +335,7 @@ function FileType(props) {
     if (props.file.type === "FILE")
         return (
             <td>
-                <a className="ion-android-document"/> {props.file.path.name}
+                <span className="ion-android-document"/> {props.file.path.name}
             </td>);
     return (
         <td>
@@ -319,6 +376,31 @@ function MobileButtons() {
                           </ul>
                       </div>
                   </span>)*/
+}
+
+function Breadcrumbs(props) {
+    if (!props.currentPath) {
+        return null;
+    }
+    let paths = props.currentPath.split("/");
+    let pathsMapping = [];
+    for (let i = 0; i < paths.length; i++) {
+        let actualPath = "";
+        for (let j = 0; j <= i; j++) {
+            actualPath += paths[j] + "/";
+        }
+        pathsMapping.push({actualPath: actualPath, local: paths[i],})
+    }
+    let i = 0;
+    let breadcrumbs = pathsMapping.map(path =>
+        <li key={i++} className="breadcrumb-item">
+            <Link to={`files/${path.actualPath}`}>{path.local}</Link>
+        </li>
+    );
+    return (
+        <ol className="breadcrumb">
+            {breadcrumbs}
+        </ol>)
 }
 
 export default Files;
