@@ -304,7 +304,7 @@ function FilesList(props) {
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
             <td>
-                <MobileButtons/>
+                <MobileButtons file={file}/>
             </td>
         </tr>
     );
@@ -319,7 +319,7 @@ function FilesList(props) {
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
             <td>
-                <MobileButtons/>
+                <MobileButtons file={file}/>
             </td>
         </tr>
     );
@@ -352,30 +352,29 @@ function Favourited(props) {
     return (<td><a className="ion-star" onClick={() => props.favourite(props.file.path.uri)}/></td>);
 }
 
-function MobileButtons() {
-    return null;
-    /*
+function MobileButtons(props) {
+    let file = props.file;
     return (
         <span className="hidden-lg">
-                      <div className="pull-right dropdown">
-                          <button type="button" data-toggle="dropdown"
-                                  className="btn btn-flat btn-flat-icon"
-                                  aria-expanded="false"><em className="ion-android-more-vertical"/></button>
-                          <ul role="menu" className="dropdown-menu md-dropdown-menu dropdown-menu-right">
-                              <li><a className="btn btn-info ripple btn-block"
-                                     onClick={sendToAbacus()}> Send to Abacus 2.0</a></li>
-                              <li><a className="btn btn-default ripple btn-block ion-share"
-                                     onClick="shareFile(file.path.name, 'file')"> Share file</a></li>
-                              <li><a
-                                  className="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
-                              <li><a className="btn btn-default ripple ion-ios-photos"> Move file</a></li>
-                              <li><a className="btn btn-default ripple ion-ios-compose"
-                                     onClick="renameFile(file.path.name, 'file')"> Rename file</a></li>
-                              <li><a className="btn btn-danger ripple ion-ios-trash"
-                                     onClick="showFileDeletionPrompt(file.path)"> Delete file</a></li>
-                          </ul>
-                      </div>
-                  </span>)*/
+            <div className="pull-right dropdown">
+                <button type="button" data-toggle="dropdown"
+                        className="btn btn-flat btn-flat-icon"
+                        aria-expanded="false"><em className="ion-android-more-vertical"/></button>
+                <ul role="menu" className="dropdown-menu md-dropdown-menu dropdown-menu-right">
+                    <li><a className="btn btn-info ripple btn-block"
+                            onClick={Files.sendToAbacus()}> Send to Abacus 2.0</a></li>
+                    <li><a className="btn btn-default ripple btn-block ion-share"
+                            onClick={Files.shareFile(file.path.name, 'file')}> Share file</a></li>
+                    <li><a
+                        className="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
+                    <li><a className="btn btn-default ripple ion-ios-photos"> Move file</a></li>
+                    <li><a className="btn btn-default ripple ion-ios-compose"
+                            onClick={Files.renameFile(file.path.name, 'file')}> Rename file</a></li>
+                    <li><a className="btn btn-danger ripple ion-ios-trash"
+                            onClick={Files.showFileDeletionPrompt(file.path)}> Delete file</a></li>
+                </ul>
+            </div>
+        </span>)
 }
 
 function Breadcrumbs(props) {
