@@ -22,11 +22,11 @@ fun main(args: Array<String>) {
     }
     val client = TusClient()
     val urlStore = TusURLMemoryStore()
-    val file = File("/Users/dthrane/big_buck_bunny_720p_stereo.ogg")
+    val file = File("/Users/dthrane/output.txt")
     if (!file.exists()) throw IllegalStateException()
     val upload = TusUpload(file)
     client.enableResuming(urlStore)
-    urlStore[upload.fingerprint] = URL("http://localhost:42400/api/tus/ffd7d174-97d1-42ed-8e2e-bc43416c30d3")
+    urlStore[upload.fingerprint] = URL("http://localhost:42400/api/tus/d373fdc3-dac7-4588-8168-febb75e18faf")
 
     val token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0Iiwicm9sZSI6IlVTRVIiLCJuYW1lIjoiV" +
             "GVzdCBUZXN0IiwiZW1haWwiOiJ0ZXN0QHRlc3QiLCJpc3MiOiJjbG91ZC5zZHUuZGsiLCJpYXQiOjE1MTQzNjQwNTIsI" +
