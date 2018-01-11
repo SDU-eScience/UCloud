@@ -140,9 +140,9 @@ class Files extends React.Component {
                         <LoadingIcon loading={this.state.loading}/>
                         <Breadcrumbs currentPath={this.state.currentPath}/>
                         <div className="card">
-                            <FilesTable files={this.state.files} loading={this.state.loading}
+                            <FilesTable files={this.state.files} loading={this.state.loading} selectedFiles={this.state.selectedFiles}
                                         getFavourites={() => this.getFavourites} favourite={() => this.favourite}
-                                        prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile} selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
+                                        prevent={this.prevent} selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         </div>
                     </div>
                     <ContextBar selectedFiles={this.state.selectedFiles} getFavourites={() => this.getFavourites()}/>
@@ -266,7 +266,7 @@ function FilesTable(props) {
                             <th><span className="text-left">File Owner</span></th>
                         </tr>
                         </thead>
-                        <FilesList files={props.files} favourite={props.favourite} addOrRemoveFile={props.addOrRemoveFile} prevent={props.prevent}/>
+                        <FilesList files={props.files} favourite={props.favourite} selectedFiles={props.selectedFiles} prevent={props.prevent}/>
                     </table>
                 </div>
             </div>
@@ -293,35 +293,10 @@ function FilesList(props) {
     let directories = props.files.filter(it => it.type === "DIRECTORY");
     let files = props.files.filter(it => it.type !== "DIRECTORY");
     let directoryList = directories.map(file =>
-        <tr key={i++} className="row-settings clickable-row"
-            style={{cursor: "pointer"}}>
-            <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" defaultChecked={false} className="select-box" value={file}
-                       type="checkbox" onChange={e => props.addOrRemoveFile(e, file)}  /><em
-                className="bg-info"/></label></td>
-            <FileType file={file}/>
-            <Favourited file={file} favourite={props.favourite}/>
-            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-            <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
-            <td>
-                <MobileButtons file={file}/>
-            </td>
-        </tr>
+        <Directory key={i++} file={file} isChecked={ -1 !== props.selectedFiles.findIndex(selectedFile => selectedFile.path.uri === file.path.uri)}/>
     );
     let filesList = files.map(file =>
-        <tr key={i++} className="row-settings clickable-row">
-            <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" className="select-box"
-                       type="checkbox"/><em
-                className="bg-info"/></label></td>
-            <FileType file={file}/>
-            <Favourited file={file} favourite={props.favourite}/>
-            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-            <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
-            <td>
-                <MobileButtons file={file}/>
-            </td>
-        </tr>
+        <File key={i++} file={file} isChecked={ -1 !== props.selectedFiles.findIndex(selectedFile => selectedFile.path.uri === file.path.uri)}/>
     );
     return (
         <tbody>
@@ -329,6 +304,43 @@ function FilesList(props) {
             {filesList}
         </tbody>
     )
+}
+
+function File(props) {
+    let file = props.file;
+    return (
+    <tr className="row-settings clickable-row">
+        <td className="select-cell"><label className="mda-checkbox">
+            <input name="select" className="select-box" checked={props.isChecked }
+                type="checkbox"/><em
+            className="bg-info"/></label></td>
+        <FileType file={file}/>
+        <Favourited file={file} favourite={props.favourite}/>
+        <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+        <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
+        <td>
+            <MobileButtons file={file}/>
+        </td>
+    </tr>)
+}
+
+function Directory(props) {
+    let file = props.file;
+    return(
+    <tr className="row-settings clickable-row"
+            style={{cursor: "pointer"}}>
+            <td className="select-cell"><label className="mda-checkbox">
+                <input name="select" defaultChecked={false} className="select-box" checked={props.isChecked}
+                       type="checkbox" /><em
+                className="bg-info"/></label></td>
+            <FileType file={file}/>
+            <Favourited file={file} favourite={props.favourite}/>
+            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+            <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
+            <td>
+                <MobileButtons file={file}/>
+            </td>
+    </tr>)
 }
 
 function FileType(props) {
