@@ -58,13 +58,6 @@ class RadosUpload(
     private var started = false
     var onProgress: ((Long) -> Unit)? = null
 
-    // TODO This code really is fine-tuned for producers that are significantly faster than our Ceph cluster
-    // This is almost only the case if we are migrating over a dedicated line. When uploading over the Internet
-    // it becomes highly unlikely that more than a few blocks will be in use (most likely just one)
-
-    // TODO Should vary depending on speed too
-    // TODO Should we allow going below BLOCK_SIZE if we only need a small part of a single block?
-
     suspend fun upload() {
         if (started) throw IllegalStateException("Cannot start upload twice!")
         started = true
