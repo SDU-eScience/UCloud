@@ -26,7 +26,7 @@ class TransferStateService {
             val sizeInBytes = it[UploadDescriptions.sizeInBytes]
             val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
             val chunksVerified = it[UploadProgress.numChunksVerified]
-            val offset = if (numChunks == chunksVerified) sizeInBytes + 1 else chunksVerified * RadosStorage.BLOCK_SIZE
+            val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
 
             TransferSummary(it[UploadDescriptions.id], sizeInBytes, offset)
         }
@@ -48,7 +48,7 @@ class TransferStateService {
             val sizeInBytes = it[UploadDescriptions.sizeInBytes]
             val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
             val chunksVerified = it[UploadProgress.numChunksVerified]
-            val offset = if (numChunks == chunksVerified) sizeInBytes + 1 else chunksVerified * RadosStorage.BLOCK_SIZE
+            val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
 
             TransferState(
                     id = it[UploadDescriptions.id],
