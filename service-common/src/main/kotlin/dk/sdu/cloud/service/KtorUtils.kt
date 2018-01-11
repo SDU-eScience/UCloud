@@ -19,7 +19,7 @@ private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtils")
 
 // TODO Some of these should probably be a feature
 
-fun Application.installDefaultFeatures() {
+fun Application.installDefaultFeatures(requireJobId: Boolean = true) {
     install(CallLogging)
     install(DefaultHeaders)
     install(ContentNegotiation) {
@@ -28,9 +28,11 @@ fun Application.installDefaultFeatures() {
 
     intercept(ApplicationCallPipeline.Infrastructure) {
         val uuid = call.request.headers["Job-Id"] ?: run {
-            log.debug("Did not receive a valid Job-Id in the header of the request!")
-            call.respond(HttpStatusCode.BadRequest)
-            finish()
+            if (requireJobId) {
+                log.debug("Did not receive a valid Job-Id in the header of the request!")
+                call.respond(HttpStatusCode.BadRequest)
+                finish()
+            }
             return@intercept
         }
         call.request.jobId = uuid

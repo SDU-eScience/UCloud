@@ -155,6 +155,7 @@ class RadosUpload(
                     internalPtr += read
                 }
             }
+            offset += internalPtr
             log.debug("Read $internalPtr data from block - hasMoreData: $hasMoreData")
 
             //
@@ -178,7 +179,10 @@ class RadosUpload(
             val oid = if (idx == 0) objectId else "$objectId-$idx"
             val savedIdx = idx
 
-            if (internalPtr != 0) {
+            // We should only write internalPtr = BLOCK_SIZE (i.e. block is done) or offset = length (i.e.
+            // upload is done). Otherwise the block hasn't been completed, and as a result we don't need to write
+            // and certainly not verify the block.
+            if (internalPtr == RadosStorage.BLOCK_SIZE || offset == length) {
                 log.debug("[$freeIndex] Writing to oid: $oid")
                 jobs[freeIndex] = launch {
                     ioCtx.aWrite(oid, resizedBuffer, objectOffset = objectOffset, awaitSafe = false)
@@ -197,10 +201,12 @@ class RadosUpload(
                     }
                 }
             } else {
-                log.debug("Skipping zero size block")
+                log.debug("Skipping write of incomplete block")
+                offset -= internalPtr
+                // Block not complete. This should be reflected in offset (which should
+                // reflect how much data we have successfully accepted)
             }
 
-            offset += internalPtr
             idx++
         }
 
@@ -211,7 +217,7 @@ class RadosUpload(
 
         // Since jobs can finish out of order we must notify again down here
         val callback = onProgress
-        if (callback != null) {
+        if (callback != null && acknowledged.isNotEmpty()) { // If ack set is empty then there is nothing to ack
             var maxAck = 0
             while (true) {
                 if (acknowledged.contains(maxAck)) {
