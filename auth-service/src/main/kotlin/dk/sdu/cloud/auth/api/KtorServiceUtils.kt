@@ -2,10 +2,13 @@ package dk.sdu.cloud.auth.api
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.service.TokenValidation
+import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.ApplicationFeature
 import io.ktor.application.call
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.header
 import io.ktor.response.respond
@@ -25,26 +28,43 @@ private val ApplicationRequest.bearer: String?
         return header.substringAfter("Bearer ")
     }
 
-fun Route.protect(vararg rolesAllowed: Role) = protect(rolesAllowed.toList())
-
 fun Route.protect(rolesAllowed: List<Role> = Role.values().toList()) {
-    intercept(ApplicationCallPipeline.Infrastructure) {
-        if (call.attributes.getOrNull(jwtKey) != null) {
-            throw IllegalStateException("protect() should only be called once per route")
+    intercept(ApplicationCallPipeline.Infrastructure) { protect(rolesAllowed) }
+}
+
+suspend fun PipelineContext<Unit, ApplicationCall>.protect(rolesAllowed: List<Role> = Role.values().toList()): Boolean {
+    if (call.attributes.getOrNull(jwtKey) == null) {
+        log.debug("Could not find JWT")
+        call.respond(HttpStatusCode.Unauthorized)
+        finish()
+        return false
+    }
+
+    val role = call.request.principalRole
+    if (role !in rolesAllowed) {
+        log.debug("Role is not allowed on route: $role")
+        call.respond(HttpStatusCode.Unauthorized)
+        finish()
+        return false
+    }
+
+    return true
+}
+
+class JWTProtection {
+    suspend fun intercept(context: PipelineContext<Unit, ApplicationCall>): Unit = with(context) {
+        log.debug("Intercepting call for protect()")
+        val token = call.request.bearer ?: return run {
+            log.debug("Did not find a bearer token")
         }
 
-        val token = call.request.bearer ?: run {
-            log.debug("Did not receive a bearer token in the header of the request!")
-            call.respond(HttpStatusCode.Unauthorized)
-            finish()
-            return@intercept
-        }
-
+        // We call finish if the last two fails as they would indicate actual failure
+        // (and not just missing auth, which can be okay)
         val validated = TokenValidation.validateOrNull(token) ?: run {
             log.debug("The following token did not pass validation: $token")
             call.respond(HttpStatusCode.Unauthorized)
             finish()
-            return@intercept
+            return
         }
 
         val roleAsString = validated.getClaim("role").asString()
@@ -54,22 +74,32 @@ fun Route.protect(rolesAllowed: List<Role> = Role.values().toList()) {
             log.warn("Unknown role attribute in validated token! Role: $roleAsString")
             call.respond(HttpStatusCode.InternalServerError)
             finish()
-            return@intercept
-        }
-
-        if (role !in rolesAllowed) {
-            log.debug("Role is not allowed on route: $role")
-            call.respond(HttpStatusCode.Unauthorized)
-            finish()
-            return@intercept
+            return
         }
 
         call.request.validatedPrincipal = validated
+        call.request.principalRole = role
+    }
+
+    companion object Feature : ApplicationFeature<ApplicationCallPipeline, Unit, JWTProtection> {
+        override val key = AttributeKey<JWTProtection>("jwtProtection")
+
+        override fun install(pipeline: ApplicationCallPipeline, configure: Unit.() -> Unit): JWTProtection {
+            val feature = JWTProtection()
+            pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.intercept(this) }
+            return feature
+        }
     }
 }
+
 
 private val jwtKey = AttributeKey<DecodedJWT>("JWT")
 var ApplicationRequest.validatedPrincipal: DecodedJWT
     get() = call.attributes[jwtKey]
     private set(value) = call.attributes.put(jwtKey, value)
+
+private val roleKey = AttributeKey<Role>("role")
+var ApplicationRequest.principalRole: Role
+    get() = call.attributes[roleKey]
+    private set(value) = call.attributes.put(roleKey, value)
 

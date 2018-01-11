@@ -1,5 +1,6 @@
 package dk.sdu.cloud.tus.http
 
+import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.tus.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusUploadEvent
@@ -22,7 +23,6 @@ import io.ktor.response.respondText
 import io.ktor.routing.*
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.nio.ByteBuffer
 import java.util.*
 
@@ -58,36 +58,42 @@ class TusController(
             }
 
             // These use the ID returned from the Creation extension
-            head("{id}") {
-                val id = call.parameters["id"] ?: return@head call.respond(HttpStatusCode.BadRequest)
-                val summary = transferState.retrieveSummary(id, call.request.validatedPrincipal.subject) ?:
-                        return@head call.respond(HttpStatusCode.NotFound)
+            route("{id}") {
+                protect()
 
-                // Disable cache
-                call.response.header(HttpHeaders.CacheControl, "no-store")
+                head {
+                    val id = call.parameters["id"] ?: return@head call.respond(HttpStatusCode.BadRequest)
+                    val summary = transferState.retrieveSummary(id, call.request.validatedPrincipal.subject) ?:
+                            return@head call.respond(HttpStatusCode.NotFound)
 
-                // Write current transfer state
-                call.response.tusVersion(serverConfiguration.tusVersion)
-                call.response.tusLength(summary.length)
-                call.response.tusOffset(summary.offset)
+                    // Disable cache
+                    call.response.header(HttpHeaders.CacheControl, "no-store")
 
-                // Response contains no body
-                call.respond(HttpStatusCode.NoContent)
-            }
+                    // Write current transfer state
+                    call.response.tusVersion(serverConfiguration.tusVersion)
+                    call.response.tusLength(summary.length)
+                    call.response.tusOffset(summary.offset)
 
-            post("{id}") {
-                if (call.request.header("X-HTTP-Method-Override").equals("PATCH", ignoreCase = true)) {
+                    // Response contains no body
+                    call.respond(HttpStatusCode.NoContent)
+                }
+
+                post {
+                    if (call.request.header("X-HTTP-Method-Override").equals("PATCH", ignoreCase = true)) {
+                        upload()
+                    } else {
+                        call.respond(HttpStatusCode.MethodNotAllowed)
+                    }
+                }
+
+                patch {
                     upload()
-                } else {
-                    call.respond(HttpStatusCode.MethodNotAllowed)
                 }
             }
 
-            patch("{id}") {
-                upload()
-            }
-
             post {
+                if (!protect()) return@post
+
                 val principal = call.request.validatedPrincipal
 
                 // Create a new resource for uploading. This is non-standard as we will need to know where
@@ -279,7 +285,7 @@ class TusController(
         header(TusHeaders.Resumable, currentVersion.toString())
     }
 
-    private object TusHeaders {
+    object TusHeaders {
         /**
          * The Tus-Max-Size response header MUST be a non-negative integer indicating the maximum allowed size of an
          * entire upload in bytes. The Server SHOULD set this header if there is a known hard limit.

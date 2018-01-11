@@ -1,5 +1,6 @@
 package dk.sdu.cloud.tus
 
+import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
@@ -10,6 +11,10 @@ import dk.sdu.cloud.tus.processors.UploadStateProcessor
 import dk.sdu.cloud.tus.services.ICAT
 import dk.sdu.cloud.tus.services.RadosStorage
 import dk.sdu.cloud.tus.services.TransferStateService
+import io.ktor.application.install
+import io.ktor.features.CORS
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -79,12 +84,35 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
 
-            installDefaultFeatures()
+            installDefaultFeatures(requireJobId = false)
+            install(JWTProtection)
+            install(CORS) {
+                anyHost()
+                header(HttpHeaders.Authorization)
+                header("Job-Id")
+                header(TusController.TusHeaders.Extension)
+                header(TusController.TusHeaders.MaxSize)
+                header(TusController.TusHeaders.Resumable)
+                header(TusController.TusHeaders.UploadLength)
+                header(TusController.TusHeaders.UploadOffset)
+                header(TusController.TusHeaders.Version)
+                header("upload-metadata")
+
+                exposeHeader(HttpHeaders.Location)
+                exposeHeader(TusController.TusHeaders.Extension)
+                exposeHeader(TusController.TusHeaders.MaxSize)
+                exposeHeader(TusController.TusHeaders.Resumable)
+                exposeHeader(TusController.TusHeaders.UploadLength)
+                exposeHeader(TusController.TusHeaders.UploadOffset)
+                exposeHeader(TusController.TusHeaders.Version)
+
+                method(HttpMethod.Patch)
+                method(HttpMethod.Options)
+                allowCredentials = false
+            }
 
             routing {
                 route("api/tus") {
-                    protect()
-
                     tus.registerTusEndpoint(this, "/api/tus")
                 }
             }
