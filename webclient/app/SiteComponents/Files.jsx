@@ -23,14 +23,19 @@ class Files extends React.Component {
     }
 
     selectOrDeselectAllFiles(event) {
-        if (event.target.checked) {
+        let checked = event.target.checked;
+        let files = this.state.files.slice();
+        files.forEach(file => file.isChecked = checked);
+        if (checked) {
             this.setState(() => ({
-                selectedFiles: this.state.files,
-             }));
+                files: files,
+                selectedFiles: files,
+            }));
         } else {
             this.setState(() => ({
+                files: files,
                 selectedFiles: [],
-            }))
+            }));
         }
     }
 
@@ -293,10 +298,10 @@ function FilesList(props) {
     let directories = props.files.filter(it => it.type === "DIRECTORY");
     let files = props.files.filter(it => it.type !== "DIRECTORY");
     let directoryList = directories.map(file =>
-        <Directory key={i++} file={file} isChecked={ -1 !== props.selectedFiles.findIndex(selectedFile => selectedFile.path.uri === file.path.uri)}/>
+        <Directory key={i++} file={file} isChecked={ file.isChecked }/>
     );
     let filesList = files.map(file =>
-        <File key={i++} file={file} isChecked={ -1 !== props.selectedFiles.findIndex(selectedFile => selectedFile.path.uri === file.path.uri)}/>
+        <File key={i++} file={file} isChecked={ file.isChecked }/>
     );
     return (
         <tbody>
@@ -312,7 +317,7 @@ function File(props) {
     return (
     <tr className="row-settings clickable-row">
         <td className="select-cell"><label className="mda-checkbox">
-            <input name="select" className="select-box" checked={props.isChecked }
+            <input name="select" className="select-box" checked={ props.isChecked }
                 type="checkbox"/><em
             className="bg-info"/></label></td>
         <FileType type={file.type} path={file.path}/>
@@ -327,12 +332,12 @@ function File(props) {
 
 function Directory(props) {
     let file = props.file;
-    return(
+    return (
     <tr className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
                 <input name="select" className="select-box" checked={props.isChecked}
-                       type="checkbox" /><em
+                       type="checkbox"/><em
                 className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
             <Favourited file={file} favourite={props.favourite}/>
