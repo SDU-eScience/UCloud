@@ -91,7 +91,11 @@ class RadosUpload(
                 Math.ceil(length / RadosStorage.BLOCK_SIZE.toDouble()).toInt(),
                 32 // 128MB
         )
-        val preAllocatedBlocks = Array(maxInstances) { ByteArray(RadosStorage.BLOCK_SIZE) }
+        var currentNumInstances = 1 // Must be 1 initially. Can't be changed without additional changes to code.
+        val preAllocatedBlocks = Array<ByteArray?>(maxInstances) { null }
+        (0 until currentNumInstances).forEach {
+            preAllocatedBlocks[it] = ByteArray(RadosStorage.BLOCK_SIZE)
+        }
         log.debug("Pre-allocating $maxInstances blocks")
 
         // We read data from a single thread and spin up coroutines to write this data to Ceph
@@ -100,7 +104,7 @@ class RadosUpload(
             // Start by calculating object offset and maximum object size.
             // This will usually just be at offset 0 and max size, but the first and last object can be different
             val objectOffset = offset % RadosStorage.BLOCK_SIZE
-            val maxSize = RadosStorage.BLOCK_SIZE - objectOffset
+            val maxSize = (RadosStorage.BLOCK_SIZE - objectOffset).toInt()
 
             log.debug("Starting at $objectOffset with size $maxSize")
 
@@ -112,7 +116,9 @@ class RadosUpload(
 
             // First attempt to find a job index which is free (without suspending)
             val indexReadyNow: Int = run {
-                for ((i, value) in jobs.withIndex()) {
+                for (i in 0 until currentNumInstances) {
+                    val value = jobs[i]
+
                     if (value == null) {
                         return@run i
                     } else if (!value.isActive) {
@@ -127,11 +133,26 @@ class RadosUpload(
             val freeIndex = if (indexReadyNow == -1) {
                 // There is no index free right now, so we wait for a job to finish
                 // This will happen if we are reading data from the upload source faster than we can write it
-                // TODO Maybe we could scale up if we hit this case.
-                log.debug("No job-index is free right now. Waiting for one to become open")
-                val notNull = jobs.filterNotNull()
-                select<Unit> { notNull.forEach { it.onJoin { } } }
-                jobs.indexOfFirst { it != null && !it.isActive }
+
+                if (currentNumInstances  * 2 <= maxInstances) {
+                    log.debug("Could not find a free index, but we can still scale.")
+                    // We are still allowed to scale. So let us do that!
+                    val oldNumInstances = currentNumInstances
+                    currentNumInstances *= 2
+
+                    // Initialize new blocks
+                    (oldNumInstances until currentNumInstances).forEach {
+                        preAllocatedBlocks[it] = ByteArray(RadosStorage.BLOCK_SIZE)
+                    }
+
+                    log.debug("Now using $currentNumInstances instances")
+                    oldNumInstances // Just pick the first. Only one thread is doing this so it is safe.
+                } else {
+                    log.debug("No job-index is free right now. Waiting for one to become open")
+                    val notNull = jobs.filterIndexed { index, _ -> index < currentNumInstances }.filterNotNull()
+                    select<Unit> { notNull.forEach { it.onJoin { } } }
+                    jobs.indexOfFirst { it != null && !it.isActive }
+                }
             } else {
                 log.debug("Job-index is free right now")
                 indexReadyNow
@@ -142,8 +163,8 @@ class RadosUpload(
             // Start reading data into the free buffer
             // We have potential resizing here if we start at non-block boundary
             val buffer =
-                    if (maxSize.toInt() == RadosStorage.BLOCK_SIZE) preAllocatedBlocks[freeIndex]
-                    else ByteArray(maxSize.toInt())
+                    if (maxSize == RadosStorage.BLOCK_SIZE) preAllocatedBlocks[freeIndex]!!
+                    else ByteArray(maxSize)
 
             // internalPtr should be used to where in the buffer it should place the data.
             while (internalPtr < maxSize && hasMoreData) {
@@ -179,10 +200,10 @@ class RadosUpload(
             val oid = if (idx == 0) objectId else "$objectId-$idx"
             val savedIdx = idx
 
-            // We should only write internalPtr = BLOCK_SIZE (i.e. block is done) or offset = length (i.e.
+            // We should only write internalPtr = maxSize (i.e. block is done) or offset = length (i.e.
             // upload is done). Otherwise the block hasn't been completed, and as a result we don't need to write
             // and certainly not verify the block.
-            if (internalPtr == RadosStorage.BLOCK_SIZE || offset == length) {
+            if (internalPtr != 0 && (internalPtr == maxSize || offset == length)) {
                 log.debug("[$freeIndex] Writing to oid: $oid")
                 jobs[freeIndex] = launch {
                     ioCtx.aWrite(oid, resizedBuffer, objectOffset = objectOffset, awaitSafe = false)

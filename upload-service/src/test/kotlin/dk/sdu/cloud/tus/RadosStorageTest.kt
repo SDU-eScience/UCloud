@@ -13,6 +13,7 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.hamcrest.CoreMatchers.hasItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThat
+import org.junit.Ignore
 import org.junit.Test
 import org.slf4j.LoggerFactory
 
@@ -279,6 +280,7 @@ class RadosStorageTest {
     }
 
     @Test
+    @Ignore
     fun testRealisticSlowReadAndWrite() {
         val numBlocks = 64
         val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks + RadosStorage.BLOCK_SIZE / 2) { it.toByte() }
@@ -330,7 +332,9 @@ class RadosStorageTest {
         staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
-            val upload = RadosUpload(objectId, RadosStorage.BLOCK_SIZE / 2.toLong(), byteArray.size.toLong(),
+            // we add the offset to make read channel work
+            val offset = RadosStorage.BLOCK_SIZE / 2.toLong()
+            val upload = RadosUpload(objectId, offset, byteArray.size.toLong() + offset,
                     readChannel, ctx)
             upload.onProgress = { verified += it }
             runBlocking { upload.upload() }
