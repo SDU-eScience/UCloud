@@ -308,13 +308,14 @@ function FilesList(props) {
 
 function File(props) {
     let file = props.file;
+    console.log(file);
     return (
     <tr className="row-settings clickable-row">
         <td className="select-cell"><label className="mda-checkbox">
             <input name="select" className="select-box" checked={props.isChecked }
                 type="checkbox"/><em
             className="bg-info"/></label></td>
-        <FileType file={file}/>
+        <FileType type={file.type} path={file.path}/>
         <Favourited file={file} favourite={props.favourite}/>
         <td>{new Date(file.modifiedAt).toLocaleString()}</td>
         <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
@@ -330,10 +331,10 @@ function Directory(props) {
     <tr className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" defaultChecked={false} className="select-box" checked={props.isChecked}
+                <input name="select" className="select-box" checked={props.isChecked}
                        type="checkbox" /><em
                 className="bg-info"/></label></td>
-            <FileType file={file}/>
+            <FileType type={file.type} path={file.path}/>
             <Favourited file={file} favourite={props.favourite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
@@ -344,15 +345,15 @@ function Directory(props) {
 }
 
 function FileType(props) {
-    if (props.file.type === "FILE")
+    if (props.type === "FILE")
         return (
             <td>
-                <span className="ion-android-document"/> {props.file.path.name}
+                <span className="ion-android-document"/> {props.path.name}
             </td>);
     return (
         <td>
-            <Link to={`/files/${props.file.path.path}`}>
-                <span className="ion-android-folder"/> {props.file.path.name}
+            <Link to={`/files/${props.path.path}`}>
+                <span className="ion-android-folder"/> {props.path.name}
             </Link>
         </td>);
 }
