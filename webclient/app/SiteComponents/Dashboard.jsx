@@ -4,6 +4,7 @@ import LoadingIcon from './LoadingIcon'
 import {NotificationIcon} from "./../UtilityFunctions";
 import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
+import {Link} from 'react-router';
 import {Cloud} from '../../authentication/SDUCloudObject'
 
 
@@ -94,6 +95,15 @@ class Dashboard extends React.Component {
         });
     }
 
+    static getParentPath(path) {
+        let splitPath = path.split("/");
+        let parentPath = "";
+        for (let i = 0; i < splitPath.length - 1; i++) {
+            parentPath += splitPath[i] + "/";
+        }
+        return parentPath;
+    }
+
     render() {
         return (
             <section>
@@ -113,11 +123,21 @@ function DashboardFavouriteFiles(props) {
         <small>No favourites found.</small>
     </h3>;
     const files = props.files;
-    const filesList = files.map((file) =>
-        <tr key={file.path.uri}>
-            <td><a href="#">{file.path.name}</a></td>
-            <td><em className="ion-star"/></td>
-        </tr>
+    const filesList = files.map((file) => {
+            if (file.type === "DIRECTORY") {
+                return (
+                    <tr key={file.path.uri}>
+                        <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
+                        <td><em className="ion-star"/></td>
+                    </tr>)
+            } else {
+                return (
+                    <tr key={file.path.uri}>
+                        <td><Link to={`files/${Dashboard.getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
+                        <td><em className="ion-star"/></td>
+                    </tr>)
+            }
+        }
     );
 
     return (
@@ -127,7 +147,7 @@ function DashboardFavouriteFiles(props) {
                     Favourite files
                 </h5>
                 <LoadingIcon loading={props.isLoading}/>
-                    {noFavourites}
+                {noFavourites}
                 <Table responsive className="table-datatable table table-hover mv-lg">
                     <thead>
                     <tr>
@@ -136,7 +156,7 @@ function DashboardFavouriteFiles(props) {
                     </tr>
                     </thead>
                     <tbody>
-                    {filesList}
+                        {filesList}
                     </tbody>
                 </Table>
             </div>
@@ -144,16 +164,25 @@ function DashboardFavouriteFiles(props) {
 }
 
 function DashboardRecentFiles(props) {
-    const noRecents = props.files.length || props.isLoading  ? '' : <h3 className="text-center">
+    const noRecents = props.files.length || props.isLoading ? '' : <h3 className="text-center">
         <small>No recent files found</small>
     </h3>;
     const files = props.files;
-    const filesList = files.map((file) =>
-        <tr key={file.path.uri}>
-            <td><a href="#">{file.path.name}</a></td>
-            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-        </tr>
-    );
+    const filesList = files.map((file) => {
+        if (file.type === "DIRECTORY") {
+            return (
+                <tr key={file.path.uri}>
+                    <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
+                    <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+                </tr>)
+        } else {
+            return (
+                <tr key={file.path.uri}>
+                    <td><Link to={`files/${Dashboard.getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
+                    <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+                </tr>)
+        }
+    });
 
     return (
         <div className="col-sm-3 align-self-center">
@@ -171,7 +200,7 @@ function DashboardRecentFiles(props) {
                     </tr>
                     </thead>
                     <tbody>
-                    {filesList}
+                        {filesList}
                     </tbody>
                 </Table>
             </div>
@@ -245,7 +274,7 @@ function DashboardRecentActivity(props) {
                 <div>
                     <Table className="table-datatable table table-hover mv-lg">
                         <tbody>
-                            {activityList}
+                        {activityList}
                         </tbody>
                     </Table>
                 </div>

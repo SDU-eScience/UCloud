@@ -1,7 +1,7 @@
 import React from 'react';
 import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {Link} from 'react-router'
+import {Link} from 'react-router';
 import {Button} from 'react-bootstrap';
 
 
@@ -134,7 +134,6 @@ function Breadcrumbs(props) {
         }
         pathsMapping.push({ actualPath: actualPath, local: paths[i],})
     }
-    console.log(pathsMapping);
     let i = 0;
     let breadcrumbs = pathsMapping.map(path =>
         <li key={i++} className="breadcrumb-item">
