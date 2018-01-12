@@ -3,6 +3,7 @@ import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button} from 'react-bootstrap';
+import {buildBreadCrumbs} from '../UtilityFunctions'
 
 class Files extends React.Component {
     constructor(props) {
@@ -20,6 +21,8 @@ class Files extends React.Component {
         this.getFiles = this.getFiles.bind(this);
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
+        this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
+        this.getCurrentFiles = this.getCurrentFiles.bind(this);
     }
 
     selectOrDeselectAllFiles(event) {
@@ -127,6 +130,11 @@ class Files extends React.Component {
         return files;
     }
 
+    handlePageSizeSelection(event) {
+        let value = parseInt(event.target.value);
+        this.setState(() => ({filesPerPage: value}));
+    }
+
     getFiles() {
         this.setState({
             loading: true,
@@ -138,6 +146,13 @@ class Files extends React.Component {
                 loading: false,
             }));
         });
+    }
+
+    getCurrentFiles() {
+        let filesPerPage = this.state.filesPerPage;
+        let currentPage = this.state.currentPage;
+        currentPage = 0;
+        return this.state.files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
     }
 
     componentWillMount() {
@@ -152,18 +167,33 @@ class Files extends React.Component {
                         <LoadingIcon loading={this.state.loading}/>
                         <Breadcrumbs currentPath={this.state.currentPath}/>
                         <div className="card">
-                            <FilesTable files={this.state.files} loading={this.state.loading}
+                            <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
                                         selectedFiles={this.state.selectedFiles}
                                         masterCheckbox={this.state.masterCheckbox}
                                         getFavourites={() => this.getFavourites} favourite={() => this.favourite}
                                         prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile}
                                         selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         </div>
+                        <FilesPerPageSelector filesPerPage={this.state.filesPerPage} handlePageSizeSelection={this.handlePageSizeSelection}/> Files per page
                     </div>
                     <ContextBar selectedFiles={this.state.selectedFiles} getFavourites={() => this.getFavourites()}/>
                 </div>
             </section>)
     }
+}
+
+function FilesPerPageSelector(props) {
+    return (
+        <select value={props.filesPerPage} onChange={e => props.handlePageSizeSelection(e)}>
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>)
+}
+
+function Pagination(props) {
+
 }
 
 function ContextBar(props) {
@@ -414,15 +444,7 @@ function Breadcrumbs(props) {
     if (!props.currentPath) {
         return null;
     }
-    let paths = props.currentPath.split("/");
-    let pathsMapping = [];
-    for (let i = 0; i < paths.length; i++) {
-        let actualPath = "";
-        for (let j = 0; j <= i; j++) {
-            actualPath += paths[j] + "/";
-        }
-        pathsMapping.push({actualPath: actualPath, local: paths[i],})
-    }
+    let pathsMapping = buildBreadCrumbs(props.currentPath);
     let i = 0;
     let breadcrumbs = pathsMapping.map(path =>
         <li key={i++} className="breadcrumb-item">

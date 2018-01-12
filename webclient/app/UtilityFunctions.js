@@ -16,15 +16,27 @@ function NotificationIcon(props) {
 
 function WebSocketSupport() {
     let hasWebSocketSupport = "WebSocket" in window;
-    if (!hasWebSocketSupport)
+    if (!hasWebSocketSupport) {
         return (
             <h3>
                 <small>WebSockets are not supported in this browser. Notifications won't be updated automatically.
                 </small>
             </h3>);
-    else {
-        return (<div></div>)
     }
+    return (null);
 }
 
-export {NotificationIcon, WebSocketSupport}
+function buildBreadCrumbs(path) {
+    let paths = path.split("/");
+    let pathsMapping = [];
+    for (let i = 0; i < paths.length; i++) {
+        let actualPath = "";
+        for (let j = 0; j <= i; j++) {
+            actualPath += paths[j] + "/";
+        }
+        pathsMapping.push({actualPath: actualPath, local: paths[i],})
+    }
+    return pathsMapping;
+}
+
+export {NotificationIcon, WebSocketSupport, buildBreadCrumbs}
