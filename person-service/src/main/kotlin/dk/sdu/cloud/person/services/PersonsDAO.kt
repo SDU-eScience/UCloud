@@ -17,7 +17,7 @@ class PersonsDAO {
         Project(it[id], it[name], it[startAt].millis, it[endAt].millis, it[shortName])
     }
 
-    fun findAllMyProjects(who: String): List<Person> = TODO()
+    fun findAllMyPersons(who: String): List<Person> = TODO()
 
     fun findById(id: Long): Person? =
             transaction { PersonsTable.select { PersonsTable.id eq id }.mapSingle(::mapProjectRow) }

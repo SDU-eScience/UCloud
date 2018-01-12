@@ -8,11 +8,11 @@ data class Person(
         val shortName: String
 )
 
-data class PersonMember(val user: Long, val role: ProjectRole)
+data class PersonMember(val user: Long, val role: SystemRole)
 
 data class PersonWithMembers(val project: Person, val members: List<PersonMember>)
 
-enum class ProjectRole(val roleName: String) {
+enum class SystemRole(val roleName: String) {
     LEADER("Leader"),
     TEAM_MEMBER("Team member"),
     ADMIN("Admin"),
@@ -21,7 +21,7 @@ enum class ProjectRole(val roleName: String) {
     UNKNOWN("Unknown")
 }
 
-enum class ProjectType(val typeName: String) {
+enum class Org(val typeName: String) {
     ORDINARY("Ordinary"),
     TEST("Test project"),
     DEVELOPMENT("Development"),

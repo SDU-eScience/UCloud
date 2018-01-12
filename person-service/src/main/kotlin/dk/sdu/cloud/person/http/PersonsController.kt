@@ -16,7 +16,7 @@ class PersonsController(private val projects: PersonsDAO) {
         }
 
         implement(PersonDescriptions.findById) {
-            val person = projects.findById(it.id)
+            val person = persons.findById(it.id)
             if (person == null) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
             } else {
