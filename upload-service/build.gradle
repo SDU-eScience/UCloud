@@ -48,7 +48,7 @@ dependencies {
 
     compile files("libs/rados-0.4.0-SNAPSHOT.jar")
     compile group: 'net.java.dev.jna', name: 'jna', version: '4.5.0'
-    compile 'io.tus.java.client:tus-java-client:0.3.1'
+    compile 'io.tus.java.client:tus-java-client:0.3.1' // TODO THIS IS HARDCODED AS A DEP IN API
     compile group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
 
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
@@ -66,6 +66,7 @@ dependencies {
 
     testCompile "junit:junit:4.12"
     testCompile "io.mockk:mockk:1.6.3"
+    testCompile group: 'io.ktor', name: 'ktor-server-tests', version: "$ktor_version"
 }
 
 compileKotlin {
@@ -87,6 +88,32 @@ publishing {
             groupId(project.group)
             artifactId(project.name.replace("-service", "") + "-api")
             artifact apiJar
+
+            pom.withXml {
+                def dependenciesNode = asNode().appendNode('dependencies')
+
+                // TODO THIS SHOULD NOT BE HARDCODED
+                def tusDepNode = dependenciesNode.appendNode("dependency")
+                tusDepNode.appendNode("groupId", "io.tus.java.client")
+                tusDepNode.appendNode("artifactId", "tus-java-client")
+                tusDepNode.appendNode("version", "0.3.1")
+            }
+        }
+
+        apiInternal(MavenPublication) { // TODO Maybe don't copy and paste or at least find a solution to deps
+            groupId(project.group)
+            artifactId(project.name.replace("-service", "") + "-api-internal")
+            artifact apiInternalJar
+
+            pom.withXml {
+                def dependenciesNode = asNode().appendNode('dependencies')
+
+                // TODO THIS SHOULD NOT BE HARDCODED
+                def tusDepNode = dependenciesNode.appendNode("dependency")
+                tusDepNode.appendNode("groupId", "io.tus.java.client")
+                tusDepNode.appendNode("artifactId", "tus-java-client")
+                tusDepNode.appendNode("version", "0.3.1")
+            }
         }
     }
 
@@ -178,11 +205,15 @@ task apiJar(type: Jar) {
     baseName project.name + '-api'
     from sourceSets.main.output
     from sourceSets.generated.output
-    from {
-        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-    }
-    // Not the best idea to include directly from storage/model. It can cause conflicts
-    include("**/dk/sdu/cloud/storage/api/**", "**/dk/sdu/cloud/storage/model/**", "service_manifest.json")
+    include("**/dk/sdu/cloud/tus/api/*", "service_manifest.json", "META-INF/${project.name}.kotlin_module")
     with jar
 }
+
+task apiInternalJar(type: Jar) {
+    with apiJar
+
+    baseName project.name + '-api-internal'
+    include("**/dk/sdu/cloud/tus/api/internal/*")
+}
+
 apiJar.dependsOn(generateServiceManifest)

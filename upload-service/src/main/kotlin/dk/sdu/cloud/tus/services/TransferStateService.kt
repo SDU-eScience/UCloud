@@ -71,9 +71,10 @@ object UploadDescriptions : Table() {
     val targetCollection = varchar("target_collection", 2048)
     val targetName = varchar("target_name", 1024)
     val doChecksum = bool("do_checksum")
+    val sensitive = bool("sensitive")
 }
 
 object UploadProgress : Table() {
-    val id = varchar("id", 36) references UploadDescriptions.id
+    val id = reference("id", UploadDescriptions.id)
     val numChunksVerified = long("num_chunks_verified")
 }

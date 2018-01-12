@@ -11,12 +11,14 @@ import java.net.URLEncoder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
-data class RESTCallDescription<R : Any, S, E>(
+data class RESTCallDescription<R : Any, S : Any, E : Any>(
         val method: HttpMethod,
         val path: RESTPath<R>,
         val body: RESTBody<R, *>?,
         val params: RESTParams<R>?,
         val requestType: KClass<R>,
+        val responseTypeSuccess: KClass<S>,
+        val responseTypeFailure: KClass<E>,
         val shouldProxyFromGateway: Boolean,
         val deserializerSuccess: ObjectReader,
         val deserializerError: ObjectReader,
@@ -58,11 +60,21 @@ data class RESTCallDescription<R : Any, S, E>(
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
         return object : PreparedRESTCall<S, E>(resolvedPath, owner) {
             override fun deserializeSuccess(response: Response): S {
-                return deserializerSuccess.readValue(response.responseBody)
+                return if (responseTypeSuccess == Unit::class) {
+                    @Suppress("UNCHECKED_CAST")
+                    Unit as S
+                } else {
+                    deserializerSuccess.readValue(response.responseBody)
+                }
             }
 
             override fun deserializeError(response: Response): E? {
-                return deserializerError.readValue(response.responseBody)
+                return if (responseTypeFailure == Unit::class) {
+                    @Suppress("UNCHECKED_CAST")
+                    Unit as E
+                } else {
+                    deserializerError.readValue(response.responseBody)
+                }
             }
 
             override fun BoundRequestBuilder.configure() {
@@ -86,9 +98,9 @@ data class RESTCallDescription<R : Any, S, E>(
     }
 }
 
-fun <S, E> RESTCallDescription<Unit, S, E>.prepare(): PreparedRESTCall<S, E> = prepare(Unit)
+fun <S : Any, E : Any> RESTCallDescription<Unit, S, E>.prepare(): PreparedRESTCall<S, E> = prepare(Unit)
 
-suspend fun <S, E> RESTCallDescription<Unit, S, E>.call(cloud: AuthenticatedCloud): RESTResponse<S, E> =
+suspend fun <S : Any, E : Any> RESTCallDescription<Unit, S, E>.call(cloud: AuthenticatedCloud): RESTResponse<S, E> =
         call(Unit, cloud)
 
 sealed class RESTBody<R : Any, T : Any> {

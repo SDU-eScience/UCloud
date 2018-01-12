@@ -1,8 +1,12 @@
 package dk.sdu.cloud.tus.http
 
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.tus.ICatDatabaseConfig
+import dk.sdu.cloud.tus.api.TusExtensions
+import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusUploadEvent
 import dk.sdu.cloud.tus.api.internal.UploadEventProducer
 import dk.sdu.cloud.tus.services.IReadChannel
@@ -95,25 +99,63 @@ class TusController(
                 if (!protect()) return@post
 
                 val principal = call.request.validatedPrincipal
+                val isPrivileged = run {
+                    val principalRole = call.request.principalRole
+                    principalRole == Role.SERVICE || principalRole == Role.ADMIN
+                }
 
-                // Create a new resource for uploading. This is non-standard as we will need to know where
-                // this resource is to be stored and such.
                 val id = UUID.randomUUID().toString()
 
-                val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?:
-                        return@post call.respond(HttpStatusCode.BadRequest)
+                val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?: return@post run {
+                    log.debug("Missing upload length")
+                    call.respond(HttpStatusCode.BadRequest)
+                }
 
                 if (serverConfiguration.maxSizeInBytes != null && length > serverConfiguration.maxSizeInBytes) {
+                    log.debug("Resource of length $length is larger than allowed maximum " +
+                            "${serverConfiguration.maxSizeInBytes}")
                     return@post call.respond(HttpStatusCode(413, "Request Entity Too Large"))
                 }
+
+                val metadataHeader = call.request.headers[TusHeaders.UploadMetadata] ?: return@post run {
+                    log.debug("Missing metadata")
+                    call.respond(HttpStatusCode.BadRequest)
+                }
+
+                val metadata = metadataHeader.split(",").map { it.split(" ") }.map {
+                    val key = it.first().toLowerCase()
+                    if (it.size != 2) {
+                        Pair(key, "")
+                    } else {
+                        val data = String(Base64.getDecoder().decode(it[1]))
+                        Pair(key, data)
+                    }
+                }.toMap()
+
+                val fileName = metadata["filename"] ?: id
+                val sensitive = metadata["sensitive"]?.let {
+                    when (it) {
+                        "true" -> true
+                        "false" -> false
+                        else -> null
+                    }
+                } ?: return@post run {
+                    log.debug("Unknown or missing value for sensitive metadata")
+                    call.respond(HttpStatusCode.BadRequest)
+                }
+
+                val owner = metadata["owner"]?.takeIf { isPrivileged } ?: principal.subject
+                val location = metadata["location"]?.takeIf { isPrivileged } ?:
+                        "/${config.defaultZone}/home/${principal.subject}/Uploads"
 
                 producer.emit(TusUploadEvent.Created(
                         id = id,
                         sizeInBytes = length,
-                        owner = principal.subject,
+                        owner = owner,
                         zone = config.defaultZone,
-                        targetCollection = "/${config.defaultZone}/home/${principal.subject}",
-                        targetName = id,
+                        targetCollection = location,
+                        sensitive = sensitive,
+                        targetName = fileName,
                         doChecksum = false
                 ))
 
@@ -126,7 +168,7 @@ class TusController(
                 with(serverConfiguration) {
                     call.response.tusSupportedVersions(supportedVersions)
                     call.response.tusMaxSize(maxSizeInBytes)
-                    call.response.tusExtensions(listOf(TusExtensions.SduArchives))
+                    call.response.tusExtensions(listOf(TusExtensions.Creation))
                     call.respond(HttpStatusCode.NoContent)
                 }
             }
@@ -285,56 +327,6 @@ class TusController(
         header(TusHeaders.Resumable, currentVersion.toString())
     }
 
-    object TusHeaders {
-        /**
-         * The Tus-Max-Size response header MUST be a non-negative integer indicating the maximum allowed size of an
-         * entire upload in bytes. The Server SHOULD set this header if there is a known hard limit.
-         */
-        const val MaxSize = "Tus-Max-Size"
-
-        /**
-         * The Tus-Extension response header MUST be a comma-separated list of the extensions supported by the Server.
-         * If no extensions are supported, the Tus-Extension header MUST be omitted.
-         */
-        const val Extension = "Tus-Extension"
-
-        /**
-         * The Upload-Offset request and response header indicates a byte offset within a resource. The value MUST be a
-         * non-negative integer.
-         */
-        const val UploadOffset = "Upload-Offset"
-
-        /**
-         * The Upload-Length request and response header indicates the size of the entire upload in bytes. The value
-         * MUST be a non-negative integer.
-         */
-        const val UploadLength = "Upload-Length"
-
-        /**
-         * The Tus-Resumable header MUST be included in every request and response except for OPTIONS requests.
-         * The value MUST be the version of the protocol used by the Client or the Server.
-         *
-         * If the the version specified by the Client is not supported by the Server, it MUST respond with the 412
-         * Precondition Failed status and MUST include the Tus-Version header into the response. In addition, the
-         * Server MUST NOT process the request.
-         */
-        const val Resumable = "Tus-Resumable"
-
-        /**
-         * The Tus-Version response header MUST be a comma-separated list of protocol versions supported by the Server.
-         * The list MUST be sorted by Server’s preference where the first one is the most preferred one.
-         */
-        const val Version = "Tus-Version"
-
-        object Creation {
-            const val DeferLength = "Upload-Defer-Length"
-            const val UploadMetadata = "Upload-Metadata"
-        }
-    }
-
-    private object TusExtensions {
-        const val SduArchives = "SduArchive"
-    }
 
     companion object {
         private val log = LoggerFactory.getLogger(TusController::class.java)
