@@ -30,32 +30,35 @@ class Files extends React.Component {
             this.setState(() => ({
                 files: files,
                 selectedFiles: files,
+                masterCheckbox: true,
             }));
         } else {
             this.setState(() => ({
                 files: files,
                 selectedFiles: [],
+                masterCheckbox: false,
             }));
         }
     }
 
     static sendToAbacus() {
-        console.log("Send to Abacus TODO!")
+        // console.log("Send to Abacus TODO!")
     }
 
     static shareFile() {
-        console.log("Share file")
+        // console.log("Share file")
     }
 
     static uploadFile() {
-        console.log("Upload file TODO!")
+        // console.log("Upload file TODO!")
     }
+
     static getTitle(name) {
-        console.log("GET TITLE TODO!")
+        // console.log("GET TITLE TODO!")
     }
 
     static renameFile() {
-        console.log("TODO");
+        // console.log("TODO");
     }
 
     static showFileDeletionPrompt() {
@@ -83,12 +86,12 @@ class Files extends React.Component {
             'READ': 2,
             'READ_WRITE': 3,
             'OWN': 4
-        }
-    
+        };
+
         let lowestPrivilegeOptions = rightsMap['OWN'];
         files.forEach((it) => {
             it.acl.forEach((acl) => {
-            lowestPrivilegeOptions = Math.min(rightsMap[acl.right], lowestPrivilegeOptions);
+                lowestPrivilegeOptions = Math.min(rightsMap[acl.right], lowestPrivilegeOptions);
             });
         });
         return {
@@ -99,12 +102,15 @@ class Files extends React.Component {
 
     addOrRemoveFile(event, newFile) {
         let size = this.state.selectedFiles.length;
+        newFile.isChecked = event.target.checked;
         let currentFiles = this.state.selectedFiles.slice().filter(file => file.path.uri !== newFile.path.uri);
         if (event.target.checked && currentFiles.length === size) {
             currentFiles.push(newFile);
         }
+        let masterCheckbox = this.state.files.length === currentFiles.length;
         this.setState(() => ({
             selectedFiles: currentFiles,
+            masterCheckbox: masterCheckbox,
         }));
     }
 
@@ -126,6 +132,7 @@ class Files extends React.Component {
             loading: true,
         });
         Cloud.get("files?path=/" + this.state.currentPath).then(favourites => {
+            favourites.forEach(file => file.isChecked = false);
             this.setState(() => ({
                 files: Files.sortFiles(favourites),
                 loading: false,
@@ -145,9 +152,12 @@ class Files extends React.Component {
                         <LoadingIcon loading={this.state.loading}/>
                         <Breadcrumbs currentPath={this.state.currentPath}/>
                         <div className="card">
-                            <FilesTable files={this.state.files} loading={this.state.loading} selectedFiles={this.state.selectedFiles}
+                            <FilesTable files={this.state.files} loading={this.state.loading}
+                                        selectedFiles={this.state.selectedFiles}
+                                        masterCheckbox={this.state.masterCheckbox}
                                         getFavourites={() => this.getFavourites} favourite={() => this.favourite}
-                                        prevent={this.prevent} selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
+                                        prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile}
+                                        selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         </div>
                     </div>
                     <ContextBar selectedFiles={this.state.selectedFiles} getFavourites={() => this.getFavourites()}/>
@@ -167,7 +177,8 @@ function ContextBar(props) {
                         className="icon ion-ios-home"/></Link>
                 </div>
                 <hr/>
-                <button className="btn btn-primary ripple btn-block ion-android-upload" onClick={Files.uploadFile}> Upload
+                <button className="btn btn-primary ripple btn-block ion-android-upload"
+                        onClick={Files.uploadFile}> Upload
                     Files
                 </button>
                 <br/>
@@ -183,9 +194,11 @@ function ContextBar(props) {
 }
 
 function FileOptions(props) {
-    if (!props.selectedFiles.length) { return null; }
+    if (!props.selectedFiles.length) {
+        return null;
+    }
     let rights = Files.getCurrentRights(props.selectedFiles);
-    const fileText = props.selectedFiles.length > 1 ? `${props.selectedFiles.length} files selected.` : props.selectedFiles[0].path.name
+    const fileText = props.selectedFiles.length > 1 ? `${props.selectedFiles.length} files selected.` : props.selectedFiles[0].path.name;
     const rightsLevel = <RightsLevel rights={rights} fileText={fileText}/>
     return (
         <div>
@@ -198,27 +211,28 @@ function FileOptions(props) {
             <p>
                 <button type="button" className="btn btn-default ripple btn-block"
                         title={Files.getTitle('share')}
-                        onClick={Files.shareFile(props.selectedFiles[0].path.name, 'folder')}> <span className="ion-share"/> Share selected
+                        onClick={Files.shareFile(props.selectedFiles[0].path.name, 'folder')}><span
+                    className="ion-share"/> Share selected
                     files
                 </button>
             </p>
             <p>
                 <button className="btn btn-default ripple btn-block"
                         title={Files.getTitle("download")}>
-                        <span className="ion-ios-download"/>
+                    <span className="ion-ios-download"/>
                     Download selected files
                 </button>
             </p>
             <p>
                 <button type="button" className="btn btn-default btn-block ripple">
-                <span className="ion-android-star"/>
+                    <span className="ion-android-star"/>
                     Favourite selected files
                 </button>
             </p>
             <p>
                 <button className="btn btn-default btn-block ripple"
                         title={Files.getTitle('move')}>
-                        <span className="ion-ios-photos" />
+                    <span className="ion-ios-photos"/>
                     Move folder
                 </button>
             </p>
@@ -227,7 +241,7 @@ function FileOptions(props) {
                         onClick={Files.renameFile(props.selectedFiles[0].path.name, 'folder')}
                         title={Files.getTitle("rename")}
                         disabled={rights.rightsLevel < 3 || props.selectedFiles.length !== 1}>
-                        <span className="ion-ios-compose" />
+                    <span className="ion-ios-compose"/>
                     Rename file
                 </button>
             </p>
@@ -236,7 +250,7 @@ function FileOptions(props) {
                         title={Files.getTitle('delete')}
                         disabled={rights.rightsLevel < 3}
                         onClick={Files.showFileDeletionPrompt(props.selectedFiles[0].path)}>
-                        <em className="ion-ios-trash"/>
+                    <em className="ion-ios-trash"/>
                     Delete selected files
                 </button>
             </p>
@@ -246,11 +260,12 @@ function FileOptions(props) {
 
 
 function FilesTable(props) {
-    let noFiles = props.files.length || props.loading ? '' : (<div>
-        <h3 className="text-center">
-            <small>There are no files in current folder</small>
-        </h3>
-    </div>);
+    let noFiles = props.files.length || props.loading ? '' : (
+        <div>
+            <h3 className="text-center">
+                <small>There are no files in current folder</small>
+            </h3>
+        </div>);
     return (
         <div className="card-body">
             <Shortcuts getFavourites={props.getFavourites}/>
@@ -262,7 +277,7 @@ function FilesTable(props) {
                         <tr>
                             <th className="select-cell disabled"><label className="mda-checkbox">
                                 <input name="select" className="select-box"
-                                       defaultChecked={false}
+                                       checked={props.masterCheckbox}
                                        type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e)}/><em
                                 className="bg-info"/></label></th>
                             <th><span className="text-left">Filename</span></th>
@@ -271,7 +286,8 @@ function FilesTable(props) {
                             <th><span className="text-left">File Owner</span></th>
                         </tr>
                         </thead>
-                        <FilesList files={props.files} favourite={props.favourite} selectedFiles={props.selectedFiles} prevent={props.prevent}/>
+                        <FilesList files={props.files} favourite={props.favourite} selectedFiles={props.selectedFiles}
+                                   prevent={props.prevent} addOrRemoveFile={props.addOrRemoveFile}/>
                     </table>
                 </div>
             </div>
@@ -298,46 +314,45 @@ function FilesList(props) {
     let directories = props.files.filter(it => it.type === "DIRECTORY");
     let files = props.files.filter(it => it.type !== "DIRECTORY");
     let directoryList = directories.map(file =>
-        <Directory key={i++} file={file} isChecked={ file.isChecked }/>
+        <Directory key={i++} file={file} addOrRemoveFile={props.addOrRemoveFile} isChecked={file.isChecked}/>
     );
     let filesList = files.map(file =>
-        <File key={i++} file={file} isChecked={ file.isChecked }/>
+        <File key={i++} file={file} isChecked={file.isChecked} addOrRemoveFile={props.addOrRemoveFile}/>
     );
     return (
         <tbody>
-            {directoryList}
-            {filesList}
+        {directoryList}
+        {filesList}
         </tbody>
     )
 }
 
 function File(props) {
     let file = props.file;
-    console.log(file);
     return (
-    <tr className="row-settings clickable-row">
-        <td className="select-cell"><label className="mda-checkbox">
-            <input name="select" className="select-box" checked={ props.isChecked }
-                type="checkbox"/><em
-            className="bg-info"/></label></td>
-        <FileType type={file.type} path={file.path}/>
-        <Favourited file={file} favourite={props.favourite}/>
-        <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-        <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
-        <td>
-            <MobileButtons file={file}/>
-        </td>
-    </tr>)
+        <tr className="row-settings clickable-row">
+            <td className="select-cell"><label className="mda-checkbox">
+                <input name="select" className="select-box" checked={props.isChecked}
+                       type="checkbox" onChange={(e) => props.addOrRemoveFile(e, file)}/>
+                <em className="bg-info"/></label></td>
+            <FileType type={file.type} path={file.path}/>
+            <Favourited file={file} favourite={props.favourite}/>
+            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+            <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
+            <td>
+                <MobileButtons file={file}/>
+            </td>
+        </tr>)
 }
 
 function Directory(props) {
     let file = props.file;
     return (
-    <tr className="row-settings clickable-row"
+        <tr className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
                 <input name="select" className="select-box" checked={props.isChecked}
-                       type="checkbox"/><em
+                       type="checkbox" onChange={(e) => props.addOrRemoveFile(e, file)}/><em
                 className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
             <Favourited file={file} favourite={props.favourite}/>
@@ -346,7 +361,7 @@ function Directory(props) {
             <td>
                 <MobileButtons file={file}/>
             </td>
-    </tr>)
+        </tr>)
 }
 
 function FileType(props) {
@@ -380,16 +395,16 @@ function MobileButtons(props) {
                         aria-expanded="false"><em className="ion-android-more-vertical"/></button>
                 <ul role="menu" className="dropdown-menu md-dropdown-menu dropdown-menu-right">
                     <li><a className="btn btn-info ripple btn-block"
-                            onClick={Files.sendToAbacus()}> Send to Abacus 2.0</a></li>
+                           onClick={Files.sendToAbacus()}> Send to Abacus 2.0</a></li>
                     <li><a className="btn btn-default ripple btn-block ion-share"
-                            onClick={Files.shareFile(file.path.name, 'file')}> Share file</a></li>
+                           onClick={Files.shareFile(file.path.name, 'file')}> Share file</a></li>
                     <li><a
                         className="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
                     <li><a className="btn btn-default ripple ion-ios-photos"> Move file</a></li>
                     <li><a className="btn btn-default ripple ion-ios-compose"
-                            onClick={Files.renameFile(file.path.name, 'file')}> Rename file</a></li>
+                           onClick={Files.renameFile(file.path.name, 'file')}> Rename file</a></li>
                     <li><a className="btn btn-danger ripple ion-ios-trash"
-                            onClick={Files.showFileDeletionPrompt(file.path)}> Delete file</a></li>
+                           onClick={Files.showFileDeletionPrompt(file.path)}> Delete file</a></li>
                 </ul>
             </div>
         </span>)
