@@ -12,6 +12,7 @@ class Files extends React.Component {
         this.state = {
             files: [],
             loading: false,
+            totalPages: () => Math.ceil(this.state.files.length / this.state.filesPerPage),
             currentPage: 0,
             filesPerPage: 10,
             masterCheckbox: false,
@@ -23,6 +24,9 @@ class Files extends React.Component {
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
         this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
         this.getCurrentFiles = this.getCurrentFiles.bind(this);
+        this.toPage = this.toPage.bind(this);
+        this.previousPage = this.previousPage.bind(this);
+        this.nextPage = this.nextPage.bind(this);
     }
 
     selectOrDeselectAllFiles(event) {
@@ -148,11 +152,22 @@ class Files extends React.Component {
         });
     }
 
+    toPage(n) {
+        this.setState(() => ({currentPage: n}));
+    }
+
     getCurrentFiles() {
         let filesPerPage = this.state.filesPerPage;
         let currentPage = this.state.currentPage;
-        currentPage = 0;
         return this.state.files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
+    }
+
+    nextPage() {
+        this.setState(() => ({currentPage: this.state.currentPage + 1}))
+    }
+
+    previousPage() {
+        this.setState(() => ({currentPage: this.state.currentPage - 1}))
     }
 
     componentWillMount() {
@@ -173,13 +188,41 @@ class Files extends React.Component {
                                         getFavourites={() => this.getFavourites} favourite={() => this.favourite}
                                         prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile}
                                         selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
+
                         </div>
-                        <FilesPerPageSelector filesPerPage={this.state.filesPerPage} handlePageSizeSelection={this.handlePageSizeSelection}/> Files per page
+                        <PaginationButtons
+                            currentPage={this.state.currentPage}
+                            totalPages={this.state.totalPages}
+                            nextPage={this.nextPage}
+                            previousPage={this.previousPage}
+                            toPage={this.toPage}/>
+                        <FilesPerPageSelector filesPerPage={this.state.filesPerPage}
+                                              handlePageSizeSelection={this.handlePageSizeSelection}/> Files per page
                     </div>
                     <ContextBar selectedFiles={this.state.selectedFiles} getFavourites={() => this.getFavourites()}/>
                 </div>
             </section>)
     }
+}
+
+function PaginationButtons(props) {
+    const buttons = [...Array(props.totalPages()).keys()].map(i =>
+        <span key={i}>
+            <button
+                className="paginate_button btn btn-default btn-circle btn-info"
+                disabled={i === props.currentPage}
+                onClick={() => props.toPage(i)}>{i}</button>
+        </span>);
+    return (
+        <div className="text-center">
+            <button className="previous btn-default btn btn-circle" onClick={() => props.previousPage()}
+                    disabled={props.currentPage === 0}>
+                <em className="ion-ios-arrow-left"/></button>
+            {buttons}
+            <button className="paginate_button next btn-default btn btn-circle ion-ios-arrow-right"
+                    onClick={() => props.nextPage()}
+                    disabled={props.currentPage === Math.max(props.totalPages() - 1, 0)}/>
+        </div>)
 }
 
 function FilesPerPageSelector(props) {
