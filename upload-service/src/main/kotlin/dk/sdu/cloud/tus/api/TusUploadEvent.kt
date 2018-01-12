@@ -22,6 +22,7 @@ sealed class TusUploadEvent {
             val zone: String,
             val targetCollection: String,
             val targetName: String,
+            val sensitive: Boolean,
             val doChecksum: Boolean
     ) : TusUploadEvent()
 

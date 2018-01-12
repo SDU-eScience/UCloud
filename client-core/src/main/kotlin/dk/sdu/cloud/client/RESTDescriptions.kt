@@ -47,8 +47,10 @@ abstract class RESTDescriptions(val owner: ServiceDescription) {
             noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
             body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
     ): RESTCallDescription<R, S, E> {
-        val builder = RESTCallDescriptionBuilder<R, S, E>(
+        val builder = RESTCallDescriptionBuilder(
                 requestType = R::class,
+                responseTypeSuccess = S::class,
+                responseTypeFailure = E::class,
                 deserializerSuccess = mapper.readerFor(jacksonTypeRef<S>()),
                 deserializerError = mapper.readerFor(jacksonTypeRef<E>())
         )

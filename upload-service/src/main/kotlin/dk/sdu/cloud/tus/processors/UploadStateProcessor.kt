@@ -33,6 +33,7 @@ class UploadStateProcessor(
                             it[targetCollection] = event.targetCollection
                             it[targetName] = event.targetName
                             it[doChecksum] = event.doChecksum
+                            it[sensitive] = event.sensitive
                         }
 
                         UploadProgress.insert {

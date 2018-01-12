@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.processors
 
-import dk.sdu.cloud.app.api.AppServiceDescription
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.HPCAppEvent
 import dk.sdu.cloud.app.services.*
@@ -10,15 +9,13 @@ import dk.sdu.cloud.app.services.ssh.stat
 import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.storage.ext.PermissionException
-import dk.sdu.cloud.storage.ext.StorageConnection
+import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.ext.irods.IRodsUser
-import dk.sdu.cloud.storage.model.AccessEntry
-import dk.sdu.cloud.storage.model.AccessRight
-import dk.sdu.cloud.storage.model.StoragePath
+import dk.sdu.cloud.tus.api.CreationCommand
+import dk.sdu.cloud.tus.api.TusDescriptions
+import dk.sdu.cloud.tus.api.internal.run
+import dk.sdu.cloud.tus.api.internal.uploader
 import kotlinx.coroutines.experimental.runBlocking
-import org.irods.jargon.core.exception.FileNotFoundException
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.net.URI
@@ -70,90 +67,79 @@ class SlurmProcessor(
                 .filterIsInstance<ApplicationParameter.OutputFile>()
                 .map { it.map(appParameters[it.name]) }
 
-        // TODO YUP WE NEED TO LOGIN WITH THE SERVICE ACCOUNT AND TRANSFER OWNERSHIP HERE
-        val storage: StorageConnection = storageConnectionFactory.createForAccount(
-                "_" + AppServiceDescription.name, cloud.retrieveTokenRefreshIfNeeded()
-        ).capture() ?: return Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
+        return sshPool.use {
+            log.info("Handling Slurm ended event! $key ${event.jobId}")
+            // Transfer output files
+            for (transfer in outputs) {
+                log.debug("Transferring file: $transfer")
+                val workingDirectory = URI(jobWithStatus.workingDirectory)
+                val source = workingDirectory.resolve(transfer.source)
 
-        return try {
-            sshPool.use {
-                log.info("Handling Slurm ended event! $key ${event.jobId}")
-                // Transfer output files
-                for (transfer in outputs) {
-                    log.debug("Transferring file: $transfer")
-                    val workingDirectory = URI(jobWithStatus.workingDirectory)
-                    val source = workingDirectory.resolve(transfer.source)
-
-                    if (!source.path.startsWith(workingDirectory.path)) {
-                        log.warn("File ${transfer.source} did not resolve to be within working directory " +
-                                "($source versus $workingDirectory). Skipping this file")
-                        continue
-                    }
-
-                    // TODO Do we just automatically zip up if the output file is a directory?
-                    log.debug("Looking for file at ${source.path}")
-                    val sourceFile = stat(source.path)
-                    log.debug("Got back: $sourceFile")
-                    if (sourceFile == null) {
-                        log.info("Could not find output file at: ${source.path}. Skipping file")
-                        continue
-                    }
-
-                    if (sourceFile.isDir) {
-                        log.debug("Source file is a directory. Zipping it up")
-                        val zipPath = source.path + ".zip"
-                        val (status, output) = execWithOutputAsText("zip -r " +
-                                BashEscaper.safeBashArgument(zipPath) + " " +
-                                BashEscaper.safeBashArgument(source.path))
-
-                        if (status != 0) {
-                            log.warn("Unable to create zip archive of output!")
-                            log.warn("Path: ${source.path}")
-                            log.warn("Status: $status")
-                            log.warn("Output: $output")
-
-                            return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
-                        }
-
-                        TODO("Handle directory uploads")
-                    } else {
-                        var permissionDenied = false
-                        log.debug("Downloading file from ${source.path}")
-                        scpDownload(source.path) {
-                            try {
-                                val path = StoragePath.fromURI(transfer.destination)
-                                log.debug("Uploading file to path: $path")
-                                storage.files.put(path, it)
-                                val zone = storage.connectedUser.zone
-                                storage.accessControl.updateACL(path, listOf(
-                                        AccessEntry(
-                                                IRodsUser.fromUsernameAndZone(jobWithStatus.jobInfo.owner, zone),
-                                                AccessRight.OWN
-                                        )
-                                ))
-                            } catch (ex: FileNotFoundException) {
-                                log.debug("Permission denied (FileNotFoundException)")
-                                permissionDenied = true
-                            } catch (ex: PermissionException) {
-                                log.debug("Permission denied (PermissionDeniedException)")
-                                permissionDenied = true
-                            }
-                        }
-
-                        if (permissionDenied) return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
-                    }
+                if (!source.path.startsWith(workingDirectory.path)) {
+                    log.warn("File ${transfer.source} did not resolve to be within working directory " +
+                            "($source versus $workingDirectory). Skipping this file")
+                    continue
                 }
 
-                // TODO Crashing after deletion but before we send event will cause a lot of problems. We should split
-                // this into two.
-                log.debug("Deleting job directory")
-                execWithOutputAsText("rm -rf ${safeBashArgument(jobWithStatus.jobDirectory)}")
+                log.debug("Looking for file at ${source.path}")
+                val sourceFile = stat(source.path)
+                log.debug("Got back: $sourceFile")
 
-                log.debug("Successfully completed job")
-                Pair(key, HPCAppEvent.SuccessfullyCompleted(event.jobId))
+                if (sourceFile == null) {
+                    log.info("Could not find output file at: ${source.path}. Skipping file")
+                    continue
+                }
+
+                if (sourceFile.isDir) {
+                    log.debug("Source file is a directory. Zipping it up")
+                    val zipPath = source.path + ".zip"
+                    val (status, output) = execWithOutputAsText("zip -r " +
+                            BashEscaper.safeBashArgument(zipPath) + " " +
+                            BashEscaper.safeBashArgument(source.path))
+
+                    if (status != 0) {
+                        log.warn("Unable to create zip archive of output!")
+                        log.warn("Path: ${source.path}")
+                        log.warn("Status: $status")
+                        log.warn("Output: $output")
+
+                        return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
+                    }
+
+                    TODO("Handle directory uploads")
+                } else {
+                    log.debug("Downloading file from ${source.path}")
+
+                    // TODO Upload here
+                    // TODO Handle permission denied (This should be handled also in creation and not later)
+                    val upload = runBlocking {
+                        TusDescriptions.create.call(CreationCommand(
+                                fileName = null,
+                                owner = null,
+                                location = null,
+                                length = 1,
+                                sensitive = false
+                        ), cloud)
+                    } as? RESTResponse.Ok ?: throw IllegalStateException("Upload failed")
+                    val uploadLocation = upload.response.headers["Location"]!!
+
+
+                    log.debug("Upload target is: $uploadLocation")
+                    // TODO Refactor upload client to allow us to find a suitable target
+
+                    scpDownload(source.path) {
+                        TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud).run()
+                    }
+                }
             }
-        } finally {
-            storage.close()
+
+            // TODO Crashing after deletion but before we send event will cause a lot of problems. We should split
+            // this into two.
+            log.debug("Deleting job directory")
+            execWithOutputAsText("rm -rf ${safeBashArgument(jobWithStatus.jobDirectory)}")
+
+            log.debug("Successfully completed job")
+            Pair(key, HPCAppEvent.SuccessfullyCompleted(event.jobId))
         }
     }
 

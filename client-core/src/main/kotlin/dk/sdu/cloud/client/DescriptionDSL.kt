@@ -11,8 +11,10 @@ import kotlin.reflect.KProperty1
 @DslMarker annotation class RESTCallDSL
 
 @RESTCallDSL
-class RESTCallDescriptionBuilder<R : Any, S, E>(
+class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
         private val requestType: KClass<R>,
+        private val responseTypeSuccess: KClass<S>,
+        private val responseTypeFailure: KClass<E>,
         private val deserializerSuccess: ObjectReader,
         private val deserializerError: ObjectReader
 ) {
@@ -49,6 +51,8 @@ class RESTCallDescriptionBuilder<R : Any, S, E>(
                 body,
                 params,
                 requestType,
+                responseTypeSuccess,
+                responseTypeFailure,
                 shouldProxyFromGateway,
                 deserializerSuccess,
                 deserializerError,

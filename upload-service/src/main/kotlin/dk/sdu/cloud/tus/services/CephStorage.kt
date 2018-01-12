@@ -61,8 +61,7 @@ class RadosUpload(
     suspend fun upload() {
         if (started) throw IllegalStateException("Cannot start upload twice!")
         started = true
-        log.debug("Starting upload...")
-        log.debug("objectID: $objectId, offset: $offset, length: $length")
+        log.info("Starting upload... objectID: $objectId, offset: $offset, length: $length")
 
         // idx points to the current block index - this is based off our initial offset
         var idx = (offset / RadosStorage.BLOCK_SIZE).toInt()
@@ -154,7 +153,7 @@ class RadosUpload(
             log.debug("Using job-index: $freeIndex")
 
             // Start reading data into the free buffer
-            // We have potential resizing here if we start at non-block boundary
+            // We have potential resizing here if we start at non block boundary
             val buffer =
                     if (maxSize == RadosStorage.BLOCK_SIZE) preAllocatedBlocks[freeIndex]!!
                     else ByteArray(maxSize)
@@ -245,6 +244,7 @@ class RadosUpload(
                 }
             }
         }
+        log.info("Upload complete: ${acknowledged.max() ?: -1}.")
     }
 
     companion object {

@@ -35,12 +35,16 @@ class DirectServiceClient(private val registry: ZooKeeper) : CloudContext {
     private val random = Random()
 
     override fun resolveEndpoint(call: PreparedRESTCall<*, *>): String {
-        return findServiceViaCache(call)
+        return resolveEndpoint(call.owner)
+    }
+
+    override fun resolveEndpoint(service: ServiceDescription): String {
+        return findServiceViaCache(service)
     }
 
     override fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean {
         return try {
-            findServiceViaCache(call)
+            findServiceViaCache(call.owner)
             true
         } catch (ex: ConnectException) {
             false
@@ -57,10 +61,10 @@ class DirectServiceClient(private val registry: ZooKeeper) : CloudContext {
         versionCache[serviceName] = versionExpression
     }
 
-    private fun findServiceViaCache(call: PreparedRESTCall<*, *>) =
-            localCache.computeIfAbsent(call.owner.name) {
+    private fun findServiceViaCache(description: ServiceDescription) =
+            localCache.computeIfAbsent(description.name) {
                 runBlocking {
-                    findService(call.owner)
+                    findService(description)
                 }
             }.toString()
 

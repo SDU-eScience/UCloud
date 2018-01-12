@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app
 
-import com.auth0.jwt.interfaces.DecodedJWT
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.AppServiceDescription
@@ -13,7 +12,9 @@ import dk.sdu.cloud.app.processors.StartProcessor
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
+import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaProducerConfiguration
 import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaStreamsConfiguration
@@ -21,15 +22,8 @@ import dk.sdu.cloud.storage.Error
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
-import io.ktor.application.ApplicationCall
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
-import io.ktor.request.ApplicationRequest
-import io.ktor.request.authorization
-import io.ktor.response.respond
+import io.ktor.application.install
 import io.ktor.routing.route
-import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KafkaStreams
@@ -65,9 +59,6 @@ data class HPCConfig(
 
 data class StorageConfiguration(val host: String, val port: Int, val zone: String)
 data class RPCConfiguration(val secretToken: String)
-
-private val jwtKey = AttributeKey<DecodedJWT>("Jwt")
-val ApplicationCall.validatedJwt get() = attributes[jwtKey]
 
 class ApplicationStreamProcessor(
         private val config: HPCConfig,
@@ -116,7 +107,6 @@ class ApplicationStreamProcessor(
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
 
-        val hpcStore = HPCStore(connConfig.service.hostname, connConfig.service.port, config.rpc)
         val streamService = HPCStreamService(streamBuilder, producer)
         val sbatchGenerator = SBatchGenerator()
 
@@ -158,27 +148,14 @@ class ApplicationStreamProcessor(
         log.info("Starting HTTP Server")
         rpcServer = HTTPServer(connConfig.service.hostname, connConfig.service.port)
         rpcServer.start {
+            install(JWTProtection)
+
             route("api") {
                 route("hpc") {
-                    fun ApplicationRequest.bearer(): String? {
-                        val auth = authorization() ?: return null
-                        if (!auth.startsWith("Bearer ")) return null
-                        return auth.substringAfter("Bearer ")
-                    }
-
-                    intercept(ApplicationCallPipeline.Infrastructure) {
-                        val rawToken = call.request.bearer()
-                        val token = rawToken?.let { TokenValidation.validateOrNull(it) } ?:
-                                return@intercept run {
-                                    call.respond(HttpStatusCode.Unauthorized)
-                                    finish()
-                                }
-
-                        call.attributes.put(jwtKey, token)
-                    }
+                    protect()
 
                     AppController(ApplicationDAO).configure(this)
-                    JobController(hpcStore).configure(this)
+                    JobController().configure(this)
                     ToolController(ToolDAO).configure(this)
                 }
             }

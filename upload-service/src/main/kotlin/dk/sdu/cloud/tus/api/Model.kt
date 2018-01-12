@@ -18,3 +18,11 @@ data class TransferState(
         val targetCollection: String,
         val targetName: String
 )
+
+data class CreationCommand(
+        val fileName: String?,
+        val sensitive: Boolean,
+        val owner: String?,
+        val location: String?,
+        val length: Long
+)

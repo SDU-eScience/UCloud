@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusServiceDescription
 import dk.sdu.cloud.tus.api.internal.TusStreams
 import dk.sdu.cloud.tus.http.TusController
@@ -90,21 +91,21 @@ class Server(
                 anyHost()
                 header(HttpHeaders.Authorization)
                 header("Job-Id")
-                header(TusController.TusHeaders.Extension)
-                header(TusController.TusHeaders.MaxSize)
-                header(TusController.TusHeaders.Resumable)
-                header(TusController.TusHeaders.UploadLength)
-                header(TusController.TusHeaders.UploadOffset)
-                header(TusController.TusHeaders.Version)
+                header(TusHeaders.Extension)
+                header(TusHeaders.MaxSize)
+                header(TusHeaders.Resumable)
+                header(TusHeaders.UploadLength)
+                header(TusHeaders.UploadOffset)
+                header(TusHeaders.Version)
                 header("upload-metadata")
 
                 exposeHeader(HttpHeaders.Location)
-                exposeHeader(TusController.TusHeaders.Extension)
-                exposeHeader(TusController.TusHeaders.MaxSize)
-                exposeHeader(TusController.TusHeaders.Resumable)
-                exposeHeader(TusController.TusHeaders.UploadLength)
-                exposeHeader(TusController.TusHeaders.UploadOffset)
-                exposeHeader(TusController.TusHeaders.Version)
+                exposeHeader(TusHeaders.Extension)
+                exposeHeader(TusHeaders.MaxSize)
+                exposeHeader(TusHeaders.Resumable)
+                exposeHeader(TusHeaders.UploadLength)
+                exposeHeader(TusHeaders.UploadOffset)
+                exposeHeader(TusHeaders.Version)
 
                 method(HttpMethod.Patch)
                 method(HttpMethod.Options)

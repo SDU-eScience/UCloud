@@ -42,6 +42,8 @@ repositories {
         }
     }
 
+    maven { url "https://dl.bintray.com/tus/maven" }
+
     // Repositories required for iRODS to work
     maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
     maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
@@ -85,6 +87,9 @@ dependencies {
     compile 'dk.sdu.cloud:client-core:0.1.0-SNAPSHOT'
     compile 'dk.sdu.cloud:service-common:0.5.0-SNAPSHOT'
     compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
+
+    // Tus
+    compile "dk.sdu.cloud:tus-api-internal:1.0.0-SNAPSHOT"
 
     compile 'org.jetbrains.exposed:exposed:0.9.1'
     compile group: 'com.h2database', name: 'h2', version: '1.4.196'
