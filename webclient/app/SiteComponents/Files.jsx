@@ -18,7 +18,6 @@ class Files extends React.Component {
             masterCheckbox: false,
             currentPath: currentPath,
             selectedFiles: [],
-            currentRights: () => Files.getCurrentRights(this.state.files),
         };
         this.getFiles = this.getFiles.bind(this);
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
@@ -243,8 +242,8 @@ function ContextBar(props) {
                 <div className="center-block text-center">
                     <Button className="btn btn-link btn-lg" onClick={() => props.getFavourites()}><i
                         className="icon ion-star"/></Button>
-                    <Link className="btn btn-link btn-lg" to={`files?path=/home/${Cloud.username}`}><i
-                        className="icon ion-ios-home"/></Link>
+                    <Button className="btn btn-link btn-lg"><Link to={`files?path=/home/${Cloud.username}`}><i
+                        className="icon ion-ios-home"/></Link></Button>
                 </div>
                 <hr/>
                 <button className="btn btn-primary ripple btn-block ion-android-upload"
