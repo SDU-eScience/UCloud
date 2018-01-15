@@ -59,20 +59,20 @@
     // Bootstrap Filestyle
     import '../node_modules/bootstrap-filestyle/src/bootstrap-filestyle.js';
     // Flot charts
-    import '../node_modules/flot/jquery.flot.js';
+    /*import '../node_modules/flot/jquery.flot.js';
     import '../node_modules/flot/jquery.flot.categories.js';
     import '../node_modules/jquery.flot.spline/jquery.flot.spline.js';
     import '../node_modules/jquery.flot.tooltip/js/jquery.flot.tooltip.js';
     import '../node_modules/flot/jquery.flot.resize.js';
     import '../node_modules/flot/jquery.flot.pie.js';
     import '../node_modules/flot/jquery.flot.time.js';
-    import '../node_modules/sidebysideimproved/jquery.flot.orderBars.js';
+    import '../node_modules/sidebysideimproved/jquery.flot.orderBars.js';*/
     // Rickshaw
     window.Rickshaw = require('../node_modules/rickshaw/rickshaw.js');
     // jVector Maps
-    import '../node_modules/ika.jvectormap/jquery-jvectormap-1.2.2.min.js';
+    /*import '../node_modules/ika.jvectormap/jquery-jvectormap-1.2.2.min.js';
     import '../node_modules/ika.jvectormap/jquery-jvectormap-us-mill-en.js';
-    import '../node_modules/ika.jvectormap/jquery-jvectormap-world-mill-en.js';
+    import '../node_modules/ika.jvectormap/jquery-jvectormap-world-mill-en.js';*/
     // Easypie Charts
     import '../node_modules/easy-pie-chart/dist/jquery.easypiechart.js';
     // Images Loaded
@@ -114,7 +114,7 @@
     // Datatables
     $.fn.dataTable = require('../node_modules/datatables/media/js/jquery.dataTables.js')( window, $ );
     // Nestable
-    import '../node_modules/nestable/jquery.nestable.js';
+    //import '../node_modules/nestable/jquery.nestable.js';
     // Sweet Alert (global access for other scripts)
     window.swal = require('../node_modules/sweetalert/dist/sweetalert.min.js');
     // Images Loaded

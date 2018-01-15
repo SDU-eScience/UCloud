@@ -5,7 +5,7 @@ var commonConfig = require('./webpack.common.js');
 var path = require('path');
 
 module.exports = webpackMerge(commonConfig, {
-    devtool: '#cheap-module-eval-source-map',
+    devtool: '#source-map',
 
     entry: {
         dev: [
@@ -30,6 +30,9 @@ module.exports = webpackMerge(commonConfig, {
         stats: 'minimal',
         inline: true,
         hot: true,
+        headers: {
+            'Access-Control-Allow-Origin': '*'
+        },
         proxy: [{
             context: ["/auth/login", "/auth/login-redirect", "/api", "/auth/css/", "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png"],
             target: "https://cloud.sdu.dk",

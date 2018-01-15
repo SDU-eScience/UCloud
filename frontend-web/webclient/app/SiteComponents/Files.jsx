@@ -4,6 +4,39 @@ import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button} from 'react-bootstrap';
 import {buildBreadCrumbs, sortFiles} from '../UtilityFunctions'
+import Uppy from "uppy";
+import {DashboardModal} from "uppy/lib/react"
+import $ from "jquery";
+
+// NOTE(Dan): Sorry
+let tusConfig = {
+    endpoint: "https://cloud.sdu.dk/api/tus",
+    headers: {}
+};
+
+const uppy = Uppy.Core({
+    autoProceed: false,
+    debug: true,
+    meta: {
+        sensitive: false,
+    },
+    onBeforeUpload: (files) => {
+        console.log("Running this shit");
+        return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
+            tusConfig.headers["Authorization"] = "Bearer " + data;
+            console.log(tusConfig);
+        }).promise();
+    }
+});
+/*
+Object.defineProperty(tusConfig.headers, "Authorization", {
+    get: () => `Bearer ${Cloud.receiveAccessTokenOrRefreshIt()}`
+});
+*/
+uppy.use(Uppy.Tus, tusConfig);
+
+console.log(tusConfig.headers.Authorization);
+uppy.run();
 
 class Files extends React.Component {
     constructor(props) {
@@ -18,6 +51,7 @@ class Files extends React.Component {
             masterCheckbox: false,
             currentPath: currentPath,
             selectedFiles: [],
+            uploadFileOpen: false,
         };
         this.getFiles = this.getFiles.bind(this);
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
@@ -27,6 +61,20 @@ class Files extends React.Component {
         this.toPage = this.toPage.bind(this);
         this.previousPage = this.previousPage.bind(this);
         this.nextPage = this.nextPage.bind(this);
+        this.handleClose = this.handleClose.bind(this);
+        this.handleOpen = this.handleOpen.bind(this);
+    }
+
+    handleOpen() {
+        this.setState(() => ({
+            uploadFileOpen: true,
+        }));
+    }
+
+    handleClose() {
+        this.setState(() => ({
+            uploadFileOpen: false,
+        }));
     }
 
     selectOrDeselectAllFiles(event) {
@@ -57,7 +105,7 @@ class Files extends React.Component {
     }
 
     static uploadFile() {
-        // console.log("Upload file TODO!")
+
     }
 
     static renameFile() {
@@ -186,8 +234,11 @@ class Files extends React.Component {
                         page
                     </div>
                     <ContextBar selectedFiles={this.state.selectedFiles}
-                                getFavourites={() => this.getFavourites()}/>
+                                getFavourites={() => this.getFavourites()}
+                                onClick={this.handleOpen}/>
                 </div>
+                <DashboardModal uppy={uppy} open={this.state.uploadFileOpen} closeModalOnClickOutside
+                                onRequestClose={this.handleClose}/>
             </section>)
     }
 }
@@ -233,8 +284,8 @@ function ContextBar(props) {
                         className="icon ion-ios-home"/></Link></Button>
                 </div>
                 <hr/>
-                <button className="btn btn-primary ripple btn-block ion-android-upload"
-                        onClick={Files.uploadFile}> Upload
+                <button className="btn btn-primary ripple btn-block ion-android-upload" id={"uppy"}
+                        onClick={props.onClick}> Upload
                     Files
                 </button>
                 <br/>
