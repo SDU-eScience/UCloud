@@ -45,17 +45,23 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
                 HttpClient.get(url) {
                     context.apply { configureCall() }
                     configure()
+
+                    log.debug("Making call: $url: ${this}")
                 }
             } catch (ex: ConnectException) {
+                log.debug("ConnectException: ${ex.message}")
                 val shouldRetry = context.parent.tryReconfigurationOnConnectException(this, ex)
                 if (shouldRetry) {
+                    log.debug("Retrying")
                     continue
                 } else {
+                    log.debug("Exiting")
                     throw ex
                 }
             }
 
-            return if (resp.statusCode in 200..299) {
+            log.debug("Retrieved the following HTTP response: $resp")
+            val result: RESTResponse<T, E> = if (resp.statusCode in 200..299) {
                 val result = try {
                     deserializeSuccess(resp)
                 } catch (ex: Exception) {
@@ -81,6 +87,8 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
 
                 RESTResponse.Err(resp, error)
             }
+            log.debug("Call result: $result")
+            return result
         }
     }
 }

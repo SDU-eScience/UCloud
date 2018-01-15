@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaRequest
@@ -33,6 +34,7 @@ sealed class HPCAppEvent {
      * The request has been handled by Slurm. See sub-classes for outcome.
      */
     abstract class Ended : HPCAppEvent() {
+        @get:JsonIgnore
         abstract val success: Boolean
     }
 

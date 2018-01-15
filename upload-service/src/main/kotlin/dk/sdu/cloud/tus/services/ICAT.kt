@@ -1,6 +1,7 @@
 package dk.sdu.cloud.tus.services
 
 import dk.sdu.cloud.tus.ICatDatabaseConfig
+import org.slf4j.LoggerFactory
 import java.sql.Connection
 import java.sql.DriverManager
 
@@ -44,6 +45,8 @@ class ICATConnection(connection: Connection) : Connection by connection {
     }
 
     fun findAccessRightForUserInCollection(user: String, zone: String, path: String): ICATAccessEntry? {
+        val actualPath = path.removeSuffix("/")
+        log.debug("findAccessRightForUserInCollection($user, $zone, $actualPath)")
         val query = """
             SELECT object_id, user_id, access_type_id, create_ts, modify_ts
             FROM r_objt_access
@@ -54,7 +57,7 @@ class ICATConnection(connection: Connection) : Connection by connection {
 
         val results = ArrayList<ICATAccessEntry>()
         val rs = prepareStatement(query).apply {
-            setString(1, path)
+            setString(1, actualPath)
             setString(2, user)
             setString(3, zone)
         }.executeQuery()
@@ -69,7 +72,7 @@ class ICATConnection(connection: Connection) : Connection by connection {
             ))
         }
 
-        return results.singleOrNull()
+        return results.singleOrNull().also { log.debug("findAccessRightForUserInCollection($user, $zone, $actualPath) = $it") }
     }
 
     fun registerAccessEntry(entry: ICATAccessEntry) {
@@ -185,6 +188,10 @@ class ICATConnection(connection: Connection) : Connection by connection {
     }
 
     fun convertTimestampToICAT(unixMs: Long) = (unixMs / 1000).toString().padStart(11, '0')
+
+    companion object {
+        private val log = LoggerFactory.getLogger(ICAT::class.java)
+    }
 }
 
 data class ICATCollection(val collectionId: Long, val parent: String, val name: String, val owner: String,

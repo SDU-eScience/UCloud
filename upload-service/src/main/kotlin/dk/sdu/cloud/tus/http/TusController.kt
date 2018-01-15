@@ -26,6 +26,7 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.*
+import io.ktor.util.flattenEntries
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
@@ -69,7 +70,8 @@ class TusController(
 
                 head {
                     val id = call.parameters["id"] ?: return@head call.respond(HttpStatusCode.BadRequest)
-                    val summary = transferState.retrieveSummary(id, call.request.validatedPrincipal.subject) ?:
+                    val ownerParamForState = if (call.isPrivileged) null else call.request.validatedPrincipal.subject
+                    val summary = transferState.retrieveSummary(id, ownerParamForState) ?:
                             return@head call.respond(HttpStatusCode.NotFound)
 
                     // Disable cache
@@ -98,14 +100,11 @@ class TusController(
             }
 
             post {
-                log.info("Received request to create upload: ${call.request.headers}")
+                log.info("Received request to create upload: ${call.request.headers.flattenEntries()}")
                 if (!protect()) return@post
 
                 val principal = call.request.validatedPrincipal
-                val isPrivileged = run {
-                    val principalRole = call.request.principalRole
-                    principalRole == Role.SERVICE || principalRole == Role.ADMIN
-                }
+                val isPrivileged = call.isPrivileged
 
                 val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?: return@post run {
                     log.debug("Missing upload length")
@@ -153,7 +152,7 @@ class TusController(
                 }
 
                 if (!canWrite) {
-                    log.debug("User is not authorized to create file at this location")
+                    log.debug("User ($owner) is not authorized to create file at this location ($location)")
                     call.respond(HttpStatusCode.Unauthorized)
                     return@post
                 }
@@ -190,6 +189,12 @@ class TusController(
         }
     }
 
+    private val ApplicationCall.isPrivileged: Boolean
+        get() {
+            val principalRole = request.principalRole
+            return principalRole == Role.SERVICE || principalRole == Role.ADMIN
+        }
+
     private suspend fun PipelineContext<Unit, ApplicationCall>.upload() {
         log.debug("Handling incoming upload request")
         // Check and retrieve transfer state
@@ -198,7 +203,8 @@ class TusController(
             call.respond(HttpStatusCode.BadRequest)
         }
 
-        val state = transferState.retrieveState(id, call.request.validatedPrincipal.subject) ?: return run {
+        val ownerParamForState = if (call.isPrivileged) null else call.request.validatedPrincipal.subject
+        val state = transferState.retrieveState(id, ownerParamForState) ?: return run {
             log.debug("Missing upload state for transfer with id: $id")
             call.respond(HttpStatusCode.NotFound)
         }

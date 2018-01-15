@@ -7,6 +7,7 @@ import dk.sdu.cloud.client.prepare
 import dk.sdu.cloud.service.TokenValidation
 import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.BoundRequestBuilder
+import org.slf4j.LoggerFactory
 import java.net.ConnectException
 
 class RefreshingJWTAuthenticator(
@@ -18,10 +19,13 @@ class RefreshingJWTAuthenticator(
     private val refreshAuthenticator = RefreshTokenAuthenticator(parent, refreshToken)
 
     fun retrieveTokenRefreshIfNeeded(): String {
+        log.debug("retrieveTokenRefreshIfNeeded()")
         val tempToken = currentAccessToken
         return if (TokenValidation.validateOrNull(tempToken) == null) {
+            log.debug("Refreshing token")
             refresh()
         } else {
+            log.debug("Using currentToken: $tempToken")
             tempToken
         }
     }
@@ -35,13 +39,16 @@ class RefreshingJWTAuthenticator(
         // The initial check is done without locking. This way multiple threads might decide that a refresh is needed.
         // Because of this we check once we acquire the lock to see if someone had already done the token refresh.
         // It is _a lot_ cheaper to do the check than to refresh again, also avoids some load on the auth service.
+        log.debug("Entering refresh() - Awaiting lock")
         synchronized(lock) {
             if (TokenValidation.validateOrNull(currentAccessToken) == null) {
+                log.info("Need to refresh token")
                 val prepared = AuthDescriptions.refresh.prepare()
                 val result = runBlocking {
                     prepared.call(refreshAuthenticator)
                 }
 
+                log.info("Refresh token result: $result")
                 if (result is RESTResponse.Ok) {
                     currentAccessToken = result.result.accessToken
                     return currentAccessToken
@@ -50,8 +57,13 @@ class RefreshingJWTAuthenticator(
                             "to refresh access token")
                 }
             }
+            log.debug("Token already refreshed")
             return currentAccessToken
         }
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(RefreshingJWTAuthenticator::class.java)
     }
 }
 

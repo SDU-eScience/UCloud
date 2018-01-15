@@ -6,6 +6,7 @@ import dk.sdu.cloud.client.PreparedRESTCall
 import org.apache.zookeeper.ZooKeeper
 import dk.sdu.cloud.client.ServiceDescription
 import kotlinx.coroutines.experimental.runBlocking
+import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.net.URL
 import java.util.*
@@ -66,9 +67,12 @@ class DirectServiceClient(private val registry: ZooKeeper) : CloudContext {
                 runBlocking {
                     findService(description)
                 }
-            }.toString()
+            }.toString().also {
+                log.debug("findServiceCache($description) = $it")
+            }
 
     private suspend fun findService(service: ServiceDescription): URL {
+        log.debug("Locating service: $service")
         val versionExpression = versionCache.computeIfAbsent(service.name) {
             val parsed = Version.valueOf(service.version)
             "^${parsed.majorVersion}.${parsed.minorVersion}.${parsed.patchVersion}"
@@ -81,7 +85,13 @@ class DirectServiceClient(private val registry: ZooKeeper) : CloudContext {
                 ?.takeIf { it.isNotEmpty() }
                 ?: throw ConnectException("No services available")
 
+        log.debug("Found the following service: $services")
         val resolvedService = services[random.nextInt(services.size)]
+        log.debug("Using $resolvedService")
         return URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}")
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(DirectServiceClient::class.java)
     }
 }
