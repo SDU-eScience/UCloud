@@ -1,6 +1,7 @@
 import React from 'react';
-import {getMockApp} from '../../MockObjects'
-import FileSelector from '../FileSelector'
+import {getMockApp} from '../../MockObjects';
+import FileSelector from '../FileSelector';
+import { Cloud } from "../../../authentication/SDUCloudObject";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -9,9 +10,13 @@ class RunApp extends React.Component {
             loading: false,
             appName: props.params.appName,
             appVersion: props.params.appVersion,
-            app: null,
+            appDescription: "",
+            appAuthor: "",
+            parameters: null,
+            parameterValues: {},
         };
         this.handleSubmit = this.handleSubmit.bind(this);
+        this.handleInputChange = this.handleInputChange.bind(this);
         this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
     }
 
@@ -20,38 +25,71 @@ class RunApp extends React.Component {
     }
 
     handleSubmit(event) {
-        console.log("Submitted");
+        let job = {
+            application: {
+                name: this.state.appName,
+                version: this.state.appVersion,
+            },
+            parameters: this.state.parameterValues,
+            type: "start",
+        };
+        Cloud.post("/hpc/jobs", job);
         event.preventDefault();
     }
 
     handleInputChange(parameterName, event) {
-        let app = this.state.app;
-        app.parameters[parameterName].value = event.target.value;
+        let value = event.target.value;
+        let parameterDescription = this.state.parameters.find((e) => e.name === parameterName);
+        let parameterType = parameterDescription.type;
         this.setState(() => {
-            app: app
+            let result = {
+                parameterValues: Object.assign({}, this.state.parameterValues),
+            };
+            result.parameterValues[parameterName] = value;
+
+            if (parameterType === "integer") {
+                result.parameterValues[parameterName] = parseInt(result.parameterValues[parameterName]);
+            } else if (parameterType === "float") {
+                result.parameterValues[parameterName] = parseFloat(result.parameterValues[parameterName]);
+            }
+            // TODO Deal with this correctly FIXME
+            return result;
         });
         event.preventDefault();
     }
 
-    handleFileSelectorChange(file, parameterName, isSource) {
-        let app = this.state.app;
-        let sourceOrDestination = isSource ? "source" : "destination";
-        app.parameters[parameterName][sourceOrDestination] = file;
-        this.setState(() => ({
-            app: app,
-        }));
-        console.log(app);
+    handleFileSelectorChange(file, parameter) {
+        this.setState(() => {
+            let result = {
+                parameterValues: Object.assign({}, this.state.parameterValues),
+            };
+            console.log(result);
+            console.log(result.parameterValues);
+            console.log(parameter);
+            console.log(parameter.name);
+            result.parameterValues[parameter.name] = {
+                source: file.path.uri,
+                destination: file.path.name // TODO Should allow for custom name at destination
+            };
+            console.log(result);
+            return result;
+        });
     }
 
     getApplication() {
-        this.setState({
+        this.setState(() => ({
             loading: true
-        });
+        }));
         // FIXME ACTUAL APPLICATION
         {
             let app = getMockApp(this.state.appName, this.state.appVersion);
-            this.setState({app: app});
-            this.setState({loading: false});
+            console.log(app);
+            this.setState(() => ({
+                parameters: app.parameters,
+                appAuthor: app.info.author,
+                appDescription: app.info.description,
+                loading: false,
+            }));
         }
         // FIXME END
     }
@@ -63,9 +101,10 @@ class RunApp extends React.Component {
                 <div className="container-fluid">
                     <div className="card">
                         <div className="card-body">
-                            <ApplicationHeader app={this.state.app}/>
+                            <ApplicationHeader name={this.state.appName} version={this.state.appVersion}
+                                               description={this.state.appDescription} author={this.state.appAuthor}/>
                             <hr/>
-                            <Parameters app={this.state.app} handleSubmit={this.handleSubmit}
+                            <Parameters parameters={this.state.parameters} handleSubmit={this.handleSubmit}
                                         onChange={this.handleInputChange}
                                         onFileSelectionChange={this.handleFileSelectorChange}/>
                         </div>
@@ -76,26 +115,27 @@ class RunApp extends React.Component {
 }
 
 function ApplicationHeader(props) {
-    if (!props.app) {
+    if (!props.description) {
         return null
     }
     return (
         <div>
-            <h1>{props.app.info.name}</h1>
-            <h3>{props.app.info.description}</h3>
-            <h4>Author: {props.app.info.author}</h4>
+            <h1>{props.name}</h1>
+            <h3>{props.description}</h3>
+            <h4>Author: {props.author}</h4>
         </div>)
 }
 
 
 function Parameters(props) {
-    if (!props.app) {
+    if (!props.parameters) {
         return null
     }
-    let parameters = props.app.parameters.slice();
+    let parameters = props.parameters.slice();
     let i = 0;
     let parametersList = parameters.map(parameter =>
-        <Parameter key={i++} parameter={parameter} onChange={props.onChange} onFileSelectionChange={props.onFileSelectionChange}/>
+        <Parameter key={i++} parameter={parameter} onChange={props.onChange}
+                   onFileSelectionChange={props.onFileSelectionChange}/>
     );
     return (
         <form onSubmit={props.handleSubmit} className="form-horizontal">
@@ -110,15 +150,16 @@ function Parameters(props) {
 function Parameter(props) {
     let parameter;
     if (props.parameter.type === "input_file") {
-        parameter = (<InputFileParameter onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}/>);
+        parameter = (
+            <InputFileParameter onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}/>);
     } else if (props.parameter.type === "output_file") {
         parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
-        parameter = (<IntegerParameter parameter={props.parameter}/>);
+        parameter = (<IntegerParameter onChange={props.onChange} parameter={props.parameter}/>);
     } else if (props.parameter.type === "float") {
-        parameter = (<FloatParameter parameter={props.parameter}/>);
+        parameter = (<FloatParameter onChange={props.onChange} parameter={props.parameter}/>);
     } else if (props.parameter.type === "text") {
-        parameter = (<TextParameter parameter={props.parameter}/>);
+        parameter = (<TextParameter onChange={props.onChange} parameter={props.parameter}/>);
     }
 
     return (
@@ -132,7 +173,8 @@ function InputFileParameter(props) {
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
-                <FileSelector onFileSelectionChange={props.onFileSelectionChange}/>
+                <FileSelector onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}
+                              isSource={true}/>
                 <span><em/></span>
                 <span className="help-block">Source of the file</span>
                 <input
@@ -170,7 +212,7 @@ function TextParameter(props) {
                        required={!props.parameter.isOptional}
                        name="parameter.name"
                        className="form-control"
-                       type="text"/>
+                       type="text" onChange={e => props.onChange(props.parameter.name, e)}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>
@@ -188,7 +230,7 @@ function IntegerParameter(props) {
                        required={!props.parameter.isOptional} name={props.parameter.name}
                        className="form-control"
                        type="number"
-                       step="1"/>
+                       step="1" onChange={e => props.onChange(props.parameter.name, e)}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>);
@@ -205,7 +247,7 @@ function FloatParameter(props) {
                        required={!props.parameter.isOptional} name={props.parameter.name}
                        className="form-control"
                        type="number"
-                       step="any"/>
+                       step="any" onChange={e => props.onChange(props.parameter.name, e)}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>

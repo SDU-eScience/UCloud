@@ -8,9 +8,9 @@ class FileSelector extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            parameterName: "",
-            isSource: false,
+            parameter: props.parameter,
             selectedFile: {},
+            isSource: props.isSource,
             currentPath: `/home/${Cloud.username}`,
             loading: false,
             files: [],
@@ -45,7 +45,7 @@ class FileSelector extends React.Component {
             selectedFile: file,
             modalShown: false,
         }));
-        this.state.onFileSelectionChange(file);
+        this.state.onFileSelectionChange(file, this.state.parameter, this.state.isSource);
     }
 
     getFiles(path) {
@@ -106,7 +106,7 @@ function FileSelectorBody(props) {
         <Modal.Body>
             <div className="pre-scrollable">
                 {noFiles}
-                <table className="table-datatable table table-striped table-hover mv-lg">
+                <table className="table-datatable table table-striped table-hover">
                     <thead>
                     <tr>
                         <th>Filename</th>
