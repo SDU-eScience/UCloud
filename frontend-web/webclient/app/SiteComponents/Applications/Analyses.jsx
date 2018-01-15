@@ -3,6 +3,7 @@ import React from 'react';
 import LoadingIcon from '../LoadingIcon'
 import {WebSocketSupport} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
+import { Cloud} from "../../../authentication/SDUCloudObject";
 
 class Analyses extends React.Component {
     constructor(props) {
@@ -24,10 +25,7 @@ class Analyses extends React.Component {
         this.setState({
             loading: true
         });
-        $.getJSON("/api/getAnalyses").then(analyses => {
-            analyses.forEach(it => {
-                it.jobId = Math.floor(Math.random() * 100000) + '-' + Math.floor(Math.random() * 100000) + '-' + Math.floor(Math.random() * 100000)
-            });
+        Cloud.get("/hpc/app").then(analyses => {
             analyses.sort((a, b) => {
                 return a.name.localeCompare(b.name);
             });

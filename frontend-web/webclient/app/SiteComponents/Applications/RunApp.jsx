@@ -25,16 +25,28 @@ class RunApp extends React.Component {
     }
 
     handleSubmit(event) {
+        event.preventDefault();
+
         let job = {
             application: {
                 name: this.state.appName,
                 version: this.state.appVersion,
             },
-            parameters: this.state.parameterValues,
+            parameters: Object.assign({}, this.state.parameterValues),
             type: "start",
         };
+
+        // FIXME HACK
+        let name = this.state.parameters.find(par => par.type === "input_file").name;
+        let dummyFile = this.state.parameterValues[name];
+        this.state.parameters.forEach( par => {
+            if (par.type === "output_file") {
+                job.parameters[par.name] = { destination: dummyFile.destination, source: dummyFile.destination };
+            }
+        });
+        // FIXME HACK END
+
         Cloud.post("/hpc/jobs", job);
-        event.preventDefault();
     }
 
     handleInputChange(parameterName, event) {
@@ -45,6 +57,7 @@ class RunApp extends React.Component {
             let result = {
                 parameterValues: Object.assign({}, this.state.parameterValues),
             };
+
             result.parameterValues[parameterName] = value;
 
             if (parameterType === "integer") {
@@ -63,15 +76,10 @@ class RunApp extends React.Component {
             let result = {
                 parameterValues: Object.assign({}, this.state.parameterValues),
             };
-            console.log(result);
-            console.log(result.parameterValues);
-            console.log(parameter);
-            console.log(parameter.name);
             result.parameterValues[parameter.name] = {
                 source: file.path.uri,
                 destination: file.path.name // TODO Should allow for custom name at destination
             };
-            console.log(result);
             return result;
         });
     }
@@ -80,18 +88,16 @@ class RunApp extends React.Component {
         this.setState(() => ({
             loading: true
         }));
-        // FIXME ACTUAL APPLICATION
-        {
-            let app = getMockApp(this.state.appName, this.state.appVersion);
-            console.log(app);
+
+        this.setState({loading: true});
+        Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}`).then(app => {
             this.setState(() => ({
                 parameters: app.parameters,
-                appAuthor: app.info.author,
+                appAuthor: "Dummy",
                 appDescription: app.info.description,
                 loading: false,
             }));
-        }
-        // FIXME END
+        });
     }
 
 

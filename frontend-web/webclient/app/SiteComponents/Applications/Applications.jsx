@@ -6,6 +6,7 @@ import {Link} from 'react-router'
 import {Table} from 'react-bootstrap';
 import {Card, CardHeading} from "../Cards";
 import pubsub from "pubsub-js";
+import {Cloud} from "../../../authentication/SDUCloudObject";
 
 class Applications extends React.Component {
     constructor(props) {
@@ -22,15 +23,13 @@ class Applications extends React.Component {
     }
 
     getApplications() {
-        this.setState({ loading: true });
-        // FIXME: Get apps from DB
-        {
+        this.setState({loading: true});
+        Cloud.get("/hpc/apps").then(apps => {
             this.setState({
                 applications: apps,
+                loading: false
             });
-            this.setState({ loading: false });
-        }
-        // FIXME END
+        });
     }
 
     render() {
@@ -76,7 +75,7 @@ function ApplicationsList(props) {
     );
     return (
         <tbody>
-            {applicationsList}
+        {applicationsList}
         </tbody>)
 }
 
