@@ -240,8 +240,8 @@ function ContextBar(props) {
         <div className="col-lg-2 visible-lg">
             <div>
                 <div className="center-block text-center">
-                    <Button className="btn btn-link btn-lg" onClick={() => props.getFavourites()}><i
-                        className="icon ion-star"/></Button>
+                    <Button className="btn btn-link btn-lg" onClick={() => props.getFavourites()}><a><i
+                        className="icon ion-star"/></a></Button>
                     <Button className="btn btn-link btn-lg"><Link to={`files?path=/home/${Cloud.username}`}><i
                         className="icon ion-ios-home"/></Link></Button>
                 </div>
