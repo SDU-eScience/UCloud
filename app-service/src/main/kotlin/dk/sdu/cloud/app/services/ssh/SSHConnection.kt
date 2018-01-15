@@ -3,9 +3,16 @@ package dk.sdu.cloud.app.services.ssh
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.Session
+import java.io.File
 
-data class SimpleSSHConfig(val server: String, val port: Int, val keyName: String, val user: String,
-                           val keyPassword: String)
+data class SimpleSSHConfig(
+        val server: String,
+        val port: Int,
+        val keyName: String,
+        val user: String,
+        val keyPassword: String,
+        val keyHome: String = System.getProperty("user.home") + File.separator + ".ssh"
+)
 
 class SSHConnection(val session: Session) {
     fun openExecChannel(): ChannelExec = session.openChannel("exec") as ChannelExec

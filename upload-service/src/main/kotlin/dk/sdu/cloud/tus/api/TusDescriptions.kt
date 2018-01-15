@@ -8,6 +8,7 @@ import io.tus.java.client.TusClient
 import io.tus.java.client.TusURLMemoryStore
 import io.tus.java.client.TusUpload
 import io.tus.java.client.TusUploader
+import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.net.URL
 import java.util.*
@@ -34,7 +35,7 @@ object TusDescriptions : RESTDescriptions(TusServiceDescription) {
 
                 val encoder = Base64.getEncoder()
                 val encodedMetadata = metadata.map {
-                    "${it.key} ${encoder.encode(it.value.toByteArray())}"
+                    "${it.key} ${String(encoder.encode(it.value.toByteArray()))}"
                 }.joinToString(",")
                 addHeader(TusHeaders.UploadMetadata, encodedMetadata)
             },
@@ -70,6 +71,7 @@ object TusDescriptions : RESTDescriptions(TusServiceDescription) {
             cloud: CloudContext,
             token: String
     ): TusUploader {
+        log.debug("Creating uploader: $inputStream, $location, $payloadSizeMax32Bits, $cloud, $token")
         val endpoint = cloud.resolveEndpoint(owner)
         val store = TusURLMemoryStore()
         val client = TusClient().apply {
@@ -83,6 +85,8 @@ object TusDescriptions : RESTDescriptions(TusServiceDescription) {
             metadata = emptyMap()
         }
 
+        log.debug("Using $endpoint")
+
         store[upload.fingerprint] = URL(endpoint + location)
 
         val uploader = client.resumeUpload(upload)
@@ -90,4 +94,6 @@ object TusDescriptions : RESTDescriptions(TusServiceDescription) {
         uploader.requestPayloadSize = payloadSizeMax32Bits // The tus java client really has problems. Limit is stupid
         return uploader
     }
+
+    private val log = LoggerFactory.getLogger(TusDescriptions::class.java)
 }

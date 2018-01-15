@@ -13,6 +13,7 @@ import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.Topology
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
@@ -73,7 +74,10 @@ fun main(args: Array<String>) {
 
     val kafka = run {
         log.info("Connecting to Kafka")
-        val streamsConfig = KafkaUtil.retrieveKafkaStreamsConfiguration(configuration.connConfig)
+        val streamsConfig = KafkaUtil.retrieveKafkaStreamsConfiguration(configuration.connConfig).apply {
+            this[StreamsConfig.STATE_DIR_CONFIG] = File("kafka-streams").absolutePath
+        }
+
         val producer = run {
             val kafkaProducerConfig = KafkaUtil.retrieveKafkaProducerConfiguration(configuration.connConfig)
             KafkaProducer<String, String>(kafkaProducerConfig)

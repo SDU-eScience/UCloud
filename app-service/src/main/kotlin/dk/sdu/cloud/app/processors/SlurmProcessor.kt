@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.processors
 
+import dk.sdu.cloud.app.StorageConfiguration
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.HPCAppEvent
 import dk.sdu.cloud.app.services.*
@@ -10,10 +11,9 @@ import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.tus.api.CreationCommand
 import dk.sdu.cloud.tus.api.TusDescriptions
-import dk.sdu.cloud.tus.api.internal.run
+import dk.sdu.cloud.tus.api.internal.start
 import dk.sdu.cloud.tus.api.internal.uploader
 import kotlinx.coroutines.experimental.runBlocking
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -26,14 +26,10 @@ import java.net.URI
 class SlurmProcessor(
         private val cloud: RefreshingJWTAuthenticator,
         private val sshPool: SSHConnectionPool,
-        private val storageConnectionFactory: StorageConnectionFactory,
+        private val irodsConfig: StorageConfiguration,
         private val slurmAgent: SlurmPollAgent,
         private val streamService: HPCStreamService
 ) {
-    companion object {
-        private val log = LoggerFactory.getLogger(SlurmProcessor::class.java)
-    }
-
     // Handles an event captured by te internal SlurmPollAgent and handles it. This will output
     // an event into Kafka once the entire thing has been handled. From this we create a Kafka event.
     private suspend fun handle(event: SlurmEvent): Pair<String, HPCAppEvent> =
@@ -111,14 +107,14 @@ class SlurmProcessor(
                     log.debug("Downloading file from ${source.path}")
 
                     // TODO Upload here
-                    // TODO Handle permission denied (This should be handled also in creation and not later)
                     val upload = runBlocking {
+                        val owner = jobWithStatus.jobInfo.owner
                         TusDescriptions.create.call(CreationCommand(
-                                fileName = null,
-                                owner = null,
-                                location = null,
-                                length = 1,
-                                sensitive = false
+                                fileName = jobWithStatus.jobInfo.jobId + "-" + transfer.source,
+                                owner = owner,
+                                location = "/${irodsConfig.zone}/home/$owner/Jobs",
+                                length = sourceFile.size,
+                                sensitive = false // TODO Sensitivity
                         ), cloud)
                     } as? RESTResponse.Ok ?: throw IllegalStateException("Upload failed")
                     val uploadLocation = upload.response.headers["Location"]!!
@@ -127,8 +123,15 @@ class SlurmProcessor(
                     log.debug("Upload target is: $uploadLocation")
                     // TODO Refactor upload client to allow us to find a suitable target
 
+                    if (sourceFile.size >= Int.MAX_VALUE) {
+                        log.warn("sourceFile.size (${sourceFile.size}) >= Int.MAX_VALUE. Currently not supported")
+                        throw IllegalStateException("sourceFile.size >= Int.MAX_VALUE")
+                    }
+
                     scpDownload(source.path) {
-                        TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud).run()
+                        TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud).start {
+                            log.debug("${jobWithStatus.jobInfo.jobId}: $it/${sourceFile.size} bytes transferred")
+                        }
                     }
                 }
             }
@@ -150,5 +153,9 @@ class SlurmProcessor(
                 streamService.appEventsProducer.emit(key, event)
             }
         }
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(SlurmProcessor::class.java)
     }
 }

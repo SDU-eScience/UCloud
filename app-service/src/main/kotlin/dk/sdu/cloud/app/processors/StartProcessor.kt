@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.processors
 
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.internalError
 import dk.sdu.cloud.app.services.ApplicationDAO
 import dk.sdu.cloud.app.services.HPCStreamService
 import dk.sdu.cloud.app.services.SBatchGenerator
@@ -69,10 +68,13 @@ class StartProcessor(
     private fun handleStartCommand(
             storage: StorageConnection,
             request: KafkaRequest<AppRequest.Start>
-    ): Result<HPCAppEvent.Pending> {
+    ): HPCAppEvent {
         val event = request.event
         val app = with(event.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?:
-                return Error.notFound("Could not find application ${event.application}")
+                return run {
+                    log.debug("Could not find application: ${event.application.name}@ ${event.application.version}")
+                    HPCAppEvent.UnsuccessfullyCompleted
+                }
 
         val parameters = event.parameters
 
@@ -89,7 +91,7 @@ class StartProcessor(
             log.warn("Unable to create directory: ${workDir.path}")
             log.warn("Got back status: $mkdirStatus")
             log.warn("stdout: $text")
-            return Error.internalError()
+            return HPCAppEvent.UnsuccessfullyCompleted
         }
 
 
@@ -98,11 +100,14 @@ class StartProcessor(
         } catch (ex: Exception) {
             log.warn("Unable to generate slurm job:")
             log.warn(ex.stackTraceToString())
-            return Error.internalError()
+            return HPCAppEvent.UnsuccessfullyCompleted
         }
 
         val validatedFiles = validateInputFiles(app, parameters, storage, workDir).capture() ?:
-                return Result.lastError()
+                return run {
+                    log.debug(Result.lastError<Any>().message)
+                    HPCAppEvent.UnsuccessfullyCompleted
+                }
 
         return sshPool.use {
             // Transfer (validated) input files
@@ -120,7 +125,11 @@ class StartProcessor(
                         errorDuringUpload = Error.permissionDenied("Not allowed to access file: ${upload.sourcePath}")
                     }
                 }
-                if (errorDuringUpload != null) return@use errorDuringUpload as Error<HPCAppEvent.Pending>
+                if (errorDuringUpload != null) return@use run {
+                    log.debug("Caught error during upload:")
+                    log.debug(errorDuringUpload!!.message)
+                    HPCAppEvent.UnsuccessfullyCompleted
+                }
             }
 
             // Transfer job file
@@ -141,9 +150,9 @@ class StartProcessor(
                 log.warn("Generated slurm file:")
                 log.warn(job)
 
-                Error.internalError()
+                HPCAppEvent.UnsuccessfullyCompleted
             } else {
-                Ok(HPCAppEvent.Pending(slurmJobId, jobDir.path, workDir.path, request))
+                HPCAppEvent.Pending(slurmJobId, jobDir.path, workDir.path, request)
             }
         }
     }
@@ -153,12 +162,8 @@ class StartProcessor(
             when (request.event) {
                 is AppRequest.Start -> {
                     log.info("Handling event: $request")
-                    val result = handleStartCommand(connection, request as KafkaRequest<AppRequest.Start>)
-                    when (result) {
-                        is Ok -> result.result
-                        is Error -> HPCAppEvent.UnsuccessfullyCompleted
-                    }.also {
-                        log.info("${request.header}: $it")
+                    handleStartCommand(connection, request as KafkaRequest<AppRequest.Start>).also {
+                        log.info("${request.header.uuid}: $it")
                     }
                 }
 

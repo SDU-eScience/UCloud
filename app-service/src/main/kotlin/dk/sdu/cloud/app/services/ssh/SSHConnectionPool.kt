@@ -62,8 +62,8 @@ class SSHConnectionPool(
     }
 
     private fun openNewConnection(): SSHConnection {
-        val sshKeyLoc = File(File(System.getProperty("user.home"), ".ssh"), config.keyName)
-        val knownHostsFile = File(File(System.getProperty("user.home"), ".ssh"), "known_hosts")
+        val sshKeyLoc = File(File(config.keyHome), config.keyName)
+        val knownHostsFile = File(File(config.keyHome), "known_hosts")
         log.info("Connecting to ${config.server}:${config.port} with key $sshKeyLoc")
 
         if (!knownHostsFile.exists()) {
@@ -80,7 +80,7 @@ class SSHConnectionPool(
         try {
             session.connect()
         } catch (ex: Exception) {
-            throw IllegalStateException("Unabale to connect to ${config.server}.", ex)
+            throw IllegalStateException("Unable to connect to ${config.server}.", ex)
         }
 
         log.info("Connected")

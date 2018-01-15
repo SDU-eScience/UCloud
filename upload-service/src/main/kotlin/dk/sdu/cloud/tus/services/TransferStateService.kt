@@ -6,59 +6,94 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.slf4j.LoggerFactory
 
 class TransferStateService {
-    fun retrieveSummary(id: String, authenticatedPrincipal: String? = null): TransferSummary? {
-        return transaction {
-            (UploadDescriptions innerJoin UploadProgress)
-                    .slice(UploadDescriptions.id, UploadDescriptions.owner, UploadDescriptions.sizeInBytes,
-                            UploadProgress.numChunksVerified)
-                    .select {
-                        var q = (UploadDescriptions.id eq id)
-                        if (authenticatedPrincipal != null) {
-                            q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
+    fun retrieveSummary(
+            id: String,
+            authenticatedPrincipal: String? = null,
+            allowRetries: Boolean = true
+    ): TransferSummary? {
+        return withRetries(allowRetries) {
+            transaction {
+                (UploadDescriptions innerJoin UploadProgress)
+                        .slice(UploadDescriptions.id, UploadDescriptions.owner, UploadDescriptions.sizeInBytes,
+                                UploadProgress.numChunksVerified)
+                        .select {
+                            var q = (UploadDescriptions.id eq id)
+                            if (authenticatedPrincipal != null) {
+                                q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
+                            }
+                            return@select q
                         }
-                        return@select q
-                    }
-                    .toList()
-        }.singleOrNull()?.let {
-            val sizeInBytes = it[UploadDescriptions.sizeInBytes]
-            val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
-            val chunksVerified = it[UploadProgress.numChunksVerified]
-            val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
+                        .toList()
+            }.singleOrNull()?.let {
+                val sizeInBytes = it[UploadDescriptions.sizeInBytes]
+                val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+                val chunksVerified = it[UploadProgress.numChunksVerified]
+                val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
 
-            TransferSummary(it[UploadDescriptions.id], sizeInBytes, offset)
+                TransferSummary(it[UploadDescriptions.id], sizeInBytes, offset)
+            }
         }
     }
 
-    fun retrieveState(id: String, authenticatedPrincipal: String? = null): TransferState? {
-        return transaction {
-            (UploadDescriptions innerJoin UploadProgress)
-                    .select {
-                        var q = (UploadDescriptions.id eq id)
-                        if (authenticatedPrincipal != null) {
-                            q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
+    fun retrieveState(
+            id: String,
+            authenticatedPrincipal: String? = null,
+            allowRetries: Boolean = true
+    ): TransferState? {
+        return withRetries(allowRetries) {
+            transaction {
+                (UploadDescriptions innerJoin UploadProgress)
+                        .select {
+                            var q = (UploadDescriptions.id eq id)
+                            if (authenticatedPrincipal != null) {
+                                q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
+                            }
+
+                            return@select q
                         }
+                        .toList()
+            }.singleOrNull()?.let {
+                val sizeInBytes = it[UploadDescriptions.sizeInBytes]
+                val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+                val chunksVerified = it[UploadProgress.numChunksVerified]
+                val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
 
-                        return@select q
-                    }
-                    .toList()
-        }.singleOrNull()?.let {
-            val sizeInBytes = it[UploadDescriptions.sizeInBytes]
-            val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
-            val chunksVerified = it[UploadProgress.numChunksVerified]
-            val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
-
-            TransferState(
-                    id = it[UploadDescriptions.id],
-                    length = sizeInBytes,
-                    offset = offset,
-                    user = it[UploadDescriptions.owner],
-                    zone = it[UploadDescriptions.zone],
-                    targetCollection = it[UploadDescriptions.targetCollection],
-                    targetName = it[UploadDescriptions.targetName]
-            )
+                TransferState(
+                        id = it[UploadDescriptions.id],
+                        length = sizeInBytes,
+                        offset = offset,
+                        user = it[UploadDescriptions.owner],
+                        zone = it[UploadDescriptions.zone],
+                        targetCollection = it[UploadDescriptions.targetCollection],
+                        targetName = it[UploadDescriptions.targetName]
+                )
+            }
         }
+    }
+
+    private inline fun <T> withRetries(allowRetries: Boolean, maxTries: Int = 3, body: () -> T): T? {
+        var retriesLeft = if (allowRetries) maxTries else 1
+        while (retriesLeft > 0) {
+            val result = body()
+
+            if (result != null) {
+                return result
+            } else {
+                log.debug("Retrying: $retriesLeft")
+                Thread.sleep(150 * (maxTries - retriesLeft).toLong())
+            }
+
+            retriesLeft--
+        }
+        log.debug("Returning null")
+        return null
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(TransferStateService::class.java)
     }
 }
 

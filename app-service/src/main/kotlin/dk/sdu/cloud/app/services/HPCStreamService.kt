@@ -9,6 +9,7 @@ import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Predicate
+import org.slf4j.LoggerFactory
 import kotlin.reflect.KClass
 
 class HPCStreamService(
@@ -23,8 +24,11 @@ class HPCStreamService(
     private fun <K, T : Any, V : KafkaRequest<T>> KStream<K, V>.authenticate(): AuthenticatedStream<K, T> {
         val branches = mapValues { request ->
             val token: DecodedJWT? = try {
-                TokenValidation.validate(request.header.performedFor)
+                val validate = TokenValidation.validate(request.header.performedFor)
+                log.debug("Validating request: ${request.header}")
+                validate
             } catch (ex: JWTVerificationException) {
+                log.debug("Rejecting request: ${request.header}")
                 null
             }
             Pair(token, request)
@@ -36,6 +40,10 @@ class HPCStreamService(
         val authMapped = branches[0].mapValues { RequestAfterAuthentication.Authenticated(it.second, it.first!!) }
         val unauthMapped = branches[1].mapValues { RequestAfterAuthentication.Unauthenticated(it.second) }
         return AuthenticatedStream(authMapped, unauthMapped)
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(HPCStreamService::class.java)
     }
 }
 

@@ -102,8 +102,6 @@ class ApplicationStreamProcessor(
                 password = config.database.password
         )
 
-
-
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
 
@@ -127,7 +125,7 @@ class ApplicationStreamProcessor(
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
         log.info("Init Event Processors")
-        val slurmProcessor = SlurmProcessor(cloud, sshPool, storageConnectionFactory, slurmPollAgent, streamService)
+        val slurmProcessor = SlurmProcessor(cloud, sshPool, config.storage, slurmPollAgent, streamService)
         val slurmAggregate = SlurmAggregate(streamService, slurmPollAgent)
         val startProcessor = StartProcessor(storageConnectionFactory, sbatchGenerator, sshPool, config.ssh.user,
                 streamService)
