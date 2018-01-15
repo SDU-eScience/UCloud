@@ -7,9 +7,9 @@ import java.sql.DriverManager
 class ICAT(private val config: ICatDatabaseConfig) {
     // TODO This is all a really quick hack. We really shouldn't be using plain JDBC
 
-    fun useConnection(body: ICATConnection.() -> Unit) {
+    fun <T> useConnection(body: ICATConnection.() -> T): T {
         Class.forName("org.postgresql.Driver")
-        ICATConnection(DriverManager.getConnection(config.jdbcUrl, config.user, config.password)).use {
+        return ICATConnection(DriverManager.getConnection(config.jdbcUrl, config.user, config.password)).use {
             it.body()
         }
     }
@@ -87,6 +87,13 @@ class ICATConnection(connection: Connection) : Connection by connection {
         }
 
         statement.executeUpdate()
+    }
+
+    fun userHasWriteAccess(user: String, zone: String, collection: String): Pair<Boolean, ICATAccessEntry?> {
+        val entry = findAccessRightForUserInCollection(user, zone, collection)
+        val canWrite = entry != null && (entry.accessType == 1200L || entry.accessType == 1120L)
+        val nulledEntryIfNoAccess = if (canWrite) entry else null
+        return Pair(canWrite, nulledEntryIfNoAccess)
     }
 
     fun registerDataObject(collectionId: Long, cephId: String, objectSize: Long,

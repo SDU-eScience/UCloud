@@ -9,6 +9,7 @@ import dk.sdu.cloud.tus.api.TusExtensions
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusUploadEvent
 import dk.sdu.cloud.tus.api.internal.UploadEventProducer
+import dk.sdu.cloud.tus.services.ICAT
 import dk.sdu.cloud.tus.services.IReadChannel
 import dk.sdu.cloud.tus.services.RadosStorage
 import dk.sdu.cloud.tus.services.TransferStateService
@@ -34,7 +35,8 @@ class TusController(
         private val config: ICatDatabaseConfig,
         private val rados: RadosStorage,
         private val producer: UploadEventProducer,
-        private val transferState: TransferStateService
+        private val transferState: TransferStateService,
+        private val icat: ICAT
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
@@ -96,6 +98,7 @@ class TusController(
             }
 
             post {
+                log.info("Received request to create upload: ${call.request.headers}")
                 if (!protect()) return@post
 
                 val principal = call.request.validatedPrincipal
@@ -103,8 +106,6 @@ class TusController(
                     val principalRole = call.request.principalRole
                     principalRole == Role.SERVICE || principalRole == Role.ADMIN
                 }
-
-                val id = UUID.randomUUID().toString()
 
                 val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?: return@post run {
                     log.debug("Missing upload length")
@@ -132,7 +133,6 @@ class TusController(
                     }
                 }.toMap()
 
-                val fileName = metadata["filename"] ?: id
                 val sensitive = metadata["sensitive"]?.let {
                     when (it) {
                         "true" -> true
@@ -148,7 +148,20 @@ class TusController(
                 val location = metadata["location"]?.takeIf { isPrivileged } ?:
                         "/${config.defaultZone}/home/${principal.subject}/Uploads"
 
-                producer.emit(TusUploadEvent.Created(
+                val canWrite = icat.useConnection {
+                    userHasWriteAccess(owner, config.defaultZone, location).first
+                }
+
+                if (!canWrite) {
+                    log.debug("User is not authorized to create file at this location")
+                    call.respond(HttpStatusCode.Unauthorized)
+                    return@post
+                }
+
+                val id = UUID.randomUUID().toString()
+                val fileName = metadata["filename"] ?: id
+
+                val createdEvent = TusUploadEvent.Created(
                         id = id,
                         sizeInBytes = length,
                         owner = owner,
@@ -157,7 +170,9 @@ class TusController(
                         sensitive = sensitive,
                         targetName = fileName,
                         doChecksum = false
-                ))
+                )
+                producer.emit(createdEvent)
+                log.info("Created upload: $createdEvent")
 
                 call.response.header(HttpHeaders.Location, "${serverConfiguration.prefix}/$id")
                 call.respond(HttpStatusCode.Created)

@@ -9,7 +9,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 class TransferStateService {
     fun retrieveSummary(id: String, authenticatedPrincipal: String? = null): TransferSummary? {
-        // TODO Should admins be allowed to do this regardless of who they are?
         return transaction {
             (UploadDescriptions innerJoin UploadProgress)
                     .slice(UploadDescriptions.id, UploadDescriptions.owner, UploadDescriptions.sizeInBytes,

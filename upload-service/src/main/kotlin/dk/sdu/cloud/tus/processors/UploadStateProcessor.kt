@@ -67,11 +67,8 @@ class UploadStateProcessor(
                             val resource = findResourceByNameAndZone("child_01", "tempZone") ?: return@useConnection
                             log.debug("Using resource $resource. $irodsUser, $irodsZone, $irodsCollection")
 
-                            val entry = findAccessRightForUserInCollection(irodsUser, irodsZone, irodsCollection)
-                            log.debug("ACL Entry: $entry")
-
-                            // TODO This is really primitive and even worse, potentially wrong
-                            if (entry != null && (entry.accessType == 1200L || entry.accessType == 1120L)) {
+                            val (_, entry) = userHasWriteAccess(irodsUser, irodsZone, irodsCollection)
+                            if (entry != null) {
                                 val objectId = registerDataObject(
                                         entry.objectId,
                                         state.id,
