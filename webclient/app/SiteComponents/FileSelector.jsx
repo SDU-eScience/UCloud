@@ -10,6 +10,7 @@ class FileSelector extends React.Component {
         this.state = {
             selectedFile: {},
             currentPath: `/home/${Cloud.username}`,
+            loading: false,
             files: [],
             modalShown: false,
             breadcrumbs: [],
@@ -67,8 +68,9 @@ class FileSelector extends React.Component {
                 <Modal show={this.state.modalShown} onHide={this.closeModal}>
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
-                        <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
+                        <LoadingIcon loading={this.state.loading}/>
                     </Modal.Header>
+                    <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
                     <FileSelectorBody loading={this.state.loading} onClick={(file) => this.setSelectedFile(file)}
                                       files={this.state.files} getFiles={this.getFiles}/>
                 </Modal>
@@ -99,8 +101,7 @@ function FileSelectorBody(props) {
     </h4> : null;
     return (
         <Modal.Body>
-            <LoadingIcon loading={props.loading}/>
-            <div className="modal-body pre-scrollable">
+            <div className="pre-scrollable">
                 {noFiles}
                 <table className="table-datatable table table-striped table-hover mv-lg">
                     <thead>
@@ -108,7 +109,6 @@ function FileSelectorBody(props) {
                         <th>Filename</th>
                     </tr>
                     </thead>
-                    <LoadingIcon isLoading={props.loading}/>
                     <FileList files={props.files} onClick={(file) => props.onClick(file)} getFiles={props.getFiles}/>
                 </table>
             </div>
