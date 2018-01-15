@@ -2,8 +2,8 @@ import React from 'react';
 import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
-import {Button, OverlayTrigger, Tooltip} from 'react-bootstrap';
-import {buildBreadCrumbs} from '../UtilityFunctions'
+import {Button} from 'react-bootstrap';
+import {buildBreadCrumbs, sortFiles} from '../UtilityFunctions'
 
 class Files extends React.Component {
     constructor(props) {
@@ -119,19 +119,6 @@ class Files extends React.Component {
         }));
     }
 
-    static sortFiles(files) {
-        files.sort((a, b) => {
-            if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
-                return -1;
-            else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
-                return 1;
-            else {
-                return a.path.name.localeCompare(b.path.name);
-            }
-        });
-        return files;
-    }
-
     handlePageSizeSelection(event) {
         let value = parseInt(event.target.value);
         this.setState(() => ({filesPerPage: value}));
@@ -144,7 +131,7 @@ class Files extends React.Component {
         Cloud.get("files?path=/" + this.state.currentPath).then(favourites => {
             favourites.forEach(file => file.isChecked = false);
             this.setState(() => ({
-                files: Files.sortFiles(favourites),
+                files: sortFiles(favourites),
                 loading: false,
             }));
         });

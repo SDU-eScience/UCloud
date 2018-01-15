@@ -39,4 +39,18 @@ function buildBreadCrumbs(path) {
     return pathsMapping;
 }
 
-export {NotificationIcon, WebSocketSupport, buildBreadCrumbs}
+
+function sortFiles(files) {
+    files.sort((a, b) => {
+        if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
+            return -1;
+        else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
+            return 1;
+        else {
+            return a.path.name.localeCompare(b.path.name);
+        }
+    });
+    return files;
+}
+
+export {NotificationIcon, WebSocketSupport, buildBreadCrumbs, sortFiles}

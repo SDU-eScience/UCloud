@@ -1,23 +1,23 @@
 import React from 'react';
 import LoadingIcon from './LoadingIcon';
 import {Modal, Button} from 'react-bootstrap';
-
-let files = [
-    {path: {name: "Hi"}}, {path: {name: "Ho"}}, {path: {name: "He"}}
-];
-
+import {Cloud} from "../../authentication/SDUCloudObject";
+import {Link} from 'react-router';
+import {buildBreadCrumbs, sortFiles} from "../UtilityFunctions";
 
 class FileSelector extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             selectedFile: "",
+            currentPath: `/home/${Cloud.username}`,
             files: [],
             modalShown: false,
             breadcrumbs: [],
         };
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
+        this.getFiles = this.getFiles.bind(this);
     }
 
     componentDidMount() {
@@ -51,7 +51,13 @@ class FileSelector extends React.Component {
     }
 
     getFiles() {
-        this.setState(() => ({files: files}));
+        this.setState(() => ({loading: true}));
+        Cloud.get(`files?path=/home/${Cloud.username}`).then(files => {
+            this.setState(() => ({
+                files: sortFiles(files),
+                loading: false,
+            }));
+        });
     }
 
     createFolder() {
@@ -66,24 +72,29 @@ class FileSelector extends React.Component {
                 <Modal show={this.state.modalShown} onHide={this.closeModal}>
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
-                        <BreadCrumbs breadcrumbs={this.state.breadcrumbs}/>
+                        <BreadCrumbs breadcrumbs={this.state.currentPath}/>
                     </Modal.Header>
-                    <FileSelectorBody onClick={(file) => this.setSelectedFile(file)} files={this.state.files}/>
+                    <FileSelectorBody loading={this.state.loading} onClick={(file) => this.setSelectedFile(file)}
+                                      files={this.state.files}/>
                 </Modal>
             </div>)
     }
 }
 
 function BreadCrumbs(props) {
-    let breadcrumbs = props.breadcrumbs.slice();
-    let breadcrumbsList = breadcrumbs.map(breadcrumb =>
-        <li className="breadcrumb-item">
-            <a onClick="changePath(breadcrumb.second)"> {breadcrumb.first}</a>
+    if (!props.currentPath) {
+        return null;
+    }
+    let pathsMapping = buildBreadCrumbs(props.currentPath);
+    let i = 0;
+    let breadcrumbs = pathsMapping.map(path =>
+        <li key={i++} className="breadcrumb-item">
+            <Link to={`files/${path.actualPath}`}>{path.local}</Link>
         </li>
     );
     return (
         <ol className="breadcrumb">
-            {breadcrumbsList}
+            {breadcrumbs}
         </ol>)
 }
 
@@ -102,6 +113,7 @@ function FileSelectorBody(props) {
                         <th>Filename</th>
                     </tr>
                     </thead>
+                    <LoadingIcon isLoading={props.loading}/>
                     <FileList files={props.files} onClick={(file) => props.onClick(file)}/>
                 </table>
             </div>
@@ -125,7 +137,7 @@ function FileList(props) {
     );
     return (
         <tbody>
-            {filesList}
+        {filesList}
         </tbody>
     )
 }
@@ -139,123 +151,3 @@ function SelectedFile(props) {
 }
 
 export default FileSelector;
-
-// From Vue
-/*
-data() {
-    return {
-        path: '/',
-        files: [],
-        loading: true,
-        breadcrumbs: [],
-        isShown: false,
-        selectedFile: null
-    }
-};
-
-
-mounted() {
-    $.getJSON("/api/getFiles", {path: this.path}).then((files) => {
-        this.files = files.sort((a, b) => {
-            if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
-                return -1;
-            else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
-                return 1;
-            else {
-                return a.path.name.localeCompare(b.path.name);
-            }
-        });
-        this.loading = false;
-    });
-    $.getJSON("/api/getBreadcrumbs", {path: this.path}).then((breadcrumbs) => {
-        this.breadcrumbs = breadcrumbs
-    });
-    window.addEventListener('keydown', this.escapeKeyListener);
-}
-watch: {
-    path: function () {
-        this.loading = true;
-        this.files = [];
-        $.getJSON('/api/getFiles', {path: this.path}).then((files) => {
-            this.files = files.sort((a, b) => {
-                if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
-                    return -1;
-                else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
-                    return 1;
-                else {
-                    return a.path.name.localeCompare(b.path.name);
-                }
-            });
-            this.loading = false;
-        });
-        $.getJSON("/api/getBreadcrumbs", {path: this.path}).then((breadcrumbs) => {
-            this.breadcrumbs = breadcrumbs
-        });
-    }
-}
-
-methods = {
-    escapeKeyListener($event) {
-        if ($event.key === 'Escape' && this.isShown) {
-            this.hide()
-        }
-    },
-
-    changePath: function (newPath) {
-        this.path = newPath;
-    },
-
-    hide: function () {
-        this.isShown = false;
-    },
-
-    setFile: function (file) {
-        this.selectedFile = file;
-        this.$emit('select', file);
-        this.hide();
-    },
-
-    show: function () {
-        this.isShown = true;
-    },
-
-    computeIcon: function (file) {
-        if (file.type === "DIRECTORY") return "ion-folder";
-        else return "ion-android-document";
-    },
-
-    handleSelection: function (file) {
-        if (file.type === "DIRECTORY") {
-            this.changePath(file.path.path);
-        } else {
-            this.setFile(file);
-            this.hide();
-        }
-    },
-
-    createFolder() {
-        let currentDir = this.breadcrumbs[this.breadcrumbs.length - 1].second;
-        swal({
-            title: "Create a folder",
-            text: "Input the folder name:",
-            input: "text",
-            showCancelButton: true,
-            inputPlaceholder: "Folder name...",
-            confirmButtonText: "Create folder",
-            preConfirm: (text) => {
-                if (text === "")
-                    swal.showValidationError("You need to enter a folder name.");
-            }
-        }).then((inputValue) => {
-            if (inputValue.dismiss !== 'cancel') {
-                $.getJSON("/api/createDir", {dirPath: currentDir + inputValue.value}, (result) => {
-                    if (result === 200) {
-                        swal("Success", "Folder " + currentDir + inputValue.value + " created", "success");
-                    } else {
-                        swal("Error", "Folder " + currentDir + inputValue.value + " was not created", "error");
-                    }
-                });
-            }
-        });
-    },
-};*/
