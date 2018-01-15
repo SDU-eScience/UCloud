@@ -2,34 +2,28 @@ import React from 'react';
 import LoadingIcon from './LoadingIcon';
 import {Modal, Button} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {Link} from 'react-router';
 import {buildBreadCrumbs, sortFiles} from "../UtilityFunctions";
 
 class FileSelector extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            selectedFile: "",
+            selectedFile: {},
             currentPath: `/home/${Cloud.username}`,
             files: [],
             modalShown: false,
             breadcrumbs: [],
+            onFileSelectionChang: props.onFileSelectionChange,
         };
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.getFiles = this.getFiles.bind(this);
+        this.setSelectedFile = this.setSelectedFile.bind(this);
     }
 
     componentDidMount() {
-        this.getFiles();
+        this.getFiles(`/home/${Cloud.username}`);
     }
-
-    // Experimental syntax, can remove this.n.bind(this) when valid:
-    /*
-    openModal = () => {
-        this.setState(() => ({ modalShown: true }));
-    }
-    */
 
     openModal() {
         this.setState(() => ({
@@ -50,12 +44,13 @@ class FileSelector extends React.Component {
         }));
     }
 
-    getFiles() {
+    getFiles(path) {
         this.setState(() => ({loading: true}));
-        Cloud.get(`files?path=/home/${Cloud.username}`).then(files => {
+        Cloud.get(`files?path=/${path}`).then(files => {
             this.setState(() => ({
                 files: sortFiles(files),
                 loading: false,
+                currentPath: path,
             }));
         });
     }
@@ -72,24 +67,24 @@ class FileSelector extends React.Component {
                 <Modal show={this.state.modalShown} onHide={this.closeModal}>
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
-                        <BreadCrumbs breadcrumbs={this.state.currentPath}/>
+                        <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
                     </Modal.Header>
                     <FileSelectorBody loading={this.state.loading} onClick={(file) => this.setSelectedFile(file)}
-                                      files={this.state.files}/>
+                                      files={this.state.files} getFiles={this.getFiles}/>
                 </Modal>
             </div>)
     }
 }
 
 function BreadCrumbs(props) {
-    if (!props.currentPath) {
+    if (!props.path) {
         return null;
     }
-    let pathsMapping = buildBreadCrumbs(props.currentPath);
+    let pathsMapping = buildBreadCrumbs(props.path);
     let i = 0;
     let breadcrumbs = pathsMapping.map(path =>
         <li key={i++} className="breadcrumb-item">
-            <Link to={`files/${path.actualPath}`}>{path.local}</Link>
+            <a onClick={() => props.getFiles(`${path.actualPath}`)}>{path.local}</a>
         </li>
     );
     return (
@@ -114,7 +109,7 @@ function FileSelectorBody(props) {
                     </tr>
                     </thead>
                     <LoadingIcon isLoading={props.loading}/>
-                    <FileList files={props.files} onClick={(file) => props.onClick(file)}/>
+                    <FileList files={props.files} onClick={(file) => props.onClick(file)} getFiles={props.getFiles}/>
                 </table>
             </div>
             <Button className="btn btn-info" onClick={() => props.createFolder}>
@@ -129,12 +124,20 @@ function FileList(props) {
     }
     let files = props.files.slice();
     let i = 0;
-    let filesList = files.map(file =>
-        <tr key={i++} className="gradeA row-settings">
-            <td className={"ios-file"/*computeIcon(file)*/}
-                onClick={() => props.onClick(file)}> {file.path.name}</td>
-        </tr>
-    );
+    let filesList = files.map(file => {
+        if (file.type === "DIRECTORY") {
+            return (
+                <tr key={i++} className="gradeA row-settings">
+                    <td className={"ios-document"} onClick={() => props.getFiles(file.path.path)}> {file.path.name}</td>
+                </tr>
+            );
+        } else {
+            return (
+                <tr key={i++} className="gradeA row-settings">
+                    <td className={"ios-file"} onClick={() => props.onClick(file)}> {file.path.name}</td>
+                </tr>)
+        }
+    });
     return (
         <tbody>
         {filesList}
@@ -143,7 +146,7 @@ function FileList(props) {
 }
 
 function SelectedFile(props) {
-    if (props.selectedFile) {
+    if (props.selectedFile.path) {
         return (<div>Currently selected file: {props.selectedFile.path.name}</div>)
     } else {
         return null;

@@ -6,6 +6,7 @@ import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
 import {Link} from 'react-router';
 import {Cloud} from '../../authentication/SDUCloudObject'
+import {sortFiles} from "../UtilityFunctions";
 
 
 class Dashboard extends React.Component {
@@ -32,40 +33,31 @@ class Dashboard extends React.Component {
     }
 
     getFavouriteFiles() {
-        this.setState({
+        this.setState(() => ({
             favouriteLoading: true,
-        });
+        }));
         Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favourites => {
-            let subsetFavorites = favourites.slice(0, 10);
-            subsetFavorites.sort((a, b) => {
-                if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
-                    return -1;
-                else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
-                    return 1;
-                else {
-                    return a.path.name.localeCompare(b.path.name);
-                }
-            });
-            this.setState({
+            let subsetFavorites = sortFiles(favourites.slice(0, 10));
+            this.setState(() => ({
                 favouriteFiles: subsetFavorites,
                 favouriteLoading: false,
-            });
+            }));
         });
     }
 
     getMostRecentFiles() {
-        this.setState({
+        this.setState(() => ({
             recentLoading: true
-        });
+        }));
         Cloud.get(`/files?path=/home/${Cloud.username}/`).then(recent => {
             let recentSubset = recent.slice(0, 10);
             recentSubset.sort((a, b) => {
                 return b.modifiedAt - a.modifiedAt;
             });
-            this.setState({
+            this.setState(() => ({
                 recentFiles: recentSubset,
                 recentLoading: false,
-            });
+            }));
         });
     }
 

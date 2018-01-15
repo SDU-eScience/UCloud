@@ -1,5 +1,5 @@
 import React from 'react';
-import { getMockApp } from '../../MockObjects'
+import {getMockApp} from '../../MockObjects'
 import FileSelector from '../FileSelector'
 
 class RunApp extends React.Component {
@@ -11,6 +11,7 @@ class RunApp extends React.Component {
             appVersion: props.params.appVersion,
             app: null,
         };
+        this.handleSubmit = this.handleSubmit.bind(this);
     }
 
     componentDidMount() {
@@ -25,12 +26,14 @@ class RunApp extends React.Component {
     handleInputChange(parameterName, event) {
         let app = this.state.app;
         app.parameters[parameterName].value = event.target.value;
-        this.setState({app: app});
+        this.setState(() => {
+            app: app
+        });
         event.preventDefault();
     }
 
     handleFileSelectorChange() {
-
+        console.log("Oy");
     }
 
     getApplication() {
@@ -56,7 +59,8 @@ class RunApp extends React.Component {
                             <ApplicationHeader app={this.state.app}/>
                             <hr/>
                             <Parameters app={this.state.app} handleSubmit={this.handleSubmit}
-                                        onChange={this.handleInputChange}/>
+                                        onChange={this.handleInputChange}
+                                        onFileSelectionChange={this.handleFileSelectorChange}/>
                         </div>
                     </div>
                 </div>
@@ -78,11 +82,13 @@ function ApplicationHeader(props) {
 
 
 function Parameters(props) {
-    if (!props.app) { return null }
+    if (!props.app) {
+        return null
+    }
     let parameters = props.app.parameters.slice();
     let i = 0;
     let parametersList = parameters.map(parameter =>
-        <Parameter key={i++} parameter={parameter} onChange={props.onChange}/>
+        <Parameter key={i++} parameter={parameter} onChange={props.onChange} onFileSelectionChange={props.onFileSelectionChange}/>
     );
     return (
         <form onSubmit={props.handleSubmit} className="form-horizontal">
@@ -97,7 +103,7 @@ function Parameters(props) {
 function Parameter(props) {
     let parameter;
     if (props.parameter.type === "input_file") {
-        parameter = (<InputFileParameter parameter={props.parameter}/>);
+        parameter = (<InputFileParameter onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}/>);
     } else if (props.parameter.type === "output_file") {
         parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
@@ -119,7 +125,7 @@ function InputFileParameter(props) {
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
-                <FileSelector/>
+                <FileSelector onFileSelectionChange={props.onFileSelectionChange}/>
                 <span><em/></span>
                 <span className="help-block">Source of the file</span>
                 <input
@@ -135,7 +141,7 @@ function InputFileParameter(props) {
 function OutputFileParameter(props) {
     return (
         <div className="form-group">
-            <label  className="col-sm-2 control-label">{props.parameter.prettyName}</label>
+            <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
                 <input required={!props.parameter.isOptional}
                        className="form-control" type="text"/>
@@ -168,7 +174,7 @@ function IntegerParameter(props) {
     return (
         <div className="form-group">
             <label
-                   className="col-sm-2 control-label">{props.parameter.prettyName}</label>
+                className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
                 <input id="parameter.name"
                        placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
@@ -185,7 +191,7 @@ function FloatParameter(props) {
     return (
         <div className="form-group">
             <label
-                   className="col-sm-2 control-label">{props.parameter.prettyName}</label>
+                className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
                 <input id="parameter.name"
                        placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
