@@ -55,7 +55,8 @@ class Server(
                 config = configuration.database,
                 rados = rados,
                 producer = kafka.producer.forStream(TusStreams.UploadEvents),
-                transferState = transferState
+                transferState = transferState,
+                icat = icat
         )
         log.info("Core services constructed!")
 
