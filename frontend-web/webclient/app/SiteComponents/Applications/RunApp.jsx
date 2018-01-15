@@ -12,6 +12,7 @@ class RunApp extends React.Component {
             app: null,
         };
         this.handleSubmit = this.handleSubmit.bind(this);
+        this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
     }
 
     componentDidMount() {
@@ -32,8 +33,14 @@ class RunApp extends React.Component {
         event.preventDefault();
     }
 
-    handleFileSelectorChange() {
-        console.log("Oy");
+    handleFileSelectorChange(file, parameterName, isSource) {
+        let app = this.state.app;
+        let sourceOrDestination = isSource ? "source" : "destination";
+        app.parameters[parameterName][sourceOrDestination] = file;
+        this.setState(() => ({
+            app: app,
+        }));
+        console.log(app);
     }
 
     getApplication() {

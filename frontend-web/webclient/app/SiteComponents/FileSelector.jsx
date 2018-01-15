@@ -8,13 +8,15 @@ class FileSelector extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            parameterName: "",
+            isSource: false,
             selectedFile: {},
             currentPath: `/home/${Cloud.username}`,
             loading: false,
             files: [],
             modalShown: false,
             breadcrumbs: [],
-            onFileSelectionChang: props.onFileSelectionChange,
+            onFileSelectionChange: props.onFileSelectionChange,
         };
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
@@ -43,6 +45,7 @@ class FileSelector extends React.Component {
             selectedFile: file,
             modalShown: false,
         }));
+        this.state.onFileSelectionChange(file);
     }
 
     getFiles(path) {
