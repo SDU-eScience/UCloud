@@ -6,37 +6,11 @@ import {Button} from 'react-bootstrap';
 import {buildBreadCrumbs, sortFiles} from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
-import $ from "jquery";
 
-// NOTE(Dan): Sorry
 let tusConfig = {
     endpoint: "https://cloud.sdu.dk/api/tus",
-    headers: {}
-};
-
-const uppy = Uppy.Core({
-    autoProceed: false,
-    debug: true,
-    meta: {
-        sensitive: false,
-    },
-    onBeforeUpload: (files) => {
-        console.log("Running this shit");
-        return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
-            tusConfig.headers["Authorization"] = "Bearer " + data;
-            console.log(tusConfig);
-        }).promise();
-    }
-});
-/*
-Object.defineProperty(tusConfig.headers, "Authorization", {
-    get: () => `Bearer ${Cloud.receiveAccessTokenOrRefreshIt()}`
-});
-*/
-uppy.use(Uppy.Tus, tusConfig);
-
-console.log(tusConfig.headers.Authorization);
-uppy.run();
+        headers: {}
+}
 
 class Files extends React.Component {
     constructor(props) {
@@ -52,6 +26,18 @@ class Files extends React.Component {
             currentPath: currentPath,
             selectedFiles: [],
             uploadFileOpen: false,
+            uppy: Uppy.Core({
+                autoProceed: false,
+                debug: true,
+                meta: {
+                    sensitive: false,
+                },
+                onBeforeUpload: (files) => {
+                    return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
+                        tusConfig.headers["Authorization"] = "Bearer " + data;
+                    }).promise();
+                }
+            }),
         };
         this.getFiles = this.getFiles.bind(this);
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
@@ -204,8 +190,20 @@ class Files extends React.Component {
     }
 
     componentWillMount() {
+        this.state.uppy.use(Uppy.Tus, tusConfig);
+        this.state.uppy.run();
         this.getFiles();
     }
+
+    componentWillUnmount() {
+        console.log(this);
+        this.setState(() => {
+            let result = { uppy: this.state.uppy };
+            result.uppy.close();
+            return result;
+        });
+    }
+
 
     render() {
         return (
