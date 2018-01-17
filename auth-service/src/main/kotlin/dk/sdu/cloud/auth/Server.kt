@@ -72,7 +72,7 @@ class AuthServer(
         httpServer = ktor {
             log.info("Configuring HTTP server")
 
-            installDefaultFeatures()
+            installDefaultFeatures(requireJobId = false)
 
             log.info("Creating HTTP controllers")
             val coreController = CoreAuthController(tokenService, config.enablePasswords, config.enableWayf)

@@ -66,7 +66,7 @@ data class AuthConfiguration(
         val enablePasswords: Boolean = true,
         val enableWayf: Boolean = false,
         val database: DatabaseConfiguration,
-        val connection: RawConnectionConfig
+        private val connection: RawConnectionConfig
 ) {
     @get:JsonIgnore
     val connConfig: ConnectionConfig
@@ -141,8 +141,8 @@ fun main(args: Array<String>) {
             load(AuthServer::class.java.classLoader.getResourceAsStream("saml.properties"))
         }
 
-        val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
         val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
+        val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
         AuthServer(
                 jwtAlg = Algorithm.RSA256(priv),

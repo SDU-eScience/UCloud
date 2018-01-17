@@ -146,6 +146,12 @@ sealed class Person : Principal() {
             if (password.isEmpty()) throw IllegalArgumentException("Password cannot be empty")
             if (salt.isEmpty()) throw IllegalArgumentException("Salt cannot be empty")
         }
+
+        override fun toString(): String {
+            return "ByPassword(id='$id', role=$role, title=$title, firstNames='$firstNames', " +
+                    "lastName='$lastName', phoneNumber=$phoneNumber, orcId=$orcId, " +
+                    "emailAddresses=$emailAddresses, preferredEmailAddress=$preferredEmailAddress)"
+        }
     }
 }
 

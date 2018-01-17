@@ -8,11 +8,11 @@ import org.apache.kafka.streams.kstream.Predicate
 import org.slf4j.LoggerFactory
 
 class RefreshTokenProcessor(
-        val stream: KStream<String, RefreshTokenEvent>
+        private val stream: KStream<String, RefreshTokenEvent>
 ) {
-    private val log = LoggerFactory.getLogger(RefreshTokenProcessor::class.java)
-
     fun init() {
+        log.info("Initializing...")
+
         val branches = stream.branch(
                 Predicate { _, value -> value is RefreshTokenEvent.Created },
                 Predicate { _, value -> value is RefreshTokenEvent.Invalidated }
@@ -24,11 +24,19 @@ class RefreshTokenProcessor(
         val invalidatedStream = branches[1].mapValues { it as RefreshTokenEvent.Invalidated }
 
         createdStream.foreach { _, value ->
+            log.info("Handling event: $value")
             RefreshTokenAndUserDAO.insert(RefreshTokenAndUser(value.associatedUser, value.token))
         }
 
         invalidatedStream.foreach { _, value ->
+            log.info("Handling event: $value")
             RefreshTokenAndUserDAO.delete(value.token)
         }
+
+        log.info("Initialized!")
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(RefreshTokenProcessor::class.java)
     }
 }

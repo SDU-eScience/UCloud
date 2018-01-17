@@ -24,6 +24,7 @@ class UserProcessor(
 
         createdStream.foreach { _, value ->
             try {
+                log.info("Creating user: $value")
                 UserDAO.insert(value.userCreated)
             } catch (ex: JdbcSQLException) {
                 if (ex.errorCode == 23505) {
@@ -37,6 +38,7 @@ class UserProcessor(
         }
 
         updatedStream.foreach { _, value ->
+            log.info("Updating user: $value")
             UserDAO.update(value.updatedUser)
         }
     }

@@ -8,8 +8,7 @@ import dk.sdu.cloud.service.EventProducer
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
-import java.io.PrintWriter
-import java.io.StringWriter
+import stackTraceToString
 import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
@@ -22,6 +21,7 @@ class TokenService(
     private val log = LoggerFactory.getLogger(TokenService::class.java)
 
     private fun createAccessTokenForExistingSession(user: Principal): AccessToken {
+        log.debug("Creating access token for existing session user=$user")
         val iat = Date(System.currentTimeMillis())
         val exp = Date(System.currentTimeMillis() + 1000 * 60 * 30)
 
@@ -57,6 +57,7 @@ class TokenService(
     }
 
     fun createAndRegisterTokenFor(user: Principal): RequestAndRefreshToken {
+        log.debug("Creating and registering token for $user")
         val accessToken = createAccessTokenForExistingSession(user).accessToken
         val refreshToken = UUID.randomUUID().toString()
 
@@ -73,12 +74,16 @@ class TokenService(
 
     fun processSAMLAuthentication(auth: Auth): Person.ByWAYF? {
         try {
+            log.debug("Processing SAML response")
             if (auth.authenticated) {
                 val id = auth.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull() ?:
                         throw IllegalArgumentException("Missing EduPersonTargetedId")
 
+                log.debug("User is authenticated with id $id")
+
                 val existing = UserDAO.findById(id)
                 return if (existing == null) {
+                    log.debug("User not found. Creating new user...")
                     // In a replay, what do we actually replay? Just the initial requests? Or do we practically turn off
                     // most processing and only replay state changes?
                     // https://softwareengineering.stackexchange.com/questions/310176/event-sourcing-replaying-and-versioning#310323
@@ -90,12 +95,14 @@ class TokenService(
                     // From a performance perspective in makes no sense to go through Kafka before we create in DB.
                     // But from a replay perspective we have to do that...
                     val userCreated = PersonUtils.createUserByWAYF(auth)
+                    log.debug("userCreated=$userCreated")
                     launch {
                         userEventProducer.emit(id, UserEvent.Created(id, userCreated))
                     }
 
                     userCreated
                 } else {
+                    log.debug("User already exists: $existing")
                     existing as Person.ByWAYF
                 }
             }
@@ -103,10 +110,11 @@ class TokenService(
             when (ex) {
                 is IllegalArgumentException -> {
                     log.info("Illegal incoming SAML message")
+                    log.debug(ex.stackTraceToString())
                 }
                 else -> {
                     log.warn("Caught unexpected exception while processing SAML response:")
-                    log.warn(StringWriter().let { ex.printStackTrace(PrintWriter(it)) }.toString())
+                    log.warn(ex.stackTraceToString())
                 }
             }
         }
@@ -115,7 +123,9 @@ class TokenService(
     }
 
     fun refresh(rawToken: String): AccessToken {
+        log.debug("Refreshing token: rawToken=$rawToken")
         val token = RefreshTokenAndUserDAO.findById(rawToken) ?: run {
+            log.debug("Could not find token!")
             throw RefreshTokenException.InvalidToken()
         }
 
