@@ -43,6 +43,10 @@ class Server(
             }
         }
 
+        log.info("Creating core services")
+        val projectsDao = ProjectsDAO()
+        log.info("Core services constructed!")
+
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
             val kBuilder = StreamsBuilder()
@@ -61,10 +65,6 @@ class Server(
             log.error(exception.stackTraceToString())
             stop()
         }
-
-        log.info("Creating core services")
-        val projectsDao = ProjectsDAO()
-        log.info("Core services constructed!")
 
         httpServer = ktor {
             log.info("Configuring HTTP server")

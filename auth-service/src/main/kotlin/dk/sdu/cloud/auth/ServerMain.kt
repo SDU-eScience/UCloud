@@ -1,16 +1,25 @@
 package dk.sdu.cloud.auth
 
+import com.auth0.jwt.algorithms.Algorithm
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.onelogin.saml2.settings.SettingsBuilder
 import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.Principals
 import dk.sdu.cloud.auth.services.RefreshTokens
-import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaProducerConfiguration
-import dk.sdu.cloud.service.forStream
+import dk.sdu.cloud.auth.services.saml.validateOrThrow
+import dk.sdu.cloud.service.*
+import io.ktor.application.Application
+import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.Topology
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -19,6 +28,8 @@ import java.io.File
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
 import java.util.*
+
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.auth.ServerMainKt")
 
 private fun loadKeysAndInsertIntoProps(properties: Properties): Pair<RSAPublicKey, RSAPrivateKey> {
     val certs = File("certs").takeIf { it.exists() && it.isDirectory } ?:
@@ -42,39 +53,109 @@ private fun loadKeysAndInsertIntoProps(properties: Properties): Pair<RSAPublicKe
     )
 }
 
+internal typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
+
+data class DatabaseConfiguration(
+        val url: String,
+        val driver: String,
+        val username: String,
+        val password: String
+)
+
+data class AuthConfiguration(
+        val enablePasswords: Boolean = true,
+        val enableWayf: Boolean = false,
+        val database: DatabaseConfiguration,
+        val connection: RawConnectionConfig
+) {
+    @get:JsonIgnore
+    val connConfig: ConnectionConfig
+        get() = connection.processed
+
+    internal fun configure() {
+        connection.configure(AuthServiceDescription, 42300)
+    }
+}
+
+class KafkaServices(
+        private val streamsConfig: Properties,
+        val producer: KafkaProducer<String, String>
+) {
+    fun build(block: Topology): KafkaStreams {
+        return KafkaStreams(block, streamsConfig)
+    }
+}
 
 fun main(args: Array<String>) {
-    val log = LoggerFactory.getLogger("ServerMain")
+    val configuration = run {
+        log.info("Reading configuration...")
+        val configMapper = jacksonObjectMapper()
+        val configFilePath = args.getOrNull(0) ?: "/etc/${AuthServiceDescription.name}/config.json"
+        val configFile = File(configFilePath)
+        log.debug("Using path: $configFilePath. This has resolved to: ${configFile.absolutePath}")
+        if (!configFile.exists()) {
+            throw IllegalStateException("Unable to find configuration file. Attempted to locate it at: " +
+                    configFile.absolutePath)
+        }
 
-    val mapper = jacksonObjectMapper()
-    val config = mapper.readValue<AuthConfiguration>(File("auth_config.json"))
-    config.connection.configure(AuthServiceDescription, 42300)
+        configMapper.readValue<AuthConfiguration>(configFile).also {
+            it.configure()
+            log.info("Retrieved the following configuration:")
+            log.info(it.toString())
+        }
+    }
+
+    val kafka = run {
+        log.info("Connecting to Kafka")
+        val streamsConfig = KafkaUtil.retrieveKafkaStreamsConfiguration(configuration.connConfig)
+        val producer = run {
+            val kafkaProducerConfig = KafkaUtil.retrieveKafkaProducerConfiguration(configuration.connConfig)
+            KafkaProducer<String, String>(kafkaProducerConfig)
+        }
+
+        log.info("Connected to Kafka")
+        KafkaServices(streamsConfig, producer)
+    }
+
+    log.info("Connecting to database...")
+    Database.connect(
+            url = configuration.database.url,
+            driver = configuration.database.driver,
+
+            user = configuration.database.username,
+            password = configuration.database.password
+    )
+    log.info("Connected to database!")
+
 
     if (args.isEmpty()) {
+        log.info("Connecting to Zookeeper")
+        val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
+        log.info("Connected to Zookeeper")
+
+        val serverProvider: HttpServerProvider = { block ->
+            embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
+        }
+
         val samlProperties = Properties().apply {
             load(AuthServer::class.java.classLoader.getResourceAsStream("saml.properties"))
         }
+
+        val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
         val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
 
         AuthServer(
-                samlSettings = samlProperties,
-                privKey = priv,
-                config = config
+                jwtAlg = Algorithm.RSA256(priv),
+                config = configuration,
+                authSettings = authSettings,
+                zk = zk,
+                kafka = kafka,
+                ktor = serverProvider
         ).start()
     } else {
         when (args[0]) {
             "generate-db" -> {
                 log.info("Generating database (intended for development only)")
-                log.info("Connecting...")
-                Database.connect(
-                        url = config.database.url,
-                        driver = config.database.driver,
-
-                        user = config.database.username,
-                        password = config.database.password
-                )
-                log.info("OK")
-
                 log.info("Creating tables...")
                 transaction {
                     create(Principals, RefreshTokens)
@@ -83,10 +164,7 @@ fun main(args: Array<String>) {
             }
 
             "create-user" -> {
-                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(
-                        config.connection.processed)
-                )
-                val userEvents = producer.forStream(AuthStreams.UserUpdateStream)
+                val userEvents = kafka.producer.forStream(AuthStreams.UserUpdateStream)
 
                 val console = System.console()
                 val firstNames = console.readLine("First names: ")
@@ -110,11 +188,8 @@ fun main(args: Array<String>) {
             }
 
             "create-api-token" -> {
-                val producer = KafkaProducer<String, String>(retrieveKafkaProducerConfiguration(
-                        config.connection.processed
-                ))
-                val userEvents = producer.forStream(AuthStreams.UserUpdateStream)
-                val tokenEvents = producer.forStream(AuthStreams.RefreshTokenStream)
+                val userEvents = kafka.producer.forStream(AuthStreams.UserUpdateStream)
+                val tokenEvents = kafka.producer.forStream(AuthStreams.RefreshTokenStream)
 
                 val scanner = Scanner(System.`in`)
                 print("Service name: ")

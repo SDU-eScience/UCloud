@@ -7,7 +7,7 @@ data class RefreshTokenAndUser(val associatedUser: String, val token: String)
 
 object RefreshTokens : Table() {
     val token = varchar("token", 36).primaryKey()
-    val associatedUser = varchar("associated_user", 255)
+    val associatedUser = reference("associated_user", Principals.id)
 }
 
 object RefreshTokenAndUserDAO {

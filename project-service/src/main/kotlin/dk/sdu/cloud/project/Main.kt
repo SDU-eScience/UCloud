@@ -20,7 +20,7 @@ import java.io.File
 import java.util.*
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.project.MainKt")
-typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
+internal typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
 
 class Configuration(
         private val connection: RawConnectionConfig,

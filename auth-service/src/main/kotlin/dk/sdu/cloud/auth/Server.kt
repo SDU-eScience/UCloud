@@ -1,9 +1,7 @@
 package dk.sdu.cloud.auth
 
 import com.auth0.jwt.algorithms.Algorithm
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.onelogin.saml2.settings.SettingsBuilder
+import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.http.CoreAuthController
@@ -12,148 +10,121 @@ import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
 import dk.sdu.cloud.auth.processors.UserProcessor
 import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaProducerConfiguration
-import dk.sdu.cloud.service.KafkaUtil.retrieveKafkaStreamsConfiguration
-import io.ktor.application.install
-import io.ktor.features.ContentNegotiation
-import io.ktor.features.DefaultHeaders
-import io.ktor.jackson.jackson
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
 import kotlinx.coroutines.experimental.runBlocking
-import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.jetbrains.exposed.sql.Database
+import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
-import java.io.PrintWriter
-import java.io.StringWriter
-import java.security.interfaces.RSAPrivateKey
-import java.util.*
+import stackTraceToString
 import java.util.concurrent.TimeUnit
 
-data class DatabaseConfiguration(
-        val url: String,
-        val driver: String,
-        val username: String,
-        val password: String
-)
-
-data class AuthConfiguration(
-        val enablePasswords: Boolean = true,
-        val enableWayf: Boolean = false,
-        val database: DatabaseConfiguration,
-        val connection: RawConnectionConfig
-)
-
 class AuthServer(
-        samlSettings: Properties,
-        privKey: RSAPrivateKey,
-        private val config: AuthConfiguration
+        private val jwtAlg: Algorithm,
+        private val config: AuthConfiguration,
+        private val authSettings: Saml2Settings,
+        private val zk: ZooKeeper,
+        private val kafka: KafkaServices,
+        private val ktor: HttpServerProvider
 ) {
-    private val log = LoggerFactory.getLogger(AuthServer::class.java)
-    private val jwtAlg = Algorithm.RSA256(privKey)
-    private val authSettings = SettingsBuilder().fromProperties(samlSettings).build().validateOrThrow()
-    private lateinit var eventProducer: KafkaProducer<String, String>
-    private lateinit var streams: KafkaStreams
-    private lateinit var server: ApplicationEngine
+    private lateinit var kStreams: KafkaStreams
+    private lateinit var httpServer: ApplicationEngine
 
     fun start() {
-        val connConfig = config.connection.processed
-
-        // Register service
-        val instance = AuthServiceDescription.instance(connConfig)
-        val (zk, node) = runBlocking {
-            val zk = ZooKeeperConnection(connConfig.zookeeper.servers).connect()
-            val node = zk.registerService(instance)
-            Pair(zk, node)
+        val instance = AuthServiceDescription.instance(config.connConfig)
+        val node = runBlocking {
+            log.info("Registering service...")
+            zk.registerService(instance).also {
+                log.debug("Service registered! Got back node: $it")
+            }
         }
 
-        // Services
-        val streamsBuilder = StreamsBuilder()
-        eventProducer = KafkaProducer(retrieveKafkaProducerConfiguration(connConfig))
-
+        log.info("Creating core services...")
         val tokenService = TokenService(
                 jwtAlg,
-                eventProducer.forStream(AuthStreams.UserUpdateStream),
-                eventProducer.forStream(AuthStreams.RefreshTokenStream)
+                kafka.producer.forStream(AuthStreams.UserUpdateStream),
+                kafka.producer.forStream(AuthStreams.RefreshTokenStream)
         )
+        log.info("Core services constructed!")
 
-        Database.connect(
-                url = config.database.url,
-                driver = config.database.driver,
+        kStreams = run {
+            log.info("Constructing Kafka Streams Topology")
+            val kBuilder = StreamsBuilder()
 
-                user = config.database.username,
-                password = config.database.password
-        )
+            log.info("Configuring stream processors...")
 
-        // HTTP Controllers
-        val coreController = CoreAuthController(tokenService, config.enablePasswords, config.enableWayf)
-        val samlController = SAMLController(authSettings, tokenService)
-        val passwordController = PasswordController(tokenService)
+            RefreshTokenProcessor(kBuilder.stream(AuthStreams.RefreshTokenStream)).also { it.init() }
+            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream)).also { it.init() }
 
-        // Kafka Processors
-        val refreshTokenProcessor = RefreshTokenProcessor(streamsBuilder.stream(AuthStreams.RefreshTokenStream))
-        val userProcessor = UserProcessor(streamsBuilder.stream(AuthStreams.UserUpdateStream))
-
-        // Processor Initialization
-        refreshTokenProcessor.init()
-        userProcessor.init()
-
-        // HTTP Server Initialization
-        server = embeddedServer(Netty, port = connConfig.service.port) {
-            install(DefaultHeaders)
-            install(ContentNegotiation) {
-                jackson {
-                    registerKotlinModule()
-                    configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                }
+            kafka.build(kBuilder.build()).also {
+                log.info("Kafka Streams Topology successfully built!")
             }
+        }
+
+        kStreams.setUncaughtExceptionHandler { _, exception ->
+            log.error("Caught fatal exception in Kafka! Stacktrace follows:")
+            log.error(exception.stackTraceToString())
+            stop()
+        }
+
+        httpServer = ktor {
+            log.info("Configuring HTTP server")
+
+            installDefaultFeatures()
+
+            log.info("Creating HTTP controllers")
+            val coreController = CoreAuthController(tokenService, config.enablePasswords, config.enableWayf)
+            val samlController = SAMLController(authSettings, tokenService)
+            val passwordController = PasswordController(tokenService)
+            log.info("HTTP controllers configured!")
 
             routing {
                 coreController.configure(this)
                 if (config.enableWayf) samlController.configure(this)
                 if (config.enablePasswords) passwordController.configure(this)
             }
+
+            log.info("HTTP server successfully configured!")
         }
 
-        // Streams Initialization
-        streams = KafkaStreams(streamsBuilder.build(), retrieveKafkaStreamsConfiguration(connConfig))
-        streams.setUncaughtExceptionHandler { _, b ->
-            log.warn("Caught critical exception in Kafka!")
-            log.warn(StringWriter().apply { b.printStackTrace(PrintWriter(this)) }.toString())
-            stop()
-        }
+        log.info("Starting HTTP server...")
+        httpServer.start(wait = false)
+        log.info("HTTP server started!")
 
-        // Start HTTP Server and Kafka Streams
-        streams.start()
-        server.start(wait = false)
+        log.info("Starting Kafka Streams...")
+        kStreams.start()
+        log.info("Kafka Streams started!")
 
         runBlocking { zk.markServiceAsReady(node, instance) }
+
+        log.info("Server is ready!")
+        log.info(instance.toString())
     }
 
     fun stop() {
         try {
-            streams.close()
+            kStreams.close()
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
         try {
-            server.stop(0, 5, TimeUnit.SECONDS)
+            httpServer.stop(0, 5, TimeUnit.SECONDS)
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
         try {
-            eventProducer.close()
+            kafka.producer.close()
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(AuthServer::class.java)
     }
 }
 
