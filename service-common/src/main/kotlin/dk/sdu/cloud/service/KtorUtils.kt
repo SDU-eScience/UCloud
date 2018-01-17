@@ -91,3 +91,16 @@ fun PipelineContext<*, ApplicationCall>.logEntry(
 
     log.info("$method $uri $jobId $parameterString $headerString")
 }
+
+fun <R : Any> RESTHandler<R, *, *>.logEntry(
+        log: Logger,
+        payload: R,
+        requestToString: (R) -> String = { it.toString() }
+) {
+    val method = call.request.httpMethod.value
+    val uri = call.request.uri
+    val jobId = call.request.safeJobId
+
+
+    log.info("$method $uri $jobId ${requestToString(payload)}")
+}

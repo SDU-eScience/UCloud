@@ -2,12 +2,11 @@ package dk.sdu.cloud.app.processors
 
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ApplicationDAO
-import dk.sdu.cloud.app.services.HPCStreamService
+import dk.sdu.cloud.app.services.AuthenticatedStream
 import dk.sdu.cloud.app.services.SBatchGenerator
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.services.ssh.sbatch
 import dk.sdu.cloud.app.services.ssh.scpUpload
-import dk.sdu.cloud.app.stackTraceToString
 import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.storage.Error
@@ -19,16 +18,17 @@ import dk.sdu.cloud.storage.ext.StorageException
 import dk.sdu.cloud.storage.model.FileStat
 import dk.sdu.cloud.storage.model.StoragePath
 import org.slf4j.LoggerFactory
+import stackTraceToString
 import java.net.URI
 
-class StartProcessor(
+class StartCommandProcessor(
         private val connectionFactory: StorageConnectionFactory,
         private val sBatchGenerator: SBatchGenerator,
         private val sshPool: SSHConnectionPool,
         private val sshUser: String,
-        private val streamService: HPCStreamService
+        private val appRequests: AuthenticatedStream<String, AppRequest>
 ) {
-    private val log = LoggerFactory.getLogger(StartProcessor::class.java)
+    private val log = LoggerFactory.getLogger(StartCommandProcessor::class.java)
 
     private data class ValidatedFileForUpload(
             val stat: FileStat,
@@ -168,13 +168,13 @@ class StartProcessor(
                 }
 
                 is AppRequest.Cancel -> {
-                    // TODO This won't really cancel anything?
+                    // TODO This won't really cancel anything
                     HPCAppEvent.UnsuccessfullyCompleted
                 }
             }
 
     fun init() {
-        streamService.appRequests.respond(
+        appRequests.respond(
                 target = HPCStreams.AppEvents,
 
                 onAuthenticated = { _, e ->

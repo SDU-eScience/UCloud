@@ -1,5 +1,6 @@
 package dk.sdu.cloud.project
 
+import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.project.api.ProjectServiceDescription
@@ -11,6 +12,7 @@ import dk.sdu.cloud.service.instance
 import dk.sdu.cloud.service.markServiceAsReady
 import dk.sdu.cloud.service.registerService
 import io.ktor.application.call
+import io.ktor.application.install
 import io.ktor.response.respondText
 import io.ktor.routing.get
 import io.ktor.routing.route
@@ -74,6 +76,7 @@ class Server(
             //  - Populates the call.request.jobId field (this is created by the GW)
             //  - Adds default headers and call logging
             installDefaultFeatures()
+            install(JWTProtection)
 
             routing {
                 route("api/projects") {

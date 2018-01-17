@@ -11,6 +11,7 @@ import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.service.EventProducer
 import dk.sdu.cloud.tus.api.CreationCommand
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.internal.start
@@ -28,23 +29,27 @@ class SlurmProcessor(
         private val sshPool: SSHConnectionPool,
         private val irodsConfig: StorageConfiguration,
         private val slurmAgent: SlurmPollAgent,
-        private val streamService: HPCStreamService
+        private val appEventProducer: EventProducer<String, HPCAppEvent>
 ) {
     // Handles an event captured by te internal SlurmPollAgent and handles it. This will output
     // an event into Kafka once the entire thing has been handled. From this we create a Kafka event.
-    private suspend fun handle(event: SlurmEvent): Pair<String, HPCAppEvent> =
-            when (event) {
-                is SlurmEventBegan -> {
-                    val key = transaction { JobsDAO.findSystemIdFromSlurmId(event.jobId) }!!
-                    val appEvent = HPCAppEvent.Started(event.jobId)
+    private suspend fun handle(event: SlurmEvent): Pair<String, HPCAppEvent> {
+        log.debug("handle($event)")
+        return when (event) {
+            is SlurmEventBegan -> {
+                val key = transaction { JobsDAO.findSystemIdFromSlurmId(event.jobId) }!!
+                val appEvent = HPCAppEvent.Started(event.jobId)
 
-                    Pair(key, appEvent)
-                }
-
-                is SlurmEventEnded -> handleEndedEvent(event)
-
-                else -> throw IllegalStateException()
+                Pair(key, appEvent)
             }
+
+            is SlurmEventEnded -> handleEndedEvent(event)
+
+            else -> throw IllegalStateException()
+        }.also {
+            log.debug("handle() returning $it")
+        }
+    }
 
     private suspend fun handleEndedEvent(event: SlurmEventEnded): Pair<String, HPCAppEvent.Ended> {
         val key = transaction { JobsDAO.findSystemIdFromSlurmId(event.jobId) }!!
@@ -106,7 +111,6 @@ class SlurmProcessor(
                 } else {
                     log.debug("Downloading file from ${source.path}")
 
-                    // TODO Upload here
                     val upload = runBlocking {
                         val owner = jobWithStatus.jobInfo.owner
                         TusDescriptions.create.call(CreationCommand(
@@ -117,11 +121,9 @@ class SlurmProcessor(
                                 sensitive = false // TODO Sensitivity
                         ), cloud)
                     } as? RESTResponse.Ok ?: throw IllegalStateException("Upload failed")
+
                     val uploadLocation = upload.response.headers["Location"]!!
-
-
                     log.debug("Upload target is: $uploadLocation")
-                    // TODO Refactor upload client to allow us to find a suitable target
 
                     if (sourceFile.size >= Int.MAX_VALUE) {
                         log.warn("sourceFile.size (${sourceFile.size}) >= Int.MAX_VALUE. Currently not supported")
@@ -150,7 +152,7 @@ class SlurmProcessor(
         slurmAgent.addListener {
             runBlocking {
                 val (key, event) = handle(it)
-                streamService.appEventsProducer.emit(key, event)
+                appEventProducer.emit(key, event)
             }
         }
     }
