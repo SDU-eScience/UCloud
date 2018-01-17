@@ -1,7 +1,6 @@
 import React from 'react';
-import {getMockApp} from '../../MockObjects';
 import FileSelector from '../FileSelector';
-import { Cloud } from "../../../authentication/SDUCloudObject";
+import {Cloud} from "../../../authentication/SDUCloudObject";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -26,7 +25,6 @@ class RunApp extends React.Component {
 
     handleSubmit(event) {
         event.preventDefault();
-
         let job = {
             application: {
                 name: this.state.appName,
@@ -39,9 +37,9 @@ class RunApp extends React.Component {
         // FIXME HACK
         let name = this.state.parameters.find(par => par.type === "input_file").name;
         let dummyFile = this.state.parameterValues[name];
-        this.state.parameters.forEach( par => {
+        this.state.parameters.forEach(par => {
             if (par.type === "output_file") {
-                job.parameters[par.name] = { destination: dummyFile.destination, source: dummyFile.destination };
+                job.parameters[par.name] = {destination: dummyFile.destination, source: dummyFile.destination};
             }
         });
         // FIXME HACK END
@@ -178,7 +176,6 @@ function InputFileParameter(props) {
             <div className="col-md-4">
                 <FileSelector onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}
                               isSource={true}/>
-                <span><em/></span>
                 <span className="help-block">Source of the file</span>
                 <input
                     placeholder={props.parameter.defaultValue ? 'Default value: ' + props.parameter.defaultValue : ''}

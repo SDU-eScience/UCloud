@@ -9,7 +9,7 @@ class FileSelector extends React.Component {
         super(props);
         this.state = {
             parameter: props.parameter,
-            selectedFile: {},
+            selectedFile: {path: {path: ""}},
             isSource: props.isSource,
             currentPath: `/home/${Cloud.username}`,
             loading: false,
@@ -66,8 +66,12 @@ class FileSelector extends React.Component {
     render() {
         return (
             <div>
-                <Button bsStyle="primary" onClick={this.openModal}>Browse files</Button>
-                <SelectedFile selectedFile={this.state.selectedFile}/>
+                <div className="input-group col-sm-12"><span className="input-group-btn"><Button
+                    onClick={this.openModal}
+                    type="button"
+                    className="btn btn-default">Browse files</Button></span>
+                    <input className="form-control readonly" required={!this.state.parameter.optional} type="text" placeholder={"No file selected"}
+                           value={this.state.selectedFile.path.path}/></div>
                 <Modal show={this.state.modalShown} onHide={this.closeModal}>
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
@@ -146,14 +150,6 @@ function FileList(props) {
         {filesList}
         </tbody>
     )
-}
-
-function SelectedFile(props) {
-    if (props.selectedFile.path) {
-        return (<div>Currently selected file: {props.selectedFile.path.name}</div>)
-    } else {
-        return null;
-    }
 }
 
 export default FileSelector;
