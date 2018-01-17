@@ -13,13 +13,6 @@ class StatusPage extends React.Component {
         this.setState({
             status: Statuses[0],
         });
-        setTimeout(() => {
-            this.setState(() => ({status: Statuses[1]}));
-            setTimeout(() => {
-                this.setState(() => ({status: Statuses[2]}));
-                setTimeout(() => this.setState(() => ({status: Statuses[3]})), 10000);
-            }, 10000);
-        }, 10000);
     }
 
     statusToColor() {
