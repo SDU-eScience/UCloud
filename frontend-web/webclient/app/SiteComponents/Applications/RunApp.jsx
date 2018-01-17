@@ -121,9 +121,6 @@ class RunApp extends React.Component {
 }
 
 function ApplicationHeader(props) {
-    if (!props.description) {
-        return null
-    }
     return (
         <div>
             <h1>{props.name}</h1>
@@ -159,7 +156,7 @@ function Parameter(props) {
         parameter = (
             <InputFileParameter onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}/>);
     } else if (props.parameter.type === "output_file") {
-        parameter = (<OutputFileParameter parameter={props.parameter}/>);
+        parameter = null; //parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
         parameter = (<IntegerParameter onChange={props.onChange} parameter={props.parameter}/>);
     } else if (props.parameter.type === "float") {
@@ -193,7 +190,7 @@ function InputFileParameter(props) {
         </div>)
 }
 
-function OutputFileParameter(props) {
+function OutputFileParameter(props) { // TODO: DELETE?
     return (
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>

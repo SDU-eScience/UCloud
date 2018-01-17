@@ -30,8 +30,8 @@ class Notifications extends React.Component {
     }
 
     getNotifications() {
-        this.setState({loading: true});
-        $.getJSON("http://localhost:8080/api/getNotifications").then((notifications) => {
+        //this.setState({loading: true});
+        /*$.getJSON("http://localhost:8080/api/getNotifications").then((notifications) => {
             let yesterday = new Date().getTime() - 24 * 60 * 60 * 1000;
             let recentNotifications = this.state.recent.slice();
             let remainingNotifications = this.state.remaining.slice();
@@ -49,8 +49,8 @@ class Notifications extends React.Component {
                 recent: recentNotifications,
                 remaining: remainingNotifications,
             });
-            if (this.state.hasWebSocketSupport) this.initWS();
-        });
+            //if (this.state.hasWebSocketSupport) this.initWS();
+        });*/
     }
 
     initWS() {

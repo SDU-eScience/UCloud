@@ -34,8 +34,6 @@
     import '../node_modules/jquery-bootgrid/dist/jquery.bootgrid.css';
     // Datatables
     import '../node_modules/datatables/media/css/jquery.dataTables.css';
-    // Sweet Alert
-    import '../node_modules/sweetalert/dist/sweetalert.css';
     // Loaders.CSS
     import '../node_modules/loaders.css/loaders.css';
     // Material Floating Button
@@ -115,8 +113,6 @@
     $.fn.dataTable = require('../node_modules/datatables/media/js/jquery.dataTables.js')( window, $ );
     // Nestable
     //import '../node_modules/nestable/jquery.nestable.js';
-    // Sweet Alert (global access for other scripts)
-    window.swal = require('../node_modules/sweetalert/dist/sweetalert.min.js');
     // Images Loaded
     import '../node_modules/imagesloaded/imagesloaded.pkgd.js';
     // jQuery Localize
