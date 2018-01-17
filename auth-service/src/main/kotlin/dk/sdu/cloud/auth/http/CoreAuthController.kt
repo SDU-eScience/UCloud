@@ -4,6 +4,8 @@ import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.safeJobId
 import io.ktor.application.call
 import io.ktor.content.files
 import io.ktor.content.static
@@ -49,6 +51,7 @@ class CoreAuthController(
                 val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
                 val isInvalid = call.parameters["invalid"] != null
 
+                logEntry(log, mapOf("service" to service, "isInvalid" to isInvalid))
 
                 fun FlowContent.formControlField(name: String, text: String, iconType: String,
                                                  type: String = "text") {
@@ -168,14 +171,17 @@ class CoreAuthController(
             }
 
             get("login-redirect") {
-                val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) } ?:
-                        return@get run {
-                            log.info("missing service")
-                            call.respondRedirect("/auth/login")
-                        }
+                logEntry(log, parameterIncludeFilter = {
+                    it == "service" || it == "accessToken" || it == "refreshToken"
+                })
+
+                val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) } ?: return@get run {
+                    log.info("Missing service")
+                    call.respondRedirect("/auth/login")
+                }
 
                 val token = call.parameters["accessToken"] ?: return@get run {
-                    log.info("missing access token")
+                    log.info("Missing access token")
                     call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
                 }
 
@@ -245,20 +251,25 @@ class CoreAuthController(
 
 
             post("refresh") {
+                logEntry(log, headerIncludeFilter = { it == HttpHeaders.Authorization })
+
                 val refreshToken = call.request.bearerToken ?: return@post run {
                     call.respond(HttpStatusCode.Unauthorized)
                 }
 
-                val token = try {
-                    tokenService.refresh(refreshToken)
+                try {
+                    val token = tokenService.refresh(refreshToken)
+                    call.respond(token)
                 } catch (ex: TokenService.RefreshTokenException) {
+                    log.info(ex.message)
                     call.respond(ex.httpCode)
                 }
 
-                call.respond(token)
             }
 
             post("logout") {
+                logEntry(log, headerIncludeFilter = { it == HttpHeaders.Authorization })
+
                 // TODO Invalidate at WAYF
                 val refreshToken = call.request.bearerToken ?: return@post run {
                     call.respond(HttpStatusCode.Unauthorized)
@@ -267,6 +278,7 @@ class CoreAuthController(
                     tokenService.logout(refreshToken)
                     call.respond(HttpStatusCode.NoContent)
                 } catch (ex: TokenService.RefreshTokenException) {
+                    log.info(ex.message)
                     call.respond(ex.httpCode)
                 }
             }

@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.statements.UpdateBuilder
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.joda.time.DateTime
+import org.slf4j.LoggerFactory
 import java.security.NoSuchAlgorithmException
 import java.security.SecureRandom
 import java.security.spec.InvalidKeySpecException
@@ -148,10 +149,15 @@ object Principals : Table() {
 }
 
 object UserDAO {
+    private val log = LoggerFactory.getLogger(UserDAO::class.java)
+
     fun findById(id: String): Principal? {
+        log.debug("findById($id)")
         val users = transaction {
             Principals.select { Principals.id eq id }.limit(1).toList()
         }
+
+        log.debug("Returned ${users.size} rows")
 
         return users.singleOrNull()?.let {
             val rowId = it[Principals.id]
@@ -160,6 +166,7 @@ object UserDAO {
 
             when (loginType) {
                 LoginType.WAYF, LoginType.PASSWORD -> {
+                    log.debug("Login is person: loginType=$loginType")
                     val title = it[Principals.title]
                     val firstNames = it[Principals.firstNames]!!
                     val lastName = it[Principals.lastName]!!
@@ -212,9 +219,12 @@ object UserDAO {
                 }
 
                 LoginType.SERVICE -> {
+                    log.debug("Login type is service")
                     ServicePrincipal(rowId, role)
                 }
             }
+        }.also {
+            log.debug("Result is: $it")
         }
     }
 
@@ -257,6 +267,7 @@ object UserDAO {
     }
 
     fun insert(user: Principal) {
+        log.debug("insert(user=$user)")
         return transaction {
             Principals.insert {
                 mapFieldsIntoStatement(it, user)
@@ -266,6 +277,7 @@ object UserDAO {
     }
 
     fun update(user: Principal): Boolean {
+        log.debug("update(user=$user)")
         return transaction {
             Principals.update(
                     limit = 1,
@@ -279,8 +291,8 @@ object UserDAO {
     }
 
     fun delete(user: Principal): Boolean {
+        log.debug("delete(user=$user)")
         return transaction { Principals.deleteWhere { Principals.id eq user.id } } == 1
     }
-
 }
 

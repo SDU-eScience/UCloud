@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.auth.api.KtorServiceUtilsKt")
 
-private val ApplicationRequest.bearer: String?
+val ApplicationRequest.bearer: String?
     get() {
         val header = header(HttpHeaders.Authorization) ?: return null
         if (!header.startsWith("Bearer ")) {
