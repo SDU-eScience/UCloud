@@ -7,6 +7,7 @@ import {buildBreadCrumbs, sortFiles} from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
 import { tusConfig } from "../Configurations";
+import pubsub from "pubsub-js";
 
 class Files extends React.Component {
     constructor(props) {
@@ -186,6 +187,7 @@ class Files extends React.Component {
     }
 
     componentWillMount() {
+        pubsub.publish('setPageTitle', this.constructor.name);
         this.state.uppy.use(Uppy.Tus, tusConfig);
         this.state.uppy.run();
         this.getFiles();

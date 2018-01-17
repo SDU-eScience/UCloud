@@ -1,8 +1,8 @@
 import React from 'react';
-import $ from 'jquery';
 import LoadingIcon from '../LoadingIcon'
 import { NotificationIcon, WebSocketSupport } from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
+import { Table } from 'react-bootstrap';
 
 class Notifications extends React.Component {
     constructor(props) {
@@ -97,9 +97,9 @@ class Notifications extends React.Component {
                     <WebSocketSupport/>
                     <p className="ph">Last 24 hours</p>
                     <div className="card">
-                        <table className="table table-hover table-fixed va-middle">
+                        <Table className="table table-hover table-fixed va-middle">
                             <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)} notifications={this.state.recent} showCount={this.state.recentShown}/>
-                        </table>
+                        </Table>
                         <ShowButton onClick={() => this.showMore("recent")} hasMoreNotifications={this.state.recent.length > this.state.recentShown}/>
                     </div>
                     <p className="ph">Older</p>
