@@ -6,11 +6,7 @@ import {Button} from 'react-bootstrap';
 import {buildBreadCrumbs, sortFiles} from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
-
-let tusConfig = {
-    endpoint: "https://cloud.sdu.dk/api/tus",
-        headers: {}
-}
+import { tusConfig } from "../Configurations";
 
 class Files extends React.Component {
     constructor(props) {
@@ -196,7 +192,6 @@ class Files extends React.Component {
     }
 
     componentWillUnmount() {
-        console.log(this);
         this.setState(() => {
             let result = { uppy: this.state.uppy };
             result.uppy.close();
@@ -235,7 +230,7 @@ class Files extends React.Component {
                                 getFavourites={() => this.getFavourites()}
                                 onClick={this.handleOpen}/>
                 </div>
-                <DashboardModal uppy={uppy} open={this.state.uploadFileOpen} closeModalOnClickOutside
+                <DashboardModal uppy={this.state.uppy} open={this.state.uploadFileOpen} closeModalOnClickOutside
                                 onRequestClose={this.handleClose}/>
             </section>)
     }
