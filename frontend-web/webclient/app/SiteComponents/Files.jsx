@@ -3,7 +3,7 @@ import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button} from 'react-bootstrap';
-import {buildBreadCrumbs, sortFiles} from '../UtilityFunctions'
+import {buildBreadCrumbs, sortFiles, createFolder} from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
 import { tusConfig } from "../Configurations";
@@ -29,7 +29,7 @@ class Files extends React.Component {
                 meta: {
                     sensitive: false,
                 },
-                onBeforeUpload: (files) => {
+                onBeforeUpload: () => {
                     return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
                         tusConfig.headers["Authorization"] = "Bearer " + data;
                     }).promise();
@@ -93,21 +93,6 @@ class Files extends React.Component {
 
     static showFileDeletionPrompt() {
 
-    }
-
-    getFavourites() {
-        // TODO
-        console.log("GET FAVOURITES TODO")
-    }
-
-    favourite(file) {
-        // TODO
-        console.log("FAVOURITE TODO")
-    }
-
-    prevent() {
-        // TODO
-        console.log("PREVENT TODO")
     }
 
     static rightsMap() {
@@ -224,7 +209,7 @@ class Files extends React.Component {
                                               handlePageSizeSelection={this.handlePageSizeSelection}/> Files per
                         page
                     </div>
-                    <ContextBar selectedFiles={this.state.selectedFiles}
+                    <ContextBar selectedFiles={this.state.selectedFiles} currentPath={this.state.currentPath}
                                 getFavourites={() => this.getFavourites()}
                                 onClick={this.handleOpen}/>
                 </div>
@@ -275,12 +260,12 @@ function ContextBar(props) {
                         className="icon ion-ios-home"/></Link></Button>
                 </div>
                 <hr/>
-                <button className="btn btn-primary ripple btn-block ion-android-upload" id={"uppy"}
+                <button className="btn btn-primary ripple btn-block ion-android-upload" id="uppy"
                         onClick={props.onClick}> Upload
                     Files
                 </button>
                 <br/>
-                <button className="btn btn-default ripple btn-block ion-folder" onClick={Files.createFolder}>
+                <button className="btn btn-default ripple btn-block ion-folder" onClick={() => createFolder(props.currentPath)}>
                     New folder
                 </button>
                 <br/>

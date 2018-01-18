@@ -1,4 +1,5 @@
-import React from 'react'
+import React from "react";
+import swal from "sweetalert";
 
 function NotificationIcon(props) {
     if (props.type === "Complete") {
@@ -53,4 +54,38 @@ function sortFiles(files) {
     return files;
 }
 
-export {NotificationIcon, WebSocketSupport, buildBreadCrumbs, sortFiles}
+function favourite(file) {
+    // TODO Favourite file based on URI (file.path.uri);
+}
+
+function createFolder(currentPath) {
+    swal({
+        title: "Create folder",
+        text: `The folder will be created in:\n${currentPath}`,
+        content: {
+            element: "input",
+            attributes: {
+                placeholder: "Folder name...",
+                type: "text",
+            },
+        },
+        placeholder: "Folder name...",
+        buttons: {
+            confirm: {
+                text: "Create folder",
+                closeModal: false,
+            }
+        }
+    }).then(name => {
+        // TODO: Connect to backend.
+    })
+}
+
+export {
+    NotificationIcon,
+    WebSocketSupport,
+    buildBreadCrumbs,
+    sortFiles,
+    createFolder,
+    favourite
+}
