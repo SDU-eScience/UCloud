@@ -14,6 +14,7 @@ import ReactDOM from 'react-dom';
 import {Router, Route, Link, IndexRoute, useRouterHistory} from 'react-router';
 import {createHistory} from 'history'
 
+import uppyStyle from "uppy/src/scss/uppy.scss";
 import Core from './components/Core/Core';
 import Bootstrap from './components/Bootstrap/Bootstrap';
 import Common from './components/Common/Common';

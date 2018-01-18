@@ -12,8 +12,6 @@ import Settings from '../Settings/Settings';
 class Core extends React.Component {
     render() {
 
-        const animationName = 'rag-fadeIn'
-
         return (
             <div className="layout-container">
 
@@ -22,13 +20,7 @@ class Core extends React.Component {
                 <Sidebar />
                 <div className="sidebar-layout-obfuscator"/>
 
-                <ReactCSSTransitionGroup
-                  component="main"
-                  className="main-container"
-                  transitionName={animationName}
-                  transitionEnterTimeout={500}
-                  transitionLeaveTimeout={500}
-                >
+                <div className="main-container">
                     {/* Page content */}
                     {React.cloneElement(this.props.children, {
                         key: this.props.location.pathname
@@ -36,10 +28,9 @@ class Core extends React.Component {
 
                     {/* Page footer */}
                     <footer>
-                        <span>2018 - SDUCloud.</span>
+                        <span>{new Date().getFullYear()} - SDUCloud.</span>
                     </footer>
-                </ReactCSSTransitionGroup>
-
+                </div>
                 {/* Search template */}
                 <HeaderSearch/>
 

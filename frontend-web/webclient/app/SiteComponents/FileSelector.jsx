@@ -59,10 +59,6 @@ class FileSelector extends React.Component {
         });
     }
 
-    createFolder() {
-        // TODO
-    }
-
     render() {
         return (
             <div>
