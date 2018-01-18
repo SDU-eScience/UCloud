@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 class SSHConnectionPool(
         private val config: SimpleSSHConfig,
-        private val maxConnections: Int = 8,
+        maxConnections: Int = 8,
         private val timeout: Long = 60,
         private val timeoutUnit: TimeUnit = TimeUnit.SECONDS
 ) {
@@ -46,7 +46,6 @@ class SSHConnectionPool(
             assert(index != -1) // If this happens then some permit was released prematurely
             val connection = getAndValidate(index) ?: openNewConnection()
 
-            // if (!connection.session.isConnected) connection.session.connect()
             objectPool[index] = connection
             available[index] = false
             return Pair(index, connection)

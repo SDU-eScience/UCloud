@@ -37,7 +37,7 @@ class SBatchGenerator {
 
         val numberOfNodes = if (description.numberOfNodes != null) {
             evaluateTemplate(description.numberOfNodes).toIntOrNull() ?:
-                    throw IllegalStateException("While generation sbatch script - Could not parse number " +
+                    throw IllegalStateException("While generating sbatch script - Could not parse number " +
                             "of nodes, value is not integer")
         } else {
             tool.defaultNumberOfNodes
@@ -45,7 +45,7 @@ class SBatchGenerator {
 
         val tasksPerNode = if (description.tasksPerNode != null) {
             evaluateTemplate(description.tasksPerNode).toLongOrNull() ?:
-                    throw IllegalStateException("While generation sbatch script - Could not parse tasks " +
+                    throw IllegalStateException("While generating sbatch script - Could not parse tasks " +
                             "per node, value is not integer")
         } else {
             tool.defaultTasksPerNode
@@ -76,8 +76,6 @@ class SBatchGenerator {
         val modules = tool.requiredModules.joinToString("\n") {
             "module add ${safeBashArgument(it)}"
         }
-
-        // Note: The email is trusted and as a result not escaped
 
         //
         //
@@ -119,7 +117,8 @@ class TemplateParser {
     }
 
     fun parseSingleLineTemplate(inputTemplate: String): ArrayList<TemplateNode> {
-        val template = inputTemplate.lines().singleOrNull() ?: throw IllegalArgumentException("Multiple lines in template")
+        val template = inputTemplate.lines().singleOrNull() ?:
+                throw IllegalArgumentException("Multiple lines in template")
         val output = ArrayList<TemplateNode>()
         var state = State.WORD
 
