@@ -105,7 +105,7 @@ class Files extends React.Component {
     };
 
     static getCurrentRights(files) {
-        let lowestPrivilegeOptions = Files.rightsMap()["NONE"];
+        let lowestPrivilegeOptions = Files.rightsMap()["OWN"];
         files.forEach((it) => {
             it.acl.forEach((acl) => {
                 lowestPrivilegeOptions = Math.min(Files.rightsMap()[acl.right], lowestPrivilegeOptions);
