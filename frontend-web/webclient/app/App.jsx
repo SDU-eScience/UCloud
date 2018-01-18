@@ -33,9 +33,6 @@ import Utils from './components/Utils/Utils';
 import { Cloud } from '../authentication/SDUCloudObject'
 
 
-import forms  from './components/Forms/Forms'
-
-
 Translate();
 
 $(() => {
@@ -63,12 +60,6 @@ ReactDOM.render(
 
             {/* Default route*/}
             <IndexRoute component={Dashboard}/>
-
-            <Route path="forms">
-                <Route path="forms" component={forms.FormsClassic}/>
-                <Route path="formsAdvanced" component={forms.FormsAdvanced}/>
-                <Route path="material" component={forms.Material}/>
-            </Route>
 
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />
