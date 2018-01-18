@@ -6,7 +6,7 @@ import {Button} from 'react-bootstrap';
 import {buildBreadCrumbs, sortFiles, createFolder} from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
-import { tusConfig } from "../Configurations";
+import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
 
 class Files extends React.Component {
@@ -62,12 +62,16 @@ class Files extends React.Component {
 
     selectOrDeselectAllFiles(event) {
         let checked = event.target.checked;
+        let currentPage = this.state.currentPage;
+        let filesPerPage = this.state.filesPerPage;
         let files = this.state.files.slice();
-        files.forEach(file => file.isChecked = checked);
+        files.forEach(file => file.isChecked = false);
         if (checked) {
+            let shownFiles = files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
+            shownFiles.forEach(file => file.isChecked = true);
             this.setState(() => ({
                 files: files,
-                selectedFiles: files,
+                selectedFiles: shownFiles,
                 masterCheckbox: true,
             }));
         } else {
@@ -150,7 +154,10 @@ class Files extends React.Component {
     }
 
     toPage(n) {
-        this.setState(() => ({currentPage: n}));
+        this.setState(() => ({
+            currentPage: n,
+            masterCheckbox: false,
+        }));
     }
 
     getCurrentFiles() {
@@ -160,11 +167,17 @@ class Files extends React.Component {
     }
 
     nextPage() {
-        this.setState(() => ({currentPage: this.state.currentPage + 1}))
+        this.setState(() => ({
+            currentPage: this.state.currentPage + 1,
+            masterCheckbox: false,
+        }));
     }
 
     previousPage() {
-        this.setState(() => ({currentPage: this.state.currentPage - 1}))
+        this.setState(() => ({
+            currentPage: this.state.currentPage - 1,
+            masterCheckbox: false,
+        }));
     }
 
     componentWillMount() {
@@ -176,7 +189,7 @@ class Files extends React.Component {
 
     componentWillUnmount() {
         this.setState(() => {
-            let result = { uppy: this.state.uppy };
+            let result = {uppy: this.state.uppy};
             result.uppy.close();
             return result;
         });
@@ -265,7 +278,8 @@ function ContextBar(props) {
                     Files
                 </button>
                 <br/>
-                <button className="btn btn-default ripple btn-block ion-folder" onClick={() => createFolder(props.currentPath)}>
+                <button className="btn btn-default ripple btn-block ion-folder"
+                        onClick={() => createFolder(props.currentPath)}>
                     New folder
                 </button>
                 <br/>

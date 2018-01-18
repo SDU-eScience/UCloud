@@ -37,8 +37,6 @@ class Core extends React.Component {
                 {/* Settings template */}
                 <Settings/>
 
-                {/*> yield region="bodyChild"} */}
-
             </div>
         );
     }
