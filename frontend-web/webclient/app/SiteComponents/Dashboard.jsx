@@ -21,7 +21,11 @@ class Dashboard extends React.Component {
             analysesLoading: false,
             activity: [],
             activityLoading: false,
-        }
+        };
+        this.getFavouriteFiles = this.getFavouriteFiles.bind(this);
+        this.getMostRecentFiles = this.getMostRecentFiles.bind(this);
+        this.getRecentActivity = this.getRecentActivity.bind(this);
+        this.getRecentAnalyses = this.getRecentAnalyses.bind(this);
     }
 
     componentDidMount() {
@@ -62,28 +66,28 @@ class Dashboard extends React.Component {
     }
 
     getRecentAnalyses() {
-        this.setState({
+        this.setState(() => ({
             analysesLoading: true
-        });
+        }));
         $.getJSON("/api/getRecentWorkflowStatus").then((analyses) => {
             analyses.sort();
-            this.setState({
+            this.setState(() => ({
                 analysesLoading: false,
                 recentAnalyses: analyses
-            });
+            }));
         });
     }
 
     getRecentActivity() {
-        this.setState({
+        this.setState(() => ({
             activityLoading: true
-        });
+        }));
         $.getJSON("/api/getRecentActivity").then((activity) => {
             activity.sort();
-            this.setState({
+            this.setState(() => ({
                 activity: activity,
                 activityLoading: false,
-            })
+            }));
         });
     }
 
@@ -148,7 +152,7 @@ function DashboardFavouriteFiles(props) {
                     </tr>
                     </thead>
                     <tbody>
-                        {filesList}
+                    {filesList}
                     </tbody>
                 </Table>
             </div>
@@ -192,7 +196,7 @@ function DashboardRecentFiles(props) {
                     </tr>
                     </thead>
                     <tbody>
-                        {filesList}
+                    {filesList}
                     </tbody>
                 </Table>
             </div>
