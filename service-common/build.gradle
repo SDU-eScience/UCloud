@@ -1,9 +1,9 @@
-group 'dk.sdu.cloud'
-version '0.5.0-SNAPSHOT'
+group "dk.sdu.cloud"
+version "0.5.0-SNAPSHOT"
 
 buildscript {
-    ext.kotlin_version = '1.2.0'
-    ext.ktor_version = '0.9.1-alpha-8'
+    ext.kotlin_version = "1.2.10"
+    ext.ktor_version = "0.9.1-alpha-8"
 
     repositories {
         mavenCentral()
@@ -13,8 +13,8 @@ buildscript {
     }
 }
 
-apply plugin: 'kotlin'
-apply plugin: 'maven-publish'
+apply plugin: "kotlin"
+apply plugin: "maven-publish"
 
 repositories {
     mavenCentral()
@@ -40,14 +40,10 @@ repositories {
 dependencies {
     // Kotlin
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    /*
-    compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: kotlin_version
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
-    */
 
     // Kafka
-    compile group: 'org.apache.kafka', name: 'kafka-clients', version: '1.0.0'
-    compile group: 'org.apache.kafka', name: 'kafka-streams', version: '1.0.0'
+    compile group: "org.apache.kafka", name: "kafka-clients", version: "1.0.0"
+    compile group: "org.apache.kafka", name: "kafka-streams", version: "1.0.0"
 
     // Serialization
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
@@ -56,8 +52,9 @@ dependencies {
     compile "dk.sdu.cloud:client-core:0.1.0-SNAPSHOT"
 
     // ktor
-    compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
-    compile "io.ktor:ktor-jackson:$ktor_version"
+    compile group: "io.ktor", name: "ktor-server-core", version: "$ktor_version"
+    compile group: "io.ktor", name: "ktor-jackson", version: "$ktor_version"
+    compile group: "io.ktor", name: "ktor-server-host-common", version: "$ktor_version"
 
     // Service discovery
     compile(group: "org.apache.zookeeper", name: "zookeeper", version: "3.4.11") {
@@ -69,7 +66,7 @@ dependencies {
     compile "com.auth0:java-jwt:3.0.1"
 
     // Testing
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile group: "junit", name: "junit", version: "4.12"
 }
 
 compileKotlin {
@@ -104,7 +101,6 @@ publishing {
     // This file should contain the configuration for the repository, user, and password.
     //
     // Example:
-    // eScienceCloudRepository=http://localhost:18080/repository/internal
     // eScienceCloudUser=admin
     // eScienceCloudPassword=qwer
     //

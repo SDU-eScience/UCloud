@@ -12,6 +12,7 @@ import io.ktor.request.ApplicationRequest
 import io.ktor.request.httpMethod
 import io.ktor.request.uri
 import io.ktor.response.respond
+import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.AttributeKey
 import io.ktor.util.toMap
 import org.slf4j.Logger
@@ -22,6 +23,7 @@ private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtils")
 // TODO Some of these should probably be a feature
 
 fun Application.installDefaultFeatures(requireJobId: Boolean = true) {
+    log.info("Installing default features. requireJobId=$requireJobId")
     install(CallLogging)
     install(DefaultHeaders)
     install(ContentNegotiation) {
@@ -104,3 +106,5 @@ fun <R : Any> RESTHandler<R, *, *>.logEntry(
 
     log.info("$method $uri $jobId ${requestToString(payload)}")
 }
+
+typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine

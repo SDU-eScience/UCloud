@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
 
 class UserProcessor(
         private val stream: KStream<String, UserEvent>,
-        private val adminConnection: StorageConnection // TODO This one might be problematic
+        private val adminConnection: StorageConnection
 ) {
     private val log = LoggerFactory.getLogger(UserProcessor::class.java)
 
@@ -27,6 +27,10 @@ class UserProcessor(
                         result.orThrow() // This will throw
                     }
                 }
+            }
+
+            else -> {
+                log.warn("Discarding event: $event")
             }
         }
     }

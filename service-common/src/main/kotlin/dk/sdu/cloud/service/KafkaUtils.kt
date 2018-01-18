@@ -8,27 +8,15 @@ import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.common.utils.Bytes
-import org.apache.kafka.streams.Consumed
-import org.apache.kafka.streams.KeyValue
-import org.apache.kafka.streams.StreamsBuilder
-import org.apache.kafka.streams.StreamsConfig
+import org.apache.kafka.streams.*
 import org.apache.kafka.streams.kstream.*
 import org.apache.kafka.streams.state.KeyValueStore
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.reflect.KClass
-
-@Deprecated("Use branch() instead")
-fun <K, V> KStream<K, V>.diverge(predicate: (K, V) -> Boolean): DivergedStream<K, V> {
-    // We only want to run the predicate once for every item
-    val predicateStream = map { key, value -> KeyValue(key, Pair(predicate(key, value), value)) }
-    val predicateTrue = predicateStream.filter { _, value -> value.first }.mapValues { it.second }
-    val predicateFalse = predicateStream.filter { _, value -> !value.first }.mapValues { it.second }
-
-    return DivergedStream(predicateTrue, predicateFalse)
-}
 
 class EventProducer<in K, in V>(
         private val producer: KafkaProducer<String, String>,
@@ -120,7 +108,14 @@ fun <K, V> KStream<K, V>.to(description: StreamDescription<K, V>) {
     to(description.name, Produced.with(description.keySerde, description.valueSerde))
 }
 
-data class DivergedStream<K, V>(val predicateTrue: KStream<K, V>, val predicateFalse: KStream<K, V>)
+class KafkaServices(
+        private val streamsConfig: Properties,
+        val producer: KafkaProducer<String, String>
+) {
+    fun build(block: Topology): KafkaStreams {
+        return KafkaStreams(block, streamsConfig)
+    }
+}
 
 object KafkaUtil {
     fun retrieveKafkaStreamsConfiguration(config: ConnectionConfig): Properties {
@@ -148,5 +143,24 @@ object KafkaUtil {
         this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.servers.joinToString(",") { it.toString() }
         this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
         this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+    }
+
+    /**
+     * Creates kafka streams based on the defaults as defined in [KafkaUtil]
+     *
+     * It is possible to change the configuration used by passing either [streamsConfigBody] or [producerConfigBody]
+     */
+    inline fun createKafkaServices(
+            configuration: ServerConfiguration,
+            streamsConfigBody: (Properties) -> Unit = {},
+            producerConfigBody: (Properties) -> Unit = {},
+            log: Logger = LoggerFactory.getLogger(KafkaUtil::class.java)
+    ): KafkaServices {
+        log.info("Connecting to Kafka")
+        val streamsConfig = retrieveKafkaStreamsConfiguration(configuration.connConfig).also(streamsConfigBody)
+        val producerConfig = retrieveKafkaProducerConfiguration(configuration.connConfig).also(producerConfigBody)
+        val producer = KafkaProducer<String, String>(producerConfig)
+        log.info("Connected to Kafka")
+        return KafkaServices(streamsConfig, producer)
     }
 }

@@ -1,115 +1,122 @@
 package dk.sdu.cloud.storage
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.auth.api.AuthStreams
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
-import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
-import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
+import dk.sdu.cloud.storage.ext.StorageConnection
+import dk.sdu.cloud.storage.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.http.IRodsController
 import dk.sdu.cloud.storage.processor.UserProcessor
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.http.HttpStatusCode
+import io.ktor.response.ApplicationSendPipeline
+import io.ktor.response.respond
+import io.ktor.routing.route
+import io.ktor.routing.routing
+import io.ktor.server.engine.ApplicationEngine
+import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.irods.jargon.core.connection.AuthScheme
-import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
+import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
-import java.io.File
+import stackTraceToString
+import java.util.concurrent.TimeUnit
 
-data class Configuration(
-        val storage: StorageConfiguration,
-        val connection: RawConnectionConfig,
-        val tus: TusConfiguration?,
-        val refreshToken: String
+class Server(
+        private val configuration: Configuration,
+        private val storageService: StorageConnectionFactory,
+
+        private val adminAccount: StorageConnection,
+        private val kafka: KafkaServices,
+        private val ktor: HttpServerProvider,
+        private val zk: ZooKeeper,
+        private val cloud: RefreshingJWTAuthenticator
 ) {
-    companion object {
-        private val mapper = jacksonObjectMapper()
+    private lateinit var httpServer: ApplicationEngine
+    private lateinit var kStreams: KafkaStreams
 
-        fun parseFile(file: File): Configuration {
-            val result = mapper.readValue<Configuration>(file)
-            result.connection.configure(StorageServiceDescription, 42000)
-            return result
+    fun start() {
+        val instance = StorageServiceDescription.instance(configuration.connConfig)
+        val node = runBlocking {
+            log.info("Registering service...")
+            zk.registerService(instance).also {
+                log.debug("Service registered! Got back node: $it")
+            }
         }
+
+        kStreams = run {
+            log.info("Constructing Kafka Streams Topology")
+            val kBuilder = StreamsBuilder()
+
+            log.info("Configuring stream processors...")
+            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), adminAccount).init()
+            log.info("Stream processors configured!")
+
+            kafka.build(kBuilder.build()).also {
+                log.info("Kafka Streams Topology successfully built!")
+            }
+        }
+
+        kStreams.setUncaughtExceptionHandler { _, exception ->
+            log.error("Caught fatal exception in Kafka! Stacktrace follows:")
+            log.error(exception.stackTraceToString())
+            stop()
+        }
+
+        httpServer = ktor {
+            log.info("Configuring HTTP server")
+            installDefaultFeatures(requireJobId = false)
+            install(JWTProtection)
+
+            intercept(ApplicationCallPipeline.Infrastructure) {
+                if (!protect()) return@intercept finish()
+
+                val principal = call.request.validatedPrincipal
+                val connection = storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
+                    call.respond(HttpStatusCode.Unauthorized)
+                    finish()
+                    return@intercept
+                }
+                call.attributes.put(StorageSession, connection)
+            }
+
+            sendPipeline.intercept(ApplicationSendPipeline.After) {
+                call.attributes.getOrNull(StorageSession)?.close()
+            }
+
+            routing {
+                route("api") {
+                    // Protect is currently done through the intercept to automatically create the connection to iRODS
+                    IRodsController().configure(this)
+                }
+            }
+            log.info("HTTP server successfully configured!")
+        }
+
+        log.info("Starting HTTP server...")
+        httpServer.start(wait = false)
+        log.info("HTTP server started!")
+
+        log.info("Starting Kafka Streams...")
+        kStreams.start()
+        log.info("Kafka Streams started!")
+
+        runBlocking { zk.markServiceAsReady(node, instance) }
+        log.info("Server is ready!")
+        log.info(instance.toString())
+    }
+
+    fun stop() {
+        httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
+        kStreams.close(30, TimeUnit.SECONDS)
+    }
+
+
+    companion object {
+        val StorageSession = AttributeKey<StorageConnection>("StorageSession")
+        private val log = LoggerFactory.getLogger(Server::class.java)
     }
 }
-
-data class StorageConfiguration(
-        val host: String,
-        val port: Int,
-        val zone: String,
-        val resource: String,
-        val authScheme: String?,
-        val sslPolicy: String?
-)
-
-data class TusConfiguration(
-        val icatJdbcUrl: String,
-        val icatUser: String,
-        val icatPassword: String
-)
-
-fun main(args: Array<String>) {
-    val log = LoggerFactory.getLogger("Server")
-    log.info("Starting storage service")
-
-    val filePath = File(if (args.size == 1) args[0] else "/etc/storage/conf.json")
-    log.info("Reading configuration file from: ${filePath.absolutePath}")
-    if (!filePath.exists()) {
-        log.error("Could not find log file!")
-        System.exit(1)
-        return
-    }
-
-    val configuration = Configuration.parseFile(filePath)
-    val connConfig = configuration.connection.processed
-
-    val instance = StorageServiceDescription.instance(connConfig)
-
-    val (zk, node) = runBlocking {
-        val zk = ZooKeeperConnection(connConfig.zookeeper.servers).connect()
-        val node = zk.registerService(instance)
-        Pair(zk, node)
-    }
-
-    val storageService = with(configuration.storage) {
-        IRodsStorageConnectionFactory(
-                IRodsConnectionInformation(
-                        host = host,
-                        port = port,
-                        zone = zone,
-                        storageResource = resource,
-                        authScheme = if (authScheme != null) AuthScheme.valueOf(authScheme) else AuthScheme.STANDARD,
-                        sslNegotiationPolicy =
-                        if (sslPolicy != null)
-                            ClientServerNegotiationPolicy.SslNegotiationPolicy.valueOf(sslPolicy)
-                        else
-                            ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE
-                )
-        )
-    }
-
-    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
-    val adminAccount = run {
-        val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
-        println(currentAccessToken)
-        storageService.createForAccount("_storage", currentAccessToken).orThrow()
-    }
-
-    val builder = StreamsBuilder()
-    UserProcessor(builder.stream(AuthStreams.UserUpdateStream), adminAccount).init()
-    val kafkaStreams = KafkaStreams(builder.build(), KafkaUtil.retrieveKafkaStreamsConfiguration(connConfig))
-
-    kafkaStreams.start()
-    // TODO Catch exceptions in Kafka
-    // TODO We need to be better at crashing the entire thing on critical errors
-    // TODO Need to close admin connection when server stops
-
-    val restServer = StorageRestServer(configuration, storageService).create()
-    // Start the REST server
-    log.info("Starting REST service")
-    restServer.start()
-
-    runBlocking { zk.markServiceAsReady(node, instance) }
-}
-
