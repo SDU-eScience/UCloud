@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.api
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
@@ -31,6 +32,25 @@ val ApplicationRequest.bearer: String?
 fun Route.protect(rolesAllowed: List<Role> = Role.values().toList()) {
     intercept(ApplicationCallPipeline.Infrastructure) { protect(rolesAllowed) }
 }
+
+// TODO We should not just copy & paste this
+suspend fun RESTHandler<*, *, *>.protect(rolesAllowed: List<Role> = Role.values().toList()): Boolean {
+    if (call.attributes.getOrNull(jwtKey) == null) {
+        log.debug("Could not find JWT")
+        call.respond(HttpStatusCode.Unauthorized)
+        return false
+    }
+
+    val role = call.request.principalRole
+    if (role !in rolesAllowed) {
+        log.debug("Role is not allowed on route: $role")
+        call.respond(HttpStatusCode.Unauthorized)
+        return false
+    }
+
+    return true
+}
+
 
 suspend fun PipelineContext<Unit, ApplicationCall>.protect(rolesAllowed: List<Role> = Role.values().toList()): Boolean {
     if (call.attributes.getOrNull(jwtKey) == null) {
