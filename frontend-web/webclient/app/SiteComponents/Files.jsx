@@ -87,10 +87,6 @@ class Files extends React.Component {
         // console.log("Share file")
     }
 
-    static uploadFile() {
-
-    }
-
     static renameFile() {
         // console.log("TODO");
     }
@@ -391,7 +387,7 @@ function Shortcuts(props) {
 function RightsLevel(props) {
     return (
         <h3>
-            {`Rights level: ${props.rights.rightsLevel}`}<br/>
+            {`Rights level: ${props.rights.rightsName}`}<br/>
             {props.fileText}
         </h3>);
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
+import swal from "sweetalert";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -17,7 +18,7 @@ class RunApp extends React.Component {
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
         this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
-    }
+    };
 
     componentDidMount() {
         this.getApplication();
@@ -44,7 +45,11 @@ class RunApp extends React.Component {
         });
         // FIXME HACK END
 
-        Cloud.post("/hpc/jobs", job);
+        Cloud.post("/hpc/jobs", job).then(data => {
+
+        }).catch(error => {
+            swal("And error occurred. Please try again later.");
+        });
     }
 
     handleInputChange(parameterName, event) {
@@ -149,24 +154,19 @@ function Parameters(props) {
 
 // Types: input, output, int, float, string
 function Parameter(props) {
-    let parameter;
     if (props.parameter.type === "input_file") {
-        parameter = (
-            <InputFileParameter onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}/>);
+        return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "output_file") {
-        parameter = null; //parameter = (<OutputFileParameter parameter={props.parameter}/>);
+        return null; //parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
-        parameter = (<IntegerParameter onChange={props.onChange} parameter={props.parameter}/>);
+        return (<fieldset><IntegerParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "float") {
-        parameter = (<FloatParameter onChange={props.onChange} parameter={props.parameter}/>);
+        return (<fieldset><FloatParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "text") {
-        parameter = (<TextParameter onChange={props.onChange} parameter={props.parameter}/>);
+        return (<fieldset><TextParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
+    } else {
+        return null;
     }
-
-    return (
-        <fieldset>
-            {parameter}
-        </fieldset>)
 }
 
 function InputFileParameter(props) {
