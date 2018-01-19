@@ -31,9 +31,6 @@ class Core extends React.Component {
                         <span>{new Date().getFullYear()} - SDUCloud.</span>
                     </footer>
                 </div>
-                {/* Search template */}
-                <HeaderSearch/>
-
                 {/* Settings template */}
                 <Settings/>
 

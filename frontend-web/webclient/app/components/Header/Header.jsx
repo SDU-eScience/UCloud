@@ -54,11 +54,6 @@ class Header extends React.Component {
                         <li>
                             <StatusBar/>
                         </li>
-                        <li>
-                            <a href="#" className="ripple" onClick={this.showSearch}>
-                                <em className="ion-ios-search-strong"/>
-                            </a>
-                        </li>
                         <Dropdown id="basic-nav-dropdown" pullRight componentClass="li">
                             <Dropdown.Toggle useAnchor noCaret className="has-badge ripple">
                               <em className="ion-person"/>
