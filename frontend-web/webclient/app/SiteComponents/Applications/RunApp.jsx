@@ -45,10 +45,12 @@ class RunApp extends React.Component {
         });
         // FIXME HACK END
 
-        Cloud.post("/hpc/jobs", job).then(data => {
-
-        }).catch(error => {
-            swal("And error occurred. Please try again later.");
+        Cloud.post("/hpc/jobs", job).then(jobStatus => {
+            if (jobStatus.status === "STARTED") {
+                this.props.router.push("/apps/analyses", { params: 5555 });
+            } else {
+                swal("And error occurred. Please try again later.");
+            }
         });
     }
 

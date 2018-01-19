@@ -25,14 +25,14 @@ class Analyses extends React.Component {
         this.setState({
             loading: true
         });
-        Cloud.get("/hpc/app").then(analyses => {
-            analyses.sort((a, b) => {
-                return a.name.localeCompare(b.name);
+        Cloud.get("/hpc/jobs").then(analyses => {
+            analyses.forEach(analysis => {
+                analysis.name = "Hello app";
             });
-            this.setState({
+            this.setState(() => ({
                 loading: false,
                 analyses: analyses,
-            });
+            }));
         });
     }
 
@@ -50,10 +50,10 @@ class Analyses extends React.Component {
                             <div className="card-body">
                                 <WebSocketSupport/>
                                 {noAnalysis}
-                                <table id="table-options" className="table-datatable table table-hover mv-lg">
+                                <table className="table-datatable table table-hover mv-lg">
                                     <thead>
                                     <tr>
-                                        <th>Workflow Name</th>
+                                        <th>App Name</th>
                                         <th>Job Id</th>
                                         <th>Status</th>
                                         <th>Comments</th>
@@ -71,6 +71,7 @@ class Analyses extends React.Component {
 }
 
 function AnalysesList(props) {
+    if (!props.analyses && !props.analyses[0].name) {return null;}
     const analyses = props.analyses.slice();
     let i = 0;
     const analysesList = analyses.map(analysis =>
@@ -91,8 +92,7 @@ function AnalysesList(props) {
 }
 
 function AnalysesButton(props) {
-    let analysis = props.analysis;
-    if (props.comments.length) {
+    if (props.comments) {
         return (
             <button className="btn btn-primary">
                 Show {props.comments.length} comments
