@@ -21,7 +21,7 @@ class KafkaProxy(val targets: List<ServiceDefinition>, val producer: KafkaProduc
                     @Suppress("UNCHECKED_CAST")
                     val producer = EventProducer(
                             producer,
-                            StreamDescription(mapping.topicName, mapping.keySerde, mapping.valueSerde)
+                            SimpleStreamDescription(mapping.topicName, mapping.keySerde, mapping.valueSerde)
                     ) as EventProducer<Any, Any>
 
                     route(target.path.basePath) {

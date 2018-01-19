@@ -10,7 +10,7 @@
                 <Pattern>%d %p %c{1.} [%t] %m%n</Pattern>
             </PatternLayout>
             <Policies>
-                <TimeBasedTriggeringPolicy />
+                <TimeBasedTriggeringPolicy/>
                 <SizeBasedTriggeringPolicy size="250 MB"/>
             </Policies>
         </RollingFile>
@@ -36,7 +36,12 @@
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>
-        <Logger name="org.asynchttpclient" level="warn" additivity="false">
+        <!--<Logger name="org.asynchttpclient" level="warn" additivity="false">-->
+        <!--<AppenderRef ref="Console"/>-->
+        <!--<AppenderRef ref="RollingFile"/>-->
+        <!--</Logger>-->
+
+        <Logger name="org.asynchttpclient.netty.channel.DefaultChannelPool" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>

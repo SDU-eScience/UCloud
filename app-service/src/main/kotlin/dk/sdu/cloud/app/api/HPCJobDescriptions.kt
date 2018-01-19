@@ -11,6 +11,7 @@ import io.netty.handler.codec.http.HttpMethod
 object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
     private val baseContext = "/api/hpc/jobs"
 
+    // TODO FIXME Remove directories from public API
     val findById = callDescription<FindById, JobWithStatusAndInvocation, CommonErrorMessage> {
         path {
             using(baseContext)

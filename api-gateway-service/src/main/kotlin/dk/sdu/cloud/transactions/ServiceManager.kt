@@ -1,10 +1,12 @@
 package dk.sdu.cloud.transactions
 
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import dk.sdu.cloud.service.KafkaDescriptions
-import dk.sdu.cloud.transactions.util.stackTraceToString
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.service.KafkaDescriptions
+import dk.sdu.cloud.service.registerService
+import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
+import stackTraceToString
 import java.io.File
 import java.util.*
 import java.util.jar.JarFile
@@ -15,12 +17,25 @@ data class ServiceDefinition(
         val kafkaDescriptions: List<KafkaDescriptions>
 )
 
-class ServiceManager(vararg val targets: File) {
+interface ServiceManager {
+    fun load(): List<ServiceDefinition>
+}
+
+class DevelopmentServiceManager(
+        private val additionalDefinitions: List<ServiceDefinition>,
+        private val delegate: ServiceManager
+) : ServiceManager {
+    override fun load(): List<ServiceDefinition> {
+        return additionalDefinitions + delegate.load()
+    }
+}
+
+class DefaultServiceManager(vararg val targets: File) : ServiceManager {
     companion object {
         private val log = LoggerFactory.getLogger(ServiceManager::class.java)
     }
 
-    fun load(): List<ServiceDefinition> {
+    override fun load(): List<ServiceDefinition> {
         log.info("Reloading services from ${targets.size} targets...")
         val jarFiles = targets.flatMap {
             it.listFiles { file: File -> file.extension == "jar" }?.toList() ?: emptyList()

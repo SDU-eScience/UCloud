@@ -17,11 +17,10 @@ data class ServiceManifest(
 
 class ServiceClassLoader(private val jarFile: JarFile) : ClassLoader(), Closeable {
     val manifest: ServiceManifest
-    val source = jarFile.name
+    val source = jarFile.name!!
     private val _knownResources: Set<String>
     private val _knownClasses: Map<String, JarEntry>
 
-    val knownResources: Iterable<String> get() = _knownResources
     val knownClasses: List<String> get() = _knownClasses.keys.toList()
 
     private val cachedClasses = HashMap<String, Class<*>>()
@@ -72,25 +71,5 @@ class ServiceClassLoader(private val jarFile: JarFile) : ClassLoader(), Closeabl
 
     override fun close() {
         jarFile.close()
-    }
-}
-
-fun main(args: Array<String>) {
-    val path = "/Users/dthrane/Dropbox/work/sdu-cloud/app-service/build/libs/app-service-api-1.0-SNAPSHOT.jar"
-
-    val s = Scanner(System.`in`)
-    while (s.nextLine() != null) {
-        println("Trying!")
-        try {
-            val f = JarFile(File(path))
-            ServiceClassLoader(f).use { loader ->
-                println(loader.manifest)
-                val klass = loader.loadClass("org.esciencecloud.abc.api.SimpleTest")
-                val instance = klass!!.newInstance()
-                klass.getMethod("a").invoke(instance)
-            }
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-        }
     }
 }
