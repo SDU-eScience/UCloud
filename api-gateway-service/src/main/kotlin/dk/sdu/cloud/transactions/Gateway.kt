@@ -3,13 +3,18 @@ package dk.sdu.cloud.transactions
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import dk.sdu.cloud.service.ZooKeeperConnection
-import dk.sdu.cloud.service.ZooKeeperHostInfo
-import dk.sdu.cloud.transactions.util.stackTraceToString
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.transactions.dev.HttpBin
+import dk.sdu.cloud.transactions.dev.TransferSh
+import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
+import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
+import io.ktor.request.header
+import io.ktor.response.respond
+import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
@@ -18,15 +23,16 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.slf4j.LoggerFactory
+import stackTraceToString
 import java.io.File
-import java.util.*
 import java.util.concurrent.TimeUnit
 
 data class GatewayConfiguration(
         val targets: List<String>,
         val hostname: String,
         val zookeeper: ZooKeeperHostInfo,
-        val kafka: KafkaConfiguration
+        val kafka: KafkaConfiguration,
+        val reloadSecret: String
 )
 
 data class KafkaConfiguration(
@@ -40,9 +46,32 @@ fun main(args: Array<String>) = runBlocking {
             File(args.getOrElse(0) { "/etc/gateway/config.json" })
     )
 
+    log.info("Connecting to ZooKeeper")
+    val zk = ZooKeeperConnection(listOf(config.zookeeper)).connect()
+    log.info("Connected!")
+
     val targets = config.targets.map { File(it) }
-    val manager = ServiceManager(*targets.toTypedArray())
-    //val scanner = Scanner(System.`in`)
+    val manager = DefaultServiceManager(*targets.toTypedArray()).let {
+        when (args.getOrNull(1)) {
+            "dev-bin" -> {
+                val instance = ServiceInstance(HttpBin.definition(), "httpbin.org", 443)
+                val node = zk.registerService(instance)
+                zk.markServiceAsReady(node, instance)
+                DevelopmentServiceManager(listOf(HttpBin.definition), it)
+            }
+
+            "dev-transfer" -> {
+                val instance = ServiceInstance(TransferSh.definition(), "transfer.sh", 443)
+                val node = zk.registerService(instance)
+                zk.markServiceAsReady(node, instance)
+                DevelopmentServiceManager(listOf(TransferSh.definition), it)
+            }
+
+            else -> {
+                it
+            }
+        }
+    }
 
     val producerConfig = mapOf(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to config.kafka.servers.joinToString(","),
@@ -51,24 +80,21 @@ fun main(args: Array<String>) = runBlocking {
     )
 
     val kafkaProducer = KafkaProducer<String, String>(producerConfig)
-
-    log.info("Connecting to ZooKeeper")
-    val zk = ZooKeeperConnection(listOf(config.zookeeper)).connect()
-    log.info("Connected!")
-
     var currentServer: ApplicationEngine? = null
-    while (true) {
-        log.info("Reloading service definitions!")
+
+    fun restartServer() {
         try {
+            log.info("Reloading service definitions!")
             val definitions = manager.load()
             val rest = RESTProxy(definitions, zk)
             val kafka = KafkaProxy(definitions, kafkaProducer)
 
-            if (currentServer != null) {
+            val capturedServer = currentServer
+            if (capturedServer != null) {
                 // We have to restart server to reload routes.
                 // We might be able to solve this with some kind of dynamic routes. But this will work for now.
                 log.info("Stopping existing server (timeout 35s)")
-                currentServer.stop(5, 35, TimeUnit.SECONDS)
+                capturedServer.stop(5, 35, TimeUnit.SECONDS)
             }
 
             log.info("Ready to configure new server!")
@@ -83,19 +109,38 @@ fun main(args: Array<String>) = runBlocking {
                     kafka.configure(this)
                 }
             }.start(wait = false)
-            log.info("New server is ready!")
 
-            //scanner.nextLine()
-            if (true) break // TODO Need to implement another way of doing reloading than listen on stdin
-            // (does not work well with systemd)
+            log.info("New server is ready!")
         } catch (ex: Exception) {
             log.warn("Caught exception while reloading service definitions!")
             log.warn(ex.stackTraceToString())
             if (currentServer == null) {
                 log.error("Exiting...")
                 System.exit(1)
-                return@runBlocking
             }
         }
     }
+
+    val reloadServer = embeddedServer(CIO, port = 8081) {
+        routing {
+            post("/reload") {
+                val incomingSecret = call.request.header("Reload-Secret") ?: run {
+                    call.respond(HttpStatusCode.NotFound)
+                    return@post
+                }
+
+                if (incomingSecret != config.reloadSecret) {
+                    call.respond(HttpStatusCode.NotFound)
+                    return@post
+                }
+
+                restartServer()
+                call.respond(HttpStatusCode.OK)
+            }
+        }
+    }
+
+    restartServer()
+    reloadServer.start(wait = true)
+    val foo = 42
 }

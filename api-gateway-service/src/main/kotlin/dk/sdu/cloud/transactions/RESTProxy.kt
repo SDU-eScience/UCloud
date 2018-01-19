@@ -5,29 +5,40 @@ import dk.sdu.cloud.service.RequestHeader
 import dk.sdu.cloud.service.listServicesWithStatus
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
-import io.ktor.http.ContentType
+import io.ktor.cio.WriteChannel
+import io.ktor.content.OutgoingContent
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.*
+import io.ktor.response.header
 import io.ktor.response.respond
-import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
+import kotlinx.coroutines.experimental.runBlocking
 import org.apache.zookeeper.ZooKeeper
-import dk.sdu.cloud.client.HttpClient
-import dk.sdu.cloud.transactions.util.stackTraceToString
+import org.asynchttpclient.*
 import org.slf4j.LoggerFactory
-import java.net.ConnectException
+import stackTraceToString
+import java.io.InputStream
 import java.net.URL
 import java.util.*
+import kotlin.coroutines.experimental.Continuation
+import kotlin.coroutines.experimental.suspendCoroutine
 
 sealed class RESTProxyException(message: String, val code: HttpStatusCode) : Exception(message)
 class RESTNoServiceAvailable : RESTProxyException("Gateway timeout", HttpStatusCode.GatewayTimeout)
 
+private val httpClient = DefaultAsyncHttpClient()
+
 class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
     private val random = Random()
+    private val requestHeaderBlacklist = setOf("Job-Id", "Host").map { it.normalizeHeader() }.toSet()
+    private val responseHeaderBlacklist = emptySet<String>().map { it.normalizeHeader() }.toSet()
+
+    private fun String.normalizeHeader() = toUpperCase()
+
     companion object {
         private val log = LoggerFactory.getLogger(RESTProxy::class.java)
     }
@@ -62,9 +73,9 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
 
     private suspend fun findService(service: ServiceDefinition): URL {
         val parsedVersion = Version.valueOf(service.manifest.version)
-        val onlyIntegerVersion = with (parsedVersion) { "$majorVersion.$minorVersion.$patchVersion" }
+        val onlyIntegerVersion = with(parsedVersion) { "$majorVersion.$minorVersion.$patchVersion" }
 
-        val services = with (service.manifest) {
+        val services = with(service.manifest) {
             zk.listServicesWithStatus(name, onlyIntegerVersion).values.firstOrNull()
         }?.takeIf { it.isNotEmpty() } ?: throw RESTNoServiceAvailable()
 
@@ -82,25 +93,162 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
         val queryString = if (includeQueryString) '?' + request.queryString() else ""
         val endpointUrl = URL(host, endpoint + queryString)
 
-        val header = validateRequestAndPrepareJobHeader() ?: return
+        val jobId = UUID.randomUUID()
 
-        // TODO This will always collect the entire thing in memory
-        // TODO We also currently assume this to be text
-        val resp = try {
-            HttpClient.get(endpointUrl.toString()) {
-                setHeader(HttpHeaders.Authorization, "Bearer ${header.performedFor}")
-                setHeader(HttpHeaders.Accept, ContentType.Application.Json.toString())
-                setHeader("Job-Id", header.uuid)
-
-                setMethod(proxyMethod.value)
-            }
-        } catch (ex: ConnectException) {
-            respond(HttpStatusCode.GatewayTimeout)
-            return
+        // The presence of a message-body in a request is signaled by the inclusion of a Content-Length or
+        // Transfer-Encoding header field in the request's message-headers (section 4.3, RFC 2616)
+        //
+        // NOTE(Dan): receiveOrNull<InputStream>() will return a non-null result even if the request carries no body.
+        // This can cause some servers to (correctly) return 501 NOT IMPLEMENTED on certain HTTP methods. For example,
+        // if the server has not implemented chunked transfer encoding for GET messages.
+        val stream = if (
+                request.header(HttpHeaders.ContentLength) != null ||
+                request.header(HttpHeaders.TransferEncoding) != null
+        ) {
+            receiveOrNull<InputStream>()
+        } else {
+            null
         }
 
-        val contentType = resp.contentType?.let { ContentType.parse(it) } ?: ContentType.Text.Plain
-        respondText(resp.responseBody, contentType, HttpStatusCode.fromValue(resp.statusCode))
+        val streamingHttp = StreamingHttpRequest(endpointUrl.toString()) {
+            request.headers.forEach { header, values ->
+                if (header.normalizeHeader() !in requestHeaderBlacklist) {
+                    values.forEach { addHeader(header, it) }
+                }
+            }
+
+            setHeader("Job-Id", jobId)
+            setMethod(proxyMethod.value)
+
+            if (stream != null) {
+                setBody(stream)
+            }
+        }
+
+        streamingHttp.retrieveStatusAndHeaders(
+                statusHandler = {
+                    response.status(HttpStatusCode.fromValue(it))
+                },
+
+                headerHandler = { headers ->
+                    headers.forEach {
+                        if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
+                            response.header(it.key, it.value)
+                        }
+                    }
+                }
+        )
+
+        respondDirectWrite {
+            streamingHttp.retrieveBody {
+                write(it.bodyByteBuffer)
+            }
+        }
+    }
+}
+
+internal typealias NettyHttpHeaders = io.netty.handler.codec.http.HttpHeaders
+
+class StreamingHttpRequest(
+        private val endpoint: String,
+        private val config: BoundRequestBuilder.() -> Unit
+) {
+    private var continuation: Continuation<Unit>? = null
+    private var cachedThrowable: Throwable? = null
+    private var isDone = false
+    private var bodyPartHandler: ((HttpResponseBodyPart) -> Unit)? = null
+    private var statusHandler: ((Int) -> Unit)? = null
+    private var headerHandler: ((NettyHttpHeaders) -> Unit)? = null
+    private val cachedBodyParts = ArrayList<HttpResponseBodyPart>()
+
+    private val lock = Any()
+
+    private val asyncHandler = object : AsyncHandler<Response?> {
+        override fun onStatusReceived(responseStatus: HttpResponseStatus): AsyncHandler.State {
+            statusHandler!!(responseStatus.statusCode)
+            return AsyncHandler.State.CONTINUE
+        }
+
+        override fun onHeadersReceived(headers: NettyHttpHeaders): AsyncHandler.State {
+            headerHandler!!(headers)
+            continuation!!.resume(Unit)
+            continuation = null
+            return AsyncHandler.State.CONTINUE
+        }
+
+        override fun onBodyPartReceived(bodyPart: HttpResponseBodyPart): AsyncHandler.State {
+            synchronized(lock) {
+                val capturedHandler = bodyPartHandler
+                if (capturedHandler == null) {
+                    cachedBodyParts.add(bodyPart)
+                } else {
+                    cachedBodyParts.forEach { capturedHandler(it) }
+                    cachedBodyParts.clear()
+
+                    capturedHandler(bodyPart)
+                }
+            }
+            return AsyncHandler.State.CONTINUE
+        }
+
+        override fun onCompleted(): Response? {
+            synchronized(lock) {
+                val capturedContinuation = continuation
+                if (capturedContinuation == null) {
+                    isDone = true
+                } else {
+                    val bodyPartHandler = bodyPartHandler
+                    if (bodyPartHandler != null) {
+                        cachedBodyParts.forEach(bodyPartHandler)
+                        cachedBodyParts.clear()
+                    }
+
+                    capturedContinuation.resume(Unit)
+                }
+            }
+            return null
+        }
+
+        override fun onThrowable(t: Throwable) {
+            synchronized(lock) {
+                val capturedContinuation = continuation
+                if (capturedContinuation == null) {
+                    cachedThrowable = t
+                } else {
+                    capturedContinuation.resumeWithException(t)
+                }
+            }
+        }
+    }
+
+    suspend fun retrieveStatusAndHeaders(
+            statusHandler: (Int) -> Unit,
+            headerHandler: (NettyHttpHeaders) -> Unit
+    ): Unit = suspendCoroutine { continuation ->
+        this.continuation = continuation
+        this.statusHandler = statusHandler
+        this.headerHandler = headerHandler
+
+        val preparedRequest = httpClient.prepareGet(endpoint).also(config)
+        preparedRequest.execute(asyncHandler)
+    }
+
+    suspend fun retrieveBody(
+            bodyPartHandler: suspend (HttpResponseBodyPart) -> Unit
+    ): Unit = suspendCoroutine { continuation ->
+        this.continuation = continuation
+        this.bodyPartHandler = { runBlocking { bodyPartHandler(it) } }
+
+        val throwable = cachedThrowable
+        if (throwable != null) {
+            continuation.resumeWithException(throwable)
+        } else if (isDone) {
+            cachedBodyParts.forEach {
+                runBlocking { bodyPartHandler(it) }
+            }
+            cachedBodyParts.clear()
+            continuation.resume(Unit)
+        }
     }
 }
 
@@ -122,3 +270,15 @@ fun ApplicationRequest.bearer(): String? {
 
     return auth.substringAfter("Bearer ")
 }
+
+suspend fun ApplicationCall.respondDirectWrite(writer: suspend WriteChannel.() -> Unit) {
+    val message = DirectWriteContent(writer)
+    return respond(message)
+}
+
+class DirectWriteContent(private val writer: suspend WriteChannel.() -> Unit) : OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: WriteChannel) {
+        writer(channel)
+    }
+}
+
