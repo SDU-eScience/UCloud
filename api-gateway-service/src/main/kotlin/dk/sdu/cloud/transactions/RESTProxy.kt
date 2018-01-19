@@ -81,7 +81,7 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
 
         // TODO FIXME proxying using https
         val resolvedService = services[random.nextInt(services.size)]
-        return URL("https://${resolvedService.instance.hostname}:${resolvedService.instance.port}")
+        return URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}")
     }
 
     private suspend fun ApplicationCall.proxyJobTo(
