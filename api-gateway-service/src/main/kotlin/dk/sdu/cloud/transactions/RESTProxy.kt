@@ -7,6 +7,7 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.cio.WriteChannel
 import io.ktor.content.OutgoingContent
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.*
@@ -20,6 +21,7 @@ import org.apache.zookeeper.ZooKeeper
 import org.asynchttpclient.*
 import org.slf4j.LoggerFactory
 import stackTraceToString
+import java.io.InputStream
 import java.net.URL
 import java.util.*
 import kotlin.coroutines.experimental.Continuation
@@ -79,7 +81,7 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
 
         // TODO FIXME proxying using https
         val resolvedService = services[random.nextInt(services.size)]
-        return URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}")
+        return URL("https://${resolvedService.instance.hostname}:${resolvedService.instance.port}")
     }
 
     private suspend fun ApplicationCall.proxyJobTo(
@@ -93,6 +95,21 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
 
         val jobId = UUID.randomUUID()
 
+        // The presence of a message-body in a request is signaled by the inclusion of a Content-Length or
+        // Transfer-Encoding header field in the request's message-headers (section 4.3, RFC 2616)
+        //
+        // NOTE(Dan): receiveOrNull<InputStream>() will return a non-null result even if the request carries no body.
+        // This can cause some servers to (correctly) return 501 NOT IMPLEMENTED on certain HTTP methods. For example,
+        // if the server has not implemented chunked transfer encoding for GET messages.
+        val stream = if (
+                request.header(HttpHeaders.ContentLength) != null ||
+                request.header(HttpHeaders.TransferEncoding) != null
+        ) {
+            receiveOrNull<InputStream>()
+        } else {
+            null
+        }
+
         val streamingHttp = StreamingHttpRequest(endpointUrl.toString()) {
             request.headers.forEach { header, values ->
                 if (header.normalizeHeader() !in requestHeaderBlacklist) {
@@ -102,6 +119,10 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
 
             setHeader("Job-Id", jobId)
             setMethod(proxyMethod.value)
+
+            if (stream != null) {
+                setBody(stream)
+            }
         }
 
         streamingHttp.retrieveStatusAndHeaders(

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.transactions.dev.HttpBin
-import dk.sdu.cloud.transactions.dev.HttpBinDefinition
+import dk.sdu.cloud.transactions.dev.TransferSh
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.CallLogging
@@ -52,14 +52,24 @@ fun main(args: Array<String>) = runBlocking {
 
     val targets = config.targets.map { File(it) }
     val manager = DefaultServiceManager(*targets.toTypedArray()).let {
-        if (args.getOrNull(1) == "dev") {
-            val instance = ServiceInstance(HttpBin.definition(), "httpbin.org", 80)
-            val node = zk.registerService(instance)
-            zk.markServiceAsReady(node, instance)
+        when (args.getOrNull(1)) {
+            "dev-bin" -> {
+                val instance = ServiceInstance(HttpBin.definition(), "httpbin.org", 443)
+                val node = zk.registerService(instance)
+                zk.markServiceAsReady(node, instance)
+                DevelopmentServiceManager(listOf(HttpBin.definition), it)
+            }
 
-            DevelopmentServiceManager(listOf(HttpBinDefinition), it)
-        } else {
-            it
+            "dev-transfer" -> {
+                val instance = ServiceInstance(TransferSh.definition(), "transfer.sh", 443)
+                val node = zk.registerService(instance)
+                zk.markServiceAsReady(node, instance)
+                DevelopmentServiceManager(listOf(TransferSh.definition), it)
+            }
+
+            else -> {
+                it
+            }
         }
     }
 
@@ -70,9 +80,6 @@ fun main(args: Array<String>) = runBlocking {
     )
 
     val kafkaProducer = KafkaProducer<String, String>(producerConfig)
-
-
-
     var currentServer: ApplicationEngine? = null
 
     fun restartServer() {
@@ -132,7 +139,6 @@ fun main(args: Array<String>) = runBlocking {
             }
         }
     }
-
 
     restartServer()
     reloadServer.start(wait = true)
