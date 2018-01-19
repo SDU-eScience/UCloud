@@ -26,10 +26,6 @@ class Header extends React.Component {
         pubsub.unsubscribe(this.pubsub_token);
     }
 
-    showSearch() {
-        pubsub.publish('showsearch');
-    }
-
     showSettings() {
         pubsub.publish('showsettings');
     }
