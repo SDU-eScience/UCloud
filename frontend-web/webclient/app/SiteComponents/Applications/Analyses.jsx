@@ -27,6 +27,9 @@ class Analyses extends React.Component {
         });
         Cloud.get("/hpc/jobs").then(analyses => {
             analyses.forEach(analysis => {
+                Cloud.get(`/hpc/jobs/${analysis.jobId}`).then(a => {
+                    console.log(a);
+                });
                 analysis.name = "Hello app";
             });
             this.setState(() => ({

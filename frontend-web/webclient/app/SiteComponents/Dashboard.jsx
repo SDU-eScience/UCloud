@@ -32,8 +32,8 @@ class Dashboard extends React.Component {
         pubsub.publish('setPageTitle', this.constructor.name);
         this.getFavouriteFiles();
         this.getMostRecentFiles();
-        /*this.getRecentAnalyses();
-        this.getRecentActivity();*/
+        this.getRecentAnalyses();
+        /*this.getRecentActivity();*/
     }
 
     getFavouriteFiles() {
@@ -69,11 +69,16 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             analysesLoading: true
         }));
-        $.getJSON("/api/getRecentWorkflowStatus").then((analyses) => {
-            analyses.sort();
+        Cloud.get("/hpc/jobs").then(analyses => {
+            analyses.forEach(analysis => {
+                analysis.name = "Hello app";
+            });
+            analyses.sort((a, b) => {
+                return a.name.localeCompare(b.name);
+            });
             this.setState(() => ({
                 analysesLoading: false,
-                recentAnalyses: analyses
+                recentAnalyses: analyses.slice(0, 10),
             }));
         });
     }
@@ -209,8 +214,9 @@ function DashboardAnalyses(props) {
         <small>No analyses found</small>
     </h3>;
     const analyses = props.analyses;
+    let i = 0;
     const analysesList = analyses.map((analysis) =>
-        <tr key={analysis.name}>
+        <tr key={i++}>
             <td><a href="#">{analysis.name}</a></td>
             <td>{analysis.status}</td>
         </tr>
