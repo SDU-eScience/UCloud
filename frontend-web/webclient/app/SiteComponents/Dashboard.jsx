@@ -123,8 +123,7 @@ function DashboardFavouriteFiles(props) {
     const noFavourites = props.files.length || props.isLoading ? '' : <h3 className="text-center">
         <small>No favourites found.</small>
     </h3>;
-    const files = props.files;
-    const filesList = files.map((file) => {
+    const filesList = props.files.map((file) => {
             if (file.type === "DIRECTORY") {
                 return (
                     <tr key={file.path.uri}>

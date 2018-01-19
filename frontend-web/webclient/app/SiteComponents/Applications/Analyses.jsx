@@ -1,9 +1,8 @@
-import $ from 'jquery';
 import React from 'react';
 import LoadingIcon from '../LoadingIcon'
 import {WebSocketSupport} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
-import { Cloud} from "../../../authentication/SDUCloudObject";
+import {Cloud} from "../../../authentication/SDUCloudObject";
 
 class Analyses extends React.Component {
     constructor(props) {

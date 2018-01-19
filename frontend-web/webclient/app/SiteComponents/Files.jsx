@@ -201,7 +201,6 @@ class Files extends React.Component {
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <LoadingIcon loading={this.state.loading}/>
                         <Breadcrumbs currentPath={this.state.currentPath}/>
                         <div className="card">
                             <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
@@ -210,7 +209,7 @@ class Files extends React.Component {
                                         getFavourites={() => this.getFavourites} favourite={() => this.favourite}
                                         prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile}
                                         selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
-
+                            <LoadingIcon loading={this.state.loading}/>
                         </div>
                         <PaginationButtons
                             currentPage={this.state.currentPage}
@@ -341,16 +340,18 @@ function FileOptions(props) {
 
 
 function FilesTable(props) {
-    let noFiles = props.files.length || props.loading ? '' : (
-        <div>
+    if (!props.files.length && !props.loading) {
+        return (<div>
             <h3 className="text-center">
                 <small>There are no files in current folder</small>
             </h3>
         </div>);
+    } else if (props.loading) {
+        return null;
+    }
     return (
         <div className="card-body">
             <Shortcuts getFavourites={props.getFavourites}/>
-            {noFiles}
             <div className="card">
                 <div className="card-body">
                     <table className="table-datatable table table-hover mv-lg">
