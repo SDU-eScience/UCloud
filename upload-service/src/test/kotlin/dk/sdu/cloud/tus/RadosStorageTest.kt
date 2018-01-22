@@ -20,9 +20,9 @@ import org.slf4j.LoggerFactory
 // TODO Tests are currently copy pasted with minor (non-parameter) changes between them
 // TODO I suspect that the mock in certain cases are causing NPEs
 class RadosStorageTest {
-    class ByteArrayReadChannel(val byteArray: ByteArray) : IReadChannel {
-        var pointer = 0
-        suspend override fun read(dst: ByteArray, offset: Int): Int {
+    class ByteArrayReadChannel(private val byteArray: ByteArray) : IReadChannel {
+        private var pointer = 0
+        override suspend fun read(dst: ByteArray, offset: Int): Int {
             val remaining = byteArray.size - pointer
             if (remaining <= 0) return -1
 
@@ -37,10 +37,10 @@ class RadosStorageTest {
         }
     }
 
-    class DelayedByteArrayReadChanne(byteArray: ByteArray, val delayPer1MOfDataInMs: Long) : IReadChannel {
+    class DelayedByteArrayReadChannel(byteArray: ByteArray, private val delayPer1MOfDataInMs: Long) : IReadChannel {
         private val delegate = ByteArrayReadChannel(byteArray)
 
-        suspend override fun read(dst: ByteArray, offset: Int): Int {
+        override suspend fun read(dst: ByteArray, offset: Int): Int {
             val result = delegate.read(dst, offset)
             val sleep = (result / (1024 * 1024).toDouble() * delayPer1MOfDataInMs).toLong()
             log.debug("Read $result bytes. Sleeping for $sleep ms")
@@ -53,18 +53,18 @@ class RadosStorageTest {
         }
 
         companion object {
-            private val log = LoggerFactory.getLogger(DelayedByteArrayReadChanne::class.java)
+            private val log = LoggerFactory.getLogger(DelayedByteArrayReadChannel::class.java)
         }
     }
 
     class CappedAndDelayedByteArrayReadChannel(
-            val byteArray: ByteArray,
+            private val byteArray: ByteArray,
             val chunkSize: Int,
             val delayPerChunk: Long
     ) : IReadChannel {
-        var pointer = 0
+        private var pointer = 0
 
-        suspend override fun read(dst: ByteArray, offset: Int): Int {
+        override suspend fun read(dst: ByteArray, offset: Int): Int {
             val remaining = byteArray.size - pointer
             if (remaining <= 0) return -1
 
@@ -215,7 +215,7 @@ class RadosStorageTest {
         val numBlocks = 64
         val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks + RadosStorage.BLOCK_SIZE / 2) { it.toByte() }
         val checksum = byteArray.sum()
-        val readChannel = DelayedByteArrayReadChanne(byteArray, 100)
+        val readChannel = DelayedByteArrayReadChannel(byteArray, 100)
         val objectId = "medium-oid"
 
         val oids = arrayListOf<String>()
@@ -285,7 +285,7 @@ class RadosStorageTest {
         val numBlocks = 64
         val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks + RadosStorage.BLOCK_SIZE / 2) { it.toByte() }
         val checksum = byteArray.sum()
-        val readChannel = DelayedByteArrayReadChanne(byteArray, 1000) // 1MB/s. Likely to be slower
+        val readChannel = DelayedByteArrayReadChannel(byteArray, 1000) // 1MB/s. Likely to be slower
         val objectId = "medium-oid"
 
         val oids = arrayListOf<String>()

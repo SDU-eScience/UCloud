@@ -17,33 +17,6 @@ class ICAT(private val config: ICatDatabaseConfig) {
 }
 
 class ICATConnection(connection: Connection) : Connection by connection {
-    fun findCollectionByAbsolutePath(path: String): ICATCollection? {
-        val query = """
-            SELECT coll_id, coll_name, parent_coll_name, coll_owner_name, coll_owner_zone, create_ts, modify_ts
-            FROM r_coll_main
-            WHERE coll_name = ?
-            """
-
-        val rs = prepareStatement(query).apply {
-            setString(1, path)
-        }.executeQuery()
-
-        val results = ArrayList<ICATCollection>()
-        while (rs.next()) {
-            results.add(ICATCollection(
-                    rs.getLong("coll_id"),
-                    rs.getString("parent_coll_name"),
-                    rs.getString("coll_name"),
-                    rs.getString("coll_owner_name"),
-                    rs.getString("coll_owner_zone"),
-                    rs.getString("create_ts").toLong(10) * 1000,
-                    rs.getString("modify_ts").toLong(10) * 1000
-            ))
-        }
-
-        return results.singleOrNull()
-    }
-
     fun findAccessRightForUserInCollection(user: String, zone: String, path: String): ICATAccessEntry? {
         val actualPath = path.removeSuffix("/")
         log.debug("findAccessRightForUserInCollection($user, $zone, $actualPath)")
@@ -193,9 +166,6 @@ class ICATConnection(connection: Connection) : Connection by connection {
         private val log = LoggerFactory.getLogger(ICAT::class.java)
     }
 }
-
-data class ICATCollection(val collectionId: Long, val parent: String, val name: String, val owner: String,
-                          val ownerZone: String, val createdAtUnixMs: Long, val modifiedAtUnixMs: Long)
 
 data class ICATAccessEntry(val objectId: Long, val userId: Long, val accessType: Long,
                            val createdAtUnixMs: Long, val modifiedAtUnixMs: Long)

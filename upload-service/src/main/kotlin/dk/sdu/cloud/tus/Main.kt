@@ -23,15 +23,6 @@ import java.util.*
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.project.MainKt")
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
 
-class KafkaServices(
-        private val streamsConfig: Properties,
-        val producer: KafkaProducer<String, String>
-) {
-    fun build(block: Topology): KafkaStreams {
-        return KafkaStreams(block, streamsConfig)
-    }
-}
-
 data class ICatDatabaseConfig(
         val jdbcUrl: String,
         val user: String,
@@ -44,48 +35,25 @@ data class Configuration(
         val database: ICatDatabaseConfig,
         val appDatabaseUrl: String, // TODO This should be fixed
         val refreshToken: String
-) {
+) : ServerConfiguration {
     @get:JsonIgnore
-    val connConfig: ConnectionConfig get() = connection.processed
+    override val connConfig: ConnectionConfig get() = connection.processed
 
-    internal fun configure() {
+    override fun configure() {
         connection.configure(TusServiceDescription, 42400)
     }
 }
 
 fun main(args: Array<String>) {
-    val configuration = run {
-        log.info("Reading configuration...")
-        val configMapper = jacksonObjectMapper()
-        val configFilePath = args.getOrNull(0) ?: "/etc/${TusServiceDescription.name}/config.json"
-        val configFile = File(configFilePath)
-        log.debug("Using path: $configFilePath. This has resolved to: ${configFile.absolutePath}")
-        if (!configFile.exists()) {
-            throw IllegalStateException("Unable to find configuration file. Attempted to locate it at: " +
-                    configFile.absolutePath)
-        }
+    val configuration = readConfigurationBasedOnArgs<Configuration>(args, TusServiceDescription, log)
+    val kafka = KafkaUtil.createKafkaServices(
+            configuration,
+            log = log,
 
-        configMapper.readValue<Configuration>(configFile).also {
-            it.configure()
-            log.info("Retrieved the following configuration:")
-            log.info(it.toString())
-        }
-    }
-
-    val kafka = run {
-        log.info("Connecting to Kafka")
-        val streamsConfig = KafkaUtil.retrieveKafkaStreamsConfiguration(configuration.connConfig).apply {
-            this[StreamsConfig.STATE_DIR_CONFIG] = File("kafka-streams").absolutePath
-        }
-
-        val producer = run {
-            val kafkaProducerConfig = KafkaUtil.retrieveKafkaProducerConfiguration(configuration.connConfig)
-            KafkaProducer<String, String>(kafkaProducerConfig)
-        }
-
-        log.info("Connected to Kafka")
-        KafkaServices(streamsConfig, producer)
-    }
+            streamsConfigBody = {
+                it[StreamsConfig.STATE_DIR_CONFIG] = File("kafka-streams").absolutePath
+            }
+    )
 
     log.info("Connecting to Zookeeper")
     val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }

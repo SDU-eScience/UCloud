@@ -90,7 +90,7 @@ class RadosUpload(
         }
         log.debug("Pre-allocating $maxInstances blocks")
 
-        // We read data from a single thread and spin up coroutines to write this data to Ceph
+        // We read data from a single thread and spin up co-routines to write this data to Ceph
         val jobs = Array<Job?>(maxInstances) { null }
         while (hasMoreData) {
             // Start by calculating object offset and maximum object size.
@@ -275,10 +275,4 @@ suspend fun IoCTX.aWrite(
     aioWrite(oid, callback, buffer, objectOffset)
 }
 
-suspend fun IoCTX.aRead(
-        oid: String
-) = suspendCoroutine<Unit> { _ ->
-    // rados_aio_read not actually supported by rados-java
-    // TODO We will have to fork it for this functionality, it makes no sense that it isn't included already
-    TODO()
-}
+

@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.tus.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusExtensions
 import dk.sdu.cloud.tus.api.TusHeaders
@@ -26,7 +27,6 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.*
-import io.ktor.util.flattenEntries
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
@@ -69,6 +69,7 @@ class TusController(
                 protect()
 
                 head {
+                    logEntry(log, parameterIncludeFilter = { it == "id" })
                     val id = call.parameters["id"] ?: return@head call.respond(HttpStatusCode.BadRequest)
                     val ownerParamForState = if (call.isPrivileged) null else call.request.validatedPrincipal.subject
                     val summary = transferState.retrieveSummary(id, ownerParamForState) ?:
@@ -87,6 +88,7 @@ class TusController(
                 }
 
                 post {
+                    logEntry(log, parameterIncludeFilter = { it == "id" })
                     if (call.request.header("X-HTTP-Method-Override").equals("PATCH", ignoreCase = true)) {
                         upload()
                     } else {
@@ -95,12 +97,14 @@ class TusController(
                 }
 
                 patch {
+                    logEntry(log, parameterIncludeFilter = { it == "id" })
                     upload()
                 }
             }
 
             post {
-                log.info("Received request to create upload: ${call.request.headers.flattenEntries()}")
+                logEntry(log, headerIncludeFilter = { it in TusHeaders.KnownHeaders })
+
                 if (!protect()) return@post
 
                 val principal = call.request.validatedPrincipal
@@ -179,6 +183,7 @@ class TusController(
 
             options {
                 // Probes about the server's configuration
+                logEntry(log)
                 with(serverConfiguration) {
                     call.response.tusSupportedVersions(supportedVersions)
                     call.response.tusMaxSize(maxSizeInBytes)
@@ -238,7 +243,7 @@ class TusController(
         val wrappedChannel = object : IReadChannel {
             var shouldRead = true
 
-            suspend override fun read(dst: ByteArray, offset: Int): Int {
+            override suspend fun read(dst: ByteArray, offset: Int): Int {
                 val maxSize = dst.size - offset
                 assert(maxSize > 0)
 

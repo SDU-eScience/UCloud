@@ -57,6 +57,13 @@ fun main(args: Array<String>) = runBlocking {
                 val instance = ServiceInstance(HttpBin.definition(), "httpbin.org", 443)
                 val node = zk.registerService(instance)
                 zk.markServiceAsReady(node, instance)
+                log.info("")
+                log.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                log.info("Running in development mode. Proxying requests to httpbin.org")
+                log.info("Running in development mode. Proxying requests to httpbin.org")
+                log.info("Running in development mode. Proxying requests to httpbin.org")
+                log.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                log.info("")
                 DevelopmentServiceManager(listOf(HttpBin.definition), it)
             }
 
@@ -64,6 +71,13 @@ fun main(args: Array<String>) = runBlocking {
                 val instance = ServiceInstance(TransferSh.definition(), "transfer.sh", 443)
                 val node = zk.registerService(instance)
                 zk.markServiceAsReady(node, instance)
+                log.info("")
+                log.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                log.info("Running in development mode. Proxying requests to transfer.sh")
+                log.info("Running in development mode. Proxying requests to transfer.sh")
+                log.info("Running in development mode. Proxying requests to transfer.sh")
+                log.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                log.info("")
                 DevelopmentServiceManager(listOf(TransferSh.definition), it)
             }
 
@@ -142,5 +156,5 @@ fun main(args: Array<String>) = runBlocking {
 
     restartServer()
     reloadServer.start(wait = true)
-    val foo = 42
+    log.info("Gateway is ready!")
 }

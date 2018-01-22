@@ -2,7 +2,6 @@ package dk.sdu.cloud.tus
 
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusServiceDescription
@@ -132,6 +131,7 @@ class Server(
 
         runBlocking { zk.markServiceAsReady(node, instance) }
         log.info("Server is ready!")
+        log.info(instance.toString())
     }
 
     fun stop() {

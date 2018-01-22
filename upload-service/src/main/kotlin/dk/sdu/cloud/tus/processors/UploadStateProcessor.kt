@@ -7,7 +7,6 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
-import java.net.URI
 
 private val log = LoggerFactory.getLogger(UploadStateProcessor::class.java)
 
