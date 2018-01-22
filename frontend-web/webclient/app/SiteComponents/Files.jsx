@@ -232,7 +232,7 @@ function PaginationButtons(props) {
             <button
                 className="paginate_button btn btn-default btn-circle btn-info"
                 disabled={i === props.currentPage}
-                onClick={() => props.toPage(i)}>{i}</button>
+                onClick={() => props.toPage(i)}>{i + 1}</button>
         </span>);
     return (
         <div className="text-center">
