@@ -1,18 +1,18 @@
 import React from 'react';
-import {Statuses} from "../MockObjects";
+import { defaultStatus } from "../DefaultObjects";
+import pubsub from "pubsub-js";
 
-class StatusPage extends React.Component {
+class Status extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            status: Statuses[0],
+            status: defaultStatus,
         };
     }
 
     componentDidMount() {
-        this.setState({
-            status: Statuses[0],
-        });
+        pubsub.publish('setPageTitle', this.constructor.name);
+        // Cloud.get("/systemstatus/");
     }
 
     statusToColor() {
@@ -51,4 +51,4 @@ class StatusPage extends React.Component {
     }
 }
 
-export default StatusPage;
+export default Status;

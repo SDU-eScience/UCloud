@@ -1,19 +1,17 @@
 import React from 'react';
 import { Link } from 'react-router';
-import { Statuses} from "../MockObjects";
+import { defaultStatus } from "../DefaultObjects";
 
 class StatusBar extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            status: Statuses[0],
+            status: defaultStatus
         };
     }
 
     componentDidMount() {
-        this.setState({
-            status: Statuses[0],
-        });
+        // Cloud.get("systemstatus/");
     }
 
     statusToButton() {

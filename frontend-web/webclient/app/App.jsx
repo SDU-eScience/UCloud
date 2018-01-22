@@ -27,7 +27,7 @@ import Applications from './SiteComponents/Applications/Applications';
 import RunApp from './SiteComponents/Applications/RunApp';
 import Workflows from './SiteComponents/Applications/Workflows';
 import Analyses from './SiteComponents/Applications/Analyses';
-import StatusPage from './SiteComponents/StatusPage'
+import Status from './SiteComponents/StatusPage'
 import Files from './SiteComponents/Files'
 import User from './components/User/User';
 import Utils from './components/Utils/Utils';
@@ -64,7 +64,7 @@ ReactDOM.render(
 
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />
-            <Route path="status" component={StatusPage} />
+            <Route path="status" component={Status} />
             <Route path="apps">
                 <Route path="applications" component={Applications}/>
                 <Route path="workflows" component={Workflows}/>
