@@ -3,6 +3,8 @@ import LoadingIcon from '../LoadingIcon'
 import {WebSocketSupport} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
+import {Card} from "../Cards";
+import {Table} from 'react-bootstrap';
 
 class Analyses extends React.Component {
     constructor(props) {
@@ -27,7 +29,6 @@ class Analyses extends React.Component {
         Cloud.get("/hpc/jobs").then(analyses => {
             analyses.forEach(analysis => {
                 Cloud.get(`/hpc/jobs/${analysis.jobId}`).then(a => {
-                    console.log(a);
                 });
                 analysis.name = "Hello app";
             });
@@ -48,11 +49,11 @@ class Analyses extends React.Component {
                 <div className="container-fluid">
                     <div className="col-lg-10">
                         <LoadingIcon loading={this.state.loading}/>
-                        <div className="card">
+                        <Card xs={6} sm={12}>
+                            <WebSocketSupport/>
+                            {noAnalysis}
                             <div className="card-body">
-                                <WebSocketSupport/>
-                                {noAnalysis}
-                                <table className="table-datatable table table-hover mv-lg">
+                                <Table className="table-datatable table table-hover mv-lg">
                                     <thead>
                                     <tr>
                                         <th>App Name</th>
@@ -62,9 +63,9 @@ class Analyses extends React.Component {
                                     </tr>
                                     </thead>
                                     <AnalysesList analyses={this.state.analyses}/>
-                                </table>
+                                </Table>
                             </div>
-                        </div>
+                        </Card>
                     </div>
                 </div>
             </section>
@@ -73,10 +74,11 @@ class Analyses extends React.Component {
 }
 
 function AnalysesList(props) {
-    if (!props.analyses && !props.analyses[0].name) {return null;}
-    const analyses = props.analyses.slice();
+    if (!props.analyses && !props.analyses[0].name) {
+        return null;
+    }
     let i = 0;
-    const analysesList = analyses.map(analysis =>
+    const analysesList = props.analyses.map(analysis =>
         <tr key={i++} className="gradeA row-settings">
             <td>{analysis.name}</td>
             <td>{analysis.jobId}</td>
@@ -89,7 +91,7 @@ function AnalysesList(props) {
 
     return (
         <tbody>
-            {analysesList}
+        {analysesList}
         </tbody>)
 }
 

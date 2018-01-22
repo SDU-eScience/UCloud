@@ -457,7 +457,7 @@ function Favourited(props) {
     if (props.file.isStarred) {
         return (<td><a onClick={() => props.favourite(props.file)} className="ion-star"/></td>)
     }
-    return (<td><a className="ion-star" onClick={() => props.favourite(props.file.path.uri)}/></td>);
+    return (<td><a className="ion-ios-star-outline" onClick={() => props.favourite(props.file.path.uri)}/></td>);
 }
 
 function MobileButtons(props) {

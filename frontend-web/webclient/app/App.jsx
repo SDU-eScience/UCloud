@@ -14,7 +14,9 @@ import ReactDOM from 'react-dom';
 import {Router, Route, Link, IndexRoute, useRouterHistory} from 'react-router';
 import {createHistory} from 'history'
 
-import uppyStyle from "uppy/src/scss/uppy.scss";
+import "uppy/src/scss/uppy.scss";
+import "../app/components/Tables/Datatable.scss";
+import Datatable from "../app/components/Tables/Datatable";
 import Core from './components/Core/Core';
 import Bootstrap from './components/Bootstrap/Bootstrap';
 import Common from './components/Common/Common';
@@ -32,6 +34,7 @@ import Files from './SiteComponents/Files'
 import User from './components/User/User';
 import Utils from './components/Utils/Utils';
 import { Cloud } from '../authentication/SDUCloudObject'
+
 
 
 Translate();
@@ -61,6 +64,8 @@ ReactDOM.render(
 
             {/* Default route*/}
             <IndexRoute component={Dashboard}/>
+
+            <Route path="DT" component={Datatable}/>
 
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />

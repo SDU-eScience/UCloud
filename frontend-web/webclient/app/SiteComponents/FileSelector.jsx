@@ -143,7 +143,7 @@ function FileList(props) {
     });
     return (
         <tbody>
-        {filesList}
+            {filesList}
         </tbody>
     )
 }

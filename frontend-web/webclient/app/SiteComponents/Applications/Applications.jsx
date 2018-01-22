@@ -1,7 +1,7 @@
 import React from 'react';
 import LoadingIcon from '../LoadingIcon';
-import {Applications as apps} from "../../MockObjects";
-import {Link} from 'react-router'
+import {Link} from 'react-router';
+import "../../components/Tables/Datatable.scss";
 
 import {Table} from 'react-bootstrap';
 import {Card, CardHeading} from "../Cards";
@@ -39,19 +39,19 @@ class Applications extends React.Component {
                     <div className="col-lg-10">
                         <LoadingIcon loading={!this.state.applications.length}/>
                         <Card xs={6} sm={12}>
-                            <Table className="table-datatable table table-striped table-hover mv-lg">
-                                <thead>
-                                <tr>
-                                    <th/>
-                                    <th>Application Name</th>
-                                    <th>Author</th>
-                                    <th>Rating</th>
-                                    <th className="sort-numeric">Version</th>
-                                    <th/>
-                                </tr>
-                                </thead>
-                                <ApplicationsList applications={this.state.applications}/>
-                            </Table>
+                            <div className="card-body">
+                                <Table className="table-datatable table table-hover mv-lg">
+                                    <thead>
+                                    <tr>
+                                        <th>Visibility</th>
+                                        <th>Application Name</th>
+                                        <th>Version</th>
+                                        <th/>
+                                    </tr>
+                                    </thead>
+                                    <ApplicationsList applications={this.state.applications}/>
+                                </Table>
+                            </div>
                         </Card>
                     </div>
                     <div className="col-lg-2 visible-lg">
@@ -84,8 +84,6 @@ function SingleApplication(props) {
         <tr className="gradeA row-settings">
             <PrivateIcon isPrivate={props.app.info.isPrivate}/>
             <td title={props.app.info.description}>{props.app.info.name}</td>
-            <td title={props.app.info.description}>{props.app.info.author}</td>
-            <td title="Rating for the application">{props.app.info.rating} / 5</td>
             <td title={props.app.info.description}>{props.app.info.version}</td>
             <th>
                 <Link to={'/runApp/' + props.app.info.name + '/' + props.app.info.version}>
