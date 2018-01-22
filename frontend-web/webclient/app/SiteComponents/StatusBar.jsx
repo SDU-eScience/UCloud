@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router';
-import { defaultStatus } from "../DefaultObjects";
+import { DefaultStatus } from "../DefaultObjects";
 
 class StatusBar extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            status: defaultStatus
+            status: DefaultStatus
         };
     }
 

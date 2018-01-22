@@ -1,12 +1,12 @@
 import React from 'react';
-import { defaultStatus } from "../DefaultObjects";
+import { DefaultStatus } from "../DefaultObjects";
 import pubsub from "pubsub-js";
 
 class Status extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            status: defaultStatus,
+            status: DefaultStatus,
         };
     }
 

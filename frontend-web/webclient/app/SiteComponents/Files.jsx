@@ -6,6 +6,7 @@ import {Button} from 'react-bootstrap';
 import {buildBreadCrumbs, sortFiles, createFolder} from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
+import {RightsMap} from "../DefaultObjects";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
 
@@ -99,24 +100,15 @@ class Files extends React.Component {
 
     }
 
-    static rightsMap() {
-        return {
-            'NONE': 1,
-            'READ': 2,
-            'READ_WRITE': 3,
-            'OWN': 4
-        }
-    };
-
     static getCurrentRights(files) {
-        let lowestPrivilegeOptions = Files.rightsMap()["OWN"];
+        let lowestPrivilegeOptions = RightsMap["OWN"];
         files.forEach((it) => {
             it.acl.forEach((acl) => {
-                lowestPrivilegeOptions = Math.min(Files.rightsMap()[acl.right], lowestPrivilegeOptions);
+                lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
             });
         });
         return {
-            rightsName: Object.keys(Files.rightsMap())[lowestPrivilegeOptions - 1],
+            rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions - 1],
             rightsLevel: lowestPrivilegeOptions
         }
     }
