@@ -22,7 +22,6 @@ class Files extends React.Component {
             filesPerPage: 10,
             masterCheckbox: false,
             currentPath: currentPath,
-            selectedFiles: [],
             uploadFileOpen: false,
             uppy: Uppy.Core({
                 autoProceed: false,
@@ -61,24 +60,21 @@ class Files extends React.Component {
         }));
     }
 
-    selectOrDeselectAllFiles(event) {
-        let checked = event.target.checked;
+    selectOrDeselectAllFiles(checked) {
         let currentPage = this.state.currentPage;
         let filesPerPage = this.state.filesPerPage;
         let files = this.state.files.slice();
         files.forEach(file => file.isChecked = false);
         if (checked) {
-            let shownFiles = files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
-            shownFiles.forEach(file => file.isChecked = true);
+            let selectedFiles = files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
+            selectedFiles.forEach(file => file.isChecked = true);
             this.setState(() => ({
                 files: files,
-                selectedFiles: shownFiles,
                 masterCheckbox: true,
             }));
         } else {
             this.setState(() => ({
                 files: files,
-                selectedFiles: [],
                 masterCheckbox: false,
             }));
         }
@@ -113,17 +109,16 @@ class Files extends React.Component {
         }
     }
 
-    addOrRemoveFile(event, newFile) {
-        let size = this.state.selectedFiles.length;
-        newFile.isChecked = event.target.checked;
-        let currentFiles = this.state.selectedFiles.slice().filter(file => file.path.uri !== newFile.path.uri);
-        if (event.target.checked && currentFiles.length === size) {
-            currentFiles.push(newFile);
-        }
-        let masterCheckbox = this.state.files.length === currentFiles.length;
+    addOrRemoveFile(checked, newFile) {
+        let files = this.state.files.slice();
+        files.find(file => file.path.uri === newFile.path.uri).isChecked = checked;
+        let currentPage = this.state.currentPage;
+        let filesPerPage = this.state.filesPerPage;
+        let currentlyShownFiles = this.state.files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
+        let selectedFilesCount = currentlyShownFiles.filter(file => file.isChecked).length;
         this.setState(() => ({
-            selectedFiles: currentFiles,
-            masterCheckbox: masterCheckbox,
+            files: files,
+            masterCheckbox: currentlyShownFiles.length === selectedFilesCount,
         }));
     }
 
@@ -146,7 +141,10 @@ class Files extends React.Component {
     }
 
     toPage(n) {
+        let files = this.state.files;
+        files.forEach(file => file.isChecked = false);
         this.setState(() => ({
+            files: files,
             currentPage: n,
             masterCheckbox: false,
         }));
@@ -159,14 +157,20 @@ class Files extends React.Component {
     }
 
     nextPage() {
+        let files = this.state.files;
+        files.forEach(file => file.isChecked = false);
         this.setState(() => ({
+            files: files,
             currentPage: this.state.currentPage + 1,
             masterCheckbox: false,
         }));
     }
 
     previousPage() {
+        let files = this.state.files;
+        files.forEach(file => file.isChecked = false);
         this.setState(() => ({
+            files: files,
             currentPage: this.state.currentPage - 1,
             masterCheckbox: false,
         }));
@@ -198,7 +202,7 @@ class Files extends React.Component {
                                     selectedFiles={this.state.selectedFiles}
                                     masterCheckbox={this.state.masterCheckbox}
                                     getFavourites={() => this.getFavourites} favourite={() => this.favourite}
-                                    prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile}
+                                    addOrRemoveFile={this.addOrRemoveFile}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         <LoadingIcon loading={this.state.loading}/>
                         <PaginationButtons
@@ -211,7 +215,8 @@ class Files extends React.Component {
                                               handlePageSizeSelection={this.handlePageSizeSelection}/> Files per
                         page
                     </div>
-                    <ContextBar selectedFiles={this.state.selectedFiles} currentPath={this.state.currentPath}
+                    <ContextBar selectedFiles={this.state.files.filter(file => file.isChecked)}
+                                currentPath={this.state.currentPath}
                                 getFavourites={() => this.getFavourites()}
                                 onClick={this.handleOpen}/>
                 </div>
@@ -348,7 +353,7 @@ function FilesTable(props) {
                         <th className="select-cell disabled"><label className="mda-checkbox">
                             <input name="select" className="select-box"
                                    checked={props.masterCheckbox}
-                                   type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e)}/><em
+                                   type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e.target.checked)}/><em
                             className="bg-info"/></label></th>
                         <th><span className="text-left">Filename</span></th>
                         <th><span><em className="ion-star"/></span></th>
@@ -358,7 +363,7 @@ function FilesTable(props) {
                     </thead>
                     <FilesList files={props.files} favourite={props.favourite}
                                selectedFiles={props.selectedFiles}
-                               prevent={props.prevent} addOrRemoveFile={props.addOrRemoveFile}/>
+                               addOrRemoveFile={props.addOrRemoveFile}/>
                 </table>
             </div>
         </div>)
@@ -396,7 +401,7 @@ function File(props) {
         <tr className="row-settings clickable-row">
             <td className="select-cell"><label className="mda-checkbox">
                 <input name="select" className="select-box" checked={props.isChecked}
-                       type="checkbox" onChange={(e) => props.addOrRemoveFile(e, file)}/>
+                       type="checkbox" onChange={(e) => props.addOrRemoveFile(e.target.checked, file)}/>
                 <em className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
             <Favourited file={file} favourite={props.favourite}/>
@@ -415,7 +420,7 @@ function Directory(props) {
             style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
                 <input name="select" className="select-box" checked={props.isChecked}
-                       type="checkbox" onChange={(e) => props.addOrRemoveFile(e, file)}/><em
+                       type="checkbox" onChange={(e) => props.addOrRemoveFile(e.target.checked, file)}/><em
                 className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
             <Favourited file={file} favourite={props.favourite}/>
