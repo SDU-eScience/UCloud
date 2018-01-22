@@ -194,15 +194,13 @@ class Files extends React.Component {
                 <div className="container-fluid">
                     <div className="col-lg-10">
                         <Breadcrumbs currentPath={this.state.currentPath}/>
-                        <div className="card">
-                            <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
-                                        selectedFiles={this.state.selectedFiles}
-                                        masterCheckbox={this.state.masterCheckbox}
-                                        getFavourites={() => this.getFavourites} favourite={() => this.favourite}
-                                        prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile}
-                                        selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
-                            <LoadingIcon loading={this.state.loading}/>
-                        </div>
+                        <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
+                                    selectedFiles={this.state.selectedFiles}
+                                    masterCheckbox={this.state.masterCheckbox}
+                                    getFavourites={() => this.getFavourites} favourite={() => this.favourite}
+                                    prevent={this.prevent} addOrRemoveFile={this.addOrRemoveFile}
+                                    selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
+                        <LoadingIcon loading={this.state.loading}/>
                         <PaginationButtons
                             currentPage={this.state.currentPage}
                             totalPages={this.state.totalPages}
@@ -342,37 +340,27 @@ function FilesTable(props) {
         return null;
     }
     return (
-        <div className="card-body">
-            <Shortcuts getFavourites={props.getFavourites}/>
-            <div className="card">
-                <div className="card-body">
-                    <table className="table-datatable table table-hover mv-lg">
-                        <thead>
-                        <tr>
-                            <th className="select-cell disabled"><label className="mda-checkbox">
-                                <input name="select" className="select-box"
-                                       checked={props.masterCheckbox}
-                                       type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e)}/><em
-                                className="bg-info"/></label></th>
-                            <th><span className="text-left">Filename</span></th>
-                            <th><span><em className="ion-star"/></span></th>
-                            <th><span className="text-left">Last Modified</span></th>
-                            <th><span className="text-left">File Owner</span></th>
-                        </tr>
-                        </thead>
-                        <FilesList files={props.files} favourite={props.favourite}
-                                   selectedFiles={props.selectedFiles}
-                                   prevent={props.prevent} addOrRemoveFile={props.addOrRemoveFile}/>
-                    </table>
-                </div>
+        <div className="card">
+            <div className="card-body">
+                <table className="table-datatable table table-hover mv-lg">
+                    <thead>
+                    <tr>
+                        <th className="select-cell disabled"><label className="mda-checkbox">
+                            <input name="select" className="select-box"
+                                   checked={props.masterCheckbox}
+                                   type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e)}/><em
+                            className="bg-info"/></label></th>
+                        <th><span className="text-left">Filename</span></th>
+                        <th><span><em className="ion-star"/></span></th>
+                        <th><span className="text-left">Last Modified</span></th>
+                        <th><span className="text-left">File Owner</span></th>
+                    </tr>
+                    </thead>
+                    <FilesList files={props.files} favourite={props.favourite}
+                               selectedFiles={props.selectedFiles}
+                               prevent={props.prevent} addOrRemoveFile={props.addOrRemoveFile}/>
+                </table>
             </div>
-        </div>)
-}
-
-function Shortcuts(props) {
-    return (
-        <div className="center-block text-center hidden-lg">
-            <Button onClick={() => props.getFavourites()}><i className="icon ion-ios-home"/></Button>
         </div>)
 }
 
