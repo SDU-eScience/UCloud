@@ -16,7 +16,6 @@ import {createHistory} from 'history'
 
 import "uppy/src/scss/uppy.scss";
 import "../app/components/Tables/Datatable.scss";
-import Datatable from "../app/components/Tables/Datatable";
 import Core from './components/Core/Core';
 import Bootstrap from './components/Bootstrap/Bootstrap';
 import Common from './components/Common/Common';
@@ -64,8 +63,6 @@ ReactDOM.render(
 
             {/* Default route*/}
             <IndexRoute component={Dashboard}/>
-
-            <Route path="DT" component={Datatable}/>
 
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />
