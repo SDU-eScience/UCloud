@@ -24,21 +24,21 @@ const ProjectsOption = {
 const AppsApplicationsOption = {
     name: "Applications",
     icon: "",
-    href: "/apps/applications",
+    href: "/applications",
     children: null
 };
 
 const AppsWorkflowsOption = {
     name: "Workflows",
     icon: "",
-    href: "/apps/workflows",
+    href: "/workflows",
     children: null,
 };
 
 const AppsAnalysesOption = {
     name: "Analyses",
     icon: "",
-    href: "/apps/analyses",
+    href: "/analyses",
     children: null,
 };
 
@@ -52,7 +52,7 @@ const AppsOptions = {
 const ActivityNotificationsOption = {
     name: "Notifications",
     icon: "",
-    href: "/activity/notifications",
+    href: "/notifications",
     children: null,
 };
 

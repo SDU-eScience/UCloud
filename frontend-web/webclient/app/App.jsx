@@ -67,16 +67,12 @@ ReactDOM.render(
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />
             <Route path="status" component={Status} />
-            <Route path="apps">
-                <Route path="applications" component={Applications}/>
-                <Route path="workflows" component={Workflows}/>
-                <Route path="analyses" component={Analyses}/>
-            </Route>
-            <Route path="runApp/:appName/:appVersion" component={RunApp} />
+            <Route path="applications" component={Applications}/>
+            <Route path="applications/:appName/:appVersion" component={RunApp}/>
+            <Route path="workflows" component={Workflows}/>
+            <Route path="analyses" component={Analyses}/>
 
-            <Route path="activity">
-                <Route path="notifications" component={Notifications}/>
-            </Route>
+            <Route path="notifications" component={Notifications}/>
 
             <Route path="*" component={NotFound}/>
 
