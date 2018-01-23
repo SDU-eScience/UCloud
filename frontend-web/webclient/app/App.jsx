@@ -34,7 +34,13 @@ import User from './components/User/User';
 import Utils from './components/Utils/Utils';
 import { Cloud } from '../authentication/SDUCloudObject'
 
-
+/* */
+import Blog from "./components/Pages/Blog"
+import FAQ from "./components/Pages/Faq"
+import Messages from "./components/Pages/Messages"
+import Gallery from "./components/Pages/Gallery";
+import BlogArticle from "./components/Pages/BlogArticle";
+/* */
 
 Translate();
 
@@ -64,6 +70,13 @@ ReactDOM.render(
             {/* Default route*/}
             <IndexRoute component={Dashboard}/>
 
+            /* */
+            <Route path="Blog" component={Blog}/>
+            <Route path="Faq" component={FAQ}/>
+            <Route path="Messages" component={Messages}/>
+            <Route path="Gallery" component={Gallery}/>
+            <Route path="BlogArticle" component={BlogArticle}/>
+            /* */
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />
             <Route path="status" component={Status} />

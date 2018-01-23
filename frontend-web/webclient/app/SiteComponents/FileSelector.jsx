@@ -66,14 +66,15 @@ class FileSelector extends React.Component {
                     onClick={this.openModal}
                     type="button"
                     className="btn btn-default">Browse files</Button></span>
-                    <input className="form-control readonly" required={!this.state.parameter.optional} type="text" placeholder={"No file selected"}
+                    <input className="form-control readonly" required={!this.state.parameter.optional} type="text"
+                           placeholder={"No file selected"}
                            value={this.state.selectedFile.path.path}/></div>
                 <Modal show={this.state.modalShown} onHide={this.closeModal}>
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
-                        <LoadingIcon loading={this.state.loading}/>
                     </Modal.Header>
                     <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
+                    <LoadingIcon loading={this.state.loading}/>
                     <FileSelectorBody loading={this.state.loading} onClick={(file) => this.setSelectedFile(file)}
                                       files={this.state.files} getFiles={this.getFiles}/>
                 </Modal>
@@ -99,6 +100,9 @@ function BreadCrumbs(props) {
 }
 
 function FileSelectorBody(props) {
+    if (props.loading) {
+        return null;
+    }
     let noFiles = !props.files.length ? <h4>
         <small>No files in current folder.</small>
     </h4> : null;
@@ -106,7 +110,7 @@ function FileSelectorBody(props) {
         <Modal.Body>
             <div className="pre-scrollable">
                 {noFiles}
-                <table className="table-datatable table table-striped table-hover">
+                <table className="table table-hover">
                     <thead>
                     <tr>
                         <th>Filename</th>
@@ -131,19 +135,20 @@ function FileList(props) {
         if (file.type === "DIRECTORY") {
             return (
                 <tr key={i++} className="gradeA row-settings">
-                    <td className={"ios-document"} onClick={() => props.getFiles(file.path.path)}> {file.path.name}</td>
+                    <td onClick={() => props.getFiles(file.path.path)}><em className="ios-document"/> {file.path.name}
+                    </td>
                 </tr>
             );
         } else {
             return (
                 <tr key={i++} className="gradeA row-settings">
-                    <td className={"ios-file"} onClick={() => props.onClick(file)}> {file.path.name}</td>
+                    <td onClick={() => props.onClick(file)}><span className="ios-file"/> {file.path.name}</td>
                 </tr>)
         }
     });
     return (
         <tbody>
-            {filesList}
+        {filesList}
         </tbody>
     )
 }

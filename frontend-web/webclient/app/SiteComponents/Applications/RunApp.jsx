@@ -127,7 +127,7 @@ class RunApp extends React.Component {
 
 function ApplicationHeader(props) {
     return (
-        <div>
+        <div style={{"text-indent": 40}}>
             <h1>{props.name}</h1>
             <h3>{props.description}</h3>
             <h4>Author: {props.author}</h4>
@@ -139,9 +139,8 @@ function Parameters(props) {
     if (!props.parameters) {
         return null
     }
-    let parameters = props.parameters.slice();
     let i = 0;
-    let parametersList = parameters.map(parameter =>
+    let parametersList = props.parameters.map(parameter =>
         <Parameter key={i++} parameter={parameter} onChange={props.onChange}
                    onFileSelectionChange={props.onFileSelectionChange}/>
     );
@@ -159,7 +158,7 @@ function Parameter(props) {
     if (props.parameter.type === "input_file") {
         return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "output_file") {
-        return null; //parameter = (<OutputFileParameter parameter={props.parameter}/>);
+        return null; // parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
         return (<fieldset><IntegerParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "float") {
