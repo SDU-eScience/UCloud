@@ -264,17 +264,17 @@ function ContextBar(props) {
                     <Button className="btn btn-link btn-lg" onClick={() => props.getFavourites()}><a><i
                         className="icon ion-star"/></a></Button>
                     <Button className="btn btn-link btn-lg"><Link to={`files?path=/home/${Cloud.username}`}><i
-                        className="icon ion-ios-home"/></Link></Button>
+                        className="ion-ios-home"/></Link></Button>
                 </div>
                 <hr/>
-                <button className="btn btn-primary ripple btn-block ion-android-upload" id="uppy"
-                        onClick={props.onClick}> Upload
-                    Files
+                <button className="btn btn-primary ripple btn-block" id="uppy"
+                        onClick={props.onClick}>
+                    <span className="ion-android-upload pull-left"/> Upload Files
                 </button>
                 <br/>
-                <button className="btn btn-default ripple btn-block ion-folder"
+                <button className="btn btn-default ripple btn-block"
                         onClick={() => createFolder(props.currentPath)}>
-                    New folder
+                    <span className="ion-folder pull-left"/> New folder
                 </button>
                 <br/>
                 <hr/>
@@ -297,19 +297,19 @@ function FileOptions(props) {
             <p>
                 <button type="button" className="btn btn-default ripple btn-block"
                         onClick={Files.shareFile(props.selectedFiles[0].path.name, 'folder')}><span
-                    className="ion-share"/> Share selected
+                    className="ion-share pull-left"/> Share selected
                     files
                 </button>
             </p>
             <p>
                 <Button className="btn btn-default ripple btn-block">
-                    <span className="ion-ios-download"/>
+                    <span className="ion-ios-download pull-left"/>
                     Download selected files
                 </Button>
             </p>
             <p>
                 <button type="button" className="btn btn-default btn-block ripple">
-                    <span className="ion-android-star"/>
+                    <span className="ion-android-star pull-left"/>
                     Favourite selected files
                 </button>
             </p>
@@ -317,7 +317,7 @@ function FileOptions(props) {
                 <button type="button" className="btn btn-default btn-block ripple"
                         onClick={Files.renameFile(props.selectedFiles[0].path.name, 'folder')}
                         disabled={rights.rightsLevel < 3 || props.selectedFiles.length !== 1}>
-                    <span className="ion-ios-compose"/>
+                    <span className="ion-ios-compose pull-left"/>
                     Rename file
                 </button>
             </p>
@@ -325,7 +325,7 @@ function FileOptions(props) {
                 <button className="btn btn-danger btn-block ripple"
                         disabled={rights.rightsLevel < 3}
                         onClick={Files.showFileDeletionPrompt(props.selectedFiles[0].path, props.selectedFiles.length)}>
-                    <em className="ion-ios-trash"/>
+                    <em className="ion-ios-trash pull-left"/>
                     Delete selected files
                 </button>
             </p>

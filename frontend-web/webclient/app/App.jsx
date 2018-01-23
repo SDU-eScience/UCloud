@@ -70,13 +70,6 @@ ReactDOM.render(
             {/* Default route*/}
             <IndexRoute component={Dashboard}/>
 
-            /* */
-            <Route path="Blog" component={Blog}/>
-            <Route path="Faq" component={FAQ}/>
-            <Route path="Messages" component={Messages}/>
-            <Route path="Gallery" component={Gallery}/>
-            <Route path="BlogArticle" component={BlogArticle}/>
-            /* */
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />
             <Route path="status" component={Status} />

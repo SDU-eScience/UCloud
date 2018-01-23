@@ -14,13 +14,6 @@ const FilesOptions = {
     children: null
 };
 
-const ProjectsOption = {
-    name: "Projects",
-    icon: "nav-icon",
-    href: "/projects",
-    children: null
-};
-
 const AppsApplicationsOption = {
     name: "Applications",
     icon: "",
@@ -64,7 +57,7 @@ const ActivityOptions = {
 };
 
 const SidebarOptionsList = [
-    DashboardOption, FilesOptions, ProjectsOption, AppsOptions, ActivityOptions
+    DashboardOption, FilesOptions, AppsOptions, ActivityOptions
 ];
 // FIXME END
 
