@@ -33,7 +33,7 @@ class Files extends React.Component {
             sortingFunctions: {
                 typeAndName: sortFilesByTypeAndName,
                 modifiedAt: sortFilesByModified,
-                favorite: sortFilesByFavourite,
+                favourite: sortFilesByFavourite,
                 owner: sortFilesByOwner,
             },
             lastSorting: {
@@ -64,6 +64,15 @@ class Files extends React.Component {
         this.handleClose = this.handleClose.bind(this);
         this.handleOpen = this.handleOpen.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
+        this.getSortingIcon = this.getSortingIcon.bind(this);
+    }
+
+    getSortingIcon(name) {
+        let icon = "";
+        if (this.state.lastSorting.name === name) {
+            icon = this.state.lastSorting.asc ? "ion-chevron-up" : "ion-chevron-down";
+        }
+        return icon;
     }
 
     handleOpen() {
@@ -235,7 +244,7 @@ class Files extends React.Component {
                         <Breadcrumbs currentPath={this.state.currentPath}/>
                         <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
                                     selectedFiles={this.state.selectedFiles}
-                                    masterCheckbox={this.state.masterCheckbox}
+                                    masterCheckbox={this.state.masterCheckbox} sortingIcon={this.getSortingIcon}
                                     getFavourites={() => this.getFavourites} favourite={() => this.favourite}
                                     addOrRemoveFile={this.addOrRemoveFile} sortFiles={this.sortFilesBy}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
@@ -390,12 +399,12 @@ function FilesTable(props) {
                                    checked={props.masterCheckbox}
                                    type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e.target.checked)}/><em
                             className="bg-info"/></label></th>
-                        <th onClick={() => props.sortFiles("typeAndName")}><span className="text-left">Filename<span className="pull-right ion-chevron-up"/></span>
+                        <th onClick={() => props.sortFiles("typeAndName")}><span className="text-left">Filename<span className={"pull-right " + props.sortingIcon("typeAndName")}/></span>
                         </th>
-                        <th onClick={() => props.sortFiles("favourite")}><span><em className="ion-star"/><span className="pull-right ion-chevron-up"/></span></th>
+                        <th onClick={() => props.sortFiles("favourite")}><span><em className="ion-star"/><span className={"pull-right " + props.sortingIcon("favourite")}/></span></th>
                         <th onClick={() => props.sortFiles("modifiedAt")}><span className="text-left">Last Modified<span
-                            className="pull-right ion-chevron-up"/></span></th>
-                        <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Owner<span className="pull-right ion-chevron-up"/></span>
+                            className={"pull-right " + props.sortingIcon("modifiedAt")}/></span></th>
+                        <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Owner<span className={"pull-right " + props.sortingIcon("owner")}/></span>
                         </th>
                     </tr>
                     </thead>
