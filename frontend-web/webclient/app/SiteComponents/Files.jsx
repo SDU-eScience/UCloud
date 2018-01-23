@@ -104,7 +104,7 @@ class Files extends React.Component {
             });
         });
         return {
-            rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions - 1],
+            rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
             rightsLevel: lowestPrivilegeOptions
         }
     }
@@ -122,9 +122,14 @@ class Files extends React.Component {
         }));
     }
 
-    handlePageSizeSelection(event) {
-        let value = parseInt(event.target.value);
-        this.setState(() => ({filesPerPage: value}));
+    handlePageSizeSelection(newPageSize) {
+        const files = this.state.files.slice();
+        files.forEach(file => file.isChecked = false);
+        this.setState(() => ({
+            files: files,
+            filesPerPage: newPageSize,
+            masterCheckbox: false,
+        }));
     }
 
     getFiles() {
@@ -237,10 +242,10 @@ function PaginationButtons(props) {
     return (
         <div className="text-center">
             <button className="previous btn-default btn btn-circle" onClick={() => props.previousPage()}
-                    disabled={props.currentPage === 0}>
+                    disabled={props.currentPage === 0} type="button">
                 <em className="ion-ios-arrow-left"/></button>
             {buttons}
-            <button className="paginate_button next btn-default btn btn-circle ion-ios-arrow-right"
+            <button className="next btn-default btn btn-circle ion-ios-arrow-right" type="button"
                     onClick={() => props.nextPage()}
                     disabled={props.currentPage === Math.max(props.totalPages() - 1, 0)}/>
         </div>)
@@ -248,7 +253,7 @@ function PaginationButtons(props) {
 
 function FilesPerPageSelector(props) {
     return (
-        <select value={props.filesPerPage} onChange={e => props.handlePageSizeSelection(e)}>
+        <select value={props.filesPerPage} onChange={e => props.handlePageSizeSelection(parseInt(e.target.value))}>
             <option value="10">10</option>
             <option value="25">25</option>
             <option value="50">50</option>
