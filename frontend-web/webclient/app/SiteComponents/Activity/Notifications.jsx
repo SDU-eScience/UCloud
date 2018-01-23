@@ -1,8 +1,9 @@
 import React from 'react';
 import LoadingIcon from '../LoadingIcon'
-import { NotificationIcon, WebSocketSupport } from '../../UtilityFunctions'
+import {NotificationIcon, WebSocketSupport} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
-import { Table } from 'react-bootstrap';
+import {Table} from 'react-bootstrap';
+import {Cloud} from "../../../authentication/SDUCloudObject";
 
 class Notifications extends React.Component {
     constructor(props) {
@@ -30,8 +31,8 @@ class Notifications extends React.Component {
     }
 
     getNotifications() {
-        //this.setState({loading: true});
-        /*$.getJSON("http://localhost:8080/api/getNotifications").then((notifications) => {
+        this.setState({loading: true});
+        let notifications = [];//Cloud.get().then(notifications => {
             let yesterday = new Date().getTime() - 24 * 60 * 60 * 1000;
             let recentNotifications = this.state.recent.slice();
             let remainingNotifications = this.state.remaining.slice();
@@ -49,8 +50,8 @@ class Notifications extends React.Component {
                 recent: recentNotifications,
                 remaining: remainingNotifications,
             });
-            //if (this.state.hasWebSocketSupport) this.initWS();
-        });*/
+            if (this.state.hasWebSocketSupport) this.initWS();
+        //});
     }
 
     initWS() {
@@ -98,16 +99,21 @@ class Notifications extends React.Component {
                     <p className="ph">Last 24 hours</p>
                     <div className="card">
                         <Table className="table table-hover table-fixed va-middle">
-                            <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)} notifications={this.state.recent} showCount={this.state.recentShown}/>
+                            <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)}
+                                              notifications={this.state.recent} showCount={this.state.recentShown}/>
                         </Table>
-                        <ShowButton onClick={() => this.showMore("recent")} hasMoreNotifications={this.state.recent.length > this.state.recentShown}/>
+                        <ShowButton onClick={() => this.showMore("recent")}
+                                    hasMoreNotifications={this.state.recent.length > this.state.recentShown}/>
                     </div>
                     <p className="ph">Older</p>
                     <div className="card">
                         <table className="table table-hover table-fixed va-middle">
-                            <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)} notifications={this.state.remaining} showCount={this.state.remainingShown}/>
+                            <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)}
+                                              notifications={this.state.remaining}
+                                              showCount={this.state.remainingShown}/>
                         </table>
-                        <ShowButton onClick={() => this.showMore("remaining")} hasMoreNotifications={this.state.remaining.length > this.state.remainingShown}/>
+                        <ShowButton onClick={() => this.showMore("remaining")}
+                                    hasMoreNotifications={this.state.remaining.length > this.state.remainingShown}/>
                     </div>
                 </div>
                 <MessageModal notification={this.state.currentNotification}/>
@@ -116,7 +122,9 @@ class Notifications extends React.Component {
 }
 
 function NotificationList(props) {
-    if (!props.notifications) return (null);
+    if (!props.notifications) {
+        return null;
+    }
     const notifications = props.notifications.slice(0, Math.min(props.showCount, props.notifications.length));
     let i = 0;
     const notificationsList = notifications.map((notification) =>
@@ -157,7 +165,7 @@ function MessageModal(props) {
                     <div className="modal-header">
                         <button type="button" className="close" data-dismiss="modal">&times;</button>
                         <h4 className="modal-title"> {props.notification.message}<br/>
-                            <small>{ new Date(props.notification.timestamp).toLocaleString() }</small>
+                            <small>{new Date(props.notification.timestamp).toLocaleString()}</small>
                         </h4>
                     </div>
                     <div className="modal-body">

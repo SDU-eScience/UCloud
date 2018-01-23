@@ -3,6 +3,7 @@ import { Table} from 'react-bootstrap';
 import LoadingIcon from '../LoadingIcon'
 import pubsub from "pubsub-js";
 import { Card } from "../Cards";
+import { Cloud } from "../../../authentication/SDUCloudObject"
 
 class Workflows extends React.Component {
     constructor(props) {
@@ -20,15 +21,15 @@ class Workflows extends React.Component {
 
     getWorkflows() {
         this.setState({ loading: true });
-        $.getJSON("/api/getWorkflows").then((data) => {
-            data.sort((a, b) => {
+        let workflows = [];//Cloud.get("/getWorkflows").then(workflows => {
+            workflows.sort((a, b) => {
                 return a.name.localeCompare(b.name);
             });
             this.setState({
                 loading: false,
-                workflows: data,
+                workflows: workflows,
             });
-        });
+        //});
     }
 
     render() {
@@ -65,10 +66,9 @@ class Workflows extends React.Component {
 }
 
 function WorkflowsList(props) {
-    let workflows = props.workflows.slice();
-    let workflowsList = workflows.map( workflow =>
+    let workflowsList = props.workflows.map( workflow =>
         <tr className="gradeA row-settings">
-            <td>{ workflow.name }}</td>
+            <td>{ workflow.name }</td>
             <ApplicationList applications={workflow.applications}/>
         </tr>
     );
