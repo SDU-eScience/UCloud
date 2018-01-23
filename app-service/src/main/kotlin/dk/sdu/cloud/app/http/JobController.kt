@@ -4,8 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.HPCJobDescriptions
 import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.auth.api.validatedPrincipal
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.*
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route

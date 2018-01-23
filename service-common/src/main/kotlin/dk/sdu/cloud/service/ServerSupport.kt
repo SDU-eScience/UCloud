@@ -3,10 +3,7 @@ package dk.sdu.cloud.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.client.*
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCall
-import io.ktor.application.application
-import io.ktor.application.call
+import io.ktor.application.*
 import io.ktor.features.conversionService
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -14,6 +11,7 @@ import io.ktor.pipeline.PipelineContext
 import io.ktor.request.receiveOrNull
 import io.ktor.response.respond
 import io.ktor.routing.Route
+import io.ktor.routing.application
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.util.DataConversionException
@@ -35,12 +33,26 @@ object RESTServerSupport {
 }
 
 fun <P : Any, S : Any, E : Any> Route.implement(
-        restCall: RESTCallDescription<P, S, E>,
-        handler: suspend RESTHandler<P, S, E>.(P) -> Unit
+    restCall: RESTCallDescription<P, S, E>,
+    handler: suspend RESTHandler<P, S, E>.(P) -> Unit
 ) {
     val template = restCall.path.toKtorTemplate(fullyQualified = false)
     route(template) {
         method(HttpMethod.parse(restCall.method.name())) {
+            val logger = application.featureOrNull(KafkaHttpLogger) ?: run {
+                throw IllegalStateException(
+                    "implement() calls require the KafkaHttpLogger feature to " +
+                            "have been installed"
+                )
+            }
+
+            val stream = restCall.loggingStream()
+            if (stream != null) {
+                val kafkaProducer = logger.kafka.producer.forStream(stream)
+                install(KafkaHttpRouteLogger) {
+                    producer = kafkaProducer
+                }
+            }
             handle {
                 val payload: P = if (restCall.requestType == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
@@ -66,7 +78,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                         return@handle call.respond(HttpStatusCode.BadRequest)
                     }
 
-                    // Retrive arguments from query parameters (if any)
+                    // Retrieve arguments from query parameters (if any)
                     val valuesFromParams = try {
                         restCall.params?.let {
                             it.parameters.mapNotNull { it.bindValuesFromCall(call) }.toMap()
@@ -79,13 +91,15 @@ fun <P : Any, S : Any, E : Any> Route.implement(
 
                     // TODO We need to handle this case for params too. That is, if the entire thing is bound
                     if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
-                        val constructor = restCall.requestType.primaryConstructor ?:
-                                restCall.requestType.constructors.single()
+                        val constructor =
+                            restCall.requestType.primaryConstructor ?: restCall.requestType.constructors.single()
 
                         val resolvedArguments = constructor.parameters.map {
                             val name = it.name ?: run {
-                                throw IllegalStateException("Unable to determine name of property in request " +
-                                        "type. Please use a data class instead to solve this problem.")
+                                throw IllegalStateException(
+                                    "Unable to determine name of property in request " +
+                                            "type. Please use a data class instead to solve this problem."
+                                )
                             }
 
                             if (name !in allValuesFromRequest) {

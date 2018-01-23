@@ -2,7 +2,7 @@ group "dk.sdu.cloud"
 version "0.5.0-SNAPSHOT"
 
 buildscript {
-    ext.kotlin_version = "1.2.10"
+    ext.kotlin_version = "1.2.20"
     ext.ktor_version = "0.9.1-alpha-8"
 
     repositories {

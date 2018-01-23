@@ -103,7 +103,7 @@ class Server(
 
         httpServer = ktor {
             log.info("Configuring HTTP server")
-            installDefaultFeatures()
+            installDefaultFeatures(cloud, kafka)
             install(JWTProtection)
 
             routing {

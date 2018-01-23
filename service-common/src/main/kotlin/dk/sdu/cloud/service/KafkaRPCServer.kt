@@ -45,7 +45,7 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
                 noinline keyParser: (String) -> Key = { it as? Key ?: throw BadMessageRPCException() }
         ) = KafkaRPCEndpoint(
                 httpMethod = HttpMethod.Get,
-                endpointForServer = "$root/{key}",
+                endpointForServer = "$root/{KEY}",
                 keyParser = {
                     val key = it.parameters["key"]
                     if (key != null) keyParser(key) else throw BadMessageRPCException()
@@ -71,7 +71,7 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
                         val store = streamProcessor.store(table, QueryableStoreTypes.keyValueStore<Key, Value>())
                         val value = store[key] ?: run {
                             log.error("Expected value to be found in local server")
-                            log.error("Table: $table, key: $key")
+                            log.error("Table: $table, KEY: $key")
 
                             throw InternalRPCException()
                         }
@@ -94,7 +94,7 @@ class KafkaRPCEndpoint<Key : Any, Value : Any>(
                         } catch (ex: Exception) {
                             log.warn("Unable to deserialize response from other Kafka store.")
                             log.warn("Endpoint was: $endpoint")
-                            log.warn("Table: $table, key: $key")
+                            log.warn("Table: $table, KEY: $key")
                             log.warn("Raw response: ${response.responseBody} (${response.statusCode})")
                             log.warn("Exception: ${ex.stackTraceToString()}")
 
