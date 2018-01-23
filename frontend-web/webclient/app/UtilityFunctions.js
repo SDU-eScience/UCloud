@@ -40,15 +40,23 @@ function buildBreadCrumbs(path) {
     return pathsMapping;
 }
 
+function sortFilesByModified(files, asc) {
+    let order = asc ? 1 : -1;
+    files.sort((a, b) => {
+        return (a.modifiedAt - b.modifiedAt) * order;
+    });
+    return files;
+}
 
-function sortFiles(files) {
+function sortFilesByTypeAndName(files, asc) {
+    let order = asc ? 1 : -1;
     files.sort((a, b) => {
         if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
-            return -1;
+            return -1 * order;
         else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
-            return 1;
+            return 1 * order;
         else {
-            return a.path.name.localeCompare(b.path.name);
+            return a.path.name.localeCompare(b.path.name) * order;
         }
     });
     return files;
@@ -85,7 +93,7 @@ export {
     NotificationIcon,
     WebSocketSupport,
     buildBreadCrumbs,
-    sortFiles,
+    sortFilesByTypeAndName,
     createFolder,
     favourite
 }

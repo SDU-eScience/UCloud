@@ -56,7 +56,7 @@ class Applications extends React.Component {
                     </div>
                     <div className="col-lg-2 visible-lg">
                         <div>
-                            <button className="btn btn-primary ripple btn-block ion-android-upload"> Upload Application
+                            <button className="btn btn-primary ripple btn-block"><span className="ion-android-upload pull-left"/> Upload Application
                             </button>
                             <br/>
                             <hr/>

@@ -2,7 +2,7 @@ import React from 'react';
 import LoadingIcon from './LoadingIcon';
 import {Modal, Button} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {buildBreadCrumbs, sortFiles} from "../UtilityFunctions";
+import {buildBreadCrumbs, sortFilesByTypeAndName} from "../UtilityFunctions";
 
 class FileSelector extends React.Component {
     constructor(props) {
@@ -52,7 +52,7 @@ class FileSelector extends React.Component {
         this.setState(() => ({loading: true}));
         Cloud.get(`files?path=/${path}`).then(files => {
             this.setState(() => ({
-                files: sortFiles(files),
+                files: sortFilesByTypeAndName(files),
                 loading: false,
                 currentPath: path,
             }));

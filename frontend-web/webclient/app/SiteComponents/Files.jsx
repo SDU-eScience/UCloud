@@ -3,7 +3,7 @@ import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button} from 'react-bootstrap';
-import {buildBreadCrumbs, sortFiles, createFolder} from '../UtilityFunctions'
+import {buildBreadCrumbs, sortFilesByTypeAndName, createFolder} from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
 import {RightsMap} from "../DefaultObjects";
@@ -139,7 +139,7 @@ class Files extends React.Component {
         Cloud.get("files?path=/" + this.state.currentPath).then(favourites => {
             favourites.forEach(file => file.isChecked = false);
             this.setState(() => ({
-                files: sortFiles(favourites),
+                files: sortFilesByTypeAndName(favourites, true),
                 loading: false,
             }));
         });

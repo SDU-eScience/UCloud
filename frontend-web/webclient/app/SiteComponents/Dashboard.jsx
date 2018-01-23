@@ -6,7 +6,7 @@ import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
 import {Link} from 'react-router';
 import {Cloud} from '../../authentication/SDUCloudObject'
-import {sortFiles} from "../UtilityFunctions";
+import {sortFilesByTypeAndName} from "../UtilityFunctions";
 
 
 class Dashboard extends React.Component {
@@ -41,7 +41,7 @@ class Dashboard extends React.Component {
             favouriteLoading: true,
         }));
         Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favourites => {
-            let subsetFavorites = sortFiles(favourites.slice(0, 10));
+            let subsetFavorites = sortFilesByTypeAndName(favourites.slice(0, 10));
             this.setState(() => ({
                 favouriteFiles: subsetFavorites,
                 favouriteLoading: false,
