@@ -9,10 +9,6 @@ import dk.sdu.cloud.client.GatewayJobResponse
 import org.slf4j.LoggerFactory
 
 class KafkaProxy(val targets: List<ServiceDefinition>, val producer: KafkaProducer<String, String>) {
-    companion object {
-        private val log = LoggerFactory.getLogger(KafkaProxy::class.java)
-    }
-
     fun configure(route: Route): Unit = with(route) {
         // NOTE: Do _NOT_ replace with .forEach { ... } as this will break the code.
         for (service in targets) {
@@ -54,5 +50,9 @@ class KafkaProxy(val targets: List<ServiceDefinition>, val producer: KafkaProduc
 
         val result = producer.emit(key, value)
         ok(GatewayJobResponse.started(header.uuid, result.offset(), result.partition(), result.timestamp()))
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(KafkaProxy::class.java)
     }
 }

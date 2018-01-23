@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.netty.handler.codec.http.HttpMethod
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.Response
+import org.slf4j.LoggerFactory
 import java.net.URLEncoder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
@@ -23,8 +24,15 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
         val deserializerSuccess: ObjectReader,
         val deserializerError: ObjectReader,
         val owner: ServiceDescription,
+        var fullName: String?,
         val requestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null
 ) {
+    init {
+        if (fullName == null) {
+            log.info("RESTCallDescription (${path.toKtorTemplate(true)}) has no name")
+        }
+    }
+
     fun prepare(payload: R): PreparedRESTCall<S, E> {
         val primaryPath = path.segments.mapNotNull {
             when (it) {
@@ -95,6 +103,10 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
 
     suspend fun call(payload: R, cloud: AuthenticatedCloud): RESTResponse<S, E> {
         return prepare(payload).call(cloud)
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(RESTDescriptions::class.java)
     }
 }
 

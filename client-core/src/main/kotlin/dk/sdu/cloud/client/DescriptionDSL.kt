@@ -8,18 +8,20 @@ import org.asynchttpclient.BoundRequestBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
-@DslMarker annotation class RESTCallDSL
+@DslMarker
+annotation class RESTCallDSL
 
 @RESTCallDSL
 class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
-        private val requestType: KClass<R>,
-        private val responseTypeSuccess: KClass<S>,
-        private val responseTypeFailure: KClass<E>,
-        private val deserializerSuccess: ObjectReader,
-        private val deserializerError: ObjectReader
+    private val requestType: KClass<R>,
+    private val responseTypeSuccess: KClass<S>,
+    private val responseTypeFailure: KClass<E>,
+    private val deserializerSuccess: ObjectReader,
+    private val deserializerError: ObjectReader
 ) {
     var method: HttpMethod = HttpMethod.GET
     var shouldProxyFromGateway: Boolean = true
+    var prettyName: String? = null
     internal var path: RESTPath<R>? = null
     internal var body: RESTBody<R, *>? = null
     internal var params: RESTParams<R>? = null
@@ -40,26 +42,29 @@ class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
     }
 
     fun build(
-            owner: ServiceDescription,
-            additionalConfiguration: (BoundRequestBuilder.(R) -> Unit)?
+        owner: ServiceDescription,
+        additionalConfiguration: (BoundRequestBuilder.(R) -> Unit)?
     ): RESTCallDescription<R, S, E> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
+        val fullName = prettyName?.let { pretty -> owner.name + '.' + pretty }
 
         return RESTCallDescription(
-                method,
-                path,
-                body,
-                params,
-                requestType,
-                responseTypeSuccess,
-                responseTypeFailure,
-                shouldProxyFromGateway,
-                deserializerSuccess,
-                deserializerError,
-                owner,
-                additionalConfiguration
+            method,
+            path,
+            body,
+            params,
+            requestType,
+            responseTypeSuccess,
+            responseTypeFailure,
+            shouldProxyFromGateway,
+            deserializerSuccess,
+            deserializerError,
+            owner,
+            fullName,
+            additionalConfiguration
         )
     }
+
 }
 
 @RESTCallDSL
@@ -90,7 +95,8 @@ class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
         if (segment is RESTPathSegment.Property<*, *>) {
             val isLegal = parent.body !is RESTBody.BoundToEntireRequest<*>
             if (!isLegal) {
-                throw RESTDSLException("""
+                throw RESTDSLException(
+                    """
                     Cannot bind a property to the both, the entire request has already been to the body.
 
                     In your code you have already bound the entire request object to the body, i.e.:
@@ -114,14 +120,16 @@ class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
                             bindToSubProperty(MyRequest::bodyBound)
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
 
             val alreadyExists = segments.filterIsInstance<RESTPathSegment.Property<*, *>>().find {
                 it.property == segment.property
             } != null
             if (alreadyExists) {
-                throw RESTDSLException("""
+                throw RESTDSLException(
+                    """
                     Cannot bind the same property twice!
 
                     Somewhere in the code you have already bound this property, i.e.:
@@ -131,7 +139,8 @@ class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
                         // ...
                         +boundTo(MyRequest::${segment.property.name}) // <-- Second call not OK
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
         }
 
@@ -168,7 +177,8 @@ class RESTCallBodyBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
 
         val isLegal = parent.path?.segments?.find { it is RESTPathSegment.Property<*, *> } == null
         if (!isLegal) {
-            throw RESTDSLException("""
+            throw RESTDSLException(
+                """
                 Cannot bind the entire request from body, request body already contains bindings.
 
                 You have already supplied at least one path segment which is bound to a property, e.g.:
@@ -192,7 +202,8 @@ class RESTCallBodyBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
                         bindToSubProperty(MyRequest::bodyBound)
                     }
                 }
-            """.trimIndent())
+            """.trimIndent()
+            )
         }
 
         body = RESTBody.BoundToEntireRequest(ref)
