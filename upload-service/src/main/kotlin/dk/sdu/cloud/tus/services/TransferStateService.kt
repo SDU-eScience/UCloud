@@ -10,23 +10,25 @@ import org.slf4j.LoggerFactory
 
 class TransferStateService {
     fun retrieveSummary(
-            id: String,
-            authenticatedPrincipal: String? = null,
-            allowRetries: Boolean = true
+        id: String,
+        authenticatedPrincipal: String? = null,
+        allowRetries: Boolean = true
     ): TransferSummary? {
         return withRetries(allowRetries) {
             transaction {
                 (UploadDescriptions innerJoin UploadProgress)
-                        .slice(UploadDescriptions.id, UploadDescriptions.owner, UploadDescriptions.sizeInBytes,
-                                UploadProgress.numChunksVerified)
-                        .select {
-                            var q = (UploadDescriptions.id eq id)
-                            if (authenticatedPrincipal != null) {
-                                q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
-                            }
-                            return@select q
+                    .slice(
+                        UploadDescriptions.id, UploadDescriptions.owner, UploadDescriptions.sizeInBytes,
+                        UploadProgress.numChunksVerified
+                    )
+                    .select {
+                        var q = (UploadDescriptions.id eq id)
+                        if (authenticatedPrincipal != null) {
+                            q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
                         }
-                        .toList()
+                        return@select q
+                    }
+                    .toList()
             }.singleOrNull()?.let {
                 val sizeInBytes = it[UploadDescriptions.sizeInBytes]
                 val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
@@ -39,22 +41,22 @@ class TransferStateService {
     }
 
     fun retrieveState(
-            id: String,
-            authenticatedPrincipal: String? = null,
-            allowRetries: Boolean = true
+        id: String,
+        authenticatedPrincipal: String? = null,
+        allowRetries: Boolean = true
     ): TransferState? {
         return withRetries(allowRetries) {
             transaction {
                 (UploadDescriptions innerJoin UploadProgress)
-                        .select {
-                            var q = (UploadDescriptions.id eq id)
-                            if (authenticatedPrincipal != null) {
-                                q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
-                            }
-
-                            return@select q
+                    .select {
+                        var q = (UploadDescriptions.id eq id)
+                        if (authenticatedPrincipal != null) {
+                            q = q and (UploadDescriptions.owner eq authenticatedPrincipal)
                         }
-                        .toList()
+
+                        return@select q
+                    }
+                    .toList()
             }.singleOrNull()?.let {
                 val sizeInBytes = it[UploadDescriptions.sizeInBytes]
                 val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
@@ -62,13 +64,13 @@ class TransferStateService {
                 val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
 
                 TransferState(
-                        id = it[UploadDescriptions.id],
-                        length = sizeInBytes,
-                        offset = offset,
-                        user = it[UploadDescriptions.owner],
-                        zone = it[UploadDescriptions.zone],
-                        targetCollection = it[UploadDescriptions.targetCollection],
-                        targetName = it[UploadDescriptions.targetName]
+                    id = it[UploadDescriptions.id],
+                    length = sizeInBytes,
+                    offset = offset,
+                    user = it[UploadDescriptions.owner],
+                    zone = it[UploadDescriptions.zone],
+                    targetCollection = it[UploadDescriptions.targetCollection],
+                    targetName = it[UploadDescriptions.targetName]
                 )
             }
         }

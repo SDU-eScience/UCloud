@@ -1,8 +1,6 @@
 package dk.sdu.cloud.tus
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.tus.api.TusServiceDescription
@@ -11,33 +9,30 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.experimental.runBlocking
-import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsConfig
-import org.apache.kafka.streams.Topology
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.util.*
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.project.MainKt")
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
 
 data class ICatDatabaseConfig(
-        val jdbcUrl: String,
-        val user: String,
-        val password: String,
-        val defaultZone: String
+    val jdbcUrl: String,
+    val user: String,
+    val password: String,
+    val defaultZone: String
 )
 
 data class Configuration(
-        private val connection: RawConnectionConfig,
-        val database: ICatDatabaseConfig,
-        val appDatabaseUrl: String, // TODO This should be fixed
-        val refreshToken: String
+    private val connection: RawConnectionConfig,
+    val database: ICatDatabaseConfig,
+    val appDatabaseUrl: String, // TODO This should be fixed
+    val refreshToken: String
 ) : ServerConfiguration {
     @get:JsonIgnore
-    override val connConfig: ConnectionConfig get() = connection.processed
+    override val connConfig: ConnectionConfig
+        get() = connection.processed
 
     override fun configure() {
         connection.configure(TusServiceDescription, 42400)
@@ -47,12 +42,12 @@ data class Configuration(
 fun main(args: Array<String>) {
     val configuration = readConfigurationBasedOnArgs<Configuration>(args, TusServiceDescription, log)
     val kafka = KafkaUtil.createKafkaServices(
-            configuration,
-            log = log,
+        configuration,
+        log = log,
 
-            streamsConfigBody = {
-                it[StreamsConfig.STATE_DIR_CONFIG] = File("kafka-streams").absolutePath
-            }
+        streamsConfigBody = {
+            it[StreamsConfig.STATE_DIR_CONFIG] = File("kafka-streams").absolutePath
+        }
     )
 
     log.info("Connecting to Zookeeper")
@@ -66,10 +61,10 @@ fun main(args: Array<String>) {
     }
 
     Database.connect(
-            url = configuration.appDatabaseUrl,
-            driver = "org.postgresql.Driver",
-            user = configuration.database.user,
-            password = configuration.database.password
+        url = configuration.appDatabaseUrl,
+        driver = "org.postgresql.Driver",
+        user = configuration.database.user,
+        password = configuration.database.password
     )
 
     val server = Server(configuration, kafka, zk, serverProvider, cloud)

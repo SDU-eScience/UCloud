@@ -11,9 +11,9 @@ import org.slf4j.LoggerFactory
 private val log = LoggerFactory.getLogger(UploadStateProcessor::class.java)
 
 class UploadStateProcessor(
-        private val uploadEventStream: UploadEventStream,
-        private val transferStateService: TransferStateService,
-        private val icat: ICAT
+    private val uploadEventStream: UploadEventStream,
+    private val transferStateService: TransferStateService,
+    private val icat: ICAT
 ) {
     fun init() {
         log.info("Attaching upload state processor")
@@ -69,13 +69,13 @@ class UploadStateProcessor(
                             val (_, entry) = userHasWriteAccess(irodsUser, irodsZone, irodsCollection)
                             if (entry != null) {
                                 val objectId = registerDataObject(
-                                        entry.objectId,
-                                        state.id,
-                                        state.length,
-                                        irodsFileName,
-                                        irodsUser,
-                                        irodsZone,
-                                        resource
+                                    entry.objectId,
+                                    state.id,
+                                    state.length,
+                                    irodsFileName,
+                                    irodsUser,
+                                    irodsZone,
+                                    resource
                                 ) ?: return@useConnection run {
                                     log.warn("Was unable to register data object! Event was: $event")
                                     rollback()

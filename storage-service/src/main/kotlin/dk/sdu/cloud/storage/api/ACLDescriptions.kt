@@ -8,6 +8,7 @@ object ACLDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/acl"
 
     val listAtPath = callDescription<FindByPath, AccessControlList, CommonErrorMessage> {
+        prettyName = "aclListAtPath"
         path { using(baseContext) }
         params { +boundTo(FindByPath::path) }
     }

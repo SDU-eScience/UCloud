@@ -4,8 +4,9 @@ import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
-import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.tus.ICatDatabaseConfig
+import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.TusExtensions
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusUploadEvent
@@ -17,7 +18,9 @@ import dk.sdu.cloud.tus.services.TransferStateService
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
+import io.ktor.application.install
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.header
@@ -26,25 +29,28 @@ import io.ktor.response.ApplicationResponse
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondText
-import io.ktor.routing.*
+import io.ktor.routing.Route
+import io.ktor.routing.method
+import io.ktor.routing.route
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 import java.util.*
 
 class TusController(
-        private val config: ICatDatabaseConfig,
-        private val rados: RadosStorage,
-        private val producer: UploadEventProducer,
-        private val transferState: TransferStateService,
-        private val icat: ICAT
+    private val config: ICatDatabaseConfig,
+    private val rados: RadosStorage,
+    private val producer: UploadEventProducer,
+    private val transferState: TransferStateService,
+    private val icat: ICAT,
+    private val kafka: KafkaServices
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
             val serverConfiguration = InternalConfig(
-                    prefix = contextPath,
-                    tusVersion = SimpleSemanticVersion(1, 0, 0),
-                    supportedVersions = listOf(SimpleSemanticVersion(1, 0, 0)), maxSizeInBytes = null
+                prefix = contextPath,
+                tusVersion = SimpleSemanticVersion(1, 0, 0),
+                supportedVersions = listOf(SimpleSemanticVersion(1, 0, 0)), maxSizeInBytes = null
             )
 
             // Intercept unsupported TUS client version
@@ -68,103 +74,132 @@ class TusController(
             route("{id}") {
                 protect()
 
-                head {
-                    logEntry(log, parameterIncludeFilter = { it == "id" })
-                    val id = call.parameters["id"] ?: return@head call.respond(HttpStatusCode.BadRequest)
-                    val ownerParamForState = if (call.isPrivileged) null else call.request.validatedPrincipal.subject
-                    val summary = transferState.retrieveSummary(id, ownerParamForState) ?:
-                            return@head call.respond(HttpStatusCode.NotFound)
+                method(HttpMethod.Head) {
+                    install(KafkaHttpRouteLogger) {
+                        producer = kafka.producer.forStream(TusDescriptions.findUploadStatusById.loggingStream()!!)
+                    }
 
-                    // Disable cache
-                    call.response.header(HttpHeaders.CacheControl, "no-store")
+                    handle {
+                        logEntry(log, parameterIncludeFilter = { it == "id" })
+                        val id = call.parameters["id"] ?: return@handle call.respond(HttpStatusCode.BadRequest)
+                        val ownerParamForState =
+                            if (call.isPrivileged) null
+                            else call.request.validatedPrincipal.subject
 
-                    // Write current transfer state
-                    call.response.tusVersion(serverConfiguration.tusVersion)
-                    call.response.tusLength(summary.length)
-                    call.response.tusOffset(summary.offset)
+                        val summary = transferState.retrieveSummary(id, ownerParamForState)
+                                ?: return@handle call.respond(HttpStatusCode.NotFound)
 
-                    // Response contains no body
-                    call.respond(HttpStatusCode.NoContent)
-                }
+                        // Disable cache
+                        call.response.header(HttpHeaders.CacheControl, "no-store")
 
-                post {
-                    logEntry(log, parameterIncludeFilter = { it == "id" })
-                    if (call.request.header("X-HTTP-Method-Override").equals("PATCH", ignoreCase = true)) {
-                        upload()
-                    } else {
-                        call.respond(HttpStatusCode.MethodNotAllowed)
+                        // Write current transfer state
+                        call.response.tusVersion(serverConfiguration.tusVersion)
+                        call.response.tusLength(summary.length)
+                        call.response.tusOffset(summary.offset)
+
+                        // Response contains no body
+                        call.respond(HttpStatusCode.NoContent)
                     }
                 }
 
-                patch {
-                    logEntry(log, parameterIncludeFilter = { it == "id" })
-                    upload()
+                method(HttpMethod.Post) {
+                    install(KafkaHttpRouteLogger) {
+                        producer = kafka.producer.forStream(TusDescriptions.uploadChunkViaPost.loggingStream()!!)
+                    }
+
+                    handle {
+                        logEntry(log, parameterIncludeFilter = { it == "id" })
+                        if (call.request.header("X-HTTP-Method-Override").equals("PATCH", ignoreCase = true)) {
+                            upload()
+                        } else {
+                            call.respond(HttpStatusCode.MethodNotAllowed)
+                        }
+                    }
+                }
+
+
+                method(HttpMethod.Patch) {
+                    install(KafkaHttpRouteLogger) {
+                        producer = kafka.producer.forStream(TusDescriptions.uploadChunk.loggingStream()!!)
+                    }
+
+                    handle {
+                        logEntry(log, parameterIncludeFilter = { it == "id" })
+                        upload()
+                    }
                 }
             }
 
-            post {
-                logEntry(log, headerIncludeFilter = { it in TusHeaders.KnownHeaders })
-
-                if (!protect()) return@post
-
-                val principal = call.request.validatedPrincipal
-                val isPrivileged = call.isPrivileged
-
-                val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?: return@post run {
-                    log.debug("Missing upload length")
-                    call.respond(HttpStatusCode.BadRequest)
+            method(HttpMethod.Post) {
+                install(KafkaHttpRouteLogger) {
+                    producer = kafka.producer.forStream(TusDescriptions.create.loggingStream()!!)
                 }
 
-                if (serverConfiguration.maxSizeInBytes != null && length > serverConfiguration.maxSizeInBytes) {
-                    log.debug("Resource of length $length is larger than allowed maximum " +
-                            "${serverConfiguration.maxSizeInBytes}")
-                    return@post call.respond(HttpStatusCode(413, "Request Entity Too Large"))
-                }
+                handle {
+                    logEntry(log, headerIncludeFilter = { it in TusHeaders.KnownHeaders })
 
-                val metadataHeader = call.request.headers[TusHeaders.UploadMetadata] ?: return@post run {
-                    log.debug("Missing metadata")
-                    call.respond(HttpStatusCode.BadRequest)
-                }
+                    if (!protect()) return@handle
 
-                val metadata = metadataHeader.split(",").map { it.split(" ") }.map {
-                    val key = it.first().toLowerCase()
-                    if (it.size != 2) {
-                        Pair(key, "")
-                    } else {
-                        val data = String(Base64.getDecoder().decode(it[1]))
-                        Pair(key, data)
+                    val principal = call.request.validatedPrincipal
+                    val isPrivileged = call.isPrivileged
+
+                    val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?: return@handle run {
+                        log.debug("Missing upload length")
+                        call.respond(HttpStatusCode.BadRequest)
                     }
-                }.toMap()
 
-                val sensitive = metadata["sensitive"]?.let {
-                    when (it) {
-                        "true" -> true
-                        "false" -> false
-                        else -> null
+                    if (serverConfiguration.maxSizeInBytes != null && length > serverConfiguration.maxSizeInBytes) {
+                        log.debug(
+                            "Resource of length $length is larger than allowed maximum " +
+                                    "${serverConfiguration.maxSizeInBytes}"
+                        )
+                        return@handle call.respond(HttpStatusCode(413, "Request Entity Too Large"))
                     }
-                } ?: return@post run {
-                    log.debug("Unknown or missing value for sensitive metadata")
-                    call.respond(HttpStatusCode.BadRequest)
-                }
 
-                val owner = metadata["owner"]?.takeIf { isPrivileged } ?: principal.subject
-                val location = metadata["location"]?.takeIf { isPrivileged } ?:
-                        "/${config.defaultZone}/home/${principal.subject}/Uploads"
+                    val metadataHeader = call.request.headers[TusHeaders.UploadMetadata] ?: return@handle run {
+                        log.debug("Missing metadata")
+                        call.respond(HttpStatusCode.BadRequest)
+                    }
 
-                val canWrite = icat.useConnection {
-                    userHasWriteAccess(owner, config.defaultZone, location).first
-                }
+                    val metadata = metadataHeader.split(",").map { it.split(" ") }.map {
+                        val key = it.first().toLowerCase()
+                        if (it.size != 2) {
+                            Pair(key, "")
+                        } else {
+                            val data = String(Base64.getDecoder().decode(it[1]))
+                            Pair(key, data)
+                        }
+                    }.toMap()
 
-                if (!canWrite) {
-                    log.debug("User ($owner) is not authorized to create file at this location ($location)")
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@post
-                }
+                    val sensitive = metadata["sensitive"]?.let {
+                        when (it) {
+                            "true" -> true
+                            "false" -> false
+                            else -> null
+                        }
+                    } ?: return@handle run {
+                        log.debug("Unknown or missing value for sensitive metadata")
+                        call.respond(HttpStatusCode.BadRequest)
+                    }
 
-                val id = UUID.randomUUID().toString()
-                val fileName = metadata["filename"] ?: id
+                    val owner = metadata["owner"]?.takeIf { isPrivileged } ?: principal.subject
+                    val location = metadata["location"]?.takeIf { isPrivileged }
+                            ?: "/${config.defaultZone}/home/${principal.subject}/Uploads"
 
-                val createdEvent = TusUploadEvent.Created(
+                    val canWrite = icat.useConnection {
+                        userHasWriteAccess(owner, config.defaultZone, location).first
+                    }
+
+                    if (!canWrite) {
+                        log.debug("User ($owner) is not authorized to create file at this location ($location)")
+                        call.respond(HttpStatusCode.Unauthorized)
+                        return@handle
+                    }
+
+                    val id = UUID.randomUUID().toString()
+                    val fileName = metadata["filename"] ?: id
+
+                    val createdEvent = TusUploadEvent.Created(
                         id = id,
                         sizeInBytes = length,
                         owner = owner,
@@ -173,22 +208,30 @@ class TusController(
                         sensitive = sensitive,
                         targetName = fileName,
                         doChecksum = false
-                )
-                producer.emit(createdEvent)
-                log.info("Created upload: $createdEvent")
+                    )
+                    producer.emit(createdEvent)
+                    log.info("Created upload: $createdEvent")
 
-                call.response.header(HttpHeaders.Location, "${serverConfiguration.prefix}/$id")
-                call.respond(HttpStatusCode.Created)
+                    call.response.header(HttpHeaders.Location, "${serverConfiguration.prefix}/$id")
+                    call.respond(HttpStatusCode.Created)
+                }
             }
 
-            options {
-                // Probes about the server's configuration
-                logEntry(log)
-                with(serverConfiguration) {
-                    call.response.tusSupportedVersions(supportedVersions)
-                    call.response.tusMaxSize(maxSizeInBytes)
-                    call.response.tusExtensions(listOf(TusExtensions.Creation))
-                    call.respond(HttpStatusCode.NoContent)
+
+            method(HttpMethod.Options) {
+                install(KafkaHttpRouteLogger) {
+                    producer = kafka.producer.forStream(TusDescriptions.probeTusConfiguration.loggingStream()!!)
+                }
+
+                handle {
+                    // Probes about the server's configuration
+                    logEntry(log)
+                    with(serverConfiguration) {
+                        call.response.tusSupportedVersions(supportedVersions)
+                        call.response.tusMaxSize(maxSizeInBytes)
+                        call.response.tusExtensions(listOf(TusExtensions.Creation))
+                        call.respond(HttpStatusCode.NoContent)
+                    }
                 }
             }
         }
@@ -288,11 +331,13 @@ class TusController(
         val task = rados.createUpload(id, wrappedChannel, claimedOffset, state.length)
         task.onProgress = {
             runBlocking {
-                producer.emit(TusUploadEvent.ChunkVerified(
+                producer.emit(
+                    TusUploadEvent.ChunkVerified(
                         id = id,
                         chunk = it + 1, // Chunks are 1-indexed, callbacks are 0-indexed
                         numChunks = Math.ceil(state.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
-                ))
+                    )
+                )
             }
         }
         task.upload()
@@ -319,10 +364,10 @@ class TusController(
     }
 
     private data class InternalConfig(
-            val prefix: String,
-            val tusVersion: SimpleSemanticVersion,
-            val supportedVersions: List<SimpleSemanticVersion>,
-            val maxSizeInBytes: Long?
+        val prefix: String,
+        val tusVersion: SimpleSemanticVersion,
+        val supportedVersions: List<SimpleSemanticVersion>,
+        val maxSizeInBytes: Long?
     )
 
     private fun ApplicationResponse.tusMaxSize(sizeInBytes: Long?) {

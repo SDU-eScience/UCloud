@@ -36,16 +36,19 @@ class ICATConnection(connection: Connection) : Connection by connection {
         }.executeQuery()
 
         while (rs.next()) {
-            results.add(ICATAccessEntry(
+            results.add(
+                ICATAccessEntry(
                     rs.getLong("object_id"),
                     rs.getLong("user_id"),
                     rs.getLong("access_type_id"),
                     rs.getString("create_ts").toLong(10) * 1000,
                     rs.getString("modify_ts").toLong(10) * 1000
-            ))
+                )
+            )
         }
 
-        return results.singleOrNull().also { log.debug("findAccessRightForUserInCollection($user, $zone, $actualPath) = $it") }
+        return results.singleOrNull()
+            .also { log.debug("findAccessRightForUserInCollection($user, $zone, $actualPath) = $it") }
     }
 
     fun registerAccessEntry(entry: ICATAccessEntry) {
@@ -72,8 +75,10 @@ class ICATConnection(connection: Connection) : Connection by connection {
         return Pair(canWrite, nulledEntryIfNoAccess)
     }
 
-    fun registerDataObject(collectionId: Long, cephId: String, objectSize: Long,
-                           irodsName: String, irodsOwner: String, irodsOwnerZone: String, irodsResourceId: Long): Long? {
+    fun registerDataObject(
+        collectionId: Long, cephId: String, objectSize: Long,
+        irodsName: String, irodsOwner: String, irodsOwnerZone: String, irodsResourceId: Long
+    ): Long? {
         val query = """
             INSERT INTO r_data_main (
               data_id,
@@ -167,5 +172,7 @@ class ICATConnection(connection: Connection) : Connection by connection {
     }
 }
 
-data class ICATAccessEntry(val objectId: Long, val userId: Long, val accessType: Long,
-                           val createdAtUnixMs: Long, val modifiedAtUnixMs: Long)
+data class ICATAccessEntry(
+    val objectId: Long, val userId: Long, val accessType: Long,
+    val createdAtUnixMs: Long, val modifiedAtUnixMs: Long
+)

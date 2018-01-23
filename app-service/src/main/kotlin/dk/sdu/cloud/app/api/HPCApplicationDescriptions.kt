@@ -10,6 +10,7 @@ object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
     private val baseContext = "/api/hpc/apps/"
 
     val findByName = callDescription<FindByName, List<ApplicationDescription>, List<ApplicationDescription>> {
+        prettyName = "appsFindByName"
         path {
             using(baseContext)
             +boundTo(FindByName::name)
@@ -17,6 +18,7 @@ object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
     }
 
     val findByNameAndVersion = callDescription<FindByNameAndVersion, ApplicationDescription, String> {
+        prettyName = "appsFindByNameAndVersion"
         path {
             using(baseContext)
             +boundTo(FindByNameAndVersion::name)
@@ -25,6 +27,7 @@ object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
     }
 
     val listAll = callDescription<Unit, List<ApplicationDescription>, List<ApplicationDescription>> {
+        prettyName = "appsListAll"
         path { using(baseContext) }
     }
 

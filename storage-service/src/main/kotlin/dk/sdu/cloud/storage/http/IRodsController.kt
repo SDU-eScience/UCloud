@@ -7,8 +7,8 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.safeJobId
-import dk.sdu.cloud.storage.Ok
 import dk.sdu.cloud.storage.Error
+import dk.sdu.cloud.storage.Ok
 import dk.sdu.cloud.storage.Server.Companion.StorageSession
 import dk.sdu.cloud.storage.api.ACLDescriptions
 import dk.sdu.cloud.storage.api.FileDescriptions
@@ -91,8 +91,10 @@ class IRodsController {
                     val listAt = connection.groups.listGroupMembers(it.name)
                     when (listAt) {
                         is Ok -> ok(listAt.result)
-                        is Error -> error(CommonErrorMessage(listAt.message),
-                                HttpStatusCode.InternalServerError)
+                        is Error -> error(
+                            CommonErrorMessage(listAt.message),
+                            HttpStatusCode.InternalServerError
+                        )
                     }
                 } catch (ex: Exception) {
                     // TODO Not sure if listGroupMembers will throw exceptions
@@ -103,7 +105,7 @@ class IRodsController {
     }
 
     private fun StorageConnection.parsePath(pathFromRequest: String): StoragePath =
-            paths.parseAbsolute(pathFromRequest, addHost = true)
+        paths.parseAbsolute(pathFromRequest, addHost = true)
 
     companion object {
         private val log = LoggerFactory.getLogger(IRodsController::class.java)

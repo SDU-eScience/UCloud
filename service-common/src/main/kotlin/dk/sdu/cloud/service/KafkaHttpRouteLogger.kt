@@ -123,7 +123,7 @@ class KafkaHttpRouteLogger {
                     )
                 }
 
-                val entry = HttpRequestCallLogEntry(jobId, /*serverDescription,*/ principal, contentType, contentLength)
+                val entry = HttpRequestCallLogEntry(jobId, principal, contentType, contentLength)
                 producer.emit(jobId, entry)
             }
         }
@@ -163,10 +163,7 @@ class KafkaHttpRouteLogger {
 
 
         async {
-            val entry = HttpResponseCallLogEntry(
-                jobId, /*serverDescription,*/ statusCode, responseTime, contentType,
-                responseSize
-            )
+            val entry = HttpResponseCallLogEntry(jobId, statusCode, responseTime, contentType, responseSize)
             producer.emit(jobId, entry)
         }
     }
@@ -187,18 +184,8 @@ class KafkaHttpRouteLogger {
                 throw IllegalStateException("producer has not been initialized")
             }
 
-            /*
-            if (!feature::serverDescription.isInitialized) {
-                throw IllegalStateException("serverDescription has not been initialized")
-            }
-            */
-
-            pipeline.intercept(ApplicationCallPipeline.Infrastructure) {
-                feature.interceptBefore(this)
-            }
-            pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) {
-                feature.interceptAfter(this, it)
-            }
+            pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.interceptBefore(this) }
+            pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { feature.interceptAfter(this, it) }
             return feature
         }
     }

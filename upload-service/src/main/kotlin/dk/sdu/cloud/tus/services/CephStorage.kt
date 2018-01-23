@@ -26,8 +26,10 @@ class RadosStorage(clientName: String, configurationFile: File, pool: String) {
 
     init {
         if (!configurationFile.exists()) {
-            throw IllegalStateException("Could not find configuration file. Expected it to be found " +
-                    "at ${configurationFile.absolutePath}")
+            throw IllegalStateException(
+                "Could not find configuration file. Expected it to be found " +
+                        "at ${configurationFile.absolutePath}"
+            )
         }
 
         log.info("Reading Rados configuration")
@@ -40,7 +42,7 @@ class RadosStorage(clientName: String, configurationFile: File, pool: String) {
     }
 
     fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): RadosUpload =
-            RadosUpload(objectId, offset, length, readChannel, ioCtx)
+        RadosUpload(objectId, offset, length, readChannel, ioCtx)
 
     companion object {
         const val BLOCK_SIZE = 1024 * 4096
@@ -49,11 +51,11 @@ class RadosStorage(clientName: String, configurationFile: File, pool: String) {
 }
 
 class RadosUpload(
-        private val objectId: String,
-        var offset: Long,
-        private val length: Long,
-        private val readChannel: IReadChannel,
-        private val ioCtx: IoCTX
+    private val objectId: String,
+    var offset: Long,
+    private val length: Long,
+    private val readChannel: IReadChannel,
+    private val ioCtx: IoCTX
 ) {
     private var started = false
     var onProgress: ((Long) -> Unit)? = null
@@ -80,8 +82,8 @@ class RadosUpload(
         // Pre-allocate for performance and to avoid potential leaks
         // We can have at most 32 instances, but we will not allocate more than we actually need.
         val maxInstances = Math.min(
-                Math.ceil(length / RadosStorage.BLOCK_SIZE.toDouble()).toInt(),
-                32 // 128MB
+            Math.ceil(length / RadosStorage.BLOCK_SIZE.toDouble()).toInt(),
+            32 // 128MB
         )
         var currentNumInstances = 1 // Must be 1 initially. Can't be changed without additional changes to code.
         val preAllocatedBlocks = Array<ByteArray?>(maxInstances) { null }
@@ -126,7 +128,7 @@ class RadosUpload(
                 // There is no index free right now, so we wait for a job to finish
                 // This will happen if we are reading data from the upload source faster than we can write it
 
-                if (currentNumInstances  * 2 <= maxInstances) {
+                if (currentNumInstances * 2 <= maxInstances) {
                     log.debug("Could not find a free index, but we can still scale.")
                     // We are still allowed to scale. So let us do that!
                     val oldNumInstances = currentNumInstances
@@ -155,8 +157,8 @@ class RadosUpload(
             // Start reading data into the free buffer
             // We have potential resizing here if we start at non block boundary
             val buffer =
-                    if (maxSize == RadosStorage.BLOCK_SIZE) preAllocatedBlocks[freeIndex]!!
-                    else ByteArray(maxSize)
+                if (maxSize == RadosStorage.BLOCK_SIZE) preAllocatedBlocks[freeIndex]!!
+                else ByteArray(maxSize)
 
             // internalPtr should be used to where in the buffer it should place the data.
             while (internalPtr < maxSize && hasMoreData) {
@@ -253,10 +255,10 @@ class RadosUpload(
 }
 
 suspend fun IoCTX.aWrite(
-        oid: String,
-        buffer: ByteArray,
-        objectOffset: Long = 0L,
-        awaitSafe: Boolean = false
+    oid: String,
+    buffer: ByteArray,
+    objectOffset: Long = 0L,
+    awaitSafe: Boolean = false
 ) = suspendCoroutine<Unit> { continuation ->
     val callback = if (!awaitSafe) {
         object : Completion(true, false) {

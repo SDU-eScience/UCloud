@@ -10,6 +10,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
 
     val listAtPath = callDescription<FindByPath, List<StorageFile>, CommonErrorMessage> {
+        prettyName = "filesListAtPath"
         path { using(baseContext) }
         params {
             +boundTo(FindByPath::path)

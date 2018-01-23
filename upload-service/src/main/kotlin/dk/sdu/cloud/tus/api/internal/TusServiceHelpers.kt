@@ -7,10 +7,10 @@ import org.slf4j.LoggerFactory
 import java.io.InputStream
 
 fun TusDescriptions.uploader(
-        inputStream: InputStream,
-        location: String,
-        payloadSizeMax32Bit: Int,
-        cloud: RefreshingJWTAuthenticator
+    inputStream: InputStream,
+    location: String,
+    payloadSizeMax32Bit: Int,
+    cloud: RefreshingJWTAuthenticator
 ): TusUploader {
     return uploader(inputStream, location, payloadSizeMax32Bit, cloud.parent, cloud.retrieveTokenRefreshIfNeeded())
 }
