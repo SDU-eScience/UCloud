@@ -188,19 +188,19 @@ export default class SDUCloud {
     }
 
     static get storedAccessToken() {
-        return window.sessionStorage.getItem("accessToken");
+        return window.localStorage.getItem("accessToken");
     }
 
     static set storedAccessToken(value) {
-        window.sessionStorage.setItem("accessToken", value);
+        window.localStorage.setItem("accessToken", value);
     }
 
     static get storedRefreshToken() {
-        return window.sessionStorage.getItem("refreshToken");
+        return window.localStorage.getItem("refreshToken");
     }
 
     static set storedRefreshToken(value) {
-        window.sessionStorage.setItem("refreshToken", value);
+        window.localStorage.setItem("refreshToken", value);
     }
 
     _isTokenExpired() {
