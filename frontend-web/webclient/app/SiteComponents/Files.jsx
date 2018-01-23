@@ -335,14 +335,14 @@ function FileOptions(props) {
 
 
 function FilesTable(props) {
-    if (!props.files.length && !props.loading) {
+    if (props.loading) {
+        return null;
+    } else if (!props.files.length) {
         return (<div>
             <h3 className="text-center">
                 <small>There are no files in current folder</small>
             </h3>
         </div>);
-    } else if (props.loading) {
-        return null;
     }
     return (
         <div className="card">

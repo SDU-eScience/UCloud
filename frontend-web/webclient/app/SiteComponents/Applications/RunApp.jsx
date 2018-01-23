@@ -127,7 +127,7 @@ class RunApp extends React.Component {
 
 function ApplicationHeader(props) {
     return (
-        <div style={{"text-indent": 40}}>
+        <div style={{textIndent: 40}}>
             <h1>{props.name}</h1>
             <h3>{props.description}</h3>
             <h4>Author: {props.author}</h4>

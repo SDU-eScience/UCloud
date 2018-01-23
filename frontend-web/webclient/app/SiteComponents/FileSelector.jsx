@@ -135,14 +135,16 @@ function FileList(props) {
         if (file.type === "DIRECTORY") {
             return (
                 <tr key={i++} className="gradeA row-settings">
-                    <td onClick={() => props.getFiles(file.path.path)}><em className="ios-document"/> {file.path.name}
+                    <td onClick={() => props.getFiles(file.path.path)}><em
+                        className="ion-android-folder"/> {file.path.name}
                     </td>
                 </tr>
             );
         } else {
             return (
                 <tr key={i++} className="gradeA row-settings">
-                    <td onClick={() => props.onClick(file)}><span className="ios-file"/> {file.path.name}</td>
+                    <td onClick={() => props.onClick(file)}><span className="ion-android-document"/> {file.path.name}
+                    </td>
                 </tr>)
         }
     });
