@@ -3,7 +3,14 @@ import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button} from 'react-bootstrap';
-import {buildBreadCrumbs, sortFilesByTypeAndName, createFolder} from '../UtilityFunctions'
+import {
+    buildBreadCrumbs,
+    sortFilesByTypeAndName,
+    createFolder,
+    sortFilesByModified,
+    sortFilesByFavourite,
+    sortFilesByOwner,
+} from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
 import {RightsMap} from "../DefaultObjects";
@@ -23,6 +30,16 @@ class Files extends React.Component {
             masterCheckbox: false,
             currentPath: currentPath,
             uploadFileOpen: false,
+            sortingFunctions: {
+                typeAndName: sortFilesByTypeAndName,
+                modifiedAt: sortFilesByModified,
+                favorite: sortFilesByFavourite,
+                owner: sortFilesByOwner,
+            },
+            lastSorting: {
+                name: "files",
+                asc: true,
+            },
             uppy: Uppy.Core({
                 autoProceed: false,
                 debug: true,
@@ -46,6 +63,7 @@ class Files extends React.Component {
         this.nextPage = this.nextPage.bind(this);
         this.handleClose = this.handleClose.bind(this);
         this.handleOpen = this.handleOpen.bind(this);
+        this.sortFilesBy = this.sortFilesBy.bind(this);
     }
 
     handleOpen() {
@@ -139,10 +157,22 @@ class Files extends React.Component {
         Cloud.get("files?path=/" + this.state.currentPath).then(favourites => {
             favourites.forEach(file => file.isChecked = false);
             this.setState(() => ({
-                files: sortFilesByTypeAndName(favourites, true),
+                files: this.state.sortingFunctions.typeAndName(favourites, true),
                 loading: false,
             }));
         });
+    }
+
+    sortFilesBy(fileSorting) {
+        let asc = (this.state.lastSorting.name === fileSorting) ? !this.state.lastSorting.asc : true;
+        let files = this.state.sortingFunctions[fileSorting](this.state.files, asc);
+        this.setState(() => ({
+            files: files,
+            lastSorting: {
+                name: fileSorting,
+                asc: asc,
+            },
+        }));
     }
 
     toPage(n) {
@@ -207,7 +237,7 @@ class Files extends React.Component {
                                     selectedFiles={this.state.selectedFiles}
                                     masterCheckbox={this.state.masterCheckbox}
                                     getFavourites={() => this.getFavourites} favourite={() => this.favourite}
-                                    addOrRemoveFile={this.addOrRemoveFile}
+                                    addOrRemoveFile={this.addOrRemoveFile} sortFiles={this.sortFilesBy}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         <LoadingIcon loading={this.state.loading}/>
                         <PaginationButtons
@@ -360,10 +390,13 @@ function FilesTable(props) {
                                    checked={props.masterCheckbox}
                                    type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e.target.checked)}/><em
                             className="bg-info"/></label></th>
-                        <th><span className="text-left">Filename</span></th>
-                        <th><span><em className="ion-star"/></span></th>
-                        <th><span className="text-left">Last Modified</span></th>
-                        <th><span className="text-left">File Owner</span></th>
+                        <th onClick={() => props.sortFiles("typeAndName")}><span className="text-left">Filename<span className="pull-right ion-chevron-up"/></span>
+                        </th>
+                        <th onClick={() => props.sortFiles("favourite")}><span><em className="ion-star"/><span className="pull-right ion-chevron-up"/></span></th>
+                        <th onClick={() => props.sortFiles("modifiedAt")}><span className="text-left">Last Modified<span
+                            className="pull-right ion-chevron-up"/></span></th>
+                        <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Owner<span className="pull-right ion-chevron-up"/></span>
+                        </th>
                     </tr>
                     </thead>
                     <FilesList files={props.files} favourite={props.favourite}

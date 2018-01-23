@@ -34,13 +34,7 @@ import User from './components/User/User';
 import Utils from './components/Utils/Utils';
 import { Cloud } from '../authentication/SDUCloudObject'
 
-/* */
-import Blog from "./components/Pages/Blog"
-import FAQ from "./components/Pages/Faq"
-import Messages from "./components/Pages/Messages"
-import Gallery from "./components/Pages/Gallery";
-import BlogArticle from "./components/Pages/BlogArticle";
-/* */
+import Datatables from "./components/Tables/Datatable"
 
 Translate();
 
@@ -69,6 +63,8 @@ ReactDOM.render(
 
             {/* Default route*/}
             <IndexRoute component={Dashboard}/>
+
+            <Route path="Datatables" component={Datatables}/>
 
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />

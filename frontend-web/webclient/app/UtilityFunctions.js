@@ -1,5 +1,6 @@
 import React from "react";
 import swal from "sweetalert";
+import { RightsMap } from "./DefaultObjects"
 
 function NotificationIcon(props) {
     if (props.type === "Complete") {
@@ -40,6 +41,20 @@ function buildBreadCrumbs(path) {
     return pathsMapping;
 }
 
+function sortFilesByFavourite(files, asc) {
+    let order = asc ? 1 : -1;
+    files.sort((a, b) => {
+        if (a.isFavourite && b.isFavourite) {
+            return 0 * order;
+        } else if (a.isFavourite) {
+            return 1 * order;
+        } else {
+            return -1 * order;
+        }
+    });
+    return files;
+}
+
 function sortFilesByModified(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
@@ -58,6 +73,14 @@ function sortFilesByTypeAndName(files, asc) {
         else {
             return a.path.name.localeCompare(b.path.name) * order;
         }
+    });
+    return files;
+}
+
+function sortFilesByOwner(files, asc) {
+    let order = asc ? 1 : -1;
+    files.sort((a,b) => {
+        return (a.acl.length - b.acl.length) * order;
     });
     return files;
 }
@@ -93,7 +116,10 @@ export {
     NotificationIcon,
     WebSocketSupport,
     buildBreadCrumbs,
-    sortFilesByTypeAndName,
     createFolder,
-    favourite
+    favourite,
+    sortFilesByTypeAndName,
+    sortFilesByModified,
+    sortFilesByFavourite,
+    sortFilesByOwner,
 }
