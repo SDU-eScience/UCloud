@@ -13,6 +13,7 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
 
     // TODO FIXME Remove directories from public API
     val findById = callDescription<FindById, JobWithStatusAndInvocation, CommonErrorMessage> {
+        prettyName = "jobsFindById"
         path {
             using(baseContext)
             +boundTo(FindById::id)
@@ -20,12 +21,14 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
     }
 
     val listRecent = callDescription<Unit, List<JobWithStatus>, CommonErrorMessage> {
+        prettyName = "jobsListRecent"
         path {
             using(baseContext)
         }
     }
 
     val start = kafkaDescription<AppRequest.Start> {
+        prettyName = "jobsStart"
         method = HttpMethod.POST
 
         path {
@@ -38,6 +41,7 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
     }
 
     val cancel = kafkaDescription<AppRequest.Cancel> {
+        prettyName = "jobsCancel"
         method = HttpMethod.DELETE
 
         path {

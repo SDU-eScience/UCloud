@@ -28,11 +28,11 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 class Server(
-        private val configuration: Configuration,
-        private val kafka: KafkaServices,
-        private val zk: ZooKeeper,
-        private val ktor: HttpServerProvider,
-        @Suppress("unused") private val cloud: RefreshingJWTAuthenticator
+    private val configuration: Configuration,
+    private val kafka: KafkaServices,
+    private val zk: ZooKeeper,
+    private val ktor: HttpServerProvider,
+    private val cloud: RefreshingJWTAuthenticator
 ) {
     private lateinit var httpServer: ApplicationEngine
     private lateinit var kStreams: KafkaStreams
@@ -51,11 +51,12 @@ class Server(
         val transferState = TransferStateService()
         val icat = ICAT(configuration.database)
         val tus = TusController(
-                config = configuration.database,
-                rados = rados,
-                producer = kafka.producer.forStream(TusStreams.UploadEvents),
-                transferState = transferState,
-                icat = icat
+            config = configuration.database,
+            rados = rados,
+            producer = kafka.producer.forStream(TusStreams.UploadEvents),
+            transferState = transferState,
+            icat = icat,
+            kafka = kafka
         )
         log.info("Core services constructed!")
 
@@ -65,9 +66,9 @@ class Server(
 
             log.info("Configuring stream processors...")
             UploadStateProcessor(
-                    TusStreams.UploadEvents.stream(kBuilder),
-                    transferState,
-                    icat
+                TusStreams.UploadEvents.stream(kBuilder),
+                transferState,
+                icat
             ).also { it.init() }
             log.info("Stream processors configured!")
 
@@ -85,7 +86,7 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
 
-            installDefaultFeatures(requireJobId = false)
+            installDefaultFeatures(cloud, kafka, requireJobId = false)
             install(JWTProtection)
             install(CORS) {
                 anyHost()

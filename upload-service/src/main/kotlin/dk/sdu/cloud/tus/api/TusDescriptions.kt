@@ -1,5 +1,7 @@
 package dk.sdu.cloud.tus.api
 
+import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTDescriptions
@@ -21,55 +23,81 @@ object TusDescriptions : RESTDescriptions(TusServiceDescription) {
     val baseContext = "/api/tus"
 
     val create = callDescription<CreationCommand, Unit, Unit>(
-            additionalRequestConfiguration = { req ->
-                addHeader(TusHeaders.Resumable, TusConfiguration.Version)
-                addHeader(TusHeaders.UploadLength, req.length)
+        additionalRequestConfiguration = { req ->
+            addHeader(TusHeaders.Resumable, TusConfiguration.Version)
+            addHeader(TusHeaders.UploadLength, req.length)
 
-                val metadata = HashMap<String, String>().apply {
-                    if (req.fileName != null) this["filename"] = req.fileName
-                    if (req.owner != null) this["owner"] = req.owner
-                    if (req.location != null) this["location"] = req.location
+            val metadata = HashMap<String, String>().apply {
+                if (req.fileName != null) this["filename"] = req.fileName
+                if (req.owner != null) this["owner"] = req.owner
+                if (req.location != null) this["location"] = req.location
 
-                    this["sensitive"] = req.sensitive.toString()
-                }
-
-                val encoder = Base64.getEncoder()
-                val encodedMetadata = metadata.map {
-                    "${it.key} ${String(encoder.encode(it.value.toByteArray()))}"
-                }.joinToString(",")
-                addHeader(TusHeaders.UploadMetadata, encodedMetadata)
-            },
-
-            body = {
-                path { using(baseContext) }
-                method = HttpMethod.POST
+                this["sensitive"] = req.sensitive.toString()
             }
+
+            val encoder = Base64.getEncoder()
+            val encodedMetadata = metadata.map {
+                "${it.key} ${String(encoder.encode(it.value.toByteArray()))}"
+            }.joinToString(",")
+            addHeader(TusHeaders.UploadMetadata, encodedMetadata)
+        },
+
+        body = {
+            prettyName = "tusCreate"
+            path { using(baseContext) }
+            method = HttpMethod.POST
+        }
     )
 
-    init {
-        // POST endpoint is done by the create from above
-        register(baseContext, HttpMethod.OPTIONS)
-        register("$baseContext/{id}", HttpMethod.POST)
-        register("$baseContext/{id}", HttpMethod.PATCH)
-        register("$baseContext/{id}", HttpMethod.HEAD)
+    val probeTusConfiguration = callDescription<Unit, Unit, Unit> {
+        prettyName = "tusOptions"
+        path { using(baseContext) }
+        method = HttpMethod.OPTIONS
+    }
+
+    val findUploadStatusById = callDescription<FindByStringId, Unit, Unit> {
+        prettyName = "tusFindUploadStatusById"
+        method = HttpMethod.HEAD
+        path {
+            using(baseContext)
+            +boundTo(FindByStringId::id)
+        }
+    }
+
+    val uploadChunkViaPost = callDescription<FindByStringId, Unit, Unit> {
+        prettyName = "tusUpload"
+        method = HttpMethod.POST
+        path {
+            using(baseContext)
+            +boundTo(FindByStringId::id)
+        }
+    }
+
+    val uploadChunk = callDescription<FindByStringId, Unit, Unit> {
+        prettyName = "tusUpload"
+        method = HttpMethod.PATCH
+        path {
+            using(baseContext)
+            +boundTo(FindByStringId::id)
+        }
     }
 
     // Uploader
     fun uploader(
-            inputStream: InputStream,
-            location: String,
-            payloadSizeMax32Bits: Int,
-            cloud: JWTAuthenticatedCloud
+        inputStream: InputStream,
+        location: String,
+        payloadSizeMax32Bits: Int,
+        cloud: JWTAuthenticatedCloud
     ): TusUploader {
         return uploader(inputStream, location, payloadSizeMax32Bits, cloud.parent, cloud.token)
     }
 
     fun uploader(
-            inputStream: InputStream,
-            location: String,
-            payloadSizeMax32Bits: Int,
-            cloud: CloudContext,
-            token: String
+        inputStream: InputStream,
+        location: String,
+        payloadSizeMax32Bits: Int,
+        cloud: CloudContext,
+        token: String
     ): TusUploader {
         log.debug("Creating uploader: $inputStream, $location, $payloadSizeMax32Bits, $cloud, $token")
         val endpoint = cloud.resolveEndpoint(owner)

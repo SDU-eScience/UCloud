@@ -26,14 +26,14 @@ import stackTraceToString
 import java.util.concurrent.TimeUnit
 
 class Server(
-        private val configuration: Configuration,
-        private val storageService: StorageConnectionFactory,
+    private val configuration: Configuration,
+    private val storageService: StorageConnectionFactory,
 
-        private val adminAccount: StorageConnection,
-        private val kafka: KafkaServices,
-        private val ktor: HttpServerProvider,
-        private val zk: ZooKeeper,
-        private val cloud: RefreshingJWTAuthenticator
+    private val adminAccount: StorageConnection,
+    private val kafka: KafkaServices,
+    private val ktor: HttpServerProvider,
+    private val zk: ZooKeeper,
+    private val cloud: RefreshingJWTAuthenticator
 ) {
     private lateinit var httpServer: ApplicationEngine
     private lateinit var kStreams: KafkaStreams
@@ -68,7 +68,7 @@ class Server(
 
         httpServer = ktor {
             log.info("Configuring HTTP server")
-            installDefaultFeatures(requireJobId = false)
+            installDefaultFeatures(cloud, kafka, requireJobId = false)
             install(JWTProtection)
 
             intercept(ApplicationCallPipeline.Infrastructure) {
