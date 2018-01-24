@@ -30,6 +30,7 @@ internal fun Exception.stackTraceToString(): String = StringWriter().apply {
 // TODO We should find a better solution for all of these "defaultMappers"
 object RESTServerSupport {
     var defaultMapper: ObjectMapper = jacksonObjectMapper()
+    var allowMissingKafkaHttpLogger = false
 }
 
 private var didComplainAboutMissingKafkaLogger = false
@@ -43,12 +44,13 @@ fun <P : Any, S : Any, E : Any> Route.implement(
         method(HttpMethod.parse(restCall.method.name())) {
             val logger = application.featureOrNull(KafkaHttpLogger)
             if (logger == null) {
-                if (!didComplainAboutMissingKafkaLogger) {
+                if (!didComplainAboutMissingKafkaLogger && !RESTServerSupport.allowMissingKafkaHttpLogger) {
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
                     log.warn("NO Kafka logging will be performed without this feature present. The implement " +
                             "call was placed here:")
+                    log.debug("Use RESTServerSupport.allowMissingKafkaHttpLogger = true to suppress this message")
                     try {
                         throw RuntimeException()
                     } catch (ex: RuntimeException) {
@@ -67,6 +69,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     }
                 }
             }
+
             handle {
                 val payload: P = if (restCall.requestType == Unit::class) {
                     @Suppress("UNCHECKED_CAST")

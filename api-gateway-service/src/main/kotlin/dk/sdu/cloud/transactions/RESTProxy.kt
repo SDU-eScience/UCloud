@@ -48,7 +48,11 @@ class RESTProxy(
         HttpHeaders.XForwardedFor
     ).map { it.normalizeHeader() }.toSet()
 
-    private val responseHeaderBlacklist = emptySet<String>().map { it.normalizeHeader() }.toSet()
+    private val responseHeaderBlacklist = setOf(
+        HttpHeaders.Connection,
+        HttpHeaders.Server,
+        HttpHeaders.Date
+    ).map { it.normalizeHeader() }.toSet()
 
     private fun String.normalizeHeader() = toUpperCase()
 
@@ -68,17 +72,19 @@ class RESTProxy(
                         handle {
                             try {
                                 val jobId = UUID.randomUUID().toString()
+                                val (host, instance) = findService(service)
 
                                 if (eventProducer != null) {
                                     val userAgent = call.request.userAgent() ?: "Unknown"
                                     val origin = call.request.origin.remoteHost
 
                                     async {
-                                        eventProducer.emit(jobId, HttpProxyCallLogEntry(jobId, userAgent, origin))
+                                        eventProducer.emit(jobId, HttpProxyCallLogEntry(jobId, instance,
+                                            userAgent, origin))
                                     }
                                 }
 
-                                call.proxyJobTo(jobId, findService(service))
+                                call.proxyJobTo(jobId, host)
                             } catch (ex: RESTProxyException) {
                                 when (ex) {
                                     is RESTNoServiceAvailable -> {
@@ -101,7 +107,7 @@ class RESTProxy(
         }
     }
 
-    private suspend fun findService(service: ServiceDefinition): URL {
+    private suspend fun findService(service: ServiceDefinition): Pair<URL, ServiceInstance> {
         val parsedVersion = Version.valueOf(service.manifest.version)
         val onlyIntegerVersion = with(parsedVersion) { "$majorVersion.$minorVersion.$patchVersion" }
 
@@ -111,7 +117,8 @@ class RESTProxy(
 
         // TODO FIXME proxying using https
         val resolvedService = services[random.nextInt(services.size)]
-        return URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}")
+        return Pair(URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}"),
+            resolvedService.instance)
     }
 
     private suspend fun ApplicationCall.proxyJobTo(

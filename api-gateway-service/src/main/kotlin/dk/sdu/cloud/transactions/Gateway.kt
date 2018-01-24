@@ -10,14 +10,15 @@ import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
+import io.ktor.features.DefaultHeaders
 import io.ktor.features.XForwardedHeadersSupport
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.request.header
 import io.ktor.response.respond
 import io.ktor.routing.post
 import io.ktor.routing.routing
-import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -51,6 +52,8 @@ fun main(args: Array<String>) = runBlocking {
     log.info("Connecting to ZooKeeper")
     val zk = ZooKeeperConnection(listOf(config.zookeeper)).connect()
     log.info("Connected!")
+
+    RESTServerSupport.allowMissingKafkaHttpLogger = true
 
     val targets = config.targets.map { File(it) }
     val manager = DefaultServiceManager(*targets.toTypedArray()).let {
@@ -116,6 +119,9 @@ fun main(args: Array<String>) = runBlocking {
             log.info("Ready to configure new server!")
             currentServer = embeddedServer(Netty, port = 8080) {
                 install(XForwardedHeadersSupport)
+                install(DefaultHeaders) {
+                    header(HttpHeaders.Server, "cloud.sdu.dk")
+                }
                 install(CallLogging)
                 install(ContentNegotiation) {
                     jackson { registerKotlinModule() }
