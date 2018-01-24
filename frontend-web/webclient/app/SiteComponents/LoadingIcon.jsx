@@ -18,3 +18,22 @@ export default function (props) {
         return null;
     }
 }
+
+function BallPulse(props) {
+    if (props.loading) {
+        return (
+            <div className="row loader-primary">
+                <div className="loader-demo">
+                    <div className="loader-inner ball-pulse">
+                        <div/>
+                        <div/>
+                        <div/>
+                    </div>
+                </div>
+            </div>)
+    } else {
+        return null;
+    }
+}
+
+export {BallPulse};
