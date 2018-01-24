@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.app.services.JobWithStatus
-import dk.sdu.cloud.app.services.JobWithStatusAndInvocation
 import dk.sdu.cloud.client.KafkaCallDescriptionBundle
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody

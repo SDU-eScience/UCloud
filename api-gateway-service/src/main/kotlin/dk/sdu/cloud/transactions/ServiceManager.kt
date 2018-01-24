@@ -97,6 +97,7 @@ class DefaultServiceManager(vararg val targets: File) : ServiceManager {
             log.warn("Could not find class while trying to load $it from $source")
             log.warn("Make sure that the API jar is _ONLY_ exporting stuff available from within the API")
             log.warn("The class we could not find was: ${ex.message}")
+            log.warn(ex.stackTraceToString())
             return null
         } catch (ex: Exception) {
             log.warn("Unable to create instance of service! Service loaded from: " +

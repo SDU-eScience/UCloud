@@ -4,23 +4,11 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.JobStatus
+import dk.sdu.cloud.app.api.JobWithStatus
+import dk.sdu.cloud.app.api.JobWithStatusAndInvocation
 import org.jetbrains.exposed.sql.*
 
 data class JobToSlurm(val id: String, val slurmId: Long, val owner: String)
-data class JobWithStatus(
-        val jobId: String,
-        val owner: String,
-        val status: JobStatus
-)
-
-data class JobWithStatusAndInvocation(
-        val jobInfo: JobWithStatus,
-        val parameters: Map<String, Any>,
-        val appName: String,
-        val appVersion: String,
-        val workingDirectory: String,
-        val jobDirectory: String
-)
 
 // TODO Created/modified timestamps
 object JobsTable : Table() {

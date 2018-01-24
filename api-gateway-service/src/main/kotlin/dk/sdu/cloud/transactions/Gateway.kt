@@ -10,6 +10,7 @@ import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
+import io.ktor.features.XForwardedHeadersSupport
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.request.header
@@ -19,6 +20,7 @@ import io.ktor.routing.routing
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -100,7 +102,7 @@ fun main(args: Array<String>) = runBlocking {
         try {
             log.info("Reloading service definitions!")
             val definitions = manager.load()
-            val rest = RESTProxy(definitions, zk)
+            val rest = RESTProxy(definitions, zk, kafkaProducer)
             val kafka = KafkaProxy(definitions, kafkaProducer)
 
             val capturedServer = currentServer
@@ -112,7 +114,8 @@ fun main(args: Array<String>) = runBlocking {
             }
 
             log.info("Ready to configure new server!")
-            currentServer = embeddedServer(CIO, port = 8080) {
+            currentServer = embeddedServer(Netty, port = 8080) {
+                install(XForwardedHeadersSupport)
                 install(CallLogging)
                 install(ContentNegotiation) {
                     jackson { registerKotlinModule() }
@@ -135,7 +138,7 @@ fun main(args: Array<String>) = runBlocking {
         }
     }
 
-    val reloadServer = embeddedServer(CIO, port = 8081) {
+    val reloadServer = embeddedServer(Netty, port = 8081) {
         routing {
             post("/reload") {
                 val incomingSecret = call.request.header("Reload-Secret") ?: run {

@@ -32,6 +32,8 @@ object RESTServerSupport {
     var defaultMapper: ObjectMapper = jacksonObjectMapper()
 }
 
+private var didComplainAboutMissingKafkaLogger = false
+
 fun <P : Any, S : Any, E : Any> Route.implement(
     restCall: RESTCallDescription<P, S, E>,
     handler: suspend RESTHandler<P, S, E>.(P) -> Unit
@@ -39,18 +41,30 @@ fun <P : Any, S : Any, E : Any> Route.implement(
     val template = restCall.path.toKtorTemplate(fullyQualified = false)
     route(template) {
         method(HttpMethod.parse(restCall.method.name())) {
-            val logger = application.featureOrNull(KafkaHttpLogger) ?: run {
-                throw IllegalStateException(
-                    "implement() calls require the KafkaHttpLogger feature to " +
-                            "have been installed"
-                )
-            }
+            val logger = application.featureOrNull(KafkaHttpLogger)
+            if (logger == null) {
+                if (!didComplainAboutMissingKafkaLogger) {
+                    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
+                    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
+                    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
+                    log.warn("NO Kafka logging will be performed without this feature present. The implement " +
+                            "call was placed here:")
+                    try {
+                        throw RuntimeException()
+                    } catch (ex: RuntimeException) {
+                        log.warn(ex.stackTraceToString())
+                    }
 
-            val stream = restCall.loggingStream()
-            if (stream != null) {
-                val kafkaProducer = logger.kafka.producer.forStream(stream)
-                install(KafkaHttpRouteLogger) {
-                    producer = kafkaProducer
+                    log.warn("We will not complain about further violations.")
+                    didComplainAboutMissingKafkaLogger = true
+                }
+            } else {
+                val stream = restCall.loggingStream()
+                if (stream != null) {
+                    val kafkaProducer = logger.kafka.producer.forStream(stream)
+                    install(KafkaHttpRouteLogger) {
+                        producer = kafkaProducer
+                    }
                 }
             }
             handle {

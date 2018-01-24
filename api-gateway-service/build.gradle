@@ -3,7 +3,7 @@ version '0.1.0-SNAPSHOT'
 
 buildscript {
     ext.ktor_version = '0.9.1-alpha-8'
-    ext.kotlin_version = '1.2.10'
+    ext.kotlin_version = '1.2.20'
 
     repositories {
         mavenCentral()
@@ -45,7 +45,7 @@ dependencies {
 
     // ktor
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
-    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
 
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.19.1'

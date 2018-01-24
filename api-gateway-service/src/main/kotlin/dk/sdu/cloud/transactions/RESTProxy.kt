@@ -1,12 +1,13 @@
 package dk.sdu.cloud.transactions
 
 import com.github.zafarkhaja.semver.Version
-import dk.sdu.cloud.service.RequestHeader
-import dk.sdu.cloud.service.listServicesWithStatus
+import dk.sdu.cloud.client.ProxyDescription
+import dk.sdu.cloud.service.*
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.cio.WriteChannel
 import io.ktor.content.OutgoingContent
+import io.ktor.features.origin
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -16,7 +17,9 @@ import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
+import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.runBlocking
+import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.zookeeper.ZooKeeper
 import org.asynchttpclient.*
 import org.slf4j.LoggerFactory
@@ -32,9 +35,19 @@ class RESTNoServiceAvailable : RESTProxyException("Gateway timeout", HttpStatusC
 
 private val httpClient = DefaultAsyncHttpClient()
 
-class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
+class RESTProxy(
+    private val targets: List<ServiceDefinition>,
+    private val zk: ZooKeeper,
+    private val kafkaProducer: KafkaProducer<String, String>
+) {
     private val random = Random()
-    private val requestHeaderBlacklist = setOf("Job-Id", "Host").map { it.normalizeHeader() }.toSet()
+
+    private val requestHeaderBlacklist = setOf(
+        "Job-Id",
+        "Host",
+        HttpHeaders.XForwardedFor
+    ).map { it.normalizeHeader() }.toSet()
+
     private val responseHeaderBlacklist = emptySet<String>().map { it.normalizeHeader() }.toSet()
 
     private fun String.normalizeHeader() = toUpperCase()
@@ -46,16 +59,33 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
     fun configure(route: Route): Unit = with(route) {
         targets.forEach { service ->
             service.restDescriptions.flatMap { it.descriptions }.filter { it.shouldProxyFromGateway }.forEach {
+
                 route(it.template) {
                     method(HttpMethod.parse(it.method.name())) {
+                        val streamDescription = (it as? ProxyDescription.FromDescription)?.description?.loggingStream()
+                        val eventProducer = streamDescription?.let { kafkaProducer.forStream(it) }
+
                         handle {
                             try {
-                                call.proxyJobTo(findService(service))
+                                val jobId = UUID.randomUUID().toString()
+
+                                if (eventProducer != null) {
+                                    val userAgent = call.request.userAgent() ?: "Unknown"
+                                    val origin = call.request.origin.remoteHost
+
+                                    async {
+                                        eventProducer.emit(jobId, HttpProxyCallLogEntry(jobId, userAgent, origin))
+                                    }
+                                }
+
+                                call.proxyJobTo(jobId, findService(service))
                             } catch (ex: RESTProxyException) {
                                 when (ex) {
                                     is RESTNoServiceAvailable -> {
-                                        log.warn("Unable to proxy request to target service. Unable to find " +
-                                                "any running service!")
+                                        log.warn(
+                                            "Unable to proxy request to target service. Unable to find " +
+                                                    "any running service!"
+                                        )
                                         log.warn("Service is: ${service.manifest}")
                                     }
                                 }
@@ -85,15 +115,14 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
     }
 
     private suspend fun ApplicationCall.proxyJobTo(
-            host: URL,
-            endpoint: String = request.path(),
-            includeQueryString: Boolean = true,
-            proxyMethod: HttpMethod = request.httpMethod
+        jobId: String,
+        host: URL,
+        endpoint: String = request.path(),
+        includeQueryString: Boolean = true,
+        proxyMethod: HttpMethod = request.httpMethod
     ) {
         val queryString = if (includeQueryString) '?' + request.queryString() else ""
         val endpointUrl = URL(host, endpoint + queryString)
-
-        val jobId = UUID.randomUUID()
 
         // The presence of a message-body in a request is signaled by the inclusion of a Content-Length or
         // Transfer-Encoding header field in the request's message-headers (section 4.3, RFC 2616)
@@ -102,8 +131,8 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
         // This can cause some servers to (correctly) return 501 NOT IMPLEMENTED on certain HTTP methods. For example,
         // if the server has not implemented chunked transfer encoding for GET messages.
         val stream = if (
-                request.header(HttpHeaders.ContentLength) != null ||
-                request.header(HttpHeaders.TransferEncoding) != null
+            request.header(HttpHeaders.ContentLength) != null ||
+            request.header(HttpHeaders.TransferEncoding) != null
         ) {
             receiveOrNull<InputStream>()
         } else {
@@ -117,6 +146,7 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
                 }
             }
 
+            setHeader(HttpHeaders.XForwardedFor, request.origin.remoteHost)
             setHeader("Job-Id", jobId)
             setMethod(proxyMethod.value)
 
@@ -126,17 +156,17 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
         }
 
         streamingHttp.retrieveStatusAndHeaders(
-                statusHandler = {
-                    response.status(HttpStatusCode.fromValue(it))
-                },
+            statusHandler = {
+                response.status(HttpStatusCode.fromValue(it))
+            },
 
-                headerHandler = { headers ->
-                    headers.forEach {
-                        if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
-                            response.header(it.key, it.value)
-                        }
+            headerHandler = { headers ->
+                headers.forEach {
+                    if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
+                        response.header(it.key, it.value)
                     }
                 }
+            }
         )
 
         respondDirectWrite {
@@ -150,8 +180,8 @@ class RESTProxy(val targets: List<ServiceDefinition>, val zk: ZooKeeper) {
 internal typealias NettyHttpHeaders = io.netty.handler.codec.http.HttpHeaders
 
 class StreamingHttpRequest(
-        private val endpoint: String,
-        private val config: BoundRequestBuilder.() -> Unit
+    private val endpoint: String,
+    private val config: BoundRequestBuilder.() -> Unit
 ) {
     private var continuation: Continuation<Unit>? = null
     private var cachedThrowable: Throwable? = null
@@ -222,8 +252,8 @@ class StreamingHttpRequest(
     }
 
     suspend fun retrieveStatusAndHeaders(
-            statusHandler: (Int) -> Unit,
-            headerHandler: (NettyHttpHeaders) -> Unit
+        statusHandler: (Int) -> Unit,
+        headerHandler: (NettyHttpHeaders) -> Unit
     ): Unit = suspendCoroutine { continuation ->
         this.continuation = continuation
         this.statusHandler = statusHandler
@@ -234,7 +264,7 @@ class StreamingHttpRequest(
     }
 
     suspend fun retrieveBody(
-            bodyPartHandler: suspend (HttpResponseBodyPart) -> Unit
+        bodyPartHandler: suspend (HttpResponseBodyPart) -> Unit
     ): Unit = suspendCoroutine { continuation ->
         this.continuation = continuation
         this.bodyPartHandler = { runBlocking { bodyPartHandler(it) } }
