@@ -32,9 +32,7 @@ import Status from './SiteComponents/StatusPage'
 import Files from './SiteComponents/Files'
 import User from './components/User/User';
 import Utils from './components/Utils/Utils';
-import { Cloud } from '../authentication/SDUCloudObject'
-
-import Datatables from "./components/Tables/Datatable"
+import { Cloud } from "../authentication/SDUCloudObject";
 
 Translate();
 
@@ -63,8 +61,6 @@ ReactDOM.render(
 
             {/* Default route*/}
             <IndexRoute component={Dashboard}/>
-
-            <Route path="Datatables" component={Datatables}/>
 
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />

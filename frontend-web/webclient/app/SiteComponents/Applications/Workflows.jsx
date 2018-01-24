@@ -79,8 +79,7 @@ function WorkflowsList(props) {
 }
 
 function ApplicationList(props) {
-    let applications = props.applications.slice();
-    let applicationsList = applications.map( app =>
+    let applicationsList = props.applications.map( app =>
         <div>
             { app.info.name }<br/>
         </div>

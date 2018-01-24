@@ -1,6 +1,4 @@
 import React from 'react';
-import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
-
 import './Core.scss';
 import './LayoutVariants.scss';
 

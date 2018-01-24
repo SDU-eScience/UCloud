@@ -26,16 +26,16 @@ class Notifications extends React.Component {
     }
 
     componentDidMount() {
-        this.getNotifications();
         pubsub.publish('setPageTitle', this.constructor.name);
+        this.getNotifications();
     }
 
     getNotifications() {
         this.setState({loading: true});
         let notifications = [];//Cloud.get().then(notifications => {
             let yesterday = new Date().getTime() - 24 * 60 * 60 * 1000;
-            let recentNotifications = this.state.recent.slice();
-            let remainingNotifications = this.state.remaining.slice();
+            const recentNotifications = this.state.recent.slice();
+            const remainingNotifications = this.state.remaining.slice();
             notifications.forEach((it) => {
                 if (it.timestamp > yesterday) {
                     recentNotifications.push(it);

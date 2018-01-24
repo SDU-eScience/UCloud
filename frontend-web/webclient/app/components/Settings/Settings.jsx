@@ -68,12 +68,12 @@ class Settings extends React.Component {
                         <div className="pull-left wd-tiny mb">
                             <div className="setting-color">
                                 <label className="preview-theme-1">
-                                    <input type="radio" defaultChecked name="setting-theme" value="0" /><span className="ion-checkmark-round"></span>
+                                    <input type="radio" defaultChecked name="setting-theme" value="0" /><span className="ion-checkmark-round"/>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -82,12 +82,12 @@ class Settings extends React.Component {
                         <div className="pull-left wd-tiny mb">
                             <div className="setting-color">
                                 <label className="preview-theme-2">
-                                    <input type="radio" name="setting-theme" value="1" /><span className="ion-checkmark-round"></span>
+                                    <input type="radio" name="setting-theme" value="1" /><span className="ion-checkmark-round"/>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -96,12 +96,12 @@ class Settings extends React.Component {
                         <div className="pull-left wd-tiny mb">
                             <div className="setting-color">
                                 <label className="preview-theme-3">
-                                    <input type="radio" name="setting-theme" value="2" /><span className="ion-checkmark-round"></span>
+                                    <input type="radio" name="setting-theme" value="2" /><span className="ion-checkmark-round"/>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -110,12 +110,12 @@ class Settings extends React.Component {
                         <div className="pull-left wd-tiny mb">
                             <div className="setting-color">
                                 <label className="preview-theme-4">
-                                    <input type="radio" name="setting-theme" value="3" /><span className="ion-checkmark-round"></span>
+                                    <input type="radio" name="setting-theme" value="3" /><span className="ion-checkmark-round"/>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -124,12 +124,12 @@ class Settings extends React.Component {
                         <div className="pull-left wd-tiny mb">
                             <div className="setting-color">
                                 <label className="preview-theme-5">
-                                    <input type="radio" name="setting-theme" value="4" /><span className="ion-checkmark-round"></span>
+                                    <input type="radio" name="setting-theme" value="4" /><span className="ion-checkmark-round"/>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -138,12 +138,12 @@ class Settings extends React.Component {
                         <div className="pull-left wd-tiny mb">
                             <div className="setting-color">
                                 <label className="preview-theme-6">
-                                    <input type="radio" name="setting-theme" value="5" /><span className="ion-checkmark-round"></span>
+                                    <input type="radio" name="setting-theme" value="5" /><span className="ion-checkmark-round"/>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -155,9 +155,9 @@ class Settings extends React.Component {
                                     <input type="radio" name="setting-theme" value="6" /><span className="ion-checkmark-round"></span>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -166,12 +166,12 @@ class Settings extends React.Component {
                         <div className="pull-left wd-tiny mb">
                             <div className="setting-color">
                                 <label className="preview-theme-8">
-                                    <input type="radio" name="setting-theme" value="7" /><span className="ion-checkmark-round"></span>
+                                    <input type="radio" name="setting-theme" value="7" /><span className="ion-checkmark-round"/>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -180,12 +180,12 @@ class Settings extends React.Component {
                         <div className="pull-left wd-tiny mb">
                             <div className="setting-color">
                                 <label className="preview-theme-9">
-                                    <input type="radio" name="setting-theme" value="8" /><span className="ion-checkmark-round"></span>
+                                    <input type="radio" name="setting-theme" value="8" /><span className="ion-checkmark-round"/>
                                     <div className="t-grid">
                                         <div className="t-row">
-                                            <div className="t-col preview-header"></div>
-                                            <div className="t-col preview-sidebar"></div>
-                                            <div className="t-col preview-content"></div>
+                                            <div className="t-col preview-header"/>
+                                            <div className="t-col preview-sidebar"/>
+                                            <div className="t-col preview-content"/>
                                         </div>
                                     </div>
                                 </label>
@@ -195,49 +195,21 @@ class Settings extends React.Component {
                     <hr />
                     <p>
                         <label className="mda-checkbox">
-                            <input id="sidebar-showheader" type="checkbox" defaultChecked /><em className="bg-indigo-500"></em>Sidebar header
+                            <input id="sidebar-showheader" type="checkbox" defaultChecked /><em className="bg-indigo-500"/>Sidebar header
                         </label>
                     </p>
                     <p>
                         <label className="mda-checkbox">
-                            <input id="sidebar-showtoolbar" type="checkbox" defaultChecked /><em className="bg-indigo-500"></em>Sidebar toolbar
+                            <input id="sidebar-showtoolbar" type="checkbox" defaultChecked /><em className="bg-indigo-500"/>Sidebar toolbar
                         </label>
                     </p>
                     <p>
                         <label className="mda-checkbox">
-                            <input id="sidebar-offcanvas" type="checkbox" /><em className="bg-indigo-500"></em>Sidebar offcanvas
-                        </label>
-                    </p>
-                    <hr />
-                    <p>Navigation icon</p>
-                    <p>
-                        <label className="mda-radio">
-                            <input type="radio" name="headerMenulink" value="menu-link-close" /><em className="bg-indigo-500"></em>Close icon
-                        </label>
-                    </p>
-                    <p>
-                        <label className="mda-radio">
-                            <input type="radio" name="headerMenulink" value="menu-link-slide" defaultChecked/><em className="bg-indigo-500"></em>Slide arrow
-                        </label>
-                    </p>
-                    <p>
-                        <label className="mda-radio">
-                            <input type="radio" name="headerMenulink" value="menu-link-arrow" /><em className="bg-indigo-500"></em>Big arrow
+                            <input id="sidebar-offcanvas" type="checkbox" /><em className="bg-indigo-500"/>Sidebar offcanvas
                         </label>
                     </p>
                     <hr />
                     <button type="button" data-toggle-fullscreen="" className="btn btn-default btn-raised">Toggle fullscreen</button>
-                    <hr />
-                    <p>Change language</p>
-                    {/* START Language list */}
-                    <div className="btn-group">
-                        <button type="button" data-toggle="dropdown" className="btn btn-default btn-block btn-raised">{this.valueSelected}</button>
-                        <ul role="menu" className="dropdown-menu dropdown-menu-right animated fadeInUpShort">
-                            <li><a href="#" data-set-lang="en" onClick={() => this.setValueSelected('English')}>English</a></li>
-                            <li><a href="#" data-set-lang="es" onClick={() => this.setValueSelected('Spanish')}>Spanish</a></li>
-                        </ul>
-                    </div>
-                    {/* END Language list */}
                 </Modal.Body>
             </Modal>
         );
