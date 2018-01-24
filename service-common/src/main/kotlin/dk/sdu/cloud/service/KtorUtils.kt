@@ -26,6 +26,7 @@ private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtilsKt")
 fun Application.installDefaultFeatures(
     cloud: AuthenticatedCloud,
     kafkaServices: KafkaServices,
+    serviceInstance: ServiceInstance,
     requireJobId: Boolean = true
 ) {
     log.info("Installing default features. requireJobId=$requireJobId")
@@ -34,6 +35,7 @@ fun Application.installDefaultFeatures(
     install(DefaultHeaders)
     install(KafkaHttpLogger) {
         kafka = kafkaServices
+        serverDescription = serviceInstance
     }
 
     install(ContentNegotiation) {

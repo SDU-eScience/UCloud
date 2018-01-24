@@ -18,8 +18,6 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.streams.KafkaStreams
-import org.apache.kafka.streams.Topology
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -32,12 +30,12 @@ import java.util.*
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.auth.ServerMainKt")
 
 private fun loadKeysAndInsertIntoProps(properties: Properties): Pair<RSAPublicKey, RSAPrivateKey> {
-    val certs = File("certs").takeIf { it.exists() && it.isDirectory } ?:
-            throw IllegalStateException("Missing 'certs' folder")
-    val x509Cert = File(certs, "cert.pem").takeIf { it.exists() && it.isFile } ?:
-            throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name cert.pem")
-    val privateKey = File(certs, "key.pem").takeIf { it.exists() && it.isFile } ?:
-            throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name key.pem")
+    val certs =
+        File("certs").takeIf { it.exists() && it.isDirectory } ?: throw IllegalStateException("Missing 'certs' folder")
+    val x509Cert = File(certs, "cert.pem").takeIf { it.exists() && it.isFile }
+            ?: throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name cert.pem")
+    val privateKey = File(certs, "key.pem").takeIf { it.exists() && it.isFile }
+            ?: throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name key.pem")
 
     val x509Text = x509Cert.readText()
     val privText = privateKey.readText()
@@ -48,25 +46,25 @@ private fun loadKeysAndInsertIntoProps(properties: Properties): Pair<RSAPublicKe
     val loadedPrivKey = Util.loadPrivateKey(privText)
 
     return Pair(
-            loadedX509Cert.publicKey as RSAPublicKey,
-            loadedPrivKey as RSAPrivateKey
+        loadedX509Cert.publicKey as RSAPublicKey,
+        loadedPrivKey as RSAPrivateKey
     )
 }
 
 internal typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
 
 data class DatabaseConfiguration(
-        val url: String,
-        val driver: String,
-        val username: String,
-        val password: String
+    val url: String,
+    val driver: String,
+    val username: String,
+    val password: String
 )
 
 data class AuthConfiguration(
-        val enablePasswords: Boolean = true,
-        val enableWayf: Boolean = false,
-        val database: DatabaseConfiguration,
-        private val connection: RawConnectionConfig
+    val enablePasswords: Boolean = true,
+    val enableWayf: Boolean = false,
+    val database: DatabaseConfiguration,
+    private val connection: RawConnectionConfig
 ) {
     @get:JsonIgnore
     val connConfig: ConnectionConfig
@@ -74,15 +72,6 @@ data class AuthConfiguration(
 
     internal fun configure() {
         connection.configure(AuthServiceDescription, 42300)
-    }
-}
-
-class KafkaServices(
-        private val streamsConfig: Properties,
-        val producer: KafkaProducer<String, String>
-) {
-    fun build(block: Topology): KafkaStreams {
-        return KafkaStreams(block, streamsConfig)
     }
 }
 
@@ -94,8 +83,10 @@ fun main(args: Array<String>) {
         val configFile = File(configFilePath)
         log.debug("Using path: $configFilePath. This has resolved to: ${configFile.absolutePath}")
         if (!configFile.exists()) {
-            throw IllegalStateException("Unable to find configuration file. Attempted to locate it at: " +
-                    configFile.absolutePath)
+            throw IllegalStateException(
+                "Unable to find configuration file. Attempted to locate it at: " +
+                        configFile.absolutePath
+            )
         }
 
         configMapper.readValue<AuthConfiguration>(configFile).also {
@@ -119,11 +110,11 @@ fun main(args: Array<String>) {
 
     log.info("Connecting to database...")
     Database.connect(
-            url = configuration.database.url,
-            driver = configuration.database.driver,
+        url = configuration.database.url,
+        driver = configuration.database.driver,
 
-            user = configuration.database.username,
-            password = configuration.database.password
+        user = configuration.database.username,
+        password = configuration.database.password
     )
     log.info("Connected to database!")
 
@@ -144,13 +135,16 @@ fun main(args: Array<String>) {
         val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
         val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
+        val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), "TODO") // TODO FIXME!!!
+
         AuthServer(
-                jwtAlg = Algorithm.RSA256(priv),
-                config = configuration,
-                authSettings = authSettings,
-                zk = zk,
-                kafka = kafka,
-                ktor = serverProvider
+            jwtAlg = Algorithm.RSA256(priv),
+            config = configuration,
+            authSettings = authSettings,
+            zk = zk,
+            kafka = kafka,
+            ktor = serverProvider,
+            cloud = cloud
         ).start()
     } else {
         when (args[0]) {

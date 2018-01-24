@@ -68,7 +68,7 @@ class Server(
 
         httpServer = ktor {
             log.info("Configuring HTTP server")
-            installDefaultFeatures(cloud, kafka, requireJobId = false)
+            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
             install(JWTProtection)
 
             intercept(ApplicationCallPipeline.Infrastructure) {

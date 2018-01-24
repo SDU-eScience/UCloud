@@ -3,18 +3,13 @@ package dk.sdu.cloud.service
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.client.RESTCallDescription
-import io.ktor.application.ApplicationCall
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.ApplicationFeature
-import io.ktor.application.call
+import io.ktor.application.*
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
-import io.ktor.request.ApplicationRequest
-import io.ktor.request.contentType
-import io.ktor.request.header
+import io.ktor.request.*
 import io.ktor.response.ApplicationSendPipeline
 import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.async
@@ -32,13 +27,13 @@ import org.slf4j.LoggerFactory
 )
 sealed class HttpCallLogEntry {
     abstract val jobId: String
-    //abstract val handledBy: LogEntryServerDescription
+    abstract val handledBy: ServiceInstance
 }
 
 // Added by the gateway. If we see a proxy entry but no request entry we know that something went wrong between them
 data class HttpProxyCallLogEntry(
     override val jobId: String,
-    //override val handledBy: LogEntryServerDescription,
+    override val handledBy: ServiceInstance,
 
     val userAgent: String,
     val origin: String
@@ -55,17 +50,13 @@ data class LogEntryPrincipal(
     val tokenExpiresAt: Long
 )
 
-data class LogEntryServerDescription(
-    val hostname: String,
-    val serviceName: String,
-    val version: String,
-    val port: Int
-)
-
 // Added by the server
 data class HttpRequestCallLogEntry(
     override val jobId: String,
-    //override val handledBy: LogEntryServerDescription,
+    override val handledBy: ServiceInstance,
+
+    val httpMethod: String,
+    val uri: String,
 
     val principal: LogEntryPrincipal?,
     val requestContentType: String?,
@@ -75,7 +66,7 @@ data class HttpRequestCallLogEntry(
 // Added by the server
 data class HttpResponseCallLogEntry(
     override val jobId: String,
-    //override val handledBy: LogEntryServerDescription,
+    override val handledBy: ServiceInstance,
 
     val responseCode: Int,
     val responseTime: Long,
@@ -90,8 +81,10 @@ data class HttpResponseCallLogEntry(
 // later.
 
 class KafkaHttpRouteLogger {
-    //lateinit var serverDescription: LogEntryServerDescription
     lateinit var producer: EventProducer<String, HttpCallLogEntry>
+    private lateinit var serviceDescription: ServiceInstance
+    private lateinit var kafka: KafkaServices
+    private lateinit var jobProducer: EventProducer<String, String>
 
     private val ApplicationRequest.bearer: String?
         get() {
@@ -102,11 +95,25 @@ class KafkaHttpRouteLogger {
             return header.substringAfter("Bearer ")
         }
 
+    private fun PipelineContext<*, ApplicationCall>.loadFromParentFeature() {
+        if (!::serviceDescription.isInitialized) {
+            val feature = application.featureOrNull(KafkaHttpLogger)
+                    ?: throw IllegalStateException("Could not find the KafkaHttpLogger feature on the application")
+            serviceDescription = feature.serverDescription
+            kafka = feature.kafka
+            jobProducer = kafka.producer.forStream(KafkaHttpLogger.jobsStream)
+        }
+    }
+
     private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) {
+        loadFromParentFeature()
+
         val jobId = call.request.safeJobId
         val bearerToken = call.request.bearer
         val contentType = call.request.contentType().toString()
         val contentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: 0
+        val method = call.request.httpMethod.value
+        val uri = call.request.uri
 
         if (jobId != null) {
             call.attributes.put(requestStartTime, System.currentTimeMillis())
@@ -123,8 +130,13 @@ class KafkaHttpRouteLogger {
                     )
                 }
 
-                val entry = HttpRequestCallLogEntry(jobId, principal, contentType, contentLength)
+                val entry = HttpRequestCallLogEntry(
+                    jobId, serviceDescription, method, uri, principal,
+                    contentType, contentLength
+                )
                 producer.emit(jobId, entry)
+
+                jobProducer.emit(jobId, producer.topicName)
             }
         }
     }
@@ -133,6 +145,8 @@ class KafkaHttpRouteLogger {
         context: PipelineContext<Any, ApplicationCall>,
         message: Any
     ) = with(context) {
+        loadFromParentFeature()
+
         val jobId = call.request.safeJobId ?: return@with run {
             log.debug("Missing jobId")
         }
@@ -163,7 +177,10 @@ class KafkaHttpRouteLogger {
 
 
         async {
-            val entry = HttpResponseCallLogEntry(jobId, statusCode, responseTime, contentType, responseSize)
+            val entry = HttpResponseCallLogEntry(
+                jobId, serviceDescription, statusCode, responseTime,
+                contentType, responseSize
+            )
             producer.emit(jobId, entry)
         }
     }
@@ -193,9 +210,14 @@ class KafkaHttpRouteLogger {
 
 class KafkaHttpLogger {
     lateinit var kafka: KafkaServices
+    lateinit var serverDescription: ServiceInstance
 
     companion object Feature : ApplicationFeature<ApplicationCallPipeline, KafkaHttpLogger, KafkaHttpLogger> {
         override val key: AttributeKey<KafkaHttpLogger> = AttributeKey("kafka-http-logger")
+        val jobsStream = SimpleStreamDescription<String, String>(
+            "http.jobs", defaultSerdeOrJson(),
+            defaultSerdeOrJson()
+        )
 
         override fun install(
             pipeline: ApplicationCallPipeline,
@@ -205,6 +227,9 @@ class KafkaHttpLogger {
             feature.configure()
             if (!feature::kafka.isInitialized) {
                 throw IllegalStateException("kafka has not been initialized")
+            }
+            if (!feature::serverDescription.isInitialized) {
+                throw IllegalStateException("serverDescription has not been initialized")
             }
             return feature
         }

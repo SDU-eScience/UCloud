@@ -22,6 +22,8 @@ class EventProducer<in K, in V>(
         private val producer: KafkaProducer<String, String>,
         private val description: StreamDescription<K, V>
 ) {
+    val topicName: String get() = description.name
+
     suspend fun emit(key: K, value: V) = suspendCoroutine<RecordMetadata> { cont ->
         val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
         val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
@@ -39,7 +41,7 @@ class EventProducer<in K, in V>(
 }
 
 class MappedEventProducer<in K, in V>(
-        private val producer: KafkaProducer<String, String>,
+        producer: KafkaProducer<String, String>,
         private val description: MappedStreamDescription<K, V>
 ) {
     private val delegate = EventProducer(producer, description)

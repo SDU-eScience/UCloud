@@ -10,6 +10,7 @@ import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
 import dk.sdu.cloud.auth.processors.UserProcessor
 import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -22,12 +23,13 @@ import stackTraceToString
 import java.util.concurrent.TimeUnit
 
 class AuthServer(
-        private val jwtAlg: Algorithm,
-        private val config: AuthConfiguration,
-        private val authSettings: Saml2Settings,
-        private val zk: ZooKeeper,
-        private val kafka: KafkaServices,
-        private val ktor: HttpServerProvider
+    private val cloud: AuthenticatedCloud,
+    private val jwtAlg: Algorithm,
+    private val config: AuthConfiguration,
+    private val authSettings: Saml2Settings,
+    private val zk: ZooKeeper,
+    private val kafka: KafkaServices,
+    private val ktor: HttpServerProvider
 ) {
     private lateinit var kStreams: KafkaStreams
     private lateinit var httpServer: ApplicationEngine
@@ -43,9 +45,9 @@ class AuthServer(
 
         log.info("Creating core services...")
         val tokenService = TokenService(
-                jwtAlg,
-                kafka.producer.forStream(AuthStreams.UserUpdateStream),
-                kafka.producer.forStream(AuthStreams.RefreshTokenStream)
+            jwtAlg,
+            kafka.producer.forStream(AuthStreams.UserUpdateStream),
+            kafka.producer.forStream(AuthStreams.RefreshTokenStream)
         )
         log.info("Core services constructed!")
 
@@ -72,7 +74,7 @@ class AuthServer(
         httpServer = ktor {
             log.info("Configuring HTTP server")
 
-            installDefaultFeatures(requireJobId = false)
+            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
 
             log.info("Creating HTTP controllers")
             val coreController = CoreAuthController(tokenService, config.enablePasswords, config.enableWayf)

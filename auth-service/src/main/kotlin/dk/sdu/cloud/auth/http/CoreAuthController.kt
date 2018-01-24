@@ -5,7 +5,6 @@ import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.service.safeJobId
 import io.ktor.application.call
 import io.ktor.content.files
 import io.ktor.content.static
