@@ -31,8 +31,13 @@ import Analyses from './SiteComponents/Applications/Analyses';
 import Status from './SiteComponents/StatusPage'
 import Files from './SiteComponents/Files'
 import User from './components/User/User';
+import UserAuditing from "./SiteComponents/Admin/UserAuditing";
 import Utils from './components/Utils/Utils';
 import { Cloud } from "../authentication/SDUCloudObject";
+
+
+import Forms from "./components/Forms/Forms";
+
 
 Translate();
 
@@ -69,6 +74,10 @@ ReactDOM.render(
             <Route path="applications/:appName/:appVersion" component={RunApp}/>
             <Route path="workflows" component={Workflows}/>
             <Route path="analyses" component={Analyses}/>
+
+            <Route path="audit">
+                <Route path="user/:id" component={UserAuditing}/>
+            </Route>
 
             <Route path="notifications" component={Notifications}/>
 

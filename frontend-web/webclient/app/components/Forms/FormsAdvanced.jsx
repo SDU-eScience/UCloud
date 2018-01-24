@@ -254,11 +254,12 @@ class FormsAdvanced extends React.Component {
                                 <div id="example-datepicker-5" className="input-daterange input-group mda-input-group">
                                     <div className="mda-form-control">
                                         <input type="text" name="start" defaultValue="01/16/2016" className="form-control"/>
-                                        <div className="mda-form-control-line"></div>
-                                    </div><span className="input-group-addon">to</span>
+                                        <div className="mda-form-control-line"/>
+                                    </div>
+                                    <span className="input-group-addon">to</span>
                                     <div className="mda-form-control">
                                         <input type="text" name="end" defaultValue="02/12/2016" className="form-control"/>
-                                        <div className="mda-form-control-line"></div>
+                                        <div className="mda-form-control-line"/>
                                     </div>
                                 </div>
                             </div>
