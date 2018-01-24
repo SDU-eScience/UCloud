@@ -47,7 +47,7 @@ class RunApp extends React.Component {
 
         Cloud.post("/hpc/jobs", job).then(jobStatus => {
             if (jobStatus.status === "STARTED") {
-                this.props.router.push("/apps/analyses", { params: 5555 });
+                this.props.router.push("/analyses");
             } else {
                 swal("And error occurred. Please try again later.");
             }
