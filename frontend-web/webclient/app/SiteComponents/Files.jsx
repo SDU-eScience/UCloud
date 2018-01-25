@@ -2,7 +2,7 @@ import React from 'react';
 import LoadingIcon from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
-import {Button} from 'react-bootstrap';
+import {Button, Table} from 'react-bootstrap';
 import {
     buildBreadCrumbs,
     sortFilesByTypeAndName,
@@ -391,7 +391,7 @@ function FilesTable(props) {
     return (
         <div className="card">
             <div className="card-body">
-                <table className="table-datatable table table-hover mv-lg">
+                <Table responsive className="table table-hover mv-lg">
                     <thead>
                     <tr>
                         <th className="select-cell disabled"><label className="mda-checkbox">
@@ -411,7 +411,7 @@ function FilesTable(props) {
                     <FilesList files={props.files} favourite={props.favourite}
                                selectedFiles={props.selectedFiles}
                                addOrRemoveFile={props.addOrRemoveFile}/>
-                </table>
+                </Table>
             </div>
         </div>)
 }

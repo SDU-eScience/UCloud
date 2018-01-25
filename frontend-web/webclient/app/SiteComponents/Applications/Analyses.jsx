@@ -53,7 +53,7 @@ class Analyses extends React.Component {
                             <WebSocketSupport/>
                             {noAnalysis}
                             <div className="card-body">
-                                <Table className="table-datatable table table-hover mv-lg">
+                                <Table className="table table-hover mv-lg">
                                     <thead>
                                     <tr>
                                         <th>App Name</th>

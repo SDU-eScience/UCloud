@@ -148,7 +148,7 @@ function DashboardFavouriteFiles(props) {
                 </h5>
                 <LoadingIcon loading={props.isLoading}/>
                 {noFavourites}
-                <Table responsive className="table-datatable table table-hover mv-lg">
+                <Table responsive className="table table-hover mv-lg">
                     <thead>
                     <tr>
                         <th>File</th>
@@ -192,7 +192,7 @@ function DashboardRecentFiles(props) {
                 </h5>
                 <LoadingIcon loading={props.isLoading}/>
                 {noRecents}
-                <Table className="table-datatable table table-hover mv-lg">
+                <Table responsive className="table table-hover mv-lg">
                     <thead>
                     <tr>
                         <th>File</th>
@@ -229,7 +229,7 @@ function DashboardAnalyses(props) {
                 </h5>
                 <LoadingIcon loading={props.isLoading}/>
                 {noAnalyses}
-                <Table className="table-datatable table table-hover mv-lg">
+                <Table className="table table-hover mv-lg">
                     <thead>
                     <tr>
                         <th>Name</th>
@@ -273,7 +273,7 @@ function DashboardRecentActivity(props) {
                 <loading-icon loading={props.isLoading}/>
                 {noActivity}
                 <div>
-                    <Table className="table-datatable table table-hover mv-lg">
+                    <Table className="table table-hover mv-lg">
                         <tbody>
                         {activityList}
                         </tbody>

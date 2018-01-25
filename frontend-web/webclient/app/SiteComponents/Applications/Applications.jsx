@@ -40,7 +40,7 @@ class Applications extends React.Component {
                         <LoadingIcon loading={!this.state.applications.length}/>
                         <Card xs={6} sm={12}>
                             <div className="card-body">
-                                <Table className="table-datatable table table-hover mv-lg">
+                                <Table className="table table-hover mv-lg">
                                     <thead>
                                     <tr>
                                         <th>Visibility</th>

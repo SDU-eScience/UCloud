@@ -40,7 +40,7 @@ class Workflows extends React.Component {
                         <LoadingIcon loading={this.state.loading}/>
                         <Card xs={6} sm={12}>
                             <div className="card-body">
-                                <Table className="table-datatable table table-striped table-hover mv-lg">
+                                <Table className="table table-striped table-hover mv-lg">
                                     <thead>
                                     <tr>
                                         <th>Name</th>
