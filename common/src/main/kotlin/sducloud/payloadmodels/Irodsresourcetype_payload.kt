@@ -1,78 +1,50 @@
 package sducloud.payloadmodels
 
 sealed class IrodsresourcetypeCommand {
-    abstract val session: String // Common stuff
     abstract val jwt: String // Common stuff
 
-    data class Create(
-            override val session: String,
-            override val jwt: String,
-            val appSourceLanguageText: String
-    ) : IrodsresourcetypeCommand()
-
-    data class Update(
-            override val session: String,
-            override val jwt: String,
-            val id: Int,
-            val appSourceLanguageText: String
-    ) : IrodsresourcetypeCommand()
-
-    data class Delete(
-            override val session: String,
-            override val jwt: String,
-            val id: Int
-    ) : IrodsresourcetypeCommand()
-
     data class SetActive(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : IrodsresourcetypeCommand()
 
     data class SetInActive(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : IrodsresourcetypeCommand()
 
     data class GetById(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : IrodsresourcetypeCommand()
 
 
     data class GetAllList(
-            override val session: String,
             override val jwt: String
     ) : IrodsresourcetypeCommand()
 
     data class GetAllActiveList(
-            override val session: String,
             override val jwt: String
     ) : IrodsresourcetypeCommand()
 
 
     data class GetAllInActiveList(
-            override val session: String,
             override val jwt: String
     ) : IrodsresourcetypeCommand()
 
 
     data class GetByName(
-            override val session: String,
             override val jwt: String,
             val appSourceLanguageText: String
     ) : IrodsresourcetypeCommand()
 }
 
 enum class IrodsresourcetypeUiCommand {
-    create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList, getByName
+    setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList, getByName
 }
 
 
-data class Irodsresourcetype_payload(val session: String,
-                                     val jwt: String,
+data class Irodsresourcetype_payload(val jwt: String,
                                      val command: IrodsresourcetypeUiCommand,
                                      val id: Int = 0,
                                      val irodsresourcetypetext: String,

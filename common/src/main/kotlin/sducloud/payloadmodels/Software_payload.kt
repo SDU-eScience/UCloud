@@ -1,66 +1,66 @@
 package sducloud.payloadmodels
 
 sealed class SoftwareCommand {
-    abstract val session: String // Common stuff
+
     abstract val jwt: String // Common stuff
 
     data class Create(
-            override val session: String,
+
             override val jwt: String,
             val appSourceLanguageText: String
     ) : SoftwareCommand()
 
     data class Update(
-            override val session: String,
+
             override val jwt: String,
             val id: Int,
             val appSourceLanguageText: String
     ) : SoftwareCommand()
 
     data class Delete(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : SoftwareCommand()
 
     data class SetActive(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : SoftwareCommand()
 
     data class SetInActive(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : SoftwareCommand()
 
     data class GetById(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : SoftwareCommand()
 
 
     data class GetAllList(
-            override val session: String,
+
             override val jwt: String
     ) : SoftwareCommand()
 
     data class GetAllActiveList(
-            override val session: String,
+
             override val jwt: String
     ) : SoftwareCommand()
 
 
     data class GetAllInActiveList(
-            override val session: String,
+
             override val jwt: String
     ) : SoftwareCommand()
 
 
     data class GetByName(
-            override val session: String,
+
             override val jwt: String,
             val appSourceLanguageText: String
     ) : SoftwareCommand()

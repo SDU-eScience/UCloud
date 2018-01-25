@@ -1,66 +1,55 @@
 package sducloud.payloadmodels
 
 sealed class AppSourceLanguageCommand {
-    abstract val session: String // Common stuff
     abstract val jwt: String // Common stuff
 
     data class Create(
-            override val session: String,
             override val jwt: String,
             val appSourceLanguageText: String
     ) : AppSourceLanguageCommand()
 
     data class Update(
-            override val session: String,
             override val jwt: String,
             val id: Int,
             val appSourceLanguageText: String
     ) : AppSourceLanguageCommand()
 
     data class Delete(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : AppSourceLanguageCommand()
 
     data class SetActive(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : AppSourceLanguageCommand()
 
     data class SetInActive(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : AppSourceLanguageCommand()
 
     data class GetById(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : AppSourceLanguageCommand()
 
 
     data class GetAllList(
-            override val session: String,
             override val jwt: String
             ) : AppSourceLanguageCommand()
 
     data class GetAllActiveList(
-            override val session: String,
             override val jwt: String
             ) : AppSourceLanguageCommand()
 
 
     data class GetAllInActiveList(
-            override val session: String,
             override val jwt: String
     ) : AppSourceLanguageCommand()
 
 
     data class GetByName(
-            override val session: String,
             override val jwt: String,
             val appSourceLanguageText: String
     ) : AppSourceLanguageCommand()

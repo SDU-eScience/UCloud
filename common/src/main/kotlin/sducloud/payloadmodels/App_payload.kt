@@ -2,86 +2,65 @@ package sducloud.payloadmodels
 
 
 sealed class AppCommand {
-    abstract val session: String // Common stuff
     abstract val jwt: String // Common stuff
 
     data class Create(
-            override val session: String,
             override val jwt: String,
             val appSourceLanguageText: String
     ) : AppCommand()
 
     data class Update(
-            override val session: String,
             override val jwt: String,
             val id: Int,
             val appSourceLanguageText: String
     ) : AppCommand()
 
     data class Delete(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : AppCommand()
 
     data class SetActive(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : AppCommand()
 
     data class SetInActive(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : AppCommand()
 
     data class GetById(
-            override val session: String,
             override val jwt: String,
             val id: Int
     ) : AppCommand()
 
 
     data class GetAllList(
-            override val session: String,
             override val jwt: String
     ) : AppCommand()
 
     data class GetAllActiveList(
-            override val session: String,
             override val jwt: String
     ) : AppCommand()
 
 
     data class GetAllInActiveList(
-            override val session: String,
             override val jwt: String
     ) : AppCommand()
 
 
     data class GetByName(
-            override val session: String,
             override val jwt: String,
             val appSourceLanguageText: String
     ) : AppCommand()
 }
 
-
-
-
-
-
-
-
-
-
 enum class AppUiCommand {
     create, update, delete, setActive, setInActive, getById, getAllList, getAllActiveList, getAllInActiveList, getByName
 }
 
-data class App_payload(val session: String,
-                       val jwt: String,
+data class App_payload(val jwt: String,
                        val command: AppUiCommand,
                        val id: Int = 0,
                        val apptext: String,

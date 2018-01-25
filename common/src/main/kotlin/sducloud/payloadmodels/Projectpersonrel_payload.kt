@@ -1,66 +1,66 @@
 package sducloud.payloadmodels
 
 sealed class ProjectpersonrelCommand {
-    abstract val session: String // Common stuff
+
     abstract val jwt: String // Common stuff
 
     data class Create(
-            override val session: String,
+
             override val jwt: String,
             val appSourceLanguageText: String
     ) : ProjectpersonrelCommand()
 
     data class Update(
-            override val session: String,
+
             override val jwt: String,
             val id: Int,
             val appSourceLanguageText: String
     ) : ProjectpersonrelCommand()
 
     data class Delete(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : ProjectpersonrelCommand()
 
     data class SetActive(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : ProjectpersonrelCommand()
 
     data class SetInActive(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : ProjectpersonrelCommand()
 
     data class GetById(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : ProjectpersonrelCommand()
 
 
     data class GetAllList(
-            override val session: String,
+
             override val jwt: String
     ) : ProjectpersonrelCommand()
 
     data class GetAllActiveList(
-            override val session: String,
+
             override val jwt: String
     ) : ProjectpersonrelCommand()
 
 
     data class GetAllInActiveList(
-            override val session: String,
+
             override val jwt: String
     ) : ProjectpersonrelCommand()
 
 
     data class GetByName(
-            override val session: String,
+
             override val jwt: String,
             val appSourceLanguageText: String
     ) : ProjectpersonrelCommand()

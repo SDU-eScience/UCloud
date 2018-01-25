@@ -1,66 +1,66 @@
 package sducloud.payloadmodels
 
 sealed class SubsystemcommandqueueCommand {
-    abstract val session: String // Common stuff
+
     abstract val jwt: String // Common stuff
 
     data class Create(
-            override val session: String,
+
             override val jwt: String,
             val appSourceLanguageText: String
     ) : SubsystemcommandqueueCommand()
 
     data class Update(
-            override val session: String,
+
             override val jwt: String,
             val id: Int,
             val appSourceLanguageText: String
     ) : SubsystemcommandqueueCommand()
 
     data class Delete(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : SubsystemcommandqueueCommand()
 
     data class SetActive(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : SubsystemcommandqueueCommand()
 
     data class SetInActive(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : SubsystemcommandqueueCommand()
 
     data class GetById(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : SubsystemcommandqueueCommand()
 
 
     data class GetAllList(
-            override val session: String,
+
             override val jwt: String
     ) : SubsystemcommandqueueCommand()
 
     data class GetAllActiveList(
-            override val session: String,
+
             override val jwt: String
     ) : SubsystemcommandqueueCommand()
 
 
     data class GetAllInActiveList(
-            override val session: String,
+
             override val jwt: String
     ) : SubsystemcommandqueueCommand()
 
 
     data class GetByName(
-            override val session: String,
+
             override val jwt: String,
             val appSourceLanguageText: String
     ) : SubsystemcommandqueueCommand()

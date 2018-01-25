@@ -1,66 +1,66 @@
 package sducloud.payloadmodels
 
 sealed class PersonappusermessagesubscriptiontyperelCommand {
-    abstract val session: String // Common stuff
+
     abstract val jwt: String // Common stuff
 
     data class Create(
-            override val session: String,
+
             override val jwt: String,
             val appSourceLanguageText: String
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
     data class Update(
-            override val session: String,
+
             override val jwt: String,
             val id: Int,
             val appSourceLanguageText: String
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
     data class Delete(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
     data class SetActive(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
     data class SetInActive(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
     data class GetById(
-            override val session: String,
+
             override val jwt: String,
             val id: Int
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
 
     data class GetAllList(
-            override val session: String,
+
             override val jwt: String
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
     data class GetAllActiveList(
-            override val session: String,
+
             override val jwt: String
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
 
     data class GetAllInActiveList(
-            override val session: String,
+
             override val jwt: String
     ) : PersonappusermessagesubscriptiontyperelCommand()
 
 
     data class GetByName(
-            override val session: String,
+
             override val jwt: String,
             val appSourceLanguageText: String
     ) : PersonappusermessagesubscriptiontyperelCommand()
