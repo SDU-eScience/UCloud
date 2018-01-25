@@ -26,7 +26,6 @@ class UserAuditing extends React.Component {
                     <option value="files">Files</option>
                 </select>
                 <Button>Search</Button>
-                <T/>
                 <ActivityCard/>
                 <ActivityEvents/>
             </section>
