@@ -1,7 +1,7 @@
 import React from 'react';
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
-import swal from "sweetalert";
+import swal from "sweetalert2";
 import {BallPulseLoading} from "../LoadingIcon"
 
 class RunApp extends React.Component {

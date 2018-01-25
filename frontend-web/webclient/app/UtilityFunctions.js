@@ -1,6 +1,7 @@
 import React from "react";
-import swal from "sweetalert";
-import { RightsMap } from "./DefaultObjects"
+import swal from "sweetalert2";
+import {RightsMap} from "./DefaultObjects"
+import {Cloud} from "../authentication/SDUCloudObject";
 
 function NotificationIcon(props) {
     if (props.type === "Complete") {
@@ -79,7 +80,7 @@ function sortFilesByTypeAndName(files, asc) {
 
 function sortFilesByOwner(files, asc) {
     let order = asc ? 1 : -1;
-    files.sort((a,b) => {
+    files.sort((a, b) => {
         return (a.acl.length - b.acl.length) * order;
     });
     return files;
@@ -87,6 +88,74 @@ function sortFilesByOwner(files, asc) {
 
 function favourite(file) {
     // TODO Favourite file based on URI (file.path.uri);
+}
+
+/*
+```    private val baseContext = "/api/acl"
+    val grantRights = kafkaDescription<GrantPermissions> {
+        prettyName = "aclGrantRights"
+        path { using(baseContext) }
+        method = HttpMethod.PUT
+        body { bindEntireRequestFromBody() }
+    }
+data class GrantPermissions(val toUser: String, val onFile: String, val rights: String)
+```
+
+[9:25 AM]
+```enum class TemporaryRight {
+    READ,
+    READ_WRITE,
+    OWN
+}
+data class GrantPermissions(val toUser: String, val onFile: String, val rights: TemporaryRight)```
+
+ */
+
+function shareFile(filePath) {
+    swal({
+        title: "Share file",
+        text: `Enter a username to share ${filePath.name} with.`,
+        input: "text",
+        confirmButtonText: "Next",
+        showCancelButton: true,
+        showCloseButton: true,
+        inputValidator: value => {
+            return !value && 'Please enter a username'
+        }
+    }).then(input => {
+        console.log(name);
+        swal({
+            title: "Please specify access level",
+            text: `The file ${filePath.name} is to be shared with ${input.value}.`,
+            input: "select",
+            showCancelButton: true,
+            showCloseButton: true,
+            inputOptions: {
+                "READ": "Read Access",
+                "READ_WRITE": "Read/Write Access",
+                //"OWN": "Own the file"
+            },
+        }).then(type => {
+            const body = {
+                toUser: input.value,
+                onFile: filePath.uri,
+                rights: type.value,
+            };
+            console.log(body);
+            Cloud.put("acl", {body: body}).then(response => {
+                switch (response.statusCode) {
+                    case 200: {
+                        swal("Success!", `The file has been shared with ${name}`, "success");
+                        break;
+                    }
+                    default: {
+                        swal("Error", "An error occurred when sharing the file", "error");
+                        break;
+                    }
+                }
+            })
+        });
+    });
 }
 
 function createFolder(currentPath) {
@@ -108,7 +177,6 @@ function createFolder(currentPath) {
             }
         }
     }).then(name => {
-        // TODO: Connect to backend.
     })
 }
 
@@ -122,4 +190,5 @@ export {
     sortFilesByModified,
     sortFilesByFavourite,
     sortFilesByOwner,
+    shareFile,
 }

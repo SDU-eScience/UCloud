@@ -431,8 +431,8 @@ function FilesList(props) {
     );
     return (
         <tbody>
-        {directoryList}
-        {filesList}
+            {directoryList}
+            {filesList}
         </tbody>
     )
 }
@@ -507,7 +507,7 @@ function MobileButtons(props) {
                     <li><a className="btn btn-info ripple btn-block"
                            onClick={Files.sendToAbacus()}> Send to Abacus 2.0</a></li>
                     <li><a className="btn btn-default ripple btn-block ion-share"
-                           onClick={shareFile(file.path.name, 'file')}> Share file</a></li>
+                           onClick={() => shareFile(file.path)}> Share file</a></li>
                     <li><a
                         className="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
                     <li><a className="btn btn-default ripple ion-ios-photos"> Move file</a></li>
