@@ -1,5 +1,5 @@
 import React from 'react';
-import LoadingIcon from '../LoadingIcon';
+import { BallPulseLoading } from '../LoadingIcon';
 import {Link} from 'react-router';
 import "../../components/Tables/Datatable.scss";
 
@@ -37,7 +37,7 @@ class Applications extends React.Component {
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <LoadingIcon loading={!this.state.applications.length}/>
+                        <BallPulseLoading loading={!this.state.applications.length}/>
                         <Card xs={6} sm={12}>
                             <div className="card-body">
                                 <Table className="table table-hover mv-lg">

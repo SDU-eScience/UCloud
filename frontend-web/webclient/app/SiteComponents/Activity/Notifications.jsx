@@ -1,5 +1,5 @@
 import React from 'react';
-import LoadingIcon from '../LoadingIcon'
+import {BallPulseLoading} from '../LoadingIcon'
 import {NotificationIcon, WebSocketSupport} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
 import {Table} from 'react-bootstrap';
@@ -94,7 +94,7 @@ class Notifications extends React.Component {
         return (
             <section>
                 <div className="container container-md">
-                    <LoadingIcon loading={this.state.loading}/>
+                    <BallPulseLoading loading={this.state.loading}/>
                     <WebSocketSupport/>
                     <p className="ph">Last 24 hours</p>
                     <div className="card">

@@ -1,5 +1,5 @@
 import React from 'react';
-import LoadingIcon from './LoadingIcon';
+import {BallPulseLoading} from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button, Table} from 'react-bootstrap';
@@ -10,6 +10,7 @@ import {
     sortFilesByModified,
     sortFilesByFavourite,
     sortFilesByOwner,
+    shareFile,
 } from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
@@ -109,10 +110,6 @@ class Files extends React.Component {
 
     static sendToAbacus() {
         // console.log("Send to Abacus TODO!")
-    }
-
-    static shareFile() {
-        // console.log("Share file")
     }
 
     static renameFile() {
@@ -248,7 +245,7 @@ class Files extends React.Component {
                                     getFavourites={() => this.getFavourites} favourite={() => this.favourite}
                                     addOrRemoveFile={this.addOrRemoveFile} sortFiles={this.sortFilesBy}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
-                        <LoadingIcon loading={this.state.loading}/>
+                        <BallPulseLoading loading={this.state.loading}/>
                         <PaginationButtons
                             currentPage={this.state.currentPage}
                             totalPages={this.state.totalPages}
@@ -334,16 +331,14 @@ function FileOptions(props) {
     }
     let rights = Files.getCurrentRights(props.selectedFiles);
     const fileText = props.selectedFiles.length > 1 ? `${props.selectedFiles.length} files selected.` : props.selectedFiles[0].path.name;
-    const rightsLevel = (<RightsLevel rights={rights} fileText={fileText}/>);
+    const files = (<RightsLevel rights={rights} fileText={fileText}/>);
     return (
         <div>
-            {rightsLevel}
             <p>
-                <button type="button" className="btn btn-default ripple btn-block"
-                        onClick={Files.shareFile(props.selectedFiles[0].path.name, 'folder')}><span
-                    className="ion-share pull-left"/> Share selected
-                    files
-                </button>
+                <Button type="button" className="btn btn-default ripple btn-block"
+                        onClick={() => shareFile(props.selectedFiles[0].path)}><span
+                    className="ion-share pull-left"/> Share selected file
+                </Button>
             </p>
             <p>
                 <Button className="btn btn-default ripple btn-block">
@@ -512,7 +507,7 @@ function MobileButtons(props) {
                     <li><a className="btn btn-info ripple btn-block"
                            onClick={Files.sendToAbacus()}> Send to Abacus 2.0</a></li>
                     <li><a className="btn btn-default ripple btn-block ion-share"
-                           onClick={Files.shareFile(file.path.name, 'file')}> Share file</a></li>
+                           onClick={shareFile(file.path.name, 'file')}> Share file</a></li>
                     <li><a
                         className="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
                     <li><a className="btn btn-default ripple ion-ios-photos"> Move file</a></li>

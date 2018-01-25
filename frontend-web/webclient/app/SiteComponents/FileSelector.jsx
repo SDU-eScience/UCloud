@@ -1,5 +1,5 @@
 import React from 'react';
-import LoadingIcon from './LoadingIcon';
+import { BallPulseLoading } from './LoadingIcon';
 import {Modal, Button} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {buildBreadCrumbs, sortFilesByTypeAndName} from "../UtilityFunctions";
@@ -74,7 +74,7 @@ class FileSelector extends React.Component {
                         <Modal.Title>File selector</Modal.Title>
                     </Modal.Header>
                     <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
-                    <LoadingIcon loading={this.state.loading}/>
+                    <BallPulseLoading loading={this.state.loading}/>
                     <FileSelectorBody loading={this.state.loading} onClick={(file) => this.setSelectedFile(file)}
                                       files={this.state.files} getFiles={this.getFiles}/>
                 </Modal>

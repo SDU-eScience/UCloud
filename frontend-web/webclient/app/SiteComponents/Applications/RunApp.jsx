@@ -2,6 +2,7 @@ import React from 'react';
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert";
+import {BallPulseLoading} from "../LoadingIcon"
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -112,6 +113,7 @@ class RunApp extends React.Component {
                 <div className="container-fluid">
                     <div className="card">
                         <div className="card-body">
+                            <BallPulseLoading loading={this.state.loading}/>
                             <ApplicationHeader name={this.state.appName} version={this.state.appVersion}
                                                description={this.state.appDescription} author={this.state.appAuthor}/>
                             <hr/>

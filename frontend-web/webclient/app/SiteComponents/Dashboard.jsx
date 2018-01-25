@@ -1,6 +1,6 @@
 import $ from 'jquery'
 import React from 'react'
-import LoadingIcon from './LoadingIcon'
+import { BallPulseLoading } from './LoadingIcon'
 import {NotificationIcon} from "./../UtilityFunctions";
 import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
@@ -146,7 +146,7 @@ function DashboardFavouriteFiles(props) {
                 <h5 className="card-heading pb0">
                     Favourite files
                 </h5>
-                <LoadingIcon loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading}/>
                 {noFavourites}
                 <Table responsive className="table table-hover mv-lg">
                     <thead>
@@ -190,7 +190,7 @@ function DashboardRecentFiles(props) {
                 <h5 className="card-heading pb0">
                     Recently used files
                 </h5>
-                <LoadingIcon loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading}/>
                 {noRecents}
                 <Table responsive className="table table-hover mv-lg">
                     <thead>
@@ -227,7 +227,7 @@ function DashboardAnalyses(props) {
                 <h5 className="card-heading pb0">
                     Recent Analyses
                 </h5>
-                <LoadingIcon loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading}/>
                 {noAnalyses}
                 <Table className="table table-hover mv-lg">
                     <thead>
@@ -270,7 +270,7 @@ function DashboardRecentActivity(props) {
                 <h5 className="card-heading pb0">
                     Activity
                 </h5>
-                <loading-icon loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading}/>
                 {noActivity}
                 <div>
                     <Table className="table table-hover mv-lg">

@@ -1,5 +1,5 @@
 import React from 'react';
-import LoadingIcon from '../LoadingIcon'
+import { BallPulseLoading } from '../LoadingIcon'
 import {WebSocketSupport} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
@@ -48,7 +48,7 @@ class Analyses extends React.Component {
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <LoadingIcon loading={this.state.loading}/>
+                        <BallPulseLoading loading={this.state.loading}/>
                         <Card xs={6} sm={12}>
                             <WebSocketSupport/>
                             {noAnalysis}
