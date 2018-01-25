@@ -11,6 +11,7 @@ import {
     sortFilesByFavourite,
     sortFilesByOwner,
     shareFile,
+    getOwnerFromAcls,
 } from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
@@ -330,12 +331,23 @@ function FileOptions(props) {
         return null;
     }
     let rights = Files.getCurrentRights(props.selectedFiles);
-    const fileText = props.selectedFiles.length > 1 ? `${props.selectedFiles.length} files selected.` : props.selectedFiles[0].path.name;
-    const files = (<RightsLevel rights={rights} fileText={fileText}/>);
+    let fileText = "";
+    if (props.selectedFiles.length > 1) {
+        fileText = `${props.selectedFiles.length} files selected.`;
+    } else {
+        let filename = props.selectedFiles[0].path.name;
+        if (filename.length > 10) {
+            fileText = filename.slice(0, 17) + "...";
+        } else {
+            fileText = filename;
+        }
+    }
     return (
         <div>
+            <h3>{fileText}</h3>
             <p>
                 <Button type="button" className="btn btn-default ripple btn-block"
+                        disabled={props.selectedFiles.length > 1}
                         onClick={() => shareFile(props.selectedFiles[0].path)}><span
                     className="ion-share pull-left"/> Share selected file
                 </Button>
@@ -347,26 +359,26 @@ function FileOptions(props) {
                 </Button>
             </p>
             <p>
-                <button type="button" className="btn btn-default btn-block ripple">
+                <Button type="button" className="btn btn-default btn-block ripple">
                     <span className="ion-android-star pull-left"/>
                     Favourite selected files
-                </button>
+                </Button>
             </p>
             <p>
-                <button type="button" className="btn btn-default btn-block ripple"
+                <Button type="button" className="btn btn-default btn-block ripple"
                         onClick={Files.renameFile(props.selectedFiles[0].path.name, 'folder')}
                         disabled={rights.rightsLevel < 3 || props.selectedFiles.length !== 1}>
                     <span className="ion-ios-compose pull-left"/>
                     Rename file
-                </button>
+                </Button>
             </p>
             <p>
-                <button className="btn btn-danger btn-block ripple"
+                <Button className="btn btn-danger btn-block ripple"
                         disabled={rights.rightsLevel < 3}
                         onClick={Files.showFileDeletionPrompt(props.selectedFiles[0].path, props.selectedFiles.length)}>
                     <em className="ion-ios-trash pull-left"/>
                     Delete selected files
-                </button>
+                </Button>
             </p>
         </div>
     )
@@ -394,12 +406,15 @@ function FilesTable(props) {
                                    checked={props.masterCheckbox}
                                    type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e.target.checked)}/><em
                             className="bg-info"/></label></th>
-                        <th onClick={() => props.sortFiles("typeAndName")}><span className="text-left">Filename<span className={"pull-right " + props.sortingIcon("typeAndName")}/></span>
+                        <th onClick={() => props.sortFiles("typeAndName")}><span className="text-left">Filename<span
+                            className={"pull-right " + props.sortingIcon("typeAndName")}/></span>
                         </th>
-                        <th onClick={() => props.sortFiles("favourite")}><span><em className="ion-star"/><span className={"pull-right " + props.sortingIcon("favourite")}/></span></th>
+                        <th onClick={() => props.sortFiles("favourite")}><span><em className="ion-star"/><span
+                            className={"pull-right " + props.sortingIcon("favourite")}/></span></th>
                         <th onClick={() => props.sortFiles("modifiedAt")}><span className="text-left">Last Modified<span
                             className={"pull-right " + props.sortingIcon("modifiedAt")}/></span></th>
-                        <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Owner<span className={"pull-right " + props.sortingIcon("owner")}/></span>
+                        <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Owner<span
+                            className={"pull-right " + props.sortingIcon("owner")}/></span>
                         </th>
                     </tr>
                     </thead>
@@ -409,14 +424,6 @@ function FilesTable(props) {
                 </Table>
             </div>
         </div>)
-}
-
-function RightsLevel(props) {
-    return (
-        <h3>
-            {`Rights level: ${props.rights.rightsName}`}<br/>
-            {props.fileText}
-        </h3>);
 }
 
 function FilesList(props) {
@@ -431,14 +438,15 @@ function FilesList(props) {
     );
     return (
         <tbody>
-            {directoryList}
-            {filesList}
+        {directoryList}
+        {filesList}
         </tbody>
     )
 }
 
 function File(props) {
     let file = props.file;
+    let owner = getOwnerFromAcls(file.acl);
     return (
         <tr className="row-settings clickable-row">
             <td className="select-cell"><label className="mda-checkbox">
@@ -448,7 +456,7 @@ function File(props) {
             <FileType type={file.type} path={file.path}/>
             <Favourited file={file} favourite={props.favourite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-            <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
+            <td>{owner}</td>
             <td>
                 <MobileButtons file={file}/>
             </td>
@@ -457,6 +465,7 @@ function File(props) {
 
 function Directory(props) {
     let file = props.file;
+    let owner = getOwnerFromAcls(file.acl);
     return (
         <tr className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
@@ -467,7 +476,7 @@ function Directory(props) {
             <FileType type={file.type} path={file.path}/>
             <Favourited file={file} favourite={props.favourite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-            <td>{file.acl.length > 1 ? file.acl.length + " collaborators" : file.acl[0].right}</td>
+            <td>{owner}</td>
             <td>
                 <MobileButtons file={file}/>
             </td>
