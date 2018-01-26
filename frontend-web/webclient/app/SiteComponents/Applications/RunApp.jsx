@@ -1,4 +1,5 @@
 import React from 'react';
+import {} from 'react-bootstrap';
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -15,10 +16,12 @@ class RunApp extends React.Component {
             appAuthor: "",
             parameters: null,
             parameterValues: {},
+            comment: "",
         };
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
         this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
+        this.onCommentChange = this.onCommentChange.bind(this);
     };
 
     componentDidMount() {
@@ -34,6 +37,7 @@ class RunApp extends React.Component {
             },
             parameters: Object.assign({}, this.state.parameterValues),
             type: "start",
+            comment: this.state.comment.slice(),
         };
 
         // FIXME HACK
@@ -90,6 +94,13 @@ class RunApp extends React.Component {
         });
     }
 
+    onCommentChange(comment) {
+        console.log(comment);
+        this.setState(() => ({
+            comment: comment,
+        }));
+    }
+
     getApplication() {
         this.setState(() => ({
             loading: true
@@ -118,8 +129,9 @@ class RunApp extends React.Component {
                                                description={this.state.appDescription} author={this.state.appAuthor}/>
                             <hr/>
                             <Parameters parameters={this.state.parameters} handleSubmit={this.handleSubmit}
-                                        onChange={this.handleInputChange}
-                                        onFileSelectionChange={this.handleFileSelectorChange}/>
+                                        onChange={this.handleInputChange} comment={this.state.comment}
+                                        onFileSelectionChange={this.handleFileSelectorChange}
+                                        onCommentChange={this.onCommentChange}/>
                         </div>
                     </div>
                 </div>
@@ -149,16 +161,29 @@ function Parameters(props) {
     return (
         <form onSubmit={props.handleSubmit} className="form-horizontal">
             {parametersList}
+            <fieldset><CommentField onCommentChange={props.onCommentChange} comment={props.comment}/></fieldset>
             <input value="Submit" className="btn btn-info" type="submit"/>
         </form>
     )
 
 }
 
+function CommentField(props) {
+    return (
+        <div className="form-group">
+            <label className="col-sm-2 control-label">Comment</label>
+            <div className="col-md-4">
+            <textarea required style={{resize: "none"}} placeholder="Add a comment about this job..."
+                      className="col-md-4 form-control" rows="5" onChange={e => props.onCommentChange(e.target.value)}/>
+            </div>
+        </div>);
+}
+
 // Types: input, output, int, float, string
 function Parameter(props) {
     if (props.parameter.type === "input_file") {
-        return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}/></fieldset>);
+        return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange}
+                                              parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "output_file") {
         return null; // parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
