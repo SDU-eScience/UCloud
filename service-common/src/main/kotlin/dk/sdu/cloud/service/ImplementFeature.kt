@@ -36,8 +36,11 @@ object RESTServerSupport {
 private var didComplainAboutMissingKafkaLogger = false
 
 fun <P : Any, S : Any, E : Any> Route.implement(
-    restCall: RESTCallDescription<P, S, E>,
-    handler: suspend RESTHandler<P, S, E>.(P) -> Unit
+        restCall: RESTCallDescription<P, S, E>,
+        logPayload: Boolean = true,
+        logResponse: Boolean = true,
+        payloadTransformerForLog: (P) -> Any = { it },
+        handler: suspend RESTHandler<P, S, E>.(P) -> Unit
 ) {
     val template = restCall.path.toKtorTemplate(fullyQualified = false)
     route(template) {
@@ -61,11 +64,10 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     didComplainAboutMissingKafkaLogger = true
                 }
             } else {
-                val stream = restCall.loggingStream()
-                if (stream != null) {
-                    val kafkaProducer = logger.kafka.producer.forStream(stream)
+                val fullName = restCall.fullName
+                if (fullName != null) {
                     install(KafkaHttpRouteLogger) {
-                        producer = kafkaProducer
+                        requestName = fullName
                     }
                 }
             }
@@ -109,13 +111,13 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     // TODO We need to handle this case for params too. That is, if the entire thing is bound
                     if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
                         val constructor =
-                            restCall.requestType.primaryConstructor ?: restCall.requestType.constructors.single()
+                                restCall.requestType.primaryConstructor ?: restCall.requestType.constructors.single()
 
                         val resolvedArguments = constructor.parameters.map {
                             val name = it.name ?: run {
                                 throw IllegalStateException(
-                                    "Unable to determine name of property in request " +
-                                            "type. Please use a data class instead to solve this problem."
+                                        "Unable to determine name of property in request " +
+                                                "type. Please use a data class instead to solve this problem."
                                 )
                             }
 
@@ -158,8 +160,13 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     }
                 }
 
+                if (logPayload) {
+                    val transformedPayload = payloadTransformerForLog(payload)
+                    call.attributes.put(KafkaHttpRouteLogger.requestPayloadToLogKey, transformedPayload)
+                }
+
                 // Call the handler with the payload
-                RESTHandler<P, S, E>(this).handler(payload)
+                RESTHandler<P, S, E>(this, logResponse).handler(payload)
             }
         }
     }
@@ -198,17 +205,26 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): P
     }
 }
 
-class RESTHandler<P : Any, in S : Any, in E : Any>(val boundTo: PipelineContext<*, ApplicationCall>) {
+class RESTHandler<P : Any, in S : Any, in E : Any>(
+        val boundTo: PipelineContext<*, ApplicationCall>,
+        val shouldLogResponse: Boolean = true
+) {
     val call: ApplicationCall get() = boundTo.call
     val application: Application get() = boundTo.application
 
     suspend fun ok(result: S, status: HttpStatusCode = HttpStatusCode.OK) {
         assert(status.value in 200..299)
+        if (shouldLogResponse) {
+            call.attributes.put(KafkaHttpRouteLogger.responsePayloadToLogKey, result)
+        }
         call.respond(status, result)
     }
 
     suspend fun error(error: E, status: HttpStatusCode) {
         assert(status.value !in 200..299)
+        if (shouldLogResponse) {
+            call.attributes.put(KafkaHttpRouteLogger.responsePayloadToLogKey, error)
+        }
         call.respond(status, error)
     }
 }

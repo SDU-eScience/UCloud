@@ -1,7 +1,6 @@
 package dk.sdu.cloud.transactions
 
 import com.github.zafarkhaja.semver.Version
-import dk.sdu.cloud.client.ProxyDescription
 import dk.sdu.cloud.service.*
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
@@ -23,7 +22,7 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.zookeeper.ZooKeeper
 import org.asynchttpclient.*
 import org.slf4j.LoggerFactory
-import stackTraceToString
+import dk.sdu.cloud.service.stackTraceToString
 import java.io.InputStream
 import java.net.URL
 import java.util.*
@@ -36,22 +35,22 @@ class RESTNoServiceAvailable : RESTProxyException("Gateway timeout", HttpStatusC
 private val httpClient = DefaultAsyncHttpClient()
 
 class RESTProxy(
-    private val targets: List<ServiceDefinition>,
-    private val zk: ZooKeeper,
-    private val kafkaProducer: KafkaProducer<String, String>
+        private val targets: List<ServiceDefinition>,
+        private val zk: ZooKeeper,
+        private val kafkaProducer: KafkaProducer<String, String>
 ) {
     private val random = Random()
 
     private val requestHeaderBlacklist = setOf(
-        "Job-Id",
-        "Host",
-        HttpHeaders.XForwardedFor
+            "Job-Id",
+            "Host",
+            HttpHeaders.XForwardedFor
     ).map { it.normalizeHeader() }.toSet()
 
     private val responseHeaderBlacklist = setOf(
-        HttpHeaders.Connection,
-        HttpHeaders.Server,
-        HttpHeaders.Date
+            HttpHeaders.Connection,
+            HttpHeaders.Server,
+            HttpHeaders.Date
     ).map { it.normalizeHeader() }.toSet()
 
     private fun String.normalizeHeader() = toUpperCase()
@@ -61,27 +60,23 @@ class RESTProxy(
     }
 
     fun configure(route: Route): Unit = with(route) {
+        val eventProducer = kafkaProducer.forStream(KafkaHttpLogger.httpLogsStream)
         targets.forEach { service ->
             service.restDescriptions.flatMap { it.descriptions }.filter { it.shouldProxyFromGateway }.forEach {
 
                 route(it.template) {
                     method(HttpMethod.parse(it.method.name())) {
-                        val streamDescription = (it as? ProxyDescription.FromDescription)?.description?.loggingStream()
-                        val eventProducer = streamDescription?.let { kafkaProducer.forStream(it) }
-
                         handle {
                             try {
                                 val jobId = UUID.randomUUID().toString()
                                 val (host, instance) = findService(service)
 
-                                if (eventProducer != null) {
-                                    val userAgent = call.request.userAgent() ?: "Unknown"
-                                    val origin = call.request.origin.remoteHost
+                                val userAgent = call.request.userAgent()
+                                val origin = call.request.origin.remoteHost
 
-                                    async {
-                                        eventProducer.emit(jobId, HttpProxyCallLogEntry(jobId, instance,
+                                async {
+                                    eventProducer.emit(jobId, HttpProxyCallLogEntry(jobId, instance,
                                             userAgent, origin))
-                                    }
                                 }
 
                                 call.proxyJobTo(jobId, host)
@@ -89,8 +84,8 @@ class RESTProxy(
                                 when (ex) {
                                     is RESTNoServiceAvailable -> {
                                         log.warn(
-                                            "Unable to proxy request to target service. Unable to find " +
-                                                    "any running service!"
+                                                "Unable to proxy request to target service. Unable to find " +
+                                                        "any running service!"
                                         )
                                         log.warn("Service is: ${service.manifest}")
                                     }
@@ -118,15 +113,15 @@ class RESTProxy(
         // TODO FIXME proxying using https
         val resolvedService = services[random.nextInt(services.size)]
         return Pair(URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}"),
-            resolvedService.instance)
+                resolvedService.instance)
     }
 
     private suspend fun ApplicationCall.proxyJobTo(
-        jobId: String,
-        host: URL,
-        endpoint: String = request.path(),
-        includeQueryString: Boolean = true,
-        proxyMethod: HttpMethod = request.httpMethod
+            jobId: String,
+            host: URL,
+            endpoint: String = request.path(),
+            includeQueryString: Boolean = true,
+            proxyMethod: HttpMethod = request.httpMethod
     ) {
         val queryString = if (includeQueryString) '?' + request.queryString() else ""
         val endpointUrl = URL(host, endpoint + queryString)
@@ -138,9 +133,9 @@ class RESTProxy(
         // This can cause some servers to (correctly) return 501 NOT IMPLEMENTED on certain HTTP methods. For example,
         // if the server has not implemented chunked transfer encoding for GET messages.
         val stream = if (
-            request.header(HttpHeaders.ContentLength) != null ||
-            request.header(HttpHeaders.TransferEncoding) != null
-        ) {
+        request.header(HttpHeaders.ContentLength) != null ||
+                request.header(HttpHeaders.TransferEncoding) != null
+                             ) {
             receiveOrNull<InputStream>()
         } else {
             null
@@ -163,17 +158,17 @@ class RESTProxy(
         }
 
         streamingHttp.retrieveStatusAndHeaders(
-            statusHandler = {
-                response.status(HttpStatusCode.fromValue(it))
-            },
+                statusHandler = {
+                    response.status(HttpStatusCode.fromValue(it))
+                },
 
-            headerHandler = { headers ->
-                headers.forEach {
-                    if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
-                        response.header(it.key, it.value)
+                headerHandler = { headers ->
+                    headers.forEach {
+                        if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
+                            response.header(it.key, it.value)
+                        }
                     }
                 }
-            }
         )
 
         respondDirectWrite {
@@ -187,8 +182,8 @@ class RESTProxy(
 internal typealias NettyHttpHeaders = io.netty.handler.codec.http.HttpHeaders
 
 class StreamingHttpRequest(
-    private val endpoint: String,
-    private val config: BoundRequestBuilder.() -> Unit
+        private val endpoint: String,
+        private val config: BoundRequestBuilder.() -> Unit
 ) {
     private var continuation: Continuation<Unit>? = null
     private var cachedThrowable: Throwable? = null
@@ -259,8 +254,8 @@ class StreamingHttpRequest(
     }
 
     suspend fun retrieveStatusAndHeaders(
-        statusHandler: (Int) -> Unit,
-        headerHandler: (NettyHttpHeaders) -> Unit
+            statusHandler: (Int) -> Unit,
+            headerHandler: (NettyHttpHeaders) -> Unit
     ): Unit = suspendCoroutine { continuation ->
         this.continuation = continuation
         this.statusHandler = statusHandler
@@ -271,7 +266,7 @@ class StreamingHttpRequest(
     }
 
     suspend fun retrieveBody(
-        bodyPartHandler: suspend (HttpResponseBodyPart) -> Unit
+            bodyPartHandler: suspend (HttpResponseBodyPart) -> Unit
     ): Unit = suspendCoroutine { continuation ->
         this.continuation = continuation
         this.bodyPartHandler = { runBlocking { bodyPartHandler(it) } }
