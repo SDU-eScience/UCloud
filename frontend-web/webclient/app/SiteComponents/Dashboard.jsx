@@ -1,7 +1,7 @@
 import $ from 'jquery'
 import React from 'react'
 import { BallPulseLoading } from './LoadingIcon'
-import {NotificationIcon} from "./../UtilityFunctions";
+import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
 import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
 import {Link} from 'react-router';
@@ -96,15 +96,6 @@ class Dashboard extends React.Component {
         });
     }
 
-    static getParentPath(path) {
-        let splitPath = path.split("/");
-        let parentPath = "";
-        for (let i = 0; i < splitPath.length - 1; i++) {
-            parentPath += splitPath[i] + "/";
-        }
-        return parentPath;
-    }
-
     render() {
         return (
             <section>
@@ -133,7 +124,7 @@ function DashboardFavouriteFiles(props) {
             } else {
                 return (
                     <tr key={file.path.uri}>
-                        <td><Link to={`files/${Dashboard.getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
+                        <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
                         <td><em className="ion-star"/></td>
                     </tr>)
             }
@@ -178,7 +169,7 @@ function DashboardRecentFiles(props) {
         } else {
             return (
                 <tr key={file.path.uri}>
-                    <td><Link to={`files/${Dashboard.getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
+                    <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
                     <td>{new Date(file.modifiedAt).toLocaleString()}</td>
                 </tr>)
         }

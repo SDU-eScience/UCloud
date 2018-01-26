@@ -36,9 +36,6 @@ import Utils from './components/Utils/Utils';
 import { Cloud } from "../authentication/SDUCloudObject";
 
 
-import Forms from "./components/Forms/Forms";
-
-
 Translate();
 
 $(() => {

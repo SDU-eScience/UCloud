@@ -12,6 +12,9 @@ import {
     sortFilesByOwner,
     shareFile,
     getOwnerFromAcls,
+    renameFile,
+    showFileDeletionPrompt,
+    sendToAbacus,
 } from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
@@ -108,19 +111,6 @@ class Files extends React.Component {
             }));
         }
     }
-
-    static sendToAbacus() {
-        // console.log("Send to Abacus TODO!")
-    }
-
-    static renameFile() {
-        // console.log("TODO");
-    }
-
-    static showFileDeletionPrompt() {
-
-    }
-
     static getCurrentRights(files) {
         let lowestPrivilegeOptions = RightsMap["OWN"];
         files.forEach((it) => {
@@ -366,7 +356,7 @@ function FileOptions(props) {
             </p>
             <p>
                 <Button type="button" className="btn btn-default btn-block ripple"
-                        onClick={Files.renameFile(props.selectedFiles[0].path.name, 'folder')}
+                        onClick={() => renameFile(props.selectedFiles[0].path)}
                         disabled={rights.rightsLevel < 3 || props.selectedFiles.length !== 1}>
                     <span className="ion-ios-compose pull-left"/>
                     Rename file
@@ -374,8 +364,8 @@ function FileOptions(props) {
             </p>
             <p>
                 <Button className="btn btn-danger btn-block ripple"
-                        disabled={rights.rightsLevel < 3}
-                        onClick={Files.showFileDeletionPrompt(props.selectedFiles[0].path, props.selectedFiles.length)}>
+                        disabled={rights.rightsLevel < 3 || props.selectedFiles.length > 1}
+                        onClick={() => showFileDeletionPrompt(props.selectedFiles[0].path)}>
                     <em className="ion-ios-trash pull-left"/>
                     Delete selected files
                 </Button>
@@ -514,16 +504,15 @@ function MobileButtons(props) {
                         aria-expanded="false"><em className="ion-android-more-vertical"/></button>
                 <ul role="menu" className="dropdown-menu md-dropdown-menu dropdown-menu-right">
                     <li><a className="btn btn-info ripple btn-block"
-                           onClick={Files.sendToAbacus()}> Send to Abacus 2.0</a></li>
+                           onClick={() => sendToAbacus()}> Send to Abacus 2.0</a></li>
                     <li><a className="btn btn-default ripple btn-block ion-share"
                            onClick={() => shareFile(file.path)}> Share file</a></li>
                     <li><a
                         className="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
-                    <li><a className="btn btn-default ripple ion-ios-photos"> Move file</a></li>
                     <li><a className="btn btn-default ripple ion-ios-compose"
-                           onClick={Files.renameFile(file.path.name, 'file')}> Rename file</a></li>
+                           onClick={() => renameFile(file.path)}> Rename file</a></li>
                     <li><a className="btn btn-danger ripple ion-ios-trash"
-                           onClick={Files.showFileDeletionPrompt(file.path)}> Delete file</a></li>
+                           onClick={() => showFileDeletionPrompt(file.path)}> Delete file</a></li>
                 </ul>
             </div>
         </span>)
