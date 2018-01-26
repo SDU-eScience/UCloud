@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.AppServiceDescription
 import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -12,12 +10,10 @@ import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.experimental.runBlocking
-import org.apache.kafka.clients.producer.KafkaProducer
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
-import java.io.File
 
 data class DatabaseConfiguration(
         val url: String,

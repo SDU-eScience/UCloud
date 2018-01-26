@@ -23,16 +23,16 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
-import stackTraceToString
+import dk.sdu.cloud.service.stackTraceToString
 import java.io.File
 import java.util.concurrent.TimeUnit
 
 class Server(
-    private val configuration: Configuration,
-    private val kafka: KafkaServices,
-    private val zk: ZooKeeper,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticator
+        private val configuration: Configuration,
+        private val kafka: KafkaServices,
+        private val zk: ZooKeeper,
+        private val ktor: HttpServerProvider,
+        private val cloud: RefreshingJWTAuthenticator
 ) {
     private lateinit var httpServer: ApplicationEngine
     private lateinit var kStreams: KafkaStreams
@@ -51,12 +51,12 @@ class Server(
         val transferState = TransferStateService()
         val icat = ICAT(configuration.database)
         val tus = TusController(
-            config = configuration.database,
-            rados = rados,
-            producer = kafka.producer.forStream(TusStreams.UploadEvents),
-            transferState = transferState,
-            icat = icat,
-            kafka = kafka
+                config = configuration.database,
+                rados = rados,
+                producer = kafka.producer.forStream(TusStreams.UploadEvents),
+                transferState = transferState,
+                icat = icat,
+                kafka = kafka
         )
         log.info("Core services constructed!")
 
@@ -66,9 +66,9 @@ class Server(
 
             log.info("Configuring stream processors...")
             UploadStateProcessor(
-                TusStreams.UploadEvents.stream(kBuilder),
-                transferState,
-                icat
+                    TusStreams.UploadEvents.stream(kBuilder),
+                    transferState,
+                    icat
             ).also { it.init() }
             log.info("Stream processors configured!")
 
@@ -86,7 +86,7 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
 
-            installDefaultFeatures(cloud, kafka, requireJobId = false)
+            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
             install(JWTProtection)
             install(CORS) {
                 anyHost()

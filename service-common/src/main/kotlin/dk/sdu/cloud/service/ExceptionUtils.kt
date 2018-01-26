@@ -1,3 +1,5 @@
+package dk.sdu.cloud.service
+
 import java.io.PrintWriter
 import java.io.StringWriter
 
