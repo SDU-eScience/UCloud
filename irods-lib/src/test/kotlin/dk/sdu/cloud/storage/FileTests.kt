@@ -21,6 +21,12 @@ abstract class AbstractFileTests {
     private val emptyDummyFile get() = Files.createTempFile("dummy", "file").toFile()
 
     @Test
+    fun testListHome() {
+        val path = userStorageConnection.paths.homeDirectory
+        userStorageConnection.fileQuery.listAt(path)
+    }
+
+    @Test
     fun testFilePutAndGetAdmin() {
         val path = adminStorageConnection.paths.homeDirectory.push("my-file.txt")
         val contents = "This is some contents"

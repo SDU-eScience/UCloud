@@ -90,14 +90,22 @@ enum class FileType {
     DIRECTORY
 }
 
-class StorageFile(
+data class StorageFile(
         val type: FileType,
         val path: StoragePath,
         val createdAt: Long,
         val modifiedAt: Long,
         val size: Int,
-        val acl: List<AccessEntry>
+        val acl: List<AccessEntry>,
+        val favorited: Boolean,
+        val sensitivityLevel: SensitivityLevel
 )
+
+enum class SensitivityLevel {
+    OPEN_ACCESS,
+    CONFIDENTIAL,
+    SENSITIVE
+}
 
 data class FileStat(
         val path: StoragePath,

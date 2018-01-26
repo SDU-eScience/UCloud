@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.client.SDUCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
@@ -64,7 +65,8 @@ fun main(args: Array<String>) {
         )
     }
 
-    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
+    //val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticator(SDUCloud("https://cloud.sdu.dk"), configuration.refreshToken)
     val adminAccount = run {
         val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
         storageService.createForAccount("_storage", currentAccessToken).orThrow()

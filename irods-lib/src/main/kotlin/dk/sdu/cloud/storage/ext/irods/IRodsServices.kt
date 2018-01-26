@@ -189,7 +189,7 @@ class IRodsFileOperations(
             val exception = status?.transferException
             if (exception != null) {
                 caughtException = exception
-                // This doesn't do what we want it to do. The client of this class will need to manually retrhwo the
+                // This doesn't do what we want it to do. The client of this class will need to manually rethrow the
                 // caught exception (hence why we save it here)
             }
             return TransferStatusCallbackListener.FileStatusCallbackResponse.CONTINUE
@@ -327,7 +327,7 @@ class IRodsFileQueryOperations(
                 }
             }
 
-            result.results.map {
+            result.results.forEach {
                 val pathToEntry = it.getColumn(COL_COLL_NAME.getName())
                 val row = mappedResults[pathToEntry] ?: StorageFile(
                         FileType.DIRECTORY,
@@ -335,7 +335,9 @@ class IRodsFileQueryOperations(
                         it.getColumnAsDateOrNull(COL_COLL_CREATE_TIME.getName())?.time ?: 0,
                         it.getColumnAsDateOrNull(COL_COLL_MODIFY_TIME.getName())?.time ?: 0,
                         0,
-                        arrayListOf()
+                        arrayListOf(),
+                        false,
+                        SensitivityLevel.CONFIDENTIAL
                 )
 
                 (row.acl as MutableList<AccessEntry>).add(AccessEntry(
@@ -375,7 +377,7 @@ class IRodsFileQueryOperations(
                 }
             }
 
-            result.results.map {
+            result.results.forEach {
                 val collectionName = it.getColumn(COL_COLL_NAME.getName())
                 val dataName = it.getColumn(COL_DATA_NAME.getName())
                 val pathToEntry = "$collectionName/$dataName"
@@ -387,7 +389,9 @@ class IRodsFileQueryOperations(
                                 it.getColumnAsDateOrNull(COL_D_CREATE_TIME.getName())?.time ?: 0,
                                 it.getColumnAsDateOrNull(COL_D_MODIFY_TIME.getName())?.time ?: 0,
                                 it.getColumnAsIntOrZero(COL_DATA_SIZE.getName()),
-                                arrayListOf()
+                                arrayListOf(),
+                                false,
+                                SensitivityLevel.CONFIDENTIAL
                         )
 
                 (row.acl as MutableList<AccessEntry>).add(AccessEntry(
@@ -397,6 +401,62 @@ class IRodsFileQueryOperations(
                         ),
                         mapAccessRight(it.getColumnAsIntOrZero(COL_DATA_ACCESS_TYPE.getName()))
                 ))
+
+                mappedResults[pathToEntry] = row
+            }
+        }
+
+        run {
+            val query = IRODSGenQueryBuilder(true, null).apply {
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_COLL_NAME)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_DATA_NAME)
+
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_META_DATA_ATTR_NAME)
+                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_META_DATA_ATTR_VALUE)
+
+                addConditionAsGenQueryField(RodsGenQueryEnum.COL_COLL_NAME, QueryConditionOperators.EQUAL,
+                        effectiveAbsolutePath)
+            }.exportIRODSQueryFromBuilder(1024 * 32)
+            val result = doTime("data query2") {
+                try {
+                    services.queryExecutor.executeIRODSQueryWithPaging(query, 0)
+                } catch (ex: JargonException) {
+                    return remapExceptionToResult(ex)
+                }
+            }
+
+            result.results.forEach {
+                val collectionName = it.getColumn(COL_COLL_NAME.getName())
+                val dataName = it.getColumn(COL_DATA_NAME.getName())
+                val pathToEntry = "$collectionName/$dataName"
+
+                var row = mappedResults[pathToEntry] ?: return@forEach
+
+                val name = it.getColumn(COL_META_DATA_ATTR_NAME.getName())
+                val value = it.getColumn(COL_META_DATA_ATTR_VALUE.getName())
+
+                when (name) {
+                    "sensitivity" -> {
+                        val level = try {
+                            SensitivityLevel.valueOf(value)
+                        } catch (_: Exception) {
+                            SensitivityLevel.CONFIDENTIAL
+                        }
+                        row = row.copy(sensitivityLevel = level)
+                    }
+
+                    "favorited" -> {
+                        val parsedValue = when (value) {
+                            "true" -> true
+                            "false" -> false
+                            else -> null
+                        }
+
+                        if (parsedValue != null) {
+                            row = row.copy(favorited = parsedValue)
+                        }
+                    }
+                }
 
                 mappedResults[pathToEntry] = row
             }
