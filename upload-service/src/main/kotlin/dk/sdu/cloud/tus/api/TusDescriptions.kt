@@ -123,5 +123,9 @@ object TusDescriptions : RESTDescriptions(TusServiceDescription) {
         return uploader
     }
 
+    init {
+        register("/api/tus/{id}", HttpMethod.OPTIONS) // Needed for CORS
+    }
+
     private val log = LoggerFactory.getLogger(TusDescriptions::class.java)
 }

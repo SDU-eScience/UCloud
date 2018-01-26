@@ -131,7 +131,9 @@ class TusController(
             }
 
             method(HttpMethod.Post) {
-                install(KafkaHttpRouteLogger)
+                TusDescriptions.create.fullName?.let { reqName ->
+                    install(KafkaHttpRouteLogger) { requestName = reqName }
+                }
 
                 handle {
                     logEntry(log, headerIncludeFilter = { it in TusHeaders.KnownHeaders })
