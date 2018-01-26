@@ -144,7 +144,7 @@ fun main(args: Array<String>) = runBlocking {
         }
     }
 
-    val reloadServer = embeddedServer(Netty, port = 8081) {
+    val reloadServer = embeddedServer(Netty, port = 8180) {
         routing {
             post("/reload") {
                 val incomingSecret = call.request.header("Reload-Secret") ?: run {
