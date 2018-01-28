@@ -41,7 +41,8 @@ class Dashboard extends React.Component {
             favouriteLoading: true,
         }));
         Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favourites => {
-            let subsetFavorites = sortFilesByTypeAndName(favourites.slice(0, 10));
+            let actualFavorites = favourites.filter(file => file.favorited);
+            let subsetFavorites = sortFilesByTypeAndName(actualFavorites.slice(0, 10));
             this.setState(() => ({
                 favouriteFiles: subsetFavorites,
                 favouriteLoading: false,

@@ -403,7 +403,7 @@ function FilesTable(props) {
                             className={"pull-right " + props.sortingIcon("favourite")}/></span></th>
                         <th onClick={() => props.sortFiles("modifiedAt")}><span className="text-left">Last Modified<span
                             className={"pull-right " + props.sortingIcon("modifiedAt")}/></span></th>
-                        <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Owner<span
+                        <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Rights<span
                             className={"pull-right " + props.sortingIcon("owner")}/></span>
                         </th>
                     </tr>
@@ -488,7 +488,8 @@ function FileType(props) {
 }
 
 function Favourited(props) {
-    if (props.file.isStarred) {
+    console.log(props.file);
+    if (props.file.favorited) {
         return (<td><a onClick={() => props.favourite(props.file)} className="ion-star"/></td>)
     }
     return (<td><a className="ion-ios-star-outline" onClick={() => props.favourite(props.file.path.uri)}/></td>);
