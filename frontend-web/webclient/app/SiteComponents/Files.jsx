@@ -70,6 +70,17 @@ class Files extends React.Component {
         this.handleOpen = this.handleOpen.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.getSortingIcon = this.getSortingIcon.bind(this);
+        this.favoriteFile = this.favoriteFile.bind(this);
+    }
+
+    favoriteFile(fileUri) {
+        let files = this.state.files.slice();
+        let index = files.findIndex(file => file.path.uri === fileUri);
+        files[index].favorited = !files[index].favorited;
+        // TODO: Send update to service
+        this.setState(() => ({
+            files: files
+        }));
     }
 
     getSortingIcon(name) {
@@ -111,6 +122,7 @@ class Files extends React.Component {
             }));
         }
     }
+
     static getCurrentRights(files) {
         let lowestPrivilegeOptions = RightsMap["OWN"];
         files.forEach((it) => {
@@ -233,7 +245,7 @@ class Files extends React.Component {
                         <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
                                     selectedFiles={this.state.selectedFiles}
                                     masterCheckbox={this.state.masterCheckbox} sortingIcon={this.getSortingIcon}
-                                    getFavourites={() => this.getFavourites} favourite={() => this.favourite}
+                                    getFavourites={() => this.getFavourites} favorite={this.favoriteFile}
                                     addOrRemoveFile={this.addOrRemoveFile} sortFiles={this.sortFilesBy}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         <BallPulseLoading loading={this.state.loading}/>
@@ -408,7 +420,7 @@ function FilesTable(props) {
                         </th>
                     </tr>
                     </thead>
-                    <FilesList files={props.files} favourite={props.favourite}
+                    <FilesList files={props.files} favorite={props.favorite}
                                selectedFiles={props.selectedFiles}
                                addOrRemoveFile={props.addOrRemoveFile}/>
                 </Table>
@@ -420,9 +432,9 @@ function FilesList(props) {
     let i = 0;
     let filesList = props.files.map(file => {
         if (file.type === "DIRECTORY") {
-            return <Directory key={i++} file={file} addOrRemoveFile={props.addOrRemoveFile} isChecked={file.isChecked}/>
+            return <Directory key={i++} file={file} addOrRemoveFile={props.addOrRemoveFile} favorite={props.favorite} isChecked={file.isChecked}/>
         } else {
-            return <File key={i++} file={file} isChecked={file.isChecked} addOrRemoveFile={props.addOrRemoveFile}/>
+            return <File key={i++} file={file} isChecked={file.isChecked} addOrRemoveFile={props.addOrRemoveFile} favorite={props.favorite}/>
         }
     });
     return (
@@ -442,7 +454,7 @@ function File(props) {
                        type="checkbox" onChange={(e) => props.addOrRemoveFile(e.target.checked, file)}/>
                 <em className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
-            <Favourited file={file} favourite={props.favourite}/>
+            <Favourited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
             <td>
@@ -462,7 +474,7 @@ function Directory(props) {
                        type="checkbox" onChange={(e) => props.addOrRemoveFile(e.target.checked, file)}/><em
                 className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
-            <Favourited file={file} favourite={props.favourite}/>
+            <Favourited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
             <td>
@@ -487,9 +499,9 @@ function FileType(props) {
 
 function Favourited(props) {
     if (props.file.favorited) {
-        return (<td><a onClick={() => props.favourite(props.file)} className="ion-star"/></td>)
+        return (<td><a onClick={() => props.favorite(props.file.path.uri)} className="ion-star"/></td>)
     }
-    return (<td><a className="ion-ios-star-outline" onClick={() => props.favourite(props.file.path.uri)}/></td>);
+    return (<td><a className="ion-ios-star-outline" onClick={() => props.favorite(props.file.path.uri)}/></td>);
 }
 
 function MobileButtons(props) {
