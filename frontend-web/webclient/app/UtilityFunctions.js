@@ -45,13 +45,7 @@ function buildBreadCrumbs(path) {
 function sortFilesByFavourite(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
-        if (a.isFavourite && b.isFavourite) {
-            return 0 * order;
-        } else if (a.isFavourite) {
-            return 1 * order;
-        } else {
-            return -1 * order;
-        }
+        return (a.favorited - b.favorited) * order
     });
     return files;
 }

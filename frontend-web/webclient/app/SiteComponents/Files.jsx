@@ -418,18 +418,16 @@ function FilesTable(props) {
 
 function FilesList(props) {
     let i = 0;
-    let directories = props.files.filter(it => it.type === "DIRECTORY");
-    let files = props.files.filter(it => it.type !== "DIRECTORY");
-    let directoryList = directories.map(file =>
-        <Directory key={i++} file={file} addOrRemoveFile={props.addOrRemoveFile} isChecked={file.isChecked}/>
-    );
-    let filesList = files.map(file =>
-        <File key={i++} file={file} isChecked={file.isChecked} addOrRemoveFile={props.addOrRemoveFile}/>
-    );
+    let filesList = props.files.map(file => {
+        if (file.type === "DIRECTORY") {
+            return <Directory key={i++} file={file} addOrRemoveFile={props.addOrRemoveFile} isChecked={file.isChecked}/>
+        } else {
+            return <File key={i++} file={file} isChecked={file.isChecked} addOrRemoveFile={props.addOrRemoveFile}/>
+        }
+    });
     return (
         <tbody>
-        {directoryList}
-        {filesList}
+            {filesList}
         </tbody>
     )
 }
@@ -488,7 +486,6 @@ function FileType(props) {
 }
 
 function Favourited(props) {
-    console.log(props.file);
     if (props.file.favorited) {
         return (<td><a onClick={() => props.favourite(props.file)} className="ion-star"/></td>)
     }

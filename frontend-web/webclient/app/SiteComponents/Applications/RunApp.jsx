@@ -1,5 +1,4 @@
 import React from 'react';
-import {} from 'react-bootstrap';
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";

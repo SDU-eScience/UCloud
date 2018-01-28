@@ -11,4 +11,10 @@ const RightsMap = {
     OWN: 3,
 };
 
+const SensitivityLevel = {
+    "OPEN_ACCESS": "Open Access",
+    "CONFIDENTIAL": "Confidential",
+    "SENSITIVE": "Sensitive",
+};
+
 export {DefaultStatus, RightsMap}
