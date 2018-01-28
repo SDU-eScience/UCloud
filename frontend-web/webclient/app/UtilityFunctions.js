@@ -1,6 +1,6 @@
 import React from "react";
 import swal from "sweetalert2";
-import {RightsMap} from "./DefaultObjects"
+import {RightsMap, SensitivityLevelMap} from "./DefaultObjects"
 import {Cloud} from "../authentication/SDUCloudObject";
 
 function NotificationIcon(props) {
@@ -76,6 +76,14 @@ function sortFilesByOwner(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.acl.length - b.acl.length) * order;
+    });
+    return files;
+}
+
+function sortFilesBySensitivity(files, asc) {
+    let order = asc ? 1 : -1;
+    files.sort((a, b) => {
+        return SensitivityLevelMap[a.sensitivityLevel] -  SensitivityLevelMap[b.sensitivityLevel] * order;
     });
     return files;
 }
@@ -214,6 +222,7 @@ export {
     sortFilesByModified,
     sortFilesByFavourite,
     sortFilesByOwner,
+    sortFilesBySensitivity,
     shareFile,
     getOwnerFromAcls,
     showFileDeletionPrompt,

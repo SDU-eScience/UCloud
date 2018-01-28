@@ -10,6 +10,7 @@ import {
     sortFilesByModified,
     sortFilesByFavourite,
     sortFilesByOwner,
+    sortFilesBySensitivity,
     shareFile,
     getOwnerFromAcls,
     renameFile,
@@ -18,7 +19,7 @@ import {
 } from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
-import {RightsMap} from "../DefaultObjects";
+import {RightsMap, SensitivityLevel} from "../DefaultObjects";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
 
@@ -40,6 +41,7 @@ class Files extends React.Component {
                 modifiedAt: sortFilesByModified,
                 favourite: sortFilesByFavourite,
                 owner: sortFilesByOwner,
+                sensitivity: sortFilesBySensitivity,
             },
             lastSorting: {
                 name: "files",
@@ -418,6 +420,9 @@ function FilesTable(props) {
                         <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Rights<span
                             className={"pull-right " + props.sortingIcon("owner")}/></span>
                         </th>
+                        <th onClick={() => props.sortFiles("sensitivity")}><span
+                            className="text-left">Sensitivity Level<span
+                            className={"pull-right " + props.sortingIcon("sensitivity")}/></span></th>
                     </tr>
                     </thead>
                     <FilesList files={props.files} favorite={props.favorite}
@@ -432,14 +437,16 @@ function FilesList(props) {
     let i = 0;
     let filesList = props.files.map(file => {
         if (file.type === "DIRECTORY") {
-            return <Directory key={i++} file={file} addOrRemoveFile={props.addOrRemoveFile} favorite={props.favorite} isChecked={file.isChecked}/>
+            return <Directory key={i++} file={file} addOrRemoveFile={props.addOrRemoveFile} favorite={props.favorite}
+                              isChecked={file.isChecked}/>
         } else {
-            return <File key={i++} file={file} isChecked={file.isChecked} addOrRemoveFile={props.addOrRemoveFile} favorite={props.favorite}/>
+            return <File key={i++} file={file} isChecked={file.isChecked} addOrRemoveFile={props.addOrRemoveFile}
+                         favorite={props.favorite}/>
         }
     });
     return (
         <tbody>
-            {filesList}
+        {filesList}
         </tbody>
     )
 }
@@ -457,6 +464,7 @@ function File(props) {
             <Favourited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
+            <td>{SensitivityLevel[file.sensitivityLevel]}</td>
             <td>
                 <MobileButtons file={file}/>
             </td>
@@ -477,6 +485,7 @@ function Directory(props) {
             <Favourited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
+            <td>{SensitivityLevel[file.sensitivityLevel]}</td>
             <td>
                 <MobileButtons file={file}/>
             </td>
