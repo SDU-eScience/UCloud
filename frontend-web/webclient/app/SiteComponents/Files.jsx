@@ -449,8 +449,8 @@ function FilesList(props) {
 }
 
 function File(props) {
-    let file = props.file;
-    let owner = getOwnerFromAcls(file.acl);
+    const file = props.file;
+    const owner = getOwnerFromAcls(file.acl);
     return (
         <tr className="row-settings clickable-row">
             <td className="select-cell"><label className="mda-checkbox">
@@ -469,8 +469,8 @@ function File(props) {
 }
 
 function Directory(props) {
-    let file = props.file;
-    let owner = getOwnerFromAcls(file.acl);
+    const file = props.file;
+    const owner = getOwnerFromAcls(file.acl);
     return (
         <tr className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
