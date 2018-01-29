@@ -21,7 +21,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val markAsFavorite = kafkaDescription<FavoriteCommand> {
+    val markAsFavorite = kafkaDescription<FavoriteCommand.Grant> {
         prettyName = "filesMarkAsFavorite"
         method = HttpMethod.POST
 
@@ -31,11 +31,11 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
 
         params {
-            +boundTo(FavoriteCommand::path)
+            +boundTo(FavoriteCommand.Grant::path)
         }
     }
 
-    val removeFavorite = kafkaDescription<FavoriteCommand> {
+    val removeFavorite = kafkaDescription<FavoriteCommand.Revoke> {
         prettyName = "filesRemoveAsFavorite"
         method = HttpMethod.DELETE
 
@@ -45,7 +45,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
 
         params {
-            +boundTo(FavoriteCommand::path)
+            +boundTo(FavoriteCommand.Revoke::path)
         }
     }
 

@@ -8,7 +8,6 @@ import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.model.MetadataEntry
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Predicate
-import org.irods.jargon.core.exception.JargonException
 import org.slf4j.LoggerFactory
 
 class FavoriteProcessor(
@@ -45,16 +44,24 @@ class FavoriteProcessor(
                         is FavoriteCommand.Grant -> {
                             account.metadata.updateMetadata(
                                 path,
-                                listOf(MetadataEntry(FAVORITE_KEY, "false")),
+                                listOf(MetadataEntry(FAVORITE_KEY, "true")),
                                 emptyList()
                             )
                         }
 
                         is FavoriteCommand.Revoke -> {
-                            account.metadata.updateMetadata(path, emptyList(), listOf(FAVORITE_KEY))
+                            // The iRODS API is truly strange.
+                            account.metadata.updateMetadata(
+                                path,
+                                emptyList(),
+                                listOf(
+                                    MetadataEntry(FAVORITE_KEY, "true"),
+                                    MetadataEntry(FAVORITE_KEY, "false")
+                                )
+                            )
                         }
                     }
-                } catch (ex: JargonException) {
+                } catch (ex: Exception) {
                     log.warn("Caught JargonException while updating favorites. Ignoring this exception...")
                     log.warn(ex.stackTraceToString())
                 }
