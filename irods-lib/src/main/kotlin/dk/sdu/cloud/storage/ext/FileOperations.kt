@@ -184,7 +184,7 @@ interface MetadataOperations {
     /**
      * Updates the metadata list for an object at [path]
      */
-    fun updateMetadata(path: StoragePath, newOrUpdatesAttributes: Metadata, attributesToDeleteIfExists: List<String>)
+    fun updateMetadata(path: StoragePath, newOrUpdatesAttributes: Metadata, attributesToDeleteIfExists: Metadata)
 
     /**
      * Removes all metadata associated with an object at [path]

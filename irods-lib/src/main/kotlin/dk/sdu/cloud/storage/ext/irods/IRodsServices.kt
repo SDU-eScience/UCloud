@@ -206,12 +206,19 @@ class IRodsMetadataOperations(
         override val services: AccountServices
 ) : MetadataOperations, IRodsOperationService {
     override fun updateMetadata(path: StoragePath, newOrUpdatesAttributes: Metadata,
-                                attributesToDeleteIfExists: List<String>) {
+                                attributesToDeleteIfExists: Metadata) {
         val absolutePath = path.toIRodsAbsolute()
-        services.dataObjects.addBulkAVUMetadataToDataObject(absolutePath,
-                newOrUpdatesAttributes.map { it.toIRods() }.toMutableList())
-        services.dataObjects.deleteBulkAVUMetadataFromDataObject(absolutePath,
-                attributesToDeleteIfExists.map { AvuData(it, "", "") }.toMutableList())
+        if (newOrUpdatesAttributes.isNotEmpty()) {
+            services.dataObjects.addBulkAVUMetadataToDataObject(absolutePath,
+                newOrUpdatesAttributes.map { it.toIRods() }.toMutableList()
+            )
+        }
+
+        if (attributesToDeleteIfExists.isNotEmpty()) {
+            services.dataObjects.deleteBulkAVUMetadataFromDataObject(absolutePath,
+                attributesToDeleteIfExists.map { it.toIRods() }.toMutableList()
+            )
+        }
     }
 
     override fun removeAllMetadata(path: StoragePath) {
