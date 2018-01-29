@@ -1,7 +1,8 @@
 import React from 'react';
 import pubsub from 'pubsub-js';
-import { Dropdown, MenuItem } from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
+import {Dropdown, MenuItem} from 'react-bootstrap';
+import {LinkContainer} from 'react-router-bootstrap';
+import { Cloud } from "../../../authentication/SDUCloudObject"
 
 import './Header.scss';
 import './HeaderMenuLinks.scss';
@@ -39,10 +40,12 @@ class Header extends React.Component {
             <header className="header-container">
                 <nav>
                     <ul className="visible-xs visible-sm">
-                        <li><a id="sidebar-toggler" href="#" className="menu-link menu-link-slide"><span><em/></span></a></li>
+                        <li><a id="sidebar-toggler" href="#"
+                               className="menu-link menu-link-slide"><span><em/></span></a></li>
                     </ul>
                     <ul className="hidden-xs">
-                        <li><a id="offcanvas-toggler" href="#" className="menu-link menu-link-slide"><span><em/></span></a></li>
+                        <li><a id="offcanvas-toggler" href="#" className="menu-link menu-link-slide"><span><em/></span></a>
+                        </li>
                     </ul>
                     <h2 className="header-title">{this.state.pageTitle}</h2>
 
@@ -52,13 +55,11 @@ class Header extends React.Component {
                         </li>
                         <Dropdown id="basic-nav-dropdown" pullRight componentClass="li">
                             <Dropdown.Toggle useAnchor noCaret className="has-badge ripple">
-                              <em className="ion-person"/>
-                              <sup className="badge bg-danger"/>
+                                <em className="ion-person"/>
+                                <sup className="badge bg-danger"/>
                             </Dropdown.Toggle>
-                            <Dropdown.Menu className="md-dropdown-menu" >
-                                <LinkContainer to="/login">
-                                    <MenuItem eventKey={3.3}><em className="ion-log-out icon-fw"/>Logout</MenuItem>
-                                </LinkContainer>
+                            <Dropdown.Menu className="md-dropdown-menu">
+                                <MenuItem onClick={() => {Cloud.logout()}}><em className="ion-log-out icon-fw"/>Logout</MenuItem>
                             </Dropdown.Menu>
                         </Dropdown>
                         <li>

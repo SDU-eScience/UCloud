@@ -194,6 +194,12 @@ export default class SDUCloud {
         }
     }
 
+    logout() {
+        window.localStorage.removeItem("accessToken");
+        window.localStorage.removeItem("refreshToken");
+        this.openBrowserLoginPage()
+    }
+
     static get storedAccessToken() {
         return window.localStorage.getItem("accessToken");
     }
