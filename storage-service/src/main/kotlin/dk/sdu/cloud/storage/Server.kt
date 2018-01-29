@@ -2,10 +2,12 @@ package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.storage.api.ACLStreams
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.http.IRodsController
+import dk.sdu.cloud.storage.processor.ACLProcessor
 import dk.sdu.cloud.storage.processor.UserProcessor
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -22,7 +24,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
-import dk.sdu.cloud.service.stackTraceToString
+import stackTraceToString
 import java.util.concurrent.TimeUnit
 
 class Server(
@@ -53,6 +55,7 @@ class Server(
 
             log.info("Configuring stream processors...")
             UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), adminAccount).init()
+            ACLProcessor(kBuilder.stream(ACLStreams.aclUpdates), storageService).init()
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {

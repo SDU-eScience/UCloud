@@ -3,6 +3,8 @@ package dk.sdu.cloud.storage.processor
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.storage.api.GrantPermissions
+import dk.sdu.cloud.storage.api.PermissionCommand
+import dk.sdu.cloud.storage.api.RemovePermissions
 import dk.sdu.cloud.storage.api.TemporaryRight
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.IRodsUser
@@ -13,7 +15,7 @@ import org.apache.kafka.streams.kstream.Predicate
 import org.slf4j.LoggerFactory
 
 class ACLProcessor(
-    private val commandStream: KStream<String, KafkaRequest<GrantPermissions>>,
+    private val commandStream: KStream<String, KafkaRequest<PermissionCommand>>,
     private val irods: StorageConnectionFactory
 ) {
     private val log = LoggerFactory.getLogger(UserProcessor::class.java)
@@ -35,27 +37,40 @@ class ACLProcessor(
             if (validated == null) {
                 log.info("Unauthenticated attempt at granting permissions: $command")
             } else {
-                log.info("Granting permissions: ${command.event}")
+                val event = command.event
                 val account =
                     irods.createForAccount(validated.subject, validated.token).capture() ?: return@foreach run {
                         log.warn("Unexpected result from iRODS")
                     }
+                val path = account.paths.parseAbsolute(event.onFile, true)
 
-                val path = account.paths.parseAbsolute(command.event.onFile, true)
-                val toEntity = IRodsUser.fromUsernameAndZone(command.event.toUser, account.connectedUser.zone)
-                val irodsPermission = when (command.event.rights) {
-                    TemporaryRight.READ -> AccessRight.READ
-                    TemporaryRight.READ_WRITE -> AccessRight.READ_WRITE
-                    TemporaryRight.OWN -> AccessRight.OWN
+                when (event) {
+                    is GrantPermissions -> {
+                        log.info("Granting permissions: $event")
+
+                        val toEntity = IRodsUser.fromUsernameAndZone(event.toUser, account.connectedUser.zone)
+                        val irodsPermission = when (event.rights) {
+                            TemporaryRight.READ -> AccessRight.READ
+                            TemporaryRight.READ_WRITE -> AccessRight.READ_WRITE
+                            TemporaryRight.OWN -> AccessRight.OWN
+                        }
+
+                        val accessEntry = AccessEntry(toEntity, irodsPermission)
+                        account.accessControl.updateACL(path, listOf(accessEntry), false)
+                        // TODO We need to communicate these results back to the user
+                    }
+
+                    is RemovePermissions -> {
+                        log.info("Removing permissions $event")
+                        val entity = IRodsUser.fromUsernameAndZone(event.fromUser, account.connectedUser.zone)
+                        val accessEntry = AccessEntry(entity, AccessRight.NONE)
+                        account.accessControl.updateACL(path, listOf(accessEntry), false)
+                        // TODO We need to communicate these results back to the user
+                    }
                 }
-
-                val accessEntry = AccessEntry(toEntity, irodsPermission)
-
-                account.accessControl.updateACL(path, )
             }
         }
 
         unauthenticated.foreach { _, event -> log.info("Unauthenticated attempt at granting permissions: $event") }
     }
-
 }

@@ -22,6 +22,15 @@ object ACLDescriptions : RESTDescriptions(StorageServiceDescription) {
         method = HttpMethod.PUT
         body { bindEntireRequestFromBody() }
     }
+
+    val revokeRights = kafkaDescription<RemovePermissions> {
+        prettyName = "aclRevokeRights"
+        path { using(baseContext) }
+        method = HttpMethod.DELETE
+        body { bindEntireRequestFromBody() }
+    }
+
+    val aclUpdateBundle = listOf(grantRights, revokeRights)
 }
 
 // TODO Temporary
@@ -32,4 +41,17 @@ enum class TemporaryRight {
 }
 
 // TODO Temporary
-data class GrantPermissions(val toUser: String, val onFile: String, val rights: TemporaryRight)
+sealed class PermissionCommand {
+    abstract val onFile: String
+}
+
+data class GrantPermissions(
+    val toUser: String,
+    override val onFile: String,
+    val rights: TemporaryRight
+) : PermissionCommand()
+
+data class RemovePermissions(
+    val fromUser: String,
+    override val onFile: String
+) : PermissionCommand()
