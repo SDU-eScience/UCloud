@@ -81,6 +81,13 @@ export default class SDUCloud {
     }
 
     /**
+     * Calls with the PATCH HTTP method. See call(method, path, body)
+     */
+    patch(path, body) {
+        return this.call("PATCH", path, body);
+    }
+
+    /**
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
     options(path, body) {

@@ -18,7 +18,7 @@ import dk.sdu.cloud.storage.ext.StorageException
 import dk.sdu.cloud.storage.model.FileStat
 import dk.sdu.cloud.storage.model.StoragePath
 import org.slf4j.LoggerFactory
-import stackTraceToString
+import dk.sdu.cloud.service.stackTraceToString
 import java.net.URI
 
 class StartCommandProcessor(

@@ -19,7 +19,7 @@ export default function (props) {
     }
 }
 
-function BallPulse(props) {
+function BallPulseLoading(props) {
     if (props.loading) {
         return (
             <div className="row loader-primary">
@@ -36,4 +36,4 @@ function BallPulse(props) {
     }
 }
 
-export {BallPulse};
+export {BallPulseLoading};

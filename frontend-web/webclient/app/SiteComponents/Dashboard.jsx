@@ -1,7 +1,7 @@
 import $ from 'jquery'
 import React from 'react'
-import LoadingIcon from './LoadingIcon'
-import {NotificationIcon} from "./../UtilityFunctions";
+import { BallPulseLoading } from './LoadingIcon'
+import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
 import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
 import {Link} from 'react-router';
@@ -41,7 +41,8 @@ class Dashboard extends React.Component {
             favouriteLoading: true,
         }));
         Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favourites => {
-            let subsetFavorites = sortFilesByTypeAndName(favourites.slice(0, 10));
+            let actualFavorites = favourites.filter(file => file.favorited);
+            let subsetFavorites = sortFilesByTypeAndName(actualFavorites.slice(0, 10));
             this.setState(() => ({
                 favouriteFiles: subsetFavorites,
                 favouriteLoading: false,
@@ -96,15 +97,6 @@ class Dashboard extends React.Component {
         });
     }
 
-    static getParentPath(path) {
-        let splitPath = path.split("/");
-        let parentPath = "";
-        for (let i = 0; i < splitPath.length - 1; i++) {
-            parentPath += splitPath[i] + "/";
-        }
-        return parentPath;
-    }
-
     render() {
         return (
             <section>
@@ -133,7 +125,7 @@ function DashboardFavouriteFiles(props) {
             } else {
                 return (
                     <tr key={file.path.uri}>
-                        <td><Link to={`files/${Dashboard.getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
+                        <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
                         <td><em className="ion-star"/></td>
                     </tr>)
             }
@@ -146,9 +138,9 @@ function DashboardFavouriteFiles(props) {
                 <h5 className="card-heading pb0">
                     Favourite files
                 </h5>
-                <LoadingIcon loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading}/>
                 {noFavourites}
-                <Table responsive className="table-datatable table table-hover mv-lg">
+                <Table responsive className="table table-hover mv-lg">
                     <thead>
                     <tr>
                         <th>File</th>
@@ -178,7 +170,7 @@ function DashboardRecentFiles(props) {
         } else {
             return (
                 <tr key={file.path.uri}>
-                    <td><Link to={`files/${Dashboard.getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
+                    <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
                     <td>{new Date(file.modifiedAt).toLocaleString()}</td>
                 </tr>)
         }
@@ -190,9 +182,9 @@ function DashboardRecentFiles(props) {
                 <h5 className="card-heading pb0">
                     Recently used files
                 </h5>
-                <LoadingIcon loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading}/>
                 {noRecents}
-                <Table className="table-datatable table table-hover mv-lg">
+                <Table responsive className="table table-hover mv-lg">
                     <thead>
                     <tr>
                         <th>File</th>
@@ -227,9 +219,9 @@ function DashboardAnalyses(props) {
                 <h5 className="card-heading pb0">
                     Recent Analyses
                 </h5>
-                <LoadingIcon loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading}/>
                 {noAnalyses}
-                <Table className="table-datatable table table-hover mv-lg">
+                <Table className="table table-hover mv-lg">
                     <thead>
                     <tr>
                         <th>Name</th>
@@ -270,10 +262,10 @@ function DashboardRecentActivity(props) {
                 <h5 className="card-heading pb0">
                     Activity
                 </h5>
-                <loading-icon loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading}/>
                 {noActivity}
                 <div>
-                    <Table className="table-datatable table table-hover mv-lg">
+                    <Table className="table table-hover mv-lg">
                         <tbody>
                         {activityList}
                         </tbody>

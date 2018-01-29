@@ -75,7 +75,7 @@
     "select2-bootstrap-css": "1.4.6",
     "summernote": "0.8.2",
     "summernote-webpack-fix": "0.8.2",
-    "sweetalert": "2.1.0",
+    "sweetalert2": "7.7.0",
     "uppy": "^0.22.1",
     "x-editable": "1.5.1"
   },

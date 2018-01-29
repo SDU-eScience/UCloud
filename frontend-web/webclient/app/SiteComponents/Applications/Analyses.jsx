@@ -1,5 +1,5 @@
 import React from 'react';
-import LoadingIcon from '../LoadingIcon'
+import {BallPulseLoading} from '../LoadingIcon'
 import {WebSocketSupport} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
@@ -11,9 +11,7 @@ class Analyses extends React.Component {
         super(props);
         this.state = {
             analyses: [],
-            loading: false,
-            currentAnalysis: null,
-            comment: "",
+            loading: false
         }
     }
 
@@ -48,18 +46,18 @@ class Analyses extends React.Component {
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <LoadingIcon loading={this.state.loading}/>
+                        <BallPulseLoading loading={this.state.loading}/>
                         <Card xs={6} sm={12}>
                             <WebSocketSupport/>
                             {noAnalysis}
                             <div className="card-body">
-                                <Table className="table-datatable table table-hover mv-lg">
+                                <Table className="table table-hover mv-lg">
                                     <thead>
                                     <tr>
                                         <th>App Name</th>
                                         <th>Job Id</th>
                                         <th>Status</th>
-                                        <th>Comments</th>
+                                        <th>Comment</th>
                                     </tr>
                                     </thead>
                                     <AnalysesList analyses={this.state.analyses}/>
@@ -83,9 +81,7 @@ function AnalysesList(props) {
             <td>{analysis.name}</td>
             <td>{analysis.jobId}</td>
             <td>{analysis.status}</td>
-            <td>
-                <AnalysesButton analysis={analysis} comments={analysis.comments}/>
-            </td>
+            <td>{analysis.description}</td>
         </tr>
     );
 
@@ -93,18 +89,6 @@ function AnalysesList(props) {
         <tbody>
         {analysesList}
         </tbody>)
-}
-
-function AnalysesButton(props) {
-    if (props.comments) {
-        return (
-            <button className="btn btn-primary">
-                Show {props.comments.length} comments
-            </button>
-        )
-    } else {
-        return (<button className="btn btn-secondary">Write comment</button>)
-    }
 }
 
 export default Analyses

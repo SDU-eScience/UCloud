@@ -38,19 +38,19 @@ import java.nio.ByteBuffer
 import java.util.*
 
 class TusController(
-    private val config: ICatDatabaseConfig,
-    private val rados: RadosStorage,
-    private val producer: UploadEventProducer,
-    private val transferState: TransferStateService,
-    private val icat: ICAT,
-    private val kafka: KafkaServices
+        private val config: ICatDatabaseConfig,
+        private val rados: RadosStorage,
+        private val producer: UploadEventProducer,
+        private val transferState: TransferStateService,
+        private val icat: ICAT,
+        private val kafka: KafkaServices
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
             val serverConfiguration = InternalConfig(
-                prefix = contextPath,
-                tusVersion = SimpleSemanticVersion(1, 0, 0),
-                supportedVersions = listOf(SimpleSemanticVersion(1, 0, 0)), maxSizeInBytes = null
+                    prefix = contextPath,
+                    tusVersion = SimpleSemanticVersion(1, 0, 0),
+                    supportedVersions = listOf(SimpleSemanticVersion(1, 0, 0)), maxSizeInBytes = null
             )
 
             // Intercept unsupported TUS client version
@@ -75,16 +75,16 @@ class TusController(
                 protect()
 
                 method(HttpMethod.Head) {
-                    install(KafkaHttpRouteLogger) {
-                        producer = kafka.producer.forStream(TusDescriptions.findUploadStatusById.loggingStream()!!)
+                    TusDescriptions.findUploadStatusById.fullName?.let { reqName ->
+                        install(KafkaHttpRouteLogger) { requestName = reqName }
                     }
 
                     handle {
                         logEntry(log, parameterIncludeFilter = { it == "id" })
                         val id = call.parameters["id"] ?: return@handle call.respond(HttpStatusCode.BadRequest)
                         val ownerParamForState =
-                            if (call.isPrivileged) null
-                            else call.request.validatedPrincipal.subject
+                                if (call.isPrivileged) null
+                                else call.request.validatedPrincipal.subject
 
                         val summary = transferState.retrieveSummary(id, ownerParamForState)
                                 ?: return@handle call.respond(HttpStatusCode.NotFound)
@@ -103,8 +103,8 @@ class TusController(
                 }
 
                 method(HttpMethod.Post) {
-                    install(KafkaHttpRouteLogger) {
-                        producer = kafka.producer.forStream(TusDescriptions.uploadChunkViaPost.loggingStream()!!)
+                    TusDescriptions.uploadChunkViaPost.fullName?.let { reqName ->
+                        install(KafkaHttpRouteLogger) { requestName = reqName }
                     }
 
                     handle {
@@ -119,8 +119,8 @@ class TusController(
 
 
                 method(HttpMethod.Patch) {
-                    install(KafkaHttpRouteLogger) {
-                        producer = kafka.producer.forStream(TusDescriptions.uploadChunk.loggingStream()!!)
+                    TusDescriptions.uploadChunk.fullName?.let { reqName ->
+                        install(KafkaHttpRouteLogger) { requestName = reqName }
                     }
 
                     handle {
@@ -131,8 +131,8 @@ class TusController(
             }
 
             method(HttpMethod.Post) {
-                install(KafkaHttpRouteLogger) {
-                    producer = kafka.producer.forStream(TusDescriptions.create.loggingStream()!!)
+                TusDescriptions.create.fullName?.let { reqName ->
+                    install(KafkaHttpRouteLogger) { requestName = reqName }
                 }
 
                 handle {
@@ -150,8 +150,8 @@ class TusController(
 
                     if (serverConfiguration.maxSizeInBytes != null && length > serverConfiguration.maxSizeInBytes) {
                         log.debug(
-                            "Resource of length $length is larger than allowed maximum " +
-                                    "${serverConfiguration.maxSizeInBytes}"
+                                "Resource of length $length is larger than allowed maximum " +
+                                        "${serverConfiguration.maxSizeInBytes}"
                         )
                         return@handle call.respond(HttpStatusCode(413, "Request Entity Too Large"))
                     }
@@ -200,14 +200,14 @@ class TusController(
                     val fileName = metadata["filename"] ?: id
 
                     val createdEvent = TusUploadEvent.Created(
-                        id = id,
-                        sizeInBytes = length,
-                        owner = owner,
-                        zone = config.defaultZone,
-                        targetCollection = location,
-                        sensitive = sensitive,
-                        targetName = fileName,
-                        doChecksum = false
+                            id = id,
+                            sizeInBytes = length,
+                            owner = owner,
+                            zone = config.defaultZone,
+                            targetCollection = location,
+                            sensitive = sensitive,
+                            targetName = fileName,
+                            doChecksum = false
                     )
                     producer.emit(createdEvent)
                     log.info("Created upload: $createdEvent")
@@ -219,8 +219,8 @@ class TusController(
 
 
             method(HttpMethod.Options) {
-                install(KafkaHttpRouteLogger) {
-                    producer = kafka.producer.forStream(TusDescriptions.probeTusConfiguration.loggingStream()!!)
+                TusDescriptions.probeTusConfiguration.fullName?.let { reqName ->
+                    install(KafkaHttpRouteLogger) { requestName = reqName }
                 }
 
                 handle {
@@ -332,11 +332,11 @@ class TusController(
         task.onProgress = {
             runBlocking {
                 producer.emit(
-                    TusUploadEvent.ChunkVerified(
-                        id = id,
-                        chunk = it + 1, // Chunks are 1-indexed, callbacks are 0-indexed
-                        numChunks = Math.ceil(state.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
-                    )
+                        TusUploadEvent.ChunkVerified(
+                                id = id,
+                                chunk = it + 1, // Chunks are 1-indexed, callbacks are 0-indexed
+                                numChunks = Math.ceil(state.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+                        )
                 )
             }
         }
@@ -364,10 +364,10 @@ class TusController(
     }
 
     private data class InternalConfig(
-        val prefix: String,
-        val tusVersion: SimpleSemanticVersion,
-        val supportedVersions: List<SimpleSemanticVersion>,
-        val maxSizeInBytes: Long?
+            val prefix: String,
+            val tusVersion: SimpleSemanticVersion,
+            val supportedVersions: List<SimpleSemanticVersion>,
+            val maxSizeInBytes: Long?
     )
 
     private fun ApplicationResponse.tusMaxSize(sizeInBytes: Long?) {

@@ -26,7 +26,7 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.slf4j.LoggerFactory
-import stackTraceToString
+import dk.sdu.cloud.service.stackTraceToString
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -144,7 +144,7 @@ fun main(args: Array<String>) = runBlocking {
         }
     }
 
-    val reloadServer = embeddedServer(Netty, port = 8081) {
+    val reloadServer = embeddedServer(Netty, port = 8180) {
         routing {
             post("/reload") {
                 val incomingSecret = call.request.header("Reload-Secret") ?: run {

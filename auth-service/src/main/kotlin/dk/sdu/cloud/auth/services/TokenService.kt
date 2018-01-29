@@ -8,7 +8,7 @@ import dk.sdu.cloud.service.EventProducer
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
-import stackTraceToString
+import dk.sdu.cloud.service.stackTraceToString
 import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm

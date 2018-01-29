@@ -1,6 +1,6 @@
 import React from 'react';
 import { Table} from 'react-bootstrap';
-import LoadingIcon from '../LoadingIcon'
+import { BallPulseLoading } from '../LoadingIcon'
 import pubsub from "pubsub-js";
 import { Card } from "../Cards";
 import { Cloud } from "../../../authentication/SDUCloudObject"
@@ -37,10 +37,10 @@ class Workflows extends React.Component {
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <LoadingIcon loading={this.state.loading}/>
+                        <BallPulseLoading loading={this.state.loading}/>
                         <Card xs={6} sm={12}>
                             <div className="card-body">
-                                <Table className="table-datatable table table-striped table-hover mv-lg">
+                                <Table className="table table-striped table-hover mv-lg">
                                     <thead>
                                     <tr>
                                         <th>Name</th>

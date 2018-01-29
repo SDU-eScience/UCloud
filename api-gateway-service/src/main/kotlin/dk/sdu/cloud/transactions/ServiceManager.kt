@@ -4,7 +4,7 @@ import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.KafkaDescriptions
 import org.slf4j.LoggerFactory
-import stackTraceToString
+import dk.sdu.cloud.service.stackTraceToString
 import java.io.File
 import java.util.*
 import java.util.jar.JarFile

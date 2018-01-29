@@ -19,17 +19,17 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
-import stackTraceToString
+import dk.sdu.cloud.service.stackTraceToString
 import java.util.concurrent.TimeUnit
 
 class AuthServer(
-    private val cloud: AuthenticatedCloud,
-    private val jwtAlg: Algorithm,
-    private val config: AuthConfiguration,
-    private val authSettings: Saml2Settings,
-    private val zk: ZooKeeper,
-    private val kafka: KafkaServices,
-    private val ktor: HttpServerProvider
+        private val cloud: AuthenticatedCloud,
+        private val jwtAlg: Algorithm,
+        private val config: AuthConfiguration,
+        private val authSettings: Saml2Settings,
+        private val zk: ZooKeeper,
+        private val kafka: KafkaServices,
+        private val ktor: HttpServerProvider
 ) {
     private lateinit var kStreams: KafkaStreams
     private lateinit var httpServer: ApplicationEngine
@@ -45,9 +45,9 @@ class AuthServer(
 
         log.info("Creating core services...")
         val tokenService = TokenService(
-            jwtAlg,
-            kafka.producer.forStream(AuthStreams.UserUpdateStream),
-            kafka.producer.forStream(AuthStreams.RefreshTokenStream)
+                jwtAlg,
+                kafka.producer.forStream(AuthStreams.UserUpdateStream),
+                kafka.producer.forStream(AuthStreams.RefreshTokenStream)
         )
         log.info("Core services constructed!")
 
