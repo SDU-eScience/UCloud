@@ -162,10 +162,10 @@ class Files extends React.Component {
         this.setState({
             loading: true,
         });
-        Cloud.get("files?path=/" + this.state.currentPath).then(favorites => {
-            favorites.forEach(file => file.isChecked = false);
+        Cloud.get("files?path=/" + this.state.currentPath).then(files => {
+            files.forEach(file => file.isChecked = false);
             this.setState(() => ({
-                files: this.state.sortingFunctions.typeAndName(favorites, true),
+                files: this.state.sortingFunctions.typeAndName(files, true),
                 loading: false,
             }));
         });

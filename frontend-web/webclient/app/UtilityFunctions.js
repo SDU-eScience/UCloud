@@ -83,13 +83,10 @@ function sortFilesByOwner(files, asc) {
 function sortFilesBySensitivity(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
-        return SensitivityLevelMap[a.sensitivityLevel] -  SensitivityLevelMap[b.sensitivityLevel] * order;
+        return SensitivityLevelMap[a.sensitivityLevel] - SensitivityLevelMap[b.sensitivityLevel] * order;
     });
     return files;
 }
-
-//`http POST :8080/api/files/favorite?path=/home/test/hello.txt "Authorization: Bearer ${JWT_TEST_TOKEN}" -v`
-//`http DELETE :8080/api/files/favorite?path=/home/test/hello.txt "Authorization: Bearer ${JWT_TEST_TOKEN}" -v`
 
 function favorite(files, uri) {
     let file = files.find(file => file.path.uri === uri);
@@ -123,43 +120,37 @@ function shareFile(filePath) {
             return !value && 'Please enter a username'
         }
     }).then(input => {
-        if (input.dismiss) {
-            return;
-        }
-        swal({
-            title: "Please specify access level",
-            text: `The file ${filePath.name} is to be shared with ${input.value}.`,
-            input: "select",
-            showCancelButton: true,
-            showCloseButton: true,
-            inputOptions: {
-                "READ": "Read Access",
-                "READ_WRITE": "Read/Write Access",
-                //"OWN": "Own the file"
-            },
-        }).then(type => {
             if (input.dismiss) {
                 return;
             }
-            const body = {
-                toUser: input.value,
-                onFile: filePath.uri,
-                rights: type.value,
-            };
-            Cloud.put("/acl", {body: body}).then(response => {
-                switch (response.statusCode) {
-                    case 200: {
-                        swal("Success!", `The file has been shared with ${name}`, "success");
-                        break;
-                    }
-                    default: {
-                        swal("Error", "An error occurred when sharing the file", "error");
-                        break;
-                    }
+            swal({
+                title: "Please specify access level",
+                text: `The file ${filePath.name} is to be shared with ${input.value}.`,
+                input: "select",
+                showCancelButton: true,
+                showCloseButton: true,
+                inputOptions: {
+                    "READ": "Read Access",
+                    "READ_WRITE": "Read/Write Access",
+                    //"OWN": "Own the file"
+                },
+            }).then(type => {
+                if (type.dismiss) {
+                    return;
                 }
-            })
-        });
-    });
+                const body = {
+                    entity: input.value,
+                    onFile: filePath.path,
+                    rights: type.value,
+                    type: "grant",
+                };
+                Cloud.put("/acl", body).then(response => {
+                    swal("Success!", `The file has been shared with ${input.value}`, "success");
+                });
+            });
+        }
+    )
+    ;
 }
 
 function createFolder(currentPath) {
@@ -188,7 +179,9 @@ function renameFile(filePath) {
         showCancelButton: true,
         showCloseButton: true,
     }).then(result => {
-        if (result.dismiss) { return; }
+        if (result.dismiss) {
+            return;
+        }
     })
 }
 
