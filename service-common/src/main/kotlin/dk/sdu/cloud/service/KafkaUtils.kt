@@ -130,7 +130,7 @@ object KafkaUtil {
     ): Properties = Properties().apply {
         this[StreamsConfig.APPLICATION_ID_CONFIG] = serviceConfig.description.name
         this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaConnectionConfig.servers.joinToString(",") { it.toString() }
-        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest" // Don't miss any events
+        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "latest" // TODO This should probably be changed back
         this[StreamsConfig.APPLICATION_SERVER_CONFIG] = "${serviceConfig.hostname}:${serviceConfig.port}"
 
         // The defaults do not use java.io.tmpdir
