@@ -1,20 +1,20 @@
 import $ from 'jquery'
 import React from 'react'
-import { BallPulseLoading } from './LoadingIcon'
+import {BallPulseLoading} from './LoadingIcon'
 import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
 import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
 import {Link} from 'react-router';
 import {Cloud} from '../../authentication/SDUCloudObject'
-import {sortFilesByTypeAndName} from "../UtilityFunctions";
+import {sortFilesByTypeAndName, favorite, sortFilesByModified} from "../UtilityFunctions";
 
 
 class Dashboard extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            favouriteFiles: [],
-            favouriteLoading: false,
+            favoriteFiles: [],
+            favoriteLoading: false,
             recentFiles: [],
             recentLoading: false,
             recentAnalyses: [],
@@ -22,30 +22,31 @@ class Dashboard extends React.Component {
             activity: [],
             activityLoading: false,
         };
-        this.getFavouriteFiles = this.getFavouriteFiles.bind(this);
+        this.getFavoriteFiles = this.getFavoriteFiles.bind(this);
         this.getMostRecentFiles = this.getMostRecentFiles.bind(this);
         this.getRecentActivity = this.getRecentActivity.bind(this);
         this.getRecentAnalyses = this.getRecentAnalyses.bind(this);
+        this.favoriteOrUnfavorite = this.favoriteOrUnfavorite.bind(this);
     }
 
     componentDidMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
-        this.getFavouriteFiles();
+        this.getFavoriteFiles();
         this.getMostRecentFiles();
         this.getRecentAnalyses();
         /*this.getRecentActivity();*/
     }
 
-    getFavouriteFiles() {
+    getFavoriteFiles() {
         this.setState(() => ({
-            favouriteLoading: true,
+            favoriteLoading: true,
         }));
-        Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favourites => {
-            let actualFavorites = favourites.filter(file => file.favorited);
+        Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favorites => {
+            let actualFavorites = favorites.filter(file => file.favorited);
             let subsetFavorites = sortFilesByTypeAndName(actualFavorites.slice(0, 10));
             this.setState(() => ({
-                favouriteFiles: subsetFavorites,
-                favouriteLoading: false,
+                favoriteFiles: subsetFavorites,
+                favoriteLoading: false,
             }));
         });
     }
@@ -55,10 +56,7 @@ class Dashboard extends React.Component {
             recentLoading: true
         }));
         Cloud.get(`/files?path=/home/${Cloud.username}/`).then(recent => {
-            let recentSubset = recent.slice(0, 10);
-            recentSubset.sort((a, b) => {
-                return b.modifiedAt - a.modifiedAt;
-            });
+            let recentSubset = sortFilesByModified(recent.slice(0, 10));
             this.setState(() => ({
                 recentFiles: recentSubset,
                 recentLoading: false,
@@ -89,7 +87,9 @@ class Dashboard extends React.Component {
             activityLoading: true
         }));
         $.getJSON("/api/getRecentActivity").then((activity) => {
-            activity.sort();
+            activity.sort((a, b) => {
+                return a.ts - b.ts;
+            });
             this.setState(() => ({
                 activity: activity,
                 activityLoading: false,
@@ -97,11 +97,18 @@ class Dashboard extends React.Component {
         });
     }
 
+    favoriteOrUnfavorite(fileUri) {
+        this.setState(() => ({
+            favoriteFiles: favorite(this.state.favoriteFiles, fileUri).filter(file => file.favorited),
+        }));
+    }
+
     render() {
         return (
             <section>
                 <div className="container-fluid">
-                    <DashboardFavouriteFiles files={this.state.favouriteFiles} isLoading={this.state.favouriteLoading}/>
+                    <DashboardFavoriteFiles files={this.state.favoriteFiles} isLoading={this.state.favoriteLoading}
+                                             favorite={this.favoriteOrUnfavorite}/>
                     <DashboardRecentFiles files={this.state.recentFiles} isLoading={this.state.recentLoading}/>
                     <DashboardAnalyses analyses={this.state.recentAnalyses} isLoading={this.state.analysesLoading}/>
                     <DashboardRecentActivity activities={this.state.activity} isLoading={this.state.activityLoading}/>
@@ -111,22 +118,23 @@ class Dashboard extends React.Component {
     }
 }
 
-function DashboardFavouriteFiles(props) {
-    const noFavourites = props.files.length || props.isLoading ? '' : <h3 className="text-center">
-        <small>No favourites found.</small>
+function DashboardFavoriteFiles(props) {
+    const noFavorites = props.files.length || props.isLoading ? '' : <h3 className="text-center">
+        <small>No favorites found.</small>
     </h3>;
     const filesList = props.files.map((file) => {
             if (file.type === "DIRECTORY") {
                 return (
                     <tr key={file.path.uri}>
-                        <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
-                        <td><em className="ion-star"/></td>
+                        <td onMouseEnter={console.log("HI")}><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
+                        <td onClick={() => props.favorite(file.path.uri)}><em className="ion-star text-center"/></td>
                     </tr>)
             } else {
                 return (
                     <tr key={file.path.uri}>
                         <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                        <td><em className="ion-star"/></td>
+                        <td onClick={() => props.favorite(file.path.uri)} className="text-center"><em className="ion-star"/>
+                        </td>
                     </tr>)
             }
         }
@@ -136,15 +144,15 @@ function DashboardFavouriteFiles(props) {
         <div className="col-sm-3 align-self-center">
             <div className="card">
                 <h5 className="card-heading pb0">
-                    Favourite files
+                    Favorite files
                 </h5>
                 <BallPulseLoading loading={props.isLoading}/>
-                {noFavourites}
+                {noFavorites}
                 <Table responsive className="table table-hover mv-lg">
                     <thead>
                     <tr>
                         <th>File</th>
-                        <th>Starred</th>
+                        <th className="text-center">Starred</th>
                     </tr>
                     </thead>
                     <tbody>

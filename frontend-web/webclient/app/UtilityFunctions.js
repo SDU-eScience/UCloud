@@ -42,7 +42,7 @@ function buildBreadCrumbs(path) {
     return pathsMapping;
 }
 
-function sortFilesByFavourite(files, asc) {
+function sortFilesByFavorite(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.favorited - b.favorited) * order
@@ -88,8 +88,18 @@ function sortFilesBySensitivity(files, asc) {
     return files;
 }
 
-function favourite(file) {
-    // TODO Favourite file based on URI (file.path.uri);
+//`http POST :8080/api/files/favorite?path=/home/test/hello.txt "Authorization: Bearer ${JWT_TEST_TOKEN}" -v`
+//`http DELETE :8080/api/files/favorite?path=/home/test/hello.txt "Authorization: Bearer ${JWT_TEST_TOKEN}" -v`
+
+function favorite(files, uri) {
+    let file = files.find(file => file.path.uri === uri);
+    file.favorited = !file.favorited;
+    if (file.favorited) {
+        Cloud.post(`/files/favorite?path=${file.path.path}`);
+    } else {
+        Cloud.delete(`/files/favorite?path=${file.path.path}`);
+    }
+    return files;
 }
 
 function getOwnerFromAcls(acls) {
@@ -217,10 +227,10 @@ export {
     WebSocketSupport,
     buildBreadCrumbs,
     createFolder,
-    favourite,
+    favorite,
     sortFilesByTypeAndName,
     sortFilesByModified,
-    sortFilesByFavourite,
+    sortFilesByFavorite,
     sortFilesByOwner,
     sortFilesBySensitivity,
     shareFile,

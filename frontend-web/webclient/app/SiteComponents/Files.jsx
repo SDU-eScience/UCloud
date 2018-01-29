@@ -8,10 +8,11 @@ import {
     sortFilesByTypeAndName,
     createFolder,
     sortFilesByModified,
-    sortFilesByFavourite,
+    sortFilesByFavorite,
     sortFilesByOwner,
     sortFilesBySensitivity,
     shareFile,
+    favorite,
     getOwnerFromAcls,
     renameFile,
     showFileDeletionPrompt,
@@ -39,7 +40,7 @@ class Files extends React.Component {
             sortingFunctions: {
                 typeAndName: sortFilesByTypeAndName,
                 modifiedAt: sortFilesByModified,
-                favourite: sortFilesByFavourite,
+                favorite: sortFilesByFavorite,
                 owner: sortFilesByOwner,
                 sensitivity: sortFilesBySensitivity,
             },
@@ -76,12 +77,8 @@ class Files extends React.Component {
     }
 
     favoriteFile(fileUri) {
-        let files = this.state.files.slice();
-        let index = files.findIndex(file => file.path.uri === fileUri);
-        files[index].favorited = !files[index].favorited;
-        // TODO: Send update to service
         this.setState(() => ({
-            files: files
+            files: favorite(this.state.files.slice(), fileUri),
         }));
     }
 
@@ -165,10 +162,10 @@ class Files extends React.Component {
         this.setState({
             loading: true,
         });
-        Cloud.get("files?path=/" + this.state.currentPath).then(favourites => {
-            favourites.forEach(file => file.isChecked = false);
+        Cloud.get("files?path=/" + this.state.currentPath).then(favorites => {
+            favorites.forEach(file => file.isChecked = false);
             this.setState(() => ({
-                files: this.state.sortingFunctions.typeAndName(favourites, true),
+                files: this.state.sortingFunctions.typeAndName(favorites, true),
                 loading: false,
             }));
         });
@@ -247,7 +244,7 @@ class Files extends React.Component {
                         <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
                                     selectedFiles={this.state.selectedFiles}
                                     masterCheckbox={this.state.masterCheckbox} sortingIcon={this.getSortingIcon}
-                                    getFavourites={() => this.getFavourites} favorite={this.favoriteFile}
+                                    getFavorites={() => this.getFavorites} favorite={this.favoriteFile}
                                     addOrRemoveFile={this.addOrRemoveFile} sortFiles={this.sortFilesBy}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         <BallPulseLoading loading={this.state.loading}/>
@@ -263,7 +260,7 @@ class Files extends React.Component {
                     </div>
                     <ContextBar selectedFiles={this.state.files.filter(file => file.isChecked)}
                                 currentPath={this.state.currentPath}
-                                getFavourites={() => this.getFavourites()}
+                                getFavorites={() => this.getFavorites()}
                                 onClick={this.handleOpen}/>
                 </div>
                 <DashboardModal uppy={this.state.uppy} open={this.state.uploadFileOpen} closeModalOnClickOutside
@@ -307,7 +304,7 @@ function ContextBar(props) {
         <div className="col-lg-2 visible-lg">
             <div>
                 <div className="center-block text-center">
-                    <Button className="btn btn-link btn-lg" onClick={() => props.getFavourites()}><a><i
+                    <Button className="btn btn-link btn-lg" onClick={() => props.getFavorites()}><a><i
                         className="icon ion-star"/></a></Button>
                     <Button className="btn btn-link btn-lg"><Link to={`files?path=/home/${Cloud.username}`}><i
                         className="ion-ios-home"/></Link></Button>
@@ -365,7 +362,7 @@ function FileOptions(props) {
             <p>
                 <Button type="button" className="btn btn-default btn-block ripple">
                     <span className="ion-android-star pull-left"/>
-                    Favourite selected files
+                    Favorite selected files
                 </Button>
             </p>
             <p>
@@ -413,8 +410,8 @@ function FilesTable(props) {
                         <th onClick={() => props.sortFiles("typeAndName")}><span className="text-left">Filename<span
                             className={"pull-right " + props.sortingIcon("typeAndName")}/></span>
                         </th>
-                        <th onClick={() => props.sortFiles("favourite")}><span><em className="ion-star"/><span
-                            className={"pull-right " + props.sortingIcon("favourite")}/></span></th>
+                        <th onClick={() => props.sortFiles("favorite")}><span><em className="ion-star"/><span
+                            className={"pull-right " + props.sortingIcon("favorite")}/></span></th>
                         <th onClick={() => props.sortFiles("modifiedAt")}><span className="text-left">Last Modified<span
                             className={"pull-right " + props.sortingIcon("modifiedAt")}/></span></th>
                         <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Rights<span
@@ -461,7 +458,7 @@ function File(props) {
                        type="checkbox" onChange={(e) => props.addOrRemoveFile(e.target.checked, file)}/>
                 <em className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
-            <Favourited file={file} favorite={props.favorite}/>
+            <Favorited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
             <td>{SensitivityLevel[file.sensitivityLevel]}</td>
@@ -482,7 +479,7 @@ function Directory(props) {
                        type="checkbox" onChange={(e) => props.addOrRemoveFile(e.target.checked, file)}/><em
                 className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
-            <Favourited file={file} favorite={props.favorite}/>
+            <Favorited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
             <td>{SensitivityLevel[file.sensitivityLevel]}</td>
@@ -506,7 +503,7 @@ function FileType(props) {
         </td>);
 }
 
-function Favourited(props) {
+function Favorited(props) {
     if (props.file.favorited) {
         return (<td><a onClick={() => props.favorite(props.file.path.uri)} className="ion-star"/></td>)
     }
