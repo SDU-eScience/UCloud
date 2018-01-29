@@ -1,8 +1,11 @@
 package dk.sdu.cloud.storage.api
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.storage.model.AccessControlList // TODO....
 import io.netty.handler.codec.http.HttpMethod
 
@@ -16,14 +19,14 @@ object ACLDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     // TODO Temporary
-    val grantRights = kafkaDescription<GrantPermissions> {
+    val grantRights = kafkaDescription<PermissionCommand.Grant> {
         prettyName = "aclGrantRights"
         path { using(baseContext) }
         method = HttpMethod.PUT
         body { bindEntireRequestFromBody() }
     }
 
-    val revokeRights = kafkaDescription<RemovePermissions> {
+    val revokeRights = kafkaDescription<PermissionCommand.Revoke> {
         prettyName = "aclRevokeRights"
         path { using(baseContext) }
         method = HttpMethod.DELETE
@@ -41,17 +44,25 @@ enum class TemporaryRight {
 }
 
 // TODO Temporary
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = PermissionCommand.Grant::class, name = "grant"),
+    JsonSubTypes.Type(value = PermissionCommand.Revoke::class, name = "revoke"))
 sealed class PermissionCommand {
     abstract val onFile: String
+    abstract val entity: String
+
+    data class Grant(
+        override val entity: String,
+        override val onFile: String,
+        val rights: TemporaryRight
+    ) : PermissionCommand()
+
+    data class Revoke(
+        override val entity: String,
+        override val onFile: String
+    ) : PermissionCommand()
 }
-
-data class GrantPermissions(
-    val toUser: String,
-    override val onFile: String,
-    val rights: TemporaryRight
-) : PermissionCommand()
-
-data class RemovePermissions(
-    val fromUser: String,
-    override val onFile: String
-) : PermissionCommand()
