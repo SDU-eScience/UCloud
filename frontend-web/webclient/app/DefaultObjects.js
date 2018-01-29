@@ -19,8 +19,8 @@ const SensitivityLevel = {
 
 const SensitivityLevelMap = {
     "OPEN_ACCESS": 0,
-    "SENSITIVE": 1,
-    "CONFIDENTIAL": 2,
+    "CONFIDENTIAL": 1,
+    "SENSITIVE": 2,
 };
 
 export {DefaultStatus, RightsMap, SensitivityLevel, SensitivityLevelMap}
