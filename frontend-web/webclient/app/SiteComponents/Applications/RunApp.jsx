@@ -1,4 +1,5 @@
 import React from 'react';
+import { Jumbotron} from "react-bootstrap";
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -126,7 +127,6 @@ class RunApp extends React.Component {
                             <BallPulseLoading loading={this.state.loading}/>
                             <ApplicationHeader name={this.state.appName} version={this.state.appVersion}
                                                description={this.state.appDescription} author={this.state.appAuthor}/>
-                            <hr/>
                             <Parameters parameters={this.state.parameters} handleSubmit={this.handleSubmit}
                                         onChange={this.handleInputChange} comment={this.state.comment}
                                         onFileSelectionChange={this.handleFileSelectorChange}
@@ -140,11 +140,11 @@ class RunApp extends React.Component {
 
 function ApplicationHeader(props) {
     return (
-        <div style={{textIndent: 40}}>
+        <Jumbotron>
             <h1>{props.name}</h1>
             <h3>{props.description}</h3>
             <h4>Author: {props.author}</h4>
-        </div>)
+        </Jumbotron>)
 }
 
 

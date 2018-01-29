@@ -101,11 +101,11 @@ function favorite(files, uri) {
 
 function getOwnerFromAcls(acls) {
     let userName = Cloud.username;
-    let result = acls.filter(acl => acl.entity.displayName === userName);
-    if (!result.length) {
+    let result = acls.find(acl => acl.entity.displayName === userName);
+    if (!result) {
         return "None"
     }
-    return result[0].right;
+    return result.right;
 }
 
 function shareFile(filePath) {

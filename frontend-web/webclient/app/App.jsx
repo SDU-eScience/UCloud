@@ -21,15 +21,16 @@ import Bootstrap from './components/Bootstrap/Bootstrap';
 import Common from './components/Common/Common';
 import Colors from './components/Colors/Colors';
 import FloatButton from './components/FloatButton/FloatButton';
-import Translate from './components/Translate/Translate';
-import Dashboard from './SiteComponents/Dashboard';
-import Notifications from './SiteComponents/Activity/Notifications.jsx';
-import Applications from './SiteComponents/Applications/Applications';
-import RunApp from './SiteComponents/Applications/RunApp';
-import Workflows from './SiteComponents/Applications/Workflows';
-import Analyses from './SiteComponents/Applications/Analyses';
-import Status from './SiteComponents/StatusPage'
-import Files from './SiteComponents/Files'
+import Translate from "./components/Translate/Translate";
+import Dashboard from "./SiteComponents/Dashboard";
+import Notifications from "./SiteComponents/Activity/Notifications.jsx";
+import Applications from "./SiteComponents/Applications/Applications";
+import RunApp from "./SiteComponents/Applications/RunApp";
+import Workflows from "./SiteComponents/Applications/Workflows";
+import Analyses from "./SiteComponents/Applications/Analyses";
+import Status from "./SiteComponents/StatusPage";
+import Files from './SiteComponents/Files';
+import FileInfo from "./SiteComponents/FileInfo";
 import User from './components/User/User';
 import UserAuditing from "./SiteComponents/Admin/UserAuditing";
 import Utils from './components/Utils/Utils';
@@ -66,6 +67,7 @@ ReactDOM.render(
 
             <Route path="dashboard" component={Dashboard} />
             <Route path="files(/**)" component={Files} />
+            <Route path="fileInfo/(**)" component={FileInfo}/>
             <Route path="status" component={Status} />
             <Route path="applications" component={Applications}/>
             <Route path="applications/:appName/:appVersion" component={RunApp}/>
