@@ -127,7 +127,7 @@ class Files extends React.Component {
     static getCurrentRights(files) {
         let lowestPrivilegeOptions = RightsMap["OWN"];
         files.forEach((it) => {
-            it.acl.forEach((acl) => {
+            it.acl.filter(acl => acl.entity.displayName === Cloud.username).forEach((acl) => {
                 lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
             });
         });
