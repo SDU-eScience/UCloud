@@ -83,10 +83,6 @@ sealed class Person : Principal() {
         if (phoneNumber?.isEmpty() == true) throw IllegalArgumentException("Phone number cannot be empty if != null")
         if (title?.isEmpty() == true) throw IllegalArgumentException("Title cannot be empty if != null")
 
-        emailAddresses.filter { !isValidEmail(it) }.takeIf { it.isNotEmpty() }?.let {
-            throw IllegalArgumentException("Invalid email addresses: $it")
-        }
-
         if (preferredEmailAddress != null && preferredEmailAddress!! !in emailAddresses) {
             throw IllegalArgumentException("Preferred email address is not in primary list of addresses")
         }

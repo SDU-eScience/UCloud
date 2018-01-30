@@ -1,59 +1,88 @@
 package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
+import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.Auth
-import dk.sdu.cloud.service.EventProducer
+import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
-import dk.sdu.cloud.service.stackTraceToString
 import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
 
+
 class TokenService(
-        private val jwtAlg: JWTAlgorithm,
-        private val userEventProducer: EventProducer<String, UserEvent>,
-        private val tokenEventProducer: EventProducer<String, RefreshTokenEvent>
+    private val jwtAlg: JWTAlgorithm,
+    private val userEventProducer: MappedEventProducer<String, UserEvent>,
+    private val tokenEventProducer: MappedEventProducer<String, RefreshTokenEvent>,
+    private val ottEventProducer: MappedEventProducer<String, OneTimeTokenEvent>
 ) {
     private val log = LoggerFactory.getLogger(TokenService::class.java)
 
     private fun createAccessTokenForExistingSession(user: Principal): AccessToken {
         log.debug("Creating access token for existing session user=$user")
-        val iat = Date(System.currentTimeMillis())
-        val exp = Date(System.currentTimeMillis() + 1000 * 60 * 30)
+        val currentTimeMillis = System.currentTimeMillis()
+        val iat = Date(currentTimeMillis)
+        val exp = Date(currentTimeMillis + 1000 * 60 * 30)
 
         val token = JWT.create().run {
-            withSubject(user.id)
-            withClaim("role", user.role.name)
-
-            withIssuer("cloud.sdu.dk")
+            writeStandardClaims(user)
             withExpiresAt(exp)
             withIssuedAt(iat)
-
-            when (user) {
-                is Person -> {
-                    withClaim("firstNames", user.firstNames)
-                    withClaim("lastName", user.lastName)
-                    if (user.orcId != null) withClaim("orcId", user.orcId)
-                    if (user.title != null) withClaim("title", user.title)
-                }
-            }
-
-            // TODO This doesn't seem right
-            val type = when (user) {
-                is Person.ByWAYF -> "wayf"
-                is Person.ByPassword -> "password"
-                is ServicePrincipal -> "service"
-            }
-            withClaim("principalType", type)
-
+            withAudience("api", "irods")
             sign(jwtAlg)
         }
 
         return AccessToken(token)
+    }
+
+    private fun createOneTimeAccessTokenForExistingSession(
+        user: Principal,
+        vararg audience: String
+    ): OneTimeAccessToken {
+        val currentTimeMillis = System.currentTimeMillis()
+        val iat = Date(currentTimeMillis)
+        val exp = Date(currentTimeMillis + 1000 * 30)
+        val jti = UUID.randomUUID().toString()
+
+        val token = JWT.create().run {
+            writeStandardClaims(user)
+            withExpiresAt(exp)
+            withIssuedAt(iat)
+            withAudience(*audience)
+            withJWTId(jti)
+            sign(jwtAlg)
+        }
+
+        return OneTimeAccessToken(token, jti)
+    }
+
+    private fun JWTCreator.Builder.writeStandardClaims(user: Principal) {
+        withSubject(user.id)
+        withClaim("role", user.role.name)
+
+        withIssuer("cloud.sdu.dk")
+
+        when (user) {
+            is Person -> {
+                withClaim("firstNames", user.firstNames)
+                withClaim("lastName", user.lastName)
+                if (user.orcId != null) withClaim("orcId", user.orcId)
+                if (user.title != null) withClaim("title", user.title)
+            }
+        }
+
+        // TODO This doesn't seem right
+        val type = when (user) {
+            is Person.ByWAYF -> "wayf"
+            is Person.ByPassword -> "password"
+            is ServicePrincipal -> "service"
+        }
+        withClaim("principalType", type)
     }
 
     fun createAndRegisterTokenFor(user: Principal): RequestAndRefreshToken {
@@ -63,10 +92,10 @@ class TokenService(
 
         launch {
             val createEvent = RefreshTokenEvent.Created(refreshToken, user.id)
-            tokenEventProducer.emit(createEvent.key, createEvent)
+            tokenEventProducer.emit(createEvent)
 
             val invokeEvent = RefreshTokenEvent.Invoked(refreshToken, accessToken)
-            tokenEventProducer.emit(invokeEvent.key, invokeEvent)
+            tokenEventProducer.emit(invokeEvent)
         }
 
         return RequestAndRefreshToken(accessToken, refreshToken)
@@ -76,8 +105,10 @@ class TokenService(
         try {
             log.debug("Processing SAML response")
             if (auth.authenticated) {
-                val id = auth.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull() ?:
-                        throw IllegalArgumentException("Missing EduPersonTargetedId")
+                val id =
+                    auth.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull() ?: throw IllegalArgumentException(
+                        "Missing EduPersonTargetedId"
+                    )
 
                 log.debug("User is authenticated with id $id")
 
@@ -97,7 +128,7 @@ class TokenService(
                     val userCreated = PersonUtils.createUserByWAYF(auth)
                     log.debug("userCreated=$userCreated")
                     launch {
-                        userEventProducer.emit(id, UserEvent.Created(id, userCreated))
+                        userEventProducer.emit(UserEvent.Created(id, userCreated))
                     }
 
                     userCreated
@@ -122,6 +153,36 @@ class TokenService(
         return null
     }
 
+    fun requestOneTimeToken(refreshToken: String, vararg audience: String): OneTimeAccessToken {
+        log.debug("Requesting one-time token: audience=$audience refreshToken=$refreshToken")
+        val token = RefreshTokenAndUserDAO.findById(refreshToken) ?: run {
+            log.debug("Could not find token!")
+            throw RefreshTokenException.InvalidToken()
+        }
+
+        val user = UserDAO.findById(token.associatedUser) ?: run {
+            log.warn(
+                "Received a valid token, but was unable to resolve the associated user: " +
+                        token.associatedUser
+            )
+            throw RefreshTokenException.InternalError()
+        }
+
+        val oneTimeToken = createOneTimeAccessTokenForExistingSession(user, *audience)
+        launch {
+            val invokeEvent = RefreshTokenEvent.InvokedOneTime(
+                refreshToken, audience.toList(),
+                oneTimeToken.accessToken
+            )
+            tokenEventProducer.emit(invokeEvent)
+
+            val createdEvent = OneTimeTokenEvent.Created(oneTimeToken.jti)
+            ottEventProducer.emit(createdEvent)
+        }
+
+        return oneTimeToken
+    }
+
     fun refresh(rawToken: String): AccessToken {
         log.debug("Refreshing token: rawToken=$rawToken")
         val token = RefreshTokenAndUserDAO.findById(rawToken) ?: run {
@@ -130,15 +191,17 @@ class TokenService(
         }
 
         val user = UserDAO.findById(token.associatedUser) ?: run {
-            log.warn("Received a valid token, but was unable to resolve the associated user: " +
-                    token.associatedUser)
+            log.warn(
+                "Received a valid token, but was unable to resolve the associated user: " +
+                        token.associatedUser
+            )
             throw RefreshTokenException.InternalError()
         }
 
         val accessToken = createAccessTokenForExistingSession(user)
         launch {
             val invokeEvent = RefreshTokenEvent.Invoked(rawToken, accessToken.accessToken)
-            tokenEventProducer.emit(invokeEvent.key, invokeEvent)
+            tokenEventProducer.emit(invokeEvent)
         }
 
         return accessToken
@@ -149,7 +212,7 @@ class TokenService(
 
         launch {
             val event = RefreshTokenEvent.Invalidated(token.token)
-            tokenEventProducer.emit(event.key, event)
+            tokenEventProducer.emit(event)
         }
     }
 

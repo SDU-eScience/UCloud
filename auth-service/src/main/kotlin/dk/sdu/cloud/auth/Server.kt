@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
+import dk.sdu.cloud.auth.processors.OneTimeTokenProcessor
 import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
 import dk.sdu.cloud.auth.processors.UserProcessor
 import dk.sdu.cloud.auth.services.TokenService
@@ -19,17 +20,16 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
-import dk.sdu.cloud.service.stackTraceToString
 import java.util.concurrent.TimeUnit
 
 class AuthServer(
-        private val cloud: AuthenticatedCloud,
-        private val jwtAlg: Algorithm,
-        private val config: AuthConfiguration,
-        private val authSettings: Saml2Settings,
-        private val zk: ZooKeeper,
-        private val kafka: KafkaServices,
-        private val ktor: HttpServerProvider
+    private val cloud: AuthenticatedCloud,
+    private val jwtAlg: Algorithm,
+    private val config: AuthConfiguration,
+    private val authSettings: Saml2Settings,
+    private val zk: ZooKeeper,
+    private val kafka: KafkaServices,
+    private val ktor: HttpServerProvider
 ) {
     private lateinit var kStreams: KafkaStreams
     private lateinit var httpServer: ApplicationEngine
@@ -45,9 +45,10 @@ class AuthServer(
 
         log.info("Creating core services...")
         val tokenService = TokenService(
-                jwtAlg,
-                kafka.producer.forStream(AuthStreams.UserUpdateStream),
-                kafka.producer.forStream(AuthStreams.RefreshTokenStream)
+            jwtAlg,
+            kafka.producer.forStream(AuthStreams.UserUpdateStream),
+            kafka.producer.forStream(AuthStreams.RefreshTokenStream),
+            kafka.producer.forStream(AuthStreams.OneTimeTokenStream)
         )
         log.info("Core services constructed!")
 
@@ -59,6 +60,7 @@ class AuthServer(
 
             RefreshTokenProcessor(kBuilder.stream(AuthStreams.RefreshTokenStream)).also { it.init() }
             UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream)).also { it.init() }
+            OneTimeTokenProcessor(kBuilder.stream(AuthStreams.OneTimeTokenStream)).also { it.init() }
 
             kafka.build(kBuilder.build()).also {
                 log.info("Kafka Streams Topology successfully built!")
@@ -129,4 +131,3 @@ class AuthServer(
         private val log = LoggerFactory.getLogger(AuthServer::class.java)
     }
 }
-

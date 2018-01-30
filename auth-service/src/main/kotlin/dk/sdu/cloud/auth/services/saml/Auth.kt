@@ -10,7 +10,7 @@ import com.onelogin.saml2.settings.Saml2Settings
 import com.onelogin.saml2.util.Constants
 import com.onelogin.saml2.util.Util
 import io.ktor.application.ApplicationCall
-import io.ktor.util.ValuesMap
+import io.ktor.http.Parameters
 import org.apache.commons.lang3.StringUtils
 import org.joda.time.DateTime
 import org.joda.time.Instant
@@ -37,7 +37,7 @@ fun Saml2Settings.validateOrThrow(): Saml2Settings {
 // For the most part this just copy & pastes the solution and replaces servlet parts with ktor equivalents
 // TODO The paramsMap is a hack. We can only call receive once, this is why we need it.
 class Auth(private val settings: Saml2Settings, private val call: ApplicationCall,
-           private val paramsMap: ValuesMap? = null) {
+           private val paramsMap: Parameters? = null) {
     /**
      * NameID.
      */

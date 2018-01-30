@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import com.auth0.jwt.JWT
+import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.JWTDecodeException
 import com.auth0.jwt.exceptions.JWTVerificationException
@@ -13,21 +14,32 @@ import java.security.cert.X509Certificate
 import java.security.interfaces.RSAPublicKey
 
 object TokenValidation {
-    private val verifier by lazy {
-        val certificate = loadCert(TokenValidation::class.java.classLoader.getResourceAsStream("auth.crt")
+    private val certificate by lazy {
+        loadCert(
+            TokenValidation::class.java.classLoader.getResourceAsStream("auth.crt")
                 .bufferedReader()
-                .readText())
-
-        JWT.require(Algorithm.RSA256(certificate!!.publicKey as RSAPublicKey))
-                .withIssuer("cloud.sdu.dk")
-                .build()
+                .readText()
+        )
     }
 
-    fun validate(token: RawAuthToken): DecodedJWT =
-        verifier.verify(token)
+    private val algorithm by lazy { Algorithm.RSA256(certificate!!.publicKey as RSAPublicKey) }
 
-    fun validateOrNull(token: RawAuthToken): DecodedJWT? = try {
-        verifier.verify(token)
+    private fun createVerifier(audience: List<String>? = null): JWTVerifier {
+        return JWT.require(algorithm).run {
+            withIssuer("cloud.sdu.dk")
+            if (audience != null) {
+                withAudience(*audience.toTypedArray())
+            }
+            build()
+        }
+    }
+
+    fun validate(token: RawAuthToken, audience: List<String>? = null): DecodedJWT {
+        return createVerifier(audience).verify(token)
+    }
+
+    fun validateOrNull(token: RawAuthToken, audience: List<String>? = null): DecodedJWT? = try {
+        createVerifier(audience).verify(token)
     } catch (ex: JWTVerificationException) {
         null
     } catch (ex: JWTDecodeException) {
@@ -40,7 +52,8 @@ object TokenValidation {
 
         return try {
             CertificateFactory.getInstance("X.509").generateCertificate(
-                    ByteArrayInputStream(formattedCert.toByteArray(StandardCharsets.UTF_8))) as X509Certificate
+                ByteArrayInputStream(formattedCert.toByteArray(StandardCharsets.UTF_8))
+            ) as X509Certificate
         } catch (e: IllegalArgumentException) {
             null
         }

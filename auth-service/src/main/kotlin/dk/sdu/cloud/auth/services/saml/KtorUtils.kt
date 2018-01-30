@@ -4,9 +4,9 @@ import com.onelogin.saml2.http.HttpRequest
 import com.onelogin.saml2.util.Util
 import io.ktor.application.ApplicationCall
 import io.ktor.features.origin
+import io.ktor.http.Parameters
 import io.ktor.request.*
 import io.ktor.response.respondRedirect
-import io.ktor.util.ValuesMap
 import java.io.IOException
 import java.util.*
 
@@ -18,7 +18,7 @@ object KtorUtils {
      * @param call the incoming HttpServletRequest
      * @return a HttpRequest
      */
-    suspend fun makeHttpRequest(call: ApplicationCall, bodyParams: ValuesMap?): HttpRequest {
+    fun makeHttpRequest(call: ApplicationCall, bodyParams: Parameters?): HttpRequest {
         val requestUrl = getSelfURLhost(call) + "/" + call.request.uri.removePrefix("/")
         val queryString = call.request.queryString()
         val paramsAsList = HashMap<String, List<String>>()

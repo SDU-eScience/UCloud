@@ -72,6 +72,7 @@ fun main(args: Array<String>) {
 
     val adminAccount = run {
         val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
+        println(TokenValidation.validate(currentAccessToken).subject)
         storageService.createForAccount("_storage", currentAccessToken).orThrow()
     }
 

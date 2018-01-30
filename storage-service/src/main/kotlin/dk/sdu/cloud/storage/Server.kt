@@ -77,27 +77,10 @@ class Server(
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
             install(JWTProtection)
 
-            intercept(ApplicationCallPipeline.Infrastructure) {
-                if (!protect()) return@intercept finish()
-
-                val principal = call.request.validatedPrincipal
-                val connection = storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    finish()
-                    return@intercept
-                }
-                call.attributes.put(StorageSession, connection)
-            }
-
-            sendPipeline.intercept(ApplicationSendPipeline.After) {
-                call.attributes.getOrNull(StorageSession)?.close()
-            }
-
             routing {
                 route("api") {
-                    // Protect is currently done through the intercept to automatically create the connection to iRODS
-                    IRodsController().configure(this)
-                    SimpleDownloadController().configure(this)
+                    IRodsController(storageService).configure(this)
+                    SimpleDownloadController(cloud, storageService).configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")
@@ -123,7 +106,6 @@ class Server(
 
 
     companion object {
-        val StorageSession = AttributeKey<StorageConnection>("StorageSession")
         private val log = LoggerFactory.getLogger(Server::class.java)
     }
 }

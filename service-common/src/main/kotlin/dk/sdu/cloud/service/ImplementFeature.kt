@@ -217,7 +217,9 @@ class RESTHandler<P : Any, in S : Any, in E : Any>(
         if (shouldLogResponse) {
             call.attributes.put(KafkaHttpRouteLogger.responsePayloadToLogKey, result)
         }
-        call.respond(status, result)
+
+        if (result == Unit) call.respond(status)
+        else call.respond(status, result)
     }
 
     suspend fun error(error: E, status: HttpStatusCode) {
@@ -225,8 +227,18 @@ class RESTHandler<P : Any, in S : Any, in E : Any>(
         if (shouldLogResponse) {
             call.attributes.put(KafkaHttpRouteLogger.responsePayloadToLogKey, error)
         }
-        call.respond(status, error)
+
+        if (error == Unit) call.respond(status)
+        else call.respond(status, error)
     }
+}
+
+suspend fun RESTHandler<*, Unit, *>.ok(status: HttpStatusCode) {
+    ok(Unit, status)
+}
+
+suspend fun RESTHandler<*, *, Unit>.error(status: HttpStatusCode) {
+    error(Unit, status)
 }
 
 fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair<String, Any?>? {

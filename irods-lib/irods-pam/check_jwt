@@ -43,9 +43,6 @@ cxRkBwgpvpDi5/B9xsYEDHfvgdfEfpbPCuFyBCexwr3RDoawxe+k86tZLEBfRM09
 +OSskqwGL9A/e6uYQ1YD3ZlR+BGTTJvm2A==
 -----END CERTIFICATE-----"""
 
-# TODO We should catch any non expected exception and return PAM_AUTH_ERR
-# We don't want a crash to cause successful authentication
-
 try:
     all_lines = sys.stdin.read().splitlines()
     username = all_lines[0]
@@ -54,7 +51,7 @@ try:
     ret = PAM_SUCCESS
 
     try:
-        validated = jwt.decode(token, cert, algorithms = 'RS256')
+        validated = jwt.decode(token, cert, audience = "irods", algorithms = 'RS256')
         if username != validated['sub']:
             ret = PAM_AUTH_ERR
     except:

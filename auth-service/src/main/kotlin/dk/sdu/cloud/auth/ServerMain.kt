@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.onelogin.saml2.settings.SettingsBuilder
 import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.services.OTTBlackListTable
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.Principals
 import dk.sdu.cloud.auth.services.RefreshTokens
@@ -118,89 +119,88 @@ fun main(args: Array<String>) {
     )
     log.info("Connected to database!")
 
+    when (args.getOrNull(1)) {
+        null, "run-server" -> {
+            log.info("Connecting to Zookeeper")
+            val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
+            log.info("Connected to Zookeeper")
 
-    if (args.isEmpty()) {
-        log.info("Connecting to Zookeeper")
-        val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
-        log.info("Connected to Zookeeper")
+            val serverProvider: HttpServerProvider = { block ->
+                embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
+            }
 
-        val serverProvider: HttpServerProvider = { block ->
-            embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
+            val samlProperties = Properties().apply {
+                load(AuthServer::class.java.classLoader.getResourceAsStream("saml.properties"))
+            }
+
+            val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
+            val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
+
+            val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), "TODO") // TODO FIXME!!!
+
+            AuthServer(
+                jwtAlg = Algorithm.RSA256(priv),
+                config = configuration,
+                authSettings = authSettings,
+                zk = zk,
+                kafka = kafka,
+                ktor = serverProvider,
+                cloud = cloud
+            ).start()
         }
 
-        val samlProperties = Properties().apply {
-            load(AuthServer::class.java.classLoader.getResourceAsStream("saml.properties"))
+        "generate-db" -> {
+            log.info("Generating database (intended for development only)")
+            log.info("Creating tables...")
+            transaction {
+                create(Principals, RefreshTokens, OTTBlackListTable)
+            }
+            log.info("OK")
         }
 
-        val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
-        val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
+        "create-user" -> {
+            val userEvents = kafka.producer.forStream(AuthStreams.UserUpdateStream)
 
-        val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), "TODO") // TODO FIXME!!!
+            val console = System.console()
+            val firstNames = console.readLine("First names: ")
+            val lastName = console.readLine("Last name: ")
 
-        AuthServer(
-            jwtAlg = Algorithm.RSA256(priv),
-            config = configuration,
-            authSettings = authSettings,
-            zk = zk,
-            kafka = kafka,
-            ktor = serverProvider,
-            cloud = cloud
-        ).start()
-    } else {
-        when (args[0]) {
-            "generate-db" -> {
-                log.info("Generating database (intended for development only)")
-                log.info("Creating tables...")
-                transaction {
-                    create(Principals, RefreshTokens)
-                }
-                log.info("OK")
+            val role = console.readLine("Role (String): ").let { Role.valueOf(it) }
+
+            val email = console.readLine("Email: ")
+            val password = String(console.readPassword("Password: "))
+
+            val person = PersonUtils.createUserByPassword(firstNames, lastName, email, role, password)
+
+            log.info("Creating user: ")
+            log.info(person.toString())
+
+            runBlocking {
+                userEvents.emit(UserEvent.Created(person.id, person))
             }
 
-            "create-user" -> {
-                val userEvents = kafka.producer.forStream(AuthStreams.UserUpdateStream)
+            log.info("OK")
+        }
 
-                val console = System.console()
-                val firstNames = console.readLine("First names: ")
-                val lastName = console.readLine("Last name: ")
+        "create-api-token" -> {
+            val userEvents = kafka.producer.forStream(AuthStreams.UserUpdateStream)
+            val tokenEvents = kafka.producer.forStream(AuthStreams.RefreshTokenStream)
 
-                val role = console.readLine("Role (String): ").let { Role.valueOf(it) }
+            val scanner = Scanner(System.`in`)
+            print("Service name: ")
+            val serviceName = scanner.nextLine()
 
-                val email = console.readLine("Email: ")
-                val password = String(console.readPassword("Password: "))
+            val token = UUID.randomUUID().toString()
+            val principal = ServicePrincipal("_$serviceName", Role.SERVICE)
 
-                val person = PersonUtils.createUserByPassword(firstNames, lastName, email, role, password)
-
-                log.info("Creating user: ")
-                log.info(person.toString())
-
-                runBlocking {
-                    userEvents.emit(person.id, UserEvent.Created(person.id, person))
-                }
-
-                log.info("OK")
+            runBlocking {
+                userEvents.emit(UserEvent.Created(principal.id, principal))
+                val event = RefreshTokenEvent.Created(token, principal.id)
+                tokenEvents.emit(event)
             }
 
-            "create-api-token" -> {
-                val userEvents = kafka.producer.forStream(AuthStreams.UserUpdateStream)
-                val tokenEvents = kafka.producer.forStream(AuthStreams.RefreshTokenStream)
-
-                val scanner = Scanner(System.`in`)
-                print("Service name: ")
-                val serviceName = scanner.nextLine()
-
-                val token = UUID.randomUUID().toString()
-                val principal = ServicePrincipal("_$serviceName", Role.SERVICE)
-
-                runBlocking {
-                    userEvents.emit(principal.id, UserEvent.Created(principal.id, principal))
-                    val event = RefreshTokenEvent.Created(token, principal.id)
-                    tokenEvents.emit(event.key, event)
-                }
-
-                log.info("Created a service user: ${principal.id}")
-                log.info("Active refresh token: $token")
-            }
+            log.info("Created a service user: ${principal.id}")
+            log.info("Active refresh token: $token")
         }
     }
 }

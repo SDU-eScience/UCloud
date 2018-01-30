@@ -10,13 +10,7 @@ import dk.sdu.cloud.storage.model.AccessControlList // TODO....
 import io.netty.handler.codec.http.HttpMethod
 
 object ACLDescriptions : RESTDescriptions(StorageServiceDescription) {
-    private val baseContext = "/api/acl"
-
-    val listAtPath = callDescription<FindByPath, AccessControlList, CommonErrorMessage> {
-        prettyName = "aclListAtPath"
-        path { using(baseContext) }
-        params { +boundTo(FindByPath::path) }
-    }
+    private const val baseContext = "/api/acl"
 
     // TODO Temporary
     val grantRights = kafkaDescription<PermissionCommand.Grant> {
