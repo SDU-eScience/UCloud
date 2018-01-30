@@ -62,6 +62,7 @@ class Files extends React.Component {
                 }
             }),
         };
+        this.getFavorites = this.getFavorites.bind(this);
         this.getFiles = this.getFiles.bind(this);
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
@@ -220,6 +221,22 @@ class Files extends React.Component {
         }));
     }
 
+    getFavorites() {
+        this.setState({
+            loading: true,
+        });
+        let currentPath = `/home/${Cloud.username}`;
+        Cloud.get(`files?path=${currentPath}`).then(files => {
+            files.forEach(file => file.isChecked = false);
+            let favorites = files.filter(file => file.favorited);
+            this.setState(() => ({
+                files: this.state.sortingFunctions.typeAndName(favorites, true),
+                loading: false,
+                currentPath: currentPath,
+            }));
+        });
+    }
+
     componentWillMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
         this.state.uppy.use(Uppy.Tus, tusConfig);
@@ -247,8 +264,8 @@ class Files extends React.Component {
                         <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
                                     selectedFiles={this.state.selectedFiles}
                                     masterCheckbox={this.state.masterCheckbox} sortingIcon={this.getSortingIcon}
-                                    getFavorites={() => this.getFavorites} favorite={this.favoriteFile}
-                                    addOrRemoveFile={this.addOrRemoveFile} sortFiles={this.sortFilesBy}
+                                    favorite={this.favoriteFile} addOrRemoveFile={this.addOrRemoveFile}
+                                    sortFiles={this.sortFilesBy}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
                         <BallPulseLoading loading={this.state.loading}/>
                         <PaginationButtons
@@ -263,7 +280,7 @@ class Files extends React.Component {
                     </div>
                     <ContextBar selectedFiles={this.state.files.filter(file => file.isChecked)}
                                 currentPath={this.state.currentPath}
-                                getFavorites={() => this.getFavorites()}
+                                getFavorites={this.getFavorites}
                                 onClick={this.handleOpen}/>
                 </div>
                 <DashboardModal uppy={this.state.uppy} open={this.state.uploadFileOpen} closeModalOnClickOutside
@@ -307,10 +324,10 @@ function ContextBar(props) {
         <div className="col-lg-2 visible-lg">
             <div>
                 <div className="center-block text-center">
-                    <Button className="btn btn-link btn-lg" onClick={() => props.getFavorites()}><a><i
-                        className="icon ion-star"/></a></Button>
-                    <Button className="btn btn-link btn-lg"><Link to={`files?path=/home/${Cloud.username}`}><i
-                        className="ion-ios-home"/></Link></Button>
+                    <Button className="btn btn-link btn-lg" onClick={() => props.getFavorites()}><i
+                        className="icon ion-star"/></Button>
+                    <Link to={`files?path=/home/${Cloud.username}`}><Button className="btn btn-link btn-lg"><i
+                        className="ion-ios-home"/></Button></Link>
                 </div>
                 <hr/>
                 <button className="btn btn-primary ripple btn-block" id="uppy"
