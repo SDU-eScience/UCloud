@@ -1,6 +1,6 @@
 import React from "react";
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {getParentPath, updateSharingOfFile} from "../UtilityFunctions";
+import {getParentPath, updateSharingOfFile, shareFile} from "../UtilityFunctions";
 import SectionContainerCard from "./SectionContainerCard";
 import {BallPulseLoading} from "./LoadingIcon";
 import {SensitivityLevel, RightsNameMap} from "../DefaultObjects"
@@ -54,7 +54,7 @@ class FileInfo extends React.Component {
                 type: "revoke",
             };
 
-            return Cloud.delete("/acl", body).then(response => {
+            Cloud.delete("/acl", body).then(response => {
                 swal("Success!", `Rights have been revoked`, "success");
                 this.removeAcl(acl);
             });
@@ -77,6 +77,7 @@ class FileInfo extends React.Component {
                 <FileHeader file={this.state.file}/>
                 <FileView file={this.state.file}/>
                 <FileSharing file={this.state.file} revokeRights={this.revokeRights}/>
+                <Button onClick={() => shareFile(this.state.file.path)} className="btn btn-primary">Share file</Button>
             </SectionContainerCard>
         );
     }

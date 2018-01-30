@@ -486,7 +486,7 @@ function Directory(props) {
             <FileType type={file.type} path={file.path}/>
             <Favorited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-            <td><Link to={`/fileInfo/${file.path.path}`}>{owner}</Link></td>
+            <td>{owner}</td>
             <td>{SensitivityLevel[file.sensitivityLevel]}</td>
             <td>
                 <MobileButtons file={file}/>

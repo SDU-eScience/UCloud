@@ -139,7 +139,7 @@ function updateSharingOfFile(filePath, user, currentRights) {
     });
 }
 
-function shareFile(filePath, user, currentRights) {
+function shareFile(filePath) {
     swal({
         title: "Share file",
         text: `Enter a username to share ${filePath.name} with.`,
