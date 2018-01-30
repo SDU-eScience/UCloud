@@ -347,6 +347,11 @@ function FileOptions(props) {
         <div>
             <h3>{fileText}</h3>
             <p>
+                <Link disabled={props.selectedFiles.length !== 1} className="btn btn-primary ripple btn-block"
+                      to={`/fileInfo/${props.selectedFiles[0].path.path}`}><span
+                    className="ion-ios-settings-strong pull-left"/>Properties</Link>
+            </p>
+            <p>
                 <Button type="button" className="btn btn-default ripple btn-block"
                         disabled={props.selectedFiles.length > 1}
                         onClick={() => shareFile(props.selectedFiles[0].path)}><span
@@ -460,7 +465,7 @@ function File(props) {
             <FileType type={file.type} path={file.path}/>
             <Favorited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-            <td><Link to={`/fileInfo/${file.path.path}`}>{owner}</Link></td>
+            <td>{owner}</td>
             <td>{SensitivityLevel[file.sensitivityLevel]}</td>
             <td>
                 <MobileButtons file={file}/>
@@ -529,6 +534,8 @@ function MobileButtons(props) {
                            onClick={() => renameFile(file.path)}> Rename file</a></li>
                     <li><a className="btn btn-danger ripple ion-ios-trash"
                            onClick={() => showFileDeletionPrompt(file.path)}> Delete file</a></li>
+                    <li><Link className="btn btn-default ripple btn-block ion-ios-settings-strong"
+                              to={`/fileInfo/${file.path.path}`}>Properties</Link></li>
                 </ul>
             </div>
         </span>)

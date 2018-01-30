@@ -1,6 +1,6 @@
 import React from "react";
 import swal from "sweetalert2";
-import {RightsMap, SensitivityLevelMap} from "./DefaultObjects"
+import {RightsNameMap, SensitivityLevelMap} from "./DefaultObjects"
 import {Cloud} from "../authentication/SDUCloudObject";
 
 function NotificationIcon(props) {
@@ -108,7 +108,38 @@ function getOwnerFromAcls(acls) {
     return result.right;
 }
 
-function shareFile(filePath) {
+function updateSharingOfFile(filePath, user, currentRights) {
+    swal({
+        title: "Please specify access level",
+        text: `The file ${filePath.name} is to be shared with ${user}.`,
+        input: "select",
+        showCancelButton: true,
+        showCloseButton: true,
+        inputOptions: {
+            "READ": "Read Access",
+            "READ_WRITE": "Read/Write Access",
+            //"OWN": "Own the file"
+        },
+        inputValidator: value => {
+            return currentRights === value && `${user} already has ${RightsNameMap[value]} access.`
+        }
+    }).then(type => {
+        if (type.dismiss) {
+            return;
+        }
+        const body = {
+            entity: user,
+            onFile: filePath.path,
+            rights: type.value,
+            type: "grant",
+        };
+        Cloud.put("/acl", body).then(response => {
+            swal("Success!", `The file has been shared with ${user}`, "success");
+        });
+    });
+}
+
+function shareFile(filePath, user, currentRights) {
     swal({
         title: "Share file",
         text: `Enter a username to share ${filePath.name} with.`,
@@ -149,8 +180,27 @@ function shareFile(filePath) {
                 });
             });
         }
-    )
-    ;
+    );
+}
+
+function revokeSharing(filePath, person, rightsLevel) {
+    swal({
+        title: "Revoke access",
+        text: `Revoke ${rightsLevel} access for ${person}`,
+    }).then(input => {
+        if (input.dismiss) {
+            return;
+        }
+        const body = {
+            onFile: filePath,
+            entity: person,
+            type: "revoke",
+        };
+
+        return Cloud.delete("/acl", body);//.then(response => {
+
+        //});
+    });
 }
 
 function createFolder(currentPath) {
@@ -232,4 +282,6 @@ export {
     sendToAbacus,
     renameFile,
     getParentPath,
+    updateSharingOfFile,
+    revokeSharing,
 }

@@ -140,6 +140,28 @@ export default class SDUCloud {
         return tokenPromise;
     }
 
+    createOneTimeTokenWithPermission(permission) {
+        let token = SDUCloud.storedRefreshToken;
+        if (!token) {
+            let result = $.Deferred();
+            result.reject(this._missingAuth()).promise();
+            return result;
+        }
+        let oneTimeToken = `${this.authContext}/request/${permission}`;
+        return $.ajax({
+            dataType: "json",
+            method: "POST",
+            url: oneTimeToken,
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        }).then((data) => {
+            let result = $.Deferred();
+            result.resolve(data.accessToken);
+            return result.promise();
+        });
+    }
+
     _refresh() {
         let token = SDUCloud.storedRefreshToken;
         if (!token) {
