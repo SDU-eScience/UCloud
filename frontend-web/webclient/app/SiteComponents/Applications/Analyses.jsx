@@ -5,6 +5,7 @@ import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {Card} from "../Cards";
 import {Table} from 'react-bootstrap';
+import { Link } from 'react-router'
 
 class Analyses extends React.Component {
     constructor(props) {
@@ -25,11 +26,6 @@ class Analyses extends React.Component {
             loading: true
         });
         Cloud.get("/hpc/jobs").then(analyses => {
-            analyses.forEach(analysis => {
-                Cloud.get(`/hpc/jobs/${analysis.jobId}`).then(a => {
-                });
-                analysis.name = "Hello app";
-            });
             this.setState(() => ({
                 loading: false,
                 analyses: analyses,
@@ -57,7 +53,8 @@ class Analyses extends React.Component {
                                         <th>App Name</th>
                                         <th>Job Id</th>
                                         <th>Status</th>
-                                        <th>Comment</th>
+                                        <th>Started at</th>
+                                        <th>Last updated at</th>
                                     </tr>
                                     </thead>
                                     <AnalysesList analyses={this.state.analyses}/>
@@ -78,10 +75,11 @@ function AnalysesList(props) {
     let i = 0;
     const analysesList = props.analyses.map(analysis =>
         <tr key={i++} className="gradeA row-settings">
-            <td>{analysis.name}</td>
+            <td><Link to={`/applications/${analysis.appName}/${analysis.appVersion}`}>{analysis.appName}@{analysis.appVersion}</Link></td>
             <td>{analysis.jobId}</td>
             <td>{analysis.status}</td>
-            <td>{analysis.description}</td>
+            <td>{formatDate(analysis.createdAt)}</td>
+            <td>{formatDate(analysis.modifiedAt)}</td>
         </tr>
     );
 
@@ -89,6 +87,16 @@ function AnalysesList(props) {
         <tbody>
         {analysesList}
         </tbody>)
+}
+
+function formatDate(millis) {
+    // TODO Very primitive
+    let d = new Date(millis);
+    return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`
+}
+
+function pad(value, length) {
+    return (value.toString().length < length) ? pad("0"+value, length):value;
 }
 
 export default Analyses
