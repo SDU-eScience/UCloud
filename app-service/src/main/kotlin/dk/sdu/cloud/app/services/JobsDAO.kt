@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.api.JobStatus
 import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.app.api.JobWithStatusAndInvocation
 import org.jetbrains.exposed.sql.*
+import org.joda.time.DateTime
 
 data class JobToSlurm(val id: String, val slurmId: Long, val owner: String)
 
@@ -27,6 +28,9 @@ object JobsTable : Table() {
 object JobStatusTable : Table() {
     val jobId = varchar("job_id", 36) references JobsTable.systemId
     val status = varchar("status", 32)
+
+    val modifiedAt = datetime("modified_at")
+    val createdAt = datetime("created_at")
 }
 
 object JobsDAO {
@@ -58,14 +62,22 @@ object JobsDAO {
         return (JobsTable innerJoin JobStatusTable).slice(
                 JobsTable.systemId,
                 JobsTable.owner,
-                JobStatusTable.status
+                JobsTable.appName,
+                JobsTable.appVersion,
+                JobStatusTable.status,
+                JobStatusTable.modifiedAt,
+                JobStatusTable.createdAt
         ).select {
             JobsTable.owner eq owner
         }.toList().map {
             JobWithStatus(
                     jobId = it[JobsTable.systemId],
                     owner = it[JobsTable.owner],
-                    status = JobStatus.valueOf(it[JobStatusTable.status])
+                    status = JobStatus.valueOf(it[JobStatusTable.status]),
+                    appName = it[JobsTable.appName],
+                    appVersion = it[JobsTable.appVersion],
+                    createdAt = it[JobStatusTable.createdAt].millis,
+                    modifiedAt = it[JobStatusTable.modifiedAt].millis
             )
         }
     }
@@ -78,7 +90,11 @@ object JobsDAO {
                     jobInfo = JobWithStatus(
                             jobId = it[JobsTable.systemId],
                             owner = it[JobsTable.owner],
-                            status = JobStatus.valueOf(it[JobStatusTable.status])
+                            status = JobStatus.valueOf(it[JobStatusTable.status]),
+                            appName = it[JobsTable.appName],
+                            appVersion = it[JobsTable.appVersion],
+                            createdAt = it[JobStatusTable.createdAt].millis,
+                            modifiedAt = it[JobStatusTable.modifiedAt].millis
                     ),
                     appName = it[JobsTable.appName],
                     appVersion = it[JobsTable.appVersion],
@@ -108,6 +124,7 @@ object JobsDAO {
             workingDirectory: String,
             jobDirectory: String,
             parameters: Map<String, Any>,
+            createdAt: Long,
             initialStatus: JobStatus = JobStatus.PENDING
     ) {
         JobsTable.insert {
@@ -124,13 +141,16 @@ object JobsDAO {
         JobStatusTable.insert {
             it[JobStatusTable.jobId] = systemId
             it[JobStatusTable.status] = initialStatus.name
+            it[JobStatusTable.createdAt] = DateTime(createdAt)
+            it[JobStatusTable.modifiedAt] = DateTime(createdAt)
         }
     }
 
-    fun updateJobBySystemId(systemId: String, newStatus: JobStatus): Boolean {
+    fun updateJobBySystemId(systemId: String, newStatus: JobStatus, modifiedAt: Long): Boolean {
         val existing = findJobMappingById(systemId) ?: return false
         JobStatusTable.update({ JobStatusTable.jobId eq existing.id }, limit = 1) {
             it[JobStatusTable.status] = newStatus.name
+            it[JobStatusTable.modifiedAt] = DateTime(modifiedAt)
         }
         return true
     }

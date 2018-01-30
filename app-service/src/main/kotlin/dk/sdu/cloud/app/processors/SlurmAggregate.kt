@@ -26,6 +26,7 @@ class SlurmAggregate(
             if (validated != null) {
                 try {
                     transaction {
+                        // TODO Created at is incorrect, should extract from event
                         JobsDAO.createJob(
                                 systemId,
                                 validated.subject,
@@ -34,7 +35,8 @@ class SlurmAggregate(
                                 value.originalRequest.event.application.version,
                                 value.workingDirectory,
                                 value.jobDirectory,
-                                value.originalRequest.event.parameters
+                                value.originalRequest.event.parameters,
+                                System.currentTimeMillis()
                         )
                     }
                 } catch (ex: JdbcSQLException) {
@@ -49,7 +51,8 @@ class SlurmAggregate(
             log.info("Updating status for job with systemId=$key: $value")
             slurmPollAgent.handle(value)
             transaction {
-                JobsDAO.updateJobBySystemId(key, value.toJobStatus())
+                // TODO Modified at incorrect, should extract from event
+                JobsDAO.updateJobBySystemId(key, value.toJobStatus(), System.currentTimeMillis())
             }
         }
     }
