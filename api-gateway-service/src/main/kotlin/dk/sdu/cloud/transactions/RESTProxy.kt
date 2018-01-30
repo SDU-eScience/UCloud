@@ -6,6 +6,7 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.content.OutgoingContent
 import io.ktor.features.origin
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -50,7 +51,8 @@ class RESTProxy(
         HttpHeaders.Connection,
         HttpHeaders.Server,
         HttpHeaders.Date,
-        HttpHeaders.ContentLength
+        HttpHeaders.ContentLength,
+        HttpHeaders.ContentType
     ).map { it.normalizeHeader() }.toSet()
 
     private fun String.normalizeHeader() = toUpperCase()
@@ -164,6 +166,7 @@ class RESTProxy(
         }
 
         var contentLength: Long? = null
+        var contentType: ContentType? = null
         streamingHttp.retrieveStatusAndHeaders(
             statusHandler = {
                 response.status(HttpStatusCode.fromValue(it))
@@ -178,11 +181,15 @@ class RESTProxy(
                     if (it.key.normalizeHeader() == HttpHeaders.ContentLength.normalizeHeader()) {
                         contentLength = it.value.toLongOrNull()
                     }
+
+                    if (it.key.normalizeHeader() == HttpHeaders.ContentType.normalizeHeader()) {
+                        contentType = ContentType.parse(it.value)
+                    }
                 }
             }
         )
 
-        respondDirectWrite(contentLength) {
+        respondDirectWrite(contentLength, contentType) {
             streamingHttp.retrieveBody {
                 writeFully(it.bodyByteBuffer)
             }
@@ -315,14 +322,19 @@ fun ApplicationRequest.bearer(): String? {
 }
 
 
-suspend fun ApplicationCall.respondDirectWrite(size: Long? = null, writer: suspend ByteWriteChannel.() -> Unit) {
-    val message = DirectWriteContent(writer, size)
+suspend fun ApplicationCall.respondDirectWrite(
+    size: Long? = null,
+    contentType: ContentType? = null,
+    writer: suspend ByteWriteChannel.() -> Unit
+) {
+    val message = DirectWriteContent(writer, size, contentType)
     return respond(message)
 }
 
 class DirectWriteContent(
     private val writer: suspend ByteWriteChannel.() -> Unit,
-    override val contentLength: Long? = null
+    override val contentLength: Long? = null,
+    override val contentType: ContentType? = null
 ) : OutgoingContent.WriteChannelContent() {
     override suspend fun writeTo(channel: ByteWriteChannel) {
         writer(channel)
