@@ -265,6 +265,39 @@ function getParentPath(path) {
     return parentPath;
 }
 
+const makeCancelable = (promise) => {
+    let hasCanceled_ = false;
+
+    const wrappedPromise = new Promise((resolve, reject) => {
+        promise.then(
+            val => hasCanceled_ ? reject({isCanceled: true}) : resolve(val),
+            error => hasCanceled_ ? reject({isCanceled: true}) : reject(error)
+        );
+    });
+
+    return {
+        promise: wrappedPromise,
+        cancel() {
+            hasCanceled_ = true;
+        },
+    };
+};
+
+function downloadFile(path) {
+    console.log("Doing something");
+    Cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
+        let link = document.createElement("a");
+        window.location.href = "/api/files/download?path=" + encodeURI(path) + "&token=" + encodeURI(token);
+        link.setAttribute("download", "");
+        link.click();
+        //document.appendChild(link);
+        //console.log("I did something");
+        //console.log(link);
+        //ocument.removeChild(link);
+    });
+}
+
+
 export {
     NotificationIcon,
     WebSocketSupport,
@@ -284,4 +317,6 @@ export {
     getParentPath,
     updateSharingOfFile,
     revokeSharing,
+    makeCancelable,
+    downloadFile,
 }

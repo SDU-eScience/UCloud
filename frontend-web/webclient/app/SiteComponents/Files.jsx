@@ -17,6 +17,7 @@ import {
     renameFile,
     showFileDeletionPrompt,
     sendToAbacus,
+    downloadFile,
 } from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
@@ -162,7 +163,7 @@ class Files extends React.Component {
         this.setState({
             loading: true,
         });
-        Cloud.get("files?path=/" + this.state.currentPath).then(files => {
+        Cloud.get(`files?path=/${this.state.currentPath}`).then(files => {
             files.forEach(file => file.isChecked = false);
             this.setState(() => ({
                 files: this.state.sortingFunctions.typeAndName(files, true),
@@ -228,7 +229,9 @@ class Files extends React.Component {
 
     componentWillUnmount() {
         this.setState(() => {
-            let result = {uppy: this.state.uppy};
+            let result = {
+                uppy: this.state.uppy,
+            };
             result.uppy.close();
             return result;
         });
@@ -359,7 +362,8 @@ function FileOptions(props) {
                 </Button>
             </p>
             <p>
-                <Button className="btn btn-default ripple btn-block">
+                <Button disabled={props.selectedFiles.length > 1} className="btn btn-default ripple btn-block"
+                        onClick={() => downloadFile(props.selectedFiles[0].path.path)}>
                     <span className="ion-ios-download pull-left"/>
                     Download selected files
                 </Button>
@@ -395,11 +399,12 @@ function FilesTable(props) {
     if (props.loading) {
         return null;
     } else if (!props.files.length) {
-        return (<div>
-            <h3 className="text-center">
-                <small>There are no files in current folder</small>
-            </h3>
-        </div>);
+        return (
+            <div>
+                <h3 className="text-center">
+                    <small>There are no files in current folder</small>
+                </h3>
+            </div>);
     }
     return (
         <div className="card">

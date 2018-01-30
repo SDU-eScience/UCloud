@@ -1,5 +1,6 @@
-import $ from 'jquery'
-import jwt from 'jsonwebtoken'
+import $ from "jquery";
+import jwt from "jsonwebtoken";
+
 
 export default class SDUCloud {
     constructor(context, serviceName) {
@@ -147,7 +148,7 @@ export default class SDUCloud {
             result.reject(this._missingAuth()).promise();
             return result;
         }
-        let oneTimeToken = `${this.authContext}/request/${permission}`;
+        let oneTimeToken = `${this.authContext}/request/?audience=${permission}`;
         return $.ajax({
             dataType: "json",
             method: "POST",
