@@ -49,16 +49,30 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
+    val download = callDescription<FindByPath, Unit, CommonErrorMessage> {
+        prettyName = "filesDownload"
+        path {
+            using(baseContext)
+            +"download"
+        }
+
+        params {
+            +boundTo(FindByPath::path)
+        }
+    }
+
     val favoriteBundle = listOf(markAsFavorite, removeFavorite)
 }
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY)
+    property = KafkaRequest.TYPE_PROPERTY
+)
 @JsonSubTypes(
     JsonSubTypes.Type(value = FavoriteCommand.Grant::class, name = "grant"),
-    JsonSubTypes.Type(value = FavoriteCommand.Revoke::class, name = "revoke"))
+    JsonSubTypes.Type(value = FavoriteCommand.Revoke::class, name = "revoke")
+)
 sealed class FavoriteCommand {
     abstract val path: String
 

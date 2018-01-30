@@ -154,6 +154,8 @@ interface FileOperations {
      * @throws NotFoundException If object at [remoteFile] is not a directory or does not exist
      */
     fun verifyConsistency(localFile: File, remoteFile: StoragePath): Boolean
+
+    fun get(path: StoragePath): InputStream
 }
 
 interface AccessControlOperations {

@@ -36,35 +36,39 @@ class FavoriteProcessor(
                     irods.createForAccount(validated.subject, validated.token).capture() ?: return@foreach run {
                         log.warn("Unexpected result from iRODS")
                     }
-                val path = account.paths.parseAbsolute(event.path, true)
-                log.info("Updating favorites: $command")
 
-                try {
-                    when (event) {
-                        is FavoriteCommand.Grant -> {
-                            account.metadata.updateMetadata(
-                                path,
-                                listOf(MetadataEntry(FAVORITE_KEY, "true")),
-                                emptyList()
-                            )
-                        }
+                account.use {
+                    val path = account.paths.parseAbsolute(event.path, true)
+                    log.info("Updating favorites: $command")
 
-                        is FavoriteCommand.Revoke -> {
-                            // The iRODS API is truly strange.
-                            account.metadata.updateMetadata(
-                                path,
-                                emptyList(),
-                                listOf(
-                                    MetadataEntry(FAVORITE_KEY, "true"),
-                                    MetadataEntry(FAVORITE_KEY, "false")
+                    try {
+                        when (event) {
+                            is FavoriteCommand.Grant -> {
+                                account.metadata.updateMetadata(
+                                    path,
+                                    listOf(MetadataEntry(FAVORITE_KEY, "true")),
+                                    emptyList()
                                 )
-                            )
+                            }
+
+                            is FavoriteCommand.Revoke -> {
+                                // The iRODS API is truly strange.
+                                account.metadata.updateMetadata(
+                                    path,
+                                    emptyList(),
+                                    listOf(
+                                        MetadataEntry(FAVORITE_KEY, "true"),
+                                        MetadataEntry(FAVORITE_KEY, "false")
+                                    )
+                                )
+                            }
                         }
+                    } catch (ex: Exception) {
+                        log.warn("Caught JargonException while updating favorites. Ignoring this exception...")
+                        log.warn(ex.stackTraceToString())
                     }
-                } catch (ex: Exception) {
-                    log.warn("Caught JargonException while updating favorites. Ignoring this exception...")
-                    log.warn(ex.stackTraceToString())
                 }
+
             }
         }
 

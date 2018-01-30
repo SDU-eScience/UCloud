@@ -45,7 +45,7 @@ class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConn
         // For this reason we will create a new thread (to circumvent this thread local cache) and then return the
         // result once the thread has connected.
         var result: Result<StorageConnection>? = null
-        val thread = Thread {
+        val thread = run {
             result = try {
                 val account = with(connectionInformation) {
                     IRODSAccount.instance(host, port, username, password, "/$zone/home/$username", zone, storageResource)
@@ -64,8 +64,10 @@ class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConn
                 Error.invalidAuthentication()
             }
         }
+        /*
         thread.start()
         thread.join()
+        */
         return result ?: throw IllegalStateException("Result from connection was null. This was unexpected.")
     }
 }

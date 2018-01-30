@@ -4,7 +4,6 @@ import com.github.zafarkhaja.semver.Version
 import dk.sdu.cloud.service.*
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
-import io.ktor.cio.WriteChannel
 import io.ktor.content.OutgoingContent
 import io.ktor.features.origin
 import io.ktor.http.HttpHeaders
@@ -17,12 +16,12 @@ import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
 import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.zookeeper.ZooKeeper
 import org.asynchttpclient.*
 import org.slf4j.LoggerFactory
-import dk.sdu.cloud.service.stackTraceToString
 import java.io.InputStream
 import java.net.URL
 import java.util.*
@@ -35,22 +34,23 @@ class RESTNoServiceAvailable : RESTProxyException("Gateway timeout", HttpStatusC
 private val httpClient = DefaultAsyncHttpClient()
 
 class RESTProxy(
-        private val targets: List<ServiceDefinition>,
-        private val zk: ZooKeeper,
-        private val kafkaProducer: KafkaProducer<String, String>
+    private val targets: List<ServiceDefinition>,
+    private val zk: ZooKeeper,
+    private val kafkaProducer: KafkaProducer<String, String>
 ) {
     private val random = Random()
 
     private val requestHeaderBlacklist = setOf(
-            "Job-Id",
-            "Host",
-            HttpHeaders.XForwardedFor
+        "Job-Id",
+        "Host",
+        HttpHeaders.XForwardedFor
     ).map { it.normalizeHeader() }.toSet()
 
     private val responseHeaderBlacklist = setOf(
-            HttpHeaders.Connection,
-            HttpHeaders.Server,
-            HttpHeaders.Date
+        HttpHeaders.Connection,
+        HttpHeaders.Server,
+        HttpHeaders.Date,
+        HttpHeaders.ContentLength
     ).map { it.normalizeHeader() }.toSet()
 
     private fun String.normalizeHeader() = toUpperCase()
@@ -75,8 +75,12 @@ class RESTProxy(
                                 val origin = call.request.origin.remoteHost
 
                                 async {
-                                    eventProducer.emit(jobId, HttpProxyCallLogEntry(jobId, instance,
-                                            userAgent, origin))
+                                    eventProducer.emit(
+                                        jobId, HttpProxyCallLogEntry(
+                                            jobId, instance,
+                                            userAgent, origin
+                                        )
+                                    )
                                 }
 
                                 call.proxyJobTo(jobId, host)
@@ -84,8 +88,8 @@ class RESTProxy(
                                 when (ex) {
                                     is RESTNoServiceAvailable -> {
                                         log.warn(
-                                                "Unable to proxy request to target service. Unable to find " +
-                                                        "any running service!"
+                                            "Unable to proxy request to target service. Unable to find " +
+                                                    "any running service!"
                                         )
                                         log.warn("Service is: ${service.manifest}")
                                     }
@@ -112,16 +116,18 @@ class RESTProxy(
 
         // TODO FIXME proxying using https
         val resolvedService = services[random.nextInt(services.size)]
-        return Pair(URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}"),
-                resolvedService.instance)
+        return Pair(
+            URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}"),
+            resolvedService.instance
+        )
     }
 
     private suspend fun ApplicationCall.proxyJobTo(
-            jobId: String,
-            host: URL,
-            endpoint: String = request.path(),
-            includeQueryString: Boolean = true,
-            proxyMethod: HttpMethod = request.httpMethod
+        jobId: String,
+        host: URL,
+        endpoint: String = request.path(),
+        includeQueryString: Boolean = true,
+        proxyMethod: HttpMethod = request.httpMethod
     ) {
         val queryString = if (includeQueryString) '?' + request.queryString() else ""
         val endpointUrl = URL(host, endpoint + queryString)
@@ -133,9 +139,9 @@ class RESTProxy(
         // This can cause some servers to (correctly) return 501 NOT IMPLEMENTED on certain HTTP methods. For example,
         // if the server has not implemented chunked transfer encoding for GET messages.
         val stream = if (
-        request.header(HttpHeaders.ContentLength) != null ||
-                request.header(HttpHeaders.TransferEncoding) != null
-                             ) {
+            request.header(HttpHeaders.ContentLength) != null ||
+            request.header(HttpHeaders.TransferEncoding) != null
+        ) {
             receiveOrNull<InputStream>()
         } else {
             null
@@ -157,23 +163,28 @@ class RESTProxy(
             }
         }
 
+        var contentLength: Long? = null
         streamingHttp.retrieveStatusAndHeaders(
-                statusHandler = {
-                    response.status(HttpStatusCode.fromValue(it))
-                },
+            statusHandler = {
+                response.status(HttpStatusCode.fromValue(it))
+            },
 
-                headerHandler = { headers ->
-                    headers.forEach {
-                        if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
-                            response.header(it.key, it.value)
-                        }
+            headerHandler = { headers ->
+                headers.forEach {
+                    if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
+                        response.header(it.key, it.value)
+                    }
+
+                    if (it.key.normalizeHeader() == HttpHeaders.ContentLength.normalizeHeader()) {
+                        contentLength = it.value.toLongOrNull()
                     }
                 }
+            }
         )
 
-        respondDirectWrite {
+        respondDirectWrite(contentLength) {
             streamingHttp.retrieveBody {
-                write(it.bodyByteBuffer)
+                writeFully(it.bodyByteBuffer)
             }
         }
     }
@@ -182,8 +193,8 @@ class RESTProxy(
 internal typealias NettyHttpHeaders = io.netty.handler.codec.http.HttpHeaders
 
 class StreamingHttpRequest(
-        private val endpoint: String,
-        private val config: BoundRequestBuilder.() -> Unit
+    private val endpoint: String,
+    private val config: BoundRequestBuilder.() -> Unit
 ) {
     private var continuation: Continuation<Unit>? = null
     private var cachedThrowable: Throwable? = null
@@ -254,8 +265,8 @@ class StreamingHttpRequest(
     }
 
     suspend fun retrieveStatusAndHeaders(
-            statusHandler: (Int) -> Unit,
-            headerHandler: (NettyHttpHeaders) -> Unit
+        statusHandler: (Int) -> Unit,
+        headerHandler: (NettyHttpHeaders) -> Unit
     ): Unit = suspendCoroutine { continuation ->
         this.continuation = continuation
         this.statusHandler = statusHandler
@@ -266,7 +277,7 @@ class StreamingHttpRequest(
     }
 
     suspend fun retrieveBody(
-            bodyPartHandler: suspend (HttpResponseBodyPart) -> Unit
+        bodyPartHandler: suspend (HttpResponseBodyPart) -> Unit
     ): Unit = suspendCoroutine { continuation ->
         this.continuation = continuation
         this.bodyPartHandler = { runBlocking { bodyPartHandler(it) } }
@@ -303,14 +314,17 @@ fun ApplicationRequest.bearer(): String? {
     return auth.substringAfter("Bearer ")
 }
 
-suspend fun ApplicationCall.respondDirectWrite(writer: suspend WriteChannel.() -> Unit) {
-    val message = DirectWriteContent(writer)
+
+suspend fun ApplicationCall.respondDirectWrite(size: Long? = null, writer: suspend ByteWriteChannel.() -> Unit) {
+    val message = DirectWriteContent(writer, size)
     return respond(message)
 }
 
-class DirectWriteContent(private val writer: suspend WriteChannel.() -> Unit) : OutgoingContent.WriteChannelContent() {
-    override suspend fun writeTo(channel: WriteChannel) {
+class DirectWriteContent(
+    private val writer: suspend ByteWriteChannel.() -> Unit,
+    override val contentLength: Long? = null
+) : OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: ByteWriteChannel) {
         writer(channel)
     }
 }
-

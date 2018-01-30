@@ -8,6 +8,7 @@ import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.http.IRodsController
+import dk.sdu.cloud.storage.http.SimpleDownloadController
 import dk.sdu.cloud.storage.processor.ACLProcessor
 import dk.sdu.cloud.storage.processor.FavoriteProcessor
 import dk.sdu.cloud.storage.processor.UserProcessor
@@ -96,6 +97,7 @@ class Server(
                 route("api") {
                     // Protect is currently done through the intercept to automatically create the connection to iRODS
                     IRodsController().configure(this)
+                    SimpleDownloadController().configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")

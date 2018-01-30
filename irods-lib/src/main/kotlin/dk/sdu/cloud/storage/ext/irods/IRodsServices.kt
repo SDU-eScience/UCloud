@@ -100,6 +100,10 @@ class IRodsFileOperations(
         services.files.instanceIRODSFileInputStream(path.toIRods()).transferTo(output)
     }
 
+    override fun get(path: StoragePath): InputStream {
+        return services.files.instanceIRODSFileInputStream(path.toIRods())
+    }
+
     private fun InputStream.transferTo(output: OutputStream, bufferSize: Int = BUFFER_SIZE) {
         output.use { out ->
             this.use { ins ->

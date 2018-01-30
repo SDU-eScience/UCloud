@@ -65,8 +65,11 @@ fun main(args: Array<String>) {
         )
     }
 
-    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
-//    val cloud = RefreshingJWTAuthenticator(SDUCloud("https://cloud.sdu.dk"), configuration.refreshToken)
+    val cloud = if (args.getOrNull(1) == "dev")
+        RefreshingJWTAuthenticator(SDUCloud("https://cloud.sdu.dk"), configuration.refreshToken)
+    else
+        RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
+
     val adminAccount = run {
         val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
         storageService.createForAccount("_storage", currentAccessToken).orThrow()

@@ -40,29 +40,32 @@ class ACLProcessor(
                     irods.createForAccount(validated.subject, validated.token).capture() ?: return@foreach run {
                         log.warn("Unexpected result from iRODS")
                     }
-                val path = account.paths.parseAbsolute(event.onFile, true)
-                val entity = IRodsUser.fromUsernameAndZone(event.entity, account.connectedUser.zone)
 
-                when (event) {
-                    is PermissionCommand.Grant -> {
-                        log.info("Granting permissions: $event")
+                account.use {
+                    val path = account.paths.parseAbsolute(event.onFile, true)
+                    val entity = IRodsUser.fromUsernameAndZone(event.entity, account.connectedUser.zone)
 
-                        val irodsPermission = when (event.rights) {
-                            TemporaryRight.READ -> AccessRight.READ
-                            TemporaryRight.READ_WRITE -> AccessRight.READ_WRITE
-                            TemporaryRight.OWN -> AccessRight.OWN
+                    when (event) {
+                        is PermissionCommand.Grant -> {
+                            log.info("Granting permissions: $event")
+
+                            val irodsPermission = when (event.rights) {
+                                TemporaryRight.READ -> AccessRight.READ
+                                TemporaryRight.READ_WRITE -> AccessRight.READ_WRITE
+                                TemporaryRight.OWN -> AccessRight.OWN
+                            }
+
+                            val accessEntry = AccessEntry(entity, irodsPermission)
+                            account.accessControl.updateACL(path, listOf(accessEntry), false)
+                            // TODO We need to communicate these results back to the user
                         }
 
-                        val accessEntry = AccessEntry(entity, irodsPermission)
-                        account.accessControl.updateACL(path, listOf(accessEntry), false)
-                        // TODO We need to communicate these results back to the user
-                    }
-
-                    is PermissionCommand.Revoke -> {
-                        log.info("Removing permissions $event")
-                        val accessEntry = AccessEntry(entity, AccessRight.NONE)
-                        account.accessControl.updateACL(path, listOf(accessEntry), false)
-                        // TODO We need to communicate these results back to the user
+                        is PermissionCommand.Revoke -> {
+                            log.info("Removing permissions $event")
+                            val accessEntry = AccessEntry(entity, AccessRight.NONE)
+                            account.accessControl.updateACL(path, listOf(accessEntry), false)
+                            // TODO We need to communicate these results back to the user
+                        }
                     }
                 }
             }
