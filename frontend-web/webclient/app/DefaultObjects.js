@@ -11,6 +11,13 @@ const RightsMap = {
     OWN: 3,
 };
 
+const RightsNameMap = {
+    NONE: "None",
+    READ: "Read",
+    READ_WRITE: "Read/Write",
+    OWN: "Own",
+};
+
 const SensitivityLevel = {
     "OPEN_ACCESS": "Open Access",
     "CONFIDENTIAL": "Confidential",
@@ -23,4 +30,4 @@ const SensitivityLevelMap = {
     "SENSITIVE": 2,
 };
 
-export {DefaultStatus, RightsMap, SensitivityLevel, SensitivityLevelMap}
+export {DefaultStatus, RightsMap, SensitivityLevel, SensitivityLevelMap, RightsNameMap}

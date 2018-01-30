@@ -3,7 +3,7 @@ import {Cloud} from "../../authentication/SDUCloudObject";
 import {getParentPath} from "../UtilityFunctions";
 import SectionContainerCard from "./SectionContainerCard";
 import {BallPulseLoading} from "./LoadingIcon";
-import {SensitivityLevel} from "../DefaultObjects"
+import {SensitivityLevel, RightsNameMap} from "../DefaultObjects"
 import {ListGroup, ListGroupItem, Jumbotron} from "react-bootstrap";
 
 class FileInfo extends React.Component {
@@ -67,6 +67,7 @@ function FileView(props) {
         return null;
     }
     const sharedWithCount = props.file.acl.filter(acl => acl.entity.displayName !== Cloud.username).length;
+    const currentRights = props.file.acl.find(acl => acl.entity.displayName === Cloud.username);
     return (
         <div className="container-fluid">
             <ListGroup className="col-sm-4">
@@ -79,6 +80,11 @@ function FileView(props) {
                 <ListGroupItem>Sensitivity: {SensitivityLevel[props.file.sensitivityLevel]}</ListGroupItem>
                 <ListGroupItem>Size: {props.file.size}</ListGroupItem>
                 <ListGroupItem>Shared with {sharedWithCount} {sharedWithCount === 1 ? "person" : "people"}.</ListGroupItem>
+            </ListGroup>
+            <ListGroup className="col-sm-4">
+                <ListGroupItem>Type: {currentRights.entity.type}</ListGroupItem>
+                <ListGroupItem>Name: {currentRights.entity.displayName}</ListGroupItem>
+                <ListGroupItem>Rights Level: {RightsNameMap[currentRights.right]}</ListGroupItem>
             </ListGroup>
         </div>
     );
