@@ -346,6 +346,7 @@ function FileOptions(props) {
             fileText = filename;
         }
     }
+    const downloadDisabled = (props.selectedFiles.length > 1 || props.selectedFiles[0].sensitivityLevel === "SENSITIVE");
     return (
         <div>
             <h3>{fileText}</h3>
@@ -362,7 +363,7 @@ function FileOptions(props) {
                 </Button>
             </p>
             <p>
-                <Button disabled={props.selectedFiles.length > 1} className="btn btn-default ripple btn-block"
+                <Button disabled={downloadDisabled} className="btn btn-default ripple btn-block"
                         onClick={() => downloadFile(props.selectedFiles[0].path.path)}>
                     <span className="ion-ios-download pull-left"/>
                     Download selected files
