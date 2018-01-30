@@ -1,10 +1,17 @@
 package dk.sdu.cloud.auth.http
 
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.bearer
+import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.ok
+import dk.sdu.cloud.service.error
 import io.ktor.application.call
 import io.ktor.content.files
 import io.ktor.content.static
@@ -25,9 +32,9 @@ import java.io.File
 
 // TODO Bad name
 class CoreAuthController(
-        private val tokenService: TokenService,
-        private val enablePasswords: Boolean,
-        private val enableWayf: Boolean
+    private val tokenService: TokenService,
+    private val enablePasswords: Boolean,
+    private val enableWayf: Boolean
 ) {
     private val ApplicationRequest.bearerToken: String?
         get() {
@@ -52,8 +59,10 @@ class CoreAuthController(
 
                 logEntry(log, mapOf("service" to service, "isInvalid" to isInvalid))
 
-                fun FlowContent.formControlField(name: String, text: String, iconType: String,
-                                                 type: String = "text") {
+                fun FlowContent.formControlField(
+                    name: String, text: String, iconType: String,
+                    type: String = "text"
+                ) {
                     div(classes = "mda-form-group float-label mda-input-group") {
                         div(classes = "mda-form-control") {
                             input(classes = "form-control") {
@@ -81,11 +90,14 @@ class CoreAuthController(
 
                         meta(charset = "utf-8")
                         meta(
-                                name = "viewport",
-                                content = "width=device-width, initial-scale=1, maximum-scale=1"
+                            name = "viewport",
+                            content = "width=device-width, initial-scale=1, maximum-scale=1"
                         )
 
-                        link(rel = "stylesheet", href = "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css")
+                        link(
+                            rel = "stylesheet",
+                            href = "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+                        )
                         link(rel = "stylesheet", href = "/auth/css/ionicons.css")
                         link(rel = "stylesheet", href = "/auth/css/colors.css")
                         link(rel = "stylesheet", href = "/auth/css/app.css")
@@ -97,9 +109,9 @@ class CoreAuthController(
                                 div(classes = "container-full") {
                                     div(classes = "container container-xs") {
                                         img(
-                                                alt = "SDU Cloud Logo",
-                                                src = "sdu_plain_white.png",
-                                                classes = "mv-lg block-center img-responsive"
+                                            alt = "SDU Cloud Logo",
+                                            src = "sdu_plain_white.png",
+                                            classes = "mv-lg block-center img-responsive"
                                         )
                                         if (service == null) {
                                             div(classes = "alert alert-danger") {
@@ -130,16 +142,16 @@ class CoreAuthController(
                                                         }
 
                                                         formControlField(
-                                                                name = "username",
-                                                                text = "Username",
-                                                                iconType = "email-outline"
+                                                            name = "username",
+                                                            text = "Username",
+                                                            iconType = "email-outline"
                                                         )
 
                                                         formControlField(
-                                                                name = "password",
-                                                                text = "Password",
-                                                                iconType = "locked-outline",
-                                                                type = "password"
+                                                            name = "password",
+                                                            text = "Password",
+                                                            iconType = "locked-outline",
+                                                            type = "password"
                                                         )
                                                     }
                                                     button(type = ButtonType.submit) {
@@ -150,8 +162,10 @@ class CoreAuthController(
 
                                                 if (enableWayf) {
                                                     div {
-                                                        a(href = "/auth/saml/login?service=${service.name.urlEncoded}",
-                                                                classes = "btn btn-flat btn-block btn-info") {
+                                                        a(
+                                                            href = "/auth/saml/login?service=${service.name.urlEncoded}",
+                                                            classes = "btn btn-flat btn-block btn-info"
+                                                        ) {
                                                             +"Login using WAYF"
                                                             img(alt = "WAYF Logo", src = "wayf_logo.png") {
                                                                 height = "32px"
@@ -263,7 +277,57 @@ class CoreAuthController(
                     log.info(ex.message)
                     call.respond(ex.httpCode)
                 }
+            }
 
+            implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
+                logEntry(log, it)
+
+                val refreshToken = call.request.bearerToken ?: return@implement run {
+                    call.respond(HttpStatusCode.Unauthorized)
+                }
+
+                try {
+                    val token = tokenService.requestOneTimeToken(refreshToken, *it.audience.split(",").toTypedArray())
+                    call.respond(token)
+                } catch (ex: TokenService.RefreshTokenException) {
+                    log.info(ex.message)
+                    call.respond(ex.httpCode)
+                }
+            }
+
+            implement(AuthDescriptions.claim) {
+                logEntry(log, it)
+                val jti = it.jti
+                val token = call.request.bearer ?: return@implement run {
+                    log.debug("Missing bearer token")
+                    call.respond(HttpStatusCode.Unauthorized)
+                }
+
+                val principal = TokenValidation.validateOrNull(token) ?: return@implement run {
+                    log.debug("Invalid token")
+                    call.respond(HttpStatusCode.Forbidden)
+                }
+
+                val principalRole = try {
+                    Role.valueOf(principal.getClaim("role").asString())
+                } catch (ex: Exception) {
+                    log.debug("Invalid or missing role for principal")
+                    call.respond(HttpStatusCode.Forbidden)
+                    return@implement
+                }
+
+                if (principalRole != Role.SERVICE && principalRole != Role.ADMIN) {
+                    log.debug("Cannot claim token as non-service/admin principal")
+                    call.respond(HttpStatusCode.Forbidden)
+                    return@implement
+                }
+
+                val tokenWasClaimed = OneTimeTokenDAO.claim(jti, principal.subject)
+                if (tokenWasClaimed) {
+                    ok(HttpStatusCode.NoContent)
+                } else {
+                    error(HttpStatusCode.Conflict)
+                }
             }
 
             post("logout") {

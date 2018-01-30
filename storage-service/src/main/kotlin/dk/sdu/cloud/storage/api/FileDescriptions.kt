@@ -49,7 +49,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val download = callDescription<FindByPath, Unit, CommonErrorMessage> {
+    val download = callDescription<DownloadByURI, Unit, CommonErrorMessage> {
         prettyName = "filesDownload"
         path {
             using(baseContext)
@@ -57,12 +57,15 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
 
         params {
-            +boundTo(FindByPath::path)
+            +boundTo(DownloadByURI::path)
+            +boundTo(DownloadByURI::token)
         }
     }
 
     val favoriteBundle = listOf(markAsFavorite, removeFavorite)
 }
+
+data class DownloadByURI(val path: String, val token: String)
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
