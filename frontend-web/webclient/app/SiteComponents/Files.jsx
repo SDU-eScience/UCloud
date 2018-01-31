@@ -51,7 +51,7 @@ class Files extends React.Component {
             },
             uppy: Uppy.Core({
                 autoProceed: false,
-                debug: true,
+                debug: false,
                 meta: {
                     sensitive: false,
                 },
