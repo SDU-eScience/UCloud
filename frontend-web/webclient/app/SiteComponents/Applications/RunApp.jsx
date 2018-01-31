@@ -37,7 +37,7 @@ class RunApp extends React.Component {
             },
             parameters: Object.assign({}, this.state.parameterValues),
             type: "start",
-            comment: this.state.comment.slice(),
+            //comment: this.state.comment.slice(),
         };
 
         // FIXME HACK

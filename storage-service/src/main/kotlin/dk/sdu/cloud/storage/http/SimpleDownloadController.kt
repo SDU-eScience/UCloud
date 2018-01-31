@@ -54,7 +54,7 @@ class SimpleDownloadController(
                     val contentType = ContentType.defaultForFilePath(stat.path.path)
                     call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${stat.path.name}\"")
 
-                    call.respondDirectWrite(stat.sizeInBytes, contentType) {
+                    call.respondDirectWrite(stat.sizeInBytes, contentType, HttpStatusCode.OK) {
                         // The Jargon API will close the stream if it is transferred between threads.
                         // So we have to read from it in a blocking way. This is why we have to push it into
                         // respondDirectWrite and not do the opening before that
@@ -121,16 +121,18 @@ class SimpleDownloadController(
 suspend fun ApplicationCall.respondDirectWrite(
     size: Long? = null,
     contentType: ContentType? = null,
+    status: HttpStatusCode? = null,
     writer: suspend ByteWriteChannel.() -> Unit
 ) {
-    val message = DirectWriteContent(writer, size, contentType)
+    val message = DirectWriteContent(writer, size, contentType, status)
     return respond(message)
 }
 
 class DirectWriteContent(
     private val writer: suspend ByteWriteChannel.() -> Unit,
     override val contentLength: Long? = null,
-    override val contentType: ContentType? = null
+    override val contentType: ContentType? = null,
+    override val status: HttpStatusCode? = null
 ) : OutgoingContent.WriteChannelContent() {
     override suspend fun writeTo(channel: ByteWriteChannel) {
         writer(channel)

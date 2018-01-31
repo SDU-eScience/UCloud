@@ -12,19 +12,33 @@ class Analyses extends React.Component {
         super(props);
         this.state = {
             analyses: [],
-            loading: false
+            loading: false,
+
+            reloadIntervalId: -1
         }
     }
 
     componentDidMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
-        this.getAnalyses();
+        this.getAnalyses(false);
+
+        let reloadIntervalId = setInterval(() => {
+            this.getAnalyses(true)
+        }, 10000);
+        this.setState({ reloadIntervalId: reloadIntervalId });
     }
 
-    getAnalyses() {
-        this.setState({
-            loading: true
-        });
+    componentWillUnmount() {
+        clearInterval(this.state.reloadIntervalId);
+    }
+
+    getAnalyses(silent) {
+        if (!silent) {
+            this.setState({
+                loading: true
+            });
+        }
+
         Cloud.get("/hpc/jobs").then(analyses => {
             this.setState(() => ({
                 loading: false,
