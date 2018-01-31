@@ -172,7 +172,7 @@ function CommentField(props) {
         <div className="form-group">
             <label className="col-sm-2 control-label">Comment</label>
             <div className="col-md-4">
-            <textarea required style={{resize: "none"}} placeholder="Add a comment about this job..."
+            <textarea disabled required style={{resize: "none"}} placeholder="Add a comment about this job..."
                       className="col-md-4 form-control" rows="5" onChange={e => props.onCommentChange(e.target.value)}/>
             </div>
         </div>);
