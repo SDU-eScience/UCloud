@@ -41,13 +41,22 @@ class RunApp extends React.Component {
         };
 
         // FIXME HACK
-        let name = this.state.parameters.find(par => par.type === "input_file").name;
-        let dummyFile = this.state.parameterValues[name];
-        this.state.parameters.forEach(par => {
-            if (par.type === "output_file") {
-                job.parameters[par.name] = {destination: dummyFile.destination, source: dummyFile.destination};
-            }
-        });
+        let dummyParameter = this.state.parameters.find(par => par.type === "input_file");
+        if (!!dummyParameter) {
+            let name = dummyParameter.name;
+            let dummyFile = this.state.parameterValues[name];
+            this.state.parameters.forEach(par => {
+                if (par.type === "output_file") {
+                    job.parameters[par.name] = {destination: dummyFile.destination, source: dummyFile.destination};
+                }
+            });
+        } else {
+            this.state.parameters.forEach(par => {
+                if (par.type === "output_file") {
+                    job.parameters[par.name] = { destination: "ignored", source: "output.txt" };
+                }
+            });
+        }
         // FIXME HACK END
 
         Cloud.post("/hpc/jobs", job).then(jobStatus => {
