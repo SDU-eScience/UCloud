@@ -108,11 +108,9 @@ class CoreAuthController(
                             div(classes = "page-container bg-blue-grey-900") {
                                 div(classes = "container-full") {
                                     div(classes = "container container-xs") {
-                                        img(
-                                            alt = "SDU Cloud Logo",
-                                            src = "sdu_plain_white.png",
-                                            classes = "mv-lg block-center img-responsive"
-                                        )
+                                        h1(classes = "text-center") {
+                                            +"SDUCloud"
+                                        }
                                         if (service == null) {
                                             div(classes = "alert alert-danger") {
                                                 +"An error has occurred. Try again later."
@@ -174,6 +172,13 @@ class CoreAuthController(
                                                     }
                                                 }
                                             }
+                                        }
+                                        div(classes = "col-sm-3 pull-right") {
+                                            img(
+                                                alt = "SDU Cloud Logo",
+                                                src = "sdu_plain_white.png",
+                                                classes = "mv-lg block-center img-responsive align-right"
+                                            )
                                         }
                                     }
                                 }
