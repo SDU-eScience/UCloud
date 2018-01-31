@@ -387,12 +387,6 @@ function FileOptions(props) {
                 </Button>
             </p>
             <p>
-                <Button type="button" className="btn btn-default btn-block ripple">
-                    <span className="ion-android-star pull-left"/>
-                    Favorite selected files
-                </Button>
-            </p>
-            <p>
                 <Button type="button" className="btn btn-default btn-block ripple"
                         onClick={() => renameFile(props.selectedFiles[0].path)}
                         disabled={rights.rightsLevel < 3 || props.selectedFiles.length !== 1}>
