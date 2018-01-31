@@ -1,10 +1,11 @@
 import React from 'react';
 import {Link} from 'react-router'
 import { SidebarOptionsList } from "../MockObjects";
-import '../components/Sidebar/Sidebar.scss';
+import './Sidebar.scss';
 
-import SidebarRun from './../components/Sidebar/Sidebar.run';
-import {initSvgReplace} from '../components/Utils/Utils';
+
+import SidebarRun from './Sidebar.run';
+
 import { Cloud } from '../../authentication/SDUCloudObject'
 
 class Sidebar extends React.Component {
@@ -19,7 +20,6 @@ class Sidebar extends React.Component {
 
     componentDidMount() {
         SidebarRun();
-        initSvgReplace();
         this.getUserName();
         this.getUserOptions();
     }

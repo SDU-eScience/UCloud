@@ -1,7 +1,6 @@
 import React from 'react';
 import { BallPulseLoading } from '../LoadingIcon';
 import {Link} from 'react-router';
-import "../../components/Tables/Datatable.scss";
 
 import {Table} from 'react-bootstrap';
 import {Card, CardHeading} from "../Cards";

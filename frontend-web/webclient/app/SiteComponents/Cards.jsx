@@ -1,5 +1,5 @@
 import React from 'react';
-import './../components/Cards/Cards.scss';
+import './Cards.scss';
 import { Col } from 'react-bootstrap';
 
 

@@ -15,13 +15,12 @@ import {Router, Route, Link, IndexRoute, useRouterHistory} from 'react-router';
 import {createHistory} from 'history'
 
 import "uppy/src/scss/uppy.scss";
-import "../app/components/Tables/Datatable.scss";
-import Core from './components/Core/Core';
-import Bootstrap from './components/Bootstrap/Bootstrap';
-import Common from './components/Common/Common';
-import Colors from './components/Colors/Colors';
-import FloatButton from './components/FloatButton/FloatButton';
-import Translate from "./components/Translate/Translate";
+import "./SiteComponents/Datatable.scss";
+import "./SiteComponents/Common/Common";
+import "./components/Colors/Colors"
+import "./SiteComponents/Common/Utils.scss";
+import "./components/Bootstrap/Bootstrap";
+import Core from './SiteComponents/Core';
 import Dashboard from "./SiteComponents/Dashboard";
 import Notifications from "./SiteComponents/Activity/Notifications.jsx";
 import Applications from "./SiteComponents/Applications/Applications";
@@ -31,13 +30,8 @@ import Analyses from "./SiteComponents/Applications/Analyses";
 import Status from "./SiteComponents/StatusPage";
 import Files from './SiteComponents/Files';
 import FileInfo from "./SiteComponents/FileInfo";
-import User from './components/User/User';
 import UserAuditing from "./SiteComponents/Admin/UserAuditing";
-import Utils from './components/Utils/Utils';
 import { Cloud } from "../authentication/SDUCloudObject";
-
-
-Translate();
 
 $(() => {
     Cloud.receiveAccessTokenOrRefreshIt();
@@ -82,14 +76,6 @@ ReactDOM.render(
 
             <Route path="*" component={NotFound}/>
 
-        </Route>
-
-        {/* User Pages */}
-        <Route path="/" component={User.Layout}>
-            <Route path="login" component={User.Login}/>
-            <Route path="signup" component={User.Signup}/>
-            <Route path="recover" component={User.Recover}/>
-            <Route path="lock" component={User.Lock}/>
         </Route>
 
     </Router>,
