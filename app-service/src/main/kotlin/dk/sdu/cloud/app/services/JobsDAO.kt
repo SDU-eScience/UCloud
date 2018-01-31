@@ -38,9 +38,9 @@ object JobsDAO {
 
     private fun mapJobRow(row: ResultRow): JobToSlurm {
         return JobToSlurm(
-                id = row[JobsTable.systemId],
-                slurmId = row[JobsTable.slurmId],
-                owner = row[JobsTable.owner]
+            id = row[JobsTable.systemId],
+            slurmId = row[JobsTable.slurmId],
+            owner = row[JobsTable.owner]
         )
     }
 
@@ -54,23 +54,25 @@ object JobsDAO {
 
     fun findSystemIdFromSlurmId(slurmId: Long): String? {
         return JobsTable
-                .select { JobsTable.slurmId eq slurmId }
-                .map { it[JobsTable.systemId] }.singleOrNull()
+            .select { JobsTable.slurmId eq slurmId }
+            .map { it[JobsTable.systemId] }.singleOrNull()
     }
 
     fun findAllJobsWithStatus(owner: String): List<JobWithStatus> {
         return (JobsTable innerJoin JobStatusTable).slice(
-                JobsTable.systemId,
-                JobsTable.owner,
-                JobsTable.appName,
-                JobsTable.appVersion,
-                JobStatusTable.status,
-                JobStatusTable.modifiedAt,
-                JobStatusTable.createdAt
+            JobsTable.systemId,
+            JobsTable.owner,
+            JobsTable.appName,
+            JobsTable.appVersion,
+            JobStatusTable.status,
+            JobStatusTable.modifiedAt,
+            JobStatusTable.createdAt
         ).select {
             JobsTable.owner eq owner
-        }.toList().map {
-            JobWithStatus(
+        }.orderBy(JobStatusTable.modifiedAt, false)
+            .toList()
+            .map {
+                JobWithStatus(
                     jobId = it[JobsTable.systemId],
                     owner = it[JobsTable.owner],
                     status = JobStatus.valueOf(it[JobStatusTable.status]),
@@ -78,29 +80,29 @@ object JobsDAO {
                     appVersion = it[JobsTable.appVersion],
                     createdAt = it[JobStatusTable.createdAt].millis,
                     modifiedAt = it[JobStatusTable.modifiedAt].millis
-            )
-        }
+                )
+            }
     }
 
     private fun findJobWithStatusAndInvocationWhere(
-            where: SqlExpressionBuilder.() -> Op<Boolean>
+        where: SqlExpressionBuilder.() -> Op<Boolean>
     ): JobWithStatusAndInvocation? {
         return (JobsTable innerJoin JobStatusTable).select(where).toList().map {
             JobWithStatusAndInvocation(
-                    jobInfo = JobWithStatus(
-                            jobId = it[JobsTable.systemId],
-                            owner = it[JobsTable.owner],
-                            status = JobStatus.valueOf(it[JobStatusTable.status]),
-                            appName = it[JobsTable.appName],
-                            appVersion = it[JobsTable.appVersion],
-                            createdAt = it[JobStatusTable.createdAt].millis,
-                            modifiedAt = it[JobStatusTable.modifiedAt].millis
-                    ),
+                jobInfo = JobWithStatus(
+                    jobId = it[JobsTable.systemId],
+                    owner = it[JobsTable.owner],
+                    status = JobStatus.valueOf(it[JobStatusTable.status]),
                     appName = it[JobsTable.appName],
                     appVersion = it[JobsTable.appVersion],
-                    parameters = mapper.readValue(it[JobsTable.parameters]),
-                    workingDirectory = it[JobsTable.workingDirectory],
-                    jobDirectory = it[JobsTable.jobDirectory]
+                    createdAt = it[JobStatusTable.createdAt].millis,
+                    modifiedAt = it[JobStatusTable.modifiedAt].millis
+                ),
+                appName = it[JobsTable.appName],
+                appVersion = it[JobsTable.appVersion],
+                parameters = mapper.readValue(it[JobsTable.parameters]),
+                workingDirectory = it[JobsTable.workingDirectory],
+                jobDirectory = it[JobsTable.jobDirectory]
             )
         }.singleOrNull()
     }
@@ -116,16 +118,16 @@ object JobsDAO {
     }
 
     fun createJob(
-            systemId: String,
-            owner: String,
-            slurmId: Long,
-            appName: String,
-            appVersion: String,
-            workingDirectory: String,
-            jobDirectory: String,
-            parameters: Map<String, Any>,
-            createdAt: Long,
-            initialStatus: JobStatus = JobStatus.PENDING
+        systemId: String,
+        owner: String,
+        slurmId: Long,
+        appName: String,
+        appVersion: String,
+        workingDirectory: String,
+        jobDirectory: String,
+        parameters: Map<String, Any>,
+        createdAt: Long,
+        initialStatus: JobStatus = JobStatus.PENDING
     ) {
         JobsTable.insert {
             it[JobsTable.systemId] = systemId
@@ -159,5 +161,5 @@ object JobsDAO {
 object JobService {
     fun recentJobs(who: DecodedJWT): List<JobWithStatus> = JobsDAO.findAllJobsWithStatus(who.subject)
     fun findJob(id: String, who: DecodedJWT): JobWithStatusAndInvocation? =
-            JobsDAO.findJobWithStatusById(id)?.takeIf { it.jobInfo.owner == who.subject }
+        JobsDAO.findJobWithStatusById(id)?.takeIf { it.jobInfo.owner == who.subject }
 }
