@@ -69,11 +69,8 @@ class Dashboard extends React.Component {
             analysesLoading: true
         }));
         Cloud.get("/hpc/jobs").then(analyses => {
-            analyses.forEach(analysis => {
-                analysis.name = "Hello app";
-            });
             analyses.sort((a, b) => {
-                return a.name.localeCompare(b.name);
+                return a.modifiedAt - b.modifiedAt;
             });
             this.setState(() => ({
                 analysesLoading: false,
@@ -168,18 +165,21 @@ function DashboardRecentFiles(props) {
         <small>No recent files found</small>
     </h3>;
     const files = props.files;
+    let yesterday = (new Date).getTime() - 1000 * 60 * 60 * 24;
     const filesList = files.map((file) => {
+        let modified = new Date(file.modifiedAt)
+        let timeString = modified >= yesterday ? modified.toLocaleTimeString() : modified.toLocaleDateString();
         if (file.type === "DIRECTORY") {
             return (
                 <tr key={file.path.uri}>
                     <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
-                    <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+                    <td>{timeString}</td>
                 </tr>)
         } else {
             return (
                 <tr key={file.path.uri}>
                     <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                    <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+                    <td>{timeString}</td>
                 </tr>)
         }
     });
@@ -216,7 +216,7 @@ function DashboardAnalyses(props) {
     let i = 0;
     const analysesList = analyses.map((analysis) =>
         <tr key={i++}>
-            <td><a href="#">{analysis.name}</a></td>
+            <td>{analysis.appName}</td>
             <td>{analysis.status}</td>
         </tr>
     );
