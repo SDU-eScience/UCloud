@@ -69,9 +69,6 @@ class Dashboard extends React.Component {
             analysesLoading: true
         }));
         Cloud.get("/hpc/jobs").then(analyses => {
-            analyses.sort((a, b) => {
-                return a.modifiedAt - b.modifiedAt;
-            });
             this.setState(() => ({
                 analysesLoading: false,
                 recentAnalyses: analyses.slice(0, 10),
