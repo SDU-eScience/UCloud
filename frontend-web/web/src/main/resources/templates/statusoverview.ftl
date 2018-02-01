@@ -1,6 +1,0 @@
-<#include "dashboard_header.ftl">
-
-<div id="app"></div>
-<script src="/frontend/statusoverview.js"></script>
-
-<#include "dashboard_end.ftl">

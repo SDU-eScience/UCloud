@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.processor
 
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.storage.Result
 import dk.sdu.cloud.storage.api.PermissionCommand
 import dk.sdu.cloud.storage.api.TemporaryRight
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
@@ -56,14 +57,20 @@ class ACLProcessor(
                             }
 
                             val accessEntry = AccessEntry(entity, irodsPermission)
-                            account.accessControl.updateACL(path, listOf(accessEntry), false)
+                            account.accessControl.updateACL(path, listOf(accessEntry), false).capture() ?: run {
+                                val error = Result.lastError<Unit>()
+                                log.info("Caught an error while updating ACL: ${error.message}")
+                            }
                             // TODO We need to communicate these results back to the user
                         }
 
                         is PermissionCommand.Revoke -> {
                             log.info("Removing permissions $event")
                             val accessEntry = AccessEntry(entity, AccessRight.NONE)
-                            account.accessControl.updateACL(path, listOf(accessEntry), false)
+                            account.accessControl.updateACL(path, listOf(accessEntry), false).capture() ?: run {
+                                val error = Result.lastError<Unit>()
+                                log.info("Caught an error while updating ACL: ${error.message}")
+                            }
                             // TODO We need to communicate these results back to the user
                         }
                     }

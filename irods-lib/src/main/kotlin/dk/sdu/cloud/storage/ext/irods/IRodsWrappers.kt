@@ -82,6 +82,7 @@ fun <T : Any> remapExceptionToResult(exception: Exception): Result<T> {
         when (current) {
             is FileNotFoundException, is org.irods.jargon.core.exception.FileNotFoundException ->
                 return Error.notFound()
+            is InvalidUserException -> return Error.notFound()
             is InvalidGroupException -> return Error.notFound()
             is DuplicateDataException -> return Error.duplicateResource()
             is CatNoAccessException -> return Error.permissionDenied()
