@@ -173,13 +173,24 @@ class CoreAuthController(
                                                 }
                                             }
                                         }
-                                        div(classes = "col-sm-3 pull-right") {
-                                            img(
-                                                alt = "SDU Cloud Logo",
-                                                src = "sdu_plain_white.png",
-                                                classes = "mv-lg block-center img-responsive align-right"
-                                            )
+                                        div(classes = "row") {
+                                            div(classes = "col-sm-12") {
+                                                div(classes = "alert alert-warning") {
+                                                    +"Under construction."
+                                                }
+                                            }
                                         }
+
+                                        div(classes = "row") {
+                                            div(classes = "col-sm-3 pull-right") {
+                                                img(
+                                                    alt = "SDU Cloud Logo",
+                                                    src = "sdu_plain_white.png",
+                                                    classes = "mv-lg block-center img-responsive align-right"
+                                                )
+                                            }
+                                        }
+
                                     }
                                 }
                             }

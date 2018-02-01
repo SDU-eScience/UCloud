@@ -10,6 +10,7 @@ object ServiceDAO {
 
     init {
         insert(Service("local-dev", "http://localhost:9000/auth"))
+        insert(Service("web", "https://cloud.sdu.dk/api/auth-callback"))
     }
 
     fun insert(service: Service): Boolean {

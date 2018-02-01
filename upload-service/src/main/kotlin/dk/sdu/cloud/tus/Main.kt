@@ -5,9 +5,9 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.tus.api.TusServiceDescription
 import io.ktor.application.Application
-import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.StreamsConfig
 import org.jetbrains.exposed.sql.Database
@@ -57,7 +57,7 @@ fun main(args: Array<String>) {
     val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
 
     val serverProvider: HttpServerProvider = { block ->
-        embeddedServer(CIO, port = configuration.connConfig.service.port, module = block)
+        embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
     Database.connect(
