@@ -4,7 +4,8 @@ var HtmlWebpackPlugin = require('html-webpack-plugin');
 var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var path = require('path');
 
-var baseHref = process.env.REACT_BASE_HREF ? process.env.REACT_BASE_HREF : '/';
+//var baseHref = process.env.REACT_BASE_HREF ? process.env.REACT_BASE_HREF : '/';
+var baseHref = "/app";
 
 module.exports = {
 
