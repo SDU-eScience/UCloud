@@ -71,13 +71,23 @@ class FileInfo extends React.Component {
     }
 
     render() {
+        let button = (<div/>);
+        if (this.state.file) {
+            const currentRights = this.state.file.acl.find(acl => acl.entity.displayName === Cloud.username);
+            if (currentRights) {
+                if (currentRights.right === "OWN") {
+                    button = (<Button onClick={() => shareFile(this.state.file.path)} className="btn btn-primary">Share
+                        file</Button>);
+                }
+            }
+        }
         return (
             <SectionContainerCard>
                 <BallPulseLoading loading={this.state.loading}/>
                 <FileHeader file={this.state.file}/>
                 <FileView file={this.state.file}/>
                 <FileSharing file={this.state.file} revokeRights={this.revokeRights}/>
-                <Button onClick={() => shareFile(this.state.file.path)} className="btn btn-primary">Share file</Button>
+                {button}
             </SectionContainerCard>
         );
     }
@@ -103,6 +113,12 @@ function FileView(props) {
     }
     const sharedWithCount = props.file.acl.filter(acl => acl.entity.displayName !== Cloud.username).length;
     const currentRights = props.file.acl.find(acl => acl.entity.displayName === Cloud.username);
+    if (!currentRights) {
+        return (
+            <h3 className="text-center">
+                <small>You do not have rights for this file.</small>
+            </h3>);
+    }
     return (
         <div className="container-fluid">
             <ListGroup className="col-sm-4">
@@ -130,11 +146,16 @@ function FileSharing(props) {
     if (!props.file) {
         return null;
     }
+    const currentRights = props.file.acl.find(acl => acl.entity.displayName === Cloud.username);
+    if (!currentRights || currentRights.right !== "OWN") {
+        return null;
+    }
     const sharedWith = props.file.acl.filter(acl => acl.entity.displayName !== Cloud.username);
     if (!sharedWith.length) {
-        return (<h3 className="text-center">
-            <small>This file has not been shared with anyone.</small>
-        </h3>);
+        return (
+            <h3 className="text-center">
+                <small>This file has not been shared with anyone.</small>
+            </h3>);
     }
     let i = 0;
     const sharedWithList = sharedWith.map(acl =>
@@ -144,7 +165,8 @@ function FileSharing(props) {
             <ButtonGroup bsSize="xsmall" className="pull-right">
                 <Button onClick={() => updateSharingOfFile(props.file.path, acl.entity.displayName, acl.right)}
                         className="btn btn-primary">Change</Button>
-                <Button onClick={() => props.revokeRights(props.file, acl)} className="btn btn-danger">Revoke</Button>
+                <Button onClick={() => props.revokeRights(props.file, acl)}
+                        className="btn btn-danger">Revoke</Button>
             </ButtonGroup>
         </ListGroupItem>
     );
