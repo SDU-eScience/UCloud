@@ -2,10 +2,10 @@ import React from 'react';
 import {BallPulseLoading} from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
-import {Button, Table} from 'react-bootstrap';
+import {Button, Table, Breadcrumb} from 'react-bootstrap';
 import PaginationButtons from "./Pagination"
+import {buildBreadCrumbs} from "./Breadcrumbs"
 import {
-    buildBreadCrumbs,
     sortFilesByTypeAndName,
     createFolder,
     sortFilesByModified,
@@ -248,7 +248,7 @@ class Files extends React.Component {
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <Breadcrumbs currentPath={this.state.currentPath}/>
+                        <Breadcrumbs path={this.state.currentPath}/>
                         <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
                                     selectedFiles={this.state.selectedFiles}
                                     masterCheckbox={this.state.masterCheckbox} sortingIcon={this.getSortingIcon}
@@ -313,6 +313,23 @@ function ContextBar(props) {
             </div>
         </div>
     )
+}
+
+function Breadcrumbs(props) {
+    if (!props.path) {
+        return null;
+    }
+    let pathsMapping = buildBreadCrumbs(props.path);
+    let i = 0;
+    let breadcrumbs = pathsMapping.map(path =>
+        <li key={i++} className="breadcrumb-item">
+            <Link to={`files/${path.actualPath}`}>{path.local}</Link>
+        </li>
+    );
+    return (
+        <ol className="breadcrumb">
+            {breadcrumbs}
+        </ol>)
 }
 
 function FileOptions(props) {
@@ -524,23 +541,6 @@ function MobileButtons(props) {
                 </ul>
             </div>
         </span>)
-}
-
-function Breadcrumbs(props) {
-    if (!props.currentPath) {
-        return null;
-    }
-    let pathsMapping = buildBreadCrumbs(props.currentPath);
-    let i = 0;
-    let breadcrumbs = pathsMapping.map(path =>
-        <li key={i++} className="breadcrumb-item">
-            <Link to={`files/${path.actualPath}`}>{path.local}</Link>
-        </li>
-    );
-    return (
-        <ol className="breadcrumb">
-            {breadcrumbs}
-        </ol>)
 }
 
 export default Files;

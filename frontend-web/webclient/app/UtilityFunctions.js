@@ -33,19 +33,6 @@ function WebSocketSupport() {
     return (null);
 }
 
-function buildBreadCrumbs(path) {
-    let paths = path.split("/");
-    let pathsMapping = [];
-    for (let i = 0; i < paths.length; i++) {
-        let actualPath = "";
-        for (let j = 0; j <= i; j++) {
-            actualPath += paths[j] + "/";
-        }
-        pathsMapping.push({actualPath: actualPath, local: paths[i],})
-    }
-    return pathsMapping;
-}
-
 function sortFilesByFavorite(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
@@ -321,7 +308,6 @@ function getCurrentRights(files) {
 export {
     NotificationIcon,
     WebSocketSupport,
-    buildBreadCrumbs,
     createFolder,
     favorite,
     sortFilesByTypeAndName,

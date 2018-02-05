@@ -1,8 +1,9 @@
 import React from 'react';
-import { BallPulseLoading } from './LoadingIcon';
-import {Modal, Button} from 'react-bootstrap';
+import {BallPulseLoading} from './LoadingIcon';
+import {Modal, Button, Breadcrumb} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {buildBreadCrumbs, sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
+import Breadcrumbs from "./Breadcrumbs"
+import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
 
 class FileSelector extends React.Component {
     constructor(props) {
@@ -73,30 +74,14 @@ class FileSelector extends React.Component {
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
                     </Modal.Header>
-                    <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
+                    <Breadcrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
                     <BallPulseLoading loading={this.state.loading}/>
                     <FileSelectorBody loading={this.state.loading} onClick={this.setSelectedFile}
-                                      files={this.state.files} getFiles={this.getFiles} currentPath={this.state.currentPath}/>
+                                      files={this.state.files} getFiles={this.getFiles}
+                                      currentPath={this.state.currentPath}/>
                 </Modal>
             </div>)
     }
-}
-
-function BreadCrumbs(props) {
-    if (!props.path) {
-        return null;
-    }
-    let pathsMapping = buildBreadCrumbs(props.path);
-    let i = 0;
-    let breadcrumbs = pathsMapping.map(path =>
-        <li key={i++} className="breadcrumb-item">
-            <a onClick={() => props.getFiles(`${path.actualPath}`)}>{path.local}</a>
-        </li>
-    );
-    return (
-        <ol className="breadcrumb">
-            {breadcrumbs}
-        </ol>)
 }
 
 function FileSelectorBody(props) {
