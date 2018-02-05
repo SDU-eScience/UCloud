@@ -46,7 +46,7 @@ class Files extends React.Component {
                 sensitivity: sortFilesBySensitivity,
             },
             lastSorting: {
-                name: "files",
+                name: "typeAndName",
                 asc: true,
             },
             uppy: Uppy.Core({
@@ -87,7 +87,7 @@ class Files extends React.Component {
     getSortingIcon(name) {
         let icon = "";
         if (this.state.lastSorting.name === name) {
-            icon = this.state.lastSorting.asc ? "ion-chevron-up" : "ion-chevron-down";
+            icon = this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
         }
         return icon;
     }
