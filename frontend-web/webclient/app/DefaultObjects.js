@@ -11,6 +11,12 @@ const RightsMap = {
     OWN: 3,
 };
 
+const AnalysesStatusMap = {
+    "PENDING": 0,
+    "IN PROGRESS": 1,
+    "COMPLETED": 2,
+};
+
 const RightsNameMap = {
     NONE: "None",
     READ: "Read",
@@ -30,4 +36,4 @@ const SensitivityLevelMap = {
     "SENSITIVE": 2,
 };
 
-export {DefaultStatus, RightsMap, SensitivityLevel, SensitivityLevelMap, RightsNameMap}
+export {DefaultStatus, RightsMap, SensitivityLevel, SensitivityLevelMap, RightsNameMap, AnalysesStatusMap}

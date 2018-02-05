@@ -2,7 +2,7 @@ import React from 'react';
 import { BallPulseLoading } from './LoadingIcon';
 import {Modal, Button} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {buildBreadCrumbs, sortFilesByTypeAndName} from "../UtilityFunctions";
+import {buildBreadCrumbs, sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
 
 class FileSelector extends React.Component {
     constructor(props) {
@@ -119,7 +119,7 @@ function FileSelectorBody(props) {
                     <FileList files={props.files} onClick={props.onClick} getFiles={props.getFiles}/>
                 </table>
             </div>
-            <Button className="btn btn-info" onClick={() => props.createFolder}>
+            <Button className="btn btn-info" onClick={() => createFolder}>
                 Create new folder
             </Button>
         </Modal.Body>)

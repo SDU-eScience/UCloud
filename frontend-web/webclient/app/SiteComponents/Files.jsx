@@ -16,6 +16,7 @@ import {
     getOwnerFromAcls,
     renameFile,
     showFileDeletionPrompt,
+    getCurrentRights,
     sendToAbacus,
     downloadFile,
 } from '../UtilityFunctions'
@@ -85,11 +86,10 @@ class Files extends React.Component {
     }
 
     getSortingIcon(name) {
-        let icon = "";
         if (this.state.lastSorting.name === name) {
-            icon = this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
+            return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
         }
-        return icon;
+        return "";
     }
 
     handleOpen() {
@@ -121,19 +121,6 @@ class Files extends React.Component {
                 files: files,
                 masterCheckbox: false,
             }));
-        }
-    }
-
-    static getCurrentRights(files) {
-        let lowestPrivilegeOptions = RightsMap["OWN"];
-        files.forEach((it) => {
-            it.acl.filter(acl => acl.entity.displayName === Cloud.username).forEach((acl) => {
-                lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
-            });
-        });
-        return {
-            rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
-            rightsLevel: lowestPrivilegeOptions
         }
     }
 
@@ -351,7 +338,7 @@ function FileOptions(props) {
     if (!props.selectedFiles.length) {
         return null;
     }
-    let rights = Files.getCurrentRights(props.selectedFiles);
+    let rights = getCurrentRights(props.selectedFiles);
     let fileText = "";
     if (props.selectedFiles.length > 1) {
         fileText = `${props.selectedFiles.length} files selected.`;

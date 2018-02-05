@@ -11,7 +11,17 @@ class Workflows extends React.Component {
         this.state = {
             loading: false,
             workflows: [],
+            lastSorting: {
+                name: "name",
+                asc: true,
+            },
         }
+    }
+    getSortingIcon(name) {
+        if (this.state.lastSorting.name === name) {
+            return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
+        }
+        return "";
     }
 
     componentDidMount() {
@@ -22,13 +32,13 @@ class Workflows extends React.Component {
     getWorkflows() {
         this.setState({loading: true});
         let workflows = [];//Cloud.get("/getWorkflows").then(workflows => {
-        workflows.sort((a, b) => {
-            return a.name.localeCompare(b.name);
-        });
-        this.setState({
-            loading: false,
-            workflows: workflows,
-        });
+            workflows.sort((a, b) => {
+                return a.name.localeCompare(b.name);
+            });
+            this.setState({
+                loading: false,
+                workflows: workflows,
+            });
         //});
     }
 
@@ -63,7 +73,7 @@ function WorkflowTable(props) {
             <h3 className="text-center">
                 <small>No workflows found.</small>
             </h3>)
-    };
+    }
     return (
         <Table className="table table-striped table-hover mv-lg">
             <thead>
@@ -80,7 +90,7 @@ function WorkflowsList(props) {
     let workflowsList = props.workflows.map(workflow =>
         <tr className="gradeA row-settings">
             <td>{workflow.name}</td>
-            <ApplicationList applications={workflow.applications}/>
+            <td><ApplicationList applications={workflow.applications}/></td>
         </tr>
     );
     return (

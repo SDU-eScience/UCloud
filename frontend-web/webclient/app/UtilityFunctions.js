@@ -1,6 +1,6 @@
 import React from "react";
 import swal from "sweetalert2";
-import {RightsNameMap, SensitivityLevelMap} from "./DefaultObjects"
+import {RightsMap, RightsNameMap, SensitivityLevelMap, AnalysesStatusMap} from "./DefaultObjects"
 import {Cloud} from "../authentication/SDUCloudObject";
 
 function NotificationIcon(props) {
@@ -82,6 +82,14 @@ function sortFilesByOwner(files, asc) {
         return (a.acl.length - b.acl.length) * order;
     });
     return files;
+}
+
+function sortByStatus(analyses, asc) {
+    let order = asc ? 1 : -1;
+    analyses.sort((a, b) => {
+        return (AnalysesStatusMap[a.status] - AnalysesStatusMap[b.status]) * order;
+    });
+    return analyses;
 }
 
 function sortFilesBySensitivity(files, asc) {
@@ -219,7 +227,7 @@ function createFolder(currentPath) {
         if (result.dismiss) {
             return;
         } else {
-            swal(`Not yet ${result.value}`);
+            swal(`Not yet implemented: ${result.value}`);
         }
     })
 }
@@ -294,13 +302,21 @@ function downloadFile(path) {
         window.location.href = "/api/files/download?path=" + encodeURI(path) + "&token=" + encodeURI(token);
         link.setAttribute("download", "");
         link.click();
-        //document.appendChild(link);
-        //console.log("I did something");
-        //console.log(link);
-        //ocument.removeChild(link);
     });
 }
 
+function getCurrentRights(files) {
+    let lowestPrivilegeOptions = RightsMap["OWN"];
+    files.forEach((it) => {
+        it.acl.filter(acl => acl.entity.displayName === Cloud.username).forEach((acl) => {
+            lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
+        });
+    });
+    return {
+        rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
+        rightsLevel: lowestPrivilegeOptions
+    }
+}
 
 export {
     NotificationIcon,
@@ -323,5 +339,6 @@ export {
     revokeSharing,
     makeCancelable,
     downloadFile,
+    getCurrentRights,
     toLowerCaseAndCapitalize,
 }
