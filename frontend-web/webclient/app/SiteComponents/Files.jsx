@@ -3,6 +3,7 @@ import {BallPulseLoading} from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button, Table} from 'react-bootstrap';
+import PaginationButtons from "./Pagination"
 import {
     buildBreadCrumbs,
     sortFilesByTypeAndName,
@@ -22,7 +23,7 @@ import {
 } from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
-import {RightsMap, SensitivityLevel} from "../DefaultObjects";
+import {SensitivityLevel} from "../DefaultObjects";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
 
@@ -274,26 +275,6 @@ class Files extends React.Component {
                                 onRequestClose={this.handleClose}/>
             </section>)
     }
-}
-
-function PaginationButtons(props) {
-    const buttons = [...Array(props.totalPages()).keys()].map(i =>
-        <span key={i}>
-            <button
-                className="paginate_button btn btn-default btn-circle btn-info"
-                disabled={i === props.currentPage}
-                onClick={() => props.toPage(i)}>{i + 1}</button>
-        </span>);
-    return (
-        <div className="text-center">
-            <button className="previous btn-default btn btn-circle" onClick={() => props.previousPage()}
-                    disabled={props.currentPage === 0} type="button">
-                <em className="ion-ios-arrow-left"/></button>
-            {buttons}
-            <button className="next btn-default btn btn-circle ion-ios-arrow-right" type="button"
-                    onClick={() => props.nextPage()}
-                    disabled={props.currentPage === Math.max(props.totalPages() - 1, 0)}/>
-        </div>)
 }
 
 function FilesPerPageSelector(props) {
