@@ -1,9 +1,9 @@
 import React from 'react';
-import { BallPulseLoading } from '../LoadingIcon';
+import {BallPulseLoading} from '../LoadingIcon';
 import {Link} from 'react-router';
 
 import {Table} from 'react-bootstrap';
-import {Card, CardHeading} from "../Cards";
+import {Card} from "../Cards";
 import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 
@@ -25,7 +25,7 @@ class Applications extends React.Component {
         this.setState({loading: true});
         Cloud.get("/hpc/apps").then(apps => {
             this.setState({
-                applications: apps,
+                applications: apps.sort((a,b) => {return a.info.name.localeCompare(b.info.name)}),
                 loading: false
             });
         });
@@ -55,7 +55,8 @@ class Applications extends React.Component {
                     </div>
                     <div className="col-lg-2 visible-lg">
                         <div>
-                            <button className="btn btn-primary ripple btn-block"><span className="ion-android-upload pull-left"/> Upload Application
+                            <button className="btn btn-primary ripple btn-block"><span
+                                className="ion-android-upload pull-left"/> Upload Application
                             </button>
                             <br/>
                             <hr/>
