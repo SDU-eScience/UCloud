@@ -1,9 +1,9 @@
 import React from 'react';
-import { Table} from 'react-bootstrap';
-import { BallPulseLoading } from '../LoadingIcon'
+import {Table} from 'react-bootstrap';
+import {BallPulseLoading} from '../LoadingIcon'
 import pubsub from "pubsub-js";
-import { Card } from "../Cards";
-import { Cloud } from "../../../authentication/SDUCloudObject"
+import {Card} from "../Cards";
+import {Cloud} from "../../../authentication/SDUCloudObject"
 
 class Workflows extends React.Component {
     constructor(props) {
@@ -20,15 +20,15 @@ class Workflows extends React.Component {
     }
 
     getWorkflows() {
-        this.setState({ loading: true });
+        this.setState({loading: true});
         let workflows = [];//Cloud.get("/getWorkflows").then(workflows => {
-            workflows.sort((a, b) => {
-                return a.name.localeCompare(b.name);
-            });
-            this.setState({
-                loading: false,
-                workflows: workflows,
-            });
+        workflows.sort((a, b) => {
+            return a.name.localeCompare(b.name);
+        });
+        this.setState({
+            loading: false,
+            workflows: workflows,
+        });
         //});
     }
 
@@ -40,15 +40,7 @@ class Workflows extends React.Component {
                         <BallPulseLoading loading={this.state.loading}/>
                         <Card xs={6} sm={12}>
                             <div className="card-body">
-                                <Table className="table table-striped table-hover mv-lg">
-                                    <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Applications</th>
-                                    </tr>
-                                    </thead>
-                                    <WorkflowsList workflows={this.state.workflows}/>
-                                </Table>
+                                <WorkflowTable workflows={this.state.workflows}/>
                             </div>
                         </Card>
                     </div>
@@ -65,29 +57,48 @@ class Workflows extends React.Component {
     }
 }
 
+function WorkflowTable(props) {
+    if (!props.workflows.length) {
+        return (
+            <h3 className="text-center">
+                <small>No workflows found.</small>
+            </h3>)
+    };
+    return (
+        <Table className="table table-striped table-hover mv-lg">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Applications</th>
+            </tr>
+            </thead>
+            <WorkflowsList workflows={props.workflows}/>
+        </Table>)
+}
+
 function WorkflowsList(props) {
-    let workflowsList = props.workflows.map( workflow =>
+    let workflowsList = props.workflows.map(workflow =>
         <tr className="gradeA row-settings">
-            <td>{ workflow.name }</td>
+            <td>{workflow.name}</td>
             <ApplicationList applications={workflow.applications}/>
         </tr>
     );
     return (
         <tbody>
-            {workflowsList}
+        {workflowsList}
         </tbody>)
 }
 
 function ApplicationList(props) {
-    let applicationsList = props.applications.map( app =>
+    let applicationsList = props.applications.map(app =>
         <div>
-            { app.info.name }<br/>
+            {app.info.name}<br/>
         </div>
     );
     return (
-    <td>
-        {applicationsList}
-    </td>)
+        <td>
+            {applicationsList}
+        </td>)
 }
 
 export default Workflows
