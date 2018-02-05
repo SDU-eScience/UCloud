@@ -116,7 +116,7 @@ function FileSelectorBody(props) {
                         <th>Filename</th>
                     </tr>
                     </thead>
-                    <FileList files={props.files} onClick={(file) => props.onClick(file)} getFiles={props.getFiles}/>
+                    <FileList files={props.files} onClick={props.onClick} getFiles={props.getFiles}/>
                 </table>
             </div>
             <Button className="btn btn-info" onClick={() => props.createFolder}>
