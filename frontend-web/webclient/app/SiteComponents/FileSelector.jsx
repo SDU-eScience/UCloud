@@ -52,7 +52,7 @@ class FileSelector extends React.Component {
         this.setState(() => ({loading: true}));
         Cloud.get(`files?path=/${path}`).then(files => {
             this.setState(() => ({
-                files: sortFilesByTypeAndName(files),
+                files: sortFilesByTypeAndName(files, true),
                 loading: false,
                 currentPath: path,
             }));
@@ -75,8 +75,8 @@ class FileSelector extends React.Component {
                     </Modal.Header>
                     <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
                     <BallPulseLoading loading={this.state.loading}/>
-                    <FileSelectorBody loading={this.state.loading} onClick={(file) => this.setSelectedFile(file)}
-                                      files={this.state.files} getFiles={this.getFiles}/>
+                    <FileSelectorBody loading={this.state.loading} onClick={this.setSelectedFile}
+                                      files={this.state.files} getFiles={this.getFiles} currentPath={this.state.currentPath}/>
                 </Modal>
             </div>)
     }
@@ -119,7 +119,7 @@ function FileSelectorBody(props) {
                     <FileList files={props.files} onClick={props.onClick} getFiles={props.getFiles}/>
                 </table>
             </div>
-            <Button className="btn btn-info" onClick={() => createFolder}>
+            <Button className="btn btn-info" onClick={() => createFolder(props.currentPath)}>
                 Create new folder
             </Button>
         </Modal.Body>)
