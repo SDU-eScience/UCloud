@@ -1,6 +1,6 @@
 import React from 'react';
 import {BallPulseLoading} from '../LoadingIcon'
-import {WebSocketSupport} from '../../UtilityFunctions'
+import {WebSocketSupport, toLowerCaseAndCapitalize} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {Card} from "../Cards";
@@ -91,7 +91,7 @@ function AnalysesList(props) {
         <tr key={i++} className="gradeA row-settings">
             <td><Link to={`/applications/${analysis.appName}/${analysis.appVersion}`}>{analysis.appName}@{analysis.appVersion}</Link></td>
             <td>{analysis.jobId}</td>
-            <td>{analysis.status}</td>
+            <td>{toLowerCaseAndCapitalize(analysis.status)}</td>
             <td>{formatDate(analysis.createdAt)}</td>
             <td>{formatDate(analysis.modifiedAt)}</td>
         </tr>

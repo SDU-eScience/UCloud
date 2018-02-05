@@ -6,7 +6,7 @@ import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
 import {Link} from 'react-router';
 import {Cloud} from '../../authentication/SDUCloudObject'
-import {sortFilesByTypeAndName, favorite, sortFilesByModified} from "../UtilityFunctions";
+import {sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize} from "../UtilityFunctions";
 
 
 class Dashboard extends React.Component {
@@ -214,7 +214,7 @@ function DashboardAnalyses(props) {
     const analysesList = analyses.map((analysis) =>
         <tr key={i++}>
             <td>{analysis.appName}</td>
-            <td>{analysis.status}</td>
+            <td>{toLowerCaseAndCapitalize(analysis.status)}</td>
         </tr>
     );
 

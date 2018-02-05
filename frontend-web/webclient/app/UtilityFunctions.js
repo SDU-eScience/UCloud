@@ -17,6 +17,10 @@ function NotificationIcon(props) {
     }
 }
 
+function toLowerCaseAndCapitalize(str) {
+    return str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
+}
+
 function WebSocketSupport() {
     let hasWebSocketSupport = "WebSocket" in window;
     if (!hasWebSocketSupport) {
@@ -319,4 +323,5 @@ export {
     revokeSharing,
     makeCancelable,
     downloadFile,
+    toLowerCaseAndCapitalize,
 }
