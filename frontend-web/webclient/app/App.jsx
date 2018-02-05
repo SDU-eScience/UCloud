@@ -47,7 +47,9 @@ $(() => {
 
 });
 
-const browserHistory = useRouterHistory(createHistory)({basename: REACT_BASE_HREF});
+const browserHistory = useRouterHistory(createHistory)({
+    basename: "/app"
+});
 
 const NotFound = () => (<div className="container-fluid"><h1>Page not found</h1></div>);
 
