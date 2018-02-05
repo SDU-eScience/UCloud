@@ -2,6 +2,7 @@ import React from "react";
 import { Pager } from "react-bootstrap";
 
 export default function PaginationButtons(props) {
+    if (!props.totalPages()) { return null; }
     let pagination = [...Array(props.totalPages()).keys()].map(i =>
         <Pager.Item href="#" onClick={() => props.toPage(i)} disabled={i === props.currentPage} key={i}>
             {i + 1}
