@@ -6,7 +6,7 @@ import {Cloud} from "../../../authentication/SDUCloudObject";
 import {Card} from "../Cards";
 import {Table} from 'react-bootstrap';
 import {Link} from 'react-router'
-import PaginationButtons from "../Pagination"
+import {PaginationButtons, EntriesPerPageSelector} from "../Pagination"
 
 class Analyses extends React.Component {
     constructor(props) {
@@ -115,24 +115,15 @@ class Analyses extends React.Component {
                             </div>
                         </Card>
                         <PaginationButtons totalPages={this.state.totalPages} currentPage={this.state.currentPage}
-                                            toPage={this.toPage} nextPage={this.nextPage} previousPage={this.previousPage}/>
-                        <AnalysesPerPageSelector analysesPerPage={this.state.analysesPerPage}
-                                                 handlePageSizeSelection={this.handlePageSizeSelection}/>
+                                           toPage={this.toPage} nextPage={this.nextPage}
+                                           previousPage={this.previousPage}/>
+                        <EntriesPerPageSelector entriesPerPage={this.state.analysesPerPage}
+                                                handlePageSizeSelection={this.handlePageSizeSelection}/>
                     </div>
                 </div>
             </section>
         )
     }
-}
-
-function AnalysesPerPageSelector(props) {
-    return (
-        <select value={props.analysesPerPage} onChange={e => props.handlePageSizeSelection(parseInt(e.target.value))}>
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-        </select>)
 }
 
 function AnalysesList(props) {

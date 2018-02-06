@@ -3,7 +3,7 @@ import {BallPulseLoading} from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from 'react-router';
 import {Button, Table, Breadcrumb} from 'react-bootstrap';
-import PaginationButtons from "./Pagination"
+import {PaginationButtons, EntriesPerPageSelector} from "./Pagination"
 import {buildBreadCrumbs} from "./Breadcrumbs"
 import {
     sortFilesByTypeAndName,
@@ -262,9 +262,8 @@ class Files extends React.Component {
                             nextPage={this.nextPage}
                             previousPage={this.previousPage}
                             toPage={this.toPage}/>
-                        <FilesPerPageSelector filesPerPage={this.state.filesPerPage}
-                                              handlePageSizeSelection={this.handlePageSizeSelection}/> Files per
-                        page
+                        <EntriesPerPageSelector entriesPerPage={this.state.filesPerPage}
+                                                handlePageSizeSelection={this.handlePageSizeSelection}/> Files per page
                     </div>
                     <ContextBar selectedFiles={this.state.files.filter(file => file.isChecked)}
                                 currentPath={this.state.currentPath}
@@ -275,16 +274,6 @@ class Files extends React.Component {
                                 onRequestClose={this.handleClose}/>
             </section>)
     }
-}
-
-function FilesPerPageSelector(props) {
-    return (
-        <select value={props.filesPerPage} onChange={e => props.handlePageSizeSelection(parseInt(e.target.value))}>
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-        </select>)
 }
 
 function ContextBar(props) {

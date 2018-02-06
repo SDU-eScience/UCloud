@@ -1,7 +1,7 @@
 import React from 'react';
 import {BallPulseLoading} from '../LoadingIcon';
 import {Link} from 'react-router';
-
+import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import {Table} from 'react-bootstrap';
 import {Card} from "../Cards";
 import pubsub from "pubsub-js";
@@ -13,6 +13,9 @@ class Applications extends React.Component {
         this.state = {
             loading: false,
             applications: [],
+            totalPages: () => Math.ceil(this.state.applications.length / this.state.applicationsPerPage),
+            currentPage: 0,
+            applicationsPerPage: 10,
             lastSorting: {
                 name: "name",
                 asc: true,
@@ -22,6 +25,11 @@ class Applications extends React.Component {
         this.sortByVisibility = this.sortByVisibility.bind(this);
         this.sortByVersion = this.sortByVersion.bind(this);
         this.sortingIcon = this.sortingIcon.bind(this);
+        this.nextPage = this.nextPage.bind(this);
+        this.previousPage = this.previousPage.bind(this);
+        this.toPage = this.toPage.bind(this);
+        this.getCurrentApplications = this.getCurrentApplications.bind(this);
+        this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
     }
 
     componentDidMount() {
@@ -32,12 +40,12 @@ class Applications extends React.Component {
     getApplications() {
         this.setState({loading: true});
         Cloud.get("/hpc/apps").then(apps => {
-            this.setState({
+            this.setState(() => ({
                 applications: apps.sort((a, b) => {
                     return a.info.name.localeCompare(b.info.name)
                 }),
                 loading: false
-            });
+            }));
         });
     }
 
@@ -96,6 +104,36 @@ class Applications extends React.Component {
         }));
     }
 
+    getCurrentApplications() {
+        let applicationsPerPage = this.state.applicationsPerPage;
+        let currentPage = this.state.currentPage;
+        return this.state.applications.slice(currentPage * applicationsPerPage, currentPage * applicationsPerPage + applicationsPerPage);
+    }
+
+    nextPage() {
+        this.setState(() => ({
+            currentPage: this.state.currentPage + 1,
+        }));
+    }
+
+    previousPage() {
+        this.setState(() => ({
+            currentPage: this.state.currentPage - 1,
+        }));
+    }
+
+    toPage(n) {
+        this.setState(() => ({
+            currentPage: n,
+        }));
+    }
+
+    handlePageSizeSelection(newPageSize) {
+        this.setState(() => ({
+            filesPerPage: newPageSize,
+        }));
+    }
+
     render() {
         return (
             <section>
@@ -116,10 +154,18 @@ class Applications extends React.Component {
                                         <th/>
                                     </tr>
                                     </thead>
-                                    <ApplicationsList applications={this.state.applications}/>
+                                    <ApplicationsList applications={this.getCurrentApplications()}/>
                                 </Table>
                             </div>
                         </Card>
+                        <PaginationButtons
+                            currentPage={this.state.currentPage}
+                            totalPages={this.state.totalPages}
+                            nextPage={this.nextPage}
+                            previousPage={this.previousPage}
+                        />
+                        <EntriesPerPageSelector entriesPerPage={this.state.applicationsPerPage}
+                                handlePageSizeSelection={this.handlePageSizeSelection}/> Applications per page
                     </div>
                     <div className="col-lg-2 visible-lg">
                         <div>
