@@ -33,6 +33,7 @@ import FileInfo from "./SiteComponents/FileInfo";
 import UserAuditing from "./SiteComponents/Admin/UserAuditing";
 import { Cloud } from "../authentication/SDUCloudObject";
 
+
 $(() => {
     Cloud.receiveAccessTokenOrRefreshIt();
     // prevent page reload when using dummy anchors

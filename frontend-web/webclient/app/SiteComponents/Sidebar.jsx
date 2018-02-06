@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from "prop-types";
 import {Link} from 'react-router'
 import { SidebarOptionsList } from "../MockObjects";
 import './Sidebar.scss';
@@ -130,7 +131,7 @@ function NestedSidebarOption(props) {
 }
 
 Sidebar.contextTypes = {
-    router: React.PropTypes.object
+    router: PropTypes.object,
 };
 
 export default Sidebar;
