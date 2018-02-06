@@ -30,7 +30,7 @@ import pubsub from "pubsub-js";
 class Files extends React.Component {
     constructor(props) {
         super(props);
-        let currentPath = (!props.routeParams.splat) ? `home/${Cloud.username}` : props.routeParams.splat;
+        let currentPath = (!props.routeParams.splat) ? `/home/${Cloud.username}` : props.routeParams.splat;
         this.state = {
             files: [],
             loading: false,
