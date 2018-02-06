@@ -319,7 +319,7 @@ function Breadcrumbs(props) {
     if (!props.path) {
         return null;
     }
-    let pathsMapping = buildBreadCrumbs(props.path);
+    const pathsMapping = buildBreadCrumbs(props.path);
     let i = 0;
     let breadcrumbs = pathsMapping.map(path =>
         <li key={i++} className="breadcrumb-item">

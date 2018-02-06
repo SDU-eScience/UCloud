@@ -13,7 +13,15 @@ class Applications extends React.Component {
         this.state = {
             loading: false,
             applications: [],
-        }
+            lastSorting: {
+                name: "name",
+                asc: true,
+            }
+        };
+        this.sortByName = this.sortByName.bind(this);
+        this.sortByVisibility = this.sortByVisibility.bind(this);
+        this.sortByVersion = this.sortByVersion.bind(this);
+        this.sortingIcon = this.sortingIcon.bind(this);
     }
 
     componentDidMount() {
@@ -25,10 +33,67 @@ class Applications extends React.Component {
         this.setState({loading: true});
         Cloud.get("/hpc/apps").then(apps => {
             this.setState({
-                applications: apps.sort((a,b) => {return a.info.name.localeCompare(b.info.name)}),
+                applications: apps.sort((a, b) => {
+                    return a.info.name.localeCompare(b.info.name)
+                }),
                 loading: false
             });
         });
+    }
+
+    sortingIcon(name) {
+        if (this.state.lastSorting.name === name) {
+            return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
+        }
+        return "";
+    }
+
+    sortByVisibility() {
+        let apps = this.state.applications.slice();
+        let asc = !this.state.lastSorting.asc;
+        let order = asc ? 1 : -1;
+        apps.sort((a, b) => {
+            return (a.info.isPrivate - b.info.isPrivate) * order;
+        });
+        this.setState(() => ({
+            applications: apps,
+            lastSorting: {
+                name: "visibility",
+                asc: asc,
+            },
+        }));
+    }
+
+    sortByName() {
+        let apps = this.state.applications.slice();
+        let asc = !this.state.lastSorting.asc;
+        let order = asc ? 1 : -1;
+        apps.sort((a, b) => {
+            return a.info.name.localeCompare(b.info.name) * order;
+        });
+        this.setState(() => ({
+            applications: apps,
+            lastSorting: {
+                name: "name",
+                asc: asc,
+            },
+        }));
+    }
+
+    sortByVersion() {
+        let apps = this.state.applications.slice();
+        let asc = !this.state.lastSorting.asc;
+        let order = asc ? 1 : -1;
+        apps.sort((a, b) => {
+            return a.info.version.localeCompare(b.info.version) * order;
+        });
+        this.setState(() => ({
+            applications: apps,
+            lastSorting: {
+                name: "version",
+                asc: asc,
+            },
+        }));
     }
 
     render() {
@@ -42,9 +107,12 @@ class Applications extends React.Component {
                                 <Table className="table table-hover mv-lg">
                                     <thead>
                                     <tr>
-                                        <th>Visibility</th>
-                                        <th>Application Name</th>
-                                        <th>Version</th>
+                                        <th onClick={() => this.sortByVisibility()}><span className="text-left">Visibility<span
+                                            className={"pull-right " + this.sortingIcon("visibility")}/></span></th>
+                                        <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
+                                            className={"pull-right " + this.sortingIcon("name")}/></span></th>
+                                        <th onClick={() => this.sortByVersion()}><span className="text-left">Version<span
+                                            className={"pull-right " + this.sortingIcon("version")}/></span></th>
                                         <th/>
                                     </tr>
                                     </thead>
