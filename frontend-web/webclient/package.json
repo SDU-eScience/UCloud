@@ -24,7 +24,7 @@
     "font-awesome": "4.7.0",
     "ika": "^1.0.5",
     "ionicons": "2.0.1",
-    "jquery": "^2.2.4",
+    "jquery": "3.3.1",
     "jsonwebtoken": "^8.1.0",
     "loaders.css": "0.1.2",
     "lodash": "4.16.6",
