@@ -56,7 +56,7 @@ module.exports = {
             }, {
                 test: /\.scss$/,
                 loader: 'style!css!sass?outputStyle=expanded'
-            }]
+            },]
             // , noParse: [/\.min\.js/]
     },
 
