@@ -9,8 +9,8 @@ object ServiceDAO {
     private val log = LoggerFactory.getLogger(ServiceDAO::class.java)
 
     init {
-        insert(Service("local-dev", "http://localhost:9000/auth"))
         insert(Service("web", "https://cloud.sdu.dk/api/auth-callback"))
+        insert(Service("local-dev", "http://localhost:9000/api/auth-callback"))
     }
 
     fun insert(service: Service): Boolean {
