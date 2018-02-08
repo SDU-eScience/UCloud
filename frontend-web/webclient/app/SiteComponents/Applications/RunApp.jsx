@@ -8,10 +8,11 @@ import {BallPulseLoading} from "../LoadingIcon"
 class RunApp extends React.Component {
     constructor(props) {
         super(props);
+        console.log(props);
         this.state = {
             loading: false,
-            appName: props.params.appName,
-            appVersion: props.params.appVersion,
+            appName: props.match.params.appName,
+            appVersion: props.match.params.appVersion,
             appDescription: "",
             appAuthor: "",
             parameters: null,
@@ -61,7 +62,7 @@ class RunApp extends React.Component {
 
         Cloud.post("/hpc/jobs", job).then(jobStatus => {
             if (jobStatus.status === "STARTED") {
-                this.props.router.push("/analyses");
+                this.props.history.push("/analyses");
             } else {
                 swal("And error occurred. Please try again later.");
             }

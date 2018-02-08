@@ -35,7 +35,6 @@ class Header extends React.Component {
         const ddMenuItem = (<span>
                                 <em className="ion-person"/><sup className="badge bg-danger">3</sup>
                             </span>);
-
         return (
             <header className="header-container">
                 <nav>
@@ -48,11 +47,8 @@ class Header extends React.Component {
                         </li>
                     </ul>
                     <h2 className="header-title">{this.state.pageTitle}</h2>
-
                     <ul className="pull-right">
-                        <li>
-                            <StatusBar/>
-                        </li>
+                        <StatusBar/>
                         <Dropdown id="basic-nav-dropdown" pullRight componentClass="li">
                             <Dropdown.Toggle useAnchor noCaret className="has-badge ripple">
                                 <em className="ion-person"/>

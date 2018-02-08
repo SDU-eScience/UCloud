@@ -11,8 +11,9 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {Router, Route, Link, IndexRoute, useRouterHistory} from 'react-router';
-import {createHistory} from 'history'
+//import {Router, Route, Link, IndexRoute, useRouterHistory} from 'react-router';
+import {createBrowserHistory} from 'history'
+import { BrowserRouter, Route } from "react-router-dom";
 
 import "uppy/src/scss/uppy.scss";
 import "./SiteComponents/Datatable.scss";
@@ -48,40 +49,13 @@ $(() => {
 
 });
 
-const browserHistory = useRouterHistory(createHistory)({
-    basename: "/app"
-});
-
-const NotFound = () => (<div className="container-fluid"><h1>Page not found</h1></div>);
+const browserHistory = createBrowserHistory();
 
 // Declare routes
 ReactDOM.render(
-    <Router history={browserHistory}>
-        <Route path="/" component={Core}>
-
-            {/* Default route*/}
-            <IndexRoute component={Dashboard}/>
-
-            <Route path="dashboard" component={Dashboard} />
-            <Route path="files(/**)" component={Files} />
-            <Route path="fileInfo/(**)" component={FileInfo}/>
-            <Route path="status" component={Status} />
-            <Route path="applications" component={Applications}/>
-            <Route path="applications/:appName/:appVersion" component={RunApp}/>
-            <Route path="workflows" component={Workflows}/>
-            <Route path="analyses" component={Analyses}/>
-
-            <Route path="audit">
-                <Route path="user/:id" component={UserAuditing}/>
-            </Route>
-
-            <Route path="notifications" component={Notifications}/>
-
-            <Route path="*" component={NotFound}/>
-
-        </Route>
-
-    </Router>,
+    <BrowserRouter basename="app">
+        <Core/>
+    </BrowserRouter>,
     document.getElementById('app')
 );
 

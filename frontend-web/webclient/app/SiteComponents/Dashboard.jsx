@@ -4,7 +4,7 @@ import {BallPulseLoading} from './LoadingIcon'
 import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
 import {Table} from 'react-bootstrap'
 import pubsub from "pubsub-js";
-import {Link} from 'react-router';
+import {Link} from "react-router-dom";
 import {Cloud} from '../../authentication/SDUCloudObject'
 import {sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize} from "../UtilityFunctions";
 

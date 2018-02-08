@@ -5,7 +5,7 @@ import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {Card} from "../Cards";
 import {Table} from 'react-bootstrap';
-import {Link} from 'react-router'
+import {Link} from "react-router-dom";
 import {PaginationButtons, EntriesPerPageSelector} from "../Pagination"
 
 class Analyses extends React.Component {

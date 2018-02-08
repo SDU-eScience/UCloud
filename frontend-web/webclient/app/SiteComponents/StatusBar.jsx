@@ -1,8 +1,8 @@
 import React from 'react';
-import { Link } from 'react-router';
+import { Link } from "react-router-dom";
 import { DefaultStatus } from "../DefaultObjects";
 
-class StatusBar extends React.Component {
+export default class StatusBar extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -31,5 +31,3 @@ class StatusBar extends React.Component {
             </Link>);
     }
 }
-
-export default StatusBar;

@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from "prop-types";
-import {Link} from 'react-router'
+import {Link} from 'react-router-dom'
 import { SidebarOptionsList } from "../MockObjects";
 import './Sidebar.scss';
 
@@ -33,15 +33,6 @@ class Sidebar extends React.Component {
         this.setState({options: SidebarOptionsList});
     }
 
-    routeActive(paths) {
-        paths = Array.isArray(paths) ? paths : [paths];
-        for (let p in paths) {
-            if (this.context.router.isActive('' + paths[p]) === true)
-                return 'active';
-        }
-        return '';
-    }
-
     render() {
         return (
             <aside className="sidebar-container">
@@ -53,7 +44,7 @@ class Sidebar extends React.Component {
                 </div>
                 <div className="sidebar-content">
                     <div className="sidebar-toolbar text-center">
-                        <a href=""><img src="img/user/01.jpg" alt="Profile" className="img-circle thumb64"/></a>
+                        <a href=""><img src="/img/user/01.jpg" alt="Profile" className="img-circle thumb64"/></a>
                         <div className="mt">Welcome, {this.state.username}</div>
                     </div>
                     <nav className="sidebar-nav">
@@ -83,7 +74,7 @@ function SidebarOptions(props) {
 function SingleSidebarOption(props) {
     if (props.option.href) {
         return (
-            <li className={props.context.routeActive(props.option.href) ? 'active' : ''}>
+            <li>
                 <Link to={props.option.href} className="ripple">
                     <span className="pull-right nav-label"/><span
                     className="nav-icon">
@@ -106,7 +97,7 @@ function SingleSidebarOption(props) {
         );
 
         return (
-            <li className={props.context.routeActive(childrenHrefs)}>
+            <li>
                     <a href="#" className="ripple">
                         <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span><span
                         className="pull-right nav-label"/><span className="nav-icon">

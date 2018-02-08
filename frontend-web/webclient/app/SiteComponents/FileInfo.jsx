@@ -10,8 +10,9 @@ import swal from "sweetalert2";
 class FileInfo extends React.Component {
     constructor(props) {
         super(props);
+        console.log(props);
         this.state = {
-            filePath: props.params.splat,
+            filePath: props.match.params[0],
             file: null,
             loading: false,
         };

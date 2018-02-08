@@ -1,8 +1,8 @@
 import React from 'react';
 import {BallPulseLoading} from './LoadingIcon';
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {Link} from 'react-router';
-import {Button, Table, Breadcrumb} from 'react-bootstrap';
+import {Link} from 'react-router-dom';
+import {Button, Table} from 'react-bootstrap';
 import {PaginationButtons, EntriesPerPageSelector} from "./Pagination"
 import {buildBreadCrumbs} from "./Breadcrumbs"
 import {
@@ -30,7 +30,8 @@ import pubsub from "pubsub-js";
 class Files extends React.Component {
     constructor(props) {
         super(props);
-        let currentPath = (!props.routeParams.splat) ? `/home/${Cloud.username}` : props.routeParams.splat;
+        let pathname = props.location.pathname.slice("/files/".length);
+        let currentPath = !pathname.length ? `/home/${Cloud.username}` : pathname;
         this.state = {
             files: [],
             loading: false,
@@ -78,6 +79,7 @@ class Files extends React.Component {
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.getSortingIcon = this.getSortingIcon.bind(this);
         this.favoriteFile = this.favoriteFile.bind(this);
+        this.componentWillReceiveProps = this.componentWillReceiveProps.bind(this);
     }
 
     favoriteFile(fileUri) {
@@ -91,6 +93,11 @@ class Files extends React.Component {
             return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
         }
         return "";
+    }
+
+    componentWillReceiveProps(nextProps) {
+        let newPath = nextProps.location.pathname.slice("/files/".length);
+        this.getFiles(newPath);
     }
 
     handleOpen() {
@@ -148,14 +155,16 @@ class Files extends React.Component {
         }));
     }
 
-    getFiles() {
+    getFiles(path) {
         this.setState({
             loading: true,
         });
-        Cloud.get(`files?path=/${this.state.currentPath}`).then(files => {
+        const queryPath = !path ? this.state.currentPath : path;
+        Cloud.get(`files?path=/${queryPath}`).then(files => {
             files.forEach(file => file.isChecked = false);
             this.setState(() => ({
                 files: this.state.sortingFunctions.typeAndName(files, true),
+                currentPath: queryPath,
                 loading: false,
             }));
         });
@@ -248,7 +257,7 @@ class Files extends React.Component {
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <Breadcrumbs path={this.state.currentPath}/>
+                        <Breadcrumbs getFiles={this.getFiles} path={this.state.currentPath}/>
                         <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
                                     selectedFiles={this.state.selectedFiles}
                                     masterCheckbox={this.state.masterCheckbox} sortingIcon={this.getSortingIcon}
@@ -312,7 +321,7 @@ function Breadcrumbs(props) {
     let i = 0;
     let breadcrumbs = pathsMapping.map(path =>
         <li key={i++} className="breadcrumb-item">
-            <Link to={`files/${path.actualPath}`}>{path.local}</Link>
+            <Link to={`/files/${path.actualPath}`}>{path.local}</Link>
         </li>
     );
     return (
