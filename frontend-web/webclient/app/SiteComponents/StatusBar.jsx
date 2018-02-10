@@ -27,7 +27,7 @@ export default class StatusBar extends React.Component {
     render() {
         return (
             <Link to={"/status"}>
-                <button className={"btn btn-info hidden-md center-text " + this.statusToButton()} title={this.state.status.body}>{this.state.status.title}</button>
+                <button className={"btn btn-info center-text " + this.statusToButton()} title={this.state.status.body}>{this.state.status.title}</button>
             </Link>);
     }
 }

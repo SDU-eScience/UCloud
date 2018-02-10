@@ -48,7 +48,9 @@ class Header extends React.Component {
                     </ul>
                     <h2 className="header-title">{this.state.pageTitle}</h2>
                     <ul className="pull-right">
-                        <StatusBar/>
+                        <li>
+                            <StatusBar/>
+                        </li>
                         <Dropdown id="basic-nav-dropdown" pullRight componentClass="li">
                             <Dropdown.Toggle useAnchor noCaret className="has-badge ripple">
                                 <em className="ion-person"/>
