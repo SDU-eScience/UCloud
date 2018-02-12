@@ -1,23 +1,21 @@
 var webpack = require('webpack');
 var webpackMerge = require('webpack-merge');
 var ExtractTextPlugin = require('extract-text-webpack-plugin');
-var commonConfig = require('./webpack.common.js');
+var commonConfig = require('./webpack.config.js');
 var path = require('path');
 
 module.exports = webpackMerge(commonConfig, {
     devtool: '#source-map',
 
     entry: {
-        dev: [
-            'webpack/hot/dev-server',
-        ]
+        vendor: './app/Vendor.jsx',
+        app: './app/App.jsx'
     },
 
     output: {
         path: path.join(process.cwd(), '/dist'),
         publicPath: 'http://localhost:9000/',
         filename: '[name].js',
-        pathInfo: true
     },
 
     plugins: [
@@ -41,6 +39,6 @@ module.exports = webpackMerge(commonConfig, {
         }, {
             context: "/auth",
             target: "http://localhost:8080",
-        } ],
+        }],
     }
 });

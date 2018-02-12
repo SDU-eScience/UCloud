@@ -11,7 +11,6 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-//import {Router, Route, Link, IndexRoute, useRouterHistory} from 'react-router';
 import {createBrowserHistory} from 'history'
 import { BrowserRouter, Route } from "react-router-dom";
 
@@ -22,16 +21,6 @@ import "./components/Colors/Colors"
 import "./SiteComponents/Common/Utils.scss";
 import "./components/Bootstrap/Bootstrap";
 import Core from './SiteComponents/Core';
-import Dashboard from "./SiteComponents/Dashboard";
-import Notifications from "./SiteComponents/Activity/Notifications.jsx";
-import Applications from "./SiteComponents/Applications/Applications";
-import RunApp from "./SiteComponents/Applications/RunApp";
-import Workflows from "./SiteComponents/Applications/Workflows";
-import Analyses from "./SiteComponents/Applications/Analyses";
-import Status from "./SiteComponents/StatusPage";
-import Files from './SiteComponents/Files';
-import FileInfo from "./SiteComponents/FileInfo";
-import UserAuditing from "./SiteComponents/Admin/UserAuditing";
 import { Cloud } from "../authentication/SDUCloudObject";
 
 
