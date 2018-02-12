@@ -28,11 +28,8 @@ module.exports = {
             {
                 test: /\.js/,
                 use: 'imports-loader?define=>false'
-            }, {
-                test: /\.jsx?$/,
-                exclude: /(node_modules)/,
-                use: ['react-hot-loader']
-            }, {
+            },
+            {
                 test: /\.jsx?$/,
                 exclude: /(node_modules)/,
                 loader: "babel-loader",
@@ -80,11 +77,11 @@ module.exports = {
             from: 'img',
             to: 'img',
             context: path.join(__dirname, 'app')
-        }, {
+        }, /*{ // TODO: Find usage
             from: 'server',
             to: 'server',
             context: path.join(__dirname, 'app')
-        }, {
+        }, */{
             from: 'fonts',
             to: 'fonts',
             context: path.join(__dirname, 'app')
