@@ -1,9 +1,9 @@
 import React from 'react';
-import {Table} from 'react-bootstrap';
+import {Table, Button} from 'react-bootstrap';
 import {BallPulseLoading} from '../LoadingIcon'
 import pubsub from "pubsub-js";
 import {Card} from "../Cards";
-import {Cloud} from "../../../authentication/SDUCloudObject"
+import {Link} from "react-router-dom";
 
 class Workflows extends React.Component {
     constructor(props) {
@@ -17,6 +17,7 @@ class Workflows extends React.Component {
             },
         }
     }
+
     getSortingIcon(name) {
         if (this.state.lastSorting.name === name) {
             return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
@@ -32,13 +33,13 @@ class Workflows extends React.Component {
     getWorkflows() {
         this.setState({loading: true});
         let workflows = [];//Cloud.get("/getWorkflows").then(workflows => {
-            workflows.sort((a, b) => {
-                return a.name.localeCompare(b.name);
-            });
-            this.setState({
-                loading: false,
-                workflows: workflows,
-            });
+        workflows.sort((a, b) => {
+            return a.name.localeCompare(b.name);
+        });
+        this.setState({
+            loading: false,
+            workflows: workflows,
+        });
         //});
     }
 
@@ -56,8 +57,9 @@ class Workflows extends React.Component {
                     </div>
                     <div className="col-lg-2 visible-lg">
                         <div>
-                            <button className="btn btn-primary ripple btn-block ion-android-upload"> Generate workflow
-                            </button>
+                            <Link to="/generateworkflow"><Button
+                                className="btn btn-primary ripple btn-block ion-android-upload">Generate workflow
+                            </Button></Link>
                             <br/>
                             <hr/>
                         </div>
