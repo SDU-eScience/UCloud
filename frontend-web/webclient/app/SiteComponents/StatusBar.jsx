@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from "react-router-dom";
 import { DefaultStatus } from "../DefaultObjects";
+import { Button } from "react-bootstrap";
 
 export default class StatusBar extends React.Component {
     constructor(props) {
@@ -27,7 +28,7 @@ export default class StatusBar extends React.Component {
     render() {
         return (
             <Link to={"/status"}>
-                <button className={"btn btn-info center-text " + this.statusToButton()} title={this.state.status.body}>{this.state.status.title}</button>
+                <Button className={"btn btn-info center-text " + this.statusToButton()} title={this.state.status.body}>{this.state.status.title}</Button>
             </Link>);
     }
 }

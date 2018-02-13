@@ -1,7 +1,6 @@
 import $ from "jquery";
 import jwt from "jsonwebtoken";
 
-
 export default class SDUCloud {
     constructor(context, serviceName) {
         this.context = context;
@@ -110,6 +109,11 @@ export default class SDUCloud {
         let info = this.userInfo;
         if (info) return info.sub;
         else return null
+    }
+
+    get homeFolder() {
+        let username = this.username;
+        return `/home/${username}/`
     }
 
     /**

@@ -41,7 +41,7 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             favoriteLoading: true,
         }));
-        Cloud.get(`/files?path=/home/${Cloud.username}/`).then(favorites => {
+        Cloud.get(`/files?path=${Cloud.homeFolder}/`).then(favorites => {
             let actualFavorites = favorites.filter(file => file.favorited);
             let subsetFavorites = sortFilesByTypeAndName(actualFavorites.slice(0, 10));
             this.setState(() => ({
@@ -55,7 +55,7 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             recentLoading: true
         }));
-        Cloud.get(`/files?path=/home/${Cloud.username}/`).then(recent => {
+        Cloud.get(`/files?path=${Cloud.homeFolder}`).then(recent => {
             let recentSubset = sortFilesByModified(recent.slice(0, 10));
             this.setState(() => ({
                 recentFiles: recentSubset,

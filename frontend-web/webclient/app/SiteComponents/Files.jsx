@@ -30,8 +30,8 @@ import pubsub from "pubsub-js";
 class Files extends React.Component {
     constructor(props) {
         super(props);
-        let pathname = props.location.pathname.slice("/files/".length);
-        let currentPath = !pathname.length ? `/home/${Cloud.username}` : pathname;
+        let pathname = props.location.pathname.slice("/files/".length); // Remove prepended /files/ from pathname
+        let currentPath = !pathname.length ? Cloud.homeFolder : pathname;
         this.state = {
             files: [],
             loading: false,
@@ -199,7 +199,7 @@ class Files extends React.Component {
     }
 
     nextPage() {
-        let files = this.state.files;
+        let files = this.state.files.slice();
         files.forEach(file => file.isChecked = false);
         this.setState(() => ({
             files: files,
@@ -209,7 +209,7 @@ class Files extends React.Component {
     }
 
     previousPage() {
-        let files = this.state.files;
+        let files = this.state.files.slice();
         files.forEach(file => file.isChecked = false);
         this.setState(() => ({
             files: files,
@@ -222,8 +222,7 @@ class Files extends React.Component {
         this.setState({
             loading: true,
         });
-        let currentPath = `/home/${Cloud.username}`;
-        Cloud.get(`files?path=${currentPath}`).then(files => {
+        Cloud.get(`files?path=${Cloud.homeFolder}`).then(files => {
             files.forEach(file => file.isChecked = false);
             let favorites = files.filter(file => file.favorited);
             this.setState(() => ({
@@ -259,7 +258,6 @@ class Files extends React.Component {
                     <div className="col-lg-10">
                         <Breadcrumbs getFiles={this.getFiles} path={this.state.currentPath}/>
                         <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
-                                    selectedFiles={this.state.selectedFiles}
                                     masterCheckbox={this.state.masterCheckbox} sortingIcon={this.getSortingIcon}
                                     favorite={this.favoriteFile} addOrRemoveFile={this.addOrRemoveFile}
                                     sortFiles={this.sortFilesBy}
