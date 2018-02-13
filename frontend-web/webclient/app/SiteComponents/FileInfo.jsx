@@ -1,6 +1,6 @@
 import React from "react";
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {getParentPath, updateSharingOfFile, shareFile} from "../UtilityFunctions";
+import {getParentPath, updateSharingOfFile, shareFile, favorite} from "../UtilityFunctions";
 import SectionContainerCard from "./SectionContainerCard";
 import {BallPulseLoading} from "./LoadingIcon";
 import {SensitivityLevel, RightsNameMap} from "../DefaultObjects"
@@ -10,7 +10,6 @@ import swal from "sweetalert2";
 class FileInfo extends React.Component {
     constructor(props) {
         super(props);
-        console.log(props);
         this.state = {
             filePath: props.match.params[0],
             file: null,
@@ -19,6 +18,7 @@ class FileInfo extends React.Component {
         this.getFile = this.getFile.bind(this);
         this.revokeRights = this.revokeRights.bind(this);
         this.removeAcl = this.removeAcl.bind(this);
+        this.favoriteFile = this.favoriteFile.bind(this);
     }
 
     componentWillMount() {
@@ -31,7 +31,7 @@ class FileInfo extends React.Component {
         });
         let path = getParentPath(this.state.filePath);
         Cloud.get(`files?path=${path}`).then(files => {
-            let file = files.find(file => file.path.path === this.state.filePath);
+            let file = files.find(file => file.path.path === this.state.filePath); // FIXME massive overhead for single file
             this.setState(() => ({
                 file: file,
                 loading: false,
@@ -71,6 +71,14 @@ class FileInfo extends React.Component {
         }));
     }
 
+    favoriteFile() {
+        let filesList = [];
+        filesList.push(this.state.file);
+        this.setState(() => ({
+            file: favorite(filesList, this.state.file.path.uri)[0],
+        }));
+    }
+
     render() {
         let button = (<div/>);
         if (this.state.file) {
@@ -86,7 +94,7 @@ class FileInfo extends React.Component {
             <SectionContainerCard>
                 <BallPulseLoading loading={this.state.loading}/>
                 <FileHeader file={this.state.file}/>
-                <FileView file={this.state.file}/>
+                <FileView file={this.state.file} favorite={this.favoriteFile}/>
                 <FileSharing file={this.state.file} revokeRights={this.revokeRights}/>
                 {button}
             </SectionContainerCard>
@@ -125,8 +133,8 @@ function FileView(props) {
             <ListGroup className="col-sm-4">
                 <ListGroupItem>Created at: {new Date(props.file.createdAt).toLocaleString()}</ListGroupItem>
                 <ListGroupItem>Modified at: {new Date(props.file.createdAt).toLocaleString()}</ListGroupItem>
-                <ListGroupItem>Favorite file: {props.file.favorited ? <em className="ion-star"/> :
-                    <em className="ion-ios-star-outline"/>}</ListGroupItem>
+                <ListGroupItem>Favorite file: {props.file.favorited ? <em onClick={() => props.favorite()} className="ion-star"/> :
+                    <em onClick={() => props.favorite()} className="ion-ios-star-outline"/>}</ListGroupItem>
             </ListGroup>
             <ListGroup className="col-sm-4">
                 <ListGroupItem>Sensitivity: {SensitivityLevel[props.file.sensitivityLevel]}</ListGroupItem>

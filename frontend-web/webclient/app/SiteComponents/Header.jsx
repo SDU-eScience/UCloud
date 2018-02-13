@@ -1,7 +1,6 @@
 import React from 'react';
 import pubsub from 'pubsub-js';
 import {Dropdown, MenuItem} from 'react-bootstrap';
-import {LinkContainer} from 'react-router-bootstrap';
 import { Cloud } from "../../authentication/SDUCloudObject"
 
 import './Header.scss';
