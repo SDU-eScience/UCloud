@@ -127,8 +127,7 @@ function DashboardFavoriteFiles(props) {
                 return (
                     <tr key={file.path.uri}>
                         <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                        <td onClick={() => props.favorite(file.path.uri)} className="text-center"><em className="ion-star"/>
-                        </td>
+                        <td onClick={() => props.favorite(file.path.uri)} className="text-center"><em className="ion-star"/></td>
                     </tr>)
             }
         }
@@ -164,7 +163,7 @@ function DashboardRecentFiles(props) {
     const files = props.files;
     let yesterday = (new Date).getTime() - 1000 * 60 * 60 * 24;
     const filesList = files.map((file) => {
-        let modified = new Date(file.modifiedAt)
+        let modified = new Date(file.modifiedAt);
         let timeString = modified >= yesterday ? modified.toLocaleTimeString() : modified.toLocaleDateString();
         if (file.type === "DIRECTORY") {
             return (

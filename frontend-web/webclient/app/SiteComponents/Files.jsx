@@ -526,8 +526,8 @@ function MobileButtons(props) {
                            onClick={() => sendToAbacus()}> Send to Abacus 2.0</a></li>
                     <li><a className="btn btn-default ripple btn-block ion-share"
                            onClick={() => shareFile(file.path)}> Share file</a></li>
-                    <li><a
-                        className="btn btn-default ripple btn-block ion-ios-download"> Download file</a></li>
+                    <li><a className="btn btn-default ripple btn-block ion-ios-download"
+                            onClick={() => downloadFile(file.path.path)}> Download file</a></li>
                     <li><a className="btn btn-default ripple ion-ios-compose"
                            onClick={() => renameFile(file.path)}> Rename file</a></li>
                     <li><a className="btn btn-danger ripple ion-ios-trash"

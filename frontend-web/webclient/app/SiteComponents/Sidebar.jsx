@@ -48,7 +48,7 @@ class Sidebar extends React.Component {
                         <div className="mt">Welcome, {this.state.username}</div>
                     </div>
                     <nav className="sidebar-nav">
-                        <SidebarOptions sidebarOptions={this.state.options} context={this}/>
+                        <SidebarOptions sidebarOptions={this.state.options}/>
                     </nav>
                 </div>
             </aside>
@@ -61,7 +61,7 @@ function SidebarOptions(props) {
     let options = props.sidebarOptions.slice();
     let i = 0;
     let optionsList = options.map(option =>
-        <SingleSidebarOption key={i++} option={option} context={props.context}/>
+        <SingleSidebarOption key={i++} option={option}/>
     );
     return (
         <ul>
@@ -92,7 +92,7 @@ function SingleSidebarOption(props) {
         let i = 0;
         let optionsList = children.map(option =>
             <li key={i++}>
-                <NestedSidebarOption option={option} context={props.context}/>
+                <NestedSidebarOption option={option}/>
             </li>
         );
 
