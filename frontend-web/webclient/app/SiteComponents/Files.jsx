@@ -19,7 +19,7 @@ import {
     showFileDeletionPrompt,
     getCurrentRights,
     sendToAbacus,
-    downloadFile,
+    downloadFile, toLowerCaseAndCapitalize,
 } from '../UtilityFunctions'
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react"
@@ -345,26 +345,27 @@ function FileOptions(props) {
         }
     }
     const downloadDisabled = (props.selectedFiles.length > 1 || props.selectedFiles[0].sensitivityLevel === "SENSITIVE");
+
     return (
         <div>
             <h3>{fileText}</h3>
             <p>
                 <Link disabled={props.selectedFiles.length !== 1} className="btn btn-primary ripple btn-block"
-                      to={`/fileInfo/${props.selectedFiles[0].path.path}`}><span
+                      to={`/fileInfo/${props.selectedFiles[0].path.path}/`}><span
                     className="ion-ios-settings-strong pull-left"/>Properties</Link>
             </p>
             <p>
                 <Button type="button" className="btn btn-default ripple btn-block"
                         disabled={props.selectedFiles.length > 1}
                         onClick={() => shareFile(props.selectedFiles[0].path)}><span
-                    className="ion-share pull-left"/> Share selected file
+                    className="ion-share pull-left"/> Share
                 </Button>
             </p>
             <p>
                 <Button disabled={downloadDisabled} className="btn btn-default ripple btn-block"
                         onClick={() => downloadFile(props.selectedFiles[0].path.path)}>
                     <span className="ion-ios-download pull-left"/>
-                    Download selected files
+                    Download
                 </Button>
             </p>
             <p>
@@ -372,7 +373,7 @@ function FileOptions(props) {
                         onClick={() => renameFile(props.selectedFiles[0].path)}
                         disabled={rights.rightsLevel < 3 || props.selectedFiles.length !== 1}>
                     <span className="ion-ios-compose pull-left"/>
-                    Rename file
+                    Rename
                 </Button>
             </p>
             <p>
@@ -380,7 +381,7 @@ function FileOptions(props) {
                         disabled={rights.rightsLevel < 3 || props.selectedFiles.length > 1}
                         onClick={() => showFileDeletionPrompt(props.selectedFiles[0].path)}>
                     <em className="ion-ios-trash pull-left"/>
-                    Delete selected files
+                    Delete
                 </Button>
             </p>
         </div>
@@ -464,7 +465,7 @@ function File(props) {
             <Favorited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
-            <td>{SensitivityLevel[file.sensitivityLevel]}</td>
+            <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
             <td>
                 <MobileButtons file={file}/>
             </td>
@@ -485,7 +486,7 @@ function Directory(props) {
             <Favorited file={file} favorite={props.favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
-            <td>{SensitivityLevel[file.sensitivityLevel]}</td>
+            <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
             <td>
                 <MobileButtons file={file}/>
             </td>
@@ -533,7 +534,7 @@ function MobileButtons(props) {
                     <li><a className="btn btn-danger ripple ion-ios-trash"
                            onClick={() => showFileDeletionPrompt(file.path)}> Delete file</a></li>
                     <li><Link className="btn btn-default ripple btn-block ion-ios-settings-strong"
-                              to={`/fileInfo/${file.path.path}`}>Properties</Link></li>
+                              to={`/fileInfo/${file.path.path}/`}>Properties</Link></li>
                 </ul>
             </div>
         </span>)

@@ -200,7 +200,7 @@ function SingleApplication(props) {
             <td title={props.app.info.description}>{props.app.info.name}</td>
             <td title={props.app.info.description}>{props.app.info.version}</td>
             <th>
-                <Link to={'/applications/' + props.app.info.name + '/' + props.app.info.version}>
+                <Link to={`/applications/${props.app.info.name}/${props.app.info.version}/`}>
                     <button className="btn btn-info">Run</button>
                 </Link>
             </th>

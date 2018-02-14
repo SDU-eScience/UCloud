@@ -58,9 +58,8 @@ class Sidebar extends React.Component {
 
 function SidebarOptions(props) {
     if (!props.sidebarOptions.length) return null;
-    let options = props.sidebarOptions.slice();
     let i = 0;
-    let optionsList = options.map(option =>
+    let optionsList = props.sidebarOptions.map(option =>
         <SingleSidebarOption key={i++} option={option}/>
     );
     return (
@@ -77,9 +76,7 @@ function SingleSidebarOption(props) {
             <li>
                 <Link to={props.option.href} className="ripple">
                     <span className="pull-right nav-label"/><span
-                    className="nav-icon">
-                                    <img src="" data-svg-replace="img/icons/aperture.svg" alt="MenuItem"
-                                         className="hidden"/></span>
+                    className="nav-icon"/>
                     <span>{props.option.name}</span>
                 </Link>
             </li>)

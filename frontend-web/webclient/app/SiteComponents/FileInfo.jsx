@@ -10,8 +10,15 @@ import swal from "sweetalert2";
 class FileInfo extends React.Component {
     constructor(props) {
         super(props);
+        const filePath = props.match.params[0];
+        let path;
+        if (filePath.endsWith("/")) {
+            path = filePath.slice(0, filePath.length - 1)
+        } else {
+            path = filePath;
+        }
         this.state = {
-            filePath: props.match.params[0],
+            filePath: path,
             file: null,
             loading: false,
         };

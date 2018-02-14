@@ -8,7 +8,6 @@ import {BallPulseLoading} from "../LoadingIcon"
 class RunApp extends React.Component {
     constructor(props) {
         super(props);
-        console.log(props);
         this.state = {
             loading: false,
             appName: props.match.params.appName,
