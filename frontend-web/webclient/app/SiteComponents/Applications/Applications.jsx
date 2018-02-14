@@ -2,7 +2,7 @@ import React from 'react';
 import {BallPulseLoading} from '../LoadingIcon';
 import {Link} from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
-import {Table} from 'react-bootstrap';
+import {Table, Button} from 'react-bootstrap';
 import {Card} from "../Cards";
 import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
@@ -201,7 +201,7 @@ function SingleApplication(props) {
             <td title={props.app.info.description}>{props.app.info.version}</td>
             <th>
                 <Link to={`/applications/${props.app.info.name}/${props.app.info.version}/`}>
-                    <button className="btn btn-info">Run</button>
+                    <Button className="btn btn-info">Run</Button>
                 </Link>
             </th>
         </tr>

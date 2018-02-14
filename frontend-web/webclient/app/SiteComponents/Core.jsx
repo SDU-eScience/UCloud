@@ -47,7 +47,6 @@ class Core extends React.Component {
                     </footer>
                 </div>
                 <Settings/>
-
             </div>
         );
     }
