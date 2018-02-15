@@ -104,7 +104,6 @@ class RunApp extends React.Component {
     }
 
     onCommentChange(comment) {
-        console.log(comment);
         this.setState(() => ({
             comment: comment,
         }));

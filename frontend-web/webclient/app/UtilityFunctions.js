@@ -264,6 +264,10 @@ function getParentPath(path) {
     return parentPath;
 }
 
+function publishToZenodo(uri) {
+    console.log(uri);
+}
+
 const makeCancelable = (promise) => {
     let hasCanceled_ = false;
 
@@ -283,7 +287,6 @@ const makeCancelable = (promise) => {
 };
 
 function downloadFile(path) {
-    console.log("Doing something");
     Cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
         let link = document.createElement("a");
         window.location.href = "/api/files/download?path=" + encodeURI(path) + "&token=" + encodeURI(token);
@@ -327,4 +330,5 @@ export {
     downloadFile,
     getCurrentRights,
     toLowerCaseAndCapitalize,
+    publishToZenodo,
 }

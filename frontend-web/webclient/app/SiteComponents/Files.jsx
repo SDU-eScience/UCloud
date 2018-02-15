@@ -1,10 +1,10 @@
-import React from 'react';
-import {BallPulseLoading} from './LoadingIcon';
+import React from "react";
+import {BallPulseLoading} from "./LoadingIcon";
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {Link} from 'react-router-dom';
-import {Button, Table} from 'react-bootstrap';
-import {PaginationButtons, EntriesPerPageSelector} from "./Pagination"
-import {buildBreadCrumbs} from "./Breadcrumbs"
+import {Link} from "react-router-dom";
+import {Button, Table} from "react-bootstrap";
+import {PaginationButtons, EntriesPerPageSelector} from "./Pagination";
+import {buildBreadCrumbs} from "./Breadcrumbs";
 import {
     sortFilesByTypeAndName,
     createFolder,
@@ -19,11 +19,12 @@ import {
     showFileDeletionPrompt,
     getCurrentRights,
     sendToAbacus,
-    downloadFile, toLowerCaseAndCapitalize,
-} from '../UtilityFunctions'
+    downloadFile,
+    toLowerCaseAndCapitalize,
+    publishToZenodo,
+} from "../UtilityFunctions";
 import Uppy from "uppy";
-import {DashboardModal} from "uppy/lib/react"
-import {SensitivityLevel} from "../DefaultObjects";
+import {DashboardModal} from "uppy/lib/react";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
 
@@ -345,7 +346,6 @@ function FileOptions(props) {
         }
     }
     const downloadDisabled = (props.selectedFiles.length > 1 || props.selectedFiles[0].sensitivityLevel === "SENSITIVE");
-
     return (
         <div>
             <h3>{fileText}</h3>
@@ -382,6 +382,14 @@ function FileOptions(props) {
                         onClick={() => showFileDeletionPrompt(props.selectedFiles[0].path)}>
                     <em className="ion-ios-trash pull-left"/>
                     Delete
+                </Button>
+            </p>
+            <p>
+                <Button className="btn btn-info btn-block ripple"
+                        disabled={rights.rightsLevel < 3 || props.selectedFiles.length > 1}
+                        onClick={() => publishToZenodo(props.selectedFiles[0].path.uri)}>
+                    <em className="ion-ios-cloud-upload-outline pull-left"/>
+                    Publish to Zenodo
                 </Button>
             </p>
         </div>
@@ -534,7 +542,10 @@ function MobileButtons(props) {
                     <li><a className="btn btn-danger ripple ion-ios-trash"
                            onClick={() => showFileDeletionPrompt(file.path)}> Delete file</a></li>
                     <li><Link className="btn btn-default ripple btn-block ion-ios-settings-strong"
-                              to={`/fileInfo/${file.path.path}/`}>Properties</Link></li>
+                              to={`/fileInfo/${file.path.path}/`}> Properties</Link></li>
+                    <li><a className="btn btn-default ripple btn-block ion-ios-cloud-upload-outline"
+                            onClick={() => publishToZenodo(file.path.uri)}> Publish to Zenodo
+                    </a></li>
                 </ul>
             </div>
         </span>)
