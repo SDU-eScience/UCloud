@@ -1,6 +1,5 @@
 import React from "react";
-import SectionContainerCard from "./SectionContainerCard";
-import {FormGroup, Radio, FormControl} from "react-bootstrap";
+import {Button, FormGroup, Radio, FormControl} from "react-bootstrap";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
@@ -17,7 +16,7 @@ class ZenodoPublish extends React.Component {
                 digitalObjectIdentifier: null,
                 publicationDate: null,
                 title: null,
-                authors: [{ name: "", affiliation: "", orcid: ""}],
+                authors: [{name: "", affiliation: "", orcid: ""}],
                 description: null,
                 version: null,
                 language: null,
@@ -161,7 +160,9 @@ function UploadDropdown(props) {
 }
 
 function BasicInformation(props) {
-    console.log(props.authors.length);
+    for (let i = 0; i < props.authors.length; i++) {
+        // Yield?
+    }
     return (
         <FormGroup>
             <fieldset>
@@ -187,11 +188,21 @@ function BasicInformation(props) {
                     <FormGroup>
                         <label className="col-sm-3 control-label">Title</label>
                         <div className="col-md-8">
-                            <input minLength={1} type="text" onChange={e => console.log(1)}/>
+                            <input type="text" onChange={e => console.log(1)}/>
                         </div>
                     </FormGroup>
                 </fieldset>
                 <fieldset>
+                    <AuthorList/>
+                </fieldset>
+                <fieldset>
+                    <div className="form-group">
+                        <label className="col-sm-2 control-label">Comment</label>
+                        <div className="col-md-4">
+                        <textarea required style={{resize: "none"}} placeholder="Describe the upload"
+                                  className="col-md-4 form-control" rows="5" onChange={e => console.log(1)}/>
+                        </div>
+                    </div>
                 </fieldset>
                 <AuthorList/>
             </fieldset>
@@ -199,7 +210,12 @@ function BasicInformation(props) {
 }
 
 function AuthorList(props) {
-    return null;
+    const authorList = null;
+    return (
+        <div>
+            {authorList}
+            <Button>Add Author</Button>
+        </div>);
 }
 
 function License(props) {
