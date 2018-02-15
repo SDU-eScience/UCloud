@@ -163,7 +163,7 @@ class Files extends React.Component {
         Cloud.get(`files?path=/${queryPath}`).then(files => {
             files.forEach(file => file.isChecked = false);
             this.setState(() => ({
-                files: this.state.sortingFunctions.typeAndName(files, true),
+                files: this.state.sortingFunctions[this.state.lastSorting.name](files, this.state.lastSorting.asc),
                 currentPath: queryPath,
                 loading: false,
             }));
@@ -528,7 +528,7 @@ function MobileButtons(props) {
                     <li><a className="btn btn-default ripple btn-block ion-share"
                            onClick={() => shareFile(file.path)}> Share file</a></li>
                     <li><a className="btn btn-default ripple btn-block ion-ios-download"
-                            onClick={() => downloadFile(file.path.path)}> Download file</a></li>
+                           onClick={() => downloadFile(file.path.path)}> Download file</a></li>
                     <li><a className="btn btn-default ripple ion-ios-compose"
                            onClick={() => renameFile(file.path)}> Rename file</a></li>
                     <li><a className="btn btn-danger ripple ion-ios-trash"

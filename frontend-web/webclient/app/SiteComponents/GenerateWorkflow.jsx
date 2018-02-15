@@ -54,9 +54,14 @@ class GenerateWorkflow extends React.Component {
                     </select>
                     <span><Button onClick={() => this.addParameterType()}>Add Parameter type</Button></span>
                 </form>
+                <Parameters/>
             </SectionContainerCard>
         );
     }
+}
+
+function Parameters() {
+    return null;
 }
 
 export default GenerateWorkflow;
