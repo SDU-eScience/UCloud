@@ -20,12 +20,12 @@ class ZenodoPublish extends React.Component {
                 description: null,
                 version: null,
                 language: null,
-                keywords: null,
+                keywords: [""],
                 additionalNotes: null,
             },
             license: { // Required
-                accessRight: null, // Radio buttons
-                license: null // Dropdown
+                accessRight: "Open Access", // Radio buttons
+                license: "Creative Commons Attribution 4.0" // Dropdown
             },
             funding: { // Recommended
                 funder: null,
@@ -37,6 +37,24 @@ class ZenodoPublish extends React.Component {
         };
         this.updateType = this.updateType.bind(this);
         this.updateSubtype = this.updateSubtype.bind(this);
+        this.addAuthor = this.addAuthor.bind(this);
+        this.addKeyword = this.addKeyword.bind(this);
+    }
+
+    addAuthor() {
+        let {basicInformation} = this.state;
+        basicInformation.authors.push({name: "", affiliation: "", orcid: ""});
+        this.setState(() => ({
+            basicInformation: basicInformation
+        }));
+    }
+
+    addKeyword() {
+        let {basicInformation} = this.state;
+        basicInformation.keywords.push("");
+        this.setState(() => ({
+            basicInformation: basicInformation,
+        }));
     }
 
     updateType(type) {
@@ -61,7 +79,6 @@ class ZenodoPublish extends React.Component {
                 <div className="container-fluid">
                     <CardAndBody>
                         <Communities/>
-
                     </CardAndBody>
                     <CardAndBody>
                         <FileSelections/>
@@ -73,7 +90,8 @@ class ZenodoPublish extends React.Component {
                     </CardAndBody>
                     <CardAndBody>
                         <h3>Basic information</h3>
-                        <BasicInformation authors={this.state.basicInformation.authors}/>
+                        <BasicInformation authors={this.state.basicInformation.authors} addAuthor={this.addAuthor}
+                                          keywords={this.state.basicInformation.keywords} addKeyword={this.addKeyword}/>
                     </CardAndBody>
                     <CardAndBody>
                         <h3>License</h3>
@@ -160,61 +178,101 @@ function UploadDropdown(props) {
 }
 
 function BasicInformation(props) {
-    for (let i = 0; i < props.authors.length; i++) {
-        // Yield?
-    }
     return (
         <FormGroup>
             <fieldset>
-                <fieldset>
-                    <FormGroup>
-                        <label className="col-sm-3 control-label">Digital object identifier</label>
-                        <div className="col-md-8">
-                            <input placeholder="e.g. 10.1234/foor.bar"
-                                   type="text" onChange={e => console.log(1)}/>
-                        </div>
-                    </FormGroup>
-                </fieldset>
-                <fieldset>
-                    <FormGroup>
-                        <label className="col-sm-3 control-label">Publication date</label>
-                        <div className="col-md-8">
-                            <input placeholder="YYYY-MM-DD" maxLength={10} minLength={10}
-                                   type="text" onChange={e => console.log(1)}/>
-                        </div>
-                    </FormGroup>
-                </fieldset>
-                <fieldset>
-                    <FormGroup>
-                        <label className="col-sm-3 control-label">Title</label>
-                        <div className="col-md-8">
-                            <input type="text" onChange={e => console.log(1)}/>
-                        </div>
-                    </FormGroup>
-                </fieldset>
-                <fieldset>
-                    <AuthorList/>
-                </fieldset>
-                <fieldset>
-                    <div className="form-group">
-                        <label className="col-sm-2 control-label">Comment</label>
-                        <div className="col-md-4">
+                <label className="col-sm-2 control-label">Digital object identifier</label>
+                <div className="col-md-4">
+                    <input placeholder="e.g. 10.1234/foor.bar" className="form-control"
+                           type="text" onChange={e => console.log("Digital Object identifiers")}/>
+                </div>
+            </fieldset>
+            <fieldset>
+                <div className="form-group">
+                    <label className="col-sm-2 control-label">Publication date</label>
+                    <div className="col-md-4">
+                        <input placeholder="YYYY-MM-DD" className="form-control" maxLength={10} minLength={10}
+                               type="text" onChange={e => console.log("Publication Date")}/>
+                    </div>
+                </div>
+            </fieldset>
+            <fieldset>
+                <label className="col-sm-2">Title</label>
+                <div className="col-md-4 control-label">
+                    <input type="text" className="form-control" onChange={e => console.log("Title")}/>
+                </div>
+            </fieldset>
+            <fieldset>
+                <label className="col-sm-2">Authors</label>
+                <AuthorList authors={props.authors} addAuthor={props.addAuthor}/>
+            </fieldset>
+            <fieldset>
+                <div className="form-group">
+                    <label className="col-sm-2 control-label">Comment</label>
+                    <div className="col-md-4">
                         <textarea required style={{resize: "none"}} placeholder="Describe the upload"
                                   className="col-md-4 form-control" rows="5" onChange={e => console.log(1)}/>
-                        </div>
                     </div>
-                </fieldset>
-                <AuthorList/>
+                </div>
             </fieldset>
+            <fieldset>
+                <label className="col-sm-2">Version</label>
+                <div className="col-md-4 control-label">
+                    <input type="text" className="form-control" onChange={e => console.log(1)}/>
+                    <span className="help-block">Optional. Mostly relevant for software and dataset uploads. Any string will be accepted, but semantically-versioned tag is recommended.
+                        See <a href="https://semver.org/" target="_blank">semver.org</a> for more information on semantic versioning.</span>
+                </div>
+            </fieldset>
+            <fieldset>
+                <label className="col-sm-2">Language</label>
+                <div className="col-md-4 control-label">
+                    <input type="text" className="form-control" onChange={e => console.log(1)}/>
+                    <span className="help-block">Optional. Primary language of the record. Start by typing the language's common name in English, or its ISO 639 code (two or three-letter code).
+                        See <a href="https://www.loc.gov/standards/iso639-2/php/code_list.php" target="_blank"> ISO 639 language codes list</a> for more information.</span>
+                </div>
+            </fieldset>
+            <fieldset>
+                <label className="col-sm-2 control-label">Keywords</label>
+                <Keywords keywords={props.keywords} addKeyword={props.addKeyword}/>
+            </fieldset>
+            {/* Omitting additional keywords as it is optional*/}
         </FormGroup>)
 }
 
+function Keywords(props) {
+    let i = 0;
+    const keywordList = props.keywords.map(keyword =>
+        <div key={i++} className="col-sm-4 input-group control-label">
+            <input placeholder="Keyword..." className="form-control"
+                type="text" onChange={e => console.log("Keyword")}/>
+        </div>
+    );
+    return (
+      <div>
+          {keywordList}
+          <Button onClick={() => props.addKeyword()}>Add Keyword</Button>
+      </div>
+    );
+}
+
 function AuthorList(props) {
-    const authorList = null;
+    let i = 0;
+    const authorList = props.authors.map(author =>
+        <FormGroup key={i++}>
+            <div className="col-sm-4 input-group control-label">
+                <input placeholder="Name" className="form-control"
+                       type="text" onChange={e => console.log("Name")}/>
+                <input placeholder="Affiliation" className="form-control"
+                       type="text" onChange={e => console.log("Affiliation")}/>
+                <input placeholder="Orcid (Optional)" className="form-control"
+                       type="text" onChange={e => console.log("Orcid")}/>
+            </div>
+        </FormGroup>
+    );
     return (
         <div>
             {authorList}
-            <Button>Add Author</Button>
+            <Button onClick={() => props.addAuthor()}>Add Author</Button>
         </div>);
 }
 
