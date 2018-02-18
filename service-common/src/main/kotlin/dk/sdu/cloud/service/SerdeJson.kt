@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectWriter
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -21,6 +22,7 @@ const val SERIALIZER_POJO_CLASS = "JsonPOJOClass"
 const val SERIALIZER_TYPE_REF = "JsonPOJOTypeRef"
 private val objectMapper by lazy {
     jacksonObjectMapper().apply {
+        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
     }
 }
@@ -54,7 +56,7 @@ class JsonPOJODeserializer<T> : Deserializer<T> {
 }
 
 class JsonPOJOSerializer<T> : Serializer<T> {
-    var writer: ObjectWriter = objectMapper.writer()
+    private var writer: ObjectWriter = objectMapper.writer()
 
     override fun configure(props: Map<String, *>, isKey: Boolean) {
         @Suppress("UNCHECKED_CAST")
