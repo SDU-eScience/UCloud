@@ -5,14 +5,20 @@ import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.prepare
 import dk.sdu.cloud.service.TokenValidation
+import io.ktor.html.insert
 import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.BoundRequestBuilder
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAmount
+import java.time.temporal.TemporalUnit
+import java.util.*
+import java.util.concurrent.TimeUnit
 
 class RefreshingJWTAuthenticator(
-        override val parent: CloudContext,
-        refreshToken: String
+    override val parent: CloudContext,
+    refreshToken: String
 ) : AuthenticatedCloud {
     private val lock = Any()
     private var currentAccessToken = "~~token will not validate~~"
@@ -41,7 +47,11 @@ class RefreshingJWTAuthenticator(
         // It is _a lot_ cheaper to do the check than to refresh again, also avoids some load on the auth service.
         log.debug("Entering refresh() - Awaiting lock")
         synchronized(lock) {
-            if (TokenValidation.validateOrNull(currentAccessToken) == null) {
+            val validatedToken = TokenValidation.validateOrNull(currentAccessToken)
+            if (
+                validatedToken == null ||
+                validatedToken.expiresAt.toInstant().isAfter((Date().toInstant().plus(5, ChronoUnit.MINUTES)))
+            ) {
                 log.info("Need to refresh token")
                 val prepared = AuthDescriptions.refresh.prepare()
                 val result = runBlocking {
@@ -53,8 +63,10 @@ class RefreshingJWTAuthenticator(
                     currentAccessToken = result.result.accessToken
                     return currentAccessToken
                 } else {
-                    throw ConnectException("Unable to connect to authentication service while trying " +
-                            "to refresh access token")
+                    throw ConnectException(
+                        "Unable to connect to authentication service while trying " +
+                                "to refresh access token"
+                    )
                 }
             }
             log.debug("Token already refreshed")
@@ -68,8 +80,8 @@ class RefreshingJWTAuthenticator(
 }
 
 private class RefreshTokenAuthenticator(
-        override val parent: CloudContext,
-        private val refreshToken: String
+    override val parent: CloudContext,
+    private val refreshToken: String
 ) : AuthenticatedCloud {
     override fun BoundRequestBuilder.configureCall() {
         setHeader("Authorization", "Bearer $refreshToken")
