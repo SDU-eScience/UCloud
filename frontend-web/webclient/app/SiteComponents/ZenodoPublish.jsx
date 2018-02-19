@@ -1,6 +1,7 @@
 import React from "react";
 import {Button, FormGroup, Radio, FormControl, ControlLabel} from "react-bootstrap";
-import FileSelector from "./FileSelector"
+import FileSelector from "./FileSelector";
+import { Cloud } from "../../authentication/SDUCloudObject";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
@@ -15,30 +16,19 @@ class ZenodoPublish extends React.Component {
                 subtype: "Book",
             }, // Required
             basicInformation: { // Required
-                digitalObjectIdentifier: "",
+                digitalObjectIdentifier: null,
                 publicationDate: "",
                 title: "",
                 authors: [{name: "", affiliation: "", orcid: ""}],
                 description: null,
                 version: null,
-                language: null, // TODO
-                keywords: [""], // TODO
-                additionalNotes: null, // TODO
+                language: null,
+                keywords: [""],
             },
             license: { // Required
-                accessRight: "Open Access", // TODO
-                subfields: {
-                    license: "Creative Commons Attribution 4.0"
-                }, // TODO
-
+                accessRight: "Open Access",
+                license: "MIT License",
             },
-            /*funding: { // Recommended
-                funder: null,
-                numberNameAbbr: null,
-            },
-            relatedAndAlternativeIdentifiers: { // Recommended
-                identifiers: [],
-            },*/
         };
         this.handleFileSelection = this.handleFileSelection.bind(this);
         this.updateType = this.updateType.bind(this);
@@ -51,14 +41,70 @@ class ZenodoPublish extends React.Component {
         this.updateAuthor = this.updateAuthor.bind(this);
         this.updateKeyword = this.updateKeyword.bind(this);
         this.newFile = this.newFile.bind(this);
+        this.updateLicenseField = this.updateLicenseField.bind(this);
+        this.submit = this.submit.bind(this);
     }
 
-    validateFields(form) {
-
+    static validateAndExtractFields(form) {
+        let i = 0;
+        let body = {};
+        // Files
+        body.files = form.files.filter(file => file);
+        if (body.files.length === 0) return null;
+        // Uploadtype
+        body.uploadType = form.uploadType;
+        // Basic information
+        body.basicInformation = {};
+        body.basicInformation.digitalObjectIdentifier = form.basicInformation.digitalObjectIdentifier;
+        body.basicInformation.publicationDate = form.basicInformation.publicationDate;
+        body.basicInformation.title = form.basicInformation.title;
+        if (!body.basicInformation.title) { return null }
+        body.basicInformation.authors = form.basicInformation.authors.filter(author => author.name && author.affiliation);
+        if (!body.basicInformation.authors) { return null }
+        body.basicInformation.description = form.basicInformation.description; // FIXME Entirely missing
+        if (!body.basicInformation.description) { return null }
+        body.basicInformation.version = form.basicInformation.version;
+        body.basicInformation.language = form.basicInformation.language;
+        body.basicInformation.keywords = form.basicInformation.keywords.filter(keyword => keyword);
+        if (!body.basicInformation.keywords) { return null }
+        // License
+        body.license = {};
+        body.license.accessRight = form.license.accessRight;
+        // //["Open Access", "Embargoed Access", "Restricted Access", "Closed Access"];
+        switch (form.license.accessRight) {
+            case "Open Access": {
+                body.license.license = form.license.license;
+                break;
+            }
+            case "Embargoed Access": {
+                body.license.embargoDate = form.license.embargoDate;
+                if (!body.license.embargoDate) { return null };
+                break;
+            }
+            case "Restricted Access": {
+                body.license.restrictedConditions = form.license.restrictedConditions;
+                if (!body.license.restrictedConditions) { return null }
+                break;
+            }
+        }
+        return body;
     }
 
     submit() {
+        const body = ZenodoPublish.validateAndExtractFields(this.state);
+        if (body) {
+            Cloud.post("/api/ZenodoPublish/", { filePaths: body.files });
+        } else {
 
+        }
+    }
+
+    updateLicenseField(field, value) {
+        let {license} = this.state;
+        license[field] = value;
+        this.setState(() => ({
+            license: license,
+        }));
     }
 
     handleFileSelection(file, index) {
@@ -107,8 +153,20 @@ class ZenodoPublish extends React.Component {
 
 
     updateAccessRight(accessRight) {
-        let {license} = this.state;
-        license.accessRight = accessRight;
+        let license = {
+            accessRight: accessRight,
+        };
+        switch (accessRight) {
+            case "Open Access":
+            case "Embargoed Access": {
+                license.license = "MIT License";
+                break;
+            }
+            case "Restricted Access": {
+                license.description = "";
+                break;
+            }
+        }
         this.setState(() => ({
             license: license,
         }));
@@ -116,7 +174,7 @@ class ZenodoPublish extends React.Component {
 
     updateLicense(newLicense) {
         let {license} = this.state;
-        license.subfields.license = newLicense;
+        license.license = newLicense;
         this.setState(() => ({
             license: license,
         }));
@@ -182,7 +240,7 @@ class ZenodoPublish extends React.Component {
                     <CardAndBody>
                         <h3>License</h3>
                         <License accessRight={this.state.license.accessRight} updateLicense={this.updateLicense}
-                                 updateAccessRight={this.updateAccessRight}/>
+                                 updateAccessRight={this.updateAccessRight} updateLicenseField={this.updateLicenseField}/>
                     </CardAndBody>
                     {/*<CardAndBody>    {//  Recommended}
                         <h3>Funding</h3>
@@ -193,6 +251,7 @@ class ZenodoPublish extends React.Component {
                         <Identifiers/>
                     </CardAndBody>*/}
                 </div>
+                <Button onClick={this.submit}>Moment of super</Button>
             </section>
         );
     }
@@ -399,7 +458,7 @@ function License(props) {
                 <div>
                     <label>Embargo Date</label>
                     <input placeholder="YYYY-MM-DD" className="form-control"
-                           type="date" onChange={e => console.log("Publication Date for embargoed access")}/>
+                           type="date" onChange={e => props.updateLicenseField("embargoDate", e.target.value)}/>
                     <FormControl componentClass="select" onChange={e => props.updateLicense(e.target.value)}>
                         {options}
                     </FormControl>
@@ -411,7 +470,7 @@ function License(props) {
             additionalAccessRightsField = (
                 <div>
                     <ControlLabel>Conditions</ControlLabel>
-                    <FormControl onChange={() => console.log("Conditions")} required componentClass="textarea" placeholder="Describe the condition for the restrictions..."/>
+                    <FormControl onChange={(e) => props.updateLicenseField("restrictedConditions", e.target.value)} required componentClass="textarea" placeholder="Describe the condition for the restrictions..."/>
                 </div>);
             break;
         }

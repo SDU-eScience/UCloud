@@ -56,8 +56,16 @@ const ActivityOptions = {
     children: [ActivityNotificationsOption]
 };
 
+const Publishing = {
+    name: "Publishing",
+    icon: "",
+    href: "/ZenodoPublishing",
+    children: null,
+}
+
+
 const SidebarOptionsList = [
-    DashboardOption, FilesOptions, AppsOptions, ActivityOptions
+    DashboardOption, FilesOptions, AppsOptions, ActivityOptions, Publishing
 ];
 // FIXME END
 
