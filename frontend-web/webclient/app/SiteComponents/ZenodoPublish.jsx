@@ -1,5 +1,5 @@
 import React from "react";
-import {Button, FormGroup, Radio, FormControl} from "react-bootstrap";
+import {Button, FormGroup, Radio, FormControl, ControlLabel} from "react-bootstrap";
 import FileSelector from "./FileSelector"
 
 class ZenodoPublish extends React.Component {
@@ -71,7 +71,13 @@ class ZenodoPublish extends React.Component {
     }
 
     updateKeyword(index, value) {
-        console.log(index, value, "Not implemented.");
+        let {basicInformation} = this.state;
+        let keywords = basicInformation.keywords.slice();
+        keywords[index] = value;
+        basicInformation.keywords = keywords;
+        this.setState(() => ({
+            basicInformation: basicInformation,
+        }));
     }
 
     updateAuthor(index, field, value) {
@@ -154,6 +160,7 @@ class ZenodoPublish extends React.Component {
                         <h3>File Selection</h3>
                         <FileSelections handleFileSelection={this.handleFileSelection} files={this.state.files}
                                         newFile={this.newFile}/>
+                        <Button onClick={() => this.newFile()}>Add additional file</Button>
                     </CardAndBody>
                     <CardAndBody>
                         <h3>Upload Type</h3>
@@ -208,7 +215,6 @@ function FileSelections(props) {
     return (
         <FormGroup>
             {fileSelectors}
-            <Button onClick={() => props.newFile()}>Add additional file</Button>
         </FormGroup>);
 }
 
@@ -266,7 +272,7 @@ function BasicInformation(props) {
                     <input placeholder="e.g. 10.1234/foor.bar" className="form-control"
                            type="text"
                            onChange={e => props.updateBasicInformation("digitalObjectIdentifier", e.target.value)}/>
-                    <span className="help-block">Optional. Did your publisher already assign a DOI to your upload? If not, leave the field empty and we will register a new DOI for you. A DOI allows others to easily and unambiguously cite your upload. Please note that it is NOT possible to edit a Zenodo DOI once it has been registered by us, while it is always possible to edit a custom DOI.</span>
+                    <span className="help-block"><b>Optional.</b> Did your publisher already assign a DOI to your upload? If not, leave the field empty and we will register a new DOI for you. A DOI allows others to easily and unambiguously cite your upload. Please note that it is NOT possible to edit a Zenodo DOI once it has been registered by us, while it is always possible to edit a custom DOI.</span>
                 </div>
             </fieldset>
             <fieldset>
@@ -288,7 +294,8 @@ function BasicInformation(props) {
             </fieldset>
             <fieldset>
                 <label className="col-sm-2">Authors</label>
-                <AuthorList authors={props.authors} addAuthor={props.addAuthor} updateAuthor={props.updateAuthor}/>
+                <AuthorList authors={props.authors} updateAuthor={props.updateAuthor}/>
+                <Button onClick={() => props.addAuthor()}>Add Author</Button>
             </fieldset>
             {/*<fieldset>
                 <div className="form-group">
@@ -319,45 +326,41 @@ function BasicInformation(props) {
             </fieldset>
             <fieldset>
                 <label className="col-sm-2 control-label">Keywords</label>
-                <Keywords keywords={props.keywords} addKeyword={props.addKeyword} updateKeyword={props.updateKeyword}/>
+                <Keywords keywords={props.keywords} updateKeyword={props.updateKeyword}/>
+                <Button onClick={() => props.addKeyword()}>Add keyword</Button>
             </fieldset>
             {/* Omitting additional keywords as it is optional*/}
         </FormGroup>)
 }
 
 function Keywords(props) {
-    let i = 0;
-    const keywordList = props.keywords.map(keyword =>
-        <div key={i++} className="col-sm-4 input-group control-label">
-            <input placeholder="Keyword..." className="form-control"
-                   type="text" onChange={e => console.log("Keyword")}/>
-        </div>
+    const keywordList = props.keywords.map((keyword, index) =>
+        <input placeholder="Keyword..." key={index} className="form-control col-sm-4"
+               type="text" onChange={e => console.log("Keyword")}/>
     );
     return (
-        <div>
+        <FormGroup className="col-sm-4 control-label">
             {keywordList}
-            <Button onClick={() => props.addKeyword()}>Add Keyword</Button>
-        </div>
+        </FormGroup>
     );
 }
 
 function AuthorList(props) {
-    let i = 0;
     const authorList = props.authors.map((author, index) =>
-        <FormGroup key={i++} className="col-sm-4 input-group control-label">
+        <div key={index}>
             <input placeholder="Name" className="form-control"
                    type="text" onChange={e => props.updateAuthor(index, "name", e.target.value)}/>
             <input placeholder="Affiliation" className="form-control"
                    type="text" onChange={e => props.updateAuthor(index, "affiliation", e.target.value)}/>
             <input placeholder="Orcid (Optional)" className="form-control"
                    type="text" onChange={e => props.updateAuthor(index, "orcid", e.target.value)}/>
-        </FormGroup>
+            <span className="help-block">{`Author ${index + 1}`}</span>
+        </div>
     );
     return (
-        <div>
+        <FormGroup className="col-sm-4 control-label">
             {authorList}
-            <Button onClick={() => props.addAuthor()}>Add Author</Button>
-        </div>);
+        </FormGroup>);
 }
 
 function License(props) {
@@ -376,40 +379,35 @@ function License(props) {
                 <option key={option}>{option}</option>
             );
             additionalAccessRightsField = (
-                <FormControl className="col-md-4" componentClass="select"
+                <FormControl className="form-control" componentClass="select"
                              onChange={e => props.updateLicense(e.target.value)}>
                     {options}
-                </FormControl>);
+                </FormControl>
+            );
             break;
         }
         case "Embargoed Access": {
-            // Embargo date
-            const date = (
-                <div>
-                    <label>Embargo Date</label>
-                    <input placeholder="YYYY-MM-DD" className="form-control" maxLength={10} minLength={10}
-                           type="text" onChange={e => console.log("Publication Date for embargoed access")}/>
-                </div>);
             // License
             const options = licenseOptions.map(option =>
                 <option key={option}>{option}</option>
             );
             additionalAccessRightsField = (
-                <div className="col-md-4">
-                    {date}
+                <div>
+                    <label>Embargo Date</label>
+                    <input placeholder="YYYY-MM-DD" className="form-control"
+                           type="date" onChange={e => console.log("Publication Date for embargoed access")}/>
                     <FormControl componentClass="select" onChange={e => props.updateLicense(e.target.value)}>
                         {options}
                     </FormControl>
-                </div>);
+                </div>
+            );
             break;
         }
         case "Restricted Access": {
             additionalAccessRightsField = (
-                <div className="col-md-4">
-                    <label>Restrictions</label>
-                    <textarea required style={{resize: "none"}} placeholder="Describe the restrictions"
-                              className="col-md-4 form-control" rows="5"
-                              onChange={e => console.log("Restricted Access")}/>
+                <div>
+                    <ControlLabel>Conditions</ControlLabel>
+                    <FormControl componentClass="textarea" placeholder="Describe the condition for the restrictions..."/>
                 </div>);
             break;
         }
@@ -421,14 +419,10 @@ function License(props) {
             break;
     }
     return (
-        <div>
-            <FormGroup>
-                {radioButtons}
-            </FormGroup>
-            <FormGroup>
-                {additionalAccessRightsField}
-            </FormGroup>
-        </div>
+        <FormGroup>
+            {radioButtons}
+            {additionalAccessRightsField}
+        </FormGroup>
     );
 }
 
