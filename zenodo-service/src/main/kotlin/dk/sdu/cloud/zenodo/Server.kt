@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.zenodo.api.ZenodoAccessRedirectURL
+import dk.sdu.cloud.zenodo.api.ZenodoConnectedStatus
 import dk.sdu.cloud.zenodo.api.ZenodoDescriptions
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
@@ -123,6 +124,12 @@ class Server(
                                     zenodo.createAuthorizationUrl(who, it.returnTo).toExternalForm()
                                 )
                             )
+                        }
+
+                        implement(ZenodoDescriptions.status) {
+                            logEntry(log, it)
+
+                            ok(ZenodoConnectedStatus(zenodo.isConnected(call.request.validatedPrincipal)))
                         }
                     }
                 }

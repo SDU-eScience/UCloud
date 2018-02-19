@@ -11,6 +11,8 @@ data class ZenodoAccessRedirectURL(val redirectTo: String)
 data class ZenodoPublishRequest(val filePaths: List<String>)
 data class ZenodoPublishResponse(val publishAt: String)
 
+data class ZenodoConnectedStatus(val connect: Boolean)
+
 object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
     private const val baseContext = "/api/zenodo"
 
@@ -38,5 +40,15 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
         }
 
         body { bindEntireRequestFromBody() }
+    }
+
+    val status = callDescription<Unit, ZenodoConnectedStatus, CommonErrorMessage> {
+        method = HttpMethod.GET
+        prettyName = "status"
+
+        path {
+            using(baseContext)
+            +"status"
+        }
     }
 }

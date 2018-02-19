@@ -143,6 +143,10 @@ class ZenodoOAuth(
 
         return null
     }
+
+    fun isConnected(user: String): Boolean {
+        return stateStore.retrieveCurrentTokenForUser(user) != null
+    }
 }
 
 data class OAuthTokens(

@@ -18,6 +18,10 @@ object TooManyRetries : RuntimeException("Too many retries")
 class ZenodoService(
     private val oauthService: ZenodoOAuth
 ) {
+    fun isConnected(jwt: DecodedJWT): Boolean {
+        return oauthService.isConnected(jwt.subject)
+    }
+
     suspend fun createDeposition(jwt: DecodedJWT, retries: Int = 0): ZenodoResponse<ZenodoDepositionEntity> {
         if (retries == 5) return ZenodoResponse.Failure("Internal Server Error", 500, null)
 
