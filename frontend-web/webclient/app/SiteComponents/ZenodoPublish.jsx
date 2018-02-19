@@ -53,8 +53,15 @@ class ZenodoPublish extends React.Component {
         this.newFile = this.newFile.bind(this);
     }
 
+    validateFields(form) {
+
+    }
+
+    submit() {
+
+    }
+
     handleFileSelection(file, index) {
-        console.log(file.path.uri, index);
         const files = this.state.files.slice();
         files[index] = file.path.uri;
         this.setState(() => ({
@@ -81,7 +88,6 @@ class ZenodoPublish extends React.Component {
     }
 
     updateAuthor(index, field, value) {
-        console.log(index, field, value);
         let {basicInformation} = this.state;
         let authors = basicInformation.authors.slice();
         authors[index][field] = value;
@@ -92,7 +98,6 @@ class ZenodoPublish extends React.Component {
     }
 
     updateBasicInformationField(field, value) {
-        console.log(field, value);
         let {basicInformation} = this.state;
         basicInformation[field] = value;
         this.setState(() => ({
@@ -170,7 +175,7 @@ class ZenodoPublish extends React.Component {
                     <CardAndBody>
                         <h3>Basic information</h3>
                         <BasicInformation authors={this.state.basicInformation.authors} addAuthor={this.addAuthor}
-                                          updateAuthor={this.updateAuthor}
+                                          updateAuthor={this.updateAuthor} updateKeyword={this.updateKeyword}
                                           keywords={this.state.basicInformation.keywords} addKeyword={this.addKeyword}
                                           updateBasicInformation={this.updateBasicInformationField}/>
                     </CardAndBody>
@@ -329,14 +334,13 @@ function BasicInformation(props) {
                 <Keywords keywords={props.keywords} updateKeyword={props.updateKeyword}/>
                 <Button onClick={() => props.addKeyword()}>Add keyword</Button>
             </fieldset>
-            {/* Omitting additional keywords as it is optional*/}
         </FormGroup>)
 }
 
 function Keywords(props) {
     const keywordList = props.keywords.map((keyword, index) =>
         <input placeholder="Keyword..." key={index} className="form-control col-sm-4"
-               type="text" onChange={e => console.log("Keyword")}/>
+               type="text" onChange={e => props.updateKeyword(index, e.target.value)}/>
     );
     return (
         <FormGroup className="col-sm-4 control-label">
@@ -407,7 +411,7 @@ function License(props) {
             additionalAccessRightsField = (
                 <div>
                     <ControlLabel>Conditions</ControlLabel>
-                    <FormControl componentClass="textarea" placeholder="Describe the condition for the restrictions..."/>
+                    <FormControl onChange={() => console.log("Conditions")} required componentClass="textarea" placeholder="Describe the condition for the restrictions..."/>
                 </div>);
             break;
         }
