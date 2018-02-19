@@ -2,7 +2,6 @@ package dk.sdu.cloud.zenodo.processors
 
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RequestOneTimeToken
-import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
