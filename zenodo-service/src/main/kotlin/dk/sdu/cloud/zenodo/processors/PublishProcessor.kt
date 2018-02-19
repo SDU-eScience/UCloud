@@ -16,7 +16,6 @@ import dk.sdu.cloud.zenodo.services.ZenodoResponse
 import dk.sdu.cloud.zenodo.services.ZenodoService
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.StreamsBuilder
-import org.asynchttpclient.request.body.multipart.FilePart
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 
@@ -44,9 +43,8 @@ class PublishProcessor(
 
                 val buffer = ByteArray(4096)
                 val files = command.event.filePaths.map {
-                    /*
                     val tokenResponse = AuthDescriptions.requestOneTimeTokenWithAudience.call(
-                        RequestOneTimeToken(DOWNLOAD_FILE_SCOPE), cloud
+                        RequestOneTimeToken("$DOWNLOAD_FILE_SCOPE,irods"), cloud
                     )
 
                     if (tokenResponse !is RESTResponse.Ok) {
@@ -75,10 +73,7 @@ class PublishProcessor(
                         log.warn(ex.stackTraceToString())
                         return@runBlocking
                     }
-                    */
 
-                    val tempFile = Files.createTempFile("zenodo-upload", "").toFile()
-                    tempFile.writeText("Hello, World!")
                     tempFile
                 }
 
