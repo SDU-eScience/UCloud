@@ -8,6 +8,7 @@
     <class>dk.sdu.cloud.jpa.sduclouddb.VwSystemcommands</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandstatus</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollection</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectionrel</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.App</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.VwProjectOrg</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Projectprojectresearchtyperel</class>
@@ -41,6 +42,8 @@
     <class>dk.sdu.cloud.jpa.sduclouddb.Projectrole</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectiontype</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Publication</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Notification</class>
+
     <properties>
       <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://172.22.240.11:5432/sduclouddb"/>
       <property name="javax.persistence.jdbc.user" value="postgres"/>
