@@ -146,6 +146,7 @@ export default class SDUCloud {
     }
 
     createOneTimeTokenWithPermission(permission) {
+        // TODO I think this might fail if token is not valid.
         let token = SDUCloud.storedRefreshToken;
         if (!token) {
             let result = $.Deferred();
@@ -247,7 +248,8 @@ export default class SDUCloud {
         let token = this.decodedToken;
         if (!token || !token.payload) return true;
         let nowInSeconds = Math.floor(Date.now() / 1000);
-        return token.payload.exp < nowInSeconds;
+        let inFiveMunites = nowInSeconds + (5 * 60);
+        return token.payload.exp < inFiveMunites;
     }
 
     _missingAuth() {
