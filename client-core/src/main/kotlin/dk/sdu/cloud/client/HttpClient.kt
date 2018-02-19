@@ -1,5 +1,6 @@
 package dk.sdu.cloud.client
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectWriter
@@ -14,7 +15,10 @@ import kotlin.coroutines.experimental.suspendCoroutine
 
 object HttpClient {
     private val httpClient = DefaultAsyncHttpClient()
-    var defaultMapper = jacksonObjectMapper()
+    var defaultMapper = jacksonObjectMapper().apply {
+        configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    }
 
     suspend fun get(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
         val builder = httpClient.prepareGet(url)

@@ -1,7 +1,8 @@
-group 'sducloud'
+group 'dk.sdu.cloud'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
+apply plugin: "maven-publish"
 
 sourceCompatibility = 1.8
 
@@ -14,4 +15,41 @@ dependencies {
     compile group: 'org.eclipse.persistence', name: 'org.eclipse.persistence.jpa', version: '2.5.0'
     compile group: 'org.postgresql', name: 'postgresql', version: '42.2.1'
     testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+task sourceJar(type: Jar) {
+    from sourceSets.main.allSource
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            artifact sourceJar {
+                classifier "sources"
+            }
+        }
+    }
+
+    // For this to work you should create a file at ~/.gradle/gradle.properties
+    // This file should contain the configuration for the repository, user, and password.
+    //
+    // Example:
+    // eScienceCloudUser=admin
+    // eScienceCloudPassword=qwer
+    //
+    repositories {
+        maven {
+            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
+            else resolvedUrl += "internal"
+            url(resolvedUrl)
+
+            credentials {
+                username(eScienceCloudUser)
+                password(eScienceCloudPassword)
+            }
+        }
+    }
 }

@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import io.ktor.application.ApplicationCall
@@ -33,10 +34,11 @@ class SimpleDownloadController(
 
                 val bearer = request.token
                 val principal =
-                    TokenValidation.validateAndClaim(bearer, listOf("downloadFile"), cloud) ?: return@implement error(
-                        CommonErrorMessage("Unauthorized"),
-                        HttpStatusCode.Unauthorized
-                    )
+                    TokenValidation.validateAndClaim(bearer, listOf(DOWNLOAD_FILE_SCOPE), cloud)
+                            ?: return@implement error(
+                                CommonErrorMessage("Unauthorized"),
+                                HttpStatusCode.Unauthorized
+                            )
 
                 val connection = storageConnectionFactory.createForAccount(principal.subject, principal.token).capture()
                         ?: return@implement error(

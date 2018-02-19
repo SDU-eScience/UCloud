@@ -60,6 +60,7 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
                 }
             }
 
+            // TODO Automatic retries on internal server errors?
             log.debug("Retrieved the following HTTP response: $resp")
             val result: RESTResponse<T, E> = if (resp.statusCode in 200..299) {
                 val result = try {

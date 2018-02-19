@@ -65,6 +65,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     val favoriteBundle = listOf(markAsFavorite, removeFavorite)
 }
 
+const val DOWNLOAD_FILE_SCOPE = "downloadFile"
 data class DownloadByURI(val path: String, val token: String)
 
 @JsonTypeInfo(

@@ -203,7 +203,15 @@ task apiJar(type: Jar) {
         configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     }
     // Not the best idea to include directly from storage/model. It can cause conflicts
-    include("**/dk/sdu/cloud/storage/api/**", "**/dk/sdu/cloud/storage/model/**", "service_manifest.json")
+    include("**/dk/sdu/cloud/storage/api/**", "**/dk/sdu/cloud/storage/model/**")
+
+    String simpleName = project.name.replace("-service", "")
+    String packageName = "${project.group}.${simpleName}.api"
+    String folderName = packageName.replace('.', '/')
+    include("**/$folderName/**", "service_manifest.json")
+
+    // without this several kotlin features will not work (including extension functions)
+    include("META-INF/**/${project.name}.kotlin_module")
     with jar
 }
 apiJar.dependsOn(generateServiceManifest)

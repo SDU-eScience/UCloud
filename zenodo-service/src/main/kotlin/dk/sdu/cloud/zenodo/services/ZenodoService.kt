@@ -3,12 +3,13 @@ package dk.sdu.cloud.zenodo.services
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.client.HttpClient
 import dk.sdu.cloud.client.asJson
-import dk.sdu.cloud.client.setJsonBody
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.experimental.delay
 import org.asynchttpclient.request.body.multipart.FilePart
+import org.asynchttpclient.request.body.multipart.StringPart
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.net.URL
 
 object MissingOAuthToken : RuntimeException("Missing OAuth Token!")
@@ -18,13 +19,15 @@ class ZenodoService(
     private val oauthService: ZenodoOAuth
 ) {
     suspend fun createDeposition(jwt: DecodedJWT, retries: Int = 0): ZenodoResponse<ZenodoDepositionEntity> {
-        if (retries == 5) throw TooManyRetries
+        if (retries == 5) return ZenodoResponse.Failure("Internal Server Error", 500, null)
 
-        val token = oauthService.retrieveTokenOrRefresh(jwt.subject) ?: throw MissingOAuthToken
+        val token =
+            oauthService.retrieveTokenOrRefresh(jwt.subject) ?: return ZenodoResponse.Failure("Unauthorized", 401, null)
 
         val rawResponse = HttpClient.post("${oauthService.baseUrl}/api/deposit/depositions") {
             setHeader(HttpHeaders.Authorization, "Bearer ${token.accessToken}")
-            setJsonBody(Any())
+            setHeader("Content-Type", "application/json")
+            setBody("{}")
         }
 
         return try {
@@ -52,7 +55,7 @@ class ZenodoService(
     suspend fun createUpload(
         jwt: DecodedJWT,
         depositionId: String,
-        filePart: FilePart,
+        filePart: File,
         retries: Int = 0
     ): ZenodoResponse<Unit> {
         if (retries == 5) throw TooManyRetries
@@ -61,7 +64,8 @@ class ZenodoService(
 
         val response = HttpClient.post("${oauthService.baseUrl}/api/deposit/depositions/$depositionId/files") {
             setHeader(HttpHeaders.Authorization, "Bearer ${token.accessToken}")
-            addBodyPart(filePart)
+            addBodyPart(StringPart("filename", filePart.name))
+            addBodyPart(FilePart("file", filePart))
         }
 
         return try {
@@ -110,12 +114,12 @@ data class ZenodoDepositionEntity(
 )
 
 data class ZenodoDepositionLinks(
-    val discard: String,
-    val edit: String,
-    val files: String,
-    val publish: String,
-    val newversion: String,
-    val self: String
+    val discard: String?,
+    val edit: String?,
+    val files: String?,
+    val publish: String?,
+    val newversion: String?,
+    val self: String?
 )
 
 typealias ZenodoDepositionMetadata = Map<String, Any?>

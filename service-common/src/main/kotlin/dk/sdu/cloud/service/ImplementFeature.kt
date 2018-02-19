@@ -85,6 +85,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                             ParsedRequestBody.MissingAndNotRequired -> null
 
                             ParsedRequestBody.MissingAndRequired -> {
+                                log.debug("Could not parse payload from body, which was required")
                                 return@handle call.respond(HttpStatusCode.BadRequest)
                             }
                         }
@@ -94,6 +95,8 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     val valuesFromPath = try {
                         restCall.path.segments.mapNotNull { it.bindValuesFromCall(call) }.toMap()
                     } catch (ex: IllegalArgumentException) {
+                        log.debug("Caught illegal argument exception when constructing values from path")
+                        log.debug(ex.stackTraceToString())
                         return@handle call.respond(HttpStatusCode.BadRequest)
                     }
 
@@ -103,6 +106,8 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                             it.parameters.mapNotNull { it.bindValuesFromCall(call) }.toMap()
                         }
                     } catch (ex: IllegalArgumentException) {
+                        log.debug("Caught illegal argument exception when constructing values from params")
+                        log.debug(ex.stackTraceToString())
                         return@handle call.respond(HttpStatusCode.BadRequest)
                     } ?: emptyMap()
 

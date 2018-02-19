@@ -1,8 +1,12 @@
 package dk.sdu.cloud.zenodo.services
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.client.HttpClient
 import dk.sdu.cloud.client.asDynamicJson
+import java.io.File
 import java.net.URL
 import java.util.*
 
@@ -18,17 +22,35 @@ interface ZenodoOAuthStateStore {
 }
 
 class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
-    private val csrfDb = HashMap<String, Pair<String, String>>()
-    private val csrfToUser = HashMap<String, String>()
-    private val tokenDb = HashMap<String, OAuthTokens>()
+    val csrfDb = HashMap<String, Pair<String, String>>()
+    val csrfToUser = HashMap<String, String>()
+    val tokenDb = HashMap<String, OAuthTokens>()
+
+    companion object {
+        private val mapper = jacksonObjectMapper().apply {
+            configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+        }
+
+        fun load(): InMemoryZenodoOAuthStateStore {
+            return try {
+                mapper.readValue(File("zenodo-oauth.json"))
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+                InMemoryZenodoOAuthStateStore()
+            }
+        }
+    }
 
     override fun storeStateTokenForUser(cloudUser: String, token: String, returnTo: String) {
         csrfToUser[token] = cloudUser
         csrfDb[cloudUser] = Pair(token, returnTo)
+        serialize()
     }
 
     override fun storeAccessAndRefreshToken(cloudUser: String, token: OAuthTokens) {
         tokenDb[cloudUser] = token
+        serialize()
     }
 
     override fun retrieveCurrentTokenForUser(cloudUser: String): OAuthTokens? {
@@ -37,8 +59,14 @@ class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
 
     override fun resolveUserAndRedirectFromStateToken(stateToken: String): Pair<String, String>? {
         val user = csrfToUser[stateToken] ?: return null
-        val (_, returnTo) = csrfDb[user]  ?: return null
+        val (_, returnTo) = csrfDb[user] ?: return null
         return Pair(user, returnTo)
+    }
+
+    private fun serialize() {
+        File("zenodo-oauth.json").writeText(
+            mapper.writeValueAsString(this)
+        )
     }
 }
 
@@ -91,7 +119,7 @@ class ZenodoOAuth(
         return returnTo
     }
 
-    private suspend fun requestTokenWithRefresh(refreshToken: String): OAuthTokens? {
+    private suspend fun requestTokenWithRefresh(user: String, refreshToken: String): OAuthTokens? {
         val response = HttpClient.post("$baseUrl/oauth/token") {
             addFormParam("client_id", clientId)
             addFormParam("client_secret", clientSecret)
@@ -100,7 +128,9 @@ class ZenodoOAuth(
         }
 
         if (response.statusCode !in 200..299) return null
-        return parseOAuthResponse(response.asDynamicJson())
+        return parseOAuthResponse(response.asDynamicJson()).also {
+            if (it != null) stateStore.storeAccessAndRefreshToken(user, it)
+        }
     }
 
     suspend fun retrieveTokenOrRefresh(user: String): OAuthTokens? {
@@ -108,7 +138,7 @@ class ZenodoOAuth(
         if (token != null) {
             if (!token.expired) return token
 
-            return requestTokenWithRefresh(token.refreshToken)
+            return requestTokenWithRefresh(user, token.refreshToken)
         }
 
         return null
@@ -125,7 +155,7 @@ data class OAuthTokens(
 
 private fun parseOAuthResponse(node: JsonNode): OAuthTokens? {
     val accessToken = node["access_token"].asText() ?: return null
-    val expiresAt = node["expires_in"].longValue() + System.currentTimeMillis()
+    val expiresAt = node["expires_in"].longValue() * 1000 + System.currentTimeMillis()
     val refreshToken = node["refresh_token"].asText() ?: return null
 
     return OAuthTokens(accessToken, expiresAt, refreshToken)

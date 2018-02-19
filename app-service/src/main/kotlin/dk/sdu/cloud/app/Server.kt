@@ -24,18 +24,17 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
-import dk.sdu.cloud.service.stackTraceToString
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 class Server(
-        private val kafka: KafkaServices,
-        private val zk: ZooKeeper,
-        private val cloud: RefreshingJWTAuthenticator,
-        private val config: HPCConfig,
-        private val ktor: HttpServerProvider,
-        private val storageConnectionFactory: StorageConnectionFactory
+    private val kafka: KafkaServices,
+    private val zk: ZooKeeper,
+    private val cloud: RefreshingJWTAuthenticator,
+    private val config: HPCConfig,
+    private val ktor: HttpServerProvider,
+    private val storageConnectionFactory: StorageConnectionFactory
 ) {
     private var initialized = false
 
@@ -69,24 +68,24 @@ class Server(
 
             log.info("Configuring stream processors...")
             SlurmProcessor(
-                    cloud = cloud,
-                    sshPool = sshPool,
-                    irodsConfig = config.storage,
-                    slurmAgent = slurmPollAgent,
-                    appEventProducer = kafka.producer.forStream(HPCStreams.AppEvents)
+                cloud = cloud,
+                sshPool = sshPool,
+                irodsConfig = config.storage,
+                slurmAgent = slurmPollAgent,
+                appEventProducer = kafka.producer.forStream(HPCStreams.AppEvents)
             ).also { it.init() }
 
             StartCommandProcessor(
-                    connectionFactory = storageConnectionFactory,
-                    sBatchGenerator = sbatchGenerator,
-                    sshPool = sshPool,
-                    sshUser = config.ssh.user,
-                    appRequests = kBuilder.stream(HPCStreams.AppRequests).authenticate()
+                connectionFactory = storageConnectionFactory,
+                sBatchGenerator = sbatchGenerator,
+                sshPool = sshPool,
+                sshUser = config.ssh.user,
+                appRequests = kBuilder.stream(HPCStreams.AppRequests).authenticate()
             ).also { it.init() }
 
             SlurmAggregate(
-                    appEvents = kBuilder.stream(HPCStreams.AppEvents),
-                    slurmPollAgent = slurmPollAgent
+                appEvents = kBuilder.stream(HPCStreams.AppEvents),
+                slurmPollAgent = slurmPollAgent
             ).also { it.init() }
             log.info("Stream processors configured!")
 
