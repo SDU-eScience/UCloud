@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="2.1" xmlns="http://xmlns.jcp.org/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence http://xmlns.jcp.org/xml/ns/persistence/persistence_2_1.xsd">
+  <persistence-unit name="SduClouddbJpaPU" transaction-type="RESOURCE_LOCAL">
+    <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectorgrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Devstage</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Systemrole</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.VwSystemcommands</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandstatus</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollection</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.App</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.VwProjectOrg</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectprojectresearchtyperel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Logintype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Software</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystem</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Email</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personjwthistory</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Person</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandqueue</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Server</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectprojectdocumentrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personemailrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personnotificationsubscriptiontyperel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personnotificationsubscriptiontype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Org</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectpersonrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personsystemrolerel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectdocument</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandcategory</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projecteventcalendar</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projecttype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectclassification</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Project</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobject</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectresearchtype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectfileextension</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Systemrolepersonrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectpublicationrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommand</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectrole</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectiontype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Publication</class>
+    <properties>
+      <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://localhost:5432/sduclouddb"/>
+      <property name="javax.persistence.jdbc.user" value="postgres"/>
+      <property name="javax.persistence.jdbc.driver" value="org.postgresql.Driver"/>
+      <property name="javax.persistence.jdbc.password" value="Rasmus12"/>
+      <property name="eclipselink.jdbc.batch-writing.size" value="1000"/>
+      <property name="eclipselink.logging.level" value="off"/>
+      <!--  Optimization #13 - close EntityManager on commit, to avoid cost of resume -->
+      <property name="eclipselink.persistence-context.close-on-commit" value="true"/>
+      <!--  Optimization #14 - avoid auto flush cost on query execution -->
+      <property name="eclipselink.persistence-context.flush-mode" value="commit"/>
+      <!--  Optimization #15 - avoid cost of persist on commit -->
+      <property name="eclipselink.persistence-context.persist-on-commit" value="true"/>
+    </properties>
+  </persistence-unit>
+  <persistence-unit name="ICATJpaPU" transaction-type="RESOURCE_LOCAL">
+    <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+    <class>dk.sdu.cloud.jpa.icatdb.RGridConfiguration</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RZoneMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RUserMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RToknMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RTicketAllowedUsers</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RQuotaUsage</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RTicketMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRuleDvmMap</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RObjtAudit</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRuleFnmMap</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RSpecificQuery</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRuleBaseMap</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RObjtAccess</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RUserGroup</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRescMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RObjtDenyAccess</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RDataMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RUserSessionKey</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RUserPassword</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRescGroup</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRuleMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.VwDataUserdir</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RQuotaMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RServerLoad</class>
+    <class>dk.sdu.cloud.jpa.icatdb.VwDataMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RMicrosrvcMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RCollMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RMicrosrvcVer</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRuleFnm</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RUserAuth</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRuleDvm</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RTicketAllowedGroups</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RServerLoadDigest</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RRuleExec</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RTicketAllowedHosts</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RMetaMain</class>
+    <class>dk.sdu.cloud.jpa.icatdb.RObjtMetamap</class>
+    <properties>
+      <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://localhost:5432/ICAT"/>
+      <property name="javax.persistence.jdbc.user" value="postgres"/>
+      <property name="javax.persistence.jdbc.driver" value="org.postgresql.Driver"/>
+      <property name="javax.persistence.jdbc.password" value="Rasmus12"/>
+      <property name="eclipselink.jdbc.batch-writing.size" value="1000"/>
+      <property name="eclipselink.logging.level" value="off"/>
+      <!--  Optimization #13 - close EntityManager on commit, to avoid cost of resume -->
+      <property name="eclipselink.persistence-context.close-on-commit" value="true"/>
+      <!--  Optimization #14 - avoid auto flush cost on query execution -->
+      <property name="eclipselink.persistence-context.flush-mode" value="commit"/>
+      <!--  Optimization #15 - avoid cost of persist on commit -->
+      <property name="eclipselink.persistence-context.persist-on-commit" value="true"/>
+    </properties>
+  </persistence-unit>
+</persistence>
