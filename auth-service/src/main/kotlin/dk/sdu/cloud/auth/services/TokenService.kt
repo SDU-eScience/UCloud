@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.Auth
 import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
@@ -153,25 +154,16 @@ class TokenService(
         return null
     }
 
-    fun requestOneTimeToken(refreshToken: String, vararg audience: String): OneTimeAccessToken {
-        log.debug("Requesting one-time token: audience=$audience refreshToken=$refreshToken")
-        val token = RefreshTokenAndUserDAO.findById(refreshToken) ?: run {
-            log.debug("Could not find token!")
-            throw RefreshTokenException.InvalidToken()
-        }
+    fun requestOneTimeToken(jwt: String, vararg audience: String): OneTimeAccessToken {
+        log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
 
-        val user = UserDAO.findById(token.associatedUser) ?: run {
-            log.warn(
-                "Received a valid token, but was unable to resolve the associated user: " +
-                        token.associatedUser
-            )
-            throw RefreshTokenException.InternalError()
-        }
+        val validated = TokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
+        val user = UserDAO.findById(validated.subject) ?: throw RefreshTokenException.InternalError()
 
         val oneTimeToken = createOneTimeAccessTokenForExistingSession(user, *audience)
         launch {
             val invokeEvent = RefreshTokenEvent.InvokedOneTime(
-                refreshToken, audience.toList(),
+                jwt, audience.toList(),
                 oneTimeToken.accessToken
             )
             tokenEventProducer.emit(invokeEvent)

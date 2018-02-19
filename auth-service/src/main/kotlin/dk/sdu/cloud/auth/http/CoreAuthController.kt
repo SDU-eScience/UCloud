@@ -298,12 +298,12 @@ class CoreAuthController(
             implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
                 logEntry(log, it)
 
-                val refreshToken = call.request.bearerToken ?: return@implement run {
+                val bearerToken = call.request.bearerToken ?: return@implement run {
                     call.respond(HttpStatusCode.Unauthorized)
                 }
 
                 try {
-                    val token = tokenService.requestOneTimeToken(refreshToken, *it.audience.split(",").toTypedArray())
+                    val token = tokenService.requestOneTimeToken(bearerToken, *it.audience.split(",").toTypedArray())
                     call.respond(token)
                 } catch (ex: TokenService.RefreshTokenException) {
                     log.info(ex.message)

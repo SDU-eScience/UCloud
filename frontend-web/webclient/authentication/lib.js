@@ -146,26 +146,22 @@ export default class SDUCloud {
     }
 
     createOneTimeTokenWithPermission(permission) {
-        // TODO I think this might fail if token is not valid.
-        let token = SDUCloud.storedRefreshToken;
-        if (!token) {
-            let result = $.Deferred();
-            result.reject(this._missingAuth()).promise();
-            return result;
-        }
-        let oneTimeToken = `${this.authContext}/request/?audience=${permission}`;
-        return $.ajax({
-            dataType: "json",
-            method: "POST",
-            url: oneTimeToken,
-            headers: {
-                "Authorization": "Bearer " + token
-            }
-        }).then((data) => {
-            let result = $.Deferred();
-            result.resolve(data.accessToken);
-            return result.promise();
-        });
+        return this.receiveAccessTokenOrRefreshIt()
+            .then((token) => {
+                let oneTimeToken = `${this.authContext}/request/?audience=${permission}`;
+                return $.ajax({
+                    dataType: "json",
+                    method: "POST",
+                    url: oneTimeToken,
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });    
+            }).then((data) => {
+                let result = $.Deferred();
+                result.resolve(data.accessToken);
+                return result.promise();
+            });
     }
 
     _refresh() {
