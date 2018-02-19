@@ -142,9 +142,15 @@ public class Email implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Email[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Email{" +
+                "id=" + id +
+                ", email='" + email + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", personemailrelList=" + personemailrelList +
+                '}';
     }
-    
 }

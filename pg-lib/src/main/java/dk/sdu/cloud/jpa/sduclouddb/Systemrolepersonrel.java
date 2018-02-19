@@ -154,9 +154,16 @@ public class Systemrolepersonrel implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Systemrolepersonrel[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Systemrolepersonrel{" +
+                "id=" + id +
+                ", systemrolerefid=" + systemrolerefid +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", personrefid=" + personrefid +
+                '}';
     }
-    
 }

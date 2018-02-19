@@ -33,7 +33,7 @@ public class MoveDataObjectsFromIcat {
             em1.getTransaction().begin();
             for (RDataMain rDataMain : rDataMainList) {
                 Dataobject dataobject = new Dataobject();
-                dataobject.setCephid(rDataMain.getDataPath()+"_"+i.toString());
+                dataobject.setId(rDataMain.getDataPath()+"_"+i.toString());
                 dataobject.setDataobjectclassificationrefid(em1.find(Dataobjectclassification.class, 1));
                 dataobject.setCreatedTs(new java.sql.Date(System.currentTimeMillis()));
                 dataobject.setModifiedTs(dataobject.getCreatedTs());

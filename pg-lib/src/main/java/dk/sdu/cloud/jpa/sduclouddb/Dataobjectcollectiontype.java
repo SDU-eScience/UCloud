@@ -139,9 +139,15 @@ public class Dataobjectcollectiontype implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Dataobjectcollectiontype[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Dataobjectcollectiontype{" +
+                "id=" + id +
+                ", dataobjectcollectiontypename='" + dataobjectcollectiontypename + '\'' +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                '}';
     }
-    
 }

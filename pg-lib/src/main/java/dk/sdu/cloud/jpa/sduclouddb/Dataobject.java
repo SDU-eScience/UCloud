@@ -229,9 +229,23 @@ public class Dataobject implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Dataobject[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Dataobject{" +
+                "id='" + id + '\'' +
+                ", dataobjectname='" + dataobjectname + '\'' +
+                ", dataobjectsize=" + dataobjectsize +
+                ", dataobjectchecksum='" + dataobjectchecksum + '\'' +
+                ", dataobjectmd5=" + dataobjectmd5 +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", zenodotrans=" + zenodotrans +
+                ", dataobjectsharerelList=" + dataobjectsharerelList +
+                ", dataobjectclassificationrefid=" + dataobjectclassificationrefid +
+                ", dataobjectfileextensionrefid=" + dataobjectfileextensionrefid +
+                ", publicationrefid=" + publicationrefid +
+                ", dataobjectcollectionrelList=" + dataobjectcollectionrelList +
+                '}';
     }
-    
 }

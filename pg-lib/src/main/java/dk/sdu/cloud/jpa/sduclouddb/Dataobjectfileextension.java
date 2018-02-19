@@ -153,9 +153,16 @@ public class Dataobjectfileextension implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Dataobjectfileextension[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Dataobjectfileextension{" +
+                "id=" + id +
+                ", dataobjectdataobjectfileextensionname='" + dataobjectdataobjectfileextensionname + '\'' +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", dataobjectList=" + dataobjectList +
+                '}';
     }
-    
 }

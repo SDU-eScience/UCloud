@@ -154,9 +154,16 @@ public class Projectorgrel implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Projectorgrel[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Projectorgrel{" +
+                "id=" + id +
+                ", projectrefid=" + projectrefid +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", orgrefid=" + orgrefid +
+                '}';
     }
-    
 }

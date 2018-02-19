@@ -142,9 +142,15 @@ public class Subsystemcommandstatus implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Subsystemcommandstatus[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Subsystemcommandstatus{" +
+                "id=" + id +
+                ", subsystemcommandstatustext='" + subsystemcommandstatustext + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", subsystemcommandqueueList=" + subsystemcommandqueueList +
+                '}';
     }
-    
 }

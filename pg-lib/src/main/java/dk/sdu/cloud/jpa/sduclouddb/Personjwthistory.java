@@ -177,9 +177,18 @@ public class Personjwthistory implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Personjwthistory[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Personjwthistory{" +
+                "id=" + id +
+                ", sessionid='" + sessionid + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", jwt='" + jwt + '\'' +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", personrefid=" + personrefid +
+                ", subsystemcommandqueueList=" + subsystemcommandqueueList +
+                ", person=" + person +
+                '}';
     }
-    
 }

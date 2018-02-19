@@ -219,9 +219,22 @@ public class Subsystem implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Subsystem[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Subsystem{" +
+                "id=" + id +
+                ", subsystemname='" + subsystemname + '\'' +
+                ", health=" + health +
+                ", ipDev='" + ipDev + '\'' +
+                ", portDev='" + portDev + '\'' +
+                ", ipTest='" + ipTest + '\'' +
+                ", portTest='" + portTest + '\'' +
+                ", ipProd='" + ipProd + '\'' +
+                ", portProd='" + portProd + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", subsystemcommandList=" + subsystemcommandList +
+                '}';
     }
-    
 }

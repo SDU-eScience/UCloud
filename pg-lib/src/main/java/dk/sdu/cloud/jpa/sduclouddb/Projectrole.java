@@ -165,9 +165,17 @@ public class Projectrole implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Projectrole[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Projectrole{" +
+                "id=" + id +
+                ", projectrolename='" + projectrolename + '\'' +
+                ", active=" + active +
+                ", irodsrolemap='" + irodsrolemap + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", projectpersonrelList=" + projectpersonrelList +
+                '}';
     }
-    
 }

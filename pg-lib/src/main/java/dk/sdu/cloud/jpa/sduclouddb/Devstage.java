@@ -142,9 +142,15 @@ public class Devstage implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Devstage[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Devstage{" +
+                "id=" + id +
+                ", devstagename='" + devstagename + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", softwareList=" + softwareList +
+                '}';
     }
-    
 }

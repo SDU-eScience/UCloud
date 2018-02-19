@@ -262,9 +262,26 @@ public class Dataobjectsharerel implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Dataobjectsharerel[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Dataobjectsharerel{" +
+                "id=" + id +
+                ", readdataobjectsystemmetadata=" + readdataobjectsystemmetadata +
+                ", readdataobjectmetadata=" + readdataobjectmetadata +
+                ", readdataobject=" + readdataobject +
+                ", createdataobjectmetadata=" + createdataobjectmetadata +
+                ", modifydataobjectmetadata=" + modifydataobjectmetadata +
+                ", deletedataobject=" + deletedataobject +
+                ", administerdataobject=" + administerdataobject +
+                ", modifydataobject=" + modifydataobject +
+                ", owndataobject=" + owndataobject +
+                ", downloaddataobject=" + downloaddataobject +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", dataobjectrefid=" + dataobjectrefid +
+                ", personrefid=" + personrefid +
+                ", projectrefid=" + projectrefid +
+                '}';
     }
-    
 }
