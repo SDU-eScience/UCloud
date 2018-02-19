@@ -42,7 +42,7 @@
     <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectiontype</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Publication</class>
     <properties>
-      <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://localhost:5432/sduclouddb"/>
+      <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://172.22.240.11:5432/sduclouddb"/>
       <property name="javax.persistence.jdbc.user" value="postgres"/>
       <property name="javax.persistence.jdbc.driver" value="org.postgresql.Driver"/>
       <property name="javax.persistence.jdbc.password" value="Rasmus12"/>
@@ -96,7 +96,7 @@
     <class>dk.sdu.cloud.jpa.icatdb.RMetaMain</class>
     <class>dk.sdu.cloud.jpa.icatdb.RObjtMetamap</class>
     <properties>
-      <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://localhost:5432/ICAT"/>
+      <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://172.22.240.11:5432/ICAT"/>
       <property name="javax.persistence.jdbc.user" value="postgres"/>
       <property name="javax.persistence.jdbc.driver" value="org.postgresql.Driver"/>
       <property name="javax.persistence.jdbc.password" value="Rasmus12"/>

@@ -25,8 +25,8 @@ public class MoveDataObjectsFromIcat {
 
         System.err.println("rDataMainList " + rDataMainList.size());
 
-        Integer i = 5000;
-        while (i < 15000) {
+        Integer i = 1;
+        while (i < 15001) {
             em1.getTransaction().begin();
             for (RDataMain rDataMain : rDataMainList) {
                 Dataobject dataobject = new Dataobject();
