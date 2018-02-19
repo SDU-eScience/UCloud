@@ -122,6 +122,8 @@ public class Person implements Serializable {
     private List<Projecteventcalendar> projecteventcalendarList;
     @OneToMany(mappedBy = "personrefid")
     private List<Personemailrel> personemailrelList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<Notification> notificationList;
 
     public Person() {
     }
@@ -222,6 +224,14 @@ public class Person implements Serializable {
 
     public void setOrcid(String orcid) {
         this.orcid = orcid;
+    }
+
+    public List<Notification> getNotificationList() {
+        return notificationList;
+    }
+
+    public void setNotificationList(List<Notification> notificationList) {
+        this.notificationList = notificationList;
     }
 
     public String getFullname() {
