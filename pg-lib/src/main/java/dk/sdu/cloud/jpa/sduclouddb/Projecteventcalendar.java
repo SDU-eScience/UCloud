@@ -187,9 +187,19 @@ public class Projecteventcalendar implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Projecteventcalendar[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Projecteventcalendar{" +
+                "id=" + id +
+                ", eventname='" + eventname + '\'' +
+                ", eventstart=" + eventstart +
+                ", eventend=" + eventend +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", personrefid=" + personrefid +
+                ", projectrefid=" + projectrefid +
+                '}';
     }
-    
 }

@@ -153,9 +153,16 @@ public class Projecttype implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Projecttype[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Projecttype{" +
+                "id=" + id +
+                ", projecttypeename='" + projecttypeename + '\'' +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", projectList=" + projectList +
+                '}';
     }
-    
 }

@@ -176,9 +176,18 @@ public class Org implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Org[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Org{" +
+                "id=" + id +
+                ", orgfullname='" + orgfullname + '\'' +
+                ", orgshortname='" + orgshortname + '\'' +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", projectorgrelList=" + projectorgrelList +
+                ", personList=" + personList +
+                '}';
     }
-    
 }

@@ -142,9 +142,15 @@ public class Subsystemcommandcategory implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Subsystemcommandcategory[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Subsystemcommandcategory{" +
+                "id=" + id +
+                ", subsystemcommandcategorytext='" + subsystemcommandcategorytext + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", subsystemcommandList=" + subsystemcommandList +
+                '}';
     }
-    
 }

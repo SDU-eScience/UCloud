@@ -152,9 +152,16 @@ public class Projectprojectresearchtyperel implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Projectprojectresearchtyperel[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Projectprojectresearchtyperel{" +
+                "id=" + id +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", projectrefid=" + projectrefid +
+                ", projectresearchtyperefid=" + projectresearchtyperefid +
+                '}';
     }
-    
 }

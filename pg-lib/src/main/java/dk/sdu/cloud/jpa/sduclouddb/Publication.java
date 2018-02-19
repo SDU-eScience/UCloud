@@ -209,9 +209,21 @@ public class Publication implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Publication[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Publication{" +
+                "id=" + id +
+                ", publicationname='" + publicationname + '\'' +
+                ", publicationextlink='" + publicationextlink + '\'' +
+                ", publicationdate=" + publicationdate +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", zenodotrans=" + zenodotrans +
+                ", zenodotoken='" + zenodotoken + '\'' +
+                ", dataobjectList=" + dataobjectList +
+                ", projectpublicationrelList=" + projectpublicationrelList +
+                '}';
     }
-    
 }

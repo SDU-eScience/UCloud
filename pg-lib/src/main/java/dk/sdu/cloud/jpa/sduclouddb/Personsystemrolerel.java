@@ -152,9 +152,16 @@ public class Personsystemrolerel implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Personsystemrolerel[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Personsystemrolerel{" +
+                "id=" + id +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", personrefid=" + personrefid +
+                ", systemrolerefid=" + systemrolerefid +
+                '}';
     }
-    
 }

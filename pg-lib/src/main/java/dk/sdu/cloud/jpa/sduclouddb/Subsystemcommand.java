@@ -190,9 +190,19 @@ public class Subsystemcommand implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Subsystemcommand[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Subsystemcommand{" +
+                "id=" + id +
+                ", payloadmodel='" + payloadmodel + '\'' +
+                ", implemented=" + implemented +
+                ", kafkatopicname='" + kafkatopicname + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", subsystemcommandqueueList=" + subsystemcommandqueueList +
+                ", subsystemrefid=" + subsystemrefid +
+                ", subsystemcommandcategoryrefid=" + subsystemcommandcategoryrefid +
+                '}';
     }
-    
 }

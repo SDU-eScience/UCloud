@@ -188,9 +188,20 @@ public class Dataobjectcollection implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Dataobjectcollection[ id=" + id + " ]";
+
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Dataobjectcollection{" +
+                "id=" + id +
+                ", dataobjectcollectionurl='" + dataobjectcollectionurl + '\'' +
+                ", dataobjectcollectiontyperefid=" + dataobjectcollectiontyperefid +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", personrefid=" + personrefid +
+                ", projectrefid=" + projectrefid +
+                ", dataobjectcollectionrelList=" + dataobjectcollectionrelList +
+                '}';
     }
-    
 }

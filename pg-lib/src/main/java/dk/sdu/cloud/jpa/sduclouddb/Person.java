@@ -122,6 +122,8 @@ public class Person implements Serializable {
     private List<Projecteventcalendar> projecteventcalendarList;
     @OneToMany(mappedBy = "personrefid")
     private List<Personemailrel> personemailrelList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<Notification> notificationList;
 
     public Person() {
     }
@@ -222,6 +224,14 @@ public class Person implements Serializable {
 
     public void setOrcid(String orcid) {
         this.orcid = orcid;
+    }
+
+    public List<Notification> getNotificationList() {
+        return notificationList;
+    }
+
+    public void setNotificationList(List<Notification> notificationList) {
+        this.notificationList = notificationList;
     }
 
     public String getFullname() {
@@ -390,9 +400,37 @@ public class Person implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Person[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Person{" +
+                "id=" + id +
+                ", persontitle='" + persontitle + '\'' +
+                ", personfirstname='" + personfirstname + '\'' +
+                ", personmiddlename='" + personmiddlename + '\'' +
+                ", personlastname='" + personlastname + '\'' +
+                ", personphoneno='" + personphoneno + '\'' +
+                ", logintyperefid=" + logintyperefid +
+                ", latitude=" + latitude +
+                ", longitude=" + longitude +
+                ", active=" + active +
+                ", orcid='" + orcid + '\'' +
+                ", fullname='" + fullname + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", username='" + username + '\'' +
+                ", dataobjectsharerelList=" + dataobjectsharerelList +
+                ", dataobjectcollectionList=" + dataobjectcollectionList +
+                ", systemrolepersonrelList=" + systemrolepersonrelList +
+                ", personjwthistoryList=" + personjwthistoryList +
+                ", appList=" + appList +
+                ", personsystemrolerelList=" + personsystemrolerelList +
+                ", projectpersonrelList=" + projectpersonrelList +
+                ", personnotificationsubscriptiontyperelList=" + personnotificationsubscriptiontyperelList +
+                ", orgrefid=" + orgrefid +
+                ", personjwthistoryrefid=" + personjwthistoryrefid +
+                ", projecteventcalendarList=" + projecteventcalendarList +
+                ", personemailrelList=" + personemailrelList +
+                '}';
     }
-    
 }

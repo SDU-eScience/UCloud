@@ -176,9 +176,18 @@ public class Projectdocument implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Projectdocument[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Projectdocument{" +
+                "id=" + id +
+                ", projectdocumentfilename='" + projectdocumentfilename + '\'' +
+                ", documenttypedescription='" + documenttypedescription + '\'' +
+                ", projectdocumentbin=" + java.util.Arrays.toString(projectdocumentbin) +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", projectprojectdocumentrelList=" + projectprojectdocumentrelList +
+                '}';
     }
-    
 }

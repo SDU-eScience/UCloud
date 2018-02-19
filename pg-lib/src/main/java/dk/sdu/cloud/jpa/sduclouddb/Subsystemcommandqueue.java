@@ -163,9 +163,17 @@ public class Subsystemcommandqueue implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.Subsystemcommandqueue[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "Subsystemcommandqueue{" +
+                "id=" + id +
+                ", payload='" + payload + '\'' +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", personjwthistoryrefid=" + personjwthistoryrefid +
+                ", subsystemcommandrefid=" + subsystemcommandrefid +
+                ", subsystemcommandstatusrefid=" + subsystemcommandstatusrefid +
+                '}';
     }
-    
 }

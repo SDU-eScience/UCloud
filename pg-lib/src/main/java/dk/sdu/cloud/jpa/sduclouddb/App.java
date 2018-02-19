@@ -197,9 +197,20 @@ public class App implements Serializable {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "dk.sdu.sducloud.jpa.sduclouddb.App[ id=" + id + " ]";
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "App{" +
+                "id=" + id +
+                ", appname='" + appname + '\'' +
+                ", appdescriptiontext='" + appdescriptiontext + '\'' +
+                ", active=" + active +
+                ", markedfordelete=" + markedfordelete +
+                ", modifiedTs=" + modifiedTs +
+                ", createdTs=" + createdTs +
+                ", giturl='" + giturl + '\'' +
+                ", cwlfile=" + java.util.Arrays.toString(cwlfile) +
+                ", prepped=" + prepped +
+                ", personrefid=" + personrefid +
+                '}';
     }
-    
 }

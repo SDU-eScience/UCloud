@@ -5,39 +5,27 @@
  */
 package dk.sdu.cloud.jpa.sduclouddb;
 
+import javax.persistence.*;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "devstage")
+@Table(name = "Notification")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Devstage.findAll", query = "SELECT d FROM Devstage d")
-    , @NamedQuery(name = "Devstage.findById", query = "SELECT d FROM Devstage d WHERE d.id = :id")
-    , @NamedQuery(name = "Devstage.findByDevstagename", query = "SELECT d FROM Devstage d WHERE d.devstagename = :devstagename")
-    , @NamedQuery(name = "Devstage.findByMarkedfordelete", query = "SELECT d FROM Devstage d WHERE d.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Devstage.findByModifiedTs", query = "SELECT d FROM Devstage d WHERE d.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Devstage.findByCreatedTs", query = "SELECT d FROM Devstage d WHERE d.createdTs = :createdTs")})
-public class Devstage implements Serializable {
+    @NamedQuery(name = "Notification.findAll", query = "SELECT l FROM Notification l")
+    , @NamedQuery(name = "Notification.findById", query = "SELECT l FROM Notification l WHERE l.id = :id")
+    , @NamedQuery(name = "Notification.findByNotificationtext", query = "SELECT l FROM Notification l WHERE l.Notificationtext = :Notificationtext")
+    , @NamedQuery(name = "Notification.findByVieew", query = "SELECT l FROM Notification l WHERE l.viewed = :viewed")
+    , @NamedQuery(name = "Notification.findByMarkedfordelete", query = "SELECT l FROM Notification l WHERE l.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "Notification.findByModifiedTs", query = "SELECT l FROM Notification l WHERE l.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "Notification.findByCreatedTs", query = "SELECT l FROM Notification l WHERE l.createdTs = :createdTs")})
+public class Notification implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,8 +33,10 @@ public class Devstage implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "devstagename")
-    private String devstagename;
+    @Column(name = "notificationtext")
+    private String notificationtext;
+    @Column(name = "viewed")
+    private Integer viewed;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -57,17 +47,15 @@ public class Devstage implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "devstagerefid")
-    private List<Software> softwareList;
 
-    public Devstage() {
+    public Notification() {
     }
 
-    public Devstage(Integer id) {
+    public Notification(Integer id) {
         this.id = id;
     }
 
-    public Devstage(Integer id, Date modifiedTs, Date createdTs) {
+    public Notification(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -81,12 +69,20 @@ public class Devstage implements Serializable {
         this.id = id;
     }
 
-    public String getDevstagename() {
-        return devstagename;
+    public String getNotificationtext() {
+        return notificationtext;
     }
 
-    public void setDevstagename(String devstagename) {
-        this.devstagename = devstagename;
+    public void setNotificationtext(String notificationtext) {
+        this.notificationtext = notificationtext;
+    }
+
+    public Integer getViewed() {
+        return viewed;
+    }
+
+    public void setViewed(Integer viewed) {
+        this.viewed = viewed;
     }
 
     public Integer getMarkedfordelete() {
@@ -113,15 +109,6 @@ public class Devstage implements Serializable {
         this.createdTs = createdTs;
     }
 
-    @XmlTransient
-    public List<Software> getSoftwareList() {
-        return softwareList;
-    }
-
-    public void setSoftwareList(List<Software> softwareList) {
-        this.softwareList = softwareList;
-    }
-
     @Override
     public int hashCode() {
         int hash = 0;
@@ -132,25 +119,26 @@ public class Devstage implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Devstage)) {
+        if (!(object instanceof Notification)) {
             return false;
         }
-        Devstage other = (Devstage) object;
+        Notification other = (Notification) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Devstage{" +
+    @Override
+    public String
+    toString() {
+        return "Notification{" +
                 "id=" + id +
-                ", devstagename='" + devstagename + '\'' +
+                ", Notificationtext='" + notificationtext + '\'' +
+                ", viewed=" + viewed +
                 ", markedfordelete=" + markedfordelete +
                 ", modifiedTs=" + modifiedTs +
                 ", createdTs=" + createdTs +
-                ", softwareList=" + softwareList +
                 '}';
     }
 }
