@@ -43,6 +43,7 @@
     <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectiontype</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Publication</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Notification</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectsharerel</class>
 
     <properties>
       <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://172.22.240.11:5432/sduclouddb"/>
