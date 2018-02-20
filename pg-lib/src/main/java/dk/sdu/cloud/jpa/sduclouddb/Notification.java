@@ -1,30 +1,36 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package dk.sdu.cloud.jpa.sduclouddb;
 
-import javax.persistence.*;
-import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.util.Date;
+import javax.persistence.Basic;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- *
- * @author bjhj
+ * AUTO-GENERATED FILE
  */
 @Entity
-@Table(name = "Notification")
+@Table(name = "notification")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Notification.findAll", query = "SELECT l FROM Notification l")
-    , @NamedQuery(name = "Notification.findById", query = "SELECT l FROM Notification l WHERE l.id = :id")
-    , @NamedQuery(name = "Notification.findByNotificationtext", query = "SELECT l FROM Notification l WHERE l.Notificationtext = :Notificationtext")
-    , @NamedQuery(name = "Notification.findByVieew", query = "SELECT l FROM Notification l WHERE l.viewed = :viewed")
-    , @NamedQuery(name = "Notification.findByMarkedfordelete", query = "SELECT l FROM Notification l WHERE l.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Notification.findByModifiedTs", query = "SELECT l FROM Notification l WHERE l.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Notification.findByCreatedTs", query = "SELECT l FROM Notification l WHERE l.createdTs = :createdTs")})
+        @NamedQuery(name = "Notification.findAll", query = "SELECT n FROM Notification n")
+        , @NamedQuery(name = "Notification.findById", query = "SELECT n FROM Notification n WHERE n.id = :id")
+        , @NamedQuery(name = "Notification.findByNotificationtext", query = "SELECT n FROM Notification n WHERE n.notificationtext = :notificationtext")
+        , @NamedQuery(name = "Notification.findByViewed", query = "SELECT n FROM Notification n WHERE n.viewed = :viewed")
+        , @NamedQuery(name = "Notification.findByMarkedfordelete", query = "SELECT n FROM Notification n WHERE n.markedfordelete = :markedfordelete")
+        , @NamedQuery(name = "Notification.findByModifiedTs", query = "SELECT n FROM Notification n WHERE n.modifiedTs = :modifiedTs")
+        , @NamedQuery(name = "Notification.findByCreatedTs", query = "SELECT n FROM Notification n WHERE n.createdTs = :createdTs")})
 public class Notification implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -47,6 +53,9 @@ public class Notification implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Person personrefid;
 
     public Notification() {
     }
@@ -109,6 +118,14 @@ public class Notification implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public Person getPersonrefid() {
+        return personrefid;
+    }
+
+    public void setPersonrefid(Person personrefid) {
+        this.personrefid = personrefid;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -130,15 +147,8 @@ public class Notification implements Serializable {
     }
 
     @Override
-    public String
-    toString() {
-        return "Notification{" +
-                "id=" + id +
-                ", Notificationtext='" + notificationtext + '\'' +
-                ", viewed=" + viewed +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                '}';
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Notification[ id=" + id + " ]";
     }
+
 }

@@ -11,7 +11,30 @@ data class ZenodoAccessRedirectURL(val redirectTo: String)
 data class ZenodoPublishRequest(val filePaths: List<String>)
 data class ZenodoPublishResponse(val publishAt: String)
 
-data class ZenodoConnectedStatus(val connect: Boolean)
+interface ZenodoIsConnected {
+    val connected: Boolean
+}
+
+data class ZenodoErrorMessage(override val connected: Boolean, val why: String) : ZenodoIsConnected
+
+data class ZenodoConnectedStatus(override val connected: Boolean) : ZenodoIsConnected
+
+enum class ZenodoPublicationStatus {
+    UPLOADING,
+    COMPLETE,
+    FAILURE
+}
+
+data class ZenodoPublication(
+    val id: String,
+    val status: ZenodoPublicationStatus,
+    val zenodoAction: String?
+)
+
+data class ZenodoPublicationList(
+    val inProgress: List<ZenodoPublication>,
+    override val connected: Boolean = true
+) : ZenodoIsConnected
 
 object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
     private const val baseContext = "/api/zenodo"
@@ -49,6 +72,16 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
         path {
             using(baseContext)
             +"status"
+        }
+    }
+
+    val listPublications = callDescription<Unit, ZenodoPublicationList, ZenodoErrorMessage> {
+        method = HttpMethod.GET
+        prettyName = "listPublications"
+
+        path {
+            using(baseContext)
+            +"publications"
         }
     }
 }

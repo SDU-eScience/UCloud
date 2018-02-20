@@ -2,45 +2,50 @@
 <persistence version="2.1" xmlns="http://xmlns.jcp.org/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence http://xmlns.jcp.org/xml/ns/persistence/persistence_2_1.xsd">
   <persistence-unit name="SduClouddbJpaPU" transaction-type="RESOURCE_LOCAL">
     <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projectorgrel</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Devstage</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Systemrole</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.VwSystemcommands</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandstatus</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollection</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.App</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.VwProjectOrg</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projectprojectresearchtyperel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobject</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectclassification</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollection</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectionrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectiontype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectfileextension</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectsharerel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Devstage</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Email</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Logintype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Notification</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Org</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Person</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personemailrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personjwthistory</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personnotificationsubscriptiontype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personnotificationsubscriptiontyperel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Personsystemrolerel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Project</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectdocument</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projecteventcalendar</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectorgrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectpersonrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectprojectdocumentrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectprojectresearchtyperel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectpublicationrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectresearchtype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projectrole</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Projecttype</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Publication</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Server</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Software</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Subsystem</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Email</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Personjwthistory</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Person</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandqueue</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Server</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projectprojectdocumentrel</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Personemailrel</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Personnotificationsubscriptiontyperel</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Personnotificationsubscriptiontype</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Org</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projectpersonrel</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Personsystemrolerel</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projectdocument</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandcategory</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projecteventcalendar</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projecttype</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectclassification</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Project</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobject</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projectresearchtype</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectfileextension</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Systemrolepersonrel</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projectpublicationrel</class>
     <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommand</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Projectrole</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectiontype</class>
-    <class>dk.sdu.cloud.jpa.sduclouddb.Publication</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandcategory</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandqueue</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandstatus</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Systemrole</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.Systemrolepersonrel</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.VwProjectOrg</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.VwSystemcommands</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.ZenodoPublication</class>
+    <class>dk.sdu.cloud.jpa.sduclouddb.ZenodoPublicationDataobjectRel</class>
     <properties>
       <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://localhost:5432/sduclouddb"/>
       <property name="javax.persistence.jdbc.user" value="postgres"/>
