@@ -51,7 +51,7 @@ class FileSelector extends React.Component {
 
     getFiles(path) {
         this.setState(() => ({loading: true}));
-        Cloud.get(`files?path=/${path}`).then(files => {
+        Cloud.get(`files?path=${path}`).then(files => {
             this.setState(() => ({
                 files: sortFilesByTypeAndName(files, true),
                 loading: false,
@@ -63,13 +63,17 @@ class FileSelector extends React.Component {
     render() {
         return (
             <div>
-                <div className="input-group col-sm-12"><span className="input-group-btn"><Button
-                    onClick={this.openModal}
-                    type="button"
-                    className="btn btn-default">Browse files</Button></span>
+                <div className="input-group col-sm-12">
+                    <span className="input-group-btn">
+                        <Button onClick={this.openModal}
+                                type="button"
+                                className="btn btn-default">Browse files
+                        </Button>
+                    </span>
                     <input className="form-control readonly" required={!this.state.parameter.optional} type="text"
                            placeholder={"No file selected"}
-                           value={this.state.selectedFile.path.path}/></div>
+                           value={this.state.selectedFile.path.path}/>
+                </div>
                 <Modal show={this.state.modalShown} onHide={this.closeModal}>
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>

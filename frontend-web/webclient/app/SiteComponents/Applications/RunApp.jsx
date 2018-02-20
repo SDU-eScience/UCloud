@@ -222,21 +222,6 @@ function InputFileParameter(props) {
         </div>)
 }
 
-function OutputFileParameter(props) { // TODO: DELETE?
-    return (
-        <div className="form-group">
-            <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
-            <div className="col-md-4">
-                <input required={!props.parameter.isOptional}
-                       className="form-control" type="text"/>
-                <span className="help-block">Source of the file</span>
-                <file-selector select="updateParam(index, 'destination', $event)"/>
-                <span className="help-block">Destination of the file.</span>
-            </div>
-        </div>
-    )
-}
-
 function TextParameter(props) {
     return (
         <div className="form-group">

@@ -1,5 +1,5 @@
 import React from "react";
-import {Button, FormGroup, Radio, FormControl, ControlLabel} from "react-bootstrap";
+import {Button, FormGroup, ButtonGroup, ListGroup, ListGroupItem} from "react-bootstrap";
 import FileSelector from "../FileSelector";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 
@@ -55,8 +55,13 @@ class ZenodoPublish extends React.Component {
                         <h3>File Selection</h3>
                         <FileSelections handleFileSelection={this.handleFileSelection} files={this.state.files}
                                         newFile={this.newFile} removeFile={this.removeFile}/>
-                        <Button onClick={() => this.newFile()}>Add additional file</Button>
-                        <Button onClick={this.submit}>Moment of super</Button>
+                        <ButtonGroup>
+                            <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
+                            <Button disabled={this.state.files.length === 1}
+                                    onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
+                                field</Button>
+                        </ButtonGroup>{" "}
+                        <Button bsStyle="primary" onClick={this.submit}>Moment of super</Button>
                     </CardAndBody>
                 </div>
             </section>
@@ -77,15 +82,14 @@ function CardAndBody(props) {
 function FileSelections(props) {
     const files = props.files.slice();
     const fileSelectors = files.map((file, index) =>
-        <div key={index}  className="col-md-6 input-group">
-            <FileSelector onFileSelectionChange={props.handleFileSelection} parameter={index}
-                          isSource={false}/>
-            <span hidden={files.length === 1} onClick={() => props.removeFile(index)}>Delete field</span>
-        </div>
-    );
+        <ListGroupItem key={index} className="col-sm-4 col-sm-offset-4 input-group">
+            <FileSelector onFileSelectionChange={props.handleFileSelection} parameter={index} isSource={false}/>
+        </ListGroupItem>);
     return (
         <FormGroup>
-            {fileSelectors}
+            <ListGroup>
+                {fileSelectors}
+            </ListGroup>
         </FormGroup>
     );
 }

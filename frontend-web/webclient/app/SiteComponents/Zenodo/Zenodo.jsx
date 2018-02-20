@@ -1,5 +1,5 @@
 import React from "react";
-import {Button, Table} from "react-bootstrap";
+import {Button, Table, ButtonToolbar} from "react-bootstrap";
 import {Cloud} from "../../../authentication/SDUCloudObject"
 import SectionContainerCard from "../SectionContainerCard";
 import {PUBLICATIONS} from "../../MockObjects";
@@ -57,6 +57,7 @@ function PublishStatus(props) {
                         <tr>
                             <th>ID</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                         </thead>
                         <PublicationList publications={props.publications}/>
@@ -71,7 +72,10 @@ function PublishOptions(props) {
         <div className="col-md-4">
             <Card>
                 <div className="card-body">
-                    <Button onClick={() => console.log("Imagine Zenodo")}>View on Zenodo</Button>
+                    <ButtonToolbar>
+                        <Button onClick={() => console.log("Imagine Zenodo")}>View on Zenodo</Button>
+                        <Button onClick={() => console.log("Imagine Zenodo")}>Publish on Zenodo</Button>
+                    </ButtonToolbar>
                 </div>
             </Card>
         </div>);
