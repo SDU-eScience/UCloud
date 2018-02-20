@@ -16,7 +16,8 @@ import Sidebar from '../SiteComponents/Sidebar';
 import Settings from './Settings/Settings';
 import UserAuditing from "./Admin/UserAuditing";
 import GenerateWorkflow from "./GenerateWorkflow";
-import ZenodoPublish from "./ZenodoPublish";
+import ZenodoPublish from "./Zenodo/Publish";
+import ZenodoHome from "./Zenodo/Zenodo"
 
 const NotFound = () => (<div className="container-fluid"><h1>Not found.</h1></div>);
 
@@ -41,6 +42,7 @@ class Core extends React.Component {
                         <Route exact path="/analyses" component={Analyses}/>
                         <Route exact path="/audit/user/:id" component={UserAuditing}/>
                         <Route exact path="/notifications" component={Notifications}/>
+                        <Route exact path="/ZenodoHome/" component={ZenodoHome}/>
                         <Route exact path="/ZenodoPublish/" component={ZenodoPublish}/>
                         <Route exact path="/ZenodoPublish/*" component={ZenodoPublish}/>
                         <Route component={NotFound}/>

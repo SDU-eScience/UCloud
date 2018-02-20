@@ -56,17 +56,33 @@ const ActivityOptions = {
     children: [ActivityNotificationsOption]
 };
 
-const Publishing = {
+const PublishingHome = {
+    name: "Publications",
+    icon: "",
+    href: "/ZenodoHome",
+    children: null,
+};
+
+const PublishingPublish = {
+    name: "Publish",
+    icon: "",
+    href: "/ZenodoPublish",
+    children: null,
+};
+
+const Publications = {
     name: "Publishing",
     icon: "",
-    href: "/ZenodoPublishing",
-    children: null,
-}
-
+    href: "",
+    children: [PublishingHome, PublishingPublish]
+};
 
 const SidebarOptionsList = [
-    DashboardOption, FilesOptions, AppsOptions, ActivityOptions, Publishing
+    DashboardOption, FilesOptions, AppsOptions, ActivityOptions, Publications
 ];
+
+
+
 // FIXME END
 
 // FIXME START GET ACTUAL EVENTS (NOT THE ACTUAL EVENTS)

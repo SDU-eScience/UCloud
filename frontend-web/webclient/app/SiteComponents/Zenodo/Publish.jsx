@@ -1,7 +1,7 @@
 import React from "react";
 import {Button, FormGroup, Radio, FormControl, ControlLabel} from "react-bootstrap";
-import FileSelector from "./FileSelector";
-import {Cloud} from "../../authentication/SDUCloudObject";
+import FileSelector from "../FileSelector";
+import {Cloud} from "../../../authentication/SDUCloudObject";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
