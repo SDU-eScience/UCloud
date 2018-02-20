@@ -81,11 +81,42 @@ const SidebarOptionsList = [
     DashboardOption, FilesOptions, AppsOptions, ActivityOptions, Publications
 ];
 
-
-
 // FIXME END
 
-// FIXME START GET ACTUAL EVENTS (NOT THE ACTUAL EVENTS)
+const PUBLICATIONS = {
+    "In Progress": [
+        {
+            "id": "?????",
+            "status": "UPLOADING", // UPLOADING, FAILURE, COMPLETE
+            "ZenodoAction": "View", // View on Zenodo, Publish on Zenodo, NULL,
+        },
+        {
+            "id": "?????",
+            "status": "COMPLETE", // UPLOADING, FAILURE, COMPLETE
+            "ZenodoAction": "Publish", // View on Zenodo, Publish on Zenodo, NULL,
+        },
+        {
+            "id": "?????",
+            "status": "FAILURE", // UPLOADING, FAILURE, COMPLETE
+            "ZenodoAction": "View", // View on Zenodo, Publish on Zenodo, NULL,
+        },
+        {
+            "id": "?????",
+            "status": "FAILURE", // UPLOADING, FAILURE, COMPLETE
+            "ZenodoAction": null, // View on Zenodo, Publish on Zenodo, NULL,
+        },
+    ],
+    "Pending": [
+
+    ],
+    "Complete": [
+
+    ],
+};
+
+
+
+// FIXME START GET ACTUAL EVENTS
 
 /*
     User FOO browsed files in x folders.
@@ -193,4 +224,4 @@ const auditingExample = {
 
 // FIXME END GET ACTUAL EVENTS
 
-export {SidebarOptionsList, ActivityCardExample1}
+export {SidebarOptionsList, ActivityCardExample1, PUBLICATIONS}
