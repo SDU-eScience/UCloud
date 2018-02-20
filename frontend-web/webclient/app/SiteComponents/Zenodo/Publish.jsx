@@ -1,7 +1,8 @@
 import React from "react";
-import {Button, FormGroup, ButtonGroup, ListGroup, ListGroupItem} from "react-bootstrap";
+import {Button, FormGroup, ButtonToolbar, ListGroup, ListGroupItem} from "react-bootstrap";
 import FileSelector from "../FileSelector";
 import {Cloud} from "../../../authentication/SDUCloudObject";
+import pubsub from "pubsub-js";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
@@ -14,10 +15,14 @@ class ZenodoPublish extends React.Component {
         this.removeFile = this.removeFile.bind(this);
     }
 
+    componentWillMount() {
+        pubsub.publish('setPageTitle', "Zenodo File Selection");
+    }
+
     submit() {
-        const body = null;
+        const filePaths = this.state.files.filter(filePath => filePath);
         if (body) {
-            Cloud.post("/api/ZenodoPublish/", {filePaths: this.state.files.filter(filePath => filePath)});
+            Cloud.post("/api/zenodo/publish/", {filePaths: this.state.files.filter(filePath => filePath)});
         } else {
             console.log("Body is null.")
         }
@@ -48,6 +53,7 @@ class ZenodoPublish extends React.Component {
     }
 
     render() {
+        const noFilesSelected = this.state.files.filter(filePath => filePath).length > 0;
         return (
             <section>
                 <div className="container-fluid">
@@ -55,13 +61,13 @@ class ZenodoPublish extends React.Component {
                         <h3>File Selection</h3>
                         <FileSelections handleFileSelection={this.handleFileSelection} files={this.state.files}
                                         newFile={this.newFile} removeFile={this.removeFile}/>
-                        <ButtonGroup>
+                        <ButtonToolbar>
                             <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
                             <Button disabled={this.state.files.length === 1}
                                     onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
                                 field</Button>
-                        </ButtonGroup>{" "}
-                        <Button bsStyle="primary" onClick={this.submit}>Moment of super</Button>
+                            <Button bsStyle="primary" disabled={!noFilesSelected} className="pull-right" onClick={this.submit}>Upload files for publishing</Button>
+                        </ButtonToolbar>
                     </CardAndBody>
                 </div>
             </section>

@@ -1,6 +1,6 @@
-import React from 'react';
-import './Core.scss';
-import './LayoutVariants.scss';
+import React from "react";
+import "./Core.scss";
+import "./LayoutVariants.scss";
 import {Switch, Route} from "react-router-dom";
 import Files from "./Files";
 import FileInfo from "./FileInfo";
@@ -11,13 +11,14 @@ import Applications from "./Applications/Applications";
 import RunApp from "./Applications/RunApp";
 import Analyses from "./Applications/Analyses";
 import Notifications from "./Activity/Notifications";
-import Header from './Header';
-import Sidebar from '../SiteComponents/Sidebar';
-import Settings from './Settings/Settings';
+import Header from "./Header";
+import Sidebar from "../SiteComponents/Sidebar";
+import Settings from "./Settings/Settings";
 import UserAuditing from "./Admin/UserAuditing";
 import GenerateWorkflow from "./GenerateWorkflow";
 import ZenodoPublish from "./Zenodo/Publish";
-import ZenodoHome from "./Zenodo/Zenodo"
+import ZenodoHome from "./Zenodo/Zenodo";
+import ZenodoInfo from "./Zenodo/Info";
 
 const NotFound = () => (<div className="container-fluid"><h1>Not found.</h1></div>);
 
@@ -43,6 +44,7 @@ class Core extends React.Component {
                         <Route exact path="/audit/user/:id" component={UserAuditing}/>
                         <Route exact path="/notifications" component={Notifications}/>
                         <Route exact path="/ZenodoHome/" component={ZenodoHome}/>
+                        <Route exact path="/ZenodoInfo/:jobID" component={ZenodoInfo}/>
                         <Route exact path="/ZenodoPublish/" component={ZenodoPublish}/>
                         <Route exact path="/ZenodoPublish/*" component={ZenodoPublish}/>
                         <Route component={NotFound}/>

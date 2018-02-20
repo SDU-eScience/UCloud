@@ -3,8 +3,10 @@ import {Button, Table, ButtonToolbar} from "react-bootstrap";
 import {Cloud} from "../../../authentication/SDUCloudObject"
 import SectionContainerCard from "../SectionContainerCard";
 import {PUBLICATIONS} from "../../MockObjects";
+import { Link } from "react-router-dom";
 import {Card} from "../Cards";
 import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
+import pubsub from "pubsub-js";
 
 class ZenodoHome extends React.Component {
     constructor(props) {
@@ -16,8 +18,12 @@ class ZenodoHome extends React.Component {
     }
 
     componentWillMount() {
+        pubsub.publish('setPageTitle', "Zenodo Overview");
         //Cloud.get(`/zenodo/publications/`)
-        setTimeout(() => this.setState(() => ({publications: PUBLICATIONS})), 500);
+        this.setState(() => ({
+            loading: true,
+        }));
+        setTimeout(() => this.setState(() => ({publications: PUBLICATIONS, loading: false})), 500);
     }
 
     ZenodoRedirect() {
@@ -58,16 +64,20 @@ function PublishStatus(props) {
                             <th>ID</th>
                             <th>Status</th>
                             <th>Actions</th>
+                            <th>Info</th>
                         </tr>
                         </thead>
                         <PublicationList publications={props.publications}/>
                     </Table>
+                    <Link to="/ZenodoPublish/">
+                        <Button>Create new upload</Button>
+                    </Link>
                 </div>
             </Card>
         </div>);
 }
 
-function PublishOptions(props) {
+function PublishOptions(props) { // Remove?
     return (
         <div className="col-md-4">
             <Card>
@@ -91,6 +101,7 @@ function NotLoggedIn(props) {
 }
 
 function PublicationList(props) {
+    if (!props.publications["In Progress"]) { return null; }
     const publicationList = props.publications["In Progress"].map((publication, index) => {
         let button = null;
         if (publication.ZenodoAction === "Something") {
@@ -101,14 +112,15 @@ function PublicationList(props) {
         return (
             <tr key={index}>
                 <td>{publication.id}</td>
-                <td>{publication.status}</td>
+                <td>{toLowerCaseAndCapitalize(publication.status)}</td>
                 <td>{button}</td>
+                <td><Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show More</Button></Link></td>
             </tr>
         )
     });
     return (
         <tbody>
-        {publicationList}
+            {publicationList}
         </tbody>
     );
 }

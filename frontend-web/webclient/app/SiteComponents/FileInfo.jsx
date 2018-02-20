@@ -6,6 +6,7 @@ import {BallPulseLoading} from "./LoadingIcon";
 import {SensitivityLevel, RightsNameMap} from "../DefaultObjects"
 import {ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup} from "react-bootstrap";
 import swal from "sweetalert2";
+import pubsub from "pubsub-js";
 
 class FileInfo extends React.Component {
     constructor(props) {
@@ -29,6 +30,7 @@ class FileInfo extends React.Component {
     }
 
     componentWillMount() {
+        pubsub.publish('setPageTitle', "File Info");
         this.getFile();
     }
 
