@@ -6,14 +6,19 @@ import {Link} from "react-router-dom";
 import {Card} from "../Cards";
 import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
 import pubsub from "pubsub-js";
+import {BallPulseLoading} from "../LoadingIcon";
 
 class ZenodoHome extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             publications: {},
+            connected: false,
             loading: false,
-
+            sorting: {
+                lastSorting: "lastUpdate",
+                asc: true,
+            }
         };
     }
 
@@ -24,7 +29,9 @@ class ZenodoHome extends React.Component {
         }));
         Cloud.get("/../mock-api/mock_zenodo_publications.json").then((publications) => {
             this.setState(() => ({
+                connected: publications.connected,
                 publications: publications.inProgress,
+                loading: false,
             }));
         });
     }
@@ -38,13 +45,12 @@ class ZenodoHome extends React.Component {
     }
 
     render() {
-        let publications = this.state.publications;
-        if (!Object.keys(publications).length && !this.state.loading) {
+        if (!this.state.connected && !this.state.loading) {
             return (<NotLoggedIn logIn={this.ZenodoRedirect}/>);
         } else {
             return (
                 <div className="container-fluid">
-                    <PublishStatus publications={this.state.publications}/>
+                    <PublishStatus publications={this.state.publications} loading={this.state.loading}/>
                     <PublishOptions/>
                 </div>
             );
@@ -54,6 +60,10 @@ class ZenodoHome extends React.Component {
 
 function PublishStatus(props) {
     let body = null;
+    if (props.loading) {
+        return (<BallPulseLoading loading={props.loading}/>
+        );
+    }
     if (!props.publications.length) {
         body = (
             <h3>

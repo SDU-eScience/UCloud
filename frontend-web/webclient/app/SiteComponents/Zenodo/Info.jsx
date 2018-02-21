@@ -1,31 +1,31 @@
 import React from "react";
-import {Jumbotron, Table} from "react-bootstrap";
+import {Jumbotron, Table, ListGroupItem, ListGroup, ProgressBar} from "react-bootstrap";
 import pubsub from "pubsub-js";
-import {PUBLICATIONS} from "../../MockObjects";
 import SectionContainerCard from "../SectionContainerCard";
 import {BallPulseLoading} from "../LoadingIcon";
+import {Cloud} from "../../../authentication/SDUCloudObject";
 
 class ZenodoInfo extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             loading: false,
-            job: {},
-            jobID: window.decodeURIComponent(props.match.params.jobID),
+            publicationID: window.decodeURIComponent(props.match.params.jobID),
+            publication: null,
         };
     }
 
     componentWillMount() {
+        pubsub.publish('setPageTitle', "Zenodo Publication Info");
         this.setState(() => ({
             loading: true,
         }));
-        pubsub.publish('setPageTitle', "Info");
-        // FIXME: Mimic loading of job from JobID from server
-        setTimeout(() => this.setState({
-            loading: false,
-            job: PUBLICATIONS["In Progress"].find((it) => it.id === this.state.jobID),
-        }), 2000);
-        // Get info from JobID
+        Cloud.get("/../mock-api/mock_zenodo_publications.json").then((publications) => {
+            this.setState(() => ({
+                publication: publications.inProgress.find(publications => publications.id === this.state.publicationID),
+                loading: false,
+            }));
+        });
     }
 
     render() {
@@ -34,13 +34,47 @@ class ZenodoInfo extends React.Component {
         }
         return (
             <SectionContainerCard>
-                <Jumbotron>
-                    <h3>{this.state.job.id}</h3>
-                </Jumbotron>
-                <FilesList files={null}/>
+                <ZenodoPublishingBody publication={this.state.publication}/>
             </SectionContainerCard>
         );
     }
+}
+
+function ZenodoPublishingBody(props) {
+    const publication = props.publication;
+    // FIXME calculate dynamically
+    let progressBarValue = 0;
+    if (publication.status === "COMPLETE") {
+        progressBarValue = 100;
+    } else if (publication.status === "UPLOADING") {
+        progressBarValue = 40;
+    } else {
+        progressBarValue = 60;
+    } // FIXME
+    const isActive = publication.status === "UPLOADING";
+    let style = getStatusBarColor(publication.status);
+    return (
+        <div>
+            <Jumbotron>
+                <h3>Publication ID: {props.publication.id}</h3>
+            </Jumbotron>
+            <ListGroup>
+                <ListGroupItem>
+                    <span>
+                        <span>Started:</span>
+                        <span className="pull-right">{new Date(props.publication.createdAt).toLocaleString()}</span>
+                    </span>
+                </ListGroupItem>
+                <ListGroupItem>
+                    <span>Last update:</span>
+                    <span className="pull-right">{new Date(props.publication.modifiedAt).toLocaleString()}</span>
+                </ListGroupItem>
+            </ListGroup>
+            <ProgressBar active={isActive} bsStyle={style} striped={isActive}
+                         label={`${progressBarValue}%`}
+                         now={progressBarValue}/>
+            <FilesList files={null}/>
+        </div>)
 }
 
 function FilesList(props) {
@@ -66,6 +100,20 @@ function FilesList(props) {
             </tbody>
         </Table>
     );
+}
+
+function getStatusBarColor(status) {
+    switch (status) {
+        case "UPLOADING": {
+            return "info";
+        }
+        case "COMPLETE": {
+            return "success";
+        }
+        case "FAILURE": {
+            return "danger";
+        }
+    }
 }
 
 export default ZenodoInfo;
