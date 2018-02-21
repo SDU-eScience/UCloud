@@ -9,23 +9,25 @@ class ZenodoPublish extends React.Component {
         super(props);
         this.state = {
             files: [""],
+            name: "",
         };
         this.handleFileSelection = this.handleFileSelection.bind(this);
         this.submit = this.submit.bind(this);
         this.removeFile = this.removeFile.bind(this);
+        this.updateName = this.updateName.bind(this);
     }
 
     componentWillMount() {
-        pubsub.publish('setPageTitle', "Zenodo File Selection");
+        pubsub.publish('setPageTitle', "Zenodo Publication");
     }
 
-    submit() {
+    submit(e) {
+        e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
-        if (body) {
-            Cloud.post("/api/zenodo/publish/", {filePaths: this.state.files.filter(filePath => filePath)});
-        } else {
-            console.log("Body is null.")
-        }
+        if (!filePaths.length || !this.state.name) { return }
+        Cloud.post("/zenodo/publish/", {filePaths: filePaths, name: this.state.name}).then((response) => {
+                console.log(response.publicationID)
+        });
     }
 
     removeFile(index) {
@@ -52,6 +54,13 @@ class ZenodoPublish extends React.Component {
         }));
     }
 
+    updateName(newName) {
+        this.setState(() => ({
+            name: newName
+        }));
+        console.log(newName);
+    }
+
     render() {
         const noFilesSelected = this.state.files.filter(filePath => filePath).length > 0;
         return (
@@ -59,15 +68,30 @@ class ZenodoPublish extends React.Component {
                 <div className="container-fluid">
                     <CardAndBody>
                         <h3>File Selection</h3>
-                        <FileSelections handleFileSelection={this.handleFileSelection} files={this.state.files}
-                                        newFile={this.newFile} removeFile={this.removeFile}/>
-                        <ButtonToolbar>
-                            <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
-                            <Button disabled={this.state.files.length === 1}
-                                    onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
-                                field</Button>
-                            <Button bsStyle="primary" disabled={!noFilesSelected} className="pull-right" onClick={this.submit}>Upload files for publishing</Button>
-                        </ButtonToolbar>
+                        <form onSubmit={e => this.submit(e)} className="form-horizontal">
+                            <FileSelections handleFileSelection={this.handleFileSelection} files={this.state.files}
+                                            newFile={this.newFile} removeFile={this.removeFile}/>
+                            <fieldset>
+                                <div className="form-group">
+                                    <label className="col-sm-2 control-label">Publication Name</label>
+                                    <div className="col-md-4">
+                                        <input required={true}
+                                               value={this.state.name}
+                                               className="form-control"
+                                               type="text" onChange={e => this.updateName(e.target.value)}/>
+                                        <span className="help-block">The name of the publication</span>
+                                    </div>
+                                </div>
+                            </fieldset>
+                            <ButtonToolbar>
+                                <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
+                                <Button disabled={this.state.files.length === 1}
+                                        onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
+                                    field</Button>
+                                <Button bsStyle="primary" disabled={!noFilesSelected} className="pull-right"
+                                        onClick={this.submit}>Upload files for publishing</Button>
+                            </ButtonToolbar>
+                        </form>
                     </CardAndBody>
                 </div>
             </section>
@@ -88,15 +112,17 @@ function CardAndBody(props) {
 function FileSelections(props) {
     const files = props.files.slice();
     const fileSelectors = files.map((file, index) =>
-        <ListGroupItem key={index} className="col-sm-4 col-sm-offset-4 input-group">
+        <ListGroupItem key={index} className="col-sm-offset-2 col-sm-4 input-group">
             <FileSelector onFileSelectionChange={props.handleFileSelection} parameter={index} isSource={false}/>
         </ListGroupItem>);
     return (
-        <FormGroup>
-            <ListGroup>
-                {fileSelectors}
-            </ListGroup>
-        </FormGroup>
+        <fieldset>
+            <FormGroup>
+                <ListGroup>
+                    {fileSelectors}
+                </ListGroup>
+            </FormGroup>
+        </fieldset>
     );
 }
 

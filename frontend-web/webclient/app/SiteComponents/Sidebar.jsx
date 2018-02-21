@@ -8,6 +8,7 @@ import './Sidebar.scss';
 import SidebarRun from './Sidebar.run';
 
 import { Cloud } from '../../authentication/SDUCloudObject'
+import {BallPulseLoading} from "./LoadingIcon";
 
 class Sidebar extends React.Component {
 
@@ -19,10 +20,13 @@ class Sidebar extends React.Component {
         }
     }
 
-    componentDidMount() {
-        SidebarRun();
+    componentWillMount() {
         this.getUserName();
         this.getUserOptions();
+    }
+
+    componentDidMount() {
+        SidebarRun();
     }
 
     getUserName() {
@@ -30,7 +34,9 @@ class Sidebar extends React.Component {
     }
 
     getUserOptions() {
-        this.setState({options: SidebarOptionsList});
+        Cloud.get("/../mock-api/mock_sidebar_options.json").then((sidebarOptions) => {
+            this.setState({options: sidebarOptions});
+        });
     }
 
     render() {
@@ -48,7 +54,7 @@ class Sidebar extends React.Component {
                         <div className="mt">Welcome, {this.state.username}</div>
                     </div>
                     <nav className="sidebar-nav">
-                        <SidebarOptions sidebarOptions={this.state.options}/>
+                        <SidebarOptions options={this.state.options}/>
                     </nav>
                 </div>
             </aside>
@@ -57,9 +63,9 @@ class Sidebar extends React.Component {
 }
 
 function SidebarOptions(props) {
-    if (!props.sidebarOptions.length) return null;
+    if (!props.options.length) return (<BallPulseLoading loading={true}/>);
     let i = 0;
-    let optionsList = props.sidebarOptions.map(option =>
+    let optionsList = props.options.map(option =>
         <SingleSidebarOption key={i++} option={option}/>
     );
     return (

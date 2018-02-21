@@ -1,0 +1,85 @@
+{
+  "connected": true,
+  "inProgress": [
+    {
+      "createdAt": 1519219348562,
+      "id": 4,
+      "modifiedAt": 1519219348562,
+      "name": "Hello, World",
+      "status": "UPLOADING",
+      "zenodoAction": null
+    },
+    {
+      "createdAt": 1519221677255,
+      "id": 5,
+      "modifiedAt": 1519221682344,
+      "name": "Hello, World",
+      "status": "COMPLETE",
+      "zenodoAction": null
+    },
+    {
+      "createdAt": 1519222242247,
+      "id": 6,
+      "modifiedAt": 1519222246420,
+      "name": "Hello, World",
+      "status": "COMPLETE",
+      "zenodoAction": null
+    },
+    {
+      "createdAt": 1519222264926,
+      "id": 7,
+      "modifiedAt": 1519222268648,
+      "name": "Hello, World",
+      "status": "COMPLETE",
+      "zenodoAction": null
+    },
+    {
+      "createdAt": 1519222742098,
+      "id": 8,
+      "modifiedAt": 1519222941709,
+      "name": "Hello, World",
+      "status": "COMPLETE",
+      "zenodoAction": null
+    },
+    {
+      "createdAt": 1519222988017,
+      "id": 9,
+      "modifiedAt": 1519222993412,
+      "name": "Hello, World",
+      "status": "COMPLETE",
+      "zenodoAction": null
+    },
+    {
+      "createdAt": 1519223228250,
+      "id": 10,
+      "modifiedAt": 1519223232701,
+      "name": "Hello, World",
+      "status": "COMPLETE",
+      "zenodoAction": null
+    },
+    {
+      "createdAt": 1519223239910,
+      "id": 11,
+      "modifiedAt": 1519223243666,
+      "name": "Hello, World",
+      "status": "COMPLETE",
+      "zenodoAction": null
+    },
+    {
+      "createdAt": 1519223573881,
+      "id": 12,
+      "modifiedAt": 1519223579152,
+      "name": "Hello, World",
+      "status": "PENDING",
+      "zenodoAction": "https://sandbox.zenodo.org/deposit/210026"
+    },
+    {
+      "createdAt": 1519223845096,
+      "id": 13,
+      "modifiedAt": 1519223851240,
+      "name": "Hello, World",
+      "status": "COMPLETE",
+      "zenodoAction": "https://sandbox.zenodo.org/deposit/210028"
+    }
+  ]
+}

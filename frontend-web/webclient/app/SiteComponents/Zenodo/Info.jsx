@@ -1,31 +1,30 @@
 import React from "react";
-import {Jumbotron, Table} from "react-bootstrap";
+import {Jumbotron, Table, ListGroupItem, ListGroup, ProgressBar} from "react-bootstrap";
 import pubsub from "pubsub-js";
-import {PUBLICATIONS} from "../../MockObjects";
 import SectionContainerCard from "../SectionContainerCard";
 import {BallPulseLoading} from "../LoadingIcon";
+import {Cloud} from "../../../authentication/SDUCloudObject";
 
 class ZenodoInfo extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             loading: false,
-            job: {},
-            jobID: window.decodeURIComponent(props.match.params.jobID),
+            publicationID: window.decodeURIComponent(props.match.params.jobID),
+            publication: null,
         };
     }
 
     componentWillMount() {
-        this.setState(() => ({
-            loading: true,
-        }));
-        pubsub.publish('setPageTitle', "Info");
-        // FIXME: Mimic loading of job from JobID from server
-        setTimeout(() => this.setState({
-            loading: false,
-            job: PUBLICATIONS["In Progress"].find((it) => it.id === this.state.jobID),
-        }), 2000);
-        // Get info from JobID
+        pubsub.publish('setPageTitle', "Zenodo Publication Info");
+        this.setState(() => ({loading: true,}));
+        Cloud.get(`/zenodo/publications/${this.state.publicationID}`).then((publication) => {
+            this.setState(() => ({
+                publication: publication.publication,
+                uploads: publication.uploads,
+                loading: false,
+            }));
+        });
     }
 
     render() {
@@ -34,23 +33,50 @@ class ZenodoInfo extends React.Component {
         }
         return (
             <SectionContainerCard>
-                <Jumbotron>
-                    <h3>{this.state.job.id}</h3>
-                </Jumbotron>
-                <FilesList files={null}/>
+                <ZenodoPublishingBody publication={this.state.publication} uploads={this.state.uploads}/>
             </SectionContainerCard>
         );
     }
+}
+
+function ZenodoPublishingBody(props) {
+    const publication = props.publication;
+    const uploads = props.uploads;
+    const isActive = publication.status === "UPLOADING";
+    let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
+    let style = getStatusBarColor(publication.status);
+    return (
+        <div>
+            <Jumbotron>
+                <h3>Publication name: {publication.name}</h3>
+            </Jumbotron>
+            <ListGroup>
+                <ListGroupItem>
+                    <span>
+                        <span>Started:</span>
+                        <span className="pull-right">{new Date(publication.createdAt).toLocaleString()}</span>
+                    </span>
+                </ListGroupItem>
+                <ListGroupItem>
+                    <span>Last update:</span>
+                    <span className="pull-right">{new Date(publication.modifiedAt).toLocaleString()}</span>
+                </ListGroupItem>
+            </ListGroup>
+            <ProgressBar active={isActive} bsStyle={style} striped={isActive}
+                         label={`${progressBarValue}%`}
+                         now={progressBarValue}/>
+            <FilesList files={props.uploads}/>
+        </div>)
 }
 
 function FilesList(props) {
     if (props.files === null) {
         return null
     }
-    const filesList = props.files.map((file) =>
-        <tr>
-            <td>{file.name}</td>
-            <td>{file.status}</td>
+    const filesList = props.files.map((file, index) =>
+        <tr key={index}>
+            <td>{file.dataObject}</td>
+            <td>{file.hasBeenTransmitted ? "✓" : "…" }</td>
         </tr>
     );
     return (
@@ -66,6 +92,20 @@ function FilesList(props) {
             </tbody>
         </Table>
     );
+}
+
+function getStatusBarColor(status) {
+    switch (status) {
+        case "UPLOADING": {
+            return "info";
+        }
+        case "COMPLETE": {
+            return "success";
+        }
+        case "FAILURE": {
+            return "danger";
+        }
+    }
 }
 
 export default ZenodoInfo;

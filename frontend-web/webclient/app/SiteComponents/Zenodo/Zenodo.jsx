@@ -2,46 +2,59 @@ import React from "react";
 import {Button, Table, ButtonToolbar} from "react-bootstrap";
 import {Cloud} from "../../../authentication/SDUCloudObject"
 import SectionContainerCard from "../SectionContainerCard";
-import {PUBLICATIONS} from "../../MockObjects";
-import { Link } from "react-router-dom";
+import {Link} from "react-router-dom";
 import {Card} from "../Cards";
 import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
 import pubsub from "pubsub-js";
+import {BallPulseLoading} from "../LoadingIcon";
 
 class ZenodoHome extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             publications: {},
+            connected: false,
             loading: false,
+            sorting: {
+                lastSorting: "lastUpdate",
+                asc: true,
+            }
         };
     }
 
     componentWillMount() {
         pubsub.publish('setPageTitle', "Zenodo Overview");
-        //Cloud.get(`/zenodo/publications/`)
         this.setState(() => ({
             loading: true,
         }));
-        setTimeout(() => this.setState(() => ({publications: PUBLICATIONS, loading: false})), 500);
+        Cloud.get("/zenodo/publications").then((publications) => {
+            this.setState(() => ({
+                connected: publications.connected,
+                publications: publications.inProgress,
+                loading: false,
+            }));
+        }).fail(() => {
+            this.setState(() => ({
+                loading: false
+            }));
+        });
     }
 
     ZenodoRedirect() {
         //Cloud.post(`/zenodo/request?returnTo=${window.location.href}`)
-        Cloud.get(`/../mock-api/mock_zenodo_auth.json?returnTo=${window.location.href}`).then((data) => {
+        Cloud.post(`/zenodo/request?returnTo=${window.location.href}`).then((data) => {
             const redirectTo = data.redirectTo;
             if (redirectTo) window.location.href = redirectTo;
         });
     }
 
     render() {
-        let publications = this.state.publications;
-        if (!Object.keys(publications).length && !this.state.loading) {
+        if (!this.state.connected && !this.state.loading) {
             return (<NotLoggedIn logIn={this.ZenodoRedirect}/>);
         } else {
             return (
                 <div className="container-fluid">
-                    <PublishStatus publications={this.state.publications}/>
+                    <PublishStatus publications={this.state.publications} loading={this.state.loading}/>
                     <PublishOptions/>
                 </div>
             );
@@ -50,6 +63,36 @@ class ZenodoHome extends React.Component {
 }
 
 function PublishStatus(props) {
+    let body = null;
+    if (props.loading) {
+        return (<BallPulseLoading loading={props.loading}/>
+        );
+    }
+    if (!props.publications.length) {
+        body = (
+            <h3>
+                <small className="text-center">No publications found.</small>
+            </h3>
+        );
+    } else {
+        body = (
+            <div>
+                <h3 className="text-center">File upload progress</h3>
+                <Table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th/>
+                        <th>Info</th>
+                        <th>Last update</th>
+                    </tr>
+                    </thead>
+                    <PublicationList publications={props.publications}/>
+                </Table>
+            </div>)
+    }
+
     return (
         <div className="col-md-8">
             <Card>
@@ -57,18 +100,7 @@ function PublishStatus(props) {
                     <h3>
                         <small>Connected to Zenodo</small>
                     </h3>
-                    <h3 className="text-center">File upload progress</h3>
-                    <Table>
-                        <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                            <th>Info</th>
-                        </tr>
-                        </thead>
-                        <PublicationList publications={props.publications}/>
-                    </Table>
+                    {body}
                     <Link to="/ZenodoPublish/">
                         <Button>Create new upload</Button>
                     </Link>
@@ -101,26 +133,32 @@ function NotLoggedIn(props) {
 }
 
 function PublicationList(props) {
-    if (!props.publications["In Progress"]) { return null; }
-    const publicationList = props.publications["In Progress"].map((publication, index) => {
-        let button = null;
-        if (publication.ZenodoAction === "Something") {
-
-        } else if (publication.ZenodoAction === "Something else") {
-
+    if (!props.publications) {
+        return null;
+    }
+    const publicationList = props.publications.map((publication, index) => {
+        let actionButton = null;
+        if (publication.zenodoAction) {
+            actionButton = (<a href={publication.zenodoAction} target="_blank"><Button>Finish publication at Zenodo</Button></a>)
         }
+
         return (
             <tr key={index}>
-                <td>{publication.id}</td>
+                <td>{publication.name}</td>
                 <td>{toLowerCaseAndCapitalize(publication.status)}</td>
-                <td>{button}</td>
-                <td><Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show More</Button></Link></td>
-            </tr>
-        )
+                <td>
+                    {actionButton}
+                </td>
+                <td>
+                    <Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show
+                        More</Button></Link>
+                </td>
+                <td>{new Date(publication.modifiedAt).toLocaleString()}</td>
+            </tr>);
     });
     return (
         <tbody>
-            {publicationList}
+        {publicationList}
         </tbody>
     );
 }

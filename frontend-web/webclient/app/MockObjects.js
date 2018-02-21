@@ -1,121 +1,3 @@
-// FIXME START: Options for dashboard. Should be retrieved from DB
-
-const DashboardOption = {
-    name: "Dashboard",
-    icon: "nav-icon",
-    href: "/dashboard",
-    children: null,
-};
-
-const FilesOptions = {
-    name: "Files",
-    icon: "nav-icon",
-    href: "/files/",
-    children: null
-};
-
-const AppsApplicationsOption = {
-    name: "Applications",
-    icon: "",
-    href: "/applications",
-    children: null
-};
-
-const AppsWorkflowsOption = {
-    name: "Workflows",
-    icon: "",
-    href: "/workflows",
-    children: null,
-};
-
-const AppsAnalysesOption = {
-    name: "Analyses",
-    icon: "",
-    href: "/analyses",
-    children: null,
-};
-
-const AppsOptions = {
-    name: "Apps",
-    icon: "",
-    href: "",
-    children: [AppsApplicationsOption, AppsWorkflowsOption, AppsAnalysesOption]
-};
-
-const ActivityNotificationsOption = {
-    name: "Notifications",
-    icon: "",
-    href: "/notifications",
-    children: null,
-};
-
-const ActivityOptions = {
-    name: "Activity",
-    icon: "",
-    href: "",
-    children: [ActivityNotificationsOption]
-};
-
-const PublishingHome = {
-    name: "Publications",
-    icon: "",
-    href: "/ZenodoHome",
-    children: null,
-};
-
-const PublishingPublish = {
-    name: "Publish",
-    icon: "",
-    href: "/ZenodoPublish",
-    children: null,
-};
-
-const Publications = {
-    name: "Publishing",
-    icon: "",
-    href: "",
-    children: [PublishingHome, PublishingPublish]
-};
-
-const SidebarOptionsList = [
-    DashboardOption, FilesOptions, AppsOptions, ActivityOptions, Publications
-];
-
-// FIXME END
-
-const PUBLICATIONS = {
-    "In Progress": [
-        {
-            "id": "?????",
-            "status": "UPLOADING", // UPLOADING, FAILURE, COMPLETE
-            "ZenodoAction": "View", // View on Zenodo, Publish on Zenodo, NULL,
-        },
-        {
-            "id": "?????",
-            "status": "COMPLETE", // UPLOADING, FAILURE, COMPLETE
-            "ZenodoAction": "Publish", // View on Zenodo, Publish on Zenodo, NULL,
-        },
-        {
-            "id": "?????",
-            "status": "FAILURE", // UPLOADING, FAILURE, COMPLETE
-            "ZenodoAction": "View", // View on Zenodo, Publish on Zenodo, NULL,
-        },
-        {
-            "id": "?????",
-            "status": "FAILURE", // UPLOADING, FAILURE, COMPLETE
-            "ZenodoAction": null, // View on Zenodo, Publish on Zenodo, NULL,
-        },
-    ],
-    "Pending": [
-
-    ],
-    "Complete": [
-
-    ],
-};
-
-
-
 // FIXME START GET ACTUAL EVENTS
 
 /*
@@ -150,7 +32,6 @@ class ActivityCardExample {
 
     getJobFromId(jobId) {
         //Cloud.get()
-
     }
 }
 
@@ -224,4 +105,4 @@ const auditingExample = {
 
 // FIXME END GET ACTUAL EVENTS
 
-export {SidebarOptionsList, ActivityCardExample1, PUBLICATIONS}
+export {ActivityCardExample1}
