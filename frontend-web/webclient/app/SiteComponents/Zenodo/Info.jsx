@@ -17,9 +17,7 @@ class ZenodoInfo extends React.Component {
 
     componentWillMount() {
         pubsub.publish('setPageTitle', "Zenodo Publication Info");
-        this.setState(() => ({
-            loading: true,
-        }));
+        this.setState(() => ({loading: true,}));
         Cloud.get("/../mock-api/mock_zenodo_publications.json").then((publications) => {
             this.setState(() => ({
                 publication: publications.inProgress.find(publications => publications.id === this.state.publicationID),
@@ -78,13 +76,14 @@ function ZenodoPublishingBody(props) {
 }
 
 function FilesList(props) {
-    if (props.files === null) {
-        return null
-    }
-    const filesList = props.files.map((file) =>
-        <tr>
-            <td>{file.name}</td>
-            <td>{file.status}</td>
+    //if (props.files === null) {
+    //    return null
+    //}
+    const dummyFiles = [{filePath: "filepath1", finished: true}, {filePath: "filepath2", finished: true}, {filePath: "filepath3", finished: false}, {filePath: "filepath4", finished: false}];
+    const filesList = dummyFiles.map((file, index) =>//props.files.map((file) =>
+        <tr key={index}>
+            <td>{file.filePath}</td>
+            <td>{file.finished ? "✓" : "…" }</td>
         </tr>
     );
     return (

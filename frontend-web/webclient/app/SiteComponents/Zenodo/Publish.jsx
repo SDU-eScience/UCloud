@@ -9,6 +9,7 @@ class ZenodoPublish extends React.Component {
         super(props);
         this.state = {
             files: [""],
+            name: "",
         };
         this.handleFileSelection = this.handleFileSelection.bind(this);
         this.submit = this.submit.bind(this);
@@ -19,10 +20,11 @@ class ZenodoPublish extends React.Component {
         pubsub.publish('setPageTitle', "Zenodo File Selection");
     }
 
-    submit() {
+    submit(e) {
+        e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
         if (body) {
-            Cloud.post("/api/zenodo/publish/", {filePaths: filePaths});
+            Cloud.post("/api/zenodo/publish/", {filePaths: filePaths, name: name});
         } else {
             console.log("Body is null.")
         }
@@ -59,16 +61,29 @@ class ZenodoPublish extends React.Component {
                 <div className="container-fluid">
                     <CardAndBody>
                         <h3>File Selection</h3>
-                        <FileSelections handleFileSelection={this.handleFileSelection} files={this.state.files}
-                                        newFile={this.newFile} removeFile={this.removeFile}/>
-                        <ButtonToolbar>
-                            <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
-                            <Button disabled={this.state.files.length === 1}
-                                    onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
-                                field</Button>
-                            <Button bsStyle="primary" disabled={!noFilesSelected} className="pull-right"
-                                    onClick={this.submit}>Upload files for publishing</Button>
-                        </ButtonToolbar>
+                        <form onSubmit={e => this.submit(e)} className="form-horizontal">
+                            <FileSelections handleFileSelection={this.handleFileSelection} files={this.state.files}
+                                            newFile={this.newFile} removeFile={this.removeFile}/>
+                            <fieldset>
+                                <div className="form-group">
+                                    <label className="col-sm-2 control-label">Publication Name</label>
+                                    <div className="col-md-4">
+                                        <input required={true}
+                                               className="form-control"
+                                               type="text" onChange={e => this.updateName(this.state.name)}/>
+                                        <span className="help-block">The name of the publication</span>
+                                    </div>
+                                </div>
+                            </fieldset>
+                            <ButtonToolbar>
+                                <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
+                                <Button disabled={this.state.files.length === 1}
+                                        onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
+                                    field</Button>
+                                <Button bsStyle="primary" disabled={!noFilesSelected} className="pull-right"
+                                        onClick={this.submit}>Upload files for publishing</Button>
+                            </ButtonToolbar>
+                        </form>
                     </CardAndBody>
                 </div>
             </section>
@@ -89,15 +104,17 @@ function CardAndBody(props) {
 function FileSelections(props) {
     const files = props.files.slice();
     const fileSelectors = files.map((file, index) =>
-        <ListGroupItem key={index} className="col-sm-4 col-sm-offset-4 input-group">
+        <ListGroupItem key={index} className="col-sm-offset-2 col-sm-4 input-group">
             <FileSelector onFileSelectionChange={props.handleFileSelection} parameter={index} isSource={false}/>
         </ListGroupItem>);
     return (
-        <FormGroup>
-            <ListGroup>
-                {fileSelectors}
-            </ListGroup>
-        </FormGroup>
+        <fieldset>
+            <FormGroup>
+                <ListGroup>
+                    {fileSelectors}
+                </ListGroup>
+            </FormGroup>
+        </fieldset>
     );
 }
 

@@ -79,7 +79,8 @@ function PublishStatus(props) {
                     <tr>
                         <th>ID</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <th/>
+                        <th>Info</th>
                         <th>Last update</th>
                     </tr>
                     </thead>
@@ -133,10 +134,12 @@ function PublicationList(props) {
     }
     const publicationList = props.publications.map((publication, index) =>
         <tr key={index}>
-            <td>{publication.id}</td>
+            <td>{publication.name}</td>
             <td>{toLowerCaseAndCapitalize(publication.status)}</td>
             <td>
-                <a href={publication.zenodoAction} target="_blank"><Button>Action!</Button></a>
+                <a href={publication.zenodoAction} target="_blank"><Button>Finish publication at Zenodo</Button></a>
+            </td>
+            <td>
                 <Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show
                     More</Button></Link>
             </td>

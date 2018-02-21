@@ -1,229 +1,85 @@
 {
+  "connected": true,
   "inProgress": [
     {
-      "id": "3276bc59-3433-4687-b12f-7171321e7bb7",
+      "createdAt": 1519219348562,
+      "id": 4,
+      "modifiedAt": 1519219348562,
+      "name": "Hello, World",
       "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#3276bc59-3433-4687-b12f-7171321e7bb7",
-      "createdAt": 1518211161731,
-      "modifiedAt": 1518319701391
+      "zenodoAction": null
     },
     {
-      "id": "9df66fb6-2dc9-48e8-b894-051916b9c6ee",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#9df66fb6-2dc9-48e8-b894-051916b9c6ee",
-      "createdAt": 1518653178050,
-      "modifiedAt": 1518670473104
-    },
-    {
-      "id": "a3cc4d86-cca7-417f-8eb1-fe1c987f003b",
+      "createdAt": 1519221677255,
+      "id": 5,
+      "modifiedAt": 1519221682344,
+      "name": "Hello, World",
       "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#a3cc4d86-cca7-417f-8eb1-fe1c987f003b",
-      "createdAt": 1518360583979,
-      "modifiedAt": 1518525499220
+      "zenodoAction": null
     },
     {
-      "id": "f9f5290b-e62a-42db-ad53-ed236b076b47",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#f9f5290b-e62a-42db-ad53-ed236b076b47",
-      "createdAt": 1519069555463,
-      "modifiedAt": 1519238291816
-    },
-    {
-      "id": "bdf4ecb1-13f2-413f-b273-12d072dd8b2b",
+      "createdAt": 1519222242247,
+      "id": 6,
+      "modifiedAt": 1519222246420,
+      "name": "Hello, World",
       "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#bdf4ecb1-13f2-413f-b273-12d072dd8b2b",
-      "createdAt": 1518383234265,
-      "modifiedAt": 1518423309574
+      "zenodoAction": null
     },
     {
-      "id": "13f76061-86a2-4b55-8fa1-b48ef823c890",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#13f76061-86a2-4b55-8fa1-b48ef823c890",
-      "createdAt": 1519125987368,
-      "modifiedAt": 1519155475588
-    },
-    {
-      "id": "a6f97ea6-c653-43c7-b8d1-c7ebfd382ea9",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#a6f97ea6-c653-43c7-b8d1-c7ebfd382ea9",
-      "createdAt": 1518330414954,
-      "modifiedAt": 1518336529078
-    },
-    {
-      "id": "6f30c817-21fc-458c-aac4-dbf1b3c9426e",
-      "status": "FAILURE",
-      "zenodoAction": "https://zenodo.org#6f30c817-21fc-458c-aac4-dbf1b3c9426e",
-      "createdAt": 1519135850470,
-      "modifiedAt": 1519276405177
-    },
-    {
-      "id": "0669768e-62dc-45d2-b1b8-675e544c3ce4",
-      "status": "FAILURE",
-      "zenodoAction": "https://zenodo.org#0669768e-62dc-45d2-b1b8-675e544c3ce4",
-      "createdAt": 1518283409719,
-      "modifiedAt": 1518390960242
-    },
-    {
-      "id": "9caba46a-ab3b-4080-8c51-96f47615b362",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#9caba46a-ab3b-4080-8c51-96f47615b362",
-      "createdAt": 1518367400735,
-      "modifiedAt": 1518416398395
-    },
-    {
-      "id": "1a972da1-d423-445d-a5c6-d7348ce1cc00",
+      "createdAt": 1519222264926,
+      "id": 7,
+      "modifiedAt": 1519222268648,
+      "name": "Hello, World",
       "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#1a972da1-d423-445d-a5c6-d7348ce1cc00",
-      "createdAt": 1518339861272,
-      "modifiedAt": 1518462984230
+      "zenodoAction": null
     },
     {
-      "id": "52e2a2b4-99aa-4a80-90e3-d234aa2d655a",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#52e2a2b4-99aa-4a80-90e3-d234aa2d655a",
-      "createdAt": 1518504954648,
-      "modifiedAt": 1518660508981
-    },
-    {
-      "id": "a80eca5a-48ab-4815-b359-87ab9f43aa02",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#a80eca5a-48ab-4815-b359-87ab9f43aa02",
-      "createdAt": 1519150725597,
-      "modifiedAt": 1519194597749
-    },
-    {
-      "id": "0bfadcf3-4f9f-4235-b3f3-a1d350331ea0",
+      "createdAt": 1519222742098,
+      "id": 8,
+      "modifiedAt": 1519222941709,
+      "name": "Hello, World",
       "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#0bfadcf3-4f9f-4235-b3f3-a1d350331ea0",
-      "createdAt": 1518375725192,
-      "modifiedAt": 1518416287482
+      "zenodoAction": null
     },
     {
-      "id": "f8d03f1e-1155-4944-8da8-6f54ae7952a6",
+      "createdAt": 1519222988017,
+      "id": 9,
+      "modifiedAt": 1519222993412,
+      "name": "Hello, World",
       "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#f8d03f1e-1155-4944-8da8-6f54ae7952a6",
-      "createdAt": 1518706858637,
-      "modifiedAt": 1518817771857
+      "zenodoAction": null
     },
     {
-      "id": "66ee1894-dea8-4f3a-90e7-ec828c83ead0",
+      "createdAt": 1519223228250,
+      "id": 10,
+      "modifiedAt": 1519223232701,
+      "name": "Hello, World",
       "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#66ee1894-dea8-4f3a-90e7-ec828c83ead0",
-      "createdAt": 1518446553250,
-      "modifiedAt": 1518509359332
+      "zenodoAction": null
     },
     {
-      "id": "94fb01ab-9bd0-4d53-940b-37d700b976ec",
+      "createdAt": 1519223239910,
+      "id": 11,
+      "modifiedAt": 1519223243666,
+      "name": "Hello, World",
       "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#94fb01ab-9bd0-4d53-940b-37d700b976ec",
-      "createdAt": 1519037563901,
-      "modifiedAt": 1519049824549
+      "zenodoAction": null
     },
     {
-      "id": "dde1a344-9e58-4089-aebb-f50390d5ce2c",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#dde1a344-9e58-4089-aebb-f50390d5ce2c",
-      "createdAt": 1518928093226,
-      "modifiedAt": 1519017271668
+      "createdAt": 1519223573881,
+      "id": 12,
+      "modifiedAt": 1519223579152,
+      "name": "Hello, World",
+      "status": "PENDING",
+      "zenodoAction": "https://sandbox.zenodo.org/deposit/210026"
     },
     {
-      "id": "b2d14e4d-9f69-4950-8c84-e72582103898",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#b2d14e4d-9f69-4950-8c84-e72582103898",
-      "createdAt": 1518139034168,
-      "modifiedAt": 1518164769907
-    },
-    {
-      "id": "c942c415-8001-4bc1-ae74-299f468544aa",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#c942c415-8001-4bc1-ae74-299f468544aa",
-      "createdAt": 1518266787211,
-      "modifiedAt": 1518376600581
-    },
-    {
-      "id": "50f030d8-05ec-4887-90ff-05c0bab4c426",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#50f030d8-05ec-4887-90ff-05c0bab4c426",
-      "createdAt": 1518624217619,
-      "modifiedAt": 1518731814052
-    },
-    {
-      "id": "486f0aee-c8df-49c2-98bb-99a025537a85",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#486f0aee-c8df-49c2-98bb-99a025537a85",
-      "createdAt": 1518061755855,
-      "modifiedAt": 1518216778046
-    },
-    {
-      "id": "2311ff4a-2d49-4f18-9932-7f5cade65730",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#2311ff4a-2d49-4f18-9932-7f5cade65730",
-      "createdAt": 1519124128978,
-      "modifiedAt": 1519140620185
-    },
-    {
-      "id": "3e831d94-2556-4458-b7f7-f9dd3ceb0512",
+      "createdAt": 1519223845096,
+      "id": 13,
+      "modifiedAt": 1519223851240,
+      "name": "Hello, World",
       "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#3e831d94-2556-4458-b7f7-f9dd3ceb0512",
-      "createdAt": 1518032717066,
-      "modifiedAt": 1518146602089
-    },
-    {
-      "id": "b8281589-7dbb-40e3-8764-545195182203",
-      "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#b8281589-7dbb-40e3-8764-545195182203",
-      "createdAt": 1518765304358,
-      "modifiedAt": 1518794436886
-    },
-    {
-      "id": "481ee16c-c19a-48f4-b9fc-e7a07bfe7633",
-      "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#481ee16c-c19a-48f4-b9fc-e7a07bfe7633",
-      "createdAt": 1519015452908,
-      "modifiedAt": 1519091864379
-    },
-    {
-      "id": "6dadb95e-f458-47c4-b6f8-ce2b17d9e4f1",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#6dadb95e-f458-47c4-b6f8-ce2b17d9e4f1",
-      "createdAt": 1518752563601,
-      "modifiedAt": 1518891261967
-    },
-    {
-      "id": "5666a3ba-9b54-4441-87b1-833a6dbb4098",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#5666a3ba-9b54-4441-87b1-833a6dbb4098",
-      "createdAt": 1518418029953,
-      "modifiedAt": 1518443088912
-    },
-    {
-      "id": "2ee1c028-5b70-472a-89ab-63883a5e9025",
-      "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#2ee1c028-5b70-472a-89ab-63883a5e9025",
-      "createdAt": 1518036267938,
-      "modifiedAt": 1518119029941
-    },
-    {
-      "id": "0eec93db-7e72-4dfe-99af-2472bc088516",
-      "status": "COMPLETE",
-      "zenodoAction": "https://zenodo.org#0eec93db-7e72-4dfe-99af-2472bc088516",
-      "createdAt": 1518021005665,
-      "modifiedAt": 1518089064245
-    },
-    {
-      "id": "32bcd91c-8ea9-45d3-a70e-1b2f7859a16a",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#32bcd91c-8ea9-45d3-a70e-1b2f7859a16a",
-      "createdAt": 1518118928230,
-      "modifiedAt": 1518167945241
-    },
-    {
-      "id": "34ce3ef4-55c0-46c4-9994-e26127899ac4",
-      "status": "UPLOADING",
-      "zenodoAction": "https://zenodo.org#34ce3ef4-55c0-46c4-9994-e26127899ac4",
-      "createdAt": 1518996890684,
-      "modifiedAt": 1519135185311
+      "zenodoAction": "https://sandbox.zenodo.org/deposit/210028"
     }
-  ],
-  "connected": true
+  ]
 }
