@@ -1,6 +1,8 @@
 package dk.sdu.cloud.zenodo.api
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByIntId
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.netty.handler.codec.http.HttpMethod
@@ -8,8 +10,8 @@ import io.netty.handler.codec.http.HttpMethod
 data class ZenodoAccessRequest(val returnTo: String)
 data class ZenodoAccessRedirectURL(val redirectTo: String)
 
-data class ZenodoPublishRequest(val filePaths: List<String>)
-data class ZenodoPublishResponse(val publishAt: String)
+data class ZenodoPublishRequest(val name: String, val filePaths: List<String>)
+data class ZenodoPublishResponse(val publicationId: Int)
 
 interface ZenodoIsConnected {
     val connected: Boolean
@@ -20,15 +22,30 @@ data class ZenodoErrorMessage(override val connected: Boolean, val why: String) 
 data class ZenodoConnectedStatus(override val connected: Boolean) : ZenodoIsConnected
 
 enum class ZenodoPublicationStatus {
+    PENDING,
     UPLOADING,
     COMPLETE,
     FAILURE
 }
 
 data class ZenodoPublication(
-    val id: String,
+    val id: Int,
+    val name: String,
     val status: ZenodoPublicationStatus,
-    val zenodoAction: String?
+    val zenodoAction: String?,
+    val createdAt: Long,
+    val modifiedAt: Long
+)
+
+data class ZenodoUpload(
+    val dataObject: String,
+    val hasBeenTransmitted: Boolean,
+    val updatedAt: Long
+)
+
+data class ZenodoPublicationWithFiles(
+    val publication: ZenodoPublication,
+    val uploads: List<ZenodoUpload>
 )
 
 data class ZenodoPublicationList(
@@ -53,7 +70,7 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
         }
     }
 
-    val publish = kafkaDescription<ZenodoPublishRequest> {
+    val publish = callDescription<ZenodoPublishRequest, ZenodoPublishResponse, ZenodoErrorMessage> {
         method = HttpMethod.POST
         prettyName = "publish"
 
@@ -82,6 +99,17 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
         path {
             using(baseContext)
             +"publications"
+        }
+    }
+
+    val findPublicationById = callDescription<FindByIntId, ZenodoPublicationWithFiles, ZenodoErrorMessage> {
+        method = HttpMethod.GET
+        prettyName = "findPublicationById"
+
+        path {
+            using(baseContext)
+            +"publications"
+            +boundTo(FindByIntId::id)
         }
     }
 }

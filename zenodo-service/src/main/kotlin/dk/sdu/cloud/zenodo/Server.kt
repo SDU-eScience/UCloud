@@ -1,19 +1,15 @@
 package dk.sdu.cloud.zenodo
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.zenodo.api.ZenodoAccessRedirectURL
-import dk.sdu.cloud.zenodo.api.ZenodoConnectedStatus
-import dk.sdu.cloud.zenodo.api.ZenodoDescriptions
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
+import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
 import dk.sdu.cloud.zenodo.services.InMemoryZenodoOAuthStateStore
+import dk.sdu.cloud.zenodo.services.PublicationService
 import dk.sdu.cloud.zenodo.services.ZenodoOAuth
-import dk.sdu.cloud.zenodo.services.ZenodoService
+import dk.sdu.cloud.zenodo.services.ZenodoRPCService
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
@@ -27,9 +23,10 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.zookeeper.ZooKeeper
+import org.eclipse.persistence.config.PersistenceUnitProperties
 import org.slf4j.LoggerFactory
-import java.net.URL
 import java.util.concurrent.TimeUnit
+import javax.persistence.Persistence
 
 class Server(
     private val cloud: AuthenticatedCloud,
@@ -55,21 +52,40 @@ class Server(
         }
 
         val zenodoOauth = ZenodoOAuth(
-            config.zenodo.clientSecret,
-            config.zenodo.clientId,
-            "http://localhost:42250/zenodo/oauth", // TODO FIX THIS
-            InMemoryZenodoOAuthStateStore.load(), // TODO FIX THIS
-            true // TODO FIX THIS
+            clientSecret = config.zenodo.clientSecret,
+            clientId = config.zenodo.clientId,
+
+            // TODO FIX THIS
+            callback = if (config.production) "https://cloud.sdu.dk/zenodo/oauth" else "http://localhost:42250/zenodo/oauth",
+
+            stateStore = InMemoryZenodoOAuthStateStore.load(), // TODO FIX THIS
+
+            useSandbox = true // TODO FIX THIS
         )
 
-        val zenodo = ZenodoService(zenodoOauth)
+        val zenodo = ZenodoRPCService(zenodoOauth)
+
+        val cloudEmf = Persistence.createEntityManagerFactory(
+            "SduClouddbJpaPU", HashMap<String, String>().apply {
+                if (config.connConfig.database != null) {
+                    with(config.connConfig.database!!) {
+                        put(PersistenceUnitProperties.JDBC_URL, url)
+                        put(PersistenceUnitProperties.JDBC_USER, username)
+                        put(PersistenceUnitProperties.JDBC_PASSWORD, password)
+                        put(PersistenceUnitProperties.JDBC_DRIVER, driver)
+                    }
+                }
+            }
+        )
+
+        val publicationService = PublicationService(cloudEmf, zenodo)
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            PublishProcessor(zenodo, cloud.parent).also { it.init(kBuilder) }
+            PublishProcessor(zenodo, publicationService, cloud.parent).also { it.init(kBuilder) }
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {
@@ -100,39 +116,7 @@ class Server(
                     }
                 }
 
-                route("api") {
-                    route("zenodo") {
-                        protect()
-
-                        implement(ZenodoDescriptions.requestAccess) {
-                            logEntry(log, it)
-                            val returnToURL = URL(it.returnTo)
-                            if (returnToURL.protocol !in setOf("http", "https")) {
-                                error(CommonErrorMessage("Bad Request"), HttpStatusCode.BadRequest)
-                                return@implement
-                            }
-
-                            if (returnToURL.host !in setOf("localhost", "cloud.sdu.dk")) {
-                                // TODO This should be handled in a more generic way
-                                error(CommonErrorMessage("Bad Request"), HttpStatusCode.BadRequest)
-                                return@implement
-                            }
-
-                            val who = call.request.validatedPrincipal
-                            ok(
-                                ZenodoAccessRedirectURL(
-                                    zenodo.createAuthorizationUrl(who, it.returnTo).toExternalForm()
-                                )
-                            )
-                        }
-
-                        implement(ZenodoDescriptions.status) {
-                            logEntry(log, it)
-
-                            ok(ZenodoConnectedStatus(zenodo.isConnected(call.request.validatedPrincipal)))
-                        }
-                    }
-                }
+                ZenodoController(kafka, publicationService, zenodo).also { it.configure(this) }
             }
         }
 

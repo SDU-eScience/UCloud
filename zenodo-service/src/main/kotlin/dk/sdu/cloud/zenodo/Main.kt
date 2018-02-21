@@ -13,7 +13,8 @@ import org.slf4j.LoggerFactory
 data class Configuration(
     private val connection: RawConnectionConfig,
     val refreshToken: String,
-    val zenodo: ZenodoAPIConfiguration
+    val zenodo: ZenodoAPIConfiguration,
+    val production: Boolean
 ) : ServerConfiguration {
     @get:JsonIgnore
     override val connConfig: ConnectionConfig

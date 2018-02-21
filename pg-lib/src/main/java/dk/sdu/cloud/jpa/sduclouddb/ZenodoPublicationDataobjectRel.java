@@ -24,21 +24,26 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "zenodo_publication_dataobject_rel")
 @XmlRootElement
 @NamedQueries({
-        @NamedQuery(name = "ZenodoPublicationDataobjectRel.findAll", query = "SELECT z FROM ZenodoPublicationDataobjectRel z")
-        , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findByModifiedTs", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.modifiedTs = :modifiedTs")
-        , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findByCreatedTs", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.createdTs = :createdTs")
-        , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findByMarkedForDelete", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.markedForDelete = :markedForDelete")
-        , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findById", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.id = :id")})
+    @NamedQuery(name = "ZenodoPublicationDataobjectRel.findAll", query = "SELECT z FROM ZenodoPublicationDataobjectRel z")
+    , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findByDataobjectRefId", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.dataobjectRefId = :dataobjectRefId")
+    , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findByModifiedTs", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findByCreatedTs", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.createdTs = :createdTs")
+    , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findByMarkedForDelete", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.markedForDelete = :markedForDelete")
+    , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findById", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.id = :id")
+    , @NamedQuery(name = "ZenodoPublicationDataobjectRel.findByHasBeenTransmitted", query = "SELECT z FROM ZenodoPublicationDataobjectRel z WHERE z.hasBeenTransmitted = :hasBeenTransmitted")})
 public class ZenodoPublicationDataobjectRel implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Basic(optional = false)
+    @Column(name = "dataobject_ref_id")
+    private String dataobjectRefId;
+    @Basic(optional = false)
     @Column(name = "modified_ts")
-    @Temporal(TemporalType.DATE)
+    @Temporal(TemporalType.TIMESTAMP)
     private Date modifiedTs;
     @Basic(optional = false)
     @Column(name = "created_ts")
-    @Temporal(TemporalType.DATE)
+    @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
     @Column(name = "marked_for_delete")
     private Boolean markedForDelete;
@@ -47,9 +52,8 @@ public class ZenodoPublicationDataobjectRel implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @JoinColumn(name = "dataobject_ref_id", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Dataobject dataobjectRefId;
+    @Column(name = "has_been_transmitted")
+    private Boolean hasBeenTransmitted;
     @JoinColumn(name = "publication_ref_id", referencedColumnName = "id")
     @ManyToOne(optional = false)
     private ZenodoPublication publicationRefId;
@@ -61,10 +65,19 @@ public class ZenodoPublicationDataobjectRel implements Serializable {
         this.id = id;
     }
 
-    public ZenodoPublicationDataobjectRel(Integer id, Date modifiedTs, Date createdTs) {
+    public ZenodoPublicationDataobjectRel(Integer id, String dataobjectRefId, Date modifiedTs, Date createdTs) {
         this.id = id;
+        this.dataobjectRefId = dataobjectRefId;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
+    }
+
+    public String getDataobjectRefId() {
+        return dataobjectRefId;
+    }
+
+    public void setDataobjectRefId(String dataobjectRefId) {
+        this.dataobjectRefId = dataobjectRefId;
     }
 
     public Date getModifiedTs() {
@@ -99,12 +112,12 @@ public class ZenodoPublicationDataobjectRel implements Serializable {
         this.id = id;
     }
 
-    public Dataobject getDataobjectRefId() {
-        return dataobjectRefId;
+    public Boolean getHasBeenTransmitted() {
+        return hasBeenTransmitted;
     }
 
-    public void setDataobjectRefId(Dataobject dataobjectRefId) {
-        this.dataobjectRefId = dataobjectRefId;
+    public void setHasBeenTransmitted(Boolean hasBeenTransmitted) {
+        this.hasBeenTransmitted = hasBeenTransmitted;
     }
 
     public ZenodoPublication getPublicationRefId() {

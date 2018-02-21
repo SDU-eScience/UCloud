@@ -60,6 +60,8 @@ class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
     override fun resolveUserAndRedirectFromStateToken(stateToken: String): Pair<String, String>? {
         val user = csrfToUser[stateToken] ?: return null
         val (_, returnTo) = csrfDb[user] ?: return null
+        csrfToUser.remove(stateToken)
+        csrfDb.remove(user)
         return Pair(user, returnTo)
     }
 
