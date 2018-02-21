@@ -22,7 +22,7 @@ class ZenodoPublish extends React.Component {
     submit() {
         const filePaths = this.state.files.filter(filePath => filePath);
         if (body) {
-            Cloud.post("/api/zenodo/publish/", {filePaths: this.state.files.filter(filePath => filePath)});
+            Cloud.post("/api/zenodo/publish/", {filePaths: filePaths});
         } else {
             console.log("Body is null.")
         }
@@ -66,7 +66,8 @@ class ZenodoPublish extends React.Component {
                             <Button disabled={this.state.files.length === 1}
                                     onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
                                 field</Button>
-                            <Button bsStyle="primary" disabled={!noFilesSelected} className="pull-right" onClick={this.submit}>Upload files for publishing</Button>
+                            <Button bsStyle="primary" disabled={!noFilesSelected} className="pull-right"
+                                    onClick={this.submit}>Upload files for publishing</Button>
                         </ButtonToolbar>
                     </CardAndBody>
                 </div>

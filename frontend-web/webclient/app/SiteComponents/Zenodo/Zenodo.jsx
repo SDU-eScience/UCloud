@@ -2,8 +2,7 @@ import React from "react";
 import {Button, Table, ButtonToolbar} from "react-bootstrap";
 import {Cloud} from "../../../authentication/SDUCloudObject"
 import SectionContainerCard from "../SectionContainerCard";
-import {PUBLICATIONS} from "../../MockObjects";
-import { Link } from "react-router-dom";
+import {Link} from "react-router-dom";
 import {Card} from "../Cards";
 import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
 import pubsub from "pubsub-js";
@@ -14,16 +13,20 @@ class ZenodoHome extends React.Component {
         this.state = {
             publications: {},
             loading: false,
+
         };
     }
 
     componentWillMount() {
         pubsub.publish('setPageTitle', "Zenodo Overview");
-        //Cloud.get(`/zenodo/publications/`)
         this.setState(() => ({
             loading: true,
         }));
-        setTimeout(() => this.setState(() => ({publications: PUBLICATIONS, loading: false})), 500);
+        Cloud.get("/../mock-api/mock_zenodo_publications.json").then((publications) => {
+            this.setState(() => ({
+                publications: publications.inProgress,
+            }));
+        });
     }
 
     ZenodoRedirect() {
@@ -50,6 +53,31 @@ class ZenodoHome extends React.Component {
 }
 
 function PublishStatus(props) {
+    let body = null;
+    if (!props.publications.length) {
+        body = (
+            <h3>
+                <small className="text-center">No publications found.</small>
+            </h3>
+        );
+    } else {
+        body = (
+            <div>
+                <h3 className="text-center">File upload progress</h3>
+                <Table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                        <th>Last update</th>
+                    </tr>
+                    </thead>
+                    <PublicationList publications={props.publications}/>
+                </Table>
+            </div>)
+    }
+
     return (
         <div className="col-md-8">
             <Card>
@@ -57,18 +85,7 @@ function PublishStatus(props) {
                     <h3>
                         <small>Connected to Zenodo</small>
                     </h3>
-                    <h3 className="text-center">File upload progress</h3>
-                    <Table>
-                        <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                            <th>Info</th>
-                        </tr>
-                        </thead>
-                        <PublicationList publications={props.publications}/>
-                    </Table>
+                    {body}
                     <Link to="/ZenodoPublish/">
                         <Button>Create new upload</Button>
                     </Link>
@@ -101,26 +118,24 @@ function NotLoggedIn(props) {
 }
 
 function PublicationList(props) {
-    if (!props.publications["In Progress"]) { return null; }
-    const publicationList = props.publications["In Progress"].map((publication, index) => {
-        let button = null;
-        if (publication.ZenodoAction === "Something") {
-
-        } else if (publication.ZenodoAction === "Something else") {
-
-        }
-        return (
-            <tr key={index}>
-                <td>{publication.id}</td>
-                <td>{toLowerCaseAndCapitalize(publication.status)}</td>
-                <td>{button}</td>
-                <td><Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show More</Button></Link></td>
-            </tr>
-        )
-    });
+    if (!props.publications) {
+        return null;
+    }
+    const publicationList = props.publications.map((publication, index) =>
+        <tr key={index}>
+            <td>{publication.id}</td>
+            <td>{toLowerCaseAndCapitalize(publication.status)}</td>
+            <td>
+                <a href={publication.zenodoAction} target="_blank"><Button>Action!</Button></a>
+                <Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show
+                    More</Button></Link>
+            </td>
+            <td>{new Date(publication.modifiedAt).toLocaleString()}</td>
+        </tr>
+    );
     return (
         <tbody>
-            {publicationList}
+        {publicationList}
         </tbody>
     );
 }
