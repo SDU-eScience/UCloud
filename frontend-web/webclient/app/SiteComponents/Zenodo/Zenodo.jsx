@@ -27,18 +27,22 @@ class ZenodoHome extends React.Component {
         this.setState(() => ({
             loading: true,
         }));
-        Cloud.get("/../mock-api/mock_zenodo_publications.json").then((publications) => {
+        Cloud.get("/zenodo/publications").then((publications) => {
             this.setState(() => ({
                 connected: publications.connected,
                 publications: publications.inProgress,
                 loading: false,
+            }));
+        }).fail(() => {
+            this.setState(() => ({
+                loading: false
             }));
         });
     }
 
     ZenodoRedirect() {
         //Cloud.post(`/zenodo/request?returnTo=${window.location.href}`)
-        Cloud.get(`/../mock-api/mock_zenodo_auth.json?returnTo=${window.location.href}`).then((data) => {
+        Cloud.post(`/zenodo/request?returnTo=${window.location.href}`).then((data) => {
             const redirectTo = data.redirectTo;
             if (redirectTo) window.location.href = redirectTo;
         });
@@ -132,20 +136,26 @@ function PublicationList(props) {
     if (!props.publications) {
         return null;
     }
-    const publicationList = props.publications.map((publication, index) =>
-        <tr key={index}>
-            <td>{publication.name}</td>
-            <td>{toLowerCaseAndCapitalize(publication.status)}</td>
-            <td>
-                <a href={publication.zenodoAction} target="_blank"><Button>Finish publication at Zenodo</Button></a>
-            </td>
-            <td>
-                <Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show
-                    More</Button></Link>
-            </td>
-            <td>{new Date(publication.modifiedAt).toLocaleString()}</td>
-        </tr>
-    );
+    const publicationList = props.publications.map((publication, index) => {
+        let actionButton = null;
+        if (publication.zenodoAction) {
+            actionButton = (<a href={publication.zenodoAction} target="_blank"><Button>Finish publication at Zenodo</Button></a>)
+        }
+
+        return (
+            <tr key={index}>
+                <td>{publication.name}</td>
+                <td>{toLowerCaseAndCapitalize(publication.status)}</td>
+                <td>
+                    {actionButton}
+                </td>
+                <td>
+                    <Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show
+                        More</Button></Link>
+                </td>
+                <td>{new Date(publication.modifiedAt).toLocaleString()}</td>
+            </tr>);
+    });
     return (
         <tbody>
         {publicationList}

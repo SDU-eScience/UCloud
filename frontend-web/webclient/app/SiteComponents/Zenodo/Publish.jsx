@@ -14,20 +14,20 @@ class ZenodoPublish extends React.Component {
         this.handleFileSelection = this.handleFileSelection.bind(this);
         this.submit = this.submit.bind(this);
         this.removeFile = this.removeFile.bind(this);
+        this.updateName = this.updateName.bind(this);
     }
 
     componentWillMount() {
-        pubsub.publish('setPageTitle', "Zenodo File Selection");
+        pubsub.publish('setPageTitle', "Zenodo Publication");
     }
 
     submit(e) {
         e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
-        if (body) {
-            Cloud.post("/api/zenodo/publish/", {filePaths: filePaths, name: name});
-        } else {
-            console.log("Body is null.")
-        }
+        if (!filePaths.length || !this.state.name) { return }
+        Cloud.post("/zenodo/publish/", {filePaths: filePaths, name: this.state.name}).then((response) => {
+                console.log(response.publicationID)
+        });
     }
 
     removeFile(index) {
@@ -54,6 +54,13 @@ class ZenodoPublish extends React.Component {
         }));
     }
 
+    updateName(newName) {
+        this.setState(() => ({
+            name: newName
+        }));
+        console.log(newName);
+    }
+
     render() {
         const noFilesSelected = this.state.files.filter(filePath => filePath).length > 0;
         return (
@@ -69,8 +76,9 @@ class ZenodoPublish extends React.Component {
                                     <label className="col-sm-2 control-label">Publication Name</label>
                                     <div className="col-md-4">
                                         <input required={true}
+                                               value={this.state.name}
                                                className="form-control"
-                                               type="text" onChange={e => this.updateName(this.state.name)}/>
+                                               type="text" onChange={e => this.updateName(e.target.value)}/>
                                         <span className="help-block">The name of the publication</span>
                                     </div>
                                 </div>

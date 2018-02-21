@@ -18,9 +18,10 @@ class ZenodoInfo extends React.Component {
     componentWillMount() {
         pubsub.publish('setPageTitle', "Zenodo Publication Info");
         this.setState(() => ({loading: true,}));
-        Cloud.get("/../mock-api/mock_zenodo_publications.json").then((publications) => {
+        Cloud.get(`/zenodo/publications/${this.state.publicationID}`).then((publication) => {
             this.setState(() => ({
-                publication: publications.inProgress.find(publications => publications.id === this.state.publicationID),
+                publication: publication.publication,
+                uploads: publication.uploads,
                 loading: false,
             }));
         });
@@ -32,7 +33,7 @@ class ZenodoInfo extends React.Component {
         }
         return (
             <SectionContainerCard>
-                <ZenodoPublishingBody publication={this.state.publication}/>
+                <ZenodoPublishingBody publication={this.state.publication} uploads={this.state.uploads}/>
             </SectionContainerCard>
         );
     }
@@ -40,50 +41,42 @@ class ZenodoInfo extends React.Component {
 
 function ZenodoPublishingBody(props) {
     const publication = props.publication;
-    // FIXME calculate dynamically
-    let progressBarValue = 0;
-    if (publication.status === "COMPLETE") {
-        progressBarValue = 100;
-    } else if (publication.status === "UPLOADING") {
-        progressBarValue = 40;
-    } else {
-        progressBarValue = 60;
-    } // FIXME
+    const uploads = props.uploads;
     const isActive = publication.status === "UPLOADING";
+    let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
     let style = getStatusBarColor(publication.status);
     return (
         <div>
             <Jumbotron>
-                <h3>Publication ID: {props.publication.id}</h3>
+                <h3>Publication name: {publication.name}</h3>
             </Jumbotron>
             <ListGroup>
                 <ListGroupItem>
                     <span>
                         <span>Started:</span>
-                        <span className="pull-right">{new Date(props.publication.createdAt).toLocaleString()}</span>
+                        <span className="pull-right">{new Date(publication.createdAt).toLocaleString()}</span>
                     </span>
                 </ListGroupItem>
                 <ListGroupItem>
                     <span>Last update:</span>
-                    <span className="pull-right">{new Date(props.publication.modifiedAt).toLocaleString()}</span>
+                    <span className="pull-right">{new Date(publication.modifiedAt).toLocaleString()}</span>
                 </ListGroupItem>
             </ListGroup>
             <ProgressBar active={isActive} bsStyle={style} striped={isActive}
                          label={`${progressBarValue}%`}
                          now={progressBarValue}/>
-            <FilesList files={null}/>
+            <FilesList files={props.uploads}/>
         </div>)
 }
 
 function FilesList(props) {
-    //if (props.files === null) {
-    //    return null
-    //}
-    const dummyFiles = [{filePath: "filepath1", finished: true}, {filePath: "filepath2", finished: true}, {filePath: "filepath3", finished: false}, {filePath: "filepath4", finished: false}];
-    const filesList = dummyFiles.map((file, index) =>//props.files.map((file) =>
+    if (props.files === null) {
+        return null
+    }
+    const filesList = props.files.map((file, index) =>
         <tr key={index}>
-            <td>{file.filePath}</td>
-            <td>{file.finished ? "✓" : "…" }</td>
+            <td>{file.dataObject}</td>
+            <td>{file.hasBeenTransmitted ? "✓" : "…" }</td>
         </tr>
     );
     return (
