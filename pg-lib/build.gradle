@@ -3,6 +3,9 @@ version '1.0.0-SNAPSHOT'
 
 apply plugin: 'java'
 apply plugin: "maven-publish"
+apply plugin: "application"
+
+mainClassName = "dk.sdu.cloud.TempHandlers.MoveDataObjectsFromIcat"
 
 sourceCompatibility = 1.8
 

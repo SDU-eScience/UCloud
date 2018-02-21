@@ -1,5 +1,6 @@
 var webpack = require('webpack');
 var webpackMerge = require('webpack-merge');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var commonConfig = require('./webpack.config.js');
 var path = require('path');
@@ -20,7 +21,12 @@ module.exports = webpackMerge(commonConfig, {
 
     plugins: [
         new webpack.HotModuleReplacementPlugin(),
-        new ExtractTextPlugin('[name].css')
+        new ExtractTextPlugin('[name].css'),
+        new CopyWebpackPlugin([{
+            from: 'mock-api',
+            to: 'mock-api',
+            context: path.join(__dirname, 'app')
+        }])
     ],
 
     devServer: {

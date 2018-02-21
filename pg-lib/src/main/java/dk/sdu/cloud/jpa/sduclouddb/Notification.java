@@ -39,6 +39,8 @@ public class Notification implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
+    @Column(name = "personrefid")
+    private int personrefid;
     @Column(name = "notificationtext")
     private String notificationtext;
     @Column(name = "viewed")
@@ -131,6 +133,14 @@ public class Notification implements Serializable {
         int hash = 0;
         hash += (id != null ? id.hashCode() : 0);
         return hash;
+    }
+
+    public int getPersonrefid() {
+        return personrefid;
+    }
+
+    public void setPersonrefid(int personrefid) {
+        this.personrefid = personrefid;
     }
 
     @Override
