@@ -23,7 +23,9 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.zookeeper.ZooKeeper
 import org.asynchttpclient.*
 import org.slf4j.LoggerFactory
+import java.io.IOException
 import java.io.InputStream
+import java.net.ConnectException
 import java.net.URL
 import java.util.*
 import kotlin.coroutines.experimental.Continuation
@@ -167,32 +169,38 @@ class RESTProxy(
 
         var contentLength: Long? = null
         var contentType: ContentType? = null
-        streamingHttp.retrieveStatusAndHeaders(
-            statusHandler = {
-                response.status(HttpStatusCode.fromValue(it))
-            },
+        try {
+            streamingHttp.retrieveStatusAndHeaders(
+                statusHandler = {
+                    response.status(HttpStatusCode.fromValue(it))
+                },
 
-            headerHandler = { headers ->
-                headers.forEach {
-                    if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
-                        response.header(it.key, it.value)
-                    }
+                headerHandler = { headers ->
+                    headers.forEach {
+                        if (it.key.normalizeHeader() !in responseHeaderBlacklist) {
+                            response.header(it.key, it.value)
+                        }
 
-                    if (it.key.normalizeHeader() == HttpHeaders.ContentLength.normalizeHeader()) {
-                        contentLength = it.value.toLongOrNull()
-                    }
+                        if (it.key.normalizeHeader() == HttpHeaders.ContentLength.normalizeHeader()) {
+                            contentLength = it.value.toLongOrNull()
+                        }
 
-                    if (it.key.normalizeHeader() == HttpHeaders.ContentType.normalizeHeader()) {
-                        contentType = ContentType.parse(it.value)
+                        if (it.key.normalizeHeader() == HttpHeaders.ContentType.normalizeHeader()) {
+                            contentType = ContentType.parse(it.value)
+                        }
                     }
                 }
-            }
-        )
+            )
 
-        respondDirectWrite(contentLength, contentType) {
-            streamingHttp.retrieveBody {
-                writeFully(it.bodyByteBuffer)
+            respondDirectWrite(contentLength, contentType) {
+                streamingHttp.retrieveBody {
+                    writeFully(it.bodyByteBuffer)
+                }
             }
+        } catch (ex: IOException) {
+            log.warn("Service is unavailable: $endpointUrl")
+            log.warn(ex.stackTraceToString())
+            respond(HttpStatusCode.ServiceUnavailable)
         }
     }
 }
