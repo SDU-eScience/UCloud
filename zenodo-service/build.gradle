@@ -52,7 +52,7 @@ dependencies {
     compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
 
-    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
 
     compile 'dk.sdu.cloud:service-common:0.5.0-SNAPSHOT'

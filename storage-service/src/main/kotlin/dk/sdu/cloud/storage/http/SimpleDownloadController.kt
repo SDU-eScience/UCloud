@@ -47,7 +47,12 @@ class SimpleDownloadController(
                         )
 
                 connection.use {
-                    val path = connection.paths.parseAbsolute(request.path, true)
+                    val path = try {
+                        connection.paths.parseAbsolute(request.path, true)
+                    } catch (ex: IllegalArgumentException) {
+                        return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
+                    }
+
                     val stat = connection.fileQuery.stat(path).capture() ?: return@implement error(
                         CommonErrorMessage("Not found"),
                         HttpStatusCode.NotFound

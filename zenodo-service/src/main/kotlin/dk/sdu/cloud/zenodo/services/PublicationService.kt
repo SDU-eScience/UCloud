@@ -85,7 +85,7 @@ class PublicationService(
         val cloudEntityManager = createEntityManager()
 
         val publications = cloudEntityManager.createQuery(
-            "SELECT z FROM ZenodoPublication z WHERE z.personRefId = :personRefId",
+            "SELECT z FROM ZenodoPublication z WHERE z.personRefId = :personRefId ORDER BY z.modifiedAt DESC",
             JPAZenodoPublication::class.java
         ).apply {
             setParameter("personRefId", jwt.subject)
