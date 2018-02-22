@@ -109,16 +109,18 @@ function PublicationList(props) {
         let actionButton = null;
         if (publication.zenodoAction) {
             actionButton = (
-                <a href={publication.zenodoAction} target="_blank"><Button>Finish publication at Zenodo</Button></a>)
+                <a href={publication.zenodoAction} target="_blank">
+                    <Button bsStyle="info">Finish publication at
+                        Zenodo
+                    </Button>
+                </a>);
         }
         return (
             <tr key={index}>
                 <td>{publication.id}</td>
                 <td>{publication.name}</td>
                 <td>{toLowerCaseAndCapitalize(publication.status)}</td>
-                <td>
-                    {actionButton}
-                </td>
+                <td>{actionButton}</td>
                 <td>
                     <Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show
                         More</Button></Link>

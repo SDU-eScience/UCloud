@@ -4,6 +4,7 @@ import FileSelector from "../FileSelector";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import pubsub from "pubsub-js";
 import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
+import {LoadingButton} from "../LoadingIcon";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
@@ -11,6 +12,7 @@ class ZenodoPublish extends React.Component {
         this.state = {
             files: [""],
             name: "",
+            requestSent: false,
         };
         this.handleFileSelection = this.handleFileSelection.bind(this);
         this.submit = this.submit.bind(this);
@@ -44,6 +46,7 @@ class ZenodoPublish extends React.Component {
         Cloud.post("/zenodo/publish/", {filePaths: filePaths, name: this.state.name}).then(() => {
             this.props.history.push("/ZenodoHome/");
         });
+        this.setState(() => ({requestSent: true}));
     }
 
     removeFile(index) {
@@ -77,7 +80,7 @@ class ZenodoPublish extends React.Component {
     }
 
     render() {
-        const noFilesSelected = this.state.files.filter(filePath => filePath).length > 0;
+        const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
         if (this.state.connected === false) {
             return (<NotConnectedToZenodo/>);
         }
@@ -106,8 +109,10 @@ class ZenodoPublish extends React.Component {
                                 <Button disabled={this.state.files.length === 1}
                                         onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
                                     field</Button>
-                                <Button bsStyle="primary" disabled={!noFilesSelected} className="pull-right"
-                                        onClick={this.submit}>Upload files for publishing</Button>
+                                <LoadingButton bsStyle={"primary"} disabled={!filesSelected}
+                                               loading={this.state.requestSent}
+                                               style={"pull-right"} buttonContent={"Upload files for publishing"}
+                                               handler={this.submit}/>
                             </ButtonToolbar>
                         </form>
                     </CardAndBody>
