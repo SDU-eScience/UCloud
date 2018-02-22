@@ -3,6 +3,7 @@ import {Button, FormGroup, ButtonToolbar, ListGroup, ListGroupItem} from "react-
 import FileSelector from "../FileSelector";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import pubsub from "pubsub-js";
+import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
@@ -18,15 +19,30 @@ class ZenodoPublish extends React.Component {
     }
 
     componentWillMount() {
+        this.setState(() => ({
+            loading: true,
+        }));
         pubsub.publish('setPageTitle', "Zenodo Publication");
+        Cloud.get("/zenodo/publications").then((publications) => {
+            this.setState(() => ({
+                connected: publications.connected,
+                loading: false,
+            }));
+        }).fail(() => {
+            this.setState(() => ({
+                loading: false
+            }));
+        });
     }
 
     submit(e) {
         e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
-        if (!filePaths.length || !this.state.name) { return }
-        Cloud.post("/zenodo/publish/", {filePaths: filePaths, name: this.state.name}).then((response) => {
-                console.log(response.publicationID)
+        if (!filePaths.length || !this.state.name) {
+            return
+        }
+        Cloud.post("/zenodo/publish/", {filePaths: filePaths, name: this.state.name}).then(() => {
+            this.props.history.push("/ZenodoHome/");
         });
     }
 
@@ -58,11 +74,13 @@ class ZenodoPublish extends React.Component {
         this.setState(() => ({
             name: newName
         }));
-        console.log(newName);
     }
 
     render() {
         const noFilesSelected = this.state.files.filter(filePath => filePath).length > 0;
+        if (this.state.connected === false) {
+            return (<NotConnectedToZenodo/>);
+        }
         return (
             <section>
                 <div className="container-fluid">

@@ -1,12 +1,12 @@
 import React from "react";
 import {Button, Table, ButtonToolbar} from "react-bootstrap";
 import {Cloud} from "../../../authentication/SDUCloudObject"
-import SectionContainerCard from "../SectionContainerCard";
 import {Link} from "react-router-dom";
 import {Card} from "../Cards";
 import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
 import pubsub from "pubsub-js";
 import {BallPulseLoading} from "../LoadingIcon";
+import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
 
 class ZenodoHome extends React.Component {
     constructor(props) {
@@ -40,22 +40,13 @@ class ZenodoHome extends React.Component {
         });
     }
 
-    ZenodoRedirect() {
-        //Cloud.post(`/zenodo/request?returnTo=${window.location.href}`)
-        Cloud.post(`/zenodo/request?returnTo=${window.location.href}`).then((data) => {
-            const redirectTo = data.redirectTo;
-            if (redirectTo) window.location.href = redirectTo;
-        });
-    }
-
     render() {
         if (!this.state.connected && !this.state.loading) {
-            return (<NotLoggedIn logIn={this.ZenodoRedirect}/>);
+            return (<NotConnectedToZenodo/>);
         } else {
             return (
                 <div className="container-fluid">
                     <PublishStatus publications={this.state.publications} loading={this.state.loading}/>
-                    <PublishOptions/>
                 </div>
             );
         }
@@ -82,6 +73,7 @@ function PublishStatus(props) {
                     <thead>
                     <tr>
                         <th>ID</th>
+                        <th>Name</th>
                         <th>Status</th>
                         <th/>
                         <th>Info</th>
@@ -94,7 +86,7 @@ function PublishStatus(props) {
     }
 
     return (
-        <div className="col-md-8">
+        <div>
             <Card>
                 <div className="card-body">
                     <h3>
@@ -109,29 +101,6 @@ function PublishStatus(props) {
         </div>);
 }
 
-function PublishOptions(props) { // Remove?
-    return (
-        <div className="col-md-4">
-            <Card>
-                <div className="card-body">
-                    <ButtonToolbar>
-                        <Button onClick={() => console.log("Imagine Zenodo")}>View on Zenodo</Button>
-                        <Button onClick={() => console.log("Imagine Zenodo")}>Publish on Zenodo</Button>
-                    </ButtonToolbar>
-                </div>
-            </Card>
-        </div>);
-}
-
-function NotLoggedIn(props) {
-    return (
-        <SectionContainerCard>
-            <h1>You are not connected to Zenodo</h1>
-            <Button onClick={() => props.logIn()}>Connect to Zenodo</Button>
-        </SectionContainerCard>
-    );
-}
-
 function PublicationList(props) {
     if (!props.publications) {
         return null;
@@ -139,11 +108,12 @@ function PublicationList(props) {
     const publicationList = props.publications.map((publication, index) => {
         let actionButton = null;
         if (publication.zenodoAction) {
-            actionButton = (<a href={publication.zenodoAction} target="_blank"><Button>Finish publication at Zenodo</Button></a>)
+            actionButton = (
+                <a href={publication.zenodoAction} target="_blank"><Button>Finish publication at Zenodo</Button></a>)
         }
-
         return (
             <tr key={index}>
+                <td>{publication.id}</td>
                 <td>{publication.name}</td>
                 <td>{toLowerCaseAndCapitalize(publication.status)}</td>
                 <td>
