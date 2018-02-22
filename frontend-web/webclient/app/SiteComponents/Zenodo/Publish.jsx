@@ -40,7 +40,7 @@ class ZenodoPublish extends React.Component {
 
     handleFileSelection(file, index) {
         const files = this.state.files.slice();
-        files[index] = file.path.uri;
+        files[index] = file.path.path;
         this.setState(() => ({
             files: files,
         }));
