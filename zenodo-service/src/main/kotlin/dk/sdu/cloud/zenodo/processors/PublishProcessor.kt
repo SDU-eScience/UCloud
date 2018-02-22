@@ -33,11 +33,13 @@ class PublishProcessor(
     fun init(kBuilder: StreamsBuilder) {
         kBuilder.stream(ZenodoCommandStreams.publishCommands).foreach { _, command ->
             runBlocking {
+                log.info("Handling publishing command $command")
                 // TODO When we change the design of commands are handled we still likely need two streams.
                 // The first in which we need to authenticate the request, and the second in which we handle it.
                 // This will, however, require more support for services acting on behalf of pre-authenticated users.
                 // Because we don't have support for this yet, we will simply handle the request immediately.
 
+                log.debug("Validating principal...")
                 val validatedPrincipal =
                     TokenValidation.validateOrNull(command.jwt)
                             ?: return@runBlocking run {
@@ -48,14 +50,17 @@ class PublishProcessor(
                 // TODO We need to add caused by here!
                 val cloud = JWTAuthenticatedCloud(cloudContext, validatedPrincipal.token)
 
+                log.debug("Updating status of command: ${command.publicationId} to UPLOADING")
                 publicationService.updateStatusOf(command.publicationId, ZenodoPublicationStatus.UPLOADING)
                 val files = transferCloudFilesToTemporaryStorage(command, cloud)
 
                 try {
                     transferTemporaryFilesToZenodo(command, validatedPrincipal, files)
 
+                    log.debug("Updating status of command: ${command.publicationId} to COMPLETE")
                     publicationService.updateStatusOf(command.publicationId, ZenodoPublicationStatus.COMPLETE)
                 } catch (ex: Exception) {
+                    log.debug("Updating status of command: ${command.publicationId} to FAILURE")
                     publicationService.updateStatusOf(command.publicationId, ZenodoPublicationStatus.FAILURE)
 
                     when (ex) {
