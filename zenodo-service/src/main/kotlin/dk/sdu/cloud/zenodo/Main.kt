@@ -5,8 +5,8 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.SDUCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
-import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 
@@ -48,7 +48,7 @@ fun main(args: Array<String>) {
         RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
 
     val serverProvider: HttpServerProvider = { block ->
-        embeddedServer(CIO, port = configuration.connConfig.service.port, module = block)
+        embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
     Server(cloud, kafka, zk, configuration, serverProvider).start()
