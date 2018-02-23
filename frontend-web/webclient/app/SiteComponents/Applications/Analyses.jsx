@@ -97,13 +97,13 @@ class Analyses extends React.Component {
         return (
             <section>
                 <div className="container-fluid">
-                    <div className="col-lg-10">
+                    <div>
                         <BallPulseLoading loading={this.state.loading}/>
-                        <Card xs={6} sm={12}>
+                        <Card>
                             <WebSocketSupport/>
                             {noAnalysis}
                             <div className="card-body">
-                                <Table className="table table-hover mv-lg">
+                                <Table responsive className="table table-hover mv-lg">
                                     <thead>
                                     <tr>
                                         <th>App Name</th>

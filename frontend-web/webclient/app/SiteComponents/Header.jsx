@@ -59,11 +59,11 @@ class Header extends React.Component {
                                 <MenuItem onClick={() => {Cloud.logout()}}><em className="ion-log-out icon-fw"/>Logout</MenuItem>
                             </Dropdown.Menu>
                         </Dropdown>
-                        <li>
+                        {/*<li>
                             <a href="#" className="ripple" onClick={this.showSettings}>
                                 <em className="ion-gear-b"/>
                             </a>
-                        </li>
+                        </li>*/}
                     </ul>
 
                 </nav>

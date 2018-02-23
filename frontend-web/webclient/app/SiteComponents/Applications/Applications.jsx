@@ -144,11 +144,11 @@ class Applications extends React.Component {
         return (
             <section>
                 <div className="container-fluid">
-                    <div className="col-lg-10">
+                    <div>
                         <BallPulseLoading loading={!this.state.applications.length}/>
-                        <Card xs={6} sm={12}>
+                        <Card>
                             <div className="card-body">
-                                <Table className="table table-hover mv-lg">
+                                <Table responsive className="table table-hover mv-lg">
                                     <thead>
                                     <tr>
                                         <th onClick={() => this.sortByVisibility()}><span className="text-left">Visibility<span

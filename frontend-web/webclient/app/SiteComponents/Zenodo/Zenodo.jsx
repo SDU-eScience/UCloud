@@ -71,7 +71,7 @@ function PublishStatus(props) {
         body = (
             <div>
                 <h3 className="text-center">File upload progress</h3>
-                <Table>
+                <Table responsive>
                     <thead>
                     <tr>
                         <th>ID</th>
