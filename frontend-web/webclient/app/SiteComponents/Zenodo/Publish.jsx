@@ -59,9 +59,10 @@ class ZenodoPublish extends React.Component {
         }));
     }
 
-    handleFileSelection(file, index) {
+    handleFileSelection(file, returnObject) {
         const files = this.state.files.slice();
-        files[index] = file.path.path;
+        files[returnObject.index] = file.path.path;
+        console.log(files);
         this.setState(() => ({
             files: files,
         }));
@@ -138,7 +139,8 @@ function FileSelections(props) {
     const files = props.files.slice();
     const fileSelectors = files.map((file, index) =>
         <ListGroupItem key={index} className="col-sm-offset-2 col-sm-4 input-group">
-            <FileSelector onFileSelectionChange={props.handleFileSelection} parameter={index} isSource={false}/>
+            <FileSelector initialPath={file} onFileSelectionChange={props.handleFileSelection}
+                          returnObject={{index: index}}/>
         </ListGroupItem>);
     return (
         <fieldset>

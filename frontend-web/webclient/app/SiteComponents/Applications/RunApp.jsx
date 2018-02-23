@@ -31,7 +31,7 @@ class RunApp extends React.Component {
     }
 
     componentWillUnmount() {
-        this.state.promises.makeCancelable();
+        this.state.promises.cancelPromises();
     }
 
 
@@ -97,12 +97,12 @@ class RunApp extends React.Component {
         event.preventDefault();
     }
 
-    handleFileSelectorChange(file, parameter) {
+    handleFileSelectorChange(file, returnObject) {
         this.setState(() => {
             let result = {
                 parameterValues: Object.assign({}, this.state.parameterValues),
             };
-            result.parameterValues[parameter.name] = {
+            result.parameterValues[returnObject.parameter.name] = {
                 source: file.path.uri,
                 destination: file.path.name // TODO Should allow for custom name at destination
             };
@@ -217,8 +217,8 @@ function InputFileParameter(props) {
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
-                <FileSelector onFileSelectionChange={props.onFileSelectionChange} parameter={props.parameter}
-                              isSource={true}/>
+                <FileSelector onFileSelectionChange={props.onFileSelectionChange} isRequired={!props.parameter.isOptional}
+                              returnObject={{parameter: props.parameter, isSource: true}}/>
                 <span className="help-block">Source of the file</span>
                 <input
                     placeholder={props.parameter.defaultValue ? 'Default value: ' + props.parameter.defaultValue : ''}

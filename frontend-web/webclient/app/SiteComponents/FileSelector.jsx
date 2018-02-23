@@ -12,9 +12,8 @@ class FileSelector extends React.Component {
         let file = props.initialFile ? props.initialFile : { path: { path: "" }};
         this.state = {
             promises: new PromiseKeeper(),
-            parameter: props.parameter,
+            returnObject: props.returnObject,
             selectedFile: file,
-            isSource: props.isSource,
             currentPath: `/home/${Cloud.username}`,
             loading: false,
             files: [],
@@ -53,7 +52,7 @@ class FileSelector extends React.Component {
             selectedFile: file,
             modalShown: false,
         }));
-        this.state.onFileSelectionChange(file, this.state.parameter, this.state.isSource);
+        this.state.onFileSelectionChange(file, this.state.returnObject);
     }
 
     getFiles(path) {
@@ -77,7 +76,7 @@ class FileSelector extends React.Component {
                                 className="btn btn-default">Browse files
                         </Button>
                     </span>
-                    <input className="form-control readonly" required={!this.state.parameter.optional} type="text"
+                    <input className="form-control readonly" required={this.props.isRequired} type="text"
                            placeholder={"No file selected"}
                            value={this.state.selectedFile.path.path}/>
                 </div>
