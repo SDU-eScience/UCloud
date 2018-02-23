@@ -8,9 +8,10 @@ import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
 class FileSelector extends React.Component {
     constructor(props) {
         super(props);
+        let file = props.initialFile ? props.initialFile : { path: { path: "" }};
         this.state = {
             parameter: props.parameter,
-            selectedFile: {path: {path: ""}},
+            selectedFile: file,
             isSource: props.isSource,
             currentPath: `/home/${Cloud.username}`,
             loading: false,

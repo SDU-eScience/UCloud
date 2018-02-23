@@ -268,24 +268,6 @@ function publishToZenodo(uri) {
     console.log(uri);
 }
 
-const makeCancelable = (promise) => {
-    let hasCanceled_ = false;
-
-    const wrappedPromise = new Promise((resolve, reject) => {
-        promise.then(
-            val => hasCanceled_ ? reject({isCanceled: true}) : resolve(val),
-            error => hasCanceled_ ? reject({isCanceled: true}) : reject(error)
-        );
-    });
-
-    return {
-        promise: wrappedPromise,
-        cancel() {
-            hasCanceled_ = true;
-        },
-    };
-};
-
 function downloadFile(path) {
     Cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
         let link = document.createElement("a");
@@ -326,7 +308,6 @@ export {
     getParentPath,
     updateSharingOfFile,
     revokeSharing,
-    makeCancelable,
     downloadFile,
     getCurrentRights,
     toLowerCaseAndCapitalize,

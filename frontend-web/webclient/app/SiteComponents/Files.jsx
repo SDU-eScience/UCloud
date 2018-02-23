@@ -27,6 +27,7 @@ import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
+import PromiseKeeper from "../PromiseKeeper"
 
 class Files extends React.Component {
     constructor(props) {
@@ -34,6 +35,7 @@ class Files extends React.Component {
         let pathname = props.location.pathname.slice("/files/".length); // Remove prepended /files/ from pathname
         let currentPath = !pathname.length ? Cloud.homeFolder : pathname;
         this.state = {
+            keeperOfPromises: new PromiseKeeper(),
             files: [],
             loading: false,
             totalPages: () => Math.ceil(this.state.files.length / this.state.filesPerPage),
@@ -161,7 +163,7 @@ class Files extends React.Component {
             loading: true,
         });
         const queryPath = !path ? this.state.currentPath : path;
-        Cloud.get(`files?path=/${queryPath}`).then(files => {
+        this.state.keeperOfPromises.makeCancelable(Cloud.get(`files?path=/${queryPath}`)).promise.then(files => {
             files.forEach(file => file.isChecked = false);
             this.setState(() => ({
                 files: this.state.sortingFunctions[this.state.lastSorting.name](files, this.state.lastSorting.asc),
@@ -223,7 +225,7 @@ class Files extends React.Component {
         this.setState({
             loading: true,
         });
-        Cloud.get(`files?path=${Cloud.homeFolder}`).then(files => {
+        this.state.keeperOfPromises.makeCancelable(Cloud.get(`files?path=${Cloud.homeFolder}`)).promise.then(files => {
             files.forEach(file => file.isChecked = false);
             let favorites = files.filter(file => file.favorited);
             this.setState(() => ({
@@ -249,6 +251,7 @@ class Files extends React.Component {
             result.uppy.close();
             return result;
         });
+        this.state.keeperOfPromises.cancelPromises();
     }
 
 

@@ -7,12 +7,14 @@ import pubsub from "pubsub-js";
 import {Link} from "react-router-dom";
 import {Cloud} from '../../authentication/SDUCloudObject'
 import {sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize} from "../UtilityFunctions";
+import PromiseKeeper from "../PromiseKeeper";
 
 
 class Dashboard extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             favoriteFiles: [],
             favoriteLoading: false,
             recentFiles: [],
@@ -41,7 +43,7 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             favoriteLoading: true,
         }));
-        Cloud.get(`/files?path=${Cloud.homeFolder}`).then(favorites => {
+        this.state.promises.makeCancelable(Cloud.get(`/files?path=${Cloud.homeFolder}`)).promise.then(favorites => {
             let actualFavorites = favorites.filter(file => file.favorited);
             let subsetFavorites = sortFilesByTypeAndName(actualFavorites.slice(0, 10));
             this.setState(() => ({
@@ -55,7 +57,7 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             recentLoading: true
         }));
-        Cloud.get(`/files?path=${Cloud.homeFolder}`).then(recent => {
+        this.state.promises.makeCancelable(Cloud.get(`/files?path=${Cloud.homeFolder}`)).promise.then(recent => {
             let recentSubset = sortFilesByModified(recent.slice(0, 10));
             this.setState(() => ({
                 recentFiles: recentSubset,
@@ -68,7 +70,7 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             analysesLoading: true
         }));
-        Cloud.get("/hpc/jobs").then(analyses => {
+        this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(analyses => {
             this.setState(() => ({
                 analysesLoading: false,
                 recentAnalyses: analyses.slice(0, 10),
@@ -95,6 +97,10 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             favoriteFiles: favorite(this.state.favoriteFiles, fileUri).filter(file => file.favorited),
         }));
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
     }
 
     render() {
