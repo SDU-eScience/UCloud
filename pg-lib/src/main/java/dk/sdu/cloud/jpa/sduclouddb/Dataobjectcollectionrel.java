@@ -251,25 +251,9 @@ public class Dataobjectcollectionrel implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Dataobjectcollectionrel{" +
-                "id=" + id +
-                ", readdataobjectsystemmetadata=" + readdataobjectsystemmetadata +
-                ", readdataobjectmetadata=" + readdataobjectmetadata +
-                ", readdataobject=" + readdataobject +
-                ", createdataobjectmetadata=" + createdataobjectmetadata +
-                ", modifydataobjectmetadata=" + modifydataobjectmetadata +
-                ", deletedataobject=" + deletedataobject +
-                ", administerdataobject=" + administerdataobject +
-                ", modifydataobject=" + modifydataobject +
-                ", owndataobject=" + owndataobject +
-                ", downloaddataobject=" + downloaddataobject +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", dataobjectrefid=" + dataobjectrefid +
-                ", dataobjectcollectionrefid=" + dataobjectcollectionrefid +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectionrel[ id=" + id + " ]";
     }
+    
 }

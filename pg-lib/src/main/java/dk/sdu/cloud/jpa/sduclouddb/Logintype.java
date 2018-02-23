@@ -139,16 +139,9 @@ public class Logintype implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String
-    toString() {
-        return "Logintype{" +
-                "id=" + id +
-                ", logintypename='" + logintypename + '\'' +
-                ", active=" + active +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Logintype[ id=" + id + " ]";
     }
+    
 }

@@ -11,7 +11,6 @@ import dk.sdu.cloud.zenodo.services.ZenodoRPCService
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
-import kotlinx.coroutines.experimental.async
 import org.slf4j.LoggerFactory
 import java.net.URL
 
@@ -32,11 +31,7 @@ class ZenodoController(
 
                 try {
                     val uploadId = publicationService.createUploadForFiles(jwt, it.name, it.filePaths.toSet())
-
-                    async {
-                        publishCommandStream.emit(ZenodoPublishCommand(jwt.token, call.request.jobId, uploadId, it))
-                    }
-
+                    publishCommandStream.emit(ZenodoPublishCommand(jwt.token, call.request.jobId, uploadId, it))
                     ok(ZenodoPublishResponse(uploadId))
                 } catch (ex: PublicationException) {
                     error(ZenodoErrorMessage(ex.connected, ex.message), ex.recommendedStatusCode)

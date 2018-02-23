@@ -1,10 +1,16 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -23,29 +29,30 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
 /**
- * AUTO-GENERATED FILE
+ *
+ * @author bjhj
  */
 @Entity
 @Table(name = "person")
 @XmlRootElement
 @NamedQueries({
-        @NamedQuery(name = "Person.findAll", query = "SELECT p FROM Person p")
-        , @NamedQuery(name = "Person.findById", query = "SELECT p FROM Person p WHERE p.id = :id")
-        , @NamedQuery(name = "Person.findByPersontitle", query = "SELECT p FROM Person p WHERE p.persontitle = :persontitle")
-        , @NamedQuery(name = "Person.findByPersonfirstname", query = "SELECT p FROM Person p WHERE p.personfirstname = :personfirstname")
-        , @NamedQuery(name = "Person.findByPersonmiddlename", query = "SELECT p FROM Person p WHERE p.personmiddlename = :personmiddlename")
-        , @NamedQuery(name = "Person.findByPersonlastname", query = "SELECT p FROM Person p WHERE p.personlastname = :personlastname")
-        , @NamedQuery(name = "Person.findByPersonphoneno", query = "SELECT p FROM Person p WHERE p.personphoneno = :personphoneno")
-        , @NamedQuery(name = "Person.findByLogintyperefid", query = "SELECT p FROM Person p WHERE p.logintyperefid = :logintyperefid")
-        , @NamedQuery(name = "Person.findByLatitude", query = "SELECT p FROM Person p WHERE p.latitude = :latitude")
-        , @NamedQuery(name = "Person.findByLongitude", query = "SELECT p FROM Person p WHERE p.longitude = :longitude")
-        , @NamedQuery(name = "Person.findByActive", query = "SELECT p FROM Person p WHERE p.active = :active")
-        , @NamedQuery(name = "Person.findByOrcid", query = "SELECT p FROM Person p WHERE p.orcid = :orcid")
-        , @NamedQuery(name = "Person.findByFullname", query = "SELECT p FROM Person p WHERE p.fullname = :fullname")
-        , @NamedQuery(name = "Person.findByMarkedfordelete", query = "SELECT p FROM Person p WHERE p.markedfordelete = :markedfordelete")
-        , @NamedQuery(name = "Person.findByModifiedTs", query = "SELECT p FROM Person p WHERE p.modifiedTs = :modifiedTs")
-        , @NamedQuery(name = "Person.findByCreatedTs", query = "SELECT p FROM Person p WHERE p.createdTs = :createdTs")
-        , @NamedQuery(name = "Person.findByUsername", query = "SELECT p FROM Person p WHERE p.username = :username")})
+    @NamedQuery(name = "Person.findAll", query = "SELECT p FROM Person p")
+    , @NamedQuery(name = "Person.findById", query = "SELECT p FROM Person p WHERE p.id = :id")
+    , @NamedQuery(name = "Person.findByPersontitle", query = "SELECT p FROM Person p WHERE p.persontitle = :persontitle")
+    , @NamedQuery(name = "Person.findByPersonfirstname", query = "SELECT p FROM Person p WHERE p.personfirstname = :personfirstname")
+    , @NamedQuery(name = "Person.findByPersonmiddlename", query = "SELECT p FROM Person p WHERE p.personmiddlename = :personmiddlename")
+    , @NamedQuery(name = "Person.findByPersonlastname", query = "SELECT p FROM Person p WHERE p.personlastname = :personlastname")
+    , @NamedQuery(name = "Person.findByPersonphoneno", query = "SELECT p FROM Person p WHERE p.personphoneno = :personphoneno")
+    , @NamedQuery(name = "Person.findByLogintyperefid", query = "SELECT p FROM Person p WHERE p.logintyperefid = :logintyperefid")
+    , @NamedQuery(name = "Person.findByLatitude", query = "SELECT p FROM Person p WHERE p.latitude = :latitude")
+    , @NamedQuery(name = "Person.findByLongitude", query = "SELECT p FROM Person p WHERE p.longitude = :longitude")
+    , @NamedQuery(name = "Person.findByActive", query = "SELECT p FROM Person p WHERE p.active = :active")
+    , @NamedQuery(name = "Person.findByOrcid", query = "SELECT p FROM Person p WHERE p.orcid = :orcid")
+    , @NamedQuery(name = "Person.findByFullname", query = "SELECT p FROM Person p WHERE p.fullname = :fullname")
+    , @NamedQuery(name = "Person.findByMarkedfordelete", query = "SELECT p FROM Person p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "Person.findByModifiedTs", query = "SELECT p FROM Person p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "Person.findByCreatedTs", query = "SELECT p FROM Person p WHERE p.createdTs = :createdTs")
+    , @NamedQuery(name = "Person.findByUsername", query = "SELECT p FROM Person p WHERE p.username = :username")})
 public class Person implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -89,6 +96,24 @@ public class Person implements Serializable {
     private Date createdTs;
     @Column(name = "username")
     private String username;
+    @OneToMany(mappedBy = "personrefid")
+    private List<Dataobjectsharerel> dataobjectsharerelList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<Dataobjectcollection> dataobjectcollectionList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<Systemrolepersonrel> systemrolepersonrelList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<Personjwthistory> personjwthistoryList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<Notification> notificationList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<App> appList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<Personsystemrolerel> personsystemrolerelList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<Projectpersonrel> projectpersonrelList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<Personnotificationsubscriptiontyperel> personnotificationsubscriptiontyperelList;
     @JoinColumn(name = "orgrefid", referencedColumnName = "id")
     @ManyToOne
     private Org orgrefid;
@@ -96,7 +121,11 @@ public class Person implements Serializable {
     @OneToOne
     private Personjwthistory personjwthistoryrefid;
     @OneToMany(mappedBy = "personrefid")
-    private Collection<Personjwthistory> personjwthistoryCollection;
+    private List<Projecteventcalendar> projecteventcalendarList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<DataTransferHeader> dataTransferHeaderList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<Personemailrel> personemailrelList;
 
     public Person() {
     }
@@ -239,6 +268,87 @@ public class Person implements Serializable {
         this.username = username;
     }
 
+    @XmlTransient
+    public List<Dataobjectsharerel> getDataobjectsharerelList() {
+        return dataobjectsharerelList;
+    }
+
+    public void setDataobjectsharerelList(List<Dataobjectsharerel> dataobjectsharerelList) {
+        this.dataobjectsharerelList = dataobjectsharerelList;
+    }
+
+    @XmlTransient
+    public List<Dataobjectcollection> getDataobjectcollectionList() {
+        return dataobjectcollectionList;
+    }
+
+    public void setDataobjectcollectionList(List<Dataobjectcollection> dataobjectcollectionList) {
+        this.dataobjectcollectionList = dataobjectcollectionList;
+    }
+
+    @XmlTransient
+    public List<Systemrolepersonrel> getSystemrolepersonrelList() {
+        return systemrolepersonrelList;
+    }
+
+    public void setSystemrolepersonrelList(List<Systemrolepersonrel> systemrolepersonrelList) {
+        this.systemrolepersonrelList = systemrolepersonrelList;
+    }
+
+    @XmlTransient
+    public List<Personjwthistory> getPersonjwthistoryList() {
+        return personjwthistoryList;
+    }
+
+    public void setPersonjwthistoryList(List<Personjwthistory> personjwthistoryList) {
+        this.personjwthistoryList = personjwthistoryList;
+    }
+
+    @XmlTransient
+    public List<Notification> getNotificationList() {
+        return notificationList;
+    }
+
+    public void setNotificationList(List<Notification> notificationList) {
+        this.notificationList = notificationList;
+    }
+
+    @XmlTransient
+    public List<App> getAppList() {
+        return appList;
+    }
+
+    public void setAppList(List<App> appList) {
+        this.appList = appList;
+    }
+
+    @XmlTransient
+    public List<Personsystemrolerel> getPersonsystemrolerelList() {
+        return personsystemrolerelList;
+    }
+
+    public void setPersonsystemrolerelList(List<Personsystemrolerel> personsystemrolerelList) {
+        this.personsystemrolerelList = personsystemrolerelList;
+    }
+
+    @XmlTransient
+    public List<Projectpersonrel> getProjectpersonrelList() {
+        return projectpersonrelList;
+    }
+
+    public void setProjectpersonrelList(List<Projectpersonrel> projectpersonrelList) {
+        this.projectpersonrelList = projectpersonrelList;
+    }
+
+    @XmlTransient
+    public List<Personnotificationsubscriptiontyperel> getPersonnotificationsubscriptiontyperelList() {
+        return personnotificationsubscriptiontyperelList;
+    }
+
+    public void setPersonnotificationsubscriptiontyperelList(List<Personnotificationsubscriptiontyperel> personnotificationsubscriptiontyperelList) {
+        this.personnotificationsubscriptiontyperelList = personnotificationsubscriptiontyperelList;
+    }
+
     public Org getOrgrefid() {
         return orgrefid;
     }
@@ -256,12 +366,30 @@ public class Person implements Serializable {
     }
 
     @XmlTransient
-    public Collection<Personjwthistory> getPersonjwthistoryCollection() {
-        return personjwthistoryCollection;
+    public List<Projecteventcalendar> getProjecteventcalendarList() {
+        return projecteventcalendarList;
     }
 
-    public void setPersonjwthistoryCollection(Collection<Personjwthistory> personjwthistoryCollection) {
-        this.personjwthistoryCollection = personjwthistoryCollection;
+    public void setProjecteventcalendarList(List<Projecteventcalendar> projecteventcalendarList) {
+        this.projecteventcalendarList = projecteventcalendarList;
+    }
+
+    @XmlTransient
+    public List<DataTransferHeader> getDataTransferHeaderList() {
+        return dataTransferHeaderList;
+    }
+
+    public void setDataTransferHeaderList(List<DataTransferHeader> dataTransferHeaderList) {
+        this.dataTransferHeaderList = dataTransferHeaderList;
+    }
+
+    @XmlTransient
+    public List<Personemailrel> getPersonemailrelList() {
+        return personemailrelList;
+    }
+
+    public void setPersonemailrelList(List<Personemailrel> personemailrelList) {
+        this.personemailrelList = personemailrelList;
     }
 
     @Override
@@ -288,5 +416,5 @@ public class Person implements Serializable {
     public String toString() {
         return "dk.sdu.cloud.jpa.sduclouddb.Person[ id=" + id + " ]";
     }
-
+    
 }

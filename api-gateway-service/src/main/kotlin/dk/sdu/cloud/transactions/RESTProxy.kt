@@ -25,7 +25,6 @@ import org.asynchttpclient.*
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.io.InputStream
-import java.net.ConnectException
 import java.net.URL
 import java.util.*
 import kotlin.coroutines.experimental.Continuation

@@ -1,3 +1,8 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
@@ -18,19 +23,20 @@ import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- * AUTO-GENERATED FILE
+ *
+ * @author bjhj
  */
 @Entity
 @Table(name = "notification")
 @XmlRootElement
 @NamedQueries({
-        @NamedQuery(name = "Notification.findAll", query = "SELECT n FROM Notification n")
-        , @NamedQuery(name = "Notification.findById", query = "SELECT n FROM Notification n WHERE n.id = :id")
-        , @NamedQuery(name = "Notification.findByNotificationtext", query = "SELECT n FROM Notification n WHERE n.notificationtext = :notificationtext")
-        , @NamedQuery(name = "Notification.findByViewed", query = "SELECT n FROM Notification n WHERE n.viewed = :viewed")
-        , @NamedQuery(name = "Notification.findByMarkedfordelete", query = "SELECT n FROM Notification n WHERE n.markedfordelete = :markedfordelete")
-        , @NamedQuery(name = "Notification.findByModifiedTs", query = "SELECT n FROM Notification n WHERE n.modifiedTs = :modifiedTs")
-        , @NamedQuery(name = "Notification.findByCreatedTs", query = "SELECT n FROM Notification n WHERE n.createdTs = :createdTs")})
+    @NamedQuery(name = "Notification.findAll", query = "SELECT n FROM Notification n")
+    , @NamedQuery(name = "Notification.findById", query = "SELECT n FROM Notification n WHERE n.id = :id")
+    , @NamedQuery(name = "Notification.findByNotificationtext", query = "SELECT n FROM Notification n WHERE n.notificationtext = :notificationtext")
+    , @NamedQuery(name = "Notification.findByViewed", query = "SELECT n FROM Notification n WHERE n.viewed = :viewed")
+    , @NamedQuery(name = "Notification.findByMarkedfordelete", query = "SELECT n FROM Notification n WHERE n.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "Notification.findByModifiedTs", query = "SELECT n FROM Notification n WHERE n.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "Notification.findByCreatedTs", query = "SELECT n FROM Notification n WHERE n.createdTs = :createdTs")})
 public class Notification implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -150,5 +156,5 @@ public class Notification implements Serializable {
     public String toString() {
         return "dk.sdu.cloud.jpa.sduclouddb.Notification[ id=" + id + " ]";
     }
-
+    
 }

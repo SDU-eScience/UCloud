@@ -40,7 +40,8 @@ import javax.xml.bind.annotation.XmlTransient;
     , @NamedQuery(name = "Subsystemcommand.findByKafkatopicname", query = "SELECT s FROM Subsystemcommand s WHERE s.kafkatopicname = :kafkatopicname")
     , @NamedQuery(name = "Subsystemcommand.findByMarkedfordelete", query = "SELECT s FROM Subsystemcommand s WHERE s.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Subsystemcommand.findByModifiedTs", query = "SELECT s FROM Subsystemcommand s WHERE s.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Subsystemcommand.findByCreatedTs", query = "SELECT s FROM Subsystemcommand s WHERE s.createdTs = :createdTs")})
+    , @NamedQuery(name = "Subsystemcommand.findByCreatedTs", query = "SELECT s FROM Subsystemcommand s WHERE s.createdTs = :createdTs")
+    , @NamedQuery(name = "Subsystemcommand.findByDaoutil", query = "SELECT s FROM Subsystemcommand s WHERE s.daoutil = :daoutil")})
 public class Subsystemcommand implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -66,6 +67,8 @@ public class Subsystemcommand implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @Column(name = "daoutil")
+    private String daoutil;
     @OneToMany(mappedBy = "subsystemcommandrefid")
     private List<Subsystemcommandqueue> subsystemcommandqueueList;
     @JoinColumn(name = "subsystemrefid", referencedColumnName = "id")
@@ -145,6 +148,14 @@ public class Subsystemcommand implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public String getDaoutil() {
+        return daoutil;
+    }
+
+    public void setDaoutil(String daoutil) {
+        this.daoutil = daoutil;
+    }
+
     @XmlTransient
     public List<Subsystemcommandqueue> getSubsystemcommandqueueList() {
         return subsystemcommandqueueList;
@@ -190,19 +201,9 @@ public class Subsystemcommand implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Subsystemcommand{" +
-                "id=" + id +
-                ", payloadmodel='" + payloadmodel + '\'' +
-                ", implemented=" + implemented +
-                ", kafkatopicname='" + kafkatopicname + '\'' +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", subsystemcommandqueueList=" + subsystemcommandqueueList +
-                ", subsystemrefid=" + subsystemrefid +
-                ", subsystemcommandcategoryrefid=" + subsystemcommandcategoryrefid +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Subsystemcommand[ id=" + id + " ]";
     }
+    
 }

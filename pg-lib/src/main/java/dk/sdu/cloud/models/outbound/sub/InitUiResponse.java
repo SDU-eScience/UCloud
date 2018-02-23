@@ -1,4 +1,6 @@
-package dk.sdu.cloud.models.outbound;
+package dk.sdu.cloud.models.outbound.sub;
+
+import dk.sdu.cloud.models.outbound.InitUi;
 
 public class InitUiResponse {
 

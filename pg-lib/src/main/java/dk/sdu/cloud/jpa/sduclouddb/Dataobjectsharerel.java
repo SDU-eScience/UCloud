@@ -86,6 +86,9 @@ public class Dataobjectsharerel implements Serializable {
     @JoinColumn(name = "dataobjectrefid", referencedColumnName = "id")
     @ManyToOne
     private Dataobject dataobjectrefid;
+    @JoinColumn(name = "dataobjectcollectionrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Dataobjectcollection dataobjectcollectionrefid;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne
     private Person personrefid;
@@ -226,6 +229,14 @@ public class Dataobjectsharerel implements Serializable {
         this.dataobjectrefid = dataobjectrefid;
     }
 
+    public Dataobjectcollection getDataobjectcollectionrefid() {
+        return dataobjectcollectionrefid;
+    }
+
+    public void setDataobjectcollectionrefid(Dataobjectcollection dataobjectcollectionrefid) {
+        this.dataobjectcollectionrefid = dataobjectcollectionrefid;
+    }
+
     public Person getPersonrefid() {
         return personrefid;
     }
@@ -262,26 +273,9 @@ public class Dataobjectsharerel implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Dataobjectsharerel{" +
-                "id=" + id +
-                ", readdataobjectsystemmetadata=" + readdataobjectsystemmetadata +
-                ", readdataobjectmetadata=" + readdataobjectmetadata +
-                ", readdataobject=" + readdataobject +
-                ", createdataobjectmetadata=" + createdataobjectmetadata +
-                ", modifydataobjectmetadata=" + modifydataobjectmetadata +
-                ", deletedataobject=" + deletedataobject +
-                ", administerdataobject=" + administerdataobject +
-                ", modifydataobject=" + modifydataobject +
-                ", owndataobject=" + owndataobject +
-                ", downloaddataobject=" + downloaddataobject +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", dataobjectrefid=" + dataobjectrefid +
-                ", personrefid=" + personrefid +
-                ", projectrefid=" + projectrefid +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Dataobjectsharerel[ id=" + id + " ]";
     }
+    
 }

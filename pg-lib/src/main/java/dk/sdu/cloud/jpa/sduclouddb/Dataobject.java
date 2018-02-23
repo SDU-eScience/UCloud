@@ -40,7 +40,7 @@ import javax.xml.bind.annotation.XmlTransient;
     , @NamedQuery(name = "Dataobject.findByMarkedfordelete", query = "SELECT d FROM Dataobject d WHERE d.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Dataobject.findByModifiedTs", query = "SELECT d FROM Dataobject d WHERE d.modifiedTs = :modifiedTs")
     , @NamedQuery(name = "Dataobject.findByCreatedTs", query = "SELECT d FROM Dataobject d WHERE d.createdTs = :createdTs")
-    , @NamedQuery(name = "Dataobject.findByZenodotrans", query = "SELECT d FROM Dataobject d WHERE d.zenodotrans = :zenodotrans")})
+    , @NamedQuery(name = "Dataobject.findByLastAccessed", query = "SELECT d FROM Dataobject d WHERE d.lastAccessed = :lastAccessed")})
 public class Dataobject implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -66,8 +66,9 @@ public class Dataobject implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @Column(name = "zenodotrans")
-    private Integer zenodotrans;
+    @Column(name = "last_accessed")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date lastAccessed;
     @OneToMany(mappedBy = "dataobjectrefid")
     private List<Dataobjectsharerel> dataobjectsharerelList;
     @JoinColumn(name = "dataobjectclassificationrefid", referencedColumnName = "id")
@@ -81,6 +82,10 @@ public class Dataobject implements Serializable {
     private Publication publicationrefid;
     @OneToMany(mappedBy = "dataobjectrefid")
     private List<Dataobjectcollectionrel> dataobjectcollectionrelList;
+    @OneToMany(mappedBy = "dataobjectrefid")
+    private List<PublicationDataobjectRel> publicationDataobjectRelList;
+    @OneToMany(mappedBy = "dataobjectrefid")
+    private List<DataTransferDetail> dataTransferDetailList;
 
     public Dataobject() {
     }
@@ -159,12 +164,12 @@ public class Dataobject implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Integer getZenodotrans() {
-        return zenodotrans;
+    public Date getLastAccessed() {
+        return lastAccessed;
     }
 
-    public void setZenodotrans(Integer zenodotrans) {
-        this.zenodotrans = zenodotrans;
+    public void setLastAccessed(Date lastAccessed) {
+        this.lastAccessed = lastAccessed;
     }
 
     @XmlTransient
@@ -209,6 +214,24 @@ public class Dataobject implements Serializable {
         this.dataobjectcollectionrelList = dataobjectcollectionrelList;
     }
 
+    @XmlTransient
+    public List<PublicationDataobjectRel> getPublicationDataobjectRelList() {
+        return publicationDataobjectRelList;
+    }
+
+    public void setPublicationDataobjectRelList(List<PublicationDataobjectRel> publicationDataobjectRelList) {
+        this.publicationDataobjectRelList = publicationDataobjectRelList;
+    }
+
+    @XmlTransient
+    public List<DataTransferDetail> getDataTransferDetailList() {
+        return dataTransferDetailList;
+    }
+
+    public void setDataTransferDetailList(List<DataTransferDetail> dataTransferDetailList) {
+        this.dataTransferDetailList = dataTransferDetailList;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -229,23 +252,9 @@ public class Dataobject implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Dataobject{" +
-                "id='" + id + '\'' +
-                ", dataobjectname='" + dataobjectname + '\'' +
-                ", dataobjectsize=" + dataobjectsize +
-                ", dataobjectchecksum='" + dataobjectchecksum + '\'' +
-                ", dataobjectmd5=" + dataobjectmd5 +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", zenodotrans=" + zenodotrans +
-                ", dataobjectsharerelList=" + dataobjectsharerelList +
-                ", dataobjectclassificationrefid=" + dataobjectclassificationrefid +
-                ", dataobjectfileextensionrefid=" + dataobjectfileextensionrefid +
-                ", publicationrefid=" + publicationrefid +
-                ", dataobjectcollectionrelList=" + dataobjectcollectionrelList +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Dataobject[ id=" + id + " ]";
     }
+    
 }

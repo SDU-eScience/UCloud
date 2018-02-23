@@ -36,11 +36,11 @@ import javax.xml.bind.annotation.XmlTransient;
     @NamedQuery(name = "Dataobjectcollection.findAll", query = "SELECT d FROM Dataobjectcollection d")
     , @NamedQuery(name = "Dataobjectcollection.findById", query = "SELECT d FROM Dataobjectcollection d WHERE d.id = :id")
     , @NamedQuery(name = "Dataobjectcollection.findByDataobjectcollectionurl", query = "SELECT d FROM Dataobjectcollection d WHERE d.dataobjectcollectionurl = :dataobjectcollectionurl")
-    , @NamedQuery(name = "Dataobjectcollection.findByDataobjectcollectiontyperefid", query = "SELECT d FROM Dataobjectcollection d WHERE d.dataobjectcollectiontyperefid = :dataobjectcollectiontyperefid")
     , @NamedQuery(name = "Dataobjectcollection.findByActive", query = "SELECT d FROM Dataobjectcollection d WHERE d.active = :active")
     , @NamedQuery(name = "Dataobjectcollection.findByMarkedfordelete", query = "SELECT d FROM Dataobjectcollection d WHERE d.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Dataobjectcollection.findByModifiedTs", query = "SELECT d FROM Dataobjectcollection d WHERE d.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Dataobjectcollection.findByCreatedTs", query = "SELECT d FROM Dataobjectcollection d WHERE d.createdTs = :createdTs")})
+    , @NamedQuery(name = "Dataobjectcollection.findByCreatedTs", query = "SELECT d FROM Dataobjectcollection d WHERE d.createdTs = :createdTs")
+    , @NamedQuery(name = "Dataobjectcollection.findByVolatility", query = "SELECT d FROM Dataobjectcollection d WHERE d.volatility = :volatility")})
 public class Dataobjectcollection implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -51,8 +51,6 @@ public class Dataobjectcollection implements Serializable {
     private Integer id;
     @Column(name = "dataobjectcollectionurl")
     private String dataobjectcollectionurl;
-    @Column(name = "dataobjectcollectiontyperefid")
-    private Integer dataobjectcollectiontyperefid;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -65,6 +63,13 @@ public class Dataobjectcollection implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @Column(name = "volatility")
+    private Integer volatility;
+    @OneToMany(mappedBy = "dataobjectcollectionrefid")
+    private List<Dataobjectsharerel> dataobjectsharerelList;
+    @JoinColumn(name = "dataobjectcollectiontyperefid", referencedColumnName = "id")
+    @ManyToOne
+    private Dataobjectcollectiontype dataobjectcollectiontyperefid;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne
     private Person personrefid;
@@ -73,6 +78,8 @@ public class Dataobjectcollection implements Serializable {
     private Project projectrefid;
     @OneToMany(mappedBy = "dataobjectcollectionrefid")
     private List<Dataobjectcollectionrel> dataobjectcollectionrelList;
+    @OneToMany(mappedBy = "dataobjectcollectionrefid")
+    private List<DataTransferHeader> dataTransferHeaderList;
 
     public Dataobjectcollection() {
     }
@@ -101,14 +108,6 @@ public class Dataobjectcollection implements Serializable {
 
     public void setDataobjectcollectionurl(String dataobjectcollectionurl) {
         this.dataobjectcollectionurl = dataobjectcollectionurl;
-    }
-
-    public Integer getDataobjectcollectiontyperefid() {
-        return dataobjectcollectiontyperefid;
-    }
-
-    public void setDataobjectcollectiontyperefid(Integer dataobjectcollectiontyperefid) {
-        this.dataobjectcollectiontyperefid = dataobjectcollectiontyperefid;
     }
 
     public Integer getActive() {
@@ -143,6 +142,31 @@ public class Dataobjectcollection implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public Integer getVolatility() {
+        return volatility;
+    }
+
+    public void setVolatility(Integer volatility) {
+        this.volatility = volatility;
+    }
+
+    @XmlTransient
+    public List<Dataobjectsharerel> getDataobjectsharerelList() {
+        return dataobjectsharerelList;
+    }
+
+    public void setDataobjectsharerelList(List<Dataobjectsharerel> dataobjectsharerelList) {
+        this.dataobjectsharerelList = dataobjectsharerelList;
+    }
+
+    public Dataobjectcollectiontype getDataobjectcollectiontyperefid() {
+        return dataobjectcollectiontyperefid;
+    }
+
+    public void setDataobjectcollectiontyperefid(Dataobjectcollectiontype dataobjectcollectiontyperefid) {
+        this.dataobjectcollectiontyperefid = dataobjectcollectiontyperefid;
+    }
+
     public Person getPersonrefid() {
         return personrefid;
     }
@@ -168,6 +192,15 @@ public class Dataobjectcollection implements Serializable {
         this.dataobjectcollectionrelList = dataobjectcollectionrelList;
     }
 
+    @XmlTransient
+    public List<DataTransferHeader> getDataTransferHeaderList() {
+        return dataTransferHeaderList;
+    }
+
+    public void setDataTransferHeaderList(List<DataTransferHeader> dataTransferHeaderList) {
+        this.dataTransferHeaderList = dataTransferHeaderList;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -188,20 +221,9 @@ public class Dataobjectcollection implements Serializable {
         return true;
     }
 
-
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Dataobjectcollection{" +
-                "id=" + id +
-                ", dataobjectcollectionurl='" + dataobjectcollectionurl + '\'' +
-                ", dataobjectcollectiontyperefid=" + dataobjectcollectiontyperefid +
-                ", active=" + active +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", personrefid=" + personrefid +
-                ", projectrefid=" + projectrefid +
-                ", dataobjectcollectionrelList=" + dataobjectcollectionrelList +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollection[ id=" + id + " ]";
     }
+    
 }

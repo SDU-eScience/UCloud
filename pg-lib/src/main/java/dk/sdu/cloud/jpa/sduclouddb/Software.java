@@ -207,21 +207,9 @@ public class Software implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Software{" +
-                "id=" + id +
-                ", downloadurl='" + downloadurl + '\'' +
-                ", softwarename='" + softwarename + '\'' +
-                ", version='" + version + '\'' +
-                ", rpms='" + rpms + '\'' +
-                ", yums='" + yums + '\'' +
-                ", ports='" + ports + '\'' +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", devstagerefid=" + devstagerefid +
-                ", serverrefid=" + serverrefid +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Software[ id=" + id + " ]";
     }
+    
 }

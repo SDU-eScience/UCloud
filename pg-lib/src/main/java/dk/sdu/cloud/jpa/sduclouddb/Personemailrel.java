@@ -152,16 +152,9 @@ public class Personemailrel implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Personemailrel{" +
-                "id=" + id +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", primaryemail=" + primaryemail +
-                ", emailrefid=" + emailrefid +
-                ", personrefid=" + personrefid +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Personemailrel[ id=" + id + " ]";
     }
+    
 }

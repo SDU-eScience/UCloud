@@ -301,29 +301,9 @@ public class Project implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Project{" +
-                "id=" + id +
-                ", projectname='" + projectname + '\'' +
-                ", projectstart=" + projectstart +
-                ", projectend=" + projectend +
-                ", irodsgroupidmap=" + irodsgroupidmap +
-                ", active=" + active +
-                ", projectshortname='" + projectshortname + '\'' +
-                ", irodsgroupadmin='" + irodsgroupadmin + '\'' +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", visible=" + visible +
-                ", dataobjectsharerelList=" + dataobjectsharerelList +
-                ", projecttyperefid=" + projecttyperefid +
-                ", dataobjectcollectionList=" + dataobjectcollectionList +
-                ", projectprojectresearchtyperelList=" + projectprojectresearchtyperelList +
-                ", projectpersonrelList=" + projectpersonrelList +
-                ", projecteventcalendarList=" + projecteventcalendarList +
-                ", projectprojectdocumentrelList=" + projectprojectdocumentrelList +
-                ", projectpublicationrelList=" + projectpublicationrelList +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Project[ id=" + id + " ]";
     }
+    
 }

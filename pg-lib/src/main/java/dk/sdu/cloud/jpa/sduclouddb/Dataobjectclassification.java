@@ -153,16 +153,9 @@ public class Dataobjectclassification implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Dataobjectclassification{" +
-                "id=" + id +
-                ", dataobjectclassificationname='" + dataobjectclassificationname + '\'' +
-                ", active=" + active +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", dataobjectList=" + dataobjectList +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Dataobjectclassification[ id=" + id + " ]";
     }
+    
 }

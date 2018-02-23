@@ -1,7 +1,7 @@
 package dk.sdu.cloud.models.outbound;
 
-import dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollection;
-import dk.sdu.cloud.jpa.sduclouddb.Project;
+import dk.sdu.cloud.models.outbound.sub.DataObjectCollectionOutbound;
+import dk.sdu.cloud.models.outbound.sub.ProjectOutbound;
 
 import java.util.List;
 

@@ -33,11 +33,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @NamedQueries({
     @NamedQuery(name = "Dataobjectfileextension.findAll", query = "SELECT d FROM Dataobjectfileextension d")
     , @NamedQuery(name = "Dataobjectfileextension.findById", query = "SELECT d FROM Dataobjectfileextension d WHERE d.id = :id")
-    , @NamedQuery(name = "Dataobjectfileextension.findByDataobjectdataobjectfileextensionname", query = "SELECT d FROM Dataobjectfileextension d WHERE d.dataobjectdataobjectfileextensionname = :dataobjectdataobjectfileextensionname")
+    , @NamedQuery(name = "Dataobjectfileextension.findByFileextensionname", query = "SELECT d FROM Dataobjectfileextension d WHERE d.fileextensionname = :fileextensionname")
     , @NamedQuery(name = "Dataobjectfileextension.findByActive", query = "SELECT d FROM Dataobjectfileextension d WHERE d.active = :active")
     , @NamedQuery(name = "Dataobjectfileextension.findByMarkedfordelete", query = "SELECT d FROM Dataobjectfileextension d WHERE d.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Dataobjectfileextension.findByModifiedTs", query = "SELECT d FROM Dataobjectfileextension d WHERE d.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Dataobjectfileextension.findByCreatedTs", query = "SELECT d FROM Dataobjectfileextension d WHERE d.createdTs = :createdTs")})
+    , @NamedQuery(name = "Dataobjectfileextension.findByCreatedTs", query = "SELECT d FROM Dataobjectfileextension d WHERE d.createdTs = :createdTs")
+    , @NamedQuery(name = "Dataobjectfileextension.findByMimetype", query = "SELECT d FROM Dataobjectfileextension d WHERE d.mimetype = :mimetype")
+    , @NamedQuery(name = "Dataobjectfileextension.findByFileextensiondesc", query = "SELECT d FROM Dataobjectfileextension d WHERE d.fileextensiondesc = :fileextensiondesc")})
 public class Dataobjectfileextension implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -46,8 +48,8 @@ public class Dataobjectfileextension implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "dataobjectdataobjectfileextensionname")
-    private String dataobjectdataobjectfileextensionname;
+    @Column(name = "fileextensionname")
+    private String fileextensionname;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -60,6 +62,10 @@ public class Dataobjectfileextension implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @Column(name = "mimetype")
+    private String mimetype;
+    @Column(name = "fileextensiondesc")
+    private String fileextensiondesc;
     @OneToMany(mappedBy = "dataobjectfileextensionrefid")
     private List<Dataobject> dataobjectList;
 
@@ -84,12 +90,12 @@ public class Dataobjectfileextension implements Serializable {
         this.id = id;
     }
 
-    public String getDataobjectdataobjectfileextensionname() {
-        return dataobjectdataobjectfileextensionname;
+    public String getFileextensionname() {
+        return fileextensionname;
     }
 
-    public void setDataobjectdataobjectfileextensionname(String dataobjectdataobjectfileextensionname) {
-        this.dataobjectdataobjectfileextensionname = dataobjectdataobjectfileextensionname;
+    public void setFileextensionname(String fileextensionname) {
+        this.fileextensionname = fileextensionname;
     }
 
     public Integer getActive() {
@@ -124,6 +130,22 @@ public class Dataobjectfileextension implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public String getMimetype() {
+        return mimetype;
+    }
+
+    public void setMimetype(String mimetype) {
+        this.mimetype = mimetype;
+    }
+
+    public String getFileextensiondesc() {
+        return fileextensiondesc;
+    }
+
+    public void setFileextensiondesc(String fileextensiondesc) {
+        this.fileextensiondesc = fileextensiondesc;
+    }
+
     @XmlTransient
     public List<Dataobject> getDataobjectList() {
         return dataobjectList;
@@ -153,16 +175,9 @@ public class Dataobjectfileextension implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Dataobjectfileextension{" +
-                "id=" + id +
-                ", dataobjectdataobjectfileextensionname='" + dataobjectdataobjectfileextensionname + '\'' +
-                ", active=" + active +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", dataobjectList=" + dataobjectList +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Dataobjectfileextension[ id=" + id + " ]";
     }
+    
 }

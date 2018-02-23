@@ -175,18 +175,9 @@ public class Server implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Server{" +
-                "id=" + id +
-                ", servername='" + servername + '\'' +
-                ", health=" + health +
-                ", hostname='" + hostname + '\'' +
-                ", ip='" + ip + '\'' +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", softwareList=" + softwareList +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Server[ id=" + id + " ]";
     }
+    
 }

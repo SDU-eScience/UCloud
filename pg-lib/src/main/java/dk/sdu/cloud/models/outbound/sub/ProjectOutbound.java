@@ -1,4 +1,4 @@
-package dk.sdu.cloud.models.outbound;
+package dk.sdu.cloud.models.outbound.sub;
 
 public class ProjectOutbound {
     private int id;

@@ -36,7 +36,6 @@ import javax.xml.bind.annotation.XmlTransient;
     , @NamedQuery(name = "Projectrole.findById", query = "SELECT p FROM Projectrole p WHERE p.id = :id")
     , @NamedQuery(name = "Projectrole.findByProjectrolename", query = "SELECT p FROM Projectrole p WHERE p.projectrolename = :projectrolename")
     , @NamedQuery(name = "Projectrole.findByActive", query = "SELECT p FROM Projectrole p WHERE p.active = :active")
-    , @NamedQuery(name = "Projectrole.findByIrodsrolemap", query = "SELECT p FROM Projectrole p WHERE p.irodsrolemap = :irodsrolemap")
     , @NamedQuery(name = "Projectrole.findByMarkedfordelete", query = "SELECT p FROM Projectrole p WHERE p.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Projectrole.findByModifiedTs", query = "SELECT p FROM Projectrole p WHERE p.modifiedTs = :modifiedTs")
     , @NamedQuery(name = "Projectrole.findByCreatedTs", query = "SELECT p FROM Projectrole p WHERE p.createdTs = :createdTs")})
@@ -52,8 +51,6 @@ public class Projectrole implements Serializable {
     private String projectrolename;
     @Column(name = "active")
     private Integer active;
-    @Column(name = "irodsrolemap")
-    private String irodsrolemap;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -102,14 +99,6 @@ public class Projectrole implements Serializable {
 
     public void setActive(Integer active) {
         this.active = active;
-    }
-
-    public String getIrodsrolemap() {
-        return irodsrolemap;
-    }
-
-    public void setIrodsrolemap(String irodsrolemap) {
-        this.irodsrolemap = irodsrolemap;
     }
 
     public Integer getMarkedfordelete() {
@@ -165,17 +154,9 @@ public class Projectrole implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Projectrole{" +
-                "id=" + id +
-                ", projectrolename='" + projectrolename + '\'' +
-                ", active=" + active +
-                ", irodsrolemap='" + irodsrolemap + '\'' +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", projectpersonrelList=" + projectpersonrelList +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Projectrole[ id=" + id + " ]";
     }
+    
 }

@@ -1,9 +1,9 @@
 package dk.sdu.cloud.TempHandlers;
 
-import dk.sdu.cloud.models.outbound.DataObjectCollectionOutbound;
+import dk.sdu.cloud.models.outbound.sub.DataObjectCollectionOutbound;
 import dk.sdu.cloud.models.outbound.InitUi;
-import dk.sdu.cloud.models.outbound.InitUiResponse;
-import dk.sdu.cloud.models.outbound.ProjectOutbound;
+import dk.sdu.cloud.models.outbound.sub.InitUiResponse;
+import dk.sdu.cloud.models.outbound.sub.ProjectOutbound;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;

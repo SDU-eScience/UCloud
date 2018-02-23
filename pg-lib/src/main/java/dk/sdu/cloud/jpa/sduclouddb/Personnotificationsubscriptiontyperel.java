@@ -152,17 +152,9 @@ public class Personnotificationsubscriptiontyperel implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Personnotificationsubscriptiontyperel{" +
-                "id=" + id +
-                ", active=" + active +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", personrefid=" + personrefid +
-                ", personnotificationsubscriptiontyperefid=" + personnotificationsubscriptiontyperefid +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Personnotificationsubscriptiontyperel[ id=" + id + " ]";
     }
-
+    
 }

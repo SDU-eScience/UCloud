@@ -27,16 +27,17 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "personsystemrolerel")
+@Table(name = "publication_dataobject_rel")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Personsystemrolerel.findAll", query = "SELECT p FROM Personsystemrolerel p")
-    , @NamedQuery(name = "Personsystemrolerel.findById", query = "SELECT p FROM Personsystemrolerel p WHERE p.id = :id")
-    , @NamedQuery(name = "Personsystemrolerel.findByActive", query = "SELECT p FROM Personsystemrolerel p WHERE p.active = :active")
-    , @NamedQuery(name = "Personsystemrolerel.findByMarkedfordelete", query = "SELECT p FROM Personsystemrolerel p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Personsystemrolerel.findByModifiedTs", query = "SELECT p FROM Personsystemrolerel p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Personsystemrolerel.findByCreatedTs", query = "SELECT p FROM Personsystemrolerel p WHERE p.createdTs = :createdTs")})
-public class Personsystemrolerel implements Serializable {
+    @NamedQuery(name = "PublicationDataobjectRel.findAll", query = "SELECT p FROM PublicationDataobjectRel p")
+    , @NamedQuery(name = "PublicationDataobjectRel.findById", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.id = :id")
+    , @NamedQuery(name = "PublicationDataobjectRel.findByActive", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.active = :active")
+    , @NamedQuery(name = "PublicationDataobjectRel.findByZenodotrans", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.zenodotrans = :zenodotrans")
+    , @NamedQuery(name = "PublicationDataobjectRel.findByMarkedfordelete", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PublicationDataobjectRel.findByModifiedTs", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PublicationDataobjectRel.findByCreatedTs", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.createdTs = :createdTs")})
+public class PublicationDataobjectRel implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -46,6 +47,8 @@ public class Personsystemrolerel implements Serializable {
     private Integer id;
     @Column(name = "active")
     private Integer active;
+    @Column(name = "zenodotrans")
+    private Integer zenodotrans;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -56,21 +59,21 @@ public class Personsystemrolerel implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Person personrefid;
-    @JoinColumn(name = "systemrolerefid", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Systemrole systemrolerefid;
+    @JoinColumn(name = "dataobjectrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Dataobject dataobjectrefid;
+    @JoinColumn(name = "publicationrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Publication publicationrefid;
 
-    public Personsystemrolerel() {
+    public PublicationDataobjectRel() {
     }
 
-    public Personsystemrolerel(Integer id) {
+    public PublicationDataobjectRel(Integer id) {
         this.id = id;
     }
 
-    public Personsystemrolerel(Integer id, Date modifiedTs, Date createdTs) {
+    public PublicationDataobjectRel(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -90,6 +93,14 @@ public class Personsystemrolerel implements Serializable {
 
     public void setActive(Integer active) {
         this.active = active;
+    }
+
+    public Integer getZenodotrans() {
+        return zenodotrans;
+    }
+
+    public void setZenodotrans(Integer zenodotrans) {
+        this.zenodotrans = zenodotrans;
     }
 
     public Integer getMarkedfordelete() {
@@ -116,20 +127,20 @@ public class Personsystemrolerel implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Person getPersonrefid() {
-        return personrefid;
+    public Dataobject getDataobjectrefid() {
+        return dataobjectrefid;
     }
 
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
+    public void setDataobjectrefid(Dataobject dataobjectrefid) {
+        this.dataobjectrefid = dataobjectrefid;
     }
 
-    public Systemrole getSystemrolerefid() {
-        return systemrolerefid;
+    public Publication getPublicationrefid() {
+        return publicationrefid;
     }
 
-    public void setSystemrolerefid(Systemrole systemrolerefid) {
-        this.systemrolerefid = systemrolerefid;
+    public void setPublicationrefid(Publication publicationrefid) {
+        this.publicationrefid = publicationrefid;
     }
 
     @Override
@@ -142,10 +153,10 @@ public class Personsystemrolerel implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Personsystemrolerel)) {
+        if (!(object instanceof PublicationDataobjectRel)) {
             return false;
         }
-        Personsystemrolerel other = (Personsystemrolerel) object;
+        PublicationDataobjectRel other = (PublicationDataobjectRel) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -154,7 +165,7 @@ public class Personsystemrolerel implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Personsystemrolerel[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PublicationDataobjectRel[ id=" + id + " ]";
     }
     
 }

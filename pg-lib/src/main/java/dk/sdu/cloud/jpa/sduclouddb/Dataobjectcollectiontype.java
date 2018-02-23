@@ -7,6 +7,7 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -15,10 +16,12 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
@@ -57,6 +60,8 @@ public class Dataobjectcollectiontype implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @OneToMany(mappedBy = "dataobjectcollectiontyperefid")
+    private List<Dataobjectcollection> dataobjectcollectionList;
 
     public Dataobjectcollectiontype() {
     }
@@ -119,6 +124,15 @@ public class Dataobjectcollectiontype implements Serializable {
         this.createdTs = createdTs;
     }
 
+    @XmlTransient
+    public List<Dataobjectcollection> getDataobjectcollectionList() {
+        return dataobjectcollectionList;
+    }
+
+    public void setDataobjectcollectionList(List<Dataobjectcollection> dataobjectcollectionList) {
+        this.dataobjectcollectionList = dataobjectcollectionList;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -139,15 +153,9 @@ public class Dataobjectcollectiontype implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Dataobjectcollectiontype{" +
-                "id=" + id +
-                ", dataobjectcollectiontypename='" + dataobjectcollectiontypename + '\'' +
-                ", active=" + active +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollectiontype[ id=" + id + " ]";
     }
+    
 }

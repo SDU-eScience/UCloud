@@ -39,9 +39,7 @@ import javax.xml.bind.annotation.XmlTransient;
     , @NamedQuery(name = "Publication.findByActive", query = "SELECT p FROM Publication p WHERE p.active = :active")
     , @NamedQuery(name = "Publication.findByMarkedfordelete", query = "SELECT p FROM Publication p WHERE p.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Publication.findByModifiedTs", query = "SELECT p FROM Publication p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Publication.findByCreatedTs", query = "SELECT p FROM Publication p WHERE p.createdTs = :createdTs")
-    , @NamedQuery(name = "Publication.findByZenodotrans", query = "SELECT p FROM Publication p WHERE p.zenodotrans = :zenodotrans")
-    , @NamedQuery(name = "Publication.findByZenodotoken", query = "SELECT p FROM Publication p WHERE p.zenodotoken = :zenodotoken")})
+    , @NamedQuery(name = "Publication.findByCreatedTs", query = "SELECT p FROM Publication p WHERE p.createdTs = :createdTs")})
 public class Publication implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -69,12 +67,10 @@ public class Publication implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @Column(name = "zenodotrans")
-    private Integer zenodotrans;
-    @Column(name = "zenodotoken")
-    private String zenodotoken;
     @OneToMany(mappedBy = "publicationrefid")
     private List<Dataobject> dataobjectList;
+    @OneToMany(mappedBy = "publicationrefid")
+    private List<PublicationDataobjectRel> publicationDataobjectRelList;
     @OneToMany(mappedBy = "publicationrefid")
     private List<Projectpublicationrel> projectpublicationrelList;
 
@@ -155,22 +151,6 @@ public class Publication implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Integer getZenodotrans() {
-        return zenodotrans;
-    }
-
-    public void setZenodotrans(Integer zenodotrans) {
-        this.zenodotrans = zenodotrans;
-    }
-
-    public String getZenodotoken() {
-        return zenodotoken;
-    }
-
-    public void setZenodotoken(String zenodotoken) {
-        this.zenodotoken = zenodotoken;
-    }
-
     @XmlTransient
     public List<Dataobject> getDataobjectList() {
         return dataobjectList;
@@ -178,6 +158,15 @@ public class Publication implements Serializable {
 
     public void setDataobjectList(List<Dataobject> dataobjectList) {
         this.dataobjectList = dataobjectList;
+    }
+
+    @XmlTransient
+    public List<PublicationDataobjectRel> getPublicationDataobjectRelList() {
+        return publicationDataobjectRelList;
+    }
+
+    public void setPublicationDataobjectRelList(List<PublicationDataobjectRel> publicationDataobjectRelList) {
+        this.publicationDataobjectRelList = publicationDataobjectRelList;
     }
 
     @XmlTransient
@@ -209,21 +198,9 @@ public class Publication implements Serializable {
         return true;
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "Publication{" +
-                "id=" + id +
-                ", publicationname='" + publicationname + '\'' +
-                ", publicationextlink='" + publicationextlink + '\'' +
-                ", publicationdate=" + publicationdate +
-                ", active=" + active +
-                ", markedfordelete=" + markedfordelete +
-                ", modifiedTs=" + modifiedTs +
-                ", createdTs=" + createdTs +
-                ", zenodotrans=" + zenodotrans +
-                ", zenodotoken='" + zenodotoken + '\'' +
-                ", dataobjectList=" + dataobjectList +
-                ", projectpublicationrelList=" + projectpublicationrelList +
-                '}';
+    @Override
+    public String toString() {
+        return "dk.sdu.cloud.jpa.sduclouddb.Publication[ id=" + id + " ]";
     }
+    
 }
