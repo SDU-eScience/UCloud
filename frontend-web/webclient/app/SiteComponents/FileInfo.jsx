@@ -7,6 +7,7 @@ import {SensitivityLevel, RightsNameMap} from "../DefaultObjects"
 import {ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup} from "react-bootstrap";
 import swal from "sweetalert2";
 import pubsub from "pubsub-js";
+import PromiseKeeper from "../PromiseKeeper";
 
 class FileInfo extends React.Component {
     constructor(props) {
@@ -19,6 +20,7 @@ class FileInfo extends React.Component {
             path = filePath;
         }
         this.state = {
+            promises: new PromiseKeeper(),
             filePath: path,
             file: null,
             loading: false,
@@ -34,12 +36,16 @@ class FileInfo extends React.Component {
         this.getFile();
     }
 
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
+    }
+
     getFile() {
         this.setState({
             loading: true,
         });
         let path = getParentPath(this.state.filePath);
-        Cloud.get(`files?path=${path}`).then(files => {
+        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(files => {
             let file = files.find(file => file.path.path === this.state.filePath); // FIXME massive overhead for single file
             this.setState(() => ({
                 file: file,

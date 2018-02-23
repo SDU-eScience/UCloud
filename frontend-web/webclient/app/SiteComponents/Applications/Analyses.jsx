@@ -7,11 +7,13 @@ import {Card} from "../Cards";
 import {Table} from 'react-bootstrap';
 import {Link} from "react-router-dom";
 import {PaginationButtons, EntriesPerPageSelector} from "../Pagination"
+import PromiseKeeper from "../../PromiseKeeper";
 
 class Analyses extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             analyses: [],
             loading: false,
             currentPage: 0,
@@ -39,6 +41,7 @@ class Analyses extends React.Component {
 
     componentWillUnmount() {
         clearInterval(this.state.reloadIntervalId);
+        this.state.promises.cancelPromises();
     }
 
     getAnalyses(silent) {
@@ -48,7 +51,7 @@ class Analyses extends React.Component {
             });
         }
 
-        Cloud.get("/hpc/jobs").then(analyses => {
+        this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(analyses => {
             this.setState(() => ({
                 loading: false,
                 analyses: analyses,

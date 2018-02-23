@@ -4,11 +4,13 @@ import {BallPulseLoading} from '../LoadingIcon'
 import pubsub from "pubsub-js";
 import {Card} from "../Cards";
 import {Link} from "react-router-dom";
+import PromiseKeeper from "../../PromiseKeeper";
 
 class Workflows extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             loading: false,
             workflows: [],
             lastSorting: {
@@ -32,6 +34,7 @@ class Workflows extends React.Component {
 
     getWorkflows() {
         this.setState({loading: true});
+        // TODO ADD KEEPER OF PROMISES HERE
         let workflows = [];//Cloud.get("/getWorkflows").then(workflows => {
         workflows.sort((a, b) => {
             return a.name.localeCompare(b.name);

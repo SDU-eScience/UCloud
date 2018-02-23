@@ -1,14 +1,16 @@
 import React from 'react';
-import { Jumbotron} from "react-bootstrap";
+import {Jumbotron} from "react-bootstrap";
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import {BallPulseLoading} from "../LoadingIcon"
+import PromiseKeeper from "../../PromiseKeeper";
 
 class RunApp extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             loading: false,
             appName: props.match.params.appName,
             appVersion: props.match.params.appVersion,
@@ -27,6 +29,11 @@ class RunApp extends React.Component {
     componentDidMount() {
         this.getApplication();
     }
+
+    componentWillUnmount() {
+        this.state.promises.makeCancelable();
+    }
+
 
     handleSubmit(event) {
         event.preventDefault();
@@ -53,7 +60,7 @@ class RunApp extends React.Component {
         } else {
             this.state.parameters.forEach(par => {
                 if (par.type === "output_file") {
-                    job.parameters[par.name] = { destination: "ignored", source: "output.txt" };
+                    job.parameters[par.name] = {destination: "ignored", source: "output.txt"};
                 }
             });
         }
@@ -115,13 +122,14 @@ class RunApp extends React.Component {
         }));
 
         this.setState({loading: true});
-        Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}`).then(app => {
-            this.setState(() => ({
-                parameters: app.parameters,
-                appAuthor: "Dummy",
-                appDescription: app.info.description,
-                loading: false,
-            }));
+        this.state.promises.makeCancelable(Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}`))
+            .promise.then(app => {
+                this.setState(() => ({
+                    parameters: app.parameters,
+                    appAuthor: "Dummy",
+                    appDescription: app.info.description,
+                    loading: false,
+                }));
         });
     }
 

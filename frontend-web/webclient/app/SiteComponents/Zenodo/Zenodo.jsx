@@ -7,11 +7,13 @@ import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
 import pubsub from "pubsub-js";
 import {BallPulseLoading} from "../LoadingIcon";
 import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
+import PromiseKeeper from "../../PromiseKeeper";
 
 class ZenodoHome extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             publications: {},
             connected: false,
             loading: false,
@@ -27,17 +29,17 @@ class ZenodoHome extends React.Component {
         this.setState(() => ({
             loading: true,
         }));
-        Cloud.get("/zenodo/publications").then((publications) => {
+        this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((publications) => {
             this.setState(() => ({
                 connected: publications.connected,
                 publications: publications.inProgress,
                 loading: false,
             }));
-        }).fail(() => {
-            this.setState(() => ({
-                loading: false
-            }));
         });
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
     }
 
     render() {

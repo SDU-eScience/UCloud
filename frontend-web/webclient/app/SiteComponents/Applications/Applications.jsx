@@ -6,11 +6,13 @@ import {Table, Button} from 'react-bootstrap';
 import {Card} from "../Cards";
 import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
+import PromiseKeeper from "../../PromiseKeeper";
 
 class Applications extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             loading: false,
             applications: [],
             totalPages: () => Math.ceil(this.state.applications.length / this.state.applicationsPerPage),
@@ -39,7 +41,7 @@ class Applications extends React.Component {
 
     getApplications() {
         this.setState({loading: true});
-        Cloud.get("/hpc/apps").then(apps => {
+        this.state.promises.makeCancelable(Cloud.get("/hpc/apps")).promise.then(apps => {
             this.setState(() => ({
                 applications: apps.sort((a, b) => {
                     return a.info.name.localeCompare(b.info.name)
@@ -132,6 +134,10 @@ class Applications extends React.Component {
         this.setState(() => ({
             filesPerPage: newPageSize,
         }));
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
     }
 
     render() {

@@ -4,11 +4,13 @@ import pubsub from "pubsub-js";
 import SectionContainerCard from "../SectionContainerCard";
 import {BallPulseLoading} from "../LoadingIcon";
 import {Cloud} from "../../../authentication/SDUCloudObject";
+import PromiseKeeper from "../../PromiseKeeper";
 
 class ZenodoInfo extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             loading: false,
             publicationID: window.decodeURIComponent(props.match.params.jobID),
             publication: null,
@@ -18,13 +20,17 @@ class ZenodoInfo extends React.Component {
     componentWillMount() {
         pubsub.publish('setPageTitle', "Zenodo Publication Info");
         this.setState(() => ({loading: true,}));
-        Cloud.get(`/zenodo/publications/${this.state.publicationID}`).then((publication) => {
+        this.state.promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`)).promise.then((publication) => {
             this.setState(() => ({
                 publication: publication.publication,
                 uploads: publication.uploads,
                 loading: false,
             }));
         });
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
     }
 
     render() {
@@ -76,7 +82,7 @@ function FilesList(props) {
     const filesList = props.files.map((file, index) =>
         <tr key={index}>
             <td>{file.dataObject}</td>
-            <td>{file.hasBeenTransmitted ? "✓" : "…" }</td>
+            <td>{file.hasBeenTransmitted ? "✓" : "…"}</td>
         </tr>
     );
     return (

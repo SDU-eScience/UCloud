@@ -5,11 +5,13 @@ import {Cloud} from "../../../authentication/SDUCloudObject";
 import pubsub from "pubsub-js";
 import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
 import {LoadingButton} from "../LoadingIcon";
+import PromiseKeeper from "../../PromiseKeeper";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             files: [""],
             name: "",
             requestSent: false,
@@ -25,16 +27,16 @@ class ZenodoPublish extends React.Component {
             loading: true,
         }));
         pubsub.publish('setPageTitle', "Zenodo Publication");
-        Cloud.get("/zenodo/publications").then((publications) => {
+        this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((publications) => {
             this.setState(() => ({
                 connected: publications.connected,
                 loading: false,
             }));
-        }).fail(() => {
-            this.setState(() => ({
-                loading: false
-            }));
         });
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
     }
 
     submit(e) {

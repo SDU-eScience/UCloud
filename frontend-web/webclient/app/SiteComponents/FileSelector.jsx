@@ -4,12 +4,14 @@ import {Modal, Button, Breadcrumb} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import Breadcrumbs from "./Breadcrumbs"
 import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
+import PromiseKeeper from "../PromiseKeeper";
 
 class FileSelector extends React.Component {
     constructor(props) {
         super(props);
         let file = props.initialFile ? props.initialFile : { path: { path: "" }};
         this.state = {
+            promises: new PromiseKeeper(),
             parameter: props.parameter,
             selectedFile: file,
             isSource: props.isSource,
@@ -28,6 +30,10 @@ class FileSelector extends React.Component {
 
     componentDidMount() {
         this.getFiles(`/home/${Cloud.username}`);
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
     }
 
     openModal() {
@@ -52,7 +58,7 @@ class FileSelector extends React.Component {
 
     getFiles(path) {
         this.setState(() => ({loading: true}));
-        Cloud.get(`files?path=${path}`).then(files => {
+        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(files => {
             this.setState(() => ({
                 files: sortFilesByTypeAndName(files, true),
                 loading: false,
