@@ -19,7 +19,6 @@ import io.ktor.routing.get
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.eclipse.persistence.config.PersistenceUnitProperties
@@ -122,7 +121,7 @@ class Server(
         log.info("Kafka Streams started!")
 
         initialized = true
-        serviceRegistry.register()
+        serviceRegistry.register(listOf("/api/zenodo", "/zenodo/oauth"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

@@ -2,6 +2,9 @@ package dk.sdu.cloud.service
 
 import com.github.zafarkhaja.semver.Version
 import com.orbitz.consul.Consul
+import com.orbitz.consul.model.kv.ImmutableOperation
+import com.orbitz.consul.model.kv.Operation
+import com.orbitz.consul.model.kv.Verb
 import dk.sdu.cloud.client.HttpClient
 import dk.sdu.cloud.client.ServiceDescription
 import kotlinx.coroutines.experimental.runBlocking
@@ -24,15 +27,48 @@ class ServiceRegistry(
 ) {
     private val agent = consul.agentClient()
     private val health = consul.healthClient()
+    private val kvStore = consul.keyValueClient()
 
     private var isRegistered = false
 
-    fun register(httpEndpoint: String? = HEALTH_URI, serviceCheckFunction: () -> Boolean = { true }) {
+    private fun kvOperation(verb: Verb, key: String? = null, value: String? = null): Operation =
+        ImmutableOperation.builder().apply {
+            verb(verb.toValue())
+            if (key != null) key(key)
+            if (value != null) value(value)
+        }.build()
+
+    fun register(
+        exposedHttpEndpoints: List<String>,
+        httpHealthEndpoint: String? = HEALTH_URI,
+        serviceHealthCheck: (() -> Boolean)? = null
+    ) {
+
         if (isRegistered) throw IllegalStateException("Already registered at Consul!")
 
         // Must be unique, but should be reused (old entries will stick around in Consul but in a failed state
         // when TTL expires)
         val serviceId = "${instance.hostname}:${instance.port}-${instance.definition.name}"
+
+        // TODO FIXME K/V store is not replicated by default. This strategy might not actually work...
+        val apiKeyValueOperations = ArrayList<Operation>().apply {
+            val apiKeyPrefix = "service/${instance.definition.name}/api"
+
+            add(kvOperation(Verb.DELETE_TREE, apiKeyPrefix))
+
+            exposedHttpEndpoints.forEachIndexed { index, endpoint ->
+                add(kvOperation(Verb.SET, "$apiKeyPrefix/_$index", endpoint))
+            }
+        }.toList()
+
+        var txAttempt = 0
+        while (true) {
+            if (txAttempt >= 5) throw IllegalStateException("Unable to write API into Consul K/V Store!")
+            val response = kvStore.performTransaction(*apiKeyValueOperations.toTypedArray())
+            if (response.response.errors().isEmpty()) break
+            Thread.sleep(500)
+            txAttempt++
+        }
 
         agent.register(
             instance.port,
@@ -48,7 +84,7 @@ class ServiceRegistry(
             log.debug("Scheduling service check...")
 
             val result = try {
-                serviceCheckFunction()
+                serviceHealthCheck?.invoke() ?: true
             } catch (ex: Exception) {
                 log.warn("Caught exception while running service check!")
                 log.warn(ex.stackTraceToString())
@@ -63,7 +99,7 @@ class ServiceRegistry(
                     return@run false
                 }
 
-                if (httpEndpoint != null) {
+                if (httpHealthEndpoint != null) {
                     // TODO FIXME HTTP IS HARDCODED
                     val status = runBlocking {
                         HttpClient.get("http://${instance.hostname}:${instance.port}$HEALTH_URI")
@@ -112,7 +148,6 @@ class ServiceRegistry(
 
         return listServices(name).filter { it.definition.version.satisfies(versionExpression) }
     }
-
 
     companion object {
         const val VERSION_PREFIX = "v."
