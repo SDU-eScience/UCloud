@@ -22,7 +22,6 @@ import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.zookeeper.ZooKeeper
 import org.eclipse.persistence.config.PersistenceUnitProperties
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
@@ -31,7 +30,7 @@ import javax.persistence.Persistence
 class Server(
     private val cloud: AuthenticatedCloud,
     private val kafka: KafkaServices,
-    private val zk: ZooKeeper,
+    private val serviceRegistry: ServiceRegistry,
     private val config: Configuration,
     private val ktor: HttpServerProvider
 ) {
@@ -44,12 +43,6 @@ class Server(
         if (initialized) throw IllegalStateException("Already started!")
 
         val instance = ZenodoServiceDescription.instance(config.connConfig)
-        val node = runBlocking {
-            log.info("Registering service...")
-            zk.registerService(instance).also {
-                log.debug("Service registered! Got back node: $it")
-            }
-        }
 
         val zenodoOauth = ZenodoOAuth(
             clientSecret = config.zenodo.clientSecret,
@@ -129,7 +122,7 @@ class Server(
         log.info("Kafka Streams started!")
 
         initialized = true
-        runBlocking { zk.markServiceAsReady(node, instance) }
+        serviceRegistry.register()
         log.info("Server is ready!")
         log.info(instance.toString())
     }

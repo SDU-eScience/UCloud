@@ -3,7 +3,6 @@ package dk.sdu.cloud.service
 import com.github.zafarkhaja.semver.Version
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.PreparedRESTCall
-import org.apache.zookeeper.ZooKeeper
 import dk.sdu.cloud.client.ServiceDescription
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
@@ -30,7 +29,7 @@ import java.util.*
  * > this allows patch and minor updates for versions 1.0.0 and above, patch updates for versions 0.X >=0.1.0, and no
  * > updates for versions 0.0.X.
  */
-class DirectServiceClient(private val registry: ZooKeeper) : CloudContext {
+class DirectServiceClient(private val registry: ServiceRegistry) : CloudContext {
     private val localCache = HashMap<String, URL>()
     private val versionCache = HashMap<String, String>()
     private val random = Random()
@@ -63,32 +62,30 @@ class DirectServiceClient(private val registry: ZooKeeper) : CloudContext {
     }
 
     private fun findServiceViaCache(description: ServiceDescription) =
-            localCache.computeIfAbsent(description.name) {
-                runBlocking {
-                    findService(description)
-                }
-            }.toString().also {
-                log.debug("findServiceCache($description) = $it")
+        localCache.computeIfAbsent(description.name) {
+            runBlocking {
+                findService(description)
             }
+        }.toString().also {
+            log.debug("findServiceCache($description) = $it")
+        }
 
-    private suspend fun findService(service: ServiceDescription): URL {
+    private fun findService(service: ServiceDescription): URL {
         log.debug("Locating service: $service")
         val versionExpression = versionCache.computeIfAbsent(service.name) {
             val parsed = Version.valueOf(service.version)
             "^${parsed.majorVersion}.${parsed.minorVersion}.${parsed.patchVersion}"
         }
 
-        val services = registry.listServicesWithStatus(service.name, versionExpression)
-                .values
-                .firstOrNull()
-                ?.filter { it.status == ServiceStatus.READY }
-                ?.takeIf { it.isNotEmpty() }
-                ?: throw ConnectException("No services available")
+        val services =
+            registry.listServices(service.name, versionExpression)
+                .takeIf { it.isNotEmpty() }
+                    ?: throw ConnectException("No services available")
 
         log.debug("Found the following service: $services")
         val resolvedService = services[random.nextInt(services.size)]
         log.debug("Using $resolvedService")
-        return URL("http://${resolvedService.instance.hostname}:${resolvedService.instance.port}")
+        return URL("http://${resolvedService.hostname}:${resolvedService.port}")
     }
 
     companion object {

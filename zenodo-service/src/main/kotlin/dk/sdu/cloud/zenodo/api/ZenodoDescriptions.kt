@@ -2,7 +2,6 @@ package dk.sdu.cloud.zenodo.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByIntId
-import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.netty.handler.codec.http.HttpMethod

@@ -38,18 +38,18 @@ fun main(args: Array<String>) {
     val configuration = readConfigurationBasedOnArgs<Configuration>(args, serviceDescription, log = log)
     val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
 
-    log.info("Connecting to Zookeeper")
-    val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
-    log.info("Connected to Zookeeper")
+    log.info("Connecting to Service Registry!")
+    val serviceRegistry = ServiceRegistry(serviceDescription.instance(configuration.connConfig))
+    log.info("Connected to Service Registry!")
 
     val cloud = if (args.getOrNull(1) == "dev")
         RefreshingJWTAuthenticator(SDUCloud("https://cloud.sdu.dk"), configuration.refreshToken)
     else
-        RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
+        RefreshingJWTAuthenticator(DirectServiceClient(serviceRegistry), configuration.refreshToken)
 
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
-    Server(cloud, kafka, zk, configuration, serverProvider).start()
+    Server(cloud, kafka, serviceRegistry, configuration, serverProvider).start()
 }

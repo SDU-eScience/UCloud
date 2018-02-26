@@ -1,5 +1,8 @@
 package dk.sdu.cloud.service
 
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.client.AuthenticatedCloud
 import io.ktor.application.*
@@ -11,6 +14,7 @@ import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.httpMethod
+import io.ktor.request.path
 import io.ktor.request.uri
 import io.ktor.response.respond
 import io.ktor.server.engine.ApplicationEngine
@@ -19,7 +23,7 @@ import io.ktor.util.toMap
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtilsKt")
+private val utilsLog = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtilsKt")
 
 // TODO Some of these should probably be a feature
 
@@ -29,7 +33,16 @@ fun Application.installDefaultFeatures(
     serviceInstance: ServiceInstance,
     requireJobId: Boolean = true
 ) {
-    log.info("Installing default features. requireJobId=$requireJobId")
+    utilsLog.info("Installing default features. requireJobId=$requireJobId")
+
+    intercept(ApplicationCallPipeline.Infrastructure) {
+        if (call.request.path() == HEALTH_URI) {
+            utilsLog.debug("Received request for health!")
+            call.respond(HttpStatusCode.NoContent)
+            finish()
+            return@intercept
+        }
+    }
 
     install(CallLogging)
     install(DefaultHeaders)
@@ -41,6 +54,12 @@ fun Application.installDefaultFeatures(
     install(ContentNegotiation) {
         jackson {
             registerKotlinModule()
+
+            configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+            configure(JsonParser.Feature.ALLOW_COMMENTS, true)
+            configure(JsonParser.Feature.ALLOW_TRAILING_COMMA, true)
+            configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true)
         }
     }
 
@@ -52,7 +71,7 @@ fun Application.installDefaultFeatures(
         val jobId = call.request.headers["Job-Id"]
         if (jobId == null) {
             if (requireJobId) {
-                log.debug("Did not receive a valid Job-Id in the header of the request!")
+                utilsLog.debug("Did not receive a valid Job-Id in the header of the request!")
                 call.respond(HttpStatusCode.BadRequest)
                 finish()
                 return@intercept
@@ -65,6 +84,8 @@ fun Application.installDefaultFeatures(
         if (causedBy != null) call.request.causedBy = causedBy
     }
 }
+
+const val HEALTH_URI = "/health"
 
 private val jobIdKey = AttributeKey<String>("job-id")
 var ApplicationRequest.jobId: String

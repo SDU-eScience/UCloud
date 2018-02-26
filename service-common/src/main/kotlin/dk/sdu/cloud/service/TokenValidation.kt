@@ -22,7 +22,7 @@ object TokenValidation {
         )
     }
 
-    private val algorithm by lazy { Algorithm.RSA256(certificate!!.publicKey as RSAPublicKey) }
+    private val algorithm by lazy { Algorithm.RSA256(certificate!!.publicKey as RSAPublicKey, null) }
 
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
         return JWT.require(algorithm).run {

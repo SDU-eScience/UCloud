@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
@@ -24,6 +25,9 @@ private val objectMapper by lazy {
     jacksonObjectMapper().apply {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+        configure(JsonParser.Feature.ALLOW_COMMENTS, true)
+        configure(JsonParser.Feature.ALLOW_TRAILING_COMMA, true)
+        configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true)
     }
 }
 

@@ -22,8 +22,6 @@ data class DatabaseConfiguration(
 
 data class KafkaConnectionConfig(val servers: List<KafkaHostConfig>)
 
-data class ZookeeperConnectionConfig(val servers: List<ZooKeeperHostInfo>)
-
 data class RawServiceConnectionConfig(
         val hostname: String,
         val port: Int
@@ -38,7 +36,6 @@ data class ServiceConnectionConfig(
 data class RawConnectionConfig(
         // All private to encourage correct usage
         private val kafka: KafkaConnectionConfig,
-        private val zookeeper: ZookeeperConnectionConfig,
         private val service: RawServiceConnectionConfig?,
         private val database: DatabaseConfiguration?
 ) {
@@ -63,7 +60,7 @@ data class RawConnectionConfig(
             ServiceConnectionConfig(description, service.hostname, service.port)
         }
 
-        val result = ConnectionConfig(kafka, zookeeper, processedService, database)
+        val result = ConnectionConfig(kafka, processedService, database)
         _processed = result
         return result
     }
@@ -94,7 +91,6 @@ data class RawConnectionConfig(
 
 data class ConnectionConfig(
         val kafka: KafkaConnectionConfig,
-        val zookeeper: ZookeeperConnectionConfig,
         val service: ServiceConnectionConfig,
         val database: DatabaseConfiguration?
 )

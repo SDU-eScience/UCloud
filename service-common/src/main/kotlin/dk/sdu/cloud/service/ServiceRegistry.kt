@@ -1,309 +1,125 @@
 package dk.sdu.cloud.service
 
 import com.github.zafarkhaja.semver.Version
+import com.orbitz.consul.Consul
+import dk.sdu.cloud.client.HttpClient
 import dk.sdu.cloud.client.ServiceDescription
-import org.apache.zookeeper.*
-import org.apache.zookeeper.Watcher.Event.KeeperState.AuthFailed
-import org.apache.zookeeper.Watcher.Event.KeeperState.SyncConnected
-import org.apache.zookeeper.data.ACL
-import org.apache.zookeeper.data.Stat
-import java.io.*
-import kotlin.coroutines.experimental.suspendCoroutine
-
-enum class ServiceStatus {
-    STARTING,
-    READY,
-    STOPPING
-}
-
-private const val ROOT_NODE = "/services"
+import kotlinx.coroutines.experimental.runBlocking
+import org.slf4j.LoggerFactory
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 
 fun ServiceDescription.definition(): ServiceDefinition = ServiceDefinition(name, Version.valueOf(version))
 fun ServiceDescription.instance(config: ConnectionConfig): ServiceInstance =
-        ServiceInstance(definition(), config.service.hostname, config.service.port)
+    ServiceInstance(definition(), config.service.hostname, config.service.port)
 
-data class ServiceDefinition(val name: String, val version: Version) : Serializable
-data class ServiceInstance(val definition: ServiceDefinition, val hostname: String, val port: Int) : Serializable
-data class RunningService(val instance: ServiceInstance, val status: ServiceStatus) : Serializable
+data class ServiceDefinition(val name: String, val version: Version)
+data class ServiceInstance(val definition: ServiceDefinition, val hostname: String, val port: Int)
 
-// The ACL should probably use x509 as scheme (client certificate). At this point it is just a matter of how we
-// do the identity.
-// https://cwiki.apache.org/confluence/display/ZOOKEEPER/ZooKeeper+SSL+User+Guide
-suspend fun ZooKeeper.registerService(instance: ServiceInstance, acl: List<ACL> = ZooDefs.Ids.OPEN_ACL_UNSAFE): String {
-    val service = RunningService(instance, ServiceStatus.STARTING)
-    val path = computeServicePath(instance)
+class ServiceRegistry(
+    private val instance: ServiceInstance,
+    consul: Consul = Consul.builder().build(),
+    private val serviceCheckExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+) {
+    private val agent = consul.agentClient()
+    private val health = consul.healthClient()
 
-    val serialized = serializeRunningService(service)
-    return try {
-        aCreate(path, serialized, acl, CreateMode.EPHEMERAL_SEQUENTIAL)
-    } catch (ex: KeeperException.NoNodeException) {
-        initializeNodes(instance)
-        aCreate(path, serialized, acl, CreateMode.EPHEMERAL_SEQUENTIAL)
-    }
-}
+    private var isRegistered = false
 
-private suspend fun ZooKeeper.initializeNodes(instance: ServiceInstance) {
-    if (!aExists(ROOT_NODE)) {
-        aCreate(ROOT_NODE, ByteArray(0), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-    }
+    fun register(httpEndpoint: String? = HEALTH_URI, serviceCheckFunction: () -> Boolean = { true }) {
+        if (isRegistered) throw IllegalStateException("Already registered at Consul!")
 
-    computeServicePath(instance.definition.name).takeIf { !aExists(it) }?.let { path ->
-        aCreate(path, ByteArray(0), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-    }
+        // Must be unique, but should be reused (old entries will stick around in Consul but in a failed state
+        // when TTL expires)
+        val serviceId = "${instance.hostname}:${instance.port}-${instance.definition.name}"
 
-    computeServicePath(instance.definition.name, instance.definition.version).takeIf { !aExists(it) }?.let { path ->
-        aCreate(path, ByteArray(0), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-    }
-}
+        agent.register(
+            instance.port,
+            TTL_IN_SECONDS,
+            instance.definition.name,
+            serviceId,
+            // Tags
+            "api",
+            VERSION_PREFIX + instance.definition.version.toStringNoMetadata()
+        )
 
-suspend fun ZooKeeper.markServiceAsReady(node: String, instance: ServiceInstance) {
-    val service = RunningService(instance, ServiceStatus.READY)
-    aSetData(node, serializeRunningService(service))
-}
+        serviceCheckExecutor.scheduleAtFixedRate({
+            log.debug("Scheduling service check...")
 
-suspend fun ZooKeeper.markServiceAsStopping(node: String, instance: ServiceInstance) {
-    val service = RunningService(instance, ServiceStatus.STOPPING)
-    aSetData(node, serializeRunningService(service))
-}
-
-suspend fun ZooKeeper.listServices(service: ServiceDefinition): List<String> =
-        listServices(service.name, service.version)
-
-suspend fun ZooKeeper.listServices(name: String): Map<Version, List<String>> {
-    val servicePath = computeServicePath(name)
-
-    try {
-        return aGetChildren(servicePath).mapNotNull {
-            val version = Version.valueOf(it) ?: return@mapNotNull null
-            val versionPath = "$servicePath/$it"
-            version to aGetChildren(versionPath).map { "$versionPath/$it" }
-        }.toMap()
-    } catch (ex: KeeperException.NoNodeException) {
-        return emptyMap()
-    }
-}
-
-suspend fun ZooKeeper.listServices(name: String, versionExpression: String): Map<Version, List<String>> {
-    if (versionExpression.contains("-SNAPSHOT")) {
-        throw IllegalArgumentException("Version metadata not allowed in version expression")
-    }
-    return listServices(name).filterKeys { it.satisfies(versionExpression) }
-}
-
-suspend fun ZooKeeper.listServicesWithStatus(name: String): Map<Version, List<RunningService>> =
-        listServices(name).mapValues { it.value.map { deserializeRunningService(aGetData(it)) } }
-
-suspend fun ZooKeeper.listServicesWithStatus(
-        name: String,
-        versionExpression: String
-): Map<Version, List<RunningService>> {
-    return listServices(name, versionExpression).mapValues {
-        it.value.map {
-            deserializeRunningService(aGetData(it))
-        }
-    }
-}
-
-suspend fun ZooKeeper.listServices(name: String, version: Version): List<String> =
-        try {
-            aGetChildren(computeServicePath(name, version)).map { "${ROOT_NODE}/$name/$version/$it" }
-        } catch (ex: KeeperException.NoNodeException) {
-            emptyList()
-        }
-
-suspend fun ZooKeeper.listServicesWithStatus(service: ServiceDefinition): List<RunningService> =
-        listServicesWithStatus(service.name, service.version)
-
-suspend fun ZooKeeper.listServicesWithStatus(name: String, version: Version): List<RunningService> =
-        listServices(name, version).map {
-            deserializeRunningService(aGetData(it))
-        }
-
-suspend fun ZooKeeper.aExists(path: String, watch: Boolean = false): Boolean = suspendCoroutine { cont ->
-    exists(path, watch, { status, _, _, result ->
-        if (status == KeeperException.Code.OK.intValue()) {
-            cont.resume(result != null)
-        } else {
-            val code = KeeperException.Code.get(status)
-            if (code == KeeperException.Code.NONODE) {
-                cont.resume(false)
-            } else {
-                cont.resumeWithException(KeeperException.create(code, path))
+            val result = try {
+                serviceCheckFunction()
+            } catch (ex: Exception) {
+                log.warn("Caught exception while running service check!")
+                log.warn(ex.stackTraceToString())
+                false
             }
-        }
-    }, null)
-}
 
-suspend fun ZooKeeper.aCreate(path: String, serialized: ByteArray, acl: List<ACL>, mode: CreateMode): String =
-        suspendCoroutine { cont ->
-            create(path, serialized, acl, mode, { status, path, _, name ->
-                if (status == KeeperException.Code.OK.intValue()) {
-                    cont.resume(name)
-                } else {
-                    cont.resumeWithException(KeeperException.create(KeeperException.Code.get(status), path))
+            log.debug("Result was $result")
+
+            val serviceIsOkay: Boolean = run {
+                if (!result) {
+                    log.warn("Service check returned false. Setting state to critical!")
+                    return@run false
                 }
-            }, null)
-        }
 
-suspend fun ZooKeeper.aDelete(path: String, version: Int = -1) = suspendCoroutine<Unit> { cont ->
-    delete(path, version, { status, _, _ ->
-        if (status == KeeperException.Code.OK.intValue()) {
-            cont.resume(Unit)
-        } else {
-            cont.resumeWithException(KeeperException.create(KeeperException.Code.get(status), path))
-        }
-    }, null)
-}
+                if (httpEndpoint != null) {
+                    // TODO FIXME HTTP IS HARDCODED
+                    val status = runBlocking {
+                        HttpClient.get("http://${instance.hostname}:${instance.port}$HEALTH_URI")
+                    }
 
-suspend fun ZooKeeper.aSetData(path: String, data: ByteArray, version: Int = -1) = suspendCoroutine<Stat> { cont ->
-    setData(path, data, version, { status, _, _, stat ->
-        if (status == KeeperException.Code.OK.intValue()) {
-            cont.resume(stat)
-        } else {
-            cont.resumeWithException(KeeperException.create(KeeperException.Code.get(status), path))
-        }
-    }, null)
-}
+                    if (status.statusCode !in 200..299) {
+                        log.warn("Health endpoint did not return a status code in range 200..299")
+                        log.warn("${status.statusCode} - ${status.statusText}")
+                        log.warn(status.responseBody)
 
-suspend fun ZooKeeper.aGetData(path: String, watch: Boolean = false): ByteArray = suspendCoroutine { cont ->
-    getData(path, watch, { status, _, _, result, _ ->
-        if (status == KeeperException.Code.OK.intValue()) {
-            cont.resume(result)
-        } else {
-            cont.resumeWithException(KeeperException.create(KeeperException.Code.get(status), path))
-        }
-    }, null)
-}
-
-suspend fun ZooKeeper.aGetChildren(path: String, watch: Boolean = false): List<String> = suspendCoroutine { cont ->
-    var didAnswer = false
-    getChildren(path, watch, { status, _, _, children ->
-        if (didAnswer) return@getChildren // sometimes the watcher will be called more than once
-
-        didAnswer = true
-        if (status == KeeperException.Code.OK.intValue()) {
-            cont.resume(children)
-        } else {
-            cont.resumeWithException(KeeperException.create(KeeperException.Code.get(status), path))
-        }
-    }, null)
-}
-
-suspend fun ZooKeeper.aWatchChildren(path: String, watcher: Watcher): List<String> = suspendCoroutine { cont ->
-    getChildren(path, watcher, AsyncCallback.ChildrenCallback { status, _, _, children ->
-        if (status == KeeperException.Code.OK.intValue()) {
-            cont.resume(children)
-        } else {
-            cont.resumeWithException(KeeperException.create(KeeperException.Code.get(status), path))
-        }
-    }, null)
-}
-
-class ZooKeeperHostInfo(val hostname: String, val port: Int = 2181, val chroot: String? = null) {
-    override fun toString() = "$hostname:$port${chroot ?: ""}"
-}
-
-class ZooKeeperConnection(val hosts: List<ZooKeeperHostInfo>) {
-    // Loosely based on: https://www.tutorialspoint.com/zookeeper/zookeeper_api.htm
-
-    suspend fun connect(sessionId: Long? = null, sessionPassword: ByteArray? = null): ZooKeeper =
-            suspendCoroutine { cont ->
-                val connectString = hosts.joinToString(",")
-                val timeout = 5000
-                var zk: ZooKeeper? = null
-
-                val watcher = Watcher {
-                    when (it.state) {
-                        SyncConnected -> {
-                            cont.resume(zk!!)
-                        }
-
-                        AuthFailed -> {
-                            cont.resumeWithException(IllegalStateException("Auth failed!"))
-                        }
-
-                        else -> {
-                            cont.resumeWithException(
-                                    IllegalStateException("Not yet implemented. Unexpected state: ${it.state}")
-                            )
-                        }
-
+                        agent.fail(serviceId)
+                        return@run false
                     }
                 }
 
-                zk = if (sessionId != null || sessionPassword != null) {
-                    ZooKeeper(connectString, timeout, watcher, sessionId!!, sessionPassword!!)
-                } else {
-                    ZooKeeper(connectString, timeout, watcher)
-                }
+                return@run true
             }
-}
 
-private fun serializeRunningService(service: RunningService): ByteArray = ByteArrayOutputStream().also {
-    DataOutputStream(it).use {
-        it.writeShort(1) // Version
+            if (serviceIsOkay) {
+                agent.pass(serviceId)
+            } else {
+                agent.fail(serviceId)
+            }
+        }, 0L, CHECK_PERIOD_IN_SECONDS, TimeUnit.SECONDS)
 
-        with(service.instance.definition) {
-            it.writeUTF(name)
-            it.writeUTF(version.toString())
-        }
-
-        with(service.instance) {
-            it.writeUTF(hostname)
-            it.writeInt(port)
-        }
-
-        with(service) {
-            it.writeInt(status.ordinal)
-        }
+        isRegistered = true
     }
-}.toByteArray()
 
-private fun deserializeRunningService(array: ByteArray): RunningService =
-        DataInputStream(ByteArrayInputStream(array)).use {
-            val version = it.readShort()
-            if (version != 1.toShort()) throw IllegalStateException("Unsupported version")
+    fun listServices(name: String): List<ServiceInstance> =
+        health.getHealthyServiceInstances(name).response.mapNotNull {
+            val version = it.service.tags.find { it.startsWith(VERSION_PREFIX) }?.let {
+                try {
+                    Version.valueOf(it.substringAfter(VERSION_PREFIX))
+                } catch (ex: Exception) {
+                    null
+                }
+            } ?: return@mapNotNull null
 
-            val definition = ServiceDefinition(
-                    name = it.readUTF(),
-                    version = Version.valueOf(it.readUTF())
-            )
-
-            val instance = ServiceInstance(
-                    hostname = it.readUTF(),
-                    port = it.readInt(),
-                    definition = definition
-            )
-
-            RunningService(
-                    status = ServiceStatus.values()[it.readInt()],
-                    instance = instance
-            )
+            ServiceInstance(ServiceDefinition(it.service.service, version), it.node.address, it.service.port)
         }
 
-private fun computeServicePath(instance: ServiceInstance) =
-        computeServicePath(instance.definition.name, instance.definition.version, instance.hostname, instance.port)
+    fun listServices(name: String, versionExpression: String): List<ServiceInstance> {
+        if (versionExpression.contains("-SNAPSHOT")) {
+            throw IllegalArgumentException("Version metadata not allowed in version expression")
+        }
 
-private fun computeServicePath(name: String, version: Version? = null, hostname: String? = null, port: Int? = null) =
-        StringBuilder().apply {
-            append(ROOT_NODE)
-            append('/')
-            append(name)
-            if (version != null) {
-                append('/')
-                // Don't write version metadata
-                append(version.majorVersion)
-                append('.')
-                append(version.minorVersion)
-                append('.')
-                append(version.patchVersion)
+        return listServices(name).filter { it.definition.version.satisfies(versionExpression) }
+    }
 
-                if (hostname != null) {
-                    append('/')
-                    append(hostname)
-                    port ?: throw NullPointerException("when hostname != null then port must be != null")
-                    append('-')
-                    append(port)
-                }
-            }
-        }.toString()
+
+    companion object {
+        const val VERSION_PREFIX = "v."
+        const val TTL_IN_SECONDS = 10L
+        const val CHECK_PERIOD_IN_SECONDS = 5L
+
+        private val log = LoggerFactory.getLogger(ServiceRegistry::class.java)
+        private fun Version.toStringNoMetadata() = "$majorVersion.$minorVersion.$patchVersion"
+    }
+}
