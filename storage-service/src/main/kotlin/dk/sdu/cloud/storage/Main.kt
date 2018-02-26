@@ -2,14 +2,12 @@ package dk.sdu.cloud.storage
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.client.SDUCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import kotlinx.coroutines.experimental.runBlocking
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.slf4j.LoggerFactory
@@ -44,9 +42,9 @@ fun main(args: Array<String>) {
     val configuration = readConfigurationBasedOnArgs<Configuration>(args, StorageServiceDescription, log = log)
     val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
 
-    log.info("Connecting to Zookeeper")
-    val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
-    log.info("Connected to Zookeeper")
+    log.info("Connecting to Service Registry")
+    val serviceRegistry = ServiceRegistry(StorageServiceDescription.instance(configuration.connConfig))
+    log.info("Connected to Service Registry")
 
     val storageService = with(configuration.storage) {
         IRodsStorageConnectionFactory(
@@ -65,10 +63,7 @@ fun main(args: Array<String>) {
         )
     }
 
-    val cloud = if (args.getOrNull(1) == "dev")
-        RefreshingJWTAuthenticator(SDUCloud("https://cloud.sdu.dk"), configuration.refreshToken)
-    else
-        RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), configuration.refreshToken)
 
     val adminAccount = run {
         val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
@@ -79,5 +74,5 @@ fun main(args: Array<String>) {
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
-    Server(configuration, storageService, adminAccount, kafka, serverProvider, zk, cloud).start()
+    Server(configuration, storageService, adminAccount, kafka, serverProvider, serviceRegistry, cloud).start()
 }

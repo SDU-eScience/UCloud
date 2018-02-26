@@ -2,12 +2,10 @@ package dk.sdu.cloud.zenodo
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.client.SDUCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 
 data class Configuration(
@@ -42,10 +40,7 @@ fun main(args: Array<String>) {
     val serviceRegistry = ServiceRegistry(serviceDescription.instance(configuration.connConfig))
     log.info("Connected to Service Registry!")
 
-    val cloud = if (args.getOrNull(1) == "dev")
-        RefreshingJWTAuthenticator(SDUCloud("https://cloud.sdu.dk"), configuration.refreshToken)
-    else
-        RefreshingJWTAuthenticator(DirectServiceClient(serviceRegistry), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), configuration.refreshToken)
 
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)

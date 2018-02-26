@@ -22,7 +22,6 @@ import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -30,7 +29,7 @@ import java.util.concurrent.TimeUnit
 
 class Server(
     private val kafka: KafkaServices,
-    private val zk: ZooKeeper,
+    private val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticator,
     private val config: HPCConfig,
     private val ktor: HttpServerProvider,
@@ -47,12 +46,6 @@ class Server(
         if (initialized) throw IllegalStateException("Already started!")
 
         val instance = AppServiceDescription.instance(config.connConfig)
-        val node = runBlocking {
-            log.info("Registering service...")
-            zk.registerService(instance).also {
-                log.debug("Service registered! Got back node: $it")
-            }
-        }
 
         log.info("Init Core Services")
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
@@ -129,7 +122,7 @@ class Server(
         log.info("Kafka Streams started!")
 
         initialized = true
-        runBlocking { zk.markServiceAsReady(node, instance) }
+        serviceRegistry.register(listOf("/api/hpc"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

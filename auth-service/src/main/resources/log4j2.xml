@@ -28,5 +28,9 @@
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>
+        <Logger name="org.asynchttpclient.netty" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingFile"/>
+        </Logger>
     </Loggers>
 </Configuration>

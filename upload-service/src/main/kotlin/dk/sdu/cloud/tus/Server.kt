@@ -18,45 +18,36 @@ import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
-import dk.sdu.cloud.service.stackTraceToString
 import java.io.File
 import java.util.concurrent.TimeUnit
 
 class Server(
-        private val configuration: Configuration,
-        private val kafka: KafkaServices,
-        private val zk: ZooKeeper,
-        private val ktor: HttpServerProvider,
-        private val cloud: RefreshingJWTAuthenticator
+    private val configuration: Configuration,
+    private val kafka: KafkaServices,
+    private val serviceRegistry: ServiceRegistry,
+    private val ktor: HttpServerProvider,
+    private val cloud: RefreshingJWTAuthenticator
 ) {
     private lateinit var httpServer: ApplicationEngine
     private lateinit var kStreams: KafkaStreams
 
     fun start() {
         val instance = TusServiceDescription.instance(configuration.connConfig)
-        val node = runBlocking {
-            log.info("Registering service...")
-            zk.registerService(instance).also {
-                log.debug("Service registered! Got back node: $it")
-            }
-        }
 
         log.info("Creating core services")
         val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
         val transferState = TransferStateService()
         val icat = ICAT(configuration.database)
         val tus = TusController(
-                config = configuration.database,
-                rados = rados,
-                producer = kafka.producer.forStream(TusStreams.UploadEvents),
-                transferState = transferState,
-                icat = icat,
-                kafka = kafka
+            config = configuration.database,
+            rados = rados,
+            producer = kafka.producer.forStream(TusStreams.UploadEvents),
+            transferState = transferState,
+            icat = icat,
+            kafka = kafka
         )
         log.info("Core services constructed!")
 
@@ -66,9 +57,9 @@ class Server(
 
             log.info("Configuring stream processors...")
             UploadStateProcessor(
-                    TusStreams.UploadEvents.stream(kBuilder),
-                    transferState,
-                    icat
+                TusStreams.UploadEvents.stream(kBuilder),
+                transferState,
+                icat
             ).also { it.init() }
             log.info("Stream processors configured!")
 
@@ -130,7 +121,7 @@ class Server(
         kStreams.start()
         log.info("Kafka Streams started!")
 
-        runBlocking { zk.markServiceAsReady(node, instance) }
+        serviceRegistry.register(listOf("/api/tus"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

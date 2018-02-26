@@ -18,7 +18,6 @@ import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
@@ -27,7 +26,7 @@ class AuthServer(
     private val jwtAlg: Algorithm,
     private val config: AuthConfiguration,
     private val authSettings: Saml2Settings,
-    private val zk: ZooKeeper,
+    private val serviceRegistry: ServiceRegistry,
     private val kafka: KafkaServices,
     private val ktor: HttpServerProvider
 ) {
@@ -36,12 +35,6 @@ class AuthServer(
 
     fun start() {
         val instance = AuthServiceDescription.instance(config.connConfig)
-        val node = runBlocking {
-            log.info("Registering service...")
-            zk.registerService(instance).also {
-                log.debug("Service registered! Got back node: $it")
-            }
-        }
 
         log.info("Creating core services...")
         val tokenService = TokenService(
@@ -101,7 +94,7 @@ class AuthServer(
         kStreams.start()
         log.info("Kafka Streams started!")
 
-        runBlocking { zk.markServiceAsReady(node, instance) }
+        serviceRegistry.register(listOf("/auth"))
 
         log.info("Server is ready!")
         log.info(instance.toString())

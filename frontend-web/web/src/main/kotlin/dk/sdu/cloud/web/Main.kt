@@ -40,17 +40,11 @@ class Main {
         val serviceDescription = WebServiceDescription
 
         val configuration = readConfigurationBasedOnArgs<Configuration>(emptyArray(), serviceDescription, log = log)
-        log.info("Connecting to Zookeeper")
-        val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
-        log.info("Connected to Zookeeper")
+        log.info("Connecting to Service Registry")
+        val serviceRegistry = ServiceRegistry(WebServiceDescription.instance(configuration.connConfig))
+        log.info("Connected to Service Registry")
 
         val instance = serviceDescription.instance(configuration.connConfig)
-        val node = runBlocking {
-            log.info("Registering service...")
-            zk.registerService(instance).also {
-                log.debug("Service registered! Got back node: $it")
-            }
-        }
 
         install(DefaultHeaders)
         install(CallLogging)
@@ -81,7 +75,7 @@ class Main {
             }
         }
 
-        runBlocking { zk.markServiceAsReady(node, instance) }
+        serviceRegistry.register(listOf("/api/auth-callback"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

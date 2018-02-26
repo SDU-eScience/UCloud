@@ -1,6 +1,8 @@
 package dk.sdu.cloud.storage
 
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.api.AuthStreams
+import dk.sdu.cloud.auth.api.JWTProtection
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.ACLStreams
 import dk.sdu.cloud.storage.api.FileStreams
@@ -12,20 +14,13 @@ import dk.sdu.cloud.storage.http.SimpleDownloadController
 import dk.sdu.cloud.storage.processor.ACLProcessor
 import dk.sdu.cloud.storage.processor.FavoriteProcessor
 import dk.sdu.cloud.storage.processor.UserProcessor
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.http.HttpStatusCode
-import io.ktor.response.ApplicationSendPipeline
-import io.ktor.response.respond
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.zookeeper.ZooKeeper
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
@@ -36,7 +31,7 @@ class Server(
     private val adminAccount: StorageConnection,
     private val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    private val zk: ZooKeeper,
+    private val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticator
 ) {
     private lateinit var httpServer: ApplicationEngine
@@ -44,12 +39,6 @@ class Server(
 
     fun start() {
         val instance = StorageServiceDescription.instance(configuration.connConfig)
-        val node = runBlocking {
-            log.info("Registering service...")
-            zk.registerService(instance).also {
-                log.debug("Service registered! Got back node: $it")
-            }
-        }
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
@@ -94,7 +83,7 @@ class Server(
         kStreams.start()
         log.info("Kafka Streams started!")
 
-        runBlocking { zk.markServiceAsReady(node, instance) }
+        serviceRegistry.register(listOf("/api/files"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

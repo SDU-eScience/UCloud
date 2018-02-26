@@ -8,7 +8,6 @@ import io.ktor.application.Application
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.StreamsConfig
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
@@ -50,11 +49,11 @@ fun main(args: Array<String>) {
         }
     )
 
-    log.info("Connecting to Zookeeper")
-    val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
-    log.info("Connected to Zookeeper")
+    log.info("Connecting to Service Registry")
+    val serviceRegistry = ServiceRegistry(TusServiceDescription.instance(configuration.connConfig))
+    log.info("Connected to Service Registry")
 
-    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(serviceRegistry), configuration.refreshToken)
 
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
@@ -67,6 +66,6 @@ fun main(args: Array<String>) {
         password = configuration.database.password
     )
 
-    val server = Server(configuration, kafka, zk, serverProvider, cloud)
+    val server = Server(configuration, kafka, serviceRegistry, serverProvider, cloud)
     server.start()
 }

@@ -9,26 +9,25 @@ import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
-import kotlinx.coroutines.experimental.runBlocking
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 
 data class DatabaseConfiguration(
-        val url: String,
-        val driver: String,
-        val username: String,
-        val password: String
+    val url: String,
+    val driver: String,
+    val username: String,
+    val password: String
 )
 
 data class HPCConfig(
-        private val connection: RawConnectionConfig,
-        val ssh: SimpleSSHConfig,
-        val storage: StorageConfiguration,
-        val rpc: RPCConfiguration,
-        val refreshToken: String,
-        val database: DatabaseConfiguration
+    private val connection: RawConnectionConfig,
+    val ssh: SimpleSSHConfig,
+    val storage: StorageConfiguration,
+    val rpc: RPCConfiguration,
+    val refreshToken: String,
+    val database: DatabaseConfiguration
 ) : ServerConfiguration {
     @get:JsonIgnore
     override val connConfig: ConnectionConfig
@@ -50,35 +49,37 @@ fun main(args: Array<String>) {
     val configuration = readConfigurationBasedOnArgs<HPCConfig>(args, serviceDescription, log = log)
     val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
 
-    log.info("Connecting to Zookeeper")
-    val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
-    log.info("Connected to Zookeeper")
+    log.info("Connecting to Service Registry")
+    val serviceRegistry = ServiceRegistry(serviceDescription.instance(configuration.connConfig))
+    log.info("Connected to Service Registry")
 
     log.info("Connecting to database")
     Database.connect(
-            url = configuration.database.url,
-            driver = configuration.database.driver,
+        url = configuration.database.url,
+        driver = configuration.database.driver,
 
-            user = configuration.database.username,
-            password = configuration.database.password
+        user = configuration.database.username,
+        password = configuration.database.password
     )
     log.info("Connected to database")
 
-    val irodsConnectionFactory = IRodsStorageConnectionFactory(IRodsConnectionInformation(
+    val irodsConnectionFactory = IRodsStorageConnectionFactory(
+        IRodsConnectionInformation(
             host = configuration.storage.host,
             zone = configuration.storage.zone,
             port = configuration.storage.port,
             storageResource = "radosRandomResc",
             sslNegotiationPolicy = ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REQUIRE,
             authScheme = AuthScheme.PAM
-    ))
+        )
+    )
 
-    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(serviceRegistry), configuration.refreshToken)
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(CIO, port = configuration.connConfig.service.port, module = block)
     }
 
-    val server = Server(kafka, zk, cloud, configuration, serverProvider, irodsConnectionFactory)
+    val server = Server(kafka, serviceRegistry, cloud, configuration, serverProvider, irodsConnectionFactory)
     server.start()
 }
 

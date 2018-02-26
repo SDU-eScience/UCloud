@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth
 
 import com.auth0.jwt.algorithms.Algorithm
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.onelogin.saml2.settings.SettingsBuilder
@@ -79,7 +80,9 @@ data class AuthConfiguration(
 fun main(args: Array<String>) {
     val configuration = run {
         log.info("Reading configuration...")
-        val configMapper = jacksonObjectMapper()
+        val configMapper = jacksonObjectMapper().apply {
+            configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        }
         val configFilePath = args.getOrNull(0) ?: "/etc/${AuthServiceDescription.name}/config.json"
         val configFile = File(configFilePath)
         log.debug("Using path: $configFilePath. This has resolved to: ${configFile.absolutePath}")
@@ -121,9 +124,9 @@ fun main(args: Array<String>) {
 
     when (args.getOrNull(1)) {
         null, "run-server" -> {
-            log.info("Connecting to Zookeeper")
-            val zk = runBlocking { ZooKeeperConnection(configuration.connConfig.zookeeper.servers).connect() }
-            log.info("Connected to Zookeeper")
+            log.info("Connecting to Service Registry")
+            val serviceRegistry = ServiceRegistry(AuthServiceDescription.instance(configuration.connConfig))
+            log.info("Connected to Service Registry")
 
             val serverProvider: HttpServerProvider = { block ->
                 embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
@@ -136,13 +139,13 @@ fun main(args: Array<String>) {
             val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
             val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
-            val cloud = RefreshingJWTAuthenticator(DirectServiceClient(zk), "TODO") // TODO FIXME!!!
+            val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), "TODO") // TODO FIXME!!!
 
             AuthServer(
-                jwtAlg = Algorithm.RSA256(priv),
+                jwtAlg = Algorithm.RSA256(null, priv),
                 config = configuration,
                 authSettings = authSettings,
-                zk = zk,
+                serviceRegistry = serviceRegistry,
                 kafka = kafka,
                 ktor = serverProvider,
                 cloud = cloud

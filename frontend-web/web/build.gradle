@@ -67,7 +67,7 @@ dependencies {
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
     compile group: 'info.cukes', name: 'cucumber-java', version: '1.2.5'
 
-    compile "dk.sdu.cloud:service-common:0.5.0-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.6.0-SNAPSHOT"
 }
 
 mainClassName = 'io.ktor.server.netty.DevelopmentEngine'
