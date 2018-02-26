@@ -23,7 +23,5 @@
     import '../node_modules/jquery/dist/jquery.js';
     // Bootstrap
     import '../node_modules/bootstrap/dist/js/bootstrap.js';
-    // Bootstrap Filestyle
-    $.fn.dataTable = require('../node_modules/datatables/media/js/jquery.dataTables.js')( window, $ );
     // Loaders CSS
     import '../node_modules/loaders.css/loaders.css.js';
