@@ -95,7 +95,7 @@ class Dashboard extends React.Component {
 
     favoriteOrUnfavorite(fileUri) {
         this.setState(() => ({
-            favoriteFiles: favorite(this.state.favoriteFiles, fileUri).filter(file => file.favorited),
+            favoriteFiles: favorite(this.state.favoriteFiles, fileUri, Cloud).filter(file => file.favorited),
         }));
     }
 

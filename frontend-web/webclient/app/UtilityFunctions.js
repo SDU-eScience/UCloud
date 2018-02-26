@@ -1,7 +1,6 @@
 import React from "react";
 import swal from "sweetalert2";
 import {RightsMap, RightsNameMap, SensitivityLevelMap, AnalysesStatusMap} from "./DefaultObjects"
-import {Cloud} from "../authentication/SDUCloudObject";
 
 function NotificationIcon(props) {
     if (props.type === "Complete") {
@@ -87,19 +86,19 @@ function sortFilesBySensitivity(files, asc) {
     return files;
 }
 
-function favorite(files, uri) {
+function favorite(files, uri, cloud) {
     let file = files.find(file => file.path.uri === uri);
     file.favorited = !file.favorited;
     if (file.favorited) {
-        Cloud.post(`/files/favorite?path=${file.path.path}`);
+        cloud.post(`/files/favorite?path=${file.path.path}`);
     } else {
-        Cloud.delete(`/files/favorite?path=${file.path.path}`);
+        cloud.delete(`/files/favorite?path=${file.path.path}`);
     }
     return files;
 }
 
-function getOwnerFromAcls(acls) {
-    let userName = Cloud.username;
+function getOwnerFromAcls(acls, cloud) {
+    let userName = cloud.username;
     let result = acls.find(acl => acl.entity.displayName === userName);
     if (!result) {
         return "None"
@@ -107,7 +106,7 @@ function getOwnerFromAcls(acls) {
     return result.right;
 }
 
-function updateSharingOfFile(filePath, user, currentRights) {
+function updateSharingOfFile(filePath, user, currentRights, cloud) {
     swal({
         title: "Please specify access level",
         text: `The file ${filePath.name} is to be shared with ${user}.`,
@@ -132,13 +131,13 @@ function updateSharingOfFile(filePath, user, currentRights) {
             rights: type.value,
             type: "grant",
         };
-        Cloud.put("/acl", body).then(response => {
+        cloud.put("/acl", body).then(response => {
             swal("Success!", `The file has been shared with ${user}`, "success");
         });
     });
 }
 
-function shareFile(filePath) {
+function shareFile(filePath, cloud) {
     swal({
         title: "Share file",
         text: `Enter a username to share ${filePath.name} with.`,
@@ -174,7 +173,7 @@ function shareFile(filePath) {
                     rights: type.value,
                     type: "grant",
                 };
-                Cloud.put("/acl", body).then(response => {
+                cloud.put("/acl", body).then(response => {
                     swal("Success!", `The file has been shared with ${input.value}`, "success");
                 });
             });
@@ -182,7 +181,7 @@ function shareFile(filePath) {
     );
 }
 
-function revokeSharing(filePath, person, rightsLevel) {
+function revokeSharing(filePath, person, rightsLevel, cloud) {
     swal({
         title: "Revoke access",
         text: `Revoke ${rightsLevel} access for ${person}`,
@@ -196,7 +195,7 @@ function revokeSharing(filePath, person, rightsLevel) {
             type: "revoke",
         };
 
-        return Cloud.delete("/acl", body);//.then(response => {
+        return cloud.delete("/acl", body);//.then(response => {
 
         //});
     });
@@ -268,8 +267,8 @@ function publishToZenodo(uri) {
     console.log(uri);
 }
 
-function downloadFile(path) {
-    Cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
+function downloadFile(path, cloud) {
+    cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
         let link = document.createElement("a");
         window.location.href = "/api/files/download?path=" + encodeURI(path) + "&token=" + encodeURI(token);
         link.setAttribute("download", "");
@@ -277,10 +276,10 @@ function downloadFile(path) {
     });
 }
 
-function getCurrentRights(files) {
+function getCurrentRights(files, cloud) {
     let lowestPrivilegeOptions = RightsMap["OWN"];
     files.forEach((it) => {
-        it.acl.filter(acl => acl.entity.displayName === Cloud.username).forEach((acl) => {
+        it.acl.filter(acl => acl.entity.displayName === cloud.username).forEach((acl) => {
             lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
         });
     });

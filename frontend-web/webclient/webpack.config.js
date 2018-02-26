@@ -21,9 +21,10 @@ module.exports = {
     },
 
     module: {
-        rules: [{
-            test: /jquery\.flot\.resize\.js$/,
-            use: 'imports-loader?this=>window'
+        rules: [
+            {
+                test: /jquery\.flot\.resize\.js$/,
+                use: 'imports-loader?this=>window'
             },
             {
                 test: /\.js/,

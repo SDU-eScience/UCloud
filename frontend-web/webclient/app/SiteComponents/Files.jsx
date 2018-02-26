@@ -87,7 +87,7 @@ class Files extends React.Component {
 
     favoriteFile(fileUri) {
         this.setState(() => ({
-            files: favorite(this.state.files.slice(), fileUri),
+            files: favorite(this.state.files.slice(), fileUri, Cloud),
         }));
     }
 
@@ -336,7 +336,7 @@ function FileOptions(props) {
     if (!props.selectedFiles.length) {
         return null;
     }
-    let rights = getCurrentRights(props.selectedFiles);
+    let rights = getCurrentRights(props.selectedFiles, Cloud);
     let fileText = "";
     if (props.selectedFiles.length > 1) {
         fileText = `${props.selectedFiles.length} files selected.`;
@@ -360,13 +360,13 @@ function FileOptions(props) {
             <p>
                 <Button type="button" className="btn btn-default ripple btn-block"
                         disabled={props.selectedFiles.length > 1}
-                        onClick={() => shareFile(props.selectedFiles[0].path)}><span
+                        onClick={() => shareFile(props.selectedFiles[0].path, Cloud)}><span
                     className="ion-share pull-left"/> Share
                 </Button>
             </p>
             <p>
                 <Button disabled={downloadDisabled} className="btn btn-default ripple btn-block"
-                        onClick={() => downloadFile(props.selectedFiles[0].path.path)}>
+                        onClick={() => downloadFile(props.selectedFiles[0].path.path, Cloud)}>
                     <span className="ion-ios-download pull-left"/>
                     Download
                 </Button>
@@ -465,7 +465,7 @@ function FilesList(props) {
 
 function File(props) {
     const file = props.file;
-    const owner = getOwnerFromAcls(file.acl);
+    const owner = getOwnerFromAcls(file.acl, Cloud);
     return (
         <tr className="row-settings clickable-row">
             <td className="select-cell"><label className="mda-checkbox">
@@ -485,7 +485,7 @@ function File(props) {
 
 function Directory(props) {
     const file = props.file;
-    const owner = getOwnerFromAcls(file.acl);
+    const owner = getOwnerFromAcls(file.acl, Cloud);
     return (
         <tr className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
@@ -537,9 +537,9 @@ function MobileButtons(props) {
                     <li><a className="btn btn-info ripple btn-block"
                            onClick={() => sendToAbacus()}> Send to Abacus 2.0</a></li>
                     <li><a className="btn btn-default ripple btn-block ion-share"
-                           onClick={() => shareFile(file.path)}> Share file</a></li>
+                           onClick={() => shareFile(file.path, Cloud)}> Share file</a></li>
                     <li><a className="btn btn-default ripple btn-block ion-ios-download"
-                           onClick={() => downloadFile(file.path.path)}> Download file</a></li>
+                           onClick={() => downloadFile(file.path.path, Cloud)}> Download file</a></li>
                     <li><a className="btn btn-default ripple ion-ios-compose"
                            onClick={() => renameFile(file.path)}> Rename file</a></li>
                     <li><a className="btn btn-danger ripple ion-ios-trash"

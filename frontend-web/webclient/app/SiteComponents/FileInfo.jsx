@@ -90,7 +90,7 @@ class FileInfo extends React.Component {
         let filesList = [];
         filesList.push(this.state.file);
         this.setState(() => ({
-            file: favorite(filesList, this.state.file.path.uri)[0],
+            file: favorite(filesList, this.state.file.path.uri, Cloud)[0],
         }));
     }
 
@@ -100,7 +100,7 @@ class FileInfo extends React.Component {
             const currentRights = this.state.file.acl.find(acl => acl.entity.displayName === Cloud.username);
             if (currentRights) {
                 if (currentRights.right === "OWN") {
-                    button = (<Button onClick={() => shareFile(this.state.file.path)} className="btn btn-primary">Share
+                    button = (<Button onClick={() => shareFile(this.state.file.path, Cloud)} className="btn btn-primary">Share
                         file</Button>);
                 }
             }
@@ -187,7 +187,7 @@ function FileSharing(props) {
             <span
                 className="text-left"><b>{acl.entity.displayName}</b> has <b>{RightsNameMap[acl.right]}</b> access.</span>
             <ButtonGroup bsSize="xsmall" className="pull-right">
-                <Button onClick={() => updateSharingOfFile(props.file.path, acl.entity.displayName, acl.right)}
+                <Button onClick={() => updateSharingOfFile(props.file.path, acl.entity.displayName, acl.right, Cloud)}
                         className="btn btn-primary">Change</Button>
                 <Button onClick={() => props.revokeRights(props.file, acl)}
                         className="btn btn-danger">Revoke</Button>
