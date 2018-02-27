@@ -22,19 +22,9 @@ import "./components/Bootstrap/Bootstrap";
 import Core from './SiteComponents/Core';
 import { Cloud } from "../authentication/SDUCloudObject";
 
-
-$(() => {
+window.onload = () => {
     Cloud.receiveAccessTokenOrRefreshIt();
-    // prevent page reload when using dummy anchors
-    $(document).on('click', '[href=""],[href="#"]', () => {
-        return false;
-    });
-
-    // Support for float labels on inputs
-    $(document).on('change', '.mda-form-control > input', function () {
-        $(this)[this.value.length ? 'addClass' : 'removeClass']('has-value');
-    });
-});
+};
 
 // Declare routes
 ReactDOM.render(
