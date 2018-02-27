@@ -143,7 +143,6 @@ function FileView(props) {
                 <small>You do not have rights for this file.</small>
             </h3>);
     }
-    console.log(props.file.size);
     return (
         <div className="container-fluid">
             <ListGroup className="col-sm-4">

@@ -1,4 +1,6 @@
 import { getParentPath, toLowerCaseAndCapitalize, fileSizeToString } from "../app/UtilityFunctions";
+import SDUCloud from "../authentication/lib";
+import initializeTestCloudObject from "./mock/TestCloudObject";
 
 
 // GET PARENT PATH
@@ -85,3 +87,5 @@ test("Null as input", () => {
 test("Undefined as input", () => {
     expect(fileSizeToString()).toBe("");
 });
+
+const cloud = initializeTestCloudObject();
