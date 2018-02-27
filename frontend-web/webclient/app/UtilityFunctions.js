@@ -17,6 +17,7 @@ function NotificationIcon(props) {
 }
 
 function toLowerCaseAndCapitalize(str) {
+    if (!str) { return ""; }
     return str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 }
 
@@ -62,7 +63,7 @@ function sortFilesByTypeAndName(files, asc) {
     return files;
 }
 
-function sortFilesByOwner(files, asc) {
+function sortFilesByOwner(files, asc) { // FIXME Should sort based on the value inside the acl (OWN, READ, READ/WRITE)
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.acl.length - b.acl.length) * order;
@@ -255,8 +256,10 @@ function showFileDeletionPrompt(filePath) {
 }
 
 function getParentPath(path) {
+    if (!path) { return ""; }
     let splitPath = path.split("/");
-    let parentPath = "";
+    splitPath = splitPath.filter(path => path);
+    let parentPath = "/";
     for (let i = 0; i < splitPath.length - 1; i++) {
         parentPath += splitPath[i] + "/";
     }
