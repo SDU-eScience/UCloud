@@ -48,7 +48,7 @@ export default class SDUCloud {
 
         return this.receiveAccessTokenOrRefreshIt().then((token) => {
             options.headers["Authorization"] = "Bearer " + token;
-            return $.ajax(options);
+            return Promise.resolve($.ajax(options));
         });
     }
 
@@ -140,7 +140,9 @@ export default class SDUCloud {
         if (this._isTokenExpired()) {
             tokenPromise = this._refresh();
         } else {
-            tokenPromise = $.Deferred().resolve(SDUCloud.storedAccessToken).promise();
+            tokenPromise = new Promise((resolve, reject) => {
+                resolve(SDUCloud.storedAccessToken);
+            });
         }
         return tokenPromise;
     }
@@ -149,45 +151,41 @@ export default class SDUCloud {
         return this.receiveAccessTokenOrRefreshIt()
             .then((token) => {
                 let oneTimeToken = `${this.authContext}/request/?audience=${permission}`;
-                return $.ajax({
+                return Promise.resolve($.ajax({
                     dataType: "json",
                     method: "POST",
                     url: oneTimeToken,
                     headers: {
                         "Authorization": "Bearer " + token
                     }
-                });    
+                }));
             }).then((data) => {
-                let result = $.Deferred();
-                result.resolve(data.accessToken);
-                return result.promise();
+                return new Promise((resolve, reject) => {
+                    resolve(data.accessToken);
+                });
             });
     }
 
     _refresh() {
         let token = SDUCloud.storedRefreshToken;
         if (!token) {
-            let result = $.Deferred();
-            result.reject(this._missingAuth()).promise();
-            return result;
+            return new Promise((resolve, reject) => {
+               reject(this._missingAuth());
+            });
         }
         let refreshPath = this.authContext + "/refresh";
-        return $.ajax({
+        return Promise.resolve($.ajax({
             dataType: "json",
             method: "POST",
             url: refreshPath,
             headers: {
                 "Authorization": "Bearer " + token
             }
-        }).then((data) => {
-            let result = $.Deferred();
-            try {
+        })).then((data) => {
+            return new Promise((resolve, reject) => {
                 this.setTokens(data.accessToken);
-                result.resolve(data.accessToken);
-            } catch (err) {
-                result.reject(err);
-            }
-            return result.promise();
+                resolve(data.accessToken);
+            });
         });
     }
 
@@ -244,8 +242,8 @@ export default class SDUCloud {
         let token = this.decodedToken;
         if (!token || !token.payload) return true;
         let nowInSeconds = Math.floor(Date.now() / 1000);
-        let inFiveMunites = nowInSeconds + (5 * 60);
-        return token.payload.exp < inFiveMunites;
+        let inFiveMinutes = nowInSeconds + (5 * 60);
+        return token.payload.exp < inFiveMinutes;
     }
 
     _missingAuth() {
