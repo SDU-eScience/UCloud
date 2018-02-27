@@ -20,7 +20,6 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
         val requestType: KClass<R>,
         val responseTypeSuccess: KClass<S>,
         val responseTypeFailure: KClass<E>,
-        val shouldProxyFromGateway: Boolean,
         val deserializerSuccess: ObjectReader,
         val deserializerError: ObjectReader,
         val owner: ServiceDescription,

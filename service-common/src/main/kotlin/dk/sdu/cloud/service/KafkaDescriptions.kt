@@ -78,38 +78,6 @@ abstract class KafkaDescriptions {
     private val _descriptions: MutableList<KafkaMappingDescription<*, *, *>> = ArrayList()
     val descriptions: List<KafkaMappingDescription<*, *, *>> get() = _descriptions.toList()
 
-    /**
-     * Performs a registration on multiple endpoints that must all map to the same Kafka topic.
-     *
-     * The mapper code will be run at the API gateway and _not_ in the service.
-     *
-     * @see [KafkaCallDescription.mappedAtGateway]
-     */
-    inline fun <R : Any, reified K : Any, reified V : Any> KafkaCallDescriptionBundle<R>.mappedAtGateway(
-            topicName: String,
-            keySerde: Serde<K> = defaultSerdeOrJson(),
-            valueSerde: Serde<V> = defaultSerdeOrJson(),
-            noinline mapper: (KafkaRequest<R>) -> Pair<K, V>
-    ): StreamDescription<K, V> {
-        registerMapping(KafkaMappingDescription(topicName, this, keySerde, valueSerde, mapper))
-        return stream(topicName, keySerde, valueSerde)
-    }
-
-    /**
-     * Registers how to map a GW REST request to a Kafka request.
-     *
-     *  This code will be run at the API gateway and _not_ in the service.
-     */
-    inline fun <R : Any, reified K : Any, reified V : Any> KafkaCallDescription<R>.mappedAtGateway(
-            topicName: String,
-            keySerde: Serde<K> = defaultSerdeOrJson(),
-            valueSerde: Serde<V> = defaultSerdeOrJson(),
-            noinline mapper: (KafkaRequest<R>) -> Pair<K, V>
-    ): StreamDescription<K, V> {
-        registerMapping(KafkaMappingDescription(topicName, listOf(this), keySerde, valueSerde, mapper))
-        return stream(topicName, keySerde, valueSerde)
-    }
-
     inline fun <reified K : Any, reified V : Any> stream(
             topicName: String,
             keySerde: Serde<K> = defaultSerdeOrJson(),

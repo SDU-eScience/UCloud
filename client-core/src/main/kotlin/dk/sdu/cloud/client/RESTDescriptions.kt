@@ -9,12 +9,10 @@ import org.slf4j.LoggerFactory
 sealed class ProxyDescription {
     abstract val template: String
     abstract val method: HttpMethod
-    abstract val shouldProxyFromGateway: Boolean
 
     data class Manual(
             override val template: String,
-            override val method: HttpMethod,
-            override val shouldProxyFromGateway: Boolean
+            override val method: HttpMethod
     ) : ProxyDescription()
 
     data class FromDescription(
@@ -22,9 +20,6 @@ sealed class ProxyDescription {
     ) : ProxyDescription() {
         override val method: HttpMethod
             get() = description.method
-
-        override val shouldProxyFromGateway: Boolean
-            get() = description.shouldProxyFromGateway
 
         override val template: String
             get() = description.path.toKtorTemplate(fullyQualified = true)
@@ -70,8 +65,6 @@ abstract class RESTDescriptions(val owner: ServiceDescription) {
             body: RESTCallDescriptionBuilder<R, GatewayJobResponse, GatewayJobResponse>.() -> Unit
     ): KafkaCallDescription<R> = callDescription(mapper, additionalRequestConfiguration) {
         // Placed before call to body() to allow these to be overwritten
-        shouldProxyFromGateway = false
-
         body()
     }
 
@@ -80,7 +73,7 @@ abstract class RESTDescriptions(val owner: ServiceDescription) {
      */
     protected fun register(template: String, method: HttpMethod) {
         log.info("Registering new ktor template: $template")
-        _descriptions.add(ProxyDescription.Manual(template, method, true))
+        _descriptions.add(ProxyDescription.Manual(template, method))
     }
 
     protected fun register(description: RESTCallDescription<*, *, *>) {

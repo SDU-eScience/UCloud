@@ -20,7 +20,6 @@ class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
     private val deserializerError: ObjectReader
 ) {
     var method: HttpMethod = HttpMethod.GET
-    var shouldProxyFromGateway: Boolean = true
     var prettyName: String? = null
     internal var path: RESTPath<R>? = null
     internal var body: RESTBody<R, *>? = null
@@ -56,7 +55,6 @@ class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
             requestType,
             responseTypeSuccess,
             responseTypeFailure,
-            shouldProxyFromGateway,
             deserializerSuccess,
             deserializerError,
             owner,
