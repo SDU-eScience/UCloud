@@ -21,7 +21,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val markAsFavorite = kafkaDescription<FavoriteCommand.Grant> {
+    val markAsFavorite = callDescription<FavoriteCommand.Grant, Unit, CommonErrorMessage> {
         prettyName = "filesMarkAsFavorite"
         method = HttpMethod.POST
 
@@ -35,7 +35,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val removeFavorite = kafkaDescription<FavoriteCommand.Revoke> {
+    val removeFavorite = callDescription<FavoriteCommand.Revoke, Unit, CommonErrorMessage> {
         prettyName = "filesRemoveAsFavorite"
         method = HttpMethod.DELETE
 
@@ -61,8 +61,6 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
             +boundTo(DownloadByURI::token)
         }
     }
-
-    val favoriteBundle = listOf(markAsFavorite, removeFavorite)
 }
 
 const val DOWNLOAD_FILE_SCOPE = "downloadFile"
