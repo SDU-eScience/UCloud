@@ -13,7 +13,6 @@ import Analyses from "./Applications/Analyses";
 import Notifications from "./Activity/Notifications";
 import Header from "./Header";
 import Sidebar from "../SiteComponents/Sidebar";
-import Settings from "./Settings/Settings";
 import UserAuditing from "./Admin/UserAuditing";
 import GenerateWorkflow from "./GenerateWorkflow";
 import ZenodoPublish from "./Zenodo/Publish";
@@ -53,7 +52,6 @@ class Core extends React.Component {
                         <span>{new Date().getFullYear()} - SDUCloud.</span>
                     </footer>
                 </div>
-                <Settings/>
             </div>
         );
     }
