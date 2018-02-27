@@ -132,7 +132,7 @@ class Applications extends React.Component {
 
     handlePageSizeSelection(newPageSize) {
         this.setState(() => ({
-            filesPerPage: newPageSize,
+            applicationsPerPage: newPageSize,
         }));
     }
 
