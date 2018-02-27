@@ -1,10 +1,11 @@
 package dk.sdu.cloud.app.api
 
 import dk.sdu.cloud.service.KafkaDescriptions
+import dk.sdu.cloud.service.KafkaRequest
 
 object HPCStreams : KafkaDescriptions() {
-    val AppRequests = HPCJobDescriptions.appRequestBundle.mappedAtGateway("request.hpcApp") {
-        Pair(it.header.uuid, it)
+    val AppRequests = stream<String, KafkaRequest<AppRequest>>("request.hpcApp") {
+        it.header.uuid
     }
 
     /**

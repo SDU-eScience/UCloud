@@ -25,7 +25,7 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
         }
     }
 
-    val start = kafkaDescription<AppRequest.Start> {
+    val start = callDescription<AppRequest.Start, JobStartedResponse, CommonErrorMessage> {
         prettyName = "jobsStart"
         method = HttpMethod.POST
 
@@ -38,7 +38,7 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
         }
     }
 
-    val cancel = kafkaDescription<AppRequest.Cancel> {
+    val cancel = callDescription<AppRequest.Cancel, JobCancelledResponse, JobCancelledResponse> {
         prettyName = "jobsCancel"
         method = HttpMethod.DELETE
 
@@ -47,11 +47,12 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
             +boundTo(AppRequest.Cancel::jobId)
         }
     }
-
-    val appRequestBundle: KafkaCallDescriptionBundle<AppRequest> = listOf(start, cancel)
 }
 
 // TODO We are going to end up with conflicts on the very simple ones like these:
 data class FindByNameAndVersion(val name: String, val version: String)
 
 data class FindById(val id: String)
+
+data class JobStartedResponse(val jobId: String)
+data class JobCancelledResponse(val jobSuccessfullyCancelled: Boolean)

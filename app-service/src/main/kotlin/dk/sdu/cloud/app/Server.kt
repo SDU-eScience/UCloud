@@ -19,7 +19,6 @@ import io.ktor.application.install
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
@@ -103,7 +102,7 @@ class Server(
                     protect()
 
                     AppController(ApplicationDAO).configure(this)
-                    JobController().configure(this)
+                    JobController(kafka.producer.forStream(HPCStreams.AppRequests)).configure(this)
                     ToolController(ToolDAO).configure(this)
                 }
             }
