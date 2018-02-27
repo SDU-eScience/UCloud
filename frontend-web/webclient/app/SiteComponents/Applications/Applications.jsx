@@ -173,15 +173,6 @@ class Applications extends React.Component {
                         <EntriesPerPageSelector entriesPerPage={this.state.applicationsPerPage}
                                 handlePageSizeSelection={this.handlePageSizeSelection}/> Applications per page
                     </div>
-                    <div className="col-lg-2 visible-lg">
-                        <div>
-                            <button className="btn btn-primary ripple btn-block"><span
-                                className="ion-android-upload pull-left"/> Upload Application
-                            </button>
-                            <br/>
-                            <hr/>
-                        </div>
-                    </div>
                 </div>
             </section>)
     }

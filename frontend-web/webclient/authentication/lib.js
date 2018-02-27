@@ -151,14 +151,30 @@ export default class SDUCloud {
         return this.receiveAccessTokenOrRefreshIt()
             .then((token) => {
                 let oneTimeToken = `${this.authContext}/request/?audience=${permission}`;
-                return Promise.resolve($.ajax({
+                return new Promise((resolve, reject) => {
+                    let req = new XMLHttpRequest();
+                    req.setRequestHeader("Authorization", `Bearer ${token}`);
+                    req.open("POST", oneTimeToken);
+                    req.onload = () => {
+                        if (req.status === 200) {
+                            console.log(req.response);
+                            resolve(req.response);
+                        } else {
+                            reject(req.response);
+                        }
+                    };
+                    req.send();
+                });
+
+
+                /*return Promise.resolve($.ajax({
                     dataType: "json",
                     method: "POST",
                     url: oneTimeToken,
                     headers: {
                         "Authorization": "Bearer " + token
                     }
-                }));
+                }));*/
             }).then((data) => {
                 return new Promise((resolve, reject) => {
                     resolve(data.accessToken);
