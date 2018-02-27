@@ -279,6 +279,27 @@ function downloadFile(path, cloud) {
     });
 }
 
+function fileSizeToString(bytes) {
+    if (!bytes) { return ""; }
+    if (bytes < 1000) {
+        return `${bytes} B`;
+    } else if (bytes < 1000**2) {
+        return `${bytes / 1000} KB`;
+    } else if (bytes < 1000**3) {
+        return `${bytes / 1000 ** 2} MB`;
+    } else if (bytes < 1000**4) {
+        return `${bytes / 1000 ** 3} GB`;
+    } else if (bytes < 1000**5) {
+        return `${bytes / 1000 ** 4} TB`;
+    } else if  (bytes < 1000**6) {
+        return `${bytes / 1000 ** 5} PB`;
+    } else if (bytes < 1000**7) {
+        return `${bytes / 1000 ** 6} EB`;
+    } else {
+        return `${bytes} B`;
+    }
+}
+
 function getCurrentRights(files, cloud) {
     let lowestPrivilegeOptions = RightsMap["OWN"];
     files.forEach((it) => {
@@ -310,6 +331,7 @@ export {
     getParentPath,
     updateSharingOfFile,
     revokeSharing,
+    fileSizeToString,
     downloadFile,
     getCurrentRights,
     toLowerCaseAndCapitalize,

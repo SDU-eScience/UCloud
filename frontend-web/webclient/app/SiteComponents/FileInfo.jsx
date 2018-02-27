@@ -1,6 +1,6 @@
 import React from "react";
 import {Cloud} from "../../authentication/SDUCloudObject";
-import {getParentPath, updateSharingOfFile, shareFile, favorite} from "../UtilityFunctions";
+import {getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString} from "../UtilityFunctions";
 import SectionContainerCard from "./SectionContainerCard";
 import {BallPulseLoading} from "./LoadingIcon";
 import {SensitivityLevel, RightsNameMap} from "../DefaultObjects"
@@ -143,6 +143,7 @@ function FileView(props) {
                 <small>You do not have rights for this file.</small>
             </h3>);
     }
+    console.log(props.file.size);
     return (
         <div className="container-fluid">
             <ListGroup className="col-sm-4">
@@ -153,7 +154,7 @@ function FileView(props) {
             </ListGroup>
             <ListGroup className="col-sm-4">
                 <ListGroupItem>Sensitivity: {SensitivityLevel[props.file.sensitivityLevel]}</ListGroupItem>
-                <ListGroupItem>Size: {props.file.size}</ListGroupItem>
+                <ListGroupItem>Size: {fileSizeToString(props.file.size)}</ListGroupItem>
                 <ListGroupItem>Shared
                     with {sharedWithCount} {sharedWithCount === 1 ? "person" : "people"}.</ListGroupItem>
             </ListGroup>
