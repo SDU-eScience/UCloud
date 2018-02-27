@@ -74,7 +74,7 @@ fun main(args: Array<String>) {
         )
     )
 
-    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(serviceRegistry), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), configuration.refreshToken)
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(CIO, port = configuration.connConfig.service.port, module = block)
     }

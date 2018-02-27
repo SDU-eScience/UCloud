@@ -4,21 +4,17 @@ import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.api.ACLStreams
-import dk.sdu.cloud.storage.api.FileStreams
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.http.IRodsController
+import dk.sdu.cloud.storage.http.ACLController
+import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
-import dk.sdu.cloud.storage.processor.ACLProcessor
-import dk.sdu.cloud.storage.processor.FavoriteProcessor
 import dk.sdu.cloud.storage.processor.UserProcessor
 import io.ktor.application.install
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
@@ -46,8 +42,6 @@ class Server(
 
             log.info("Configuring stream processors...")
             UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), adminAccount).init()
-            ACLProcessor(kBuilder.stream(ACLStreams.aclUpdates), storageService).init()
-            FavoriteProcessor(kBuilder.stream(FileStreams.favoriteUpdateStream), storageService).init()
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {
@@ -68,8 +62,9 @@ class Server(
 
             routing {
                 route("api") {
-                    IRodsController(storageService).configure(this)
+                    FilesController(storageService).configure(this)
                     SimpleDownloadController(cloud, storageService).configure(this)
+                    ACLController(storageService).configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")
