@@ -11,8 +11,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {createBrowserHistory} from 'history'
-import { BrowserRouter, Route } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 
 import "uppy/src/scss/uppy.scss";
 import "./SiteComponents/Datatable.scss";
@@ -35,20 +34,12 @@ $(() => {
     $(document).on('change', '.mda-form-control > input', function () {
         $(this)[this.value.length ? 'addClass' : 'removeClass']('has-value');
     });
-
 });
-
-const browserHistory = createBrowserHistory();
 
 // Declare routes
 ReactDOM.render(
     <BrowserRouter basename="app">
         <Core/>
     </BrowserRouter>,
-    document.getElementById('app')
+    document.getElementById("app")
 );
-
-// Auto close sidebar on route changes
-browserHistory.listen(function (ev) {
-    $('.sidebar-visible').removeClass('sidebar-visible');
-});

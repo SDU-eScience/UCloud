@@ -80,17 +80,8 @@ class Dashboard extends React.Component {
 
     getRecentActivity() {
         this.setState(() => ({
-            activityLoading: true
+            activityLoading: false
         }));
-        $.getJSON("/api/getRecentActivity").then((activity) => {
-            activity.sort((a, b) => {
-                return a.ts - b.ts;
-            });
-            this.setState(() => ({
-                activity: activity,
-                activityLoading: false,
-            }));
-        });
     }
 
     favoriteOrUnfavorite(fileUri) {

@@ -1,4 +1,3 @@
-import $ from "jquery";
 import jwt from "jsonwebtoken";
 
 export default class SDUCloud {
@@ -35,20 +34,25 @@ export default class SDUCloud {
      */
     call(method, path, body) {
         if (path.indexOf("/") !== 0) path = "/" + path;
-        let options = {
-            url: this.apiContext + path,
-            method: method,
-            headers: {}
-        };
-
-        if (body) {
-            options.contentType = "application/json";
-            options.data = JSON.stringify(body);
-        }
-
         return this.receiveAccessTokenOrRefreshIt().then((token) => {
-            options.headers["Authorization"] = "Bearer " + token;
-            return Promise.resolve($.ajax(options));
+            return new Promise((resolve, reject) => {
+                let req = new XMLHttpRequest();
+                req.open(method, this.apiContext + path);
+                req.setRequestHeader("Authorization", `Bearer ${token}`);
+                req.setRequestHeader("contentType", "application/json");
+                req.onload = () => {
+                    if (req.status === 200) {
+                        resolve(JSON.parse(req.response));
+                    } else {
+                        reject(req.status, req.response);
+                    }
+                };
+                if (body) {
+                    req.send(JSON.stringify(body));
+                } else {
+                    req.send();
+                }
+            });
         });
     }
 
@@ -165,16 +169,6 @@ export default class SDUCloud {
                     };
                     req.send();
                 });
-
-
-                /*return Promise.resolve($.ajax({
-                    dataType: "json",
-                    method: "POST",
-                    url: oneTimeToken,
-                    headers: {
-                        "Authorization": "Bearer " + token
-                    }
-                }));*/
             }).then((data) => {
                 return new Promise((resolve, reject) => {
                     resolve(data.accessToken);
@@ -190,14 +184,20 @@ export default class SDUCloud {
             });
         }
         let refreshPath = this.authContext + "/refresh";
-        return Promise.resolve($.ajax({
-            dataType: "json",
-            method: "POST",
-            url: refreshPath,
-            headers: {
-                "Authorization": "Bearer " + token
-            }
-        })).then((data) => {
+        return new Promise((resolve, reject) => {
+            let req = new XMLHttpRequest();
+            req.open("POST", refreshPath);
+            req.setRequestHeader("Authorization", `Bearer ${token}`);
+            req.onload = () => {
+                if (req.status === 200) {
+                    console.log(req.response);
+                    resolve(req.response);
+                } else {
+                    reject(req.status, req.response);
+                }
+            };
+            req.send();
+        }).then((data) => {
             return new Promise((resolve, reject) => {
                 this.setTokens(data.accessToken);
                 resolve(data.accessToken);

@@ -13,15 +13,3 @@
     import '../node_modules/loaders.css/loaders.css';
     // Material Colors
     import '../node_modules/material-colors/dist/colors.css';
-
-// Vendor scripts
-// -----------------------
-
-    // Modernizr
-    import './modernizr.js';
-    // jQuery
-    import '../node_modules/jquery/dist/jquery.js';
-    // Bootstrap
-    import '../node_modules/bootstrap/dist/js/bootstrap.js';
-    // Loaders CSS
-    import '../node_modules/loaders.css/loaders.css.js';
