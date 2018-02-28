@@ -182,7 +182,7 @@ export default class SDUCloud {
             return new Promise((resolve, reject) => {
                reject(this._missingAuth());
             });
-        }
+        };
         let refreshPath = this.authContext + "/refresh";
         return new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
@@ -190,8 +190,7 @@ export default class SDUCloud {
             req.setRequestHeader("Authorization", `Bearer ${token}`);
             req.onload = () => {
                 if (req.status === 200) {
-                    console.log(req.response);
-                    resolve(req.response);
+                    resolve(JSON.parse(req.response));
                 } else {
                     reject(req.status, req.response);
                 }
