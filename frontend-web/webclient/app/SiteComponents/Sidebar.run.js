@@ -1,5 +1,3 @@
-import $ from 'jquery';
-
 function sidebarNav() {
     let sidebarNav = document.querySelector(".sidebar-nav");
 
@@ -11,48 +9,44 @@ function sidebarNav() {
         let lis = item.parentNode.parentNode.children; // markup: ul > li > a
         // remove .active from children
         for (let li of lis) {
-            console.log("DOM",li);
             if (li !== liParent) {
                 li.classList.remove("active");
             }
         }
         let next = item.nextSibling;
-        if (next && next.tagName === 'UL') {
+        if (next && next.tagName === "UL") {
             item.parentNode.classList.toggle('active');
             event.preventDefault();
         }
     };
-    let layoutContainer = $('.layout-container');
-    let $body = $('body');
+    let layoutContainer = document.querySelector(".layout-container");
+    let body = document.querySelector("body");
+
     // Handler to toggle sidebar visibility on mobile
-    $('#sidebar-toggler').click(function (e) {
+    document.querySelector("#sidebar-toggler").onclick = (e) => {
         e.preventDefault();
-        layoutContainer.toggleClass('sidebar-visible');
-        // toggle icon state
-        $(this).parent().toggleClass('active');
-    });
+        layoutContainer.classList.toggle("sidebar-visible");
+    };
     // Close sidebar when click on backdrop
-    $('.sidebar-layout-obfuscator').click(function (e) {
+    document.querySelector(".sidebar-layout-obfuscator").onclick = e => {
         e.preventDefault();
-        layoutContainer.removeClass('sidebar-visible');
+        layoutContainer.classList.remove('sidebar-visible');
         // restore icon
-        $('#sidebar-toggler').parent().removeClass('active');
-    });
+        document.querySelector("#sidebar-toggler").parentNode.classList.remove("active");
+    };
 
     // Handler to toggle sidebar visibility on desktop
-    $('#offcanvas-toggler').click(function (e) {
+    document.querySelector("#offcanvas-toggler").onclick = (e) => {
         e.preventDefault();
-        $body.toggleClass('offcanvas-visible');
-        // toggle icon state
-        $(this).parent().toggleClass('active');
-    });
+        body.classList.toggle("offcanvas-visible");
+    };
 
     // remove desktop offcanvas when app changes to mobile
     // so when it returns, the sidebar is shown again
     window.addEventListener('resize', function () {
         if (window.innerWidth < 768) {
-            $body.removeClass('offcanvas-visible');
-            $('#offcanvas-toggler').parent().addClass('active');
+            body.classList.remove("offcanvas-visible");
+            document.querySelector("#offcanvas-toggler").parentNode.classList.add("active");
         }
     });
 }
