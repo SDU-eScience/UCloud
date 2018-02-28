@@ -7,36 +7,38 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "personnotificationsubscriptiontyperel")
+@Table(name = "dataobject_classification")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Personnotificationsubscriptiontyperel.findAll", query = "SELECT p FROM Personnotificationsubscriptiontyperel p")
-    , @NamedQuery(name = "Personnotificationsubscriptiontyperel.findById", query = "SELECT p FROM Personnotificationsubscriptiontyperel p WHERE p.id = :id")
-    , @NamedQuery(name = "Personnotificationsubscriptiontyperel.findByActive", query = "SELECT p FROM Personnotificationsubscriptiontyperel p WHERE p.active = :active")
-    , @NamedQuery(name = "Personnotificationsubscriptiontyperel.findByMarkedfordelete", query = "SELECT p FROM Personnotificationsubscriptiontyperel p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Personnotificationsubscriptiontyperel.findByModifiedTs", query = "SELECT p FROM Personnotificationsubscriptiontyperel p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Personnotificationsubscriptiontyperel.findByCreatedTs", query = "SELECT p FROM Personnotificationsubscriptiontyperel p WHERE p.createdTs = :createdTs")})
-public class Personnotificationsubscriptiontyperel implements Serializable {
+    @NamedQuery(name = "DataobjectClassification.findAll", query = "SELECT d FROM DataobjectClassification d")
+    , @NamedQuery(name = "DataobjectClassification.findById", query = "SELECT d FROM DataobjectClassification d WHERE d.id = :id")
+    , @NamedQuery(name = "DataobjectClassification.findByDataobjectclassificationname", query = "SELECT d FROM DataobjectClassification d WHERE d.dataobjectclassificationname = :dataobjectclassificationname")
+    , @NamedQuery(name = "DataobjectClassification.findByActive", query = "SELECT d FROM DataobjectClassification d WHERE d.active = :active")
+    , @NamedQuery(name = "DataobjectClassification.findByMarkedfordelete", query = "SELECT d FROM DataobjectClassification d WHERE d.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "DataobjectClassification.findByModifiedTs", query = "SELECT d FROM DataobjectClassification d WHERE d.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "DataobjectClassification.findByCreatedTs", query = "SELECT d FROM DataobjectClassification d WHERE d.createdTs = :createdTs")})
+public class DataobjectClassification implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -44,6 +46,8 @@ public class Personnotificationsubscriptiontyperel implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
+    @Column(name = "dataobjectclassificationname")
+    private String dataobjectclassificationname;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -56,21 +60,17 @@ public class Personnotificationsubscriptiontyperel implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Person personrefid;
-    @JoinColumn(name = "personnotificationsubscriptiontyperefid", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Personnotificationsubscriptiontype personnotificationsubscriptiontyperefid;
+    @OneToMany(mappedBy = "dataobjectclassificationrefid")
+    private List<Dataobject> dataobjectList;
 
-    public Personnotificationsubscriptiontyperel() {
+    public DataobjectClassification() {
     }
 
-    public Personnotificationsubscriptiontyperel(Integer id) {
+    public DataobjectClassification(Integer id) {
         this.id = id;
     }
 
-    public Personnotificationsubscriptiontyperel(Integer id, Date modifiedTs, Date createdTs) {
+    public DataobjectClassification(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -82,6 +82,14 @@ public class Personnotificationsubscriptiontyperel implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getDataobjectclassificationname() {
+        return dataobjectclassificationname;
+    }
+
+    public void setDataobjectclassificationname(String dataobjectclassificationname) {
+        this.dataobjectclassificationname = dataobjectclassificationname;
     }
 
     public Integer getActive() {
@@ -116,20 +124,13 @@ public class Personnotificationsubscriptiontyperel implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Person getPersonrefid() {
-        return personrefid;
+    @XmlTransient
+    public List<Dataobject> getDataobjectList() {
+        return dataobjectList;
     }
 
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
-    }
-
-    public Personnotificationsubscriptiontype getPersonnotificationsubscriptiontyperefid() {
-        return personnotificationsubscriptiontyperefid;
-    }
-
-    public void setPersonnotificationsubscriptiontyperefid(Personnotificationsubscriptiontype personnotificationsubscriptiontyperefid) {
-        this.personnotificationsubscriptiontyperefid = personnotificationsubscriptiontyperefid;
+    public void setDataobjectList(List<Dataobject> dataobjectList) {
+        this.dataobjectList = dataobjectList;
     }
 
     @Override
@@ -142,10 +143,10 @@ public class Personnotificationsubscriptiontyperel implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Personnotificationsubscriptiontyperel)) {
+        if (!(object instanceof DataobjectClassification)) {
             return false;
         }
-        Personnotificationsubscriptiontyperel other = (Personnotificationsubscriptiontyperel) object;
+        DataobjectClassification other = (DataobjectClassification) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -154,7 +155,7 @@ public class Personnotificationsubscriptiontyperel implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Personnotificationsubscriptiontyperel[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.DataobjectClassification[ id=" + id + " ]";
     }
     
 }

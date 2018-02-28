@@ -13,6 +13,8 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
@@ -25,17 +27,17 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "login_type")
+@Table(name = "project_org_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "LoginType.findAll", query = "SELECT l FROM LoginType l")
-    , @NamedQuery(name = "LoginType.findById", query = "SELECT l FROM LoginType l WHERE l.id = :id")
-    , @NamedQuery(name = "LoginType.findByLogintypename", query = "SELECT l FROM LoginType l WHERE l.logintypename = :logintypename")
-    , @NamedQuery(name = "LoginType.findByActive", query = "SELECT l FROM LoginType l WHERE l.active = :active")
-    , @NamedQuery(name = "LoginType.findByMarkedfordelete", query = "SELECT l FROM LoginType l WHERE l.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "LoginType.findByModifiedTs", query = "SELECT l FROM LoginType l WHERE l.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "LoginType.findByCreatedTs", query = "SELECT l FROM LoginType l WHERE l.createdTs = :createdTs")})
-public class LoginType implements Serializable {
+    @NamedQuery(name = "ProjectOrgRelation.findAll", query = "SELECT p FROM ProjectOrgRelation p")
+    , @NamedQuery(name = "ProjectOrgRelation.findById", query = "SELECT p FROM ProjectOrgRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "ProjectOrgRelation.findByProjectrefid", query = "SELECT p FROM ProjectOrgRelation p WHERE p.projectrefid = :projectrefid")
+    , @NamedQuery(name = "ProjectOrgRelation.findByActive", query = "SELECT p FROM ProjectOrgRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "ProjectOrgRelation.findByMarkedfordelete", query = "SELECT p FROM ProjectOrgRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "ProjectOrgRelation.findByModifiedTs", query = "SELECT p FROM ProjectOrgRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ProjectOrgRelation.findByCreatedTs", query = "SELECT p FROM ProjectOrgRelation p WHERE p.createdTs = :createdTs")})
+public class ProjectOrgRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -43,8 +45,9 @@ public class LoginType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "logintypename")
-    private String logintypename;
+    @Basic(optional = false)
+    @Column(name = "projectrefid")
+    private int projectrefid;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -57,16 +60,20 @@ public class LoginType implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @JoinColumn(name = "orgrefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private Org orgrefid;
 
-    public LoginType() {
+    public ProjectOrgRelation() {
     }
 
-    public LoginType(Integer id) {
+    public ProjectOrgRelation(Integer id) {
         this.id = id;
     }
 
-    public LoginType(Integer id, Date modifiedTs, Date createdTs) {
+    public ProjectOrgRelation(Integer id, int projectrefid, Date modifiedTs, Date createdTs) {
         this.id = id;
+        this.projectrefid = projectrefid;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
     }
@@ -79,12 +86,12 @@ public class LoginType implements Serializable {
         this.id = id;
     }
 
-    public String getLogintypename() {
-        return logintypename;
+    public int getProjectrefid() {
+        return projectrefid;
     }
 
-    public void setLogintypename(String logintypename) {
-        this.logintypename = logintypename;
+    public void setProjectrefid(int projectrefid) {
+        this.projectrefid = projectrefid;
     }
 
     public Integer getActive() {
@@ -119,6 +126,14 @@ public class LoginType implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public Org getOrgrefid() {
+        return orgrefid;
+    }
+
+    public void setOrgrefid(Org orgrefid) {
+        this.orgrefid = orgrefid;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -129,10 +144,10 @@ public class LoginType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof LoginType)) {
+        if (!(object instanceof ProjectOrgRelation)) {
             return false;
         }
-        LoginType other = (LoginType) object;
+        ProjectOrgRelation other = (ProjectOrgRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -141,7 +156,7 @@ public class LoginType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.LoginType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.ProjectOrgRelation[ id=" + id + " ]";
     }
     
 }

@@ -13,6 +13,8 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
@@ -25,17 +27,16 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "login_type")
+@Table(name = "person_email_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "LoginType.findAll", query = "SELECT l FROM LoginType l")
-    , @NamedQuery(name = "LoginType.findById", query = "SELECT l FROM LoginType l WHERE l.id = :id")
-    , @NamedQuery(name = "LoginType.findByLogintypename", query = "SELECT l FROM LoginType l WHERE l.logintypename = :logintypename")
-    , @NamedQuery(name = "LoginType.findByActive", query = "SELECT l FROM LoginType l WHERE l.active = :active")
-    , @NamedQuery(name = "LoginType.findByMarkedfordelete", query = "SELECT l FROM LoginType l WHERE l.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "LoginType.findByModifiedTs", query = "SELECT l FROM LoginType l WHERE l.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "LoginType.findByCreatedTs", query = "SELECT l FROM LoginType l WHERE l.createdTs = :createdTs")})
-public class LoginType implements Serializable {
+    @NamedQuery(name = "PersonEmailRelation.findAll", query = "SELECT p FROM PersonEmailRelation p")
+    , @NamedQuery(name = "PersonEmailRelation.findById", query = "SELECT p FROM PersonEmailRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "PersonEmailRelation.findByMarkedfordelete", query = "SELECT p FROM PersonEmailRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PersonEmailRelation.findByModifiedTs", query = "SELECT p FROM PersonEmailRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PersonEmailRelation.findByCreatedTs", query = "SELECT p FROM PersonEmailRelation p WHERE p.createdTs = :createdTs")
+    , @NamedQuery(name = "PersonEmailRelation.findByPrimaryemail", query = "SELECT p FROM PersonEmailRelation p WHERE p.primaryemail = :primaryemail")})
+public class PersonEmailRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -43,10 +44,6 @@ public class LoginType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "logintypename")
-    private String logintypename;
-    @Column(name = "active")
-    private Integer active;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -57,15 +54,23 @@ public class LoginType implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @Column(name = "primaryemail")
+    private Integer primaryemail;
+    @JoinColumn(name = "emailrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Email emailrefid;
+    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Person personrefid;
 
-    public LoginType() {
+    public PersonEmailRelation() {
     }
 
-    public LoginType(Integer id) {
+    public PersonEmailRelation(Integer id) {
         this.id = id;
     }
 
-    public LoginType(Integer id, Date modifiedTs, Date createdTs) {
+    public PersonEmailRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -77,22 +82,6 @@ public class LoginType implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
-    }
-
-    public String getLogintypename() {
-        return logintypename;
-    }
-
-    public void setLogintypename(String logintypename) {
-        this.logintypename = logintypename;
-    }
-
-    public Integer getActive() {
-        return active;
-    }
-
-    public void setActive(Integer active) {
-        this.active = active;
     }
 
     public Integer getMarkedfordelete() {
@@ -119,6 +108,30 @@ public class LoginType implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public Integer getPrimaryemail() {
+        return primaryemail;
+    }
+
+    public void setPrimaryemail(Integer primaryemail) {
+        this.primaryemail = primaryemail;
+    }
+
+    public Email getEmailrefid() {
+        return emailrefid;
+    }
+
+    public void setEmailrefid(Email emailrefid) {
+        this.emailrefid = emailrefid;
+    }
+
+    public Person getPersonrefid() {
+        return personrefid;
+    }
+
+    public void setPersonrefid(Person personrefid) {
+        this.personrefid = personrefid;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -129,10 +142,10 @@ public class LoginType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof LoginType)) {
+        if (!(object instanceof PersonEmailRelation)) {
             return false;
         }
-        LoginType other = (LoginType) object;
+        PersonEmailRelation other = (PersonEmailRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -141,7 +154,7 @@ public class LoginType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.LoginType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PersonEmailRelation[ id=" + id + " ]";
     }
     
 }

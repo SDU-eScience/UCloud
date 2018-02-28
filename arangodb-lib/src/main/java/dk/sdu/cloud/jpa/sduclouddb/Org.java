@@ -7,7 +7,9 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -15,27 +17,30 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "login_type")
+@Table(name = "org")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "LoginType.findAll", query = "SELECT l FROM LoginType l")
-    , @NamedQuery(name = "LoginType.findById", query = "SELECT l FROM LoginType l WHERE l.id = :id")
-    , @NamedQuery(name = "LoginType.findByLogintypename", query = "SELECT l FROM LoginType l WHERE l.logintypename = :logintypename")
-    , @NamedQuery(name = "LoginType.findByActive", query = "SELECT l FROM LoginType l WHERE l.active = :active")
-    , @NamedQuery(name = "LoginType.findByMarkedfordelete", query = "SELECT l FROM LoginType l WHERE l.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "LoginType.findByModifiedTs", query = "SELECT l FROM LoginType l WHERE l.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "LoginType.findByCreatedTs", query = "SELECT l FROM LoginType l WHERE l.createdTs = :createdTs")})
-public class LoginType implements Serializable {
+    @NamedQuery(name = "Org.findAll", query = "SELECT o FROM Org o")
+    , @NamedQuery(name = "Org.findById", query = "SELECT o FROM Org o WHERE o.id = :id")
+    , @NamedQuery(name = "Org.findByOrgfullname", query = "SELECT o FROM Org o WHERE o.orgfullname = :orgfullname")
+    , @NamedQuery(name = "Org.findByOrgshortname", query = "SELECT o FROM Org o WHERE o.orgshortname = :orgshortname")
+    , @NamedQuery(name = "Org.findByActive", query = "SELECT o FROM Org o WHERE o.active = :active")
+    , @NamedQuery(name = "Org.findByMarkedfordelete", query = "SELECT o FROM Org o WHERE o.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "Org.findByModifiedTs", query = "SELECT o FROM Org o WHERE o.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "Org.findByCreatedTs", query = "SELECT o FROM Org o WHERE o.createdTs = :createdTs")})
+public class Org implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -43,8 +48,10 @@ public class LoginType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "logintypename")
-    private String logintypename;
+    @Column(name = "orgfullname")
+    private String orgfullname;
+    @Column(name = "orgshortname")
+    private String orgshortname;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -57,15 +64,19 @@ public class LoginType implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "orgrefid")
+    private List<ProjectOrgRelation> projectOrgRelationList;
+    @OneToMany(mappedBy = "orgrefid")
+    private List<Person> personList;
 
-    public LoginType() {
+    public Org() {
     }
 
-    public LoginType(Integer id) {
+    public Org(Integer id) {
         this.id = id;
     }
 
-    public LoginType(Integer id, Date modifiedTs, Date createdTs) {
+    public Org(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -79,12 +90,20 @@ public class LoginType implements Serializable {
         this.id = id;
     }
 
-    public String getLogintypename() {
-        return logintypename;
+    public String getOrgfullname() {
+        return orgfullname;
     }
 
-    public void setLogintypename(String logintypename) {
-        this.logintypename = logintypename;
+    public void setOrgfullname(String orgfullname) {
+        this.orgfullname = orgfullname;
+    }
+
+    public String getOrgshortname() {
+        return orgshortname;
+    }
+
+    public void setOrgshortname(String orgshortname) {
+        this.orgshortname = orgshortname;
     }
 
     public Integer getActive() {
@@ -119,6 +138,24 @@ public class LoginType implements Serializable {
         this.createdTs = createdTs;
     }
 
+    @XmlTransient
+    public List<ProjectOrgRelation> getProjectOrgRelationList() {
+        return projectOrgRelationList;
+    }
+
+    public void setProjectOrgRelationList(List<ProjectOrgRelation> projectOrgRelationList) {
+        this.projectOrgRelationList = projectOrgRelationList;
+    }
+
+    @XmlTransient
+    public List<Person> getPersonList() {
+        return personList;
+    }
+
+    public void setPersonList(List<Person> personList) {
+        this.personList = personList;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -129,10 +166,10 @@ public class LoginType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof LoginType)) {
+        if (!(object instanceof Org)) {
             return false;
         }
-        LoginType other = (LoginType) object;
+        Org other = (Org) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -141,7 +178,7 @@ public class LoginType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.LoginType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.Org[ id=" + id + " ]";
     }
     
 }

@@ -27,19 +27,16 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "project_event_calendar")
+@Table(name = "person_systemrole_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "ProjectEventCalendar.findAll", query = "SELECT p FROM ProjectEventCalendar p")
-    , @NamedQuery(name = "ProjectEventCalendar.findById", query = "SELECT p FROM ProjectEventCalendar p WHERE p.id = :id")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventname", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventname = :eventname")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventstart", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventstart = :eventstart")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventend", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventend = :eventend")
-    , @NamedQuery(name = "ProjectEventCalendar.findByActive", query = "SELECT p FROM ProjectEventCalendar p WHERE p.active = :active")
-    , @NamedQuery(name = "ProjectEventCalendar.findByMarkedfordelete", query = "SELECT p FROM ProjectEventCalendar p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "ProjectEventCalendar.findByModifiedTs", query = "SELECT p FROM ProjectEventCalendar p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "ProjectEventCalendar.findByCreatedTs", query = "SELECT p FROM ProjectEventCalendar p WHERE p.createdTs = :createdTs")})
-public class ProjectEventCalendar implements Serializable {
+    @NamedQuery(name = "PersonSystemroleRelation.findAll", query = "SELECT p FROM PersonSystemroleRelation p")
+    , @NamedQuery(name = "PersonSystemroleRelation.findById", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "PersonSystemroleRelation.findByActive", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "PersonSystemroleRelation.findByMarkedfordelete", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PersonSystemroleRelation.findByModifiedTs", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PersonSystemroleRelation.findByCreatedTs", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.createdTs = :createdTs")})
+public class PersonSystemroleRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -47,14 +44,6 @@ public class ProjectEventCalendar implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "eventname")
-    private String eventname;
-    @Column(name = "eventstart")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date eventstart;
-    @Column(name = "eventend")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date eventend;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -68,20 +57,20 @@ public class ProjectEventCalendar implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
-    @ManyToOne
+    @ManyToOne(optional = false)
     private Person personrefid;
-    @JoinColumn(name = "projectrefid", referencedColumnName = "id")
-    @ManyToOne
-    private Project projectrefid;
+    @JoinColumn(name = "systemrolerefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private Systemrole systemrolerefid;
 
-    public ProjectEventCalendar() {
+    public PersonSystemroleRelation() {
     }
 
-    public ProjectEventCalendar(Integer id) {
+    public PersonSystemroleRelation(Integer id) {
         this.id = id;
     }
 
-    public ProjectEventCalendar(Integer id, Date modifiedTs, Date createdTs) {
+    public PersonSystemroleRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -93,30 +82,6 @@ public class ProjectEventCalendar implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
-    }
-
-    public String getEventname() {
-        return eventname;
-    }
-
-    public void setEventname(String eventname) {
-        this.eventname = eventname;
-    }
-
-    public Date getEventstart() {
-        return eventstart;
-    }
-
-    public void setEventstart(Date eventstart) {
-        this.eventstart = eventstart;
-    }
-
-    public Date getEventend() {
-        return eventend;
-    }
-
-    public void setEventend(Date eventend) {
-        this.eventend = eventend;
     }
 
     public Integer getActive() {
@@ -159,12 +124,12 @@ public class ProjectEventCalendar implements Serializable {
         this.personrefid = personrefid;
     }
 
-    public Project getProjectrefid() {
-        return projectrefid;
+    public Systemrole getSystemrolerefid() {
+        return systemrolerefid;
     }
 
-    public void setProjectrefid(Project projectrefid) {
-        this.projectrefid = projectrefid;
+    public void setSystemrolerefid(Systemrole systemrolerefid) {
+        this.systemrolerefid = systemrolerefid;
     }
 
     @Override
@@ -177,10 +142,10 @@ public class ProjectEventCalendar implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof ProjectEventCalendar)) {
+        if (!(object instanceof PersonSystemroleRelation)) {
             return false;
         }
-        ProjectEventCalendar other = (ProjectEventCalendar) object;
+        PersonSystemroleRelation other = (PersonSystemroleRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -189,7 +154,7 @@ public class ProjectEventCalendar implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.ProjectEventCalendar[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PersonSystemroleRelation[ id=" + id + " ]";
     }
     
 }

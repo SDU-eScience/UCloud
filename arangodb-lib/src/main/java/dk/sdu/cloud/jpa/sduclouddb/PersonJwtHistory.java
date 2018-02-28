@@ -7,6 +7,7 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -17,29 +18,30 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "project_event_calendar")
+@Table(name = "person_jwt_history")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "ProjectEventCalendar.findAll", query = "SELECT p FROM ProjectEventCalendar p")
-    , @NamedQuery(name = "ProjectEventCalendar.findById", query = "SELECT p FROM ProjectEventCalendar p WHERE p.id = :id")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventname", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventname = :eventname")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventstart", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventstart = :eventstart")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventend", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventend = :eventend")
-    , @NamedQuery(name = "ProjectEventCalendar.findByActive", query = "SELECT p FROM ProjectEventCalendar p WHERE p.active = :active")
-    , @NamedQuery(name = "ProjectEventCalendar.findByMarkedfordelete", query = "SELECT p FROM ProjectEventCalendar p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "ProjectEventCalendar.findByModifiedTs", query = "SELECT p FROM ProjectEventCalendar p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "ProjectEventCalendar.findByCreatedTs", query = "SELECT p FROM ProjectEventCalendar p WHERE p.createdTs = :createdTs")})
-public class ProjectEventCalendar implements Serializable {
+    @NamedQuery(name = "PersonJwtHistory.findAll", query = "SELECT p FROM PersonJwtHistory p")
+    , @NamedQuery(name = "PersonJwtHistory.findById", query = "SELECT p FROM PersonJwtHistory p WHERE p.id = :id")
+    , @NamedQuery(name = "PersonJwtHistory.findBySessionid", query = "SELECT p FROM PersonJwtHistory p WHERE p.sessionid = :sessionid")
+    , @NamedQuery(name = "PersonJwtHistory.findByMarkedfordelete", query = "SELECT p FROM PersonJwtHistory p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PersonJwtHistory.findByJwt", query = "SELECT p FROM PersonJwtHistory p WHERE p.jwt = :jwt")
+    , @NamedQuery(name = "PersonJwtHistory.findByModifiedTs", query = "SELECT p FROM PersonJwtHistory p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PersonJwtHistory.findByCreatedTs", query = "SELECT p FROM PersonJwtHistory p WHERE p.createdTs = :createdTs")})
+public class PersonJwtHistory implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -47,18 +49,12 @@ public class ProjectEventCalendar implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "eventname")
-    private String eventname;
-    @Column(name = "eventstart")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date eventstart;
-    @Column(name = "eventend")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date eventend;
-    @Column(name = "active")
-    private Integer active;
+    @Column(name = "sessionid")
+    private String sessionid;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
+    @Column(name = "jwt")
+    private String jwt;
     @Basic(optional = false)
     @Column(name = "modified_ts")
     @Temporal(TemporalType.TIMESTAMP)
@@ -70,18 +66,19 @@ public class ProjectEventCalendar implements Serializable {
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne
     private Person personrefid;
-    @JoinColumn(name = "projectrefid", referencedColumnName = "id")
-    @ManyToOne
-    private Project projectrefid;
+    @OneToMany(mappedBy = "personjwthistoryrefid")
+    private List<SubsystemCommandQueue> subsystemCommandQueueList;
+    @OneToOne(mappedBy = "personjwthistoryrefid")
+    private Person person;
 
-    public ProjectEventCalendar() {
+    public PersonJwtHistory() {
     }
 
-    public ProjectEventCalendar(Integer id) {
+    public PersonJwtHistory(Integer id) {
         this.id = id;
     }
 
-    public ProjectEventCalendar(Integer id, Date modifiedTs, Date createdTs) {
+    public PersonJwtHistory(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -95,36 +92,12 @@ public class ProjectEventCalendar implements Serializable {
         this.id = id;
     }
 
-    public String getEventname() {
-        return eventname;
+    public String getSessionid() {
+        return sessionid;
     }
 
-    public void setEventname(String eventname) {
-        this.eventname = eventname;
-    }
-
-    public Date getEventstart() {
-        return eventstart;
-    }
-
-    public void setEventstart(Date eventstart) {
-        this.eventstart = eventstart;
-    }
-
-    public Date getEventend() {
-        return eventend;
-    }
-
-    public void setEventend(Date eventend) {
-        this.eventend = eventend;
-    }
-
-    public Integer getActive() {
-        return active;
-    }
-
-    public void setActive(Integer active) {
-        this.active = active;
+    public void setSessionid(String sessionid) {
+        this.sessionid = sessionid;
     }
 
     public Integer getMarkedfordelete() {
@@ -133,6 +106,14 @@ public class ProjectEventCalendar implements Serializable {
 
     public void setMarkedfordelete(Integer markedfordelete) {
         this.markedfordelete = markedfordelete;
+    }
+
+    public String getJwt() {
+        return jwt;
+    }
+
+    public void setJwt(String jwt) {
+        this.jwt = jwt;
     }
 
     public Date getModifiedTs() {
@@ -159,12 +140,21 @@ public class ProjectEventCalendar implements Serializable {
         this.personrefid = personrefid;
     }
 
-    public Project getProjectrefid() {
-        return projectrefid;
+    @XmlTransient
+    public List<SubsystemCommandQueue> getSubsystemCommandQueueList() {
+        return subsystemCommandQueueList;
     }
 
-    public void setProjectrefid(Project projectrefid) {
-        this.projectrefid = projectrefid;
+    public void setSubsystemCommandQueueList(List<SubsystemCommandQueue> subsystemCommandQueueList) {
+        this.subsystemCommandQueueList = subsystemCommandQueueList;
+    }
+
+    public Person getPerson() {
+        return person;
+    }
+
+    public void setPerson(Person person) {
+        this.person = person;
     }
 
     @Override
@@ -177,10 +167,10 @@ public class ProjectEventCalendar implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof ProjectEventCalendar)) {
+        if (!(object instanceof PersonJwtHistory)) {
             return false;
         }
-        ProjectEventCalendar other = (ProjectEventCalendar) object;
+        PersonJwtHistory other = (PersonJwtHistory) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -189,7 +179,7 @@ public class ProjectEventCalendar implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.ProjectEventCalendar[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PersonJwtHistory[ id=" + id + " ]";
     }
     
 }

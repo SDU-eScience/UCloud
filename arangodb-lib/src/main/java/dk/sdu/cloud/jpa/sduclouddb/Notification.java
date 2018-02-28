@@ -27,17 +27,17 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "publication_dataobject_rel")
+@Table(name = "notification")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "PublicationDataobjectRel.findAll", query = "SELECT p FROM PublicationDataobjectRel p")
-    , @NamedQuery(name = "PublicationDataobjectRel.findById", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.id = :id")
-    , @NamedQuery(name = "PublicationDataobjectRel.findByActive", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.active = :active")
-    , @NamedQuery(name = "PublicationDataobjectRel.findByZenodotrans", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.zenodotrans = :zenodotrans")
-    , @NamedQuery(name = "PublicationDataobjectRel.findByMarkedfordelete", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "PublicationDataobjectRel.findByModifiedTs", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "PublicationDataobjectRel.findByCreatedTs", query = "SELECT p FROM PublicationDataobjectRel p WHERE p.createdTs = :createdTs")})
-public class PublicationDataobjectRel implements Serializable {
+    @NamedQuery(name = "Notification.findAll", query = "SELECT n FROM Notification n")
+    , @NamedQuery(name = "Notification.findById", query = "SELECT n FROM Notification n WHERE n.id = :id")
+    , @NamedQuery(name = "Notification.findByNotificationtext", query = "SELECT n FROM Notification n WHERE n.notificationtext = :notificationtext")
+    , @NamedQuery(name = "Notification.findByViewed", query = "SELECT n FROM Notification n WHERE n.viewed = :viewed")
+    , @NamedQuery(name = "Notification.findByMarkedfordelete", query = "SELECT n FROM Notification n WHERE n.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "Notification.findByModifiedTs", query = "SELECT n FROM Notification n WHERE n.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "Notification.findByCreatedTs", query = "SELECT n FROM Notification n WHERE n.createdTs = :createdTs")})
+public class Notification implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,10 +45,10 @@ public class PublicationDataobjectRel implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "active")
-    private Integer active;
-    @Column(name = "zenodotrans")
-    private Integer zenodotrans;
+    @Column(name = "notificationtext")
+    private String notificationtext;
+    @Column(name = "viewed")
+    private Integer viewed;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -59,21 +59,18 @@ public class PublicationDataobjectRel implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "dataobjectrefid", referencedColumnName = "id")
+    @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne
-    private Dataobject dataobjectrefid;
-    @JoinColumn(name = "publicationrefid", referencedColumnName = "id")
-    @ManyToOne
-    private Publication publicationrefid;
+    private Person personrefid;
 
-    public PublicationDataobjectRel() {
+    public Notification() {
     }
 
-    public PublicationDataobjectRel(Integer id) {
+    public Notification(Integer id) {
         this.id = id;
     }
 
-    public PublicationDataobjectRel(Integer id, Date modifiedTs, Date createdTs) {
+    public Notification(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -87,20 +84,20 @@ public class PublicationDataobjectRel implements Serializable {
         this.id = id;
     }
 
-    public Integer getActive() {
-        return active;
+    public String getNotificationtext() {
+        return notificationtext;
     }
 
-    public void setActive(Integer active) {
-        this.active = active;
+    public void setNotificationtext(String notificationtext) {
+        this.notificationtext = notificationtext;
     }
 
-    public Integer getZenodotrans() {
-        return zenodotrans;
+    public Integer getViewed() {
+        return viewed;
     }
 
-    public void setZenodotrans(Integer zenodotrans) {
-        this.zenodotrans = zenodotrans;
+    public void setViewed(Integer viewed) {
+        this.viewed = viewed;
     }
 
     public Integer getMarkedfordelete() {
@@ -127,20 +124,12 @@ public class PublicationDataobjectRel implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Dataobject getDataobjectrefid() {
-        return dataobjectrefid;
+    public Person getPersonrefid() {
+        return personrefid;
     }
 
-    public void setDataobjectrefid(Dataobject dataobjectrefid) {
-        this.dataobjectrefid = dataobjectrefid;
-    }
-
-    public Publication getPublicationrefid() {
-        return publicationrefid;
-    }
-
-    public void setPublicationrefid(Publication publicationrefid) {
-        this.publicationrefid = publicationrefid;
+    public void setPersonrefid(Person personrefid) {
+        this.personrefid = personrefid;
     }
 
     @Override
@@ -153,10 +142,10 @@ public class PublicationDataobjectRel implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof PublicationDataobjectRel)) {
+        if (!(object instanceof Notification)) {
             return false;
         }
-        PublicationDataobjectRel other = (PublicationDataobjectRel) object;
+        Notification other = (Notification) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -165,7 +154,7 @@ public class PublicationDataobjectRel implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.PublicationDataobjectRel[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.Notification[ id=" + id + " ]";
     }
     
 }

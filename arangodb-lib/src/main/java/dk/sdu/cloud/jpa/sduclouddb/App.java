@@ -14,6 +14,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
@@ -27,19 +28,20 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "project_event_calendar")
+@Table(name = "app")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "ProjectEventCalendar.findAll", query = "SELECT p FROM ProjectEventCalendar p")
-    , @NamedQuery(name = "ProjectEventCalendar.findById", query = "SELECT p FROM ProjectEventCalendar p WHERE p.id = :id")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventname", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventname = :eventname")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventstart", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventstart = :eventstart")
-    , @NamedQuery(name = "ProjectEventCalendar.findByEventend", query = "SELECT p FROM ProjectEventCalendar p WHERE p.eventend = :eventend")
-    , @NamedQuery(name = "ProjectEventCalendar.findByActive", query = "SELECT p FROM ProjectEventCalendar p WHERE p.active = :active")
-    , @NamedQuery(name = "ProjectEventCalendar.findByMarkedfordelete", query = "SELECT p FROM ProjectEventCalendar p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "ProjectEventCalendar.findByModifiedTs", query = "SELECT p FROM ProjectEventCalendar p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "ProjectEventCalendar.findByCreatedTs", query = "SELECT p FROM ProjectEventCalendar p WHERE p.createdTs = :createdTs")})
-public class ProjectEventCalendar implements Serializable {
+    @NamedQuery(name = "App.findAll", query = "SELECT a FROM App a")
+    , @NamedQuery(name = "App.findById", query = "SELECT a FROM App a WHERE a.id = :id")
+    , @NamedQuery(name = "App.findByAppname", query = "SELECT a FROM App a WHERE a.appname = :appname")
+    , @NamedQuery(name = "App.findByAppdescriptiontext", query = "SELECT a FROM App a WHERE a.appdescriptiontext = :appdescriptiontext")
+    , @NamedQuery(name = "App.findByActive", query = "SELECT a FROM App a WHERE a.active = :active")
+    , @NamedQuery(name = "App.findByMarkedfordelete", query = "SELECT a FROM App a WHERE a.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "App.findByModifiedTs", query = "SELECT a FROM App a WHERE a.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "App.findByCreatedTs", query = "SELECT a FROM App a WHERE a.createdTs = :createdTs")
+    , @NamedQuery(name = "App.findByGiturl", query = "SELECT a FROM App a WHERE a.giturl = :giturl")
+    , @NamedQuery(name = "App.findByPrepped", query = "SELECT a FROM App a WHERE a.prepped = :prepped")})
+public class App implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -47,14 +49,10 @@ public class ProjectEventCalendar implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "eventname")
-    private String eventname;
-    @Column(name = "eventstart")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date eventstart;
-    @Column(name = "eventend")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date eventend;
+    @Column(name = "appname")
+    private String appname;
+    @Column(name = "appdescriptiontext")
+    private String appdescriptiontext;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -67,21 +65,25 @@ public class ProjectEventCalendar implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @Column(name = "giturl")
+    private String giturl;
+    @Lob
+    @Column(name = "cwlfile")
+    private byte[] cwlfile;
+    @Column(name = "prepped")
+    private Integer prepped;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne
     private Person personrefid;
-    @JoinColumn(name = "projectrefid", referencedColumnName = "id")
-    @ManyToOne
-    private Project projectrefid;
 
-    public ProjectEventCalendar() {
+    public App() {
     }
 
-    public ProjectEventCalendar(Integer id) {
+    public App(Integer id) {
         this.id = id;
     }
 
-    public ProjectEventCalendar(Integer id, Date modifiedTs, Date createdTs) {
+    public App(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -95,28 +97,20 @@ public class ProjectEventCalendar implements Serializable {
         this.id = id;
     }
 
-    public String getEventname() {
-        return eventname;
+    public String getAppname() {
+        return appname;
     }
 
-    public void setEventname(String eventname) {
-        this.eventname = eventname;
+    public void setAppname(String appname) {
+        this.appname = appname;
     }
 
-    public Date getEventstart() {
-        return eventstart;
+    public String getAppdescriptiontext() {
+        return appdescriptiontext;
     }
 
-    public void setEventstart(Date eventstart) {
-        this.eventstart = eventstart;
-    }
-
-    public Date getEventend() {
-        return eventend;
-    }
-
-    public void setEventend(Date eventend) {
-        this.eventend = eventend;
+    public void setAppdescriptiontext(String appdescriptiontext) {
+        this.appdescriptiontext = appdescriptiontext;
     }
 
     public Integer getActive() {
@@ -151,20 +145,36 @@ public class ProjectEventCalendar implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public String getGiturl() {
+        return giturl;
+    }
+
+    public void setGiturl(String giturl) {
+        this.giturl = giturl;
+    }
+
+    public byte[] getCwlfile() {
+        return cwlfile;
+    }
+
+    public void setCwlfile(byte[] cwlfile) {
+        this.cwlfile = cwlfile;
+    }
+
+    public Integer getPrepped() {
+        return prepped;
+    }
+
+    public void setPrepped(Integer prepped) {
+        this.prepped = prepped;
+    }
+
     public Person getPersonrefid() {
         return personrefid;
     }
 
     public void setPersonrefid(Person personrefid) {
         this.personrefid = personrefid;
-    }
-
-    public Project getProjectrefid() {
-        return projectrefid;
-    }
-
-    public void setProjectrefid(Project projectrefid) {
-        this.projectrefid = projectrefid;
     }
 
     @Override
@@ -177,10 +187,10 @@ public class ProjectEventCalendar implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof ProjectEventCalendar)) {
+        if (!(object instanceof App)) {
             return false;
         }
-        ProjectEventCalendar other = (ProjectEventCalendar) object;
+        App other = (App) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -189,7 +199,7 @@ public class ProjectEventCalendar implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.ProjectEventCalendar[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.App[ id=" + id + " ]";
     }
     
 }

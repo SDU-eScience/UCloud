@@ -7,36 +7,38 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "projectpersonrel")
+@Table(name = "dataobject_directory_type")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectpersonrel.findAll", query = "SELECT p FROM Projectpersonrel p")
-    , @NamedQuery(name = "Projectpersonrel.findById", query = "SELECT p FROM Projectpersonrel p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectpersonrel.findByActive", query = "SELECT p FROM Projectpersonrel p WHERE p.active = :active")
-    , @NamedQuery(name = "Projectpersonrel.findByMarkedfordelete", query = "SELECT p FROM Projectpersonrel p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Projectpersonrel.findByModifiedTs", query = "SELECT p FROM Projectpersonrel p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Projectpersonrel.findByCreatedTs", query = "SELECT p FROM Projectpersonrel p WHERE p.createdTs = :createdTs")})
-public class Projectpersonrel implements Serializable {
+    @NamedQuery(name = "DataobjectDirectoryType.findAll", query = "SELECT d FROM DataobjectDirectoryType d")
+    , @NamedQuery(name = "DataobjectDirectoryType.findById", query = "SELECT d FROM DataobjectDirectoryType d WHERE d.id = :id")
+    , @NamedQuery(name = "DataobjectDirectoryType.findByDataobjectdirectorytypename", query = "SELECT d FROM DataobjectDirectoryType d WHERE d.dataobjectdirectorytypename = :dataobjectdirectorytypename")
+    , @NamedQuery(name = "DataobjectDirectoryType.findByActive", query = "SELECT d FROM DataobjectDirectoryType d WHERE d.active = :active")
+    , @NamedQuery(name = "DataobjectDirectoryType.findByMarkedfordelete", query = "SELECT d FROM DataobjectDirectoryType d WHERE d.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "DataobjectDirectoryType.findByModifiedTs", query = "SELECT d FROM DataobjectDirectoryType d WHERE d.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "DataobjectDirectoryType.findByCreatedTs", query = "SELECT d FROM DataobjectDirectoryType d WHERE d.createdTs = :createdTs")})
+public class DataobjectDirectoryType implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -44,6 +46,8 @@ public class Projectpersonrel implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
+    @Column(name = "dataobjectdirectorytypename")
+    private String dataobjectdirectorytypename;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -56,24 +60,17 @@ public class Projectpersonrel implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Person personrefid;
-    @JoinColumn(name = "projectrefid", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Project projectrefid;
-    @JoinColumn(name = "projectrolerefid", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Projectrole projectrolerefid;
+    @OneToMany(mappedBy = "dataobjectdirectorytyperefid")
+    private List<DataobjectDirectory> dataobjectDirectoryList;
 
-    public Projectpersonrel() {
+    public DataobjectDirectoryType() {
     }
 
-    public Projectpersonrel(Integer id) {
+    public DataobjectDirectoryType(Integer id) {
         this.id = id;
     }
 
-    public Projectpersonrel(Integer id, Date modifiedTs, Date createdTs) {
+    public DataobjectDirectoryType(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -85,6 +82,14 @@ public class Projectpersonrel implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getDataobjectdirectorytypename() {
+        return dataobjectdirectorytypename;
+    }
+
+    public void setDataobjectdirectorytypename(String dataobjectdirectorytypename) {
+        this.dataobjectdirectorytypename = dataobjectdirectorytypename;
     }
 
     public Integer getActive() {
@@ -119,28 +124,13 @@ public class Projectpersonrel implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Person getPersonrefid() {
-        return personrefid;
+    @XmlTransient
+    public List<DataobjectDirectory> getDataobjectDirectoryList() {
+        return dataobjectDirectoryList;
     }
 
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
-    }
-
-    public Project getProjectrefid() {
-        return projectrefid;
-    }
-
-    public void setProjectrefid(Project projectrefid) {
-        this.projectrefid = projectrefid;
-    }
-
-    public Projectrole getProjectrolerefid() {
-        return projectrolerefid;
-    }
-
-    public void setProjectrolerefid(Projectrole projectrolerefid) {
-        this.projectrolerefid = projectrolerefid;
+    public void setDataobjectDirectoryList(List<DataobjectDirectory> dataobjectDirectoryList) {
+        this.dataobjectDirectoryList = dataobjectDirectoryList;
     }
 
     @Override
@@ -153,10 +143,10 @@ public class Projectpersonrel implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Projectpersonrel)) {
+        if (!(object instanceof DataobjectDirectoryType)) {
             return false;
         }
-        Projectpersonrel other = (Projectpersonrel) object;
+        DataobjectDirectoryType other = (DataobjectDirectoryType) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -165,7 +155,7 @@ public class Projectpersonrel implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Projectpersonrel[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.DataobjectDirectoryType[ id=" + id + " ]";
     }
     
 }

@@ -13,6 +13,8 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
@@ -25,17 +27,17 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "login_type")
+@Table(name = "publication_dataobject_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "LoginType.findAll", query = "SELECT l FROM LoginType l")
-    , @NamedQuery(name = "LoginType.findById", query = "SELECT l FROM LoginType l WHERE l.id = :id")
-    , @NamedQuery(name = "LoginType.findByLogintypename", query = "SELECT l FROM LoginType l WHERE l.logintypename = :logintypename")
-    , @NamedQuery(name = "LoginType.findByActive", query = "SELECT l FROM LoginType l WHERE l.active = :active")
-    , @NamedQuery(name = "LoginType.findByMarkedfordelete", query = "SELECT l FROM LoginType l WHERE l.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "LoginType.findByModifiedTs", query = "SELECT l FROM LoginType l WHERE l.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "LoginType.findByCreatedTs", query = "SELECT l FROM LoginType l WHERE l.createdTs = :createdTs")})
-public class LoginType implements Serializable {
+    @NamedQuery(name = "PublicationDataobjectRelation.findAll", query = "SELECT p FROM PublicationDataobjectRelation p")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findById", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByActive", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByZenodotrans", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.zenodotrans = :zenodotrans")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByMarkedfordelete", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByModifiedTs", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByCreatedTs", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.createdTs = :createdTs")})
+public class PublicationDataobjectRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -43,10 +45,10 @@ public class LoginType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "logintypename")
-    private String logintypename;
     @Column(name = "active")
     private Integer active;
+    @Column(name = "zenodotrans")
+    private Integer zenodotrans;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -57,15 +59,21 @@ public class LoginType implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @JoinColumn(name = "dataobjectrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Dataobject dataobjectrefid;
+    @JoinColumn(name = "publicationrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Publication publicationrefid;
 
-    public LoginType() {
+    public PublicationDataobjectRelation() {
     }
 
-    public LoginType(Integer id) {
+    public PublicationDataobjectRelation(Integer id) {
         this.id = id;
     }
 
-    public LoginType(Integer id, Date modifiedTs, Date createdTs) {
+    public PublicationDataobjectRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -79,20 +87,20 @@ public class LoginType implements Serializable {
         this.id = id;
     }
 
-    public String getLogintypename() {
-        return logintypename;
-    }
-
-    public void setLogintypename(String logintypename) {
-        this.logintypename = logintypename;
-    }
-
     public Integer getActive() {
         return active;
     }
 
     public void setActive(Integer active) {
         this.active = active;
+    }
+
+    public Integer getZenodotrans() {
+        return zenodotrans;
+    }
+
+    public void setZenodotrans(Integer zenodotrans) {
+        this.zenodotrans = zenodotrans;
     }
 
     public Integer getMarkedfordelete() {
@@ -119,6 +127,22 @@ public class LoginType implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public Dataobject getDataobjectrefid() {
+        return dataobjectrefid;
+    }
+
+    public void setDataobjectrefid(Dataobject dataobjectrefid) {
+        this.dataobjectrefid = dataobjectrefid;
+    }
+
+    public Publication getPublicationrefid() {
+        return publicationrefid;
+    }
+
+    public void setPublicationrefid(Publication publicationrefid) {
+        this.publicationrefid = publicationrefid;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -129,10 +153,10 @@ public class LoginType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof LoginType)) {
+        if (!(object instanceof PublicationDataobjectRelation)) {
             return false;
         }
-        LoginType other = (LoginType) object;
+        PublicationDataobjectRelation other = (PublicationDataobjectRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -141,7 +165,7 @@ public class LoginType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.LoginType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PublicationDataobjectRelation[ id=" + id + " ]";
     }
     
 }

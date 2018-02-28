@@ -7,6 +7,7 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -15,27 +16,28 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "login_type")
+@Table(name = "subsystem_command_category")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "LoginType.findAll", query = "SELECT l FROM LoginType l")
-    , @NamedQuery(name = "LoginType.findById", query = "SELECT l FROM LoginType l WHERE l.id = :id")
-    , @NamedQuery(name = "LoginType.findByLogintypename", query = "SELECT l FROM LoginType l WHERE l.logintypename = :logintypename")
-    , @NamedQuery(name = "LoginType.findByActive", query = "SELECT l FROM LoginType l WHERE l.active = :active")
-    , @NamedQuery(name = "LoginType.findByMarkedfordelete", query = "SELECT l FROM LoginType l WHERE l.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "LoginType.findByModifiedTs", query = "SELECT l FROM LoginType l WHERE l.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "LoginType.findByCreatedTs", query = "SELECT l FROM LoginType l WHERE l.createdTs = :createdTs")})
-public class LoginType implements Serializable {
+    @NamedQuery(name = "SubsystemCommandCategory.findAll", query = "SELECT s FROM SubsystemCommandCategory s")
+    , @NamedQuery(name = "SubsystemCommandCategory.findById", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.id = :id")
+    , @NamedQuery(name = "SubsystemCommandCategory.findBySubsystemcommandcategorytext", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.subsystemcommandcategorytext = :subsystemcommandcategorytext")
+    , @NamedQuery(name = "SubsystemCommandCategory.findByMarkedfordelete", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "SubsystemCommandCategory.findByModifiedTs", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "SubsystemCommandCategory.findByCreatedTs", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.createdTs = :createdTs")})
+public class SubsystemCommandCategory implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -43,10 +45,8 @@ public class LoginType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "logintypename")
-    private String logintypename;
-    @Column(name = "active")
-    private Integer active;
+    @Column(name = "subsystemcommandcategorytext")
+    private String subsystemcommandcategorytext;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -57,15 +57,17 @@ public class LoginType implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @OneToMany(mappedBy = "subsystemcommandcategoryrefid")
+    private List<SubsystemCommand> subsystemCommandList;
 
-    public LoginType() {
+    public SubsystemCommandCategory() {
     }
 
-    public LoginType(Integer id) {
+    public SubsystemCommandCategory(Integer id) {
         this.id = id;
     }
 
-    public LoginType(Integer id, Date modifiedTs, Date createdTs) {
+    public SubsystemCommandCategory(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -79,20 +81,12 @@ public class LoginType implements Serializable {
         this.id = id;
     }
 
-    public String getLogintypename() {
-        return logintypename;
+    public String getSubsystemcommandcategorytext() {
+        return subsystemcommandcategorytext;
     }
 
-    public void setLogintypename(String logintypename) {
-        this.logintypename = logintypename;
-    }
-
-    public Integer getActive() {
-        return active;
-    }
-
-    public void setActive(Integer active) {
-        this.active = active;
+    public void setSubsystemcommandcategorytext(String subsystemcommandcategorytext) {
+        this.subsystemcommandcategorytext = subsystemcommandcategorytext;
     }
 
     public Integer getMarkedfordelete() {
@@ -119,6 +113,15 @@ public class LoginType implements Serializable {
         this.createdTs = createdTs;
     }
 
+    @XmlTransient
+    public List<SubsystemCommand> getSubsystemCommandList() {
+        return subsystemCommandList;
+    }
+
+    public void setSubsystemCommandList(List<SubsystemCommand> subsystemCommandList) {
+        this.subsystemCommandList = subsystemCommandList;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -129,10 +132,10 @@ public class LoginType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof LoginType)) {
+        if (!(object instanceof SubsystemCommandCategory)) {
             return false;
         }
-        LoginType other = (LoginType) object;
+        SubsystemCommandCategory other = (SubsystemCommandCategory) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -141,7 +144,7 @@ public class LoginType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.LoginType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.SubsystemCommandCategory[ id=" + id + " ]";
     }
     
 }

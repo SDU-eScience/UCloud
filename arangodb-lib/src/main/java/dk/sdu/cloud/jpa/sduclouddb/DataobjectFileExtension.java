@@ -28,17 +28,19 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author bjhj
  */
 @Entity
-@Table(name = "project_type")
+@Table(name = "dataobject_file_extension")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "ProjectType.findAll", query = "SELECT p FROM ProjectType p")
-    , @NamedQuery(name = "ProjectType.findById", query = "SELECT p FROM ProjectType p WHERE p.id = :id")
-    , @NamedQuery(name = "ProjectType.findByProjecttypeename", query = "SELECT p FROM ProjectType p WHERE p.projecttypeename = :projecttypeename")
-    , @NamedQuery(name = "ProjectType.findByActive", query = "SELECT p FROM ProjectType p WHERE p.active = :active")
-    , @NamedQuery(name = "ProjectType.findByMarkedfordelete", query = "SELECT p FROM ProjectType p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "ProjectType.findByModifiedTs", query = "SELECT p FROM ProjectType p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "ProjectType.findByCreatedTs", query = "SELECT p FROM ProjectType p WHERE p.createdTs = :createdTs")})
-public class ProjectType implements Serializable {
+    @NamedQuery(name = "DataobjectFileExtension.findAll", query = "SELECT d FROM DataobjectFileExtension d")
+    , @NamedQuery(name = "DataobjectFileExtension.findById", query = "SELECT d FROM DataobjectFileExtension d WHERE d.id = :id")
+    , @NamedQuery(name = "DataobjectFileExtension.findByFileextensionname", query = "SELECT d FROM DataobjectFileExtension d WHERE d.fileextensionname = :fileextensionname")
+    , @NamedQuery(name = "DataobjectFileExtension.findByActive", query = "SELECT d FROM DataobjectFileExtension d WHERE d.active = :active")
+    , @NamedQuery(name = "DataobjectFileExtension.findByMarkedfordelete", query = "SELECT d FROM DataobjectFileExtension d WHERE d.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "DataobjectFileExtension.findByModifiedTs", query = "SELECT d FROM DataobjectFileExtension d WHERE d.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "DataobjectFileExtension.findByCreatedTs", query = "SELECT d FROM DataobjectFileExtension d WHERE d.createdTs = :createdTs")
+    , @NamedQuery(name = "DataobjectFileExtension.findByMimetype", query = "SELECT d FROM DataobjectFileExtension d WHERE d.mimetype = :mimetype")
+    , @NamedQuery(name = "DataobjectFileExtension.findByFileextensiondesc", query = "SELECT d FROM DataobjectFileExtension d WHERE d.fileextensiondesc = :fileextensiondesc")})
+public class DataobjectFileExtension implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -46,8 +48,8 @@ public class ProjectType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "projecttypeename")
-    private String projecttypeename;
+    @Column(name = "fileextensionname")
+    private String fileextensionname;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -60,17 +62,21 @@ public class ProjectType implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "projecttyperefid")
-    private List<Project> projectList;
+    @Column(name = "mimetype")
+    private String mimetype;
+    @Column(name = "fileextensiondesc")
+    private String fileextensiondesc;
+    @OneToMany(mappedBy = "dataobjectfileextensionrefid")
+    private List<Dataobject> dataobjectList;
 
-    public ProjectType() {
+    public DataobjectFileExtension() {
     }
 
-    public ProjectType(Integer id) {
+    public DataobjectFileExtension(Integer id) {
         this.id = id;
     }
 
-    public ProjectType(Integer id, Date modifiedTs, Date createdTs) {
+    public DataobjectFileExtension(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -84,12 +90,12 @@ public class ProjectType implements Serializable {
         this.id = id;
     }
 
-    public String getProjecttypeename() {
-        return projecttypeename;
+    public String getFileextensionname() {
+        return fileextensionname;
     }
 
-    public void setProjecttypeename(String projecttypeename) {
-        this.projecttypeename = projecttypeename;
+    public void setFileextensionname(String fileextensionname) {
+        this.fileextensionname = fileextensionname;
     }
 
     public Integer getActive() {
@@ -124,13 +130,29 @@ public class ProjectType implements Serializable {
         this.createdTs = createdTs;
     }
 
-    @XmlTransient
-    public List<Project> getProjectList() {
-        return projectList;
+    public String getMimetype() {
+        return mimetype;
     }
 
-    public void setProjectList(List<Project> projectList) {
-        this.projectList = projectList;
+    public void setMimetype(String mimetype) {
+        this.mimetype = mimetype;
+    }
+
+    public String getFileextensiondesc() {
+        return fileextensiondesc;
+    }
+
+    public void setFileextensiondesc(String fileextensiondesc) {
+        this.fileextensiondesc = fileextensiondesc;
+    }
+
+    @XmlTransient
+    public List<Dataobject> getDataobjectList() {
+        return dataobjectList;
+    }
+
+    public void setDataobjectList(List<Dataobject> dataobjectList) {
+        this.dataobjectList = dataobjectList;
     }
 
     @Override
@@ -143,10 +165,10 @@ public class ProjectType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof ProjectType)) {
+        if (!(object instanceof DataobjectFileExtension)) {
             return false;
         }
-        ProjectType other = (ProjectType) object;
+        DataobjectFileExtension other = (DataobjectFileExtension) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -155,7 +177,7 @@ public class ProjectType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.ProjectType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.DataobjectFileExtension[ id=" + id + " ]";
     }
     
 }

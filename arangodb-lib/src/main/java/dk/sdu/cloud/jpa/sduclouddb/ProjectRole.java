@@ -7,7 +7,9 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -15,27 +17,29 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "login_type")
+@Table(name = "project_role")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "LoginType.findAll", query = "SELECT l FROM LoginType l")
-    , @NamedQuery(name = "LoginType.findById", query = "SELECT l FROM LoginType l WHERE l.id = :id")
-    , @NamedQuery(name = "LoginType.findByLogintypename", query = "SELECT l FROM LoginType l WHERE l.logintypename = :logintypename")
-    , @NamedQuery(name = "LoginType.findByActive", query = "SELECT l FROM LoginType l WHERE l.active = :active")
-    , @NamedQuery(name = "LoginType.findByMarkedfordelete", query = "SELECT l FROM LoginType l WHERE l.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "LoginType.findByModifiedTs", query = "SELECT l FROM LoginType l WHERE l.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "LoginType.findByCreatedTs", query = "SELECT l FROM LoginType l WHERE l.createdTs = :createdTs")})
-public class LoginType implements Serializable {
+    @NamedQuery(name = "ProjectRole.findAll", query = "SELECT p FROM ProjectRole p")
+    , @NamedQuery(name = "ProjectRole.findById", query = "SELECT p FROM ProjectRole p WHERE p.id = :id")
+    , @NamedQuery(name = "ProjectRole.findByProjectrolename", query = "SELECT p FROM ProjectRole p WHERE p.projectrolename = :projectrolename")
+    , @NamedQuery(name = "ProjectRole.findByActive", query = "SELECT p FROM ProjectRole p WHERE p.active = :active")
+    , @NamedQuery(name = "ProjectRole.findByMarkedfordelete", query = "SELECT p FROM ProjectRole p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "ProjectRole.findByModifiedTs", query = "SELECT p FROM ProjectRole p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ProjectRole.findByCreatedTs", query = "SELECT p FROM ProjectRole p WHERE p.createdTs = :createdTs")})
+public class ProjectRole implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -43,8 +47,8 @@ public class LoginType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "logintypename")
-    private String logintypename;
+    @Column(name = "projectrolename")
+    private String projectrolename;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -57,15 +61,19 @@ public class LoginType implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "projectrolerefid")
+    private List<ProjectPersonRelation> projectPersonRelationList;
+    @OneToMany(mappedBy = "projectrolerefid")
+    private List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList;
 
-    public LoginType() {
+    public ProjectRole() {
     }
 
-    public LoginType(Integer id) {
+    public ProjectRole(Integer id) {
         this.id = id;
     }
 
-    public LoginType(Integer id, Date modifiedTs, Date createdTs) {
+    public ProjectRole(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -79,12 +87,12 @@ public class LoginType implements Serializable {
         this.id = id;
     }
 
-    public String getLogintypename() {
-        return logintypename;
+    public String getProjectrolename() {
+        return projectrolename;
     }
 
-    public void setLogintypename(String logintypename) {
-        this.logintypename = logintypename;
+    public void setProjectrolename(String projectrolename) {
+        this.projectrolename = projectrolename;
     }
 
     public Integer getActive() {
@@ -119,6 +127,24 @@ public class LoginType implements Serializable {
         this.createdTs = createdTs;
     }
 
+    @XmlTransient
+    public List<ProjectPersonRelation> getProjectPersonRelationList() {
+        return projectPersonRelationList;
+    }
+
+    public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
+        this.projectPersonRelationList = projectPersonRelationList;
+    }
+
+    @XmlTransient
+    public List<DataobjectDirectoryProjectrolePermissionset> getDataobjectDirectoryProjectrolePermissionsetList() {
+        return dataobjectDirectoryProjectrolePermissionsetList;
+    }
+
+    public void setDataobjectDirectoryProjectrolePermissionsetList(List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList) {
+        this.dataobjectDirectoryProjectrolePermissionsetList = dataobjectDirectoryProjectrolePermissionsetList;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -129,10 +155,10 @@ public class LoginType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof LoginType)) {
+        if (!(object instanceof ProjectRole)) {
             return false;
         }
-        LoginType other = (LoginType) object;
+        ProjectRole other = (ProjectRole) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -141,7 +167,7 @@ public class LoginType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.LoginType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.ProjectRole[ id=" + id + " ]";
     }
     
 }

@@ -7,7 +7,9 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -15,27 +17,30 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "login_type")
+@Table(name = "systemrole")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "LoginType.findAll", query = "SELECT l FROM LoginType l")
-    , @NamedQuery(name = "LoginType.findById", query = "SELECT l FROM LoginType l WHERE l.id = :id")
-    , @NamedQuery(name = "LoginType.findByLogintypename", query = "SELECT l FROM LoginType l WHERE l.logintypename = :logintypename")
-    , @NamedQuery(name = "LoginType.findByActive", query = "SELECT l FROM LoginType l WHERE l.active = :active")
-    , @NamedQuery(name = "LoginType.findByMarkedfordelete", query = "SELECT l FROM LoginType l WHERE l.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "LoginType.findByModifiedTs", query = "SELECT l FROM LoginType l WHERE l.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "LoginType.findByCreatedTs", query = "SELECT l FROM LoginType l WHERE l.createdTs = :createdTs")})
-public class LoginType implements Serializable {
+    @NamedQuery(name = "Systemrole.findAll", query = "SELECT s FROM Systemrole s")
+    , @NamedQuery(name = "Systemrole.findById", query = "SELECT s FROM Systemrole s WHERE s.id = :id")
+    , @NamedQuery(name = "Systemrole.findBySystemrolename", query = "SELECT s FROM Systemrole s WHERE s.systemrolename = :systemrolename")
+    , @NamedQuery(name = "Systemrole.findByLandingpage", query = "SELECT s FROM Systemrole s WHERE s.landingpage = :landingpage")
+    , @NamedQuery(name = "Systemrole.findByActive", query = "SELECT s FROM Systemrole s WHERE s.active = :active")
+    , @NamedQuery(name = "Systemrole.findByMarkedfordelete", query = "SELECT s FROM Systemrole s WHERE s.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "Systemrole.findByModifiedTs", query = "SELECT s FROM Systemrole s WHERE s.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "Systemrole.findByCreatedTs", query = "SELECT s FROM Systemrole s WHERE s.createdTs = :createdTs")})
+public class Systemrole implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -43,8 +48,10 @@ public class LoginType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "logintypename")
-    private String logintypename;
+    @Column(name = "systemrolename")
+    private String systemrolename;
+    @Column(name = "landingpage")
+    private String landingpage;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -57,15 +64,17 @@ public class LoginType implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "systemrolerefid")
+    private List<PersonSystemroleRelation> personSystemroleRelationList;
 
-    public LoginType() {
+    public Systemrole() {
     }
 
-    public LoginType(Integer id) {
+    public Systemrole(Integer id) {
         this.id = id;
     }
 
-    public LoginType(Integer id, Date modifiedTs, Date createdTs) {
+    public Systemrole(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -79,12 +88,20 @@ public class LoginType implements Serializable {
         this.id = id;
     }
 
-    public String getLogintypename() {
-        return logintypename;
+    public String getSystemrolename() {
+        return systemrolename;
     }
 
-    public void setLogintypename(String logintypename) {
-        this.logintypename = logintypename;
+    public void setSystemrolename(String systemrolename) {
+        this.systemrolename = systemrolename;
+    }
+
+    public String getLandingpage() {
+        return landingpage;
+    }
+
+    public void setLandingpage(String landingpage) {
+        this.landingpage = landingpage;
     }
 
     public Integer getActive() {
@@ -119,6 +136,15 @@ public class LoginType implements Serializable {
         this.createdTs = createdTs;
     }
 
+    @XmlTransient
+    public List<PersonSystemroleRelation> getPersonSystemroleRelationList() {
+        return personSystemroleRelationList;
+    }
+
+    public void setPersonSystemroleRelationList(List<PersonSystemroleRelation> personSystemroleRelationList) {
+        this.personSystemroleRelationList = personSystemroleRelationList;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -129,10 +155,10 @@ public class LoginType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof LoginType)) {
+        if (!(object instanceof Systemrole)) {
             return false;
         }
-        LoginType other = (LoginType) object;
+        Systemrole other = (Systemrole) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -141,7 +167,7 @@ public class LoginType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.LoginType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.Systemrole[ id=" + id + " ]";
     }
     
 }
