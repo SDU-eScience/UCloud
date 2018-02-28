@@ -41,7 +41,7 @@ function BallPulseLoading(props) {
 function LoadingButton(props) {
     const content = props.loading ? <i className="loader-inner ball-pulse"><div/><div/><div/></i> : props.buttonContent;
         return (
-            <Button bsStyle={props.bsStyle} className={props.style} disabled={props.disabled}>
+            <Button bsStyle={props.bsStyle} onClick={e => props.handler(e)} className={props.style} disabled={props.disabled}>
                 {content}
             </Button>
         );
