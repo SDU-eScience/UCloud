@@ -19,6 +19,8 @@ interface ZenodoOAuthStateStore {
 
     fun storeAccessAndRefreshToken(cloudUser: String, token: OAuthTokens)
     fun retrieveCurrentTokenForUser(cloudUser: String): OAuthTokens?
+
+    fun invalidateUser(cloudUser: String)
 }
 
 class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
@@ -63,6 +65,11 @@ class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
         csrfToUser.remove(stateToken)
         csrfDb.remove(user)
         return Pair(user, returnTo)
+    }
+
+    override fun invalidateUser(cloudUser: String) {
+        tokenDb.remove(cloudUser)
+        serialize()
     }
 
     private fun serialize() {
@@ -144,6 +151,10 @@ class ZenodoOAuth(
         }
 
         return null
+    }
+
+    fun invalidateTokenForUser(user: String) {
+        stateStore.invalidateUser(user)
     }
 
     fun isConnected(user: String): Boolean {

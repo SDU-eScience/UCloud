@@ -63,6 +63,7 @@ class ZenodoRPCService(
                 }
 
                 HttpStatusCode.Unauthorized.value, HttpStatusCode.Forbidden.value -> {
+                    oauthService.invalidateTokenForUser(jwt.subject)
                     throw MissingOAuthToken()
                 }
 
@@ -111,6 +112,7 @@ class ZenodoRPCService(
                 }
 
                 HttpStatusCode.Unauthorized.value, HttpStatusCode.Forbidden.value -> {
+                    oauthService.invalidateTokenForUser(jwt.subject)
                     throw MissingOAuthToken()
                 }
 
