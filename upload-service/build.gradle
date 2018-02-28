@@ -3,7 +3,7 @@ version '1.0.0-SNAPSHOT'
 
 buildscript {
     ext.kotlin_version = '1.2.21'
-    ext.ktor_version = '0.9.1-alpha-8'
+    ext.ktor_version = '0.9.1'
 
     repositories {
         mavenCentral()
@@ -51,7 +51,7 @@ dependencies {
     compile group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
 
     compile group: 'io.ktor', name: 'ktor-server-core', version: "$ktor_version"
-    compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
+    compile group: 'io.ktor', name: 'ktor-server-cio', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
 
     compile 'org.jetbrains.exposed:exposed:0.9.1'

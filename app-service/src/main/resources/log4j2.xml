@@ -32,7 +32,7 @@
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>
-        <Logger name="org.asynchttpclient.netty.channel.DefaultChannelPool" level="warn" additivity="false">
+        <Logger name="org.asynchttpclient.netty" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>

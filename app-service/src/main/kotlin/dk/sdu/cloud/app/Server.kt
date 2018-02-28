@@ -113,6 +113,7 @@ class Server(
         slurmPollAgent.start()
 
         log.info("Starting HTTP server...")
+        // TODO We don't actually wait for the server to be ready before we register health endpoint!
         httpServer.start(wait = false)
         log.info("HTTP server started!")
 
