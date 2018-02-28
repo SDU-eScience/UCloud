@@ -18,6 +18,7 @@ import io.ktor.jackson.jackson
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.routing.Routing
+import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.util.escapeHTML
 import kotlinx.coroutines.experimental.runBlocking
@@ -58,6 +59,10 @@ class Main {
         }
 
         install(Routing) {
+            get(HEALTH_URI) {
+                call.respond(HttpStatusCode.NoContent)
+            }
+
             post("/api/auth-callback") {
                 try {
                     val parameters = call.receiveParameters()

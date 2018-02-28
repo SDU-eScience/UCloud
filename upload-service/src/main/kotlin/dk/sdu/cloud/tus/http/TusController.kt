@@ -291,7 +291,7 @@ class TusController(
                 assert(maxSize > 0)
 
                 if (shouldRead) {
-                    val read = channel.readFully(internalBuffer)
+                    val read = channel.readAvailable(internalBuffer)
                     if (read != -1) {
                         internalBuffer.flip()
                         return if (maxSize > read) {

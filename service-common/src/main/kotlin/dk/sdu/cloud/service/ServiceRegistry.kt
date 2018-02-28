@@ -103,8 +103,14 @@ class ServiceRegistry(
 
                 if (httpHealthEndpoint != null) {
                     // TODO FIXME HTTP IS HARDCODED
-                    val status = runBlocking {
-                        HttpClient.get("http://${instance.hostname}:${instance.port}$HEALTH_URI")
+                    val status = try {
+                        runBlocking {
+                            HttpClient.get("http://${instance.hostname}:${instance.port}$HEALTH_URI")
+                        }
+                    } catch (ex: Exception) {
+                        log.warn("Caught exception while sending request to health endpoint!")
+                        log.warn(ex.stackTraceToString())
+                        return@run false
                     }
 
                     if (status.statusCode !in 200..299) {

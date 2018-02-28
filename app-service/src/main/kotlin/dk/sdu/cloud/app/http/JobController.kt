@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.HPCJobDescriptions
 import dk.sdu.cloud.app.api.JobCancelledResponse
+import dk.sdu.cloud.app.api.JobStartedResponse
 import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.*
@@ -12,6 +13,7 @@ import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
+import java.util.*
 
 class JobController(
     private val jobRequestProducer: MappedEventProducer<String, KafkaRequest<AppRequest>>
@@ -38,15 +40,20 @@ class JobController(
             implement(HPCJobDescriptions.start) { req ->
                 logEntry(log, req)
 
+                val uuid = UUID.randomUUID().toString()
+                log.info("Starting job: ${call.request.jobId} -> $uuid")
+
                 jobRequestProducer.emit(
                     KafkaRequest(
                         RequestHeader(
-                            call.request.jobId,
+                            uuid,
                             call.request.validatedPrincipal.token
                         ),
                         req
                     )
                 )
+
+                ok(JobStartedResponse(uuid))
             }
 
             implement(HPCJobDescriptions.cancel) {
