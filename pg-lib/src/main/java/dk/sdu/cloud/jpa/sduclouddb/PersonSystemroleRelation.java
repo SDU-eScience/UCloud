@@ -7,37 +7,36 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "subsystemcommandstatus")
+@Table(name = "person_systemrole_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Subsystemcommandstatus.findAll", query = "SELECT s FROM Subsystemcommandstatus s")
-    , @NamedQuery(name = "Subsystemcommandstatus.findById", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.id = :id")
-    , @NamedQuery(name = "Subsystemcommandstatus.findBySubsystemcommandstatustext", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.subsystemcommandstatustext = :subsystemcommandstatustext")
-    , @NamedQuery(name = "Subsystemcommandstatus.findByMarkedfordelete", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Subsystemcommandstatus.findByModifiedTs", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Subsystemcommandstatus.findByCreatedTs", query = "SELECT s FROM Subsystemcommandstatus s WHERE s.createdTs = :createdTs")})
-public class Subsystemcommandstatus implements Serializable {
+    @NamedQuery(name = "PersonSystemroleRelation.findAll", query = "SELECT p FROM PersonSystemroleRelation p")
+    , @NamedQuery(name = "PersonSystemroleRelation.findById", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "PersonSystemroleRelation.findByActive", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "PersonSystemroleRelation.findByMarkedfordelete", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PersonSystemroleRelation.findByModifiedTs", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PersonSystemroleRelation.findByCreatedTs", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.createdTs = :createdTs")})
+public class PersonSystemroleRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,8 +44,8 @@ public class Subsystemcommandstatus implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "subsystemcommandstatustext")
-    private String subsystemcommandstatustext;
+    @Column(name = "active")
+    private Integer active;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -57,17 +56,21 @@ public class Subsystemcommandstatus implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "subsystemcommandstatusrefid")
-    private List<Subsystemcommandqueue> subsystemcommandqueueList;
+    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private Person personrefid;
+    @JoinColumn(name = "systemrolerefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private Systemrole systemrolerefid;
 
-    public Subsystemcommandstatus() {
+    public PersonSystemroleRelation() {
     }
 
-    public Subsystemcommandstatus(Integer id) {
+    public PersonSystemroleRelation(Integer id) {
         this.id = id;
     }
 
-    public Subsystemcommandstatus(Integer id, Date modifiedTs, Date createdTs) {
+    public PersonSystemroleRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -81,12 +84,12 @@ public class Subsystemcommandstatus implements Serializable {
         this.id = id;
     }
 
-    public String getSubsystemcommandstatustext() {
-        return subsystemcommandstatustext;
+    public Integer getActive() {
+        return active;
     }
 
-    public void setSubsystemcommandstatustext(String subsystemcommandstatustext) {
-        this.subsystemcommandstatustext = subsystemcommandstatustext;
+    public void setActive(Integer active) {
+        this.active = active;
     }
 
     public Integer getMarkedfordelete() {
@@ -113,13 +116,20 @@ public class Subsystemcommandstatus implements Serializable {
         this.createdTs = createdTs;
     }
 
-    @XmlTransient
-    public List<Subsystemcommandqueue> getSubsystemcommandqueueList() {
-        return subsystemcommandqueueList;
+    public Person getPersonrefid() {
+        return personrefid;
     }
 
-    public void setSubsystemcommandqueueList(List<Subsystemcommandqueue> subsystemcommandqueueList) {
-        this.subsystemcommandqueueList = subsystemcommandqueueList;
+    public void setPersonrefid(Person personrefid) {
+        this.personrefid = personrefid;
+    }
+
+    public Systemrole getSystemrolerefid() {
+        return systemrolerefid;
+    }
+
+    public void setSystemrolerefid(Systemrole systemrolerefid) {
+        this.systemrolerefid = systemrolerefid;
     }
 
     @Override
@@ -132,10 +142,10 @@ public class Subsystemcommandstatus implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Subsystemcommandstatus)) {
+        if (!(object instanceof PersonSystemroleRelation)) {
             return false;
         }
-        Subsystemcommandstatus other = (Subsystemcommandstatus) object;
+        PersonSystemroleRelation other = (PersonSystemroleRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -144,7 +154,7 @@ public class Subsystemcommandstatus implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandstatus[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PersonSystemroleRelation[ id=" + id + " ]";
     }
     
 }

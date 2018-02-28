@@ -73,7 +73,7 @@ public class DataTransferHeader implements Serializable {
     private DataTransferType dataTransferTypeRefid;
     @JoinColumn(name = "dataobjectcollectionrefid", referencedColumnName = "id")
     @ManyToOne
-    private Dataobjectcollection dataobjectcollectionrefid;
+    private DataobjectDirectory dataobjectcollectionrefid;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne
     private Person personrefid;
@@ -165,11 +165,11 @@ public class DataTransferHeader implements Serializable {
         this.dataTransferTypeRefid = dataTransferTypeRefid;
     }
 
-    public Dataobjectcollection getDataobjectcollectionrefid() {
+    public DataobjectDirectory getDataobjectcollectionrefid() {
         return dataobjectcollectionrefid;
     }
 
-    public void setDataobjectcollectionrefid(Dataobjectcollection dataobjectcollectionrefid) {
+    public void setDataobjectcollectionrefid(DataobjectDirectory dataobjectcollectionrefid) {
         this.dataobjectcollectionrefid = dataobjectcollectionrefid;
     }
 

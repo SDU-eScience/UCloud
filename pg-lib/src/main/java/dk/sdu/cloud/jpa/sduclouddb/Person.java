@@ -48,7 +48,7 @@ import javax.xml.bind.annotation.XmlTransient;
     , @NamedQuery(name = "Person.findByLongitude", query = "SELECT p FROM Person p WHERE p.longitude = :longitude")
     , @NamedQuery(name = "Person.findByActive", query = "SELECT p FROM Person p WHERE p.active = :active")
     , @NamedQuery(name = "Person.findByOrcid", query = "SELECT p FROM Person p WHERE p.orcid = :orcid")
-    , @NamedQuery(name = "Person.findByFullname", query = "SELECT p FROM Person p WHERE p.fullname = :fullname")
+    , @NamedQuery(name = "Person.findByPersonFullname", query = "SELECT p FROM Person p WHERE p.personFullname = :personFullname")
     , @NamedQuery(name = "Person.findByMarkedfordelete", query = "SELECT p FROM Person p WHERE p.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Person.findByModifiedTs", query = "SELECT p FROM Person p WHERE p.modifiedTs = :modifiedTs")
     , @NamedQuery(name = "Person.findByCreatedTs", query = "SELECT p FROM Person p WHERE p.createdTs = :createdTs")
@@ -82,8 +82,8 @@ public class Person implements Serializable {
     private Integer active;
     @Column(name = "orcid")
     private String orcid;
-    @Column(name = "fullname")
-    private String fullname;
+    @Column(name = "person_fullname")
+    private String personFullname;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -97,35 +97,33 @@ public class Person implements Serializable {
     @Column(name = "username")
     private String username;
     @OneToMany(mappedBy = "personrefid")
-    private List<Dataobjectsharerel> dataobjectsharerelList;
-    @OneToMany(mappedBy = "personrefid")
-    private List<Dataobjectcollection> dataobjectcollectionList;
+    private List<PersonEmailRelation> personEmailRelationList;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<Systemrolepersonrel> systemrolepersonrelList;
+    private List<ProjectPersonRelation> projectPersonRelationList;
     @OneToMany(mappedBy = "personrefid")
-    private List<Personjwthistory> personjwthistoryList;
+    private List<ProjectEventCalendar> projectEventCalendarList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<PersonNotificationSubscriptiontypeRelation> personNotificationSubscriptiontypeRelationList;
     @OneToMany(mappedBy = "personrefid")
     private List<Notification> notificationList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<SystemrolePersonRelation> systemrolePersonRelationList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<PersonJwtHistory> personJwtHistoryList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<PersonSystemroleRelation> personSystemroleRelationList;
     @OneToMany(mappedBy = "personrefid")
     private List<App> appList;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<Personsystemrolerel> personsystemrolerelList;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<Projectpersonrel> projectpersonrelList;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<Personnotificationsubscriptiontyperel> personnotificationsubscriptiontyperelList;
     @JoinColumn(name = "orgrefid", referencedColumnName = "id")
     @ManyToOne
     private Org orgrefid;
     @JoinColumn(name = "personjwthistoryrefid", referencedColumnName = "id")
     @OneToOne
-    private Personjwthistory personjwthistoryrefid;
-    @OneToMany(mappedBy = "personrefid")
-    private List<Projecteventcalendar> projecteventcalendarList;
+    private PersonJwtHistory personjwthistoryrefid;
     @OneToMany(mappedBy = "personrefid")
     private List<DataTransferHeader> dataTransferHeaderList;
     @OneToMany(mappedBy = "personrefid")
-    private List<Personemailrel> personemailrelList;
+    private List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList;
 
     public Person() {
     }
@@ -228,12 +226,12 @@ public class Person implements Serializable {
         this.orcid = orcid;
     }
 
-    public String getFullname() {
-        return fullname;
+    public String getPersonFullname() {
+        return personFullname;
     }
 
-    public void setFullname(String fullname) {
-        this.fullname = fullname;
+    public void setPersonFullname(String personFullname) {
+        this.personFullname = personFullname;
     }
 
     public Integer getMarkedfordelete() {
@@ -269,39 +267,39 @@ public class Person implements Serializable {
     }
 
     @XmlTransient
-    public List<Dataobjectsharerel> getDataobjectsharerelList() {
-        return dataobjectsharerelList;
+    public List<PersonEmailRelation> getPersonEmailRelationList() {
+        return personEmailRelationList;
     }
 
-    public void setDataobjectsharerelList(List<Dataobjectsharerel> dataobjectsharerelList) {
-        this.dataobjectsharerelList = dataobjectsharerelList;
-    }
-
-    @XmlTransient
-    public List<Dataobjectcollection> getDataobjectcollectionList() {
-        return dataobjectcollectionList;
-    }
-
-    public void setDataobjectcollectionList(List<Dataobjectcollection> dataobjectcollectionList) {
-        this.dataobjectcollectionList = dataobjectcollectionList;
+    public void setPersonEmailRelationList(List<PersonEmailRelation> personEmailRelationList) {
+        this.personEmailRelationList = personEmailRelationList;
     }
 
     @XmlTransient
-    public List<Systemrolepersonrel> getSystemrolepersonrelList() {
-        return systemrolepersonrelList;
+    public List<ProjectPersonRelation> getProjectPersonRelationList() {
+        return projectPersonRelationList;
     }
 
-    public void setSystemrolepersonrelList(List<Systemrolepersonrel> systemrolepersonrelList) {
-        this.systemrolepersonrelList = systemrolepersonrelList;
+    public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
+        this.projectPersonRelationList = projectPersonRelationList;
     }
 
     @XmlTransient
-    public List<Personjwthistory> getPersonjwthistoryList() {
-        return personjwthistoryList;
+    public List<ProjectEventCalendar> getProjectEventCalendarList() {
+        return projectEventCalendarList;
     }
 
-    public void setPersonjwthistoryList(List<Personjwthistory> personjwthistoryList) {
-        this.personjwthistoryList = personjwthistoryList;
+    public void setProjectEventCalendarList(List<ProjectEventCalendar> projectEventCalendarList) {
+        this.projectEventCalendarList = projectEventCalendarList;
+    }
+
+    @XmlTransient
+    public List<PersonNotificationSubscriptiontypeRelation> getPersonNotificationSubscriptiontypeRelationList() {
+        return personNotificationSubscriptiontypeRelationList;
+    }
+
+    public void setPersonNotificationSubscriptiontypeRelationList(List<PersonNotificationSubscriptiontypeRelation> personNotificationSubscriptiontypeRelationList) {
+        this.personNotificationSubscriptiontypeRelationList = personNotificationSubscriptiontypeRelationList;
     }
 
     @XmlTransient
@@ -314,39 +312,39 @@ public class Person implements Serializable {
     }
 
     @XmlTransient
+    public List<SystemrolePersonRelation> getSystemrolePersonRelationList() {
+        return systemrolePersonRelationList;
+    }
+
+    public void setSystemrolePersonRelationList(List<SystemrolePersonRelation> systemrolePersonRelationList) {
+        this.systemrolePersonRelationList = systemrolePersonRelationList;
+    }
+
+    @XmlTransient
+    public List<PersonJwtHistory> getPersonJwtHistoryList() {
+        return personJwtHistoryList;
+    }
+
+    public void setPersonJwtHistoryList(List<PersonJwtHistory> personJwtHistoryList) {
+        this.personJwtHistoryList = personJwtHistoryList;
+    }
+
+    @XmlTransient
+    public List<PersonSystemroleRelation> getPersonSystemroleRelationList() {
+        return personSystemroleRelationList;
+    }
+
+    public void setPersonSystemroleRelationList(List<PersonSystemroleRelation> personSystemroleRelationList) {
+        this.personSystemroleRelationList = personSystemroleRelationList;
+    }
+
+    @XmlTransient
     public List<App> getAppList() {
         return appList;
     }
 
     public void setAppList(List<App> appList) {
         this.appList = appList;
-    }
-
-    @XmlTransient
-    public List<Personsystemrolerel> getPersonsystemrolerelList() {
-        return personsystemrolerelList;
-    }
-
-    public void setPersonsystemrolerelList(List<Personsystemrolerel> personsystemrolerelList) {
-        this.personsystemrolerelList = personsystemrolerelList;
-    }
-
-    @XmlTransient
-    public List<Projectpersonrel> getProjectpersonrelList() {
-        return projectpersonrelList;
-    }
-
-    public void setProjectpersonrelList(List<Projectpersonrel> projectpersonrelList) {
-        this.projectpersonrelList = projectpersonrelList;
-    }
-
-    @XmlTransient
-    public List<Personnotificationsubscriptiontyperel> getPersonnotificationsubscriptiontyperelList() {
-        return personnotificationsubscriptiontyperelList;
-    }
-
-    public void setPersonnotificationsubscriptiontyperelList(List<Personnotificationsubscriptiontyperel> personnotificationsubscriptiontyperelList) {
-        this.personnotificationsubscriptiontyperelList = personnotificationsubscriptiontyperelList;
     }
 
     public Org getOrgrefid() {
@@ -357,21 +355,12 @@ public class Person implements Serializable {
         this.orgrefid = orgrefid;
     }
 
-    public Personjwthistory getPersonjwthistoryrefid() {
+    public PersonJwtHistory getPersonjwthistoryrefid() {
         return personjwthistoryrefid;
     }
 
-    public void setPersonjwthistoryrefid(Personjwthistory personjwthistoryrefid) {
+    public void setPersonjwthistoryrefid(PersonJwtHistory personjwthistoryrefid) {
         this.personjwthistoryrefid = personjwthistoryrefid;
-    }
-
-    @XmlTransient
-    public List<Projecteventcalendar> getProjecteventcalendarList() {
-        return projecteventcalendarList;
-    }
-
-    public void setProjecteventcalendarList(List<Projecteventcalendar> projecteventcalendarList) {
-        this.projecteventcalendarList = projecteventcalendarList;
     }
 
     @XmlTransient
@@ -384,12 +373,12 @@ public class Person implements Serializable {
     }
 
     @XmlTransient
-    public List<Personemailrel> getPersonemailrelList() {
-        return personemailrelList;
+    public List<PersonDataobjectSpecialShareRelation> getPersonDataobjectSpecialShareRelationList() {
+        return personDataobjectSpecialShareRelationList;
     }
 
-    public void setPersonemailrelList(List<Personemailrel> personemailrelList) {
-        this.personemailrelList = personemailrelList;
+    public void setPersonDataobjectSpecialShareRelationList(List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList) {
+        this.personDataobjectSpecialShareRelationList = personDataobjectSpecialShareRelationList;
     }
 
     @Override

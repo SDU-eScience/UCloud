@@ -9,6 +9,7 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -28,19 +29,17 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author bjhj
  */
 @Entity
-@Table(name = "dataobjectfileextension")
+@Table(name = "project_role")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Dataobjectfileextension.findAll", query = "SELECT d FROM Dataobjectfileextension d")
-    , @NamedQuery(name = "Dataobjectfileextension.findById", query = "SELECT d FROM Dataobjectfileextension d WHERE d.id = :id")
-    , @NamedQuery(name = "Dataobjectfileextension.findByFileextensionname", query = "SELECT d FROM Dataobjectfileextension d WHERE d.fileextensionname = :fileextensionname")
-    , @NamedQuery(name = "Dataobjectfileextension.findByActive", query = "SELECT d FROM Dataobjectfileextension d WHERE d.active = :active")
-    , @NamedQuery(name = "Dataobjectfileextension.findByMarkedfordelete", query = "SELECT d FROM Dataobjectfileextension d WHERE d.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Dataobjectfileextension.findByModifiedTs", query = "SELECT d FROM Dataobjectfileextension d WHERE d.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Dataobjectfileextension.findByCreatedTs", query = "SELECT d FROM Dataobjectfileextension d WHERE d.createdTs = :createdTs")
-    , @NamedQuery(name = "Dataobjectfileextension.findByMimetype", query = "SELECT d FROM Dataobjectfileextension d WHERE d.mimetype = :mimetype")
-    , @NamedQuery(name = "Dataobjectfileextension.findByFileextensiondesc", query = "SELECT d FROM Dataobjectfileextension d WHERE d.fileextensiondesc = :fileextensiondesc")})
-public class Dataobjectfileextension implements Serializable {
+    @NamedQuery(name = "ProjectRole.findAll", query = "SELECT p FROM ProjectRole p")
+    , @NamedQuery(name = "ProjectRole.findById", query = "SELECT p FROM ProjectRole p WHERE p.id = :id")
+    , @NamedQuery(name = "ProjectRole.findByProjectrolename", query = "SELECT p FROM ProjectRole p WHERE p.projectrolename = :projectrolename")
+    , @NamedQuery(name = "ProjectRole.findByActive", query = "SELECT p FROM ProjectRole p WHERE p.active = :active")
+    , @NamedQuery(name = "ProjectRole.findByMarkedfordelete", query = "SELECT p FROM ProjectRole p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "ProjectRole.findByModifiedTs", query = "SELECT p FROM ProjectRole p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ProjectRole.findByCreatedTs", query = "SELECT p FROM ProjectRole p WHERE p.createdTs = :createdTs")})
+public class ProjectRole implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -48,8 +47,8 @@ public class Dataobjectfileextension implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "fileextensionname")
-    private String fileextensionname;
+    @Column(name = "projectrolename")
+    private String projectrolename;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -62,21 +61,19 @@ public class Dataobjectfileextension implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @Column(name = "mimetype")
-    private String mimetype;
-    @Column(name = "fileextensiondesc")
-    private String fileextensiondesc;
-    @OneToMany(mappedBy = "dataobjectfileextensionrefid")
-    private List<Dataobject> dataobjectList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "projectrolerefid")
+    private List<ProjectPersonRelation> projectPersonRelationList;
+    @OneToMany(mappedBy = "projectrolerefid")
+    private List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList;
 
-    public Dataobjectfileextension() {
+    public ProjectRole() {
     }
 
-    public Dataobjectfileextension(Integer id) {
+    public ProjectRole(Integer id) {
         this.id = id;
     }
 
-    public Dataobjectfileextension(Integer id, Date modifiedTs, Date createdTs) {
+    public ProjectRole(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -90,12 +87,12 @@ public class Dataobjectfileextension implements Serializable {
         this.id = id;
     }
 
-    public String getFileextensionname() {
-        return fileextensionname;
+    public String getProjectrolename() {
+        return projectrolename;
     }
 
-    public void setFileextensionname(String fileextensionname) {
-        this.fileextensionname = fileextensionname;
+    public void setProjectrolename(String projectrolename) {
+        this.projectrolename = projectrolename;
     }
 
     public Integer getActive() {
@@ -130,29 +127,22 @@ public class Dataobjectfileextension implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public String getMimetype() {
-        return mimetype;
+    @XmlTransient
+    public List<ProjectPersonRelation> getProjectPersonRelationList() {
+        return projectPersonRelationList;
     }
 
-    public void setMimetype(String mimetype) {
-        this.mimetype = mimetype;
-    }
-
-    public String getFileextensiondesc() {
-        return fileextensiondesc;
-    }
-
-    public void setFileextensiondesc(String fileextensiondesc) {
-        this.fileextensiondesc = fileextensiondesc;
+    public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
+        this.projectPersonRelationList = projectPersonRelationList;
     }
 
     @XmlTransient
-    public List<Dataobject> getDataobjectList() {
-        return dataobjectList;
+    public List<DataobjectDirectoryProjectrolePermissionset> getDataobjectDirectoryProjectrolePermissionsetList() {
+        return dataobjectDirectoryProjectrolePermissionsetList;
     }
 
-    public void setDataobjectList(List<Dataobject> dataobjectList) {
-        this.dataobjectList = dataobjectList;
+    public void setDataobjectDirectoryProjectrolePermissionsetList(List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList) {
+        this.dataobjectDirectoryProjectrolePermissionsetList = dataobjectDirectoryProjectrolePermissionsetList;
     }
 
     @Override
@@ -165,10 +155,10 @@ public class Dataobjectfileextension implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Dataobjectfileextension)) {
+        if (!(object instanceof ProjectRole)) {
             return false;
         }
-        Dataobjectfileextension other = (Dataobjectfileextension) object;
+        ProjectRole other = (ProjectRole) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -177,7 +167,7 @@ public class Dataobjectfileextension implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Dataobjectfileextension[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.ProjectRole[ id=" + id + " ]";
     }
     
 }

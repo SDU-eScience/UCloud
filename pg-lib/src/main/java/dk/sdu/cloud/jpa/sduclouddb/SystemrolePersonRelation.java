@@ -7,37 +7,37 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "email")
+@Table(name = "systemrole_person_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Email.findAll", query = "SELECT e FROM Email e")
-    , @NamedQuery(name = "Email.findById", query = "SELECT e FROM Email e WHERE e.id = :id")
-    , @NamedQuery(name = "Email.findByEmail", query = "SELECT e FROM Email e WHERE e.email = :email")
-    , @NamedQuery(name = "Email.findByMarkedfordelete", query = "SELECT e FROM Email e WHERE e.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Email.findByModifiedTs", query = "SELECT e FROM Email e WHERE e.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Email.findByCreatedTs", query = "SELECT e FROM Email e WHERE e.createdTs = :createdTs")})
-public class Email implements Serializable {
+    @NamedQuery(name = "SystemrolePersonRelation.findAll", query = "SELECT s FROM SystemrolePersonRelation s")
+    , @NamedQuery(name = "SystemrolePersonRelation.findById", query = "SELECT s FROM SystemrolePersonRelation s WHERE s.id = :id")
+    , @NamedQuery(name = "SystemrolePersonRelation.findBySystemrolerefid", query = "SELECT s FROM SystemrolePersonRelation s WHERE s.systemrolerefid = :systemrolerefid")
+    , @NamedQuery(name = "SystemrolePersonRelation.findByActive", query = "SELECT s FROM SystemrolePersonRelation s WHERE s.active = :active")
+    , @NamedQuery(name = "SystemrolePersonRelation.findByMarkedfordelete", query = "SELECT s FROM SystemrolePersonRelation s WHERE s.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "SystemrolePersonRelation.findByModifiedTs", query = "SELECT s FROM SystemrolePersonRelation s WHERE s.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "SystemrolePersonRelation.findByCreatedTs", query = "SELECT s FROM SystemrolePersonRelation s WHERE s.createdTs = :createdTs")})
+public class SystemrolePersonRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,8 +45,11 @@ public class Email implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "email")
-    private String email;
+    @Basic(optional = false)
+    @Column(name = "systemrolerefid")
+    private int systemrolerefid;
+    @Column(name = "active")
+    private Integer active;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -57,18 +60,20 @@ public class Email implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "emailrefid")
-    private List<PersonEmailRelation> personEmailRelationList;
+    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private Person personrefid;
 
-    public Email() {
+    public SystemrolePersonRelation() {
     }
 
-    public Email(Integer id) {
+    public SystemrolePersonRelation(Integer id) {
         this.id = id;
     }
 
-    public Email(Integer id, Date modifiedTs, Date createdTs) {
+    public SystemrolePersonRelation(Integer id, int systemrolerefid, Date modifiedTs, Date createdTs) {
         this.id = id;
+        this.systemrolerefid = systemrolerefid;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
     }
@@ -81,12 +86,20 @@ public class Email implements Serializable {
         this.id = id;
     }
 
-    public String getEmail() {
-        return email;
+    public int getSystemrolerefid() {
+        return systemrolerefid;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setSystemrolerefid(int systemrolerefid) {
+        this.systemrolerefid = systemrolerefid;
+    }
+
+    public Integer getActive() {
+        return active;
+    }
+
+    public void setActive(Integer active) {
+        this.active = active;
     }
 
     public Integer getMarkedfordelete() {
@@ -113,13 +126,12 @@ public class Email implements Serializable {
         this.createdTs = createdTs;
     }
 
-    @XmlTransient
-    public List<PersonEmailRelation> getPersonEmailRelationList() {
-        return personEmailRelationList;
+    public Person getPersonrefid() {
+        return personrefid;
     }
 
-    public void setPersonEmailRelationList(List<PersonEmailRelation> personEmailRelationList) {
-        this.personEmailRelationList = personEmailRelationList;
+    public void setPersonrefid(Person personrefid) {
+        this.personrefid = personrefid;
     }
 
     @Override
@@ -132,10 +144,10 @@ public class Email implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Email)) {
+        if (!(object instanceof SystemrolePersonRelation)) {
             return false;
         }
-        Email other = (Email) object;
+        SystemrolePersonRelation other = (SystemrolePersonRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -144,7 +156,7 @@ public class Email implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Email[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.SystemrolePersonRelation[ id=" + id + " ]";
     }
     
 }

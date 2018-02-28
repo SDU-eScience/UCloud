@@ -39,10 +39,8 @@ import javax.xml.bind.annotation.XmlTransient;
     , @NamedQuery(name = "Project.findByProjectname", query = "SELECT p FROM Project p WHERE p.projectname = :projectname")
     , @NamedQuery(name = "Project.findByProjectstart", query = "SELECT p FROM Project p WHERE p.projectstart = :projectstart")
     , @NamedQuery(name = "Project.findByProjectend", query = "SELECT p FROM Project p WHERE p.projectend = :projectend")
-    , @NamedQuery(name = "Project.findByIrodsgroupidmap", query = "SELECT p FROM Project p WHERE p.irodsgroupidmap = :irodsgroupidmap")
     , @NamedQuery(name = "Project.findByActive", query = "SELECT p FROM Project p WHERE p.active = :active")
     , @NamedQuery(name = "Project.findByProjectshortname", query = "SELECT p FROM Project p WHERE p.projectshortname = :projectshortname")
-    , @NamedQuery(name = "Project.findByIrodsgroupadmin", query = "SELECT p FROM Project p WHERE p.irodsgroupadmin = :irodsgroupadmin")
     , @NamedQuery(name = "Project.findByMarkedfordelete", query = "SELECT p FROM Project p WHERE p.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Project.findByModifiedTs", query = "SELECT p FROM Project p WHERE p.modifiedTs = :modifiedTs")
     , @NamedQuery(name = "Project.findByCreatedTs", query = "SELECT p FROM Project p WHERE p.createdTs = :createdTs")
@@ -63,14 +61,10 @@ public class Project implements Serializable {
     @Column(name = "projectend")
     @Temporal(TemporalType.TIMESTAMP)
     private Date projectend;
-    @Column(name = "irodsgroupidmap")
-    private Integer irodsgroupidmap;
     @Column(name = "active")
     private Integer active;
     @Column(name = "projectshortname")
     private String projectshortname;
-    @Column(name = "irodsgroupadmin")
-    private String irodsgroupadmin;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -83,23 +77,21 @@ public class Project implements Serializable {
     private Date createdTs;
     @Column(name = "visible")
     private Integer visible;
-    @OneToMany(mappedBy = "projectrefid")
-    private List<Dataobjectsharerel> dataobjectsharerelList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "projectrefid")
+    private List<ProjectPersonRelation> projectPersonRelationList;
     @JoinColumn(name = "projecttyperefid", referencedColumnName = "id")
     @ManyToOne
-    private Projecttype projecttyperefid;
+    private ProjectType projecttyperefid;
     @OneToMany(mappedBy = "projectrefid")
-    private List<Dataobjectcollection> dataobjectcollectionList;
+    private List<ProjectEventCalendar> projectEventCalendarList;
     @OneToMany(mappedBy = "projectrefid")
-    private List<Projectprojectresearchtyperel> projectprojectresearchtyperelList;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "projectrefid")
-    private List<Projectpersonrel> projectpersonrelList;
+    private List<ProjectProjectresearchtypeRelation> projectProjectresearchtypeRelationList;
     @OneToMany(mappedBy = "projectrefid")
-    private List<Projecteventcalendar> projecteventcalendarList;
+    private List<DataobjectDirectory> dataobjectDirectoryList;
     @OneToMany(mappedBy = "projectrefid")
-    private List<Projectprojectdocumentrel> projectprojectdocumentrelList;
+    private List<ProjectPublicationRelation> projectPublicationRelationList;
     @OneToMany(mappedBy = "projectrefid")
-    private List<Projectpublicationrel> projectpublicationrelList;
+    private List<ProjectProjectdocumentRelation> projectProjectdocumentRelationList;
 
     public Project() {
     }
@@ -146,14 +138,6 @@ public class Project implements Serializable {
         this.projectend = projectend;
     }
 
-    public Integer getIrodsgroupidmap() {
-        return irodsgroupidmap;
-    }
-
-    public void setIrodsgroupidmap(Integer irodsgroupidmap) {
-        this.irodsgroupidmap = irodsgroupidmap;
-    }
-
     public Integer getActive() {
         return active;
     }
@@ -168,14 +152,6 @@ public class Project implements Serializable {
 
     public void setProjectshortname(String projectshortname) {
         this.projectshortname = projectshortname;
-    }
-
-    public String getIrodsgroupadmin() {
-        return irodsgroupadmin;
-    }
-
-    public void setIrodsgroupadmin(String irodsgroupadmin) {
-        this.irodsgroupadmin = irodsgroupadmin;
     }
 
     public Integer getMarkedfordelete() {
@@ -211,74 +187,65 @@ public class Project implements Serializable {
     }
 
     @XmlTransient
-    public List<Dataobjectsharerel> getDataobjectsharerelList() {
-        return dataobjectsharerelList;
+    public List<ProjectPersonRelation> getProjectPersonRelationList() {
+        return projectPersonRelationList;
     }
 
-    public void setDataobjectsharerelList(List<Dataobjectsharerel> dataobjectsharerelList) {
-        this.dataobjectsharerelList = dataobjectsharerelList;
+    public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
+        this.projectPersonRelationList = projectPersonRelationList;
     }
 
-    public Projecttype getProjecttyperefid() {
+    public ProjectType getProjecttyperefid() {
         return projecttyperefid;
     }
 
-    public void setProjecttyperefid(Projecttype projecttyperefid) {
+    public void setProjecttyperefid(ProjectType projecttyperefid) {
         this.projecttyperefid = projecttyperefid;
     }
 
     @XmlTransient
-    public List<Dataobjectcollection> getDataobjectcollectionList() {
-        return dataobjectcollectionList;
+    public List<ProjectEventCalendar> getProjectEventCalendarList() {
+        return projectEventCalendarList;
     }
 
-    public void setDataobjectcollectionList(List<Dataobjectcollection> dataobjectcollectionList) {
-        this.dataobjectcollectionList = dataobjectcollectionList;
-    }
-
-    @XmlTransient
-    public List<Projectprojectresearchtyperel> getProjectprojectresearchtyperelList() {
-        return projectprojectresearchtyperelList;
-    }
-
-    public void setProjectprojectresearchtyperelList(List<Projectprojectresearchtyperel> projectprojectresearchtyperelList) {
-        this.projectprojectresearchtyperelList = projectprojectresearchtyperelList;
+    public void setProjectEventCalendarList(List<ProjectEventCalendar> projectEventCalendarList) {
+        this.projectEventCalendarList = projectEventCalendarList;
     }
 
     @XmlTransient
-    public List<Projectpersonrel> getProjectpersonrelList() {
-        return projectpersonrelList;
+    public List<ProjectProjectresearchtypeRelation> getProjectProjectresearchtypeRelationList() {
+        return projectProjectresearchtypeRelationList;
     }
 
-    public void setProjectpersonrelList(List<Projectpersonrel> projectpersonrelList) {
-        this.projectpersonrelList = projectpersonrelList;
-    }
-
-    @XmlTransient
-    public List<Projecteventcalendar> getProjecteventcalendarList() {
-        return projecteventcalendarList;
-    }
-
-    public void setProjecteventcalendarList(List<Projecteventcalendar> projecteventcalendarList) {
-        this.projecteventcalendarList = projecteventcalendarList;
+    public void setProjectProjectresearchtypeRelationList(List<ProjectProjectresearchtypeRelation> projectProjectresearchtypeRelationList) {
+        this.projectProjectresearchtypeRelationList = projectProjectresearchtypeRelationList;
     }
 
     @XmlTransient
-    public List<Projectprojectdocumentrel> getProjectprojectdocumentrelList() {
-        return projectprojectdocumentrelList;
+    public List<DataobjectDirectory> getDataobjectDirectoryList() {
+        return dataobjectDirectoryList;
     }
 
-    public void setProjectprojectdocumentrelList(List<Projectprojectdocumentrel> projectprojectdocumentrelList) {
-        this.projectprojectdocumentrelList = projectprojectdocumentrelList;
+    public void setDataobjectDirectoryList(List<DataobjectDirectory> dataobjectDirectoryList) {
+        this.dataobjectDirectoryList = dataobjectDirectoryList;
     }
 
     @XmlTransient
-    public List<Projectpublicationrel> getProjectpublicationrelList() {
-        return projectpublicationrelList;
+    public List<ProjectPublicationRelation> getProjectPublicationRelationList() {
+        return projectPublicationRelationList;
     }
 
-    public void setProjectpublicationrelList(List<Projectpublicationrel> projectpublicationrelList) {
-        this.projectpublicationrelList = projectpublicationrelList;
+    public void setProjectPublicationRelationList(List<ProjectPublicationRelation> projectPublicationRelationList) {
+        this.projectPublicationRelationList = projectPublicationRelationList;
+    }
+
+    @XmlTransient
+    public List<ProjectProjectdocumentRelation> getProjectProjectdocumentRelationList() {
+        return projectProjectdocumentRelationList;
+    }
+
+    public void setProjectProjectdocumentRelationList(List<ProjectProjectdocumentRelation> projectProjectdocumentRelationList) {
+        this.projectProjectdocumentRelationList = projectProjectdocumentRelationList;
     }
 
     @Override

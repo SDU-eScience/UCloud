@@ -7,39 +7,37 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
 import javax.persistence.Basic;
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "projectrole")
+@Table(name = "publication_dataobject_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectrole.findAll", query = "SELECT p FROM Projectrole p")
-    , @NamedQuery(name = "Projectrole.findById", query = "SELECT p FROM Projectrole p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectrole.findByProjectrolename", query = "SELECT p FROM Projectrole p WHERE p.projectrolename = :projectrolename")
-    , @NamedQuery(name = "Projectrole.findByActive", query = "SELECT p FROM Projectrole p WHERE p.active = :active")
-    , @NamedQuery(name = "Projectrole.findByMarkedfordelete", query = "SELECT p FROM Projectrole p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Projectrole.findByModifiedTs", query = "SELECT p FROM Projectrole p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Projectrole.findByCreatedTs", query = "SELECT p FROM Projectrole p WHERE p.createdTs = :createdTs")})
-public class Projectrole implements Serializable {
+    @NamedQuery(name = "PublicationDataobjectRelation.findAll", query = "SELECT p FROM PublicationDataobjectRelation p")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findById", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByActive", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByZenodotrans", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.zenodotrans = :zenodotrans")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByMarkedfordelete", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByModifiedTs", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PublicationDataobjectRelation.findByCreatedTs", query = "SELECT p FROM PublicationDataobjectRelation p WHERE p.createdTs = :createdTs")})
+public class PublicationDataobjectRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -47,10 +45,10 @@ public class Projectrole implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "projectrolename")
-    private String projectrolename;
     @Column(name = "active")
     private Integer active;
+    @Column(name = "zenodotrans")
+    private Integer zenodotrans;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -61,17 +59,21 @@ public class Projectrole implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "projectrolerefid")
-    private List<Projectpersonrel> projectpersonrelList;
+    @JoinColumn(name = "dataobjectrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Dataobject dataobjectrefid;
+    @JoinColumn(name = "publicationrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Publication publicationrefid;
 
-    public Projectrole() {
+    public PublicationDataobjectRelation() {
     }
 
-    public Projectrole(Integer id) {
+    public PublicationDataobjectRelation(Integer id) {
         this.id = id;
     }
 
-    public Projectrole(Integer id, Date modifiedTs, Date createdTs) {
+    public PublicationDataobjectRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -85,20 +87,20 @@ public class Projectrole implements Serializable {
         this.id = id;
     }
 
-    public String getProjectrolename() {
-        return projectrolename;
-    }
-
-    public void setProjectrolename(String projectrolename) {
-        this.projectrolename = projectrolename;
-    }
-
     public Integer getActive() {
         return active;
     }
 
     public void setActive(Integer active) {
         this.active = active;
+    }
+
+    public Integer getZenodotrans() {
+        return zenodotrans;
+    }
+
+    public void setZenodotrans(Integer zenodotrans) {
+        this.zenodotrans = zenodotrans;
     }
 
     public Integer getMarkedfordelete() {
@@ -125,13 +127,20 @@ public class Projectrole implements Serializable {
         this.createdTs = createdTs;
     }
 
-    @XmlTransient
-    public List<Projectpersonrel> getProjectpersonrelList() {
-        return projectpersonrelList;
+    public Dataobject getDataobjectrefid() {
+        return dataobjectrefid;
     }
 
-    public void setProjectpersonrelList(List<Projectpersonrel> projectpersonrelList) {
-        this.projectpersonrelList = projectpersonrelList;
+    public void setDataobjectrefid(Dataobject dataobjectrefid) {
+        this.dataobjectrefid = dataobjectrefid;
+    }
+
+    public Publication getPublicationrefid() {
+        return publicationrefid;
+    }
+
+    public void setPublicationrefid(Publication publicationrefid) {
+        this.publicationrefid = publicationrefid;
     }
 
     @Override
@@ -144,10 +153,10 @@ public class Projectrole implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Projectrole)) {
+        if (!(object instanceof PublicationDataobjectRelation)) {
             return false;
         }
-        Projectrole other = (Projectrole) object;
+        PublicationDataobjectRelation other = (PublicationDataobjectRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -156,7 +165,7 @@ public class Projectrole implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Projectrole[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PublicationDataobjectRelation[ id=" + id + " ]";
     }
     
 }

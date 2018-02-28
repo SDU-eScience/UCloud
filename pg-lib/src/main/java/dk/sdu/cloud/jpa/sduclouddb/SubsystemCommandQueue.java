@@ -27,16 +27,16 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "subsystemcommandqueue")
+@Table(name = "subsystem_command_queue")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Subsystemcommandqueue.findAll", query = "SELECT s FROM Subsystemcommandqueue s")
-    , @NamedQuery(name = "Subsystemcommandqueue.findById", query = "SELECT s FROM Subsystemcommandqueue s WHERE s.id = :id")
-    , @NamedQuery(name = "Subsystemcommandqueue.findByPayload", query = "SELECT s FROM Subsystemcommandqueue s WHERE s.payload = :payload")
-    , @NamedQuery(name = "Subsystemcommandqueue.findByMarkedfordelete", query = "SELECT s FROM Subsystemcommandqueue s WHERE s.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Subsystemcommandqueue.findByModifiedTs", query = "SELECT s FROM Subsystemcommandqueue s WHERE s.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Subsystemcommandqueue.findByCreatedTs", query = "SELECT s FROM Subsystemcommandqueue s WHERE s.createdTs = :createdTs")})
-public class Subsystemcommandqueue implements Serializable {
+    @NamedQuery(name = "SubsystemCommandQueue.findAll", query = "SELECT s FROM SubsystemCommandQueue s")
+    , @NamedQuery(name = "SubsystemCommandQueue.findById", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.id = :id")
+    , @NamedQuery(name = "SubsystemCommandQueue.findByPayload", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.payload = :payload")
+    , @NamedQuery(name = "SubsystemCommandQueue.findByMarkedfordelete", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "SubsystemCommandQueue.findByModifiedTs", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "SubsystemCommandQueue.findByCreatedTs", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.createdTs = :createdTs")})
+public class SubsystemCommandQueue implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -58,22 +58,22 @@ public class Subsystemcommandqueue implements Serializable {
     private Date createdTs;
     @JoinColumn(name = "personjwthistoryrefid", referencedColumnName = "id")
     @ManyToOne
-    private Personjwthistory personjwthistoryrefid;
+    private PersonJwtHistory personjwthistoryrefid;
     @JoinColumn(name = "subsystemcommandrefid", referencedColumnName = "id")
     @ManyToOne
-    private Subsystemcommand subsystemcommandrefid;
+    private SubsystemCommand subsystemcommandrefid;
     @JoinColumn(name = "subsystemcommandstatusrefid", referencedColumnName = "id")
     @ManyToOne
-    private Subsystemcommandstatus subsystemcommandstatusrefid;
+    private SubsystemCommandStatus subsystemcommandstatusrefid;
 
-    public Subsystemcommandqueue() {
+    public SubsystemCommandQueue() {
     }
 
-    public Subsystemcommandqueue(Integer id) {
+    public SubsystemCommandQueue(Integer id) {
         this.id = id;
     }
 
-    public Subsystemcommandqueue(Integer id, Date modifiedTs, Date createdTs) {
+    public SubsystemCommandQueue(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -119,27 +119,27 @@ public class Subsystemcommandqueue implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Personjwthistory getPersonjwthistoryrefid() {
+    public PersonJwtHistory getPersonjwthistoryrefid() {
         return personjwthistoryrefid;
     }
 
-    public void setPersonjwthistoryrefid(Personjwthistory personjwthistoryrefid) {
+    public void setPersonjwthistoryrefid(PersonJwtHistory personjwthistoryrefid) {
         this.personjwthistoryrefid = personjwthistoryrefid;
     }
 
-    public Subsystemcommand getSubsystemcommandrefid() {
+    public SubsystemCommand getSubsystemcommandrefid() {
         return subsystemcommandrefid;
     }
 
-    public void setSubsystemcommandrefid(Subsystemcommand subsystemcommandrefid) {
+    public void setSubsystemcommandrefid(SubsystemCommand subsystemcommandrefid) {
         this.subsystemcommandrefid = subsystemcommandrefid;
     }
 
-    public Subsystemcommandstatus getSubsystemcommandstatusrefid() {
+    public SubsystemCommandStatus getSubsystemcommandstatusrefid() {
         return subsystemcommandstatusrefid;
     }
 
-    public void setSubsystemcommandstatusrefid(Subsystemcommandstatus subsystemcommandstatusrefid) {
+    public void setSubsystemcommandstatusrefid(SubsystemCommandStatus subsystemcommandstatusrefid) {
         this.subsystemcommandstatusrefid = subsystemcommandstatusrefid;
     }
 
@@ -153,10 +153,10 @@ public class Subsystemcommandqueue implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Subsystemcommandqueue)) {
+        if (!(object instanceof SubsystemCommandQueue)) {
             return false;
         }
-        Subsystemcommandqueue other = (Subsystemcommandqueue) object;
+        SubsystemCommandQueue other = (SubsystemCommandQueue) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -165,7 +165,7 @@ public class Subsystemcommandqueue implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandqueue[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.SubsystemCommandQueue[ id=" + id + " ]";
     }
     
 }

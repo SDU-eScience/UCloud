@@ -70,9 +70,9 @@ public class Publication implements Serializable {
     @OneToMany(mappedBy = "publicationrefid")
     private List<Dataobject> dataobjectList;
     @OneToMany(mappedBy = "publicationrefid")
-    private List<PublicationDataobjectRel> publicationDataobjectRelList;
+    private List<PublicationDataobjectRelation> publicationDataobjectRelationList;
     @OneToMany(mappedBy = "publicationrefid")
-    private List<Projectpublicationrel> projectpublicationrelList;
+    private List<ProjectPublicationRelation> projectPublicationRelationList;
 
     public Publication() {
     }
@@ -161,21 +161,21 @@ public class Publication implements Serializable {
     }
 
     @XmlTransient
-    public List<PublicationDataobjectRel> getPublicationDataobjectRelList() {
-        return publicationDataobjectRelList;
+    public List<PublicationDataobjectRelation> getPublicationDataobjectRelationList() {
+        return publicationDataobjectRelationList;
     }
 
-    public void setPublicationDataobjectRelList(List<PublicationDataobjectRel> publicationDataobjectRelList) {
-        this.publicationDataobjectRelList = publicationDataobjectRelList;
+    public void setPublicationDataobjectRelationList(List<PublicationDataobjectRelation> publicationDataobjectRelationList) {
+        this.publicationDataobjectRelationList = publicationDataobjectRelationList;
     }
 
     @XmlTransient
-    public List<Projectpublicationrel> getProjectpublicationrelList() {
-        return projectpublicationrelList;
+    public List<ProjectPublicationRelation> getProjectPublicationRelationList() {
+        return projectPublicationRelationList;
     }
 
-    public void setProjectpublicationrelList(List<Projectpublicationrel> projectpublicationrelList) {
-        this.projectpublicationrelList = projectpublicationrelList;
+    public void setProjectPublicationRelationList(List<ProjectPublicationRelation> projectPublicationRelationList) {
+        this.projectPublicationRelationList = projectPublicationRelationList;
     }
 
     @Override

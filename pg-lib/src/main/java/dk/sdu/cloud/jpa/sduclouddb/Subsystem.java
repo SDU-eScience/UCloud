@@ -79,7 +79,7 @@ public class Subsystem implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
     @OneToMany(mappedBy = "subsystemrefid")
-    private List<Subsystemcommand> subsystemcommandList;
+    private List<SubsystemCommand> subsystemCommandList;
 
     public Subsystem() {
     }
@@ -191,12 +191,12 @@ public class Subsystem implements Serializable {
     }
 
     @XmlTransient
-    public List<Subsystemcommand> getSubsystemcommandList() {
-        return subsystemcommandList;
+    public List<SubsystemCommand> getSubsystemCommandList() {
+        return subsystemCommandList;
     }
 
-    public void setSubsystemcommandList(List<Subsystemcommand> subsystemcommandList) {
-        this.subsystemcommandList = subsystemcommandList;
+    public void setSubsystemCommandList(List<SubsystemCommand> subsystemCommandList) {
+        this.subsystemCommandList = subsystemCommandList;
     }
 
     @Override

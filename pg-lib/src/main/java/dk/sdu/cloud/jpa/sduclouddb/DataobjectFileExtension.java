@@ -9,7 +9,6 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 import javax.persistence.Basic;
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -29,18 +28,19 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author bjhj
  */
 @Entity
-@Table(name = "org")
+@Table(name = "dataobject_file_extension")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Org.findAll", query = "SELECT o FROM Org o")
-    , @NamedQuery(name = "Org.findById", query = "SELECT o FROM Org o WHERE o.id = :id")
-    , @NamedQuery(name = "Org.findByOrgfullname", query = "SELECT o FROM Org o WHERE o.orgfullname = :orgfullname")
-    , @NamedQuery(name = "Org.findByOrgshortname", query = "SELECT o FROM Org o WHERE o.orgshortname = :orgshortname")
-    , @NamedQuery(name = "Org.findByActive", query = "SELECT o FROM Org o WHERE o.active = :active")
-    , @NamedQuery(name = "Org.findByMarkedfordelete", query = "SELECT o FROM Org o WHERE o.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Org.findByModifiedTs", query = "SELECT o FROM Org o WHERE o.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Org.findByCreatedTs", query = "SELECT o FROM Org o WHERE o.createdTs = :createdTs")})
-public class Org implements Serializable {
+    @NamedQuery(name = "DataobjectFileExtension.findAll", query = "SELECT d FROM DataobjectFileExtension d")
+    , @NamedQuery(name = "DataobjectFileExtension.findById", query = "SELECT d FROM DataobjectFileExtension d WHERE d.id = :id")
+    , @NamedQuery(name = "DataobjectFileExtension.findByFileextensionname", query = "SELECT d FROM DataobjectFileExtension d WHERE d.fileextensionname = :fileextensionname")
+    , @NamedQuery(name = "DataobjectFileExtension.findByActive", query = "SELECT d FROM DataobjectFileExtension d WHERE d.active = :active")
+    , @NamedQuery(name = "DataobjectFileExtension.findByMarkedfordelete", query = "SELECT d FROM DataobjectFileExtension d WHERE d.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "DataobjectFileExtension.findByModifiedTs", query = "SELECT d FROM DataobjectFileExtension d WHERE d.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "DataobjectFileExtension.findByCreatedTs", query = "SELECT d FROM DataobjectFileExtension d WHERE d.createdTs = :createdTs")
+    , @NamedQuery(name = "DataobjectFileExtension.findByMimetype", query = "SELECT d FROM DataobjectFileExtension d WHERE d.mimetype = :mimetype")
+    , @NamedQuery(name = "DataobjectFileExtension.findByFileextensiondesc", query = "SELECT d FROM DataobjectFileExtension d WHERE d.fileextensiondesc = :fileextensiondesc")})
+public class DataobjectFileExtension implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -48,10 +48,8 @@ public class Org implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "orgfullname")
-    private String orgfullname;
-    @Column(name = "orgshortname")
-    private String orgshortname;
+    @Column(name = "fileextensionname")
+    private String fileextensionname;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -64,19 +62,21 @@ public class Org implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "orgrefid")
-    private List<ProjectOrgRelation> projectOrgRelationList;
-    @OneToMany(mappedBy = "orgrefid")
-    private List<Person> personList;
+    @Column(name = "mimetype")
+    private String mimetype;
+    @Column(name = "fileextensiondesc")
+    private String fileextensiondesc;
+    @OneToMany(mappedBy = "dataobjectfileextensionrefid")
+    private List<Dataobject> dataobjectList;
 
-    public Org() {
+    public DataobjectFileExtension() {
     }
 
-    public Org(Integer id) {
+    public DataobjectFileExtension(Integer id) {
         this.id = id;
     }
 
-    public Org(Integer id, Date modifiedTs, Date createdTs) {
+    public DataobjectFileExtension(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -90,20 +90,12 @@ public class Org implements Serializable {
         this.id = id;
     }
 
-    public String getOrgfullname() {
-        return orgfullname;
+    public String getFileextensionname() {
+        return fileextensionname;
     }
 
-    public void setOrgfullname(String orgfullname) {
-        this.orgfullname = orgfullname;
-    }
-
-    public String getOrgshortname() {
-        return orgshortname;
-    }
-
-    public void setOrgshortname(String orgshortname) {
-        this.orgshortname = orgshortname;
+    public void setFileextensionname(String fileextensionname) {
+        this.fileextensionname = fileextensionname;
     }
 
     public Integer getActive() {
@@ -138,22 +130,29 @@ public class Org implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public String getMimetype() {
+        return mimetype;
+    }
+
+    public void setMimetype(String mimetype) {
+        this.mimetype = mimetype;
+    }
+
+    public String getFileextensiondesc() {
+        return fileextensiondesc;
+    }
+
+    public void setFileextensiondesc(String fileextensiondesc) {
+        this.fileextensiondesc = fileextensiondesc;
+    }
+
     @XmlTransient
-    public List<ProjectOrgRelation> getProjectOrgRelationList() {
-        return projectOrgRelationList;
+    public List<Dataobject> getDataobjectList() {
+        return dataobjectList;
     }
 
-    public void setProjectOrgRelationList(List<ProjectOrgRelation> projectOrgRelationList) {
-        this.projectOrgRelationList = projectOrgRelationList;
-    }
-
-    @XmlTransient
-    public List<Person> getPersonList() {
-        return personList;
-    }
-
-    public void setPersonList(List<Person> personList) {
-        this.personList = personList;
+    public void setDataobjectList(List<Dataobject> dataobjectList) {
+        this.dataobjectList = dataobjectList;
     }
 
     @Override
@@ -166,10 +165,10 @@ public class Org implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Org)) {
+        if (!(object instanceof DataobjectFileExtension)) {
             return false;
         }
-        Org other = (Org) object;
+        DataobjectFileExtension other = (DataobjectFileExtension) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -178,7 +177,7 @@ public class Org implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Org[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.DataobjectFileExtension[ id=" + id + " ]";
     }
     
 }

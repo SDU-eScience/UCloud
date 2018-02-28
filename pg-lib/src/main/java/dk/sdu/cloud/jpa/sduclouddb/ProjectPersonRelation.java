@@ -7,7 +7,6 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -18,30 +17,26 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "personjwthistory")
+@Table(name = "project_person_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Personjwthistory.findAll", query = "SELECT p FROM Personjwthistory p")
-    , @NamedQuery(name = "Personjwthistory.findById", query = "SELECT p FROM Personjwthistory p WHERE p.id = :id")
-    , @NamedQuery(name = "Personjwthistory.findBySessionid", query = "SELECT p FROM Personjwthistory p WHERE p.sessionid = :sessionid")
-    , @NamedQuery(name = "Personjwthistory.findByMarkedfordelete", query = "SELECT p FROM Personjwthistory p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Personjwthistory.findByJwt", query = "SELECT p FROM Personjwthistory p WHERE p.jwt = :jwt")
-    , @NamedQuery(name = "Personjwthistory.findByModifiedTs", query = "SELECT p FROM Personjwthistory p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Personjwthistory.findByCreatedTs", query = "SELECT p FROM Personjwthistory p WHERE p.createdTs = :createdTs")})
-public class Personjwthistory implements Serializable {
+    @NamedQuery(name = "ProjectPersonRelation.findAll", query = "SELECT p FROM ProjectPersonRelation p")
+    , @NamedQuery(name = "ProjectPersonRelation.findById", query = "SELECT p FROM ProjectPersonRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "ProjectPersonRelation.findByActive", query = "SELECT p FROM ProjectPersonRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "ProjectPersonRelation.findByMarkedfordelete", query = "SELECT p FROM ProjectPersonRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "ProjectPersonRelation.findByModifiedTs", query = "SELECT p FROM ProjectPersonRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ProjectPersonRelation.findByCreatedTs", query = "SELECT p FROM ProjectPersonRelation p WHERE p.createdTs = :createdTs")})
+public class ProjectPersonRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -49,12 +44,10 @@ public class Personjwthistory implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "sessionid")
-    private String sessionid;
+    @Column(name = "active")
+    private Integer active;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
-    @Column(name = "jwt")
-    private String jwt;
     @Basic(optional = false)
     @Column(name = "modified_ts")
     @Temporal(TemporalType.TIMESTAMP)
@@ -64,21 +57,23 @@ public class Personjwthistory implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
-    @ManyToOne
+    @ManyToOne(optional = false)
     private Person personrefid;
-    @OneToMany(mappedBy = "personjwthistoryrefid")
-    private List<Subsystemcommandqueue> subsystemcommandqueueList;
-    @OneToOne(mappedBy = "personjwthistoryrefid")
-    private Person person;
+    @JoinColumn(name = "projectrefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private Project projectrefid;
+    @JoinColumn(name = "projectrolerefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private ProjectRole projectrolerefid;
 
-    public Personjwthistory() {
+    public ProjectPersonRelation() {
     }
 
-    public Personjwthistory(Integer id) {
+    public ProjectPersonRelation(Integer id) {
         this.id = id;
     }
 
-    public Personjwthistory(Integer id, Date modifiedTs, Date createdTs) {
+    public ProjectPersonRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -92,12 +87,12 @@ public class Personjwthistory implements Serializable {
         this.id = id;
     }
 
-    public String getSessionid() {
-        return sessionid;
+    public Integer getActive() {
+        return active;
     }
 
-    public void setSessionid(String sessionid) {
-        this.sessionid = sessionid;
+    public void setActive(Integer active) {
+        this.active = active;
     }
 
     public Integer getMarkedfordelete() {
@@ -106,14 +101,6 @@ public class Personjwthistory implements Serializable {
 
     public void setMarkedfordelete(Integer markedfordelete) {
         this.markedfordelete = markedfordelete;
-    }
-
-    public String getJwt() {
-        return jwt;
-    }
-
-    public void setJwt(String jwt) {
-        this.jwt = jwt;
     }
 
     public Date getModifiedTs() {
@@ -140,21 +127,20 @@ public class Personjwthistory implements Serializable {
         this.personrefid = personrefid;
     }
 
-    @XmlTransient
-    public List<Subsystemcommandqueue> getSubsystemcommandqueueList() {
-        return subsystemcommandqueueList;
+    public Project getProjectrefid() {
+        return projectrefid;
     }
 
-    public void setSubsystemcommandqueueList(List<Subsystemcommandqueue> subsystemcommandqueueList) {
-        this.subsystemcommandqueueList = subsystemcommandqueueList;
+    public void setProjectrefid(Project projectrefid) {
+        this.projectrefid = projectrefid;
     }
 
-    public Person getPerson() {
-        return person;
+    public ProjectRole getProjectrolerefid() {
+        return projectrolerefid;
     }
 
-    public void setPerson(Person person) {
-        this.person = person;
+    public void setProjectrolerefid(ProjectRole projectrolerefid) {
+        this.projectrolerefid = projectrolerefid;
     }
 
     @Override
@@ -167,10 +153,10 @@ public class Personjwthistory implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Personjwthistory)) {
+        if (!(object instanceof ProjectPersonRelation)) {
             return false;
         }
-        Personjwthistory other = (Personjwthistory) object;
+        ProjectPersonRelation other = (ProjectPersonRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -179,7 +165,7 @@ public class Personjwthistory implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Personjwthistory[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.ProjectPersonRelation[ id=" + id + " ]";
     }
     
 }

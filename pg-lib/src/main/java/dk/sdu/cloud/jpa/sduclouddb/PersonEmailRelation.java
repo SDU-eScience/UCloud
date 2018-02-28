@@ -7,37 +7,36 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "subsystemcommandcategory")
+@Table(name = "person_email_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Subsystemcommandcategory.findAll", query = "SELECT s FROM Subsystemcommandcategory s")
-    , @NamedQuery(name = "Subsystemcommandcategory.findById", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.id = :id")
-    , @NamedQuery(name = "Subsystemcommandcategory.findBySubsystemcommandcategorytext", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.subsystemcommandcategorytext = :subsystemcommandcategorytext")
-    , @NamedQuery(name = "Subsystemcommandcategory.findByMarkedfordelete", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Subsystemcommandcategory.findByModifiedTs", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Subsystemcommandcategory.findByCreatedTs", query = "SELECT s FROM Subsystemcommandcategory s WHERE s.createdTs = :createdTs")})
-public class Subsystemcommandcategory implements Serializable {
+    @NamedQuery(name = "PersonEmailRelation.findAll", query = "SELECT p FROM PersonEmailRelation p")
+    , @NamedQuery(name = "PersonEmailRelation.findById", query = "SELECT p FROM PersonEmailRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "PersonEmailRelation.findByMarkedfordelete", query = "SELECT p FROM PersonEmailRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PersonEmailRelation.findByModifiedTs", query = "SELECT p FROM PersonEmailRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PersonEmailRelation.findByCreatedTs", query = "SELECT p FROM PersonEmailRelation p WHERE p.createdTs = :createdTs")
+    , @NamedQuery(name = "PersonEmailRelation.findByPrimaryemail", query = "SELECT p FROM PersonEmailRelation p WHERE p.primaryemail = :primaryemail")})
+public class PersonEmailRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,8 +44,6 @@ public class Subsystemcommandcategory implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "subsystemcommandcategorytext")
-    private String subsystemcommandcategorytext;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -57,17 +54,23 @@ public class Subsystemcommandcategory implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "subsystemcommandcategoryrefid")
-    private List<Subsystemcommand> subsystemcommandList;
+    @Column(name = "primaryemail")
+    private Integer primaryemail;
+    @JoinColumn(name = "emailrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Email emailrefid;
+    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Person personrefid;
 
-    public Subsystemcommandcategory() {
+    public PersonEmailRelation() {
     }
 
-    public Subsystemcommandcategory(Integer id) {
+    public PersonEmailRelation(Integer id) {
         this.id = id;
     }
 
-    public Subsystemcommandcategory(Integer id, Date modifiedTs, Date createdTs) {
+    public PersonEmailRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -79,14 +82,6 @@ public class Subsystemcommandcategory implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
-    }
-
-    public String getSubsystemcommandcategorytext() {
-        return subsystemcommandcategorytext;
-    }
-
-    public void setSubsystemcommandcategorytext(String subsystemcommandcategorytext) {
-        this.subsystemcommandcategorytext = subsystemcommandcategorytext;
     }
 
     public Integer getMarkedfordelete() {
@@ -113,13 +108,28 @@ public class Subsystemcommandcategory implements Serializable {
         this.createdTs = createdTs;
     }
 
-    @XmlTransient
-    public List<Subsystemcommand> getSubsystemcommandList() {
-        return subsystemcommandList;
+    public Integer getPrimaryemail() {
+        return primaryemail;
     }
 
-    public void setSubsystemcommandList(List<Subsystemcommand> subsystemcommandList) {
-        this.subsystemcommandList = subsystemcommandList;
+    public void setPrimaryemail(Integer primaryemail) {
+        this.primaryemail = primaryemail;
+    }
+
+    public Email getEmailrefid() {
+        return emailrefid;
+    }
+
+    public void setEmailrefid(Email emailrefid) {
+        this.emailrefid = emailrefid;
+    }
+
+    public Person getPersonrefid() {
+        return personrefid;
+    }
+
+    public void setPersonrefid(Person personrefid) {
+        this.personrefid = personrefid;
     }
 
     @Override
@@ -132,10 +142,10 @@ public class Subsystemcommandcategory implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Subsystemcommandcategory)) {
+        if (!(object instanceof PersonEmailRelation)) {
             return false;
         }
-        Subsystemcommandcategory other = (Subsystemcommandcategory) object;
+        PersonEmailRelation other = (PersonEmailRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -144,7 +154,7 @@ public class Subsystemcommandcategory implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Subsystemcommandcategory[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PersonEmailRelation[ id=" + id + " ]";
     }
     
 }

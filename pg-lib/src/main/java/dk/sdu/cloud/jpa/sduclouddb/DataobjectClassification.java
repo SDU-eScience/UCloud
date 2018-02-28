@@ -7,37 +7,38 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
  * @author bjhj
  */
 @Entity
-@Table(name = "systemrolepersonrel")
+@Table(name = "dataobject_classification")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Systemrolepersonrel.findAll", query = "SELECT s FROM Systemrolepersonrel s")
-    , @NamedQuery(name = "Systemrolepersonrel.findById", query = "SELECT s FROM Systemrolepersonrel s WHERE s.id = :id")
-    , @NamedQuery(name = "Systemrolepersonrel.findBySystemrolerefid", query = "SELECT s FROM Systemrolepersonrel s WHERE s.systemrolerefid = :systemrolerefid")
-    , @NamedQuery(name = "Systemrolepersonrel.findByActive", query = "SELECT s FROM Systemrolepersonrel s WHERE s.active = :active")
-    , @NamedQuery(name = "Systemrolepersonrel.findByMarkedfordelete", query = "SELECT s FROM Systemrolepersonrel s WHERE s.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Systemrolepersonrel.findByModifiedTs", query = "SELECT s FROM Systemrolepersonrel s WHERE s.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Systemrolepersonrel.findByCreatedTs", query = "SELECT s FROM Systemrolepersonrel s WHERE s.createdTs = :createdTs")})
-public class Systemrolepersonrel implements Serializable {
+    @NamedQuery(name = "DataobjectClassification.findAll", query = "SELECT d FROM DataobjectClassification d")
+    , @NamedQuery(name = "DataobjectClassification.findById", query = "SELECT d FROM DataobjectClassification d WHERE d.id = :id")
+    , @NamedQuery(name = "DataobjectClassification.findByDataobjectclassificationname", query = "SELECT d FROM DataobjectClassification d WHERE d.dataobjectclassificationname = :dataobjectclassificationname")
+    , @NamedQuery(name = "DataobjectClassification.findByActive", query = "SELECT d FROM DataobjectClassification d WHERE d.active = :active")
+    , @NamedQuery(name = "DataobjectClassification.findByMarkedfordelete", query = "SELECT d FROM DataobjectClassification d WHERE d.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "DataobjectClassification.findByModifiedTs", query = "SELECT d FROM DataobjectClassification d WHERE d.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "DataobjectClassification.findByCreatedTs", query = "SELECT d FROM DataobjectClassification d WHERE d.createdTs = :createdTs")})
+public class DataobjectClassification implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,9 +46,8 @@ public class Systemrolepersonrel implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Basic(optional = false)
-    @Column(name = "systemrolerefid")
-    private int systemrolerefid;
+    @Column(name = "dataobjectclassificationname")
+    private String dataobjectclassificationname;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -60,20 +60,18 @@ public class Systemrolepersonrel implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
-    @ManyToOne(optional = false)
-    private Person personrefid;
+    @OneToMany(mappedBy = "dataobjectclassificationrefid")
+    private List<Dataobject> dataobjectList;
 
-    public Systemrolepersonrel() {
+    public DataobjectClassification() {
     }
 
-    public Systemrolepersonrel(Integer id) {
+    public DataobjectClassification(Integer id) {
         this.id = id;
     }
 
-    public Systemrolepersonrel(Integer id, int systemrolerefid, Date modifiedTs, Date createdTs) {
+    public DataobjectClassification(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
-        this.systemrolerefid = systemrolerefid;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
     }
@@ -86,12 +84,12 @@ public class Systemrolepersonrel implements Serializable {
         this.id = id;
     }
 
-    public int getSystemrolerefid() {
-        return systemrolerefid;
+    public String getDataobjectclassificationname() {
+        return dataobjectclassificationname;
     }
 
-    public void setSystemrolerefid(int systemrolerefid) {
-        this.systemrolerefid = systemrolerefid;
+    public void setDataobjectclassificationname(String dataobjectclassificationname) {
+        this.dataobjectclassificationname = dataobjectclassificationname;
     }
 
     public Integer getActive() {
@@ -126,12 +124,13 @@ public class Systemrolepersonrel implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Person getPersonrefid() {
-        return personrefid;
+    @XmlTransient
+    public List<Dataobject> getDataobjectList() {
+        return dataobjectList;
     }
 
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
+    public void setDataobjectList(List<Dataobject> dataobjectList) {
+        this.dataobjectList = dataobjectList;
     }
 
     @Override
@@ -144,10 +143,10 @@ public class Systemrolepersonrel implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Systemrolepersonrel)) {
+        if (!(object instanceof DataobjectClassification)) {
             return false;
         }
-        Systemrolepersonrel other = (Systemrolepersonrel) object;
+        DataobjectClassification other = (DataobjectClassification) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -156,7 +155,7 @@ public class Systemrolepersonrel implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Systemrolepersonrel[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.DataobjectClassification[ id=" + id + " ]";
     }
     
 }

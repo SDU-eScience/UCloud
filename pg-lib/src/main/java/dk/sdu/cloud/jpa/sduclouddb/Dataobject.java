@@ -40,7 +40,8 @@ import javax.xml.bind.annotation.XmlTransient;
     , @NamedQuery(name = "Dataobject.findByMarkedfordelete", query = "SELECT d FROM Dataobject d WHERE d.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Dataobject.findByModifiedTs", query = "SELECT d FROM Dataobject d WHERE d.modifiedTs = :modifiedTs")
     , @NamedQuery(name = "Dataobject.findByCreatedTs", query = "SELECT d FROM Dataobject d WHERE d.createdTs = :createdTs")
-    , @NamedQuery(name = "Dataobject.findByLastAccessed", query = "SELECT d FROM Dataobject d WHERE d.lastAccessed = :lastAccessed")})
+    , @NamedQuery(name = "Dataobject.findByLastAccessed", query = "SELECT d FROM Dataobject d WHERE d.lastAccessed = :lastAccessed")
+    , @NamedQuery(name = "Dataobject.findByCounter", query = "SELECT d FROM Dataobject d WHERE d.counter = :counter")})
 public class Dataobject implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -69,23 +70,26 @@ public class Dataobject implements Serializable {
     @Column(name = "last_accessed")
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastAccessed;
-    @OneToMany(mappedBy = "dataobjectrefid")
-    private List<Dataobjectsharerel> dataobjectsharerelList;
+    @Basic(optional = false)
+    @Column(name = "counter")
+    private int counter;
     @JoinColumn(name = "dataobjectclassificationrefid", referencedColumnName = "id")
     @ManyToOne
-    private Dataobjectclassification dataobjectclassificationrefid;
+    private DataobjectClassification dataobjectclassificationrefid;
     @JoinColumn(name = "dataobjectfileextensionrefid", referencedColumnName = "id")
     @ManyToOne
-    private Dataobjectfileextension dataobjectfileextensionrefid;
+    private DataobjectFileExtension dataobjectfileextensionrefid;
     @JoinColumn(name = "publicationrefid", referencedColumnName = "id")
     @ManyToOne
     private Publication publicationrefid;
     @OneToMany(mappedBy = "dataobjectrefid")
-    private List<Dataobjectcollectionrel> dataobjectcollectionrelList;
+    private List<PublicationDataobjectRelation> publicationDataobjectRelationList;
     @OneToMany(mappedBy = "dataobjectrefid")
-    private List<PublicationDataobjectRel> publicationDataobjectRelList;
+    private List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList;
     @OneToMany(mappedBy = "dataobjectrefid")
     private List<DataTransferDetail> dataTransferDetailList;
+    @OneToMany(mappedBy = "dataobjectrefid")
+    private List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList;
 
     public Dataobject() {
     }
@@ -94,10 +98,11 @@ public class Dataobject implements Serializable {
         this.id = id;
     }
 
-    public Dataobject(String id, Date modifiedTs, Date createdTs) {
+    public Dataobject(String id, Date modifiedTs, Date createdTs, int counter) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
+        this.counter = counter;
     }
 
     public String getId() {
@@ -172,28 +177,27 @@ public class Dataobject implements Serializable {
         this.lastAccessed = lastAccessed;
     }
 
-    @XmlTransient
-    public List<Dataobjectsharerel> getDataobjectsharerelList() {
-        return dataobjectsharerelList;
+    public int getCounter() {
+        return counter;
     }
 
-    public void setDataobjectsharerelList(List<Dataobjectsharerel> dataobjectsharerelList) {
-        this.dataobjectsharerelList = dataobjectsharerelList;
+    public void setCounter(int counter) {
+        this.counter = counter;
     }
 
-    public Dataobjectclassification getDataobjectclassificationrefid() {
+    public DataobjectClassification getDataobjectclassificationrefid() {
         return dataobjectclassificationrefid;
     }
 
-    public void setDataobjectclassificationrefid(Dataobjectclassification dataobjectclassificationrefid) {
+    public void setDataobjectclassificationrefid(DataobjectClassification dataobjectclassificationrefid) {
         this.dataobjectclassificationrefid = dataobjectclassificationrefid;
     }
 
-    public Dataobjectfileextension getDataobjectfileextensionrefid() {
+    public DataobjectFileExtension getDataobjectfileextensionrefid() {
         return dataobjectfileextensionrefid;
     }
 
-    public void setDataobjectfileextensionrefid(Dataobjectfileextension dataobjectfileextensionrefid) {
+    public void setDataobjectfileextensionrefid(DataobjectFileExtension dataobjectfileextensionrefid) {
         this.dataobjectfileextensionrefid = dataobjectfileextensionrefid;
     }
 
@@ -206,21 +210,21 @@ public class Dataobject implements Serializable {
     }
 
     @XmlTransient
-    public List<Dataobjectcollectionrel> getDataobjectcollectionrelList() {
-        return dataobjectcollectionrelList;
+    public List<PublicationDataobjectRelation> getPublicationDataobjectRelationList() {
+        return publicationDataobjectRelationList;
     }
 
-    public void setDataobjectcollectionrelList(List<Dataobjectcollectionrel> dataobjectcollectionrelList) {
-        this.dataobjectcollectionrelList = dataobjectcollectionrelList;
+    public void setPublicationDataobjectRelationList(List<PublicationDataobjectRelation> publicationDataobjectRelationList) {
+        this.publicationDataobjectRelationList = publicationDataobjectRelationList;
     }
 
     @XmlTransient
-    public List<PublicationDataobjectRel> getPublicationDataobjectRelList() {
-        return publicationDataobjectRelList;
+    public List<DataobjectDirectoryRelation> getDataobjectDirectoryRelationList() {
+        return dataobjectDirectoryRelationList;
     }
 
-    public void setPublicationDataobjectRelList(List<PublicationDataobjectRel> publicationDataobjectRelList) {
-        this.publicationDataobjectRelList = publicationDataobjectRelList;
+    public void setDataobjectDirectoryRelationList(List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList) {
+        this.dataobjectDirectoryRelationList = dataobjectDirectoryRelationList;
     }
 
     @XmlTransient
@@ -230,6 +234,15 @@ public class Dataobject implements Serializable {
 
     public void setDataTransferDetailList(List<DataTransferDetail> dataTransferDetailList) {
         this.dataTransferDetailList = dataTransferDetailList;
+    }
+
+    @XmlTransient
+    public List<PersonDataobjectSpecialShareRelation> getPersonDataobjectSpecialShareRelationList() {
+        return personDataobjectSpecialShareRelationList;
+    }
+
+    public void setPersonDataobjectSpecialShareRelationList(List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList) {
+        this.personDataobjectSpecialShareRelationList = personDataobjectSpecialShareRelationList;
     }
 
     @Override

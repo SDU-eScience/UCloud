@@ -28,16 +28,16 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author bjhj
  */
 @Entity
-@Table(name = "email")
+@Table(name = "subsystem_command_status")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Email.findAll", query = "SELECT e FROM Email e")
-    , @NamedQuery(name = "Email.findById", query = "SELECT e FROM Email e WHERE e.id = :id")
-    , @NamedQuery(name = "Email.findByEmail", query = "SELECT e FROM Email e WHERE e.email = :email")
-    , @NamedQuery(name = "Email.findByMarkedfordelete", query = "SELECT e FROM Email e WHERE e.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Email.findByModifiedTs", query = "SELECT e FROM Email e WHERE e.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Email.findByCreatedTs", query = "SELECT e FROM Email e WHERE e.createdTs = :createdTs")})
-public class Email implements Serializable {
+    @NamedQuery(name = "SubsystemCommandStatus.findAll", query = "SELECT s FROM SubsystemCommandStatus s")
+    , @NamedQuery(name = "SubsystemCommandStatus.findById", query = "SELECT s FROM SubsystemCommandStatus s WHERE s.id = :id")
+    , @NamedQuery(name = "SubsystemCommandStatus.findBySubsystemcommandstatustext", query = "SELECT s FROM SubsystemCommandStatus s WHERE s.subsystemcommandstatustext = :subsystemcommandstatustext")
+    , @NamedQuery(name = "SubsystemCommandStatus.findByMarkedfordelete", query = "SELECT s FROM SubsystemCommandStatus s WHERE s.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "SubsystemCommandStatus.findByModifiedTs", query = "SELECT s FROM SubsystemCommandStatus s WHERE s.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "SubsystemCommandStatus.findByCreatedTs", query = "SELECT s FROM SubsystemCommandStatus s WHERE s.createdTs = :createdTs")})
+public class SubsystemCommandStatus implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,8 +45,8 @@ public class Email implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "email")
-    private String email;
+    @Column(name = "subsystemcommandstatustext")
+    private String subsystemcommandstatustext;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -57,17 +57,17 @@ public class Email implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "emailrefid")
-    private List<PersonEmailRelation> personEmailRelationList;
+    @OneToMany(mappedBy = "subsystemcommandstatusrefid")
+    private List<SubsystemCommandQueue> subsystemCommandQueueList;
 
-    public Email() {
+    public SubsystemCommandStatus() {
     }
 
-    public Email(Integer id) {
+    public SubsystemCommandStatus(Integer id) {
         this.id = id;
     }
 
-    public Email(Integer id, Date modifiedTs, Date createdTs) {
+    public SubsystemCommandStatus(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -81,12 +81,12 @@ public class Email implements Serializable {
         this.id = id;
     }
 
-    public String getEmail() {
-        return email;
+    public String getSubsystemcommandstatustext() {
+        return subsystemcommandstatustext;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setSubsystemcommandstatustext(String subsystemcommandstatustext) {
+        this.subsystemcommandstatustext = subsystemcommandstatustext;
     }
 
     public Integer getMarkedfordelete() {
@@ -114,12 +114,12 @@ public class Email implements Serializable {
     }
 
     @XmlTransient
-    public List<PersonEmailRelation> getPersonEmailRelationList() {
-        return personEmailRelationList;
+    public List<SubsystemCommandQueue> getSubsystemCommandQueueList() {
+        return subsystemCommandQueueList;
     }
 
-    public void setPersonEmailRelationList(List<PersonEmailRelation> personEmailRelationList) {
-        this.personEmailRelationList = personEmailRelationList;
+    public void setSubsystemCommandQueueList(List<SubsystemCommandQueue> subsystemCommandQueueList) {
+        this.subsystemCommandQueueList = subsystemCommandQueueList;
     }
 
     @Override
@@ -132,10 +132,10 @@ public class Email implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Email)) {
+        if (!(object instanceof SubsystemCommandStatus)) {
             return false;
         }
-        Email other = (Email) object;
+        SubsystemCommandStatus other = (SubsystemCommandStatus) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -144,7 +144,7 @@ public class Email implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Email[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.SubsystemCommandStatus[ id=" + id + " ]";
     }
     
 }

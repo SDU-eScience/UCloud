@@ -28,17 +28,17 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author bjhj
  */
 @Entity
-@Table(name = "dataobjectclassification")
+@Table(name = "project_research_type")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Dataobjectclassification.findAll", query = "SELECT d FROM Dataobjectclassification d")
-    , @NamedQuery(name = "Dataobjectclassification.findById", query = "SELECT d FROM Dataobjectclassification d WHERE d.id = :id")
-    , @NamedQuery(name = "Dataobjectclassification.findByDataobjectclassificationname", query = "SELECT d FROM Dataobjectclassification d WHERE d.dataobjectclassificationname = :dataobjectclassificationname")
-    , @NamedQuery(name = "Dataobjectclassification.findByActive", query = "SELECT d FROM Dataobjectclassification d WHERE d.active = :active")
-    , @NamedQuery(name = "Dataobjectclassification.findByMarkedfordelete", query = "SELECT d FROM Dataobjectclassification d WHERE d.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Dataobjectclassification.findByModifiedTs", query = "SELECT d FROM Dataobjectclassification d WHERE d.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Dataobjectclassification.findByCreatedTs", query = "SELECT d FROM Dataobjectclassification d WHERE d.createdTs = :createdTs")})
-public class Dataobjectclassification implements Serializable {
+    @NamedQuery(name = "ProjectResearchType.findAll", query = "SELECT p FROM ProjectResearchType p")
+    , @NamedQuery(name = "ProjectResearchType.findById", query = "SELECT p FROM ProjectResearchType p WHERE p.id = :id")
+    , @NamedQuery(name = "ProjectResearchType.findByProjectresearchtypetext", query = "SELECT p FROM ProjectResearchType p WHERE p.projectresearchtypetext = :projectresearchtypetext")
+    , @NamedQuery(name = "ProjectResearchType.findByActive", query = "SELECT p FROM ProjectResearchType p WHERE p.active = :active")
+    , @NamedQuery(name = "ProjectResearchType.findByMarkedfordelete", query = "SELECT p FROM ProjectResearchType p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "ProjectResearchType.findByModifiedTs", query = "SELECT p FROM ProjectResearchType p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ProjectResearchType.findByCreatedTs", query = "SELECT p FROM ProjectResearchType p WHERE p.createdTs = :createdTs")})
+public class ProjectResearchType implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -46,8 +46,8 @@ public class Dataobjectclassification implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "dataobjectclassificationname")
-    private String dataobjectclassificationname;
+    @Column(name = "projectresearchtypetext")
+    private String projectresearchtypetext;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -60,17 +60,17 @@ public class Dataobjectclassification implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "dataobjectclassificationrefid")
-    private List<Dataobject> dataobjectList;
+    @OneToMany(mappedBy = "projectresearchtyperefid")
+    private List<ProjectProjectresearchtypeRelation> projectProjectresearchtypeRelationList;
 
-    public Dataobjectclassification() {
+    public ProjectResearchType() {
     }
 
-    public Dataobjectclassification(Integer id) {
+    public ProjectResearchType(Integer id) {
         this.id = id;
     }
 
-    public Dataobjectclassification(Integer id, Date modifiedTs, Date createdTs) {
+    public ProjectResearchType(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -84,12 +84,12 @@ public class Dataobjectclassification implements Serializable {
         this.id = id;
     }
 
-    public String getDataobjectclassificationname() {
-        return dataobjectclassificationname;
+    public String getProjectresearchtypetext() {
+        return projectresearchtypetext;
     }
 
-    public void setDataobjectclassificationname(String dataobjectclassificationname) {
-        this.dataobjectclassificationname = dataobjectclassificationname;
+    public void setProjectresearchtypetext(String projectresearchtypetext) {
+        this.projectresearchtypetext = projectresearchtypetext;
     }
 
     public Integer getActive() {
@@ -125,12 +125,12 @@ public class Dataobjectclassification implements Serializable {
     }
 
     @XmlTransient
-    public List<Dataobject> getDataobjectList() {
-        return dataobjectList;
+    public List<ProjectProjectresearchtypeRelation> getProjectProjectresearchtypeRelationList() {
+        return projectProjectresearchtypeRelationList;
     }
 
-    public void setDataobjectList(List<Dataobject> dataobjectList) {
-        this.dataobjectList = dataobjectList;
+    public void setProjectProjectresearchtypeRelationList(List<ProjectProjectresearchtypeRelation> projectProjectresearchtypeRelationList) {
+        this.projectProjectresearchtypeRelationList = projectProjectresearchtypeRelationList;
     }
 
     @Override
@@ -143,10 +143,10 @@ public class Dataobjectclassification implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Dataobjectclassification)) {
+        if (!(object instanceof ProjectResearchType)) {
             return false;
         }
-        Dataobjectclassification other = (Dataobjectclassification) object;
+        ProjectResearchType other = (ProjectResearchType) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -155,7 +155,7 @@ public class Dataobjectclassification implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Dataobjectclassification[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.ProjectResearchType[ id=" + id + " ]";
     }
     
 }

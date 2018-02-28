@@ -29,18 +29,18 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author bjhj
  */
 @Entity
-@Table(name = "projectdocument")
+@Table(name = "project_document")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectdocument.findAll", query = "SELECT p FROM Projectdocument p")
-    , @NamedQuery(name = "Projectdocument.findById", query = "SELECT p FROM Projectdocument p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectdocument.findByProjectdocumentfilename", query = "SELECT p FROM Projectdocument p WHERE p.projectdocumentfilename = :projectdocumentfilename")
-    , @NamedQuery(name = "Projectdocument.findByDocumenttypedescription", query = "SELECT p FROM Projectdocument p WHERE p.documenttypedescription = :documenttypedescription")
-    , @NamedQuery(name = "Projectdocument.findByActive", query = "SELECT p FROM Projectdocument p WHERE p.active = :active")
-    , @NamedQuery(name = "Projectdocument.findByMarkedfordelete", query = "SELECT p FROM Projectdocument p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Projectdocument.findByModifiedTs", query = "SELECT p FROM Projectdocument p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Projectdocument.findByCreatedTs", query = "SELECT p FROM Projectdocument p WHERE p.createdTs = :createdTs")})
-public class Projectdocument implements Serializable {
+    @NamedQuery(name = "ProjectDocument.findAll", query = "SELECT p FROM ProjectDocument p")
+    , @NamedQuery(name = "ProjectDocument.findById", query = "SELECT p FROM ProjectDocument p WHERE p.id = :id")
+    , @NamedQuery(name = "ProjectDocument.findByProjectdocumentfilename", query = "SELECT p FROM ProjectDocument p WHERE p.projectdocumentfilename = :projectdocumentfilename")
+    , @NamedQuery(name = "ProjectDocument.findByDocumenttypedescription", query = "SELECT p FROM ProjectDocument p WHERE p.documenttypedescription = :documenttypedescription")
+    , @NamedQuery(name = "ProjectDocument.findByActive", query = "SELECT p FROM ProjectDocument p WHERE p.active = :active")
+    , @NamedQuery(name = "ProjectDocument.findByMarkedfordelete", query = "SELECT p FROM ProjectDocument p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "ProjectDocument.findByModifiedTs", query = "SELECT p FROM ProjectDocument p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ProjectDocument.findByCreatedTs", query = "SELECT p FROM ProjectDocument p WHERE p.createdTs = :createdTs")})
+public class ProjectDocument implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -68,16 +68,16 @@ public class Projectdocument implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
     @OneToMany(mappedBy = "projectdocumentrefid")
-    private List<Projectprojectdocumentrel> projectprojectdocumentrelList;
+    private List<ProjectProjectdocumentRelation> projectProjectdocumentRelationList;
 
-    public Projectdocument() {
+    public ProjectDocument() {
     }
 
-    public Projectdocument(Integer id) {
+    public ProjectDocument(Integer id) {
         this.id = id;
     }
 
-    public Projectdocument(Integer id, Date modifiedTs, Date createdTs) {
+    public ProjectDocument(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -148,12 +148,12 @@ public class Projectdocument implements Serializable {
     }
 
     @XmlTransient
-    public List<Projectprojectdocumentrel> getProjectprojectdocumentrelList() {
-        return projectprojectdocumentrelList;
+    public List<ProjectProjectdocumentRelation> getProjectProjectdocumentRelationList() {
+        return projectProjectdocumentRelationList;
     }
 
-    public void setProjectprojectdocumentrelList(List<Projectprojectdocumentrel> projectprojectdocumentrelList) {
-        this.projectprojectdocumentrelList = projectprojectdocumentrelList;
+    public void setProjectProjectdocumentRelationList(List<ProjectProjectdocumentRelation> projectProjectdocumentRelationList) {
+        this.projectProjectdocumentRelationList = projectProjectdocumentRelationList;
     }
 
     @Override
@@ -166,10 +166,10 @@ public class Projectdocument implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Projectdocument)) {
+        if (!(object instanceof ProjectDocument)) {
             return false;
         }
-        Projectdocument other = (Projectdocument) object;
+        ProjectDocument other = (ProjectDocument) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -178,7 +178,7 @@ public class Projectdocument implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Projectdocument[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.ProjectDocument[ id=" + id + " ]";
     }
     
 }

@@ -27,16 +27,15 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "personemailrel")
+@Table(name = "dataobject_directory_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Personemailrel.findAll", query = "SELECT p FROM Personemailrel p")
-    , @NamedQuery(name = "Personemailrel.findById", query = "SELECT p FROM Personemailrel p WHERE p.id = :id")
-    , @NamedQuery(name = "Personemailrel.findByMarkedfordelete", query = "SELECT p FROM Personemailrel p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Personemailrel.findByModifiedTs", query = "SELECT p FROM Personemailrel p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Personemailrel.findByCreatedTs", query = "SELECT p FROM Personemailrel p WHERE p.createdTs = :createdTs")
-    , @NamedQuery(name = "Personemailrel.findByPrimaryemail", query = "SELECT p FROM Personemailrel p WHERE p.primaryemail = :primaryemail")})
-public class Personemailrel implements Serializable {
+    @NamedQuery(name = "DataobjectDirectoryRelation.findAll", query = "SELECT d FROM DataobjectDirectoryRelation d")
+    , @NamedQuery(name = "DataobjectDirectoryRelation.findById", query = "SELECT d FROM DataobjectDirectoryRelation d WHERE d.id = :id")
+    , @NamedQuery(name = "DataobjectDirectoryRelation.findByMarkedfordelete", query = "SELECT d FROM DataobjectDirectoryRelation d WHERE d.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "DataobjectDirectoryRelation.findByModifiedTs", query = "SELECT d FROM DataobjectDirectoryRelation d WHERE d.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "DataobjectDirectoryRelation.findByCreatedTs", query = "SELECT d FROM DataobjectDirectoryRelation d WHERE d.createdTs = :createdTs")})
+public class DataobjectDirectoryRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -54,23 +53,21 @@ public class Personemailrel implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @Column(name = "primaryemail")
-    private Integer primaryemail;
-    @JoinColumn(name = "emailrefid", referencedColumnName = "id")
+    @JoinColumn(name = "dataobjectrefid", referencedColumnName = "id")
     @ManyToOne
-    private Email emailrefid;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    private Dataobject dataobjectrefid;
+    @JoinColumn(name = "dataobjectdirectoryrefid", referencedColumnName = "id")
     @ManyToOne
-    private Person personrefid;
+    private DataobjectDirectory dataobjectdirectoryrefid;
 
-    public Personemailrel() {
+    public DataobjectDirectoryRelation() {
     }
 
-    public Personemailrel(Integer id) {
+    public DataobjectDirectoryRelation(Integer id) {
         this.id = id;
     }
 
-    public Personemailrel(Integer id, Date modifiedTs, Date createdTs) {
+    public DataobjectDirectoryRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -108,28 +105,20 @@ public class Personemailrel implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Integer getPrimaryemail() {
-        return primaryemail;
+    public Dataobject getDataobjectrefid() {
+        return dataobjectrefid;
     }
 
-    public void setPrimaryemail(Integer primaryemail) {
-        this.primaryemail = primaryemail;
+    public void setDataobjectrefid(Dataobject dataobjectrefid) {
+        this.dataobjectrefid = dataobjectrefid;
     }
 
-    public Email getEmailrefid() {
-        return emailrefid;
+    public DataobjectDirectory getDataobjectdirectoryrefid() {
+        return dataobjectdirectoryrefid;
     }
 
-    public void setEmailrefid(Email emailrefid) {
-        this.emailrefid = emailrefid;
-    }
-
-    public Person getPersonrefid() {
-        return personrefid;
-    }
-
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
+    public void setDataobjectdirectoryrefid(DataobjectDirectory dataobjectdirectoryrefid) {
+        this.dataobjectdirectoryrefid = dataobjectdirectoryrefid;
     }
 
     @Override
@@ -142,10 +131,10 @@ public class Personemailrel implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Personemailrel)) {
+        if (!(object instanceof DataobjectDirectoryRelation)) {
             return false;
         }
-        Personemailrel other = (Personemailrel) object;
+        DataobjectDirectoryRelation other = (DataobjectDirectoryRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -154,7 +143,7 @@ public class Personemailrel implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Personemailrel[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.DataobjectDirectoryRelation[ id=" + id + " ]";
     }
     
 }

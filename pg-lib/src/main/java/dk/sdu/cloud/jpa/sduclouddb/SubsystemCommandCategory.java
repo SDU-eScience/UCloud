@@ -28,17 +28,16 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author bjhj
  */
 @Entity
-@Table(name = "projectresearchtype")
+@Table(name = "subsystem_command_category")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectresearchtype.findAll", query = "SELECT p FROM Projectresearchtype p")
-    , @NamedQuery(name = "Projectresearchtype.findById", query = "SELECT p FROM Projectresearchtype p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectresearchtype.findByProjectresearchtypetext", query = "SELECT p FROM Projectresearchtype p WHERE p.projectresearchtypetext = :projectresearchtypetext")
-    , @NamedQuery(name = "Projectresearchtype.findByActive", query = "SELECT p FROM Projectresearchtype p WHERE p.active = :active")
-    , @NamedQuery(name = "Projectresearchtype.findByMarkedfordelete", query = "SELECT p FROM Projectresearchtype p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Projectresearchtype.findByModifiedTs", query = "SELECT p FROM Projectresearchtype p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Projectresearchtype.findByCreatedTs", query = "SELECT p FROM Projectresearchtype p WHERE p.createdTs = :createdTs")})
-public class Projectresearchtype implements Serializable {
+    @NamedQuery(name = "SubsystemCommandCategory.findAll", query = "SELECT s FROM SubsystemCommandCategory s")
+    , @NamedQuery(name = "SubsystemCommandCategory.findById", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.id = :id")
+    , @NamedQuery(name = "SubsystemCommandCategory.findBySubsystemcommandcategorytext", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.subsystemcommandcategorytext = :subsystemcommandcategorytext")
+    , @NamedQuery(name = "SubsystemCommandCategory.findByMarkedfordelete", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "SubsystemCommandCategory.findByModifiedTs", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "SubsystemCommandCategory.findByCreatedTs", query = "SELECT s FROM SubsystemCommandCategory s WHERE s.createdTs = :createdTs")})
+public class SubsystemCommandCategory implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -46,10 +45,8 @@ public class Projectresearchtype implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "projectresearchtypetext")
-    private String projectresearchtypetext;
-    @Column(name = "active")
-    private Integer active;
+    @Column(name = "subsystemcommandcategorytext")
+    private String subsystemcommandcategorytext;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -60,17 +57,17 @@ public class Projectresearchtype implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "projectresearchtyperefid")
-    private List<Projectprojectresearchtyperel> projectprojectresearchtyperelList;
+    @OneToMany(mappedBy = "subsystemcommandcategoryrefid")
+    private List<SubsystemCommand> subsystemCommandList;
 
-    public Projectresearchtype() {
+    public SubsystemCommandCategory() {
     }
 
-    public Projectresearchtype(Integer id) {
+    public SubsystemCommandCategory(Integer id) {
         this.id = id;
     }
 
-    public Projectresearchtype(Integer id, Date modifiedTs, Date createdTs) {
+    public SubsystemCommandCategory(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -84,20 +81,12 @@ public class Projectresearchtype implements Serializable {
         this.id = id;
     }
 
-    public String getProjectresearchtypetext() {
-        return projectresearchtypetext;
+    public String getSubsystemcommandcategorytext() {
+        return subsystemcommandcategorytext;
     }
 
-    public void setProjectresearchtypetext(String projectresearchtypetext) {
-        this.projectresearchtypetext = projectresearchtypetext;
-    }
-
-    public Integer getActive() {
-        return active;
-    }
-
-    public void setActive(Integer active) {
-        this.active = active;
+    public void setSubsystemcommandcategorytext(String subsystemcommandcategorytext) {
+        this.subsystemcommandcategorytext = subsystemcommandcategorytext;
     }
 
     public Integer getMarkedfordelete() {
@@ -125,12 +114,12 @@ public class Projectresearchtype implements Serializable {
     }
 
     @XmlTransient
-    public List<Projectprojectresearchtyperel> getProjectprojectresearchtyperelList() {
-        return projectprojectresearchtyperelList;
+    public List<SubsystemCommand> getSubsystemCommandList() {
+        return subsystemCommandList;
     }
 
-    public void setProjectprojectresearchtyperelList(List<Projectprojectresearchtyperel> projectprojectresearchtyperelList) {
-        this.projectprojectresearchtyperelList = projectprojectresearchtyperelList;
+    public void setSubsystemCommandList(List<SubsystemCommand> subsystemCommandList) {
+        this.subsystemCommandList = subsystemCommandList;
     }
 
     @Override
@@ -143,10 +132,10 @@ public class Projectresearchtype implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Projectresearchtype)) {
+        if (!(object instanceof SubsystemCommandCategory)) {
             return false;
         }
-        Projectresearchtype other = (Projectresearchtype) object;
+        SubsystemCommandCategory other = (SubsystemCommandCategory) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -155,7 +144,7 @@ public class Projectresearchtype implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Projectresearchtype[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.SubsystemCommandCategory[ id=" + id + " ]";
     }
     
 }

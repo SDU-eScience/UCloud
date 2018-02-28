@@ -27,16 +27,17 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "projectprojectdocumentrel")
+@Table(name = "project_org_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Projectprojectdocumentrel.findAll", query = "SELECT p FROM Projectprojectdocumentrel p")
-    , @NamedQuery(name = "Projectprojectdocumentrel.findById", query = "SELECT p FROM Projectprojectdocumentrel p WHERE p.id = :id")
-    , @NamedQuery(name = "Projectprojectdocumentrel.findByActive", query = "SELECT p FROM Projectprojectdocumentrel p WHERE p.active = :active")
-    , @NamedQuery(name = "Projectprojectdocumentrel.findByMarkedfordelete", query = "SELECT p FROM Projectprojectdocumentrel p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Projectprojectdocumentrel.findByModifiedTs", query = "SELECT p FROM Projectprojectdocumentrel p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Projectprojectdocumentrel.findByCreatedTs", query = "SELECT p FROM Projectprojectdocumentrel p WHERE p.createdTs = :createdTs")})
-public class Projectprojectdocumentrel implements Serializable {
+    @NamedQuery(name = "ProjectOrgRelation.findAll", query = "SELECT p FROM ProjectOrgRelation p")
+    , @NamedQuery(name = "ProjectOrgRelation.findById", query = "SELECT p FROM ProjectOrgRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "ProjectOrgRelation.findByProjectrefid", query = "SELECT p FROM ProjectOrgRelation p WHERE p.projectrefid = :projectrefid")
+    , @NamedQuery(name = "ProjectOrgRelation.findByActive", query = "SELECT p FROM ProjectOrgRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "ProjectOrgRelation.findByMarkedfordelete", query = "SELECT p FROM ProjectOrgRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "ProjectOrgRelation.findByModifiedTs", query = "SELECT p FROM ProjectOrgRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ProjectOrgRelation.findByCreatedTs", query = "SELECT p FROM ProjectOrgRelation p WHERE p.createdTs = :createdTs")})
+public class ProjectOrgRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -44,6 +45,9 @@ public class Projectprojectdocumentrel implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
+    @Basic(optional = false)
+    @Column(name = "projectrefid")
+    private int projectrefid;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -56,22 +60,20 @@ public class Projectprojectdocumentrel implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "projectrefid", referencedColumnName = "id")
-    @ManyToOne
-    private Project projectrefid;
-    @JoinColumn(name = "projectdocumentrefid", referencedColumnName = "id")
-    @ManyToOne
-    private Projectdocument projectdocumentrefid;
+    @JoinColumn(name = "orgrefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private Org orgrefid;
 
-    public Projectprojectdocumentrel() {
+    public ProjectOrgRelation() {
     }
 
-    public Projectprojectdocumentrel(Integer id) {
+    public ProjectOrgRelation(Integer id) {
         this.id = id;
     }
 
-    public Projectprojectdocumentrel(Integer id, Date modifiedTs, Date createdTs) {
+    public ProjectOrgRelation(Integer id, int projectrefid, Date modifiedTs, Date createdTs) {
         this.id = id;
+        this.projectrefid = projectrefid;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
     }
@@ -82,6 +84,14 @@ public class Projectprojectdocumentrel implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public int getProjectrefid() {
+        return projectrefid;
+    }
+
+    public void setProjectrefid(int projectrefid) {
+        this.projectrefid = projectrefid;
     }
 
     public Integer getActive() {
@@ -116,20 +126,12 @@ public class Projectprojectdocumentrel implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Project getProjectrefid() {
-        return projectrefid;
+    public Org getOrgrefid() {
+        return orgrefid;
     }
 
-    public void setProjectrefid(Project projectrefid) {
-        this.projectrefid = projectrefid;
-    }
-
-    public Projectdocument getProjectdocumentrefid() {
-        return projectdocumentrefid;
-    }
-
-    public void setProjectdocumentrefid(Projectdocument projectdocumentrefid) {
-        this.projectdocumentrefid = projectdocumentrefid;
+    public void setOrgrefid(Org orgrefid) {
+        this.orgrefid = orgrefid;
     }
 
     @Override
@@ -142,10 +144,10 @@ public class Projectprojectdocumentrel implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Projectprojectdocumentrel)) {
+        if (!(object instanceof ProjectOrgRelation)) {
             return false;
         }
-        Projectprojectdocumentrel other = (Projectprojectdocumentrel) object;
+        ProjectOrgRelation other = (ProjectOrgRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -154,7 +156,7 @@ public class Projectprojectdocumentrel implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Projectprojectdocumentrel[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.ProjectOrgRelation[ id=" + id + " ]";
     }
     
 }
