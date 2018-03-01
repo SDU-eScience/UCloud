@@ -1,12 +1,10 @@
 package dk.sdu.cloud.app.processors
 
 import dk.sdu.cloud.app.StorageConfiguration
-import dk.sdu.cloud.app.api.ApplicationParameter
+import dk.sdu.cloud.app.api.FileTransferDescription
 import dk.sdu.cloud.app.api.HPCAppEvent
 import dk.sdu.cloud.app.services.*
-import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
-import dk.sdu.cloud.app.services.ssh.scpDownload
-import dk.sdu.cloud.app.services.ssh.stat
+import dk.sdu.cloud.app.services.ssh.*
 import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -19,17 +17,18 @@ import dk.sdu.cloud.tus.api.internal.uploader
 import kotlinx.coroutines.experimental.runBlocking
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.net.URI
 
 /**
  * Processes events from slurm
  */
-class SlurmProcessor(
-        private val cloud: RefreshingJWTAuthenticator,
-        private val sshPool: SSHConnectionPool,
-        private val irodsConfig: StorageConfiguration,
-        private val slurmAgent: SlurmPollAgent,
-        private val appEventProducer: EventProducer<String, HPCAppEvent>
+class SlurmEventProcessor(
+    private val cloud: RefreshingJWTAuthenticator,
+    private val sshPool: SSHConnectionPool,
+    private val irodsConfig: StorageConfiguration,
+    private val slurmAgent: SlurmPollAgent,
+    private val appEventProducer: EventProducer<String, HPCAppEvent>
 ) {
     // Handles an event captured by te internal SlurmPollAgent and handles it. This will output
     // an event into Kafka once the entire thing has been handled. From this we create a Kafka event.
@@ -60,16 +59,21 @@ class SlurmProcessor(
 
             Pair(jobWithStatus, app)
         }
-        val appParameters = jobWithStatus.parameters
-
-        // TODO We need to be able to resolve this in a uniform manner. Since we will need these in multiple places.
-        // There will also be some logic in handling optional parameters.
-        val outputs = app.parameters
-                .filterIsInstance<ApplicationParameter.OutputFile>()
-                .map { it.map(appParameters[it.name]) }
 
         return sshPool.use {
             log.info("Handling Slurm ended event! $key ${event.jobId}")
+
+            log.debug("Locating output files")
+            val outputs = app.outputFileGlobs
+                .flatMap {
+                    lsWithGlob(jobWithStatus.workingDirectory, it)
+                }
+                .map {
+                    val file = File(it.first)
+                    FileTransferDescription(file.absolutePath, file.name)
+                }
+            log.debug("Found: $outputs")
+
             // Transfer output files
             for (transfer in outputs) {
                 log.debug("Transferring file: $transfer")
@@ -77,8 +81,10 @@ class SlurmProcessor(
                 val source = workingDirectory.resolve(transfer.source)
 
                 if (!source.path.startsWith(workingDirectory.path)) {
-                    log.warn("File ${transfer.source} did not resolve to be within working directory " +
-                            "($source versus $workingDirectory). Skipping this file")
+                    log.warn(
+                        "File ${transfer.source} did not resolve to be within working directory " +
+                                "($source versus $workingDirectory). Skipping this file"
+                    )
                     continue
                 }
 
@@ -94,9 +100,11 @@ class SlurmProcessor(
                 if (sourceFile.isDir) {
                     log.debug("Source file is a directory. Zipping it up")
                     val zipPath = source.path + ".zip"
-                    val (status, output) = execWithOutputAsText("zip -r " +
-                            BashEscaper.safeBashArgument(zipPath) + " " +
-                            BashEscaper.safeBashArgument(source.path))
+                    val (status, output) = execWithOutputAsText(
+                        "zip -r " +
+                                BashEscaper.safeBashArgument(zipPath) + " " +
+                                BashEscaper.safeBashArgument(source.path)
+                    )
 
                     if (status != 0) {
                         log.warn("Unable to create zip archive of output!")
@@ -113,13 +121,15 @@ class SlurmProcessor(
 
                     val upload = runBlocking {
                         val owner = jobWithStatus.jobInfo.owner
-                        TusDescriptions.create.call(CreationCommand(
+                        TusDescriptions.create.call(
+                            CreationCommand(
                                 fileName = jobWithStatus.jobInfo.jobId + "-" + transfer.source,
                                 owner = owner,
                                 location = "/${irodsConfig.zone}/home/$owner/Jobs",
                                 length = sourceFile.size,
                                 sensitive = false // TODO Sensitivity
-                        ), cloud)
+                            ), cloud
+                        )
                     } as? RESTResponse.Ok ?: throw IllegalStateException("Upload failed")
 
                     val uploadLocation = upload.response.headers["Location"]!!
@@ -158,6 +168,6 @@ class SlurmProcessor(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(SlurmProcessor::class.java)
+        private val log = LoggerFactory.getLogger(SlurmEventProcessor::class.java)
     }
 }

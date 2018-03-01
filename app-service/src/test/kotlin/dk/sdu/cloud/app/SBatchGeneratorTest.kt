@@ -69,8 +69,7 @@ class SBatchGeneratorTest {
                         invocationTemplate = "--greeting \$greeting \$infile \$outfile",
                         parameters = listOf(
                                 ApplicationParameter.Text("greeting", false, null, "greeting", "greeting"),
-                                ApplicationParameter.InputFile("infile", false, null, "infile", "infile"),
-                                ApplicationParameter.OutputFile("outfile", false, null, "outfile", "outfile")
+                                ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
                         )
                 )
         )

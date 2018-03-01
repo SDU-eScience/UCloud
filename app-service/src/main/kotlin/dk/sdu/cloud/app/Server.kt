@@ -5,8 +5,8 @@ import dk.sdu.cloud.app.api.HPCStreams
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.JobController
 import dk.sdu.cloud.app.http.ToolController
-import dk.sdu.cloud.app.processors.SlurmAggregate
-import dk.sdu.cloud.app.processors.SlurmProcessor
+import dk.sdu.cloud.app.processors.AppEventProcessor
+import dk.sdu.cloud.app.processors.SlurmEventProcessor
 import dk.sdu.cloud.app.processors.StartCommandProcessor
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
@@ -59,7 +59,7 @@ class Server(
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            SlurmProcessor(
+            SlurmEventProcessor(
                 cloud = cloud,
                 sshPool = sshPool,
                 irodsConfig = config.storage,
@@ -75,7 +75,7 @@ class Server(
                 appRequests = kBuilder.stream(HPCStreams.AppRequests).authenticate()
             ).also { it.init() }
 
-            SlurmAggregate(
+            AppEventProcessor(
                 appEvents = kBuilder.stream(HPCStreams.AppEvents),
                 slurmPollAgent = slurmPollAgent
             ).also { it.init() }

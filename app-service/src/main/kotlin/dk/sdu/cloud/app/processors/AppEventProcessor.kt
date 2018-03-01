@@ -10,7 +10,7 @@ import org.h2.jdbc.JdbcSQLException
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 
-class SlurmAggregate(
+class AppEventProcessor(
         private val appEvents: KStream<String, HPCAppEvent>,
         private val slurmPollAgent: SlurmPollAgent
 ) {
@@ -58,6 +58,6 @@ class SlurmAggregate(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger("dk.sdu.cloud.app.SlurmAggregate")
+        private val log = LoggerFactory.getLogger("dk.sdu.cloud.app.AppEventProcessor")
     }
 }
