@@ -76,7 +76,8 @@ sealed class ApplicationParameter<V : Any> {
         override val prettyName: String,
         override val description: String,
         val min: Int? = null,
-        val max: Int?
+        val max: Int?,
+        val step: Int?
     ) : ApplicationParameter<Int>() {
         override fun internalMap(inputParameter: Any): Int =
             (inputParameter as? Int) ?: inputParameter.toString().toInt()
@@ -91,7 +92,8 @@ sealed class ApplicationParameter<V : Any> {
         override val prettyName: String,
         override val description: String,
         val max: Double?,
-        val min: Double?
+        val min: Double?,
+        val step: Double?
     ) : ApplicationParameter<Double>() {
         override fun internalMap(inputParameter: Any): Double =
             (inputParameter as? Double) ?: inputParameter.toString().toDouble()
@@ -104,12 +106,14 @@ sealed class ApplicationParameter<V : Any> {
         override val optional: Boolean,
         override val defaultValue: Boolean?,
         override val prettyName: String,
-        override val description: String
+        override val description: String,
+        val trueValue: String = "true",
+        val falseValue: String = "false"
     ) : ApplicationParameter<Boolean>() {
         override fun internalMap(inputParameter: Any): Boolean =
             (inputParameter as? Boolean) ?: inputParameter.toString().toBoolean()
 
-        override fun toInvocationArgument(entry: Boolean): String = entry.toString()
+        override fun toInvocationArgument(entry: Boolean): String = if (entry) trueValue else falseValue
     }
 }
 

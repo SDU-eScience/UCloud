@@ -10,10 +10,7 @@ object ApplicationDAO {
             ApplicationDescription(
                 tool = NameAndVersion("figlet", "1.0.0"),
                 info = NameAndVersion("figlet", "1.0.0"),
-                numberOfNodes = null,
-                tasksPerNode = null,
-                maxTime = null,
-                invocationTemplate = "\$text",
+                invocation = listOf(VariableInvocationParameter(listOf("text"))),
                 parameters = listOf(
                     ApplicationParameter.Text(
                         name = "text",

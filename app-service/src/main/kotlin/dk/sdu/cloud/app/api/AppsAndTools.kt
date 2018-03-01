@@ -1,12 +1,11 @@
 package dk.sdu.cloud.app.api
 
+import dk.sdu.cloud.app.services.InvocationParameter
+
 data class ApplicationDescription(
     val tool: NameAndVersion,
     val info: NameAndVersion,
-    val numberOfNodes: String?,
-    val tasksPerNode: String?,
-    val maxTime: String?,
-    val invocationTemplate: String,
+    val invocation: List<InvocationParameter>,
     // TODO We cannot have duplicates on param name!
     val parameters: List<ApplicationParameter<*>>,
     val outputFileGlobs: List<String>

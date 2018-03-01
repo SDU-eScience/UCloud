@@ -1,9 +1,7 @@
 package dk.sdu.cloud.app
 
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.ApplicationDAO
-import dk.sdu.cloud.app.services.SBatchGenerator
-import dk.sdu.cloud.app.services.ToolDAO
+import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.hamcrest.CoreMatchers.*
 import org.hamcrest.MatcherAssert.assertThat
@@ -12,24 +10,26 @@ import org.junit.Test
 class SBatchGeneratorTest {
     @Test
     fun testWithNoParams() {
-        ToolDAO.inMemoryDB["test"] = listOf(ToolDescription(
+        ToolDAO.inMemoryDB["test"] = listOf(
+            ToolDescription(
                 info = NameAndVersion("test", "1.0.0"),
                 container = "container-name",
                 defaultNumberOfNodes = 1,
                 defaultTasksPerNode = 1,
                 defaultMaxTime = SimpleDuration(1, 0, 0),
                 requiredModules = emptyList()
-        ))
+            )
+        )
 
-        ApplicationDAO.inMemoryDB["app"] = listOf(ApplicationDescription(
+        ApplicationDAO.inMemoryDB["app"] = listOf(
+            ApplicationDescription(
                 tool = NameAndVersion("test", "1.0.0"),
                 info = NameAndVersion("app", "1.0.0"),
-                numberOfNodes = null,
-                tasksPerNode = null,
-                maxTime = null,
-                invocationTemplate = "hello",
-                parameters = emptyList()
-        ))
+                invocation = listOf(WordInvocationParameter("hello")),
+                parameters = emptyList(),
+                outputFileGlobs = emptyList()
+            )
+        )
 
         val generator = SBatchGenerator()
 
@@ -49,29 +49,30 @@ class SBatchGeneratorTest {
     @Test
     fun testWithFileParameters() {
         ToolDAO.inMemoryDB["hello_world"] = listOf(
-                ToolDescription(
-                        info = NameAndVersion("hello_world", "1.0.0"),
-                        container = "hello.simg",
-                        defaultNumberOfNodes = 1,
-                        defaultTasksPerNode = 1,
-                        defaultMaxTime = SimpleDuration(hours = 0, minutes = 1, seconds = 0),
-                        requiredModules = emptyList()
-                )
+            ToolDescription(
+                info = NameAndVersion("hello_world", "1.0.0"),
+                container = "hello.simg",
+                defaultNumberOfNodes = 1,
+                defaultTasksPerNode = 1,
+                defaultMaxTime = SimpleDuration(hours = 0, minutes = 1, seconds = 0),
+                requiredModules = emptyList()
+            )
         )
 
         ApplicationDAO.inMemoryDB["hello"] = listOf(
-                ApplicationDescription(
-                        tool = NameAndVersion("hello_world", "1.0.0"),
-                        info = NameAndVersion("hello", "1.0.0"),
-                        numberOfNodes = null,
-                        tasksPerNode = null,
-                        maxTime = null,
-                        invocationTemplate = "--greeting \$greeting \$infile \$outfile",
-                        parameters = listOf(
-                                ApplicationParameter.Text("greeting", false, null, "greeting", "greeting"),
-                                ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
-                        )
-                )
+            ApplicationDescription(
+                tool = NameAndVersion("hello_world", "1.0.0"),
+                info = NameAndVersion("hello", "1.0.0"),
+                invocation = listOf(
+                    VariableInvocationParameter(listOf("greeting"), prefixVariable = "--greeting "),
+                    VariableInvocationParameter(listOf("infile"))
+                ),
+                parameters = listOf(
+                    ApplicationParameter.Text("greeting", false, null, "greeting", "greeting"),
+                    ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
+                ),
+                outputFileGlobs = emptyList()
+            )
         )
 
         val serde = jsonSerde<Map<String, Any>>()
@@ -81,10 +82,6 @@ class SBatchGeneratorTest {
             "infile": {
                 "source": "storage://tempZone/home/rods/infile",
                 "destination": "files/afile.txt"
-            },
-            "outfile": {
-                "destination": "storage://tempZone/home/rods/infile",
-                "source": "files/bfile.txt"
             }
         }
         """.trimIndent()
@@ -96,8 +93,71 @@ class SBatchGeneratorTest {
         val jobLines = gen.generate(app, parameters, "/test/a/b/c").lines()
 
         val srunLine = jobLines.find { it.startsWith("srun singularity") }
-        assertThat(srunLine, endsWith("""
-            "--greeting" "test" "files/afile.txt" "files/bfile.txt"
-        """.trimIndent()))
+        assertThat(
+            srunLine, endsWith(
+                """
+            --greeting "test" "files/afile.txt"
+        """.trimIndent()
+            )
+        )
+    }
+
+
+    @Test
+    fun testWithSeveralFileParameters() {
+        ToolDAO.inMemoryDB["hello_world"] = listOf(
+            ToolDescription(
+                info = NameAndVersion("hello_world", "1.0.0"),
+                container = "hello.simg",
+                defaultNumberOfNodes = 1,
+                defaultTasksPerNode = 1,
+                defaultMaxTime = SimpleDuration(hours = 0, minutes = 1, seconds = 0),
+                requiredModules = emptyList()
+            )
+        )
+
+        ApplicationDAO.inMemoryDB["hello"] = listOf(
+            ApplicationDescription(
+                tool = NameAndVersion("hello_world", "1.0.0"),
+                info = NameAndVersion("hello", "1.0.0"),
+                invocation = listOf(
+                    VariableInvocationParameter(listOf("greeting", "boo"), prefixVariable = "--greeting "),
+                    VariableInvocationParameter(listOf("infile"))
+                ),
+                parameters = listOf(
+                    ApplicationParameter.Text("greeting", false, null, "greeting", "greeting"),
+                    ApplicationParameter.Bool("boo", false, null, "boo", "boo", trueValue = "yes", falseValue = "no"),
+                    ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
+                ),
+                outputFileGlobs = emptyList()
+            )
+        )
+
+        val serde = jsonSerde<Map<String, Any>>()
+        val parametersJson = """
+        {
+            "greeting": "test",
+            "infile": {
+                "source": "storage://tempZone/home/rods/infile",
+                "destination": "files/afile.txt"
+            },
+            "boo": true
+        }
+        """.trimIndent()
+
+        val gen = SBatchGenerator()
+        val parameters = serde.deserializer().deserialize("", parametersJson.toByteArray())
+
+        val app = ApplicationDAO.findAllByName("hello").first()
+        val jobLines = gen.generate(app, parameters, "/test/a/b/c").lines()
+
+        val srunLine = jobLines.find { it.startsWith("srun singularity") }
+        assertThat(
+            srunLine, endsWith(
+                """
+            --greeting "test" --greeting "yes" "files/afile.txt"
+        """.trimIndent()
+            )
+        )
     }
 }
