@@ -11,8 +11,8 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 
 class AppEventProcessor(
-        private val appEvents: KStream<String, HPCAppEvent>,
-        private val slurmPollAgent: SlurmPollAgent
+    private val appEvents: KStream<String, HPCAppEvent>,
+    private val slurmPollAgent: SlurmPollAgent
 ) {
     fun init() {
         val pendingEvents = appEvents.filterIsInstance(HPCAppEvent.Pending::class)
@@ -28,15 +28,15 @@ class AppEventProcessor(
                     transaction {
                         // TODO Created at is incorrect, should extract from event
                         JobsDAO.createJob(
-                                systemId,
-                                validated.subject,
-                                slurmId,
-                                value.originalRequest.event.application.name,
-                                value.originalRequest.event.application.version,
-                                value.workingDirectory,
-                                value.jobDirectory,
-                                value.originalRequest.event.parameters,
-                                System.currentTimeMillis()
+                            systemId,
+                            validated.subject,
+                            slurmId,
+                            value.originalRequest.event.application.name,
+                            value.originalRequest.event.application.version,
+                            value.workingDirectory,
+                            value.jobDirectory,
+                            value.originalRequest.event.parameters,
+                            System.currentTimeMillis()
                         )
                     }
                 } catch (ex: JdbcSQLException) {

@@ -8,10 +8,10 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
 class SSHConnectionPool(
-        private val config: SimpleSSHConfig,
-        maxConnections: Int = 8,
-        private val timeout: Long = 60,
-        private val timeoutUnit: TimeUnit = TimeUnit.SECONDS
+    private val config: SimpleSSHConfig,
+    maxConnections: Int = 8,
+    private val timeout: Long = 60,
+    private val timeoutUnit: TimeUnit = TimeUnit.SECONDS
 ) {
     // The number of permits permits must _always_ match the number of available elements!
     private val permits = Semaphore(maxConnections)

@@ -40,9 +40,9 @@ sealed class ApplicationParameter<V : Any> {
     data class InputFile(
         override val name: String,
         override val optional: Boolean,
-        override val defaultValue: FileTransferDescription?,
-        override val prettyName: String,
-        override val description: String
+        override val defaultValue: FileTransferDescription? = null,
+        override val prettyName: String = name,
+        override val description: String = ""
     ) : ApplicationParameter<FileTransferDescription>() {
         override fun internalMap(inputParameter: Any): FileTransferDescription {
             @Suppress("UNCHECKED_CAST")
@@ -60,9 +60,9 @@ sealed class ApplicationParameter<V : Any> {
     data class Text(
         override val name: String,
         override val optional: Boolean,
-        override val defaultValue: String?,
-        override val prettyName: String,
-        override val description: String
+        override val defaultValue: String? = null,
+        override val prettyName: String = name,
+        override val description: String = ""
     ) : ApplicationParameter<String>() {
         override fun internalMap(inputParameter: Any): String = inputParameter.toString()
 
@@ -72,11 +72,12 @@ sealed class ApplicationParameter<V : Any> {
     data class Integer(
         override val name: String,
         override val optional: Boolean,
-        override val defaultValue: Int?,
-        override val prettyName: String,
-        override val description: String,
+        override val defaultValue: Int? = null,
+        override val prettyName: String = name,
+        override val description: String = "",
         val min: Int? = null,
-        val max: Int?
+        val max: Int? = null,
+        val step: Int? = null
     ) : ApplicationParameter<Int>() {
         override fun internalMap(inputParameter: Any): Int =
             (inputParameter as? Int) ?: inputParameter.toString().toInt()
@@ -87,11 +88,12 @@ sealed class ApplicationParameter<V : Any> {
     data class FloatingPoint(
         override val name: String,
         override val optional: Boolean,
-        override val defaultValue: Double?,
-        override val prettyName: String,
-        override val description: String,
-        val max: Double?,
-        val min: Double?
+        override val defaultValue: Double? = null,
+        override val prettyName: String = name,
+        override val description: String = "",
+        val min: Double? = null,
+        val max: Double? = null,
+        val step: Double? = null
     ) : ApplicationParameter<Double>() {
         override fun internalMap(inputParameter: Any): Double =
             (inputParameter as? Double) ?: inputParameter.toString().toDouble()
@@ -102,14 +104,16 @@ sealed class ApplicationParameter<V : Any> {
     data class Bool(
         override val name: String,
         override val optional: Boolean,
-        override val defaultValue: Boolean?,
-        override val prettyName: String,
-        override val description: String
+        override val defaultValue: Boolean? = null,
+        override val prettyName: String = name,
+        override val description: String = "",
+        val trueValue: String = "true",
+        val falseValue: String = "false"
     ) : ApplicationParameter<Boolean>() {
         override fun internalMap(inputParameter: Any): Boolean =
             (inputParameter as? Boolean) ?: inputParameter.toString().toBoolean()
 
-        override fun toInvocationArgument(entry: Boolean): String = entry.toString()
+        override fun toInvocationArgument(entry: Boolean): String = if (entry) trueValue else falseValue
     }
 }
 

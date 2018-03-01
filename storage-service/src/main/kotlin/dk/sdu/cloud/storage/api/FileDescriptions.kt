@@ -49,6 +49,20 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
+    val createDirectory = callDescription<FindByPath, Unit, CommonErrorMessage> {
+        prettyName = "createDirectory"
+        method = HttpMethod.POST
+
+        path {
+            using(baseContext)
+            +"directory"
+        }
+
+        params {
+            +boundTo(FindByPath::path)
+        }
+    }
+
     val download = callDescription<DownloadByURI, Unit, CommonErrorMessage> {
         prettyName = "filesDownload"
         path {

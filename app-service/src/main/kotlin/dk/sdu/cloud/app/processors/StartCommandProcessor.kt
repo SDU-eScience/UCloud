@@ -9,6 +9,7 @@ import dk.sdu.cloud.app.services.ssh.sbatch
 import dk.sdu.cloud.app.services.ssh.scpUpload
 import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.service.KafkaRequest
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.Error
 import dk.sdu.cloud.storage.Ok
 import dk.sdu.cloud.storage.Result
@@ -18,27 +19,28 @@ import dk.sdu.cloud.storage.ext.StorageException
 import dk.sdu.cloud.storage.model.FileStat
 import dk.sdu.cloud.storage.model.StoragePath
 import org.slf4j.LoggerFactory
-import dk.sdu.cloud.service.stackTraceToString
 import java.net.URI
 
 class StartCommandProcessor(
-        private val connectionFactory: StorageConnectionFactory,
-        private val sBatchGenerator: SBatchGenerator,
-        private val sshPool: SSHConnectionPool,
-        private val sshUser: String,
-        private val appRequests: AuthenticatedStream<String, AppRequest>
+    private val connectionFactory: StorageConnectionFactory,
+    private val sBatchGenerator: SBatchGenerator,
+    private val sshPool: SSHConnectionPool,
+    private val sshUser: String,
+    private val appRequests: AuthenticatedStream<String, AppRequest>
 ) {
     private val log = LoggerFactory.getLogger(StartCommandProcessor::class.java)
 
     private data class ValidatedFileForUpload(
-            val stat: FileStat,
-            val destinationFileName: String,
-            val destinationPath: String,
-            val sourcePath: StoragePath
+        val stat: FileStat,
+        val destinationFileName: String,
+        val destinationPath: String,
+        val sourcePath: StoragePath
     )
 
-    private fun validateInputFiles(app: ApplicationDescription, parameters: Map<String, Any>,
-                                   storage: StorageConnection, workDir: URI): Result<List<ValidatedFileForUpload>> {
+    private fun validateInputFiles(
+        app: ApplicationDescription, parameters: Map<String, Any>,
+        storage: StorageConnection, workDir: URI
+    ): Result<List<ValidatedFileForUpload>> {
         val result = ArrayList<ValidatedFileForUpload>()
 
         for (input in app.parameters.filterIsInstance<ApplicationParameter.InputFile>()) {
@@ -47,15 +49,17 @@ class StartCommandProcessor(
             val transferDescription = input.map(inputParameter)
             val sourcePath = StoragePath.fromURI(transferDescription.source)
 
-            val stat = storage.fileQuery.stat(sourcePath).capture() ?:
-                    return Error.invalidMessage("Missing file in storage: $sourcePath. Are you sure it exists?")
+            val stat = storage.fileQuery.stat(sourcePath).capture()
+                    ?: return Error.invalidMessage("Missing file in storage: $sourcePath. Are you sure it exists?")
 
             // Resolve relative path against working directory. Ensure that file is still inside of
             // the working directory.
             val destinationPath = workDir.resolve(URI(transferDescription.destination)).normalize().path
             if (!destinationPath.startsWith(workDir.path)) {
-                return Error.invalidMessage("Not allowed to leave working " +
-                        "directory via relative paths. Please avoid using '..' in paths.")
+                return Error.invalidMessage(
+                    "Not allowed to leave working " +
+                            "directory via relative paths. Please avoid using '..' in paths."
+                )
             }
 
             val name = destinationPath.split("/").last()
@@ -66,15 +70,14 @@ class StartCommandProcessor(
     }
 
     private fun handleStartCommand(
-            storage: StorageConnection,
-            request: KafkaRequest<AppRequest.Start>
+        storage: StorageConnection,
+        request: KafkaRequest<AppRequest.Start>
     ): HPCAppEvent {
         val event = request.event
-        val app = with(event.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?:
-                return run {
-                    log.debug("Could not find application: ${event.application.name}@ ${event.application.version}")
-                    HPCAppEvent.UnsuccessfullyCompleted
-                }
+        val app = with(event.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?: return run {
+            log.debug("Could not find application: ${event.application.name}@ ${event.application.version}")
+            HPCAppEvent.UnsuccessfullyCompleted
+        }
 
         val parameters = event.parameters
 
@@ -103,21 +106,20 @@ class StartCommandProcessor(
             return HPCAppEvent.UnsuccessfullyCompleted
         }
 
-        val validatedFiles = validateInputFiles(app, parameters, storage, workDir).capture() ?:
-                return run {
-                    log.debug(Result.lastError<Any>().message)
-                    HPCAppEvent.UnsuccessfullyCompleted
-                }
+        val validatedFiles = validateInputFiles(app, parameters, storage, workDir).capture() ?: return run {
+            log.debug(Result.lastError<Any>().message)
+            HPCAppEvent.UnsuccessfullyCompleted
+        }
 
         return sshPool.use {
             // Transfer (validated) input files
             validatedFiles.forEach { upload ->
                 var errorDuringUpload: Error<HPCAppEvent.Pending>? = null
                 scpUpload(
-                        upload.stat.sizeInBytes,
-                        upload.destinationFileName,
-                        upload.destinationPath,
-                        "0644"
+                    upload.stat.sizeInBytes,
+                    upload.destinationFileName,
+                    upload.destinationPath,
+                    "0644"
                 ) {
                     try {
                         storage.files.get(upload.sourcePath, it)
@@ -159,36 +161,36 @@ class StartCommandProcessor(
 
     @Suppress("UNCHECKED_CAST")
     private fun handle(connection: StorageConnection, request: KafkaRequest<AppRequest>): HPCAppEvent =
-            when (request.event) {
-                is AppRequest.Start -> {
-                    log.info("Handling event: $request")
-                    handleStartCommand(connection, request as KafkaRequest<AppRequest.Start>).also {
-                        log.info("${request.header.uuid}: $it")
-                    }
-                }
-
-                is AppRequest.Cancel -> {
-                    // TODO This won't really cancel anything
-                    HPCAppEvent.UnsuccessfullyCompleted
+        when (request.event) {
+            is AppRequest.Start -> {
+                log.info("Handling event: $request")
+                handleStartCommand(connection, request as KafkaRequest<AppRequest.Start>).also {
+                    log.info("${request.header.uuid}: $it")
                 }
             }
 
+            is AppRequest.Cancel -> {
+                // TODO This won't really cancel anything
+                HPCAppEvent.UnsuccessfullyCompleted
+            }
+        }
+
     fun init() {
         appRequests.respond(
-                target = HPCStreams.AppEvents,
+            target = HPCStreams.AppEvents,
 
-                onAuthenticated = { _, e ->
-                    val connection = connectionFactory.createForAccount(
-                            e.decoded.subject!!,
-                            e.header.performedFor
-                    ).capture()
+            onAuthenticated = { _, e ->
+                val connection = connectionFactory.createForAccount(
+                    e.decoded.subject!!,
+                    e.header.performedFor
+                ).capture()
 
-                    connection?.use { handle(it, e.originalRequest) } ?: HPCAppEvent.UnsuccessfullyCompleted
-                },
+                connection?.use { handle(it, e.originalRequest) } ?: HPCAppEvent.UnsuccessfullyCompleted
+            },
 
-                onUnauthenticated = { _, _ ->
-                    HPCAppEvent.UnsuccessfullyCompleted
-                }
+            onUnauthenticated = { _, _ ->
+                HPCAppEvent.UnsuccessfullyCompleted
+            }
         )
     }
 }

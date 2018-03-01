@@ -26,13 +26,13 @@ fun SSHConnection.ls(path: String): List<ChannelSftp.LsEntry> {
 }
 
 fun SSHConnection.stat(path: String): SftpATTRS? =
-        sftp {
-            try {
-                stat(path)
-            } catch (ex: SftpException) {
-                null
-            }
+    sftp {
+        try {
+            stat(path)
+        } catch (ex: SftpException) {
+            null
         }
+    }
 
 fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<Pair<String, Long>> {
     val hasGlob = path.substringAfterLast('/').contains("*")

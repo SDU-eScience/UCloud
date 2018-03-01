@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.KafkaCallDescriptionBundle
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.netty.handler.codec.http.HttpMethod
@@ -9,12 +9,11 @@ import io.netty.handler.codec.http.HttpMethod
 object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
     private const val baseContext = "/api/hpc/jobs"
 
-    // TODO FIXME Remove directories from public API
-    val findById = callDescription<FindById, JobWithStatusAndInvocation, CommonErrorMessage> {
+    val findById = callDescription<FindByStringId, JobWithStatusAndInvocation, CommonErrorMessage> {
         prettyName = "jobsFindById"
         path {
             using(baseContext)
-            +boundTo(FindById::id)
+            +boundTo(FindByStringId::id)
         }
     }
 
@@ -49,10 +48,6 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
     }
 }
 
-// TODO We are going to end up with conflicts on the very simple ones like these:
 data class FindByNameAndVersion(val name: String, val version: String)
-
-data class FindById(val id: String)
-
 data class JobStartedResponse(val jobId: String)
 data class JobCancelledResponse(val jobSuccessfullyCancelled: Boolean)

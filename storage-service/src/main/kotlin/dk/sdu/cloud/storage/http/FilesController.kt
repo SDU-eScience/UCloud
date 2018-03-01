@@ -114,6 +114,38 @@ class FilesController(private val storageService: StorageConnectionFactory) {
                     }
                 }
             }
+
+            implement(FileDescriptions.createDirectory) { req ->
+                logEntry(log, req)
+                if (!protect()) return@implement
+
+                val principal = call.request.validatedPrincipal
+                val connection =
+                    storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
+                        error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                        return@implement
+                    }
+
+                connection.use {
+                    val path = try {
+                        connection.paths.parseAbsolute(req.path, true)
+                    } catch (ex: Exception) {
+                        return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
+                    }
+
+                    val exists = it.fileQuery.stat(path)
+                    if (exists !is Ok) {
+                        try {
+                            it.files.createDirectory(path, false)
+                            ok(Unit)
+                        } catch (ex: Exception) {
+                            error(CommonErrorMessage("Could not create directory"), HttpStatusCode.BadRequest)
+                        }
+                    } else {
+                        error(CommonErrorMessage("File already exists!"), HttpStatusCode.Conflict)
+                    }
+                }
+            }
         }
     }
 
