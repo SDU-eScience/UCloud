@@ -64,7 +64,7 @@ class Files extends React.Component {
                 onBeforeUpload: () => {
                     return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
                         tusConfig.headers["Authorization"] = "Bearer " + data;
-                    }).promise();
+                    });
                 }
             }),
         };

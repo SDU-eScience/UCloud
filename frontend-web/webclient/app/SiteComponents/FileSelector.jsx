@@ -1,15 +1,16 @@
 import React from 'react';
 import {BallPulseLoading} from './LoadingIcon';
-import {Modal, Button, Breadcrumb} from 'react-bootstrap';
+import {Modal, Button, Breadcrumb, Table} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import Breadcrumbs from "./Breadcrumbs"
 import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
+import {DashboardModal} from "uppy/lib/react";
 
 class FileSelector extends React.Component {
     constructor(props) {
         super(props);
-        let file = props.initialFile ? props.initialFile : { path: { path: "" }};
+        let file = props.initialFile ? props.initialFile : {path: {path: ""}};
         this.state = {
             promises: new PromiseKeeper(),
             returnObject: props.returnObject,
@@ -18,6 +19,7 @@ class FileSelector extends React.Component {
             loading: false,
             files: [],
             modalShown: false,
+            uppyOpen: false,
             breadcrumbs: [],
             onFileSelectionChange: props.onFileSelectionChange,
         };
@@ -25,6 +27,15 @@ class FileSelector extends React.Component {
         this.closeModal = this.closeModal.bind(this);
         this.getFiles = this.getFiles.bind(this);
         this.setSelectedFile = this.setSelectedFile.bind(this);
+        this.changeUppyShown = this.changeUppyShown.bind(this);
+        this.setFileThroughUppy = this.setFileThroughUppy.bind(this);
+    }
+
+    changeUppyShown() {
+        const shown = this.state.uppyOpen;
+        this.setState(() => ({
+            uppyOpen: !shown
+        }));
     }
 
     componentDidMount() {
@@ -47,6 +58,19 @@ class FileSelector extends React.Component {
         }));
     }
 
+    setFileThroughUppy() {
+        this.setState(() => ({
+            uppyOpen: false,
+        }));
+
+        const files = this.props.uppy.getState().files;
+        for (const file in files) {
+            console.log(files[file]);
+            this.setSelectedFile({path: {path: files[file].name}})
+        }
+        this.props.uppy.reset();
+    }
+
     setSelectedFile(file) {
         this.setState(() => ({
             selectedFile: file,
@@ -67,6 +91,9 @@ class FileSelector extends React.Component {
     }
 
     render() {
+        let uploadButton = this.props.allowUpload ?
+            (<UploadButton uppy={this.props.uppy} open={this.state.uppyOpen} changeUppyShown={this.changeUppyShown}
+                           callback={this.setFileThroughUppy}/>) : null;
         return (
             <div>
                 <div className="input-group col-sm-12">
@@ -79,6 +106,7 @@ class FileSelector extends React.Component {
                     <input className="form-control readonly" required={this.props.isRequired} type="text"
                            placeholder={"No file selected"}
                            value={this.state.selectedFile.path.path}/>
+                    {uploadButton}
                 </div>
                 <Modal show={this.state.modalShown} onHide={this.closeModal}>
                     <Modal.Header closeButton>
@@ -105,19 +133,32 @@ function FileSelectorBody(props) {
         <Modal.Body>
             <div className="pre-scrollable">
                 {noFiles}
-                <table className="table table-hover">
+                <Table className="table table-hover">
                     <thead>
                     <tr>
                         <th>Filename</th>
                     </tr>
                     </thead>
                     <FileList files={props.files} onClick={props.onClick} getFiles={props.getFiles}/>
-                </table>
+                </Table>
             </div>
             <Button className="btn btn-info" onClick={() => createFolder(props.currentPath)}>
                 Create new folder
             </Button>
         </Modal.Body>)
+}
+
+function UploadButton(props) {
+    return (
+        <span className="input-group-addon btn btn-info" onClick={() => props.changeUppyShown()}>Upload file
+            <DashboardModal
+                uppy={props.uppy}
+                closeModalOnClickOutside
+                open={props.open}
+                onRequestClose={props.callback}
+            />
+        </span>
+    );
 }
 
 function FileList(props) {

@@ -5,6 +5,8 @@ import {Cloud} from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import {BallPulseLoading} from "../LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
+import {tusConfig} from "../../Configurations";
+import Uppy from "uppy";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -19,6 +21,21 @@ class RunApp extends React.Component {
             parameters: null,
             parameterValues: {},
             comment: "",
+            uppy: Uppy.Core({
+                autoProceed: false,
+                debug: true,
+                restrictions: {
+                    maxNumberOfFiles: 1,
+                },
+                meta: {
+                    sensitive: false,
+                },
+                onBeforeUpload: () => {
+                    return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
+                        tusConfig.headers["Authorization"] = "Bearer " + data;
+                    });
+                }
+            }),
         };
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
@@ -27,13 +44,14 @@ class RunApp extends React.Component {
     };
 
     componentDidMount() {
+        this.state.uppy.use(Uppy.Tus, tusConfig);
+        this.state.uppy.run();
         this.getApplication();
     }
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
     }
-
 
     handleSubmit(event) {
         event.preventDefault();
@@ -124,12 +142,12 @@ class RunApp extends React.Component {
         this.setState({loading: true});
         this.state.promises.makeCancelable(Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}`))
             .promise.then(app => {
-                this.setState(() => ({
-                    parameters: app.parameters,
-                    appAuthor: "Dummy",
-                    appDescription: app.info.description,
-                    loading: false,
-                }));
+            this.setState(() => ({
+                parameters: app.parameters,
+                appAuthor: "Placeholder",
+                appDescription: app.info.description,
+                loading: false,
+            }));
         });
     }
 
@@ -146,7 +164,7 @@ class RunApp extends React.Component {
                             <Parameters parameters={this.state.parameters} handleSubmit={this.handleSubmit}
                                         onChange={this.handleInputChange} comment={this.state.comment}
                                         onFileSelectionChange={this.handleFileSelectorChange}
-                                        onCommentChange={this.onCommentChange}/>
+                                        onCommentChange={this.onCommentChange} uppy={this.state.uppy}/>
                         </div>
                     </div>
                 </div>
@@ -170,8 +188,8 @@ function Parameters(props) {
     }
     let i = 0;
     let parametersList = props.parameters.map(parameter =>
-        <Parameter key={i++} parameter={parameter} onChange={props.onChange}
-                   onFileSelectionChange={props.onFileSelectionChange}/>
+        <Parameter key={i++} parameter={parameter} onChange={props.onChange} uppyOpen={props.openUppy}
+                   onFileSelectionChange={props.onFileSelectionChange} uppy={props.uppy}/>
     );
     return (
         <form onSubmit={props.handleSubmit} className="form-horizontal">
@@ -197,8 +215,8 @@ function CommentField(props) {
 // Types: input, output, int, float, string
 function Parameter(props) {
     if (props.parameter.type === "input_file") {
-        return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange}
-                                              parameter={props.parameter}/></fieldset>);
+        return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange} uppy={props.uppy}
+                                              parameter={props.parameter} uppyOpen={props.uppyOpen}/></fieldset>);
     } else if (props.parameter.type === "output_file") {
         return null; // parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
@@ -217,7 +235,9 @@ function InputFileParameter(props) {
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
-                <FileSelector onFileSelectionChange={props.onFileSelectionChange} isRequired={!props.parameter.isOptional}
+                <FileSelector onFileSelectionChange={props.onFileSelectionChange} uppyOpen={props.uppyOpen}
+                              uploadCallback={props.onFileSelectionChange} uppy={props.uppy}
+                              isRequired={!props.parameter.isOptional} allowUpload={true}
                               returnObject={{parameter: props.parameter, isSource: true}}/>
                 <span className="help-block">Source of the file</span>
                 <input
@@ -227,7 +247,8 @@ function InputFileParameter(props) {
                     type="text"/>
                 <div>Destination of the file</div>
             </div>
-        </div>)
+        </div>
+    )
 }
 
 function TextParameter(props) {
@@ -262,6 +283,18 @@ function IntegerParameter(props) {
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>);
+}
+
+function BooleanParameter(props) {
+    if (props.parameters.isOptional) {
+        // make terniary
+    } else {
+        // only true or false
+    }
+}
+
+function RangeParameter(props) {
+
 }
 
 function FloatParameter(props) {
