@@ -17,7 +17,6 @@
     "babel-runtime": "6.26.0",
     "bootstrap": "3.3.7",
     "font-awesome": "4.7.0",
-    "history": "^4.7.2",
     "ionicons": "2.0.1",
     "jsonwebtoken": "^8.1.0",
     "loaders.css": "0.1.2",
