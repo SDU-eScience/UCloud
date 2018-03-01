@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.ApplicationDescription
-import dk.sdu.cloud.app.api.ApplicationParameter
-import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 
 class SBatchGenerator {

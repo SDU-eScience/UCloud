@@ -21,8 +21,8 @@ fun <K, T : Any, V : KafkaRequest<T>> KStream<K, V>.authenticate(): Authenticate
         }
         Pair(token, request)
     }.branch(
-            Predicate { _, value -> value.first != null },
-            Predicate { _, value -> value.first == null }
+        Predicate { _, value -> value.first != null },
+        Predicate { _, value -> value.first == null }
     )
 
     val authMapped = branches[0].mapValues { RequestAfterAuthentication.Authenticated(it.second, it.first!!) }
@@ -31,13 +31,13 @@ fun <K, T : Any, V : KafkaRequest<T>> KStream<K, V>.authenticate(): Authenticate
 }
 
 data class AuthenticatedStream<K, R : Any>(
-        val authenticated: KStream<K, RequestAfterAuthentication.Authenticated<R>>,
-        val unauthenticated: KStream<K, RequestAfterAuthentication.Unauthenticated<R>>
+    val authenticated: KStream<K, RequestAfterAuthentication.Authenticated<R>>,
+    val unauthenticated: KStream<K, RequestAfterAuthentication.Unauthenticated<R>>
 ) {
     fun <RespondType> respond(
-            target: StreamDescription<K, RespondType>,
-            onUnauthenticated: (K, RequestAfterAuthentication.Unauthenticated<R>) -> RespondType,
-            onAuthenticated: (K, RequestAfterAuthentication.Authenticated<R>) -> RespondType
+        target: StreamDescription<K, RespondType>,
+        onUnauthenticated: (K, RequestAfterAuthentication.Unauthenticated<R>) -> RespondType,
+        onAuthenticated: (K, RequestAfterAuthentication.Authenticated<R>) -> RespondType
     ) {
         authenticated.map { k, v -> KeyValue(k, onAuthenticated(k, v)) }.to(target)
         unauthenticated.map { k, v -> KeyValue(k, onUnauthenticated(k, v)) }.to(target)
@@ -56,12 +56,12 @@ sealed class RequestAfterAuthentication<out T> {
         get() = originalRequest.header
 
     class Authenticated<out T>(
-            override val originalRequest: KafkaRequest<T>,
-            val decoded: DecodedJWT
+        override val originalRequest: KafkaRequest<T>,
+        val decoded: DecodedJWT
     ) : RequestAfterAuthentication<T>()
 
     class Unauthenticated<out T>(
-            override val originalRequest: KafkaRequest<T>
+        override val originalRequest: KafkaRequest<T>
     ) : RequestAfterAuthentication<T>()
 }
 

@@ -6,23 +6,25 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaRequest
 
 @JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = KafkaRequest.TYPE_PROPERTY)
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY
+)
 @JsonSubTypes(
-        JsonSubTypes.Type(value = HPCAppEvent.Started::class, name = "started"),
-        JsonSubTypes.Type(value = HPCAppEvent.SuccessfullyCompleted::class, name = "success"),
-        JsonSubTypes.Type(value = HPCAppEvent.Pending::class, name = "pending"),
-        JsonSubTypes.Type(value = HPCAppEvent.UnsuccessfullyCompleted::class, name = "error"))
+    JsonSubTypes.Type(value = HPCAppEvent.Started::class, name = "started"),
+    JsonSubTypes.Type(value = HPCAppEvent.SuccessfullyCompleted::class, name = "success"),
+    JsonSubTypes.Type(value = HPCAppEvent.Pending::class, name = "pending"),
+    JsonSubTypes.Type(value = HPCAppEvent.UnsuccessfullyCompleted::class, name = "error")
+)
 sealed class HPCAppEvent {
     /**
      * The request has been submitted to Slurm, but we have not yet received notification that it has started
      */
     data class Pending(
-            val jobId: Long,
-            val jobDirectory: String,
-            val workingDirectory: String,
-            val originalRequest: KafkaRequest<AppRequest.Start>
+        val jobId: Long,
+        val jobDirectory: String,
+        val workingDirectory: String,
+        val originalRequest: KafkaRequest<AppRequest.Start>
     ) : HPCAppEvent()
 
     /**

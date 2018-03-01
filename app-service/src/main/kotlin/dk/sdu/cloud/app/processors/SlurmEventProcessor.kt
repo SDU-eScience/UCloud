@@ -4,7 +4,10 @@ import dk.sdu.cloud.app.StorageConfiguration
 import dk.sdu.cloud.app.api.FileTransferDescription
 import dk.sdu.cloud.app.api.HPCAppEvent
 import dk.sdu.cloud.app.services.*
-import dk.sdu.cloud.app.services.ssh.*
+import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
+import dk.sdu.cloud.app.services.ssh.lsWithGlob
+import dk.sdu.cloud.app.services.ssh.scpDownload
+import dk.sdu.cloud.app.services.ssh.stat
 import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator

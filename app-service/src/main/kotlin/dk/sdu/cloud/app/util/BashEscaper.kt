@@ -7,12 +7,12 @@ internal object BashEscaper {
     // make sure that user input doesn't escape the string. We should also make sure that variables provided in Bash
     // are not accessible.
     private val bashEscaper =
-            Escapers.builder().apply {
-                addEscape('\'', "'\"'\"'")
-                addEscape('\"', "\\\"")
-                addEscape('`', "\\`")
-                addEscape('$', "\\$")
-            }.build()
+        Escapers.builder().apply {
+            addEscape('\'', "'\"'\"'")
+            addEscape('\"', "\\\"")
+            addEscape('`', "\\`")
+            addEscape('$', "\\$")
+        }.build()
 
     fun safeBashArgument(rawArgument: String) = "\"${bashEscaper.escape(rawArgument)}\""
 }

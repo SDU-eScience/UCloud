@@ -6,5 +6,3 @@ enum class JobStatus {
     COMPLETE,
     FAILURE
 }
-
-class RunningJobStatus(val jobId: String, val status: JobStatus)

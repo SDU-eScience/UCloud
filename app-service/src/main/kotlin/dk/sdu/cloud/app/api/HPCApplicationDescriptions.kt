@@ -7,7 +7,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 
 object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
-    private val baseContext = "/api/hpc/apps/"
+    private const val baseContext = "/api/hpc/apps/"
 
     val findByName = callDescription<FindByName, List<ApplicationDescription>, List<ApplicationDescription>> {
         prettyName = "appsFindByName"
@@ -30,17 +30,17 @@ object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
         prettyName = "appsListAll"
         path { using(baseContext) }
     }
-
-
 }
 
 @JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = KafkaRequest.TYPE_PROPERTY)
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY
+)
 @JsonSubTypes(
-        JsonSubTypes.Type(value = AppRequest.Start::class, name = "start"),
-        JsonSubTypes.Type(value = AppRequest.Cancel::class, name = "cancel"))
+    JsonSubTypes.Type(value = AppRequest.Start::class, name = "start"),
+    JsonSubTypes.Type(value = AppRequest.Cancel::class, name = "cancel")
+)
 sealed class AppRequest {
     data class Start(val application: NameAndVersion, val parameters: Map<String, Any>) : AppRequest()
 

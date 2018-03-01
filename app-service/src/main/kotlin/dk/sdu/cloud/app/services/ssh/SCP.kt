@@ -37,17 +37,19 @@ private fun scpCheckAck(ins: InputStream): Int {
 }
 
 fun SSHConnection.scpUpload(file: File, destination: String, permissions: String) =
-        scpUpload(
-                fileLength = file.length(),
-                fileName = file.name,
-                fileDestination = destination,
-                filePermissions = permissions
-        ) { out ->
-            out.write(file.readBytes())
-        }
+    scpUpload(
+        fileLength = file.length(),
+        fileName = file.name,
+        fileDestination = destination,
+        filePermissions = permissions
+    ) { out ->
+        out.write(file.readBytes())
+    }
 
-fun SSHConnection.scpUpload(fileLength: Long, fileName: String, fileDestination: String, filePermissions: String,
-                            fileWriter: (OutputStream) -> Unit): Int {
+fun SSHConnection.scpUpload(
+    fileLength: Long, fileName: String, fileDestination: String, filePermissions: String,
+    fileWriter: (OutputStream) -> Unit
+): Int {
     val execChannel = openExecChannel()
 
     val ins = execChannel.inputStream
@@ -96,8 +98,8 @@ fun SSHConnection.scpDownload(remoteFile: String, body: (InputStream) -> Unit): 
 
         ins.skip(5) // Discard octal permissions
 
-        val fileSize = readStringUntil(ins, ' '.toInt()).toLongOrNull() ?:
-                throw IllegalStateException("Unexpected file size")
+        val fileSize =
+            readStringUntil(ins, ' '.toInt()).toLongOrNull() ?: throw IllegalStateException("Unexpected file size")
         val fileName = readStringUntil(ins, 0xA)
         println(fileSize)
         println(fileName)

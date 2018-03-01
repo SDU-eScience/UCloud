@@ -11,11 +11,11 @@ import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
 class SlurmPollAgent(
-        private val ssh: SSHConnectionPool,
-        private val executor: ScheduledExecutorService,
-        private val initialDelay: Long,
-        private val pollInterval: Long,
-        private val pollUnit: TimeUnit
+    private val ssh: SSHConnectionPool,
+    private val executor: ScheduledExecutorService,
+    private val initialDelay: Long,
+    private val pollInterval: Long,
+    private val pollUnit: TimeUnit
 ) {
     private var lastPoll = ZonedDateTime.now()
     private var future: ScheduledFuture<*>? = null
