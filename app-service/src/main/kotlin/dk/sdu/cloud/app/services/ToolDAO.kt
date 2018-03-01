@@ -8,6 +8,11 @@ object ToolDAO {
     val inMemoryDB = mutableMapOf(
         "hello_world" to listOf(
             ToolDescription(
+                prettyName = "hello",
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "hello",
                 info = NameAndVersion("hello_world", "1.0.0"),
                 container = "hello.simg",
                 defaultNumberOfNodes = 1,
@@ -19,6 +24,11 @@ object ToolDAO {
 
         "figlet" to listOf(
             ToolDescription(
+                prettyName = "Figlet",
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "Render some text!",
                 info = NameAndVersion("figlet", "1.0.0"),
                 container = "figlet.simg",
                 defaultNumberOfNodes = 1,

@@ -12,6 +12,11 @@ class SBatchGeneratorTest {
     fun testWithNoParams() {
         ToolDAO.inMemoryDB["test"] = listOf(
             ToolDescription(
+                prettyName = "hello",
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "hello",
                 info = NameAndVersion("test", "1.0.0"),
                 container = "container-name",
                 defaultNumberOfNodes = 1,
@@ -23,6 +28,11 @@ class SBatchGeneratorTest {
 
         ApplicationDAO.inMemoryDB["app"] = listOf(
             ApplicationDescription(
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                prettyName = "Figlet",
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "Render some text!",
                 tool = NameAndVersion("test", "1.0.0"),
                 info = NameAndVersion("app", "1.0.0"),
                 invocation = listOf(WordInvocationParameter("hello")),
@@ -50,6 +60,11 @@ class SBatchGeneratorTest {
     fun testWithFileParameters() {
         ToolDAO.inMemoryDB["hello_world"] = listOf(
             ToolDescription(
+                prettyName = "hello",
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "hello",
                 info = NameAndVersion("hello_world", "1.0.0"),
                 container = "hello.simg",
                 defaultNumberOfNodes = 1,
@@ -61,6 +76,11 @@ class SBatchGeneratorTest {
 
         ApplicationDAO.inMemoryDB["hello"] = listOf(
             ApplicationDescription(
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                prettyName = "Figlet",
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "Render some text!",
                 tool = NameAndVersion("hello_world", "1.0.0"),
                 info = NameAndVersion("hello", "1.0.0"),
                 invocation = listOf(
@@ -107,6 +127,11 @@ class SBatchGeneratorTest {
     fun testWithSeveralFileParameters() {
         ToolDAO.inMemoryDB["hello_world"] = listOf(
             ToolDescription(
+                prettyName = "hello",
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "hello",
                 info = NameAndVersion("hello_world", "1.0.0"),
                 container = "hello.simg",
                 defaultNumberOfNodes = 1,
@@ -118,6 +143,11 @@ class SBatchGeneratorTest {
 
         ApplicationDAO.inMemoryDB["hello"] = listOf(
             ApplicationDescription(
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                prettyName = "Figlet",
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "Render some text!",
                 tool = NameAndVersion("hello_world", "1.0.0"),
                 info = NameAndVersion("hello", "1.0.0"),
                 invocation = listOf(

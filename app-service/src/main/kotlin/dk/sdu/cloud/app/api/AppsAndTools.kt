@@ -5,6 +5,11 @@ import dk.sdu.cloud.app.services.InvocationParameter
 data class ApplicationDescription(
     val tool: NameAndVersion,
     val info: NameAndVersion,
+    val authors: List<String>,
+    val prettyName: String,
+    val createdAt: Long,
+    val modifiedAt: Long,
+    val description: String,
     val invocation: List<InvocationParameter>,
     // TODO We cannot have duplicates on param name!
     val parameters: List<ApplicationParameter<*>>,
@@ -21,5 +26,10 @@ data class ToolDescription(
     val defaultNumberOfNodes: Int,
     val defaultTasksPerNode: Int,
     val defaultMaxTime: SimpleDuration,
-    val requiredModules: List<String>
+    val requiredModules: List<String>,
+    val authors: List<String>,
+    val prettyName: String,
+    val createdAt: Long,
+    val modifiedAt: Long,
+    val description: String
 )
