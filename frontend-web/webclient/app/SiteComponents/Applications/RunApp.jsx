@@ -7,6 +7,7 @@ import {BallPulseLoading} from "../LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import {tusConfig} from "../../Configurations";
 import Uppy from "uppy";
+import IndeterminateCheckbox from "../IndeterminateCheckbox";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -23,7 +24,7 @@ class RunApp extends React.Component {
             comment: "",
             uppy: Uppy.Core({
                 autoProceed: false,
-                debug: true,
+                debug: false,
                 restrictions: {
                     maxNumberOfFiles: 1,
                 },
@@ -221,10 +222,12 @@ function Parameter(props) {
         return null; // parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
         return (<fieldset><IntegerParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
-    } else if (props.parameter.type === "float") {
+    } else if (props.parameter.type === "floating_point") {
         return (<fieldset><FloatParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "text") {
         return (<fieldset><TextParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
+    } else if (props.parameter.type === "boolean") {
+        return (<fieldset><BooleanParameter parameter={props.parameter}/></fieldset>)
     } else {
         return null;
     }
@@ -237,12 +240,12 @@ function InputFileParameter(props) {
             <div className="col-md-4">
                 <FileSelector onFileSelectionChange={props.onFileSelectionChange} uppyOpen={props.uppyOpen}
                               uploadCallback={props.onFileSelectionChange} uppy={props.uppy}
-                              isRequired={!props.parameter.isOptional} allowUpload={true}
+                              isRequired={!props.parameter.optional} allowUpload={true}
                               returnObject={{parameter: props.parameter, isSource: true}}/>
                 <span className="help-block">Source of the file</span>
                 <input
-                    placeholder={props.parameter.defaultValue ? 'Default value: ' + props.parameter.defaultValue : ''}
-                    required={!props.parameter.isOptional}
+                    placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
+                    required={!props.parameter.optional}
                     className="form-control"
                     type="text"/>
                 <div>Destination of the file</div>
@@ -256,12 +259,11 @@ function TextParameter(props) {
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
-                <input id="parameter.name"
-                       placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
-                       required={!props.parameter.isOptional}
-                       name="parameter.name"
-                       className="form-control"
-                       type="text" onChange={e => props.onChange(props.parameter.name, e)}/>
+                <input
+                    placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
+                    required={!props.parameter.optional}
+                    className="form-control"
+                    type="text" onChange={e => props.onChange(props.parameter.name, e)}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>
@@ -274,27 +276,29 @@ function IntegerParameter(props) {
             <label
                 className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
-                <input id="parameter.name"
-                       placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
-                       required={!props.parameter.isOptional} name={props.parameter.name}
-                       className="form-control"
-                       type="number"
-                       step="1" onChange={e => props.onChange(props.parameter.name, e)}/>
+                <input
+                    placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
+                    required={!props.parameter.optional} name={props.parameter.name}
+                    className="form-control"
+                    type="number"
+                    step="1" onChange={e => props.onChange(props.parameter.name, e)}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>);
 }
 
 function BooleanParameter(props) {
-    if (props.parameters.isOptional) {
-        // make terniary
-    } else {
-        // only true or false
-    }
-}
-
-function RangeParameter(props) {
-
+    const optional = props.parameter.optional ? (<span className="help-block"><b>Optional</b></span>) : null;
+    return (
+        <div className="form-group">
+            <label className="col-sm-2 control-label">{props.parameter.prettyName}{optional}</label>
+            <div className="col-md-4">
+                <IndeterminateCheckbox defaultValue={props.parameter.defaultValue} onChange={(e) => props.onChange(props.parameter.name, e)} isIndeterminate={props.parameter.optional}/><span> {}</span>
+                    {optional}
+                <span className="help-block">{props.parameter.description}</span>
+            </div>
+        </div>
+    );
 }
 
 function FloatParameter(props) {
@@ -305,7 +309,7 @@ function FloatParameter(props) {
             <div className="col-md-4">
                 <input id="parameter.name"
                        placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
-                       required={!props.parameter.isOptional} name={props.parameter.name}
+                       required={!props.parameter.optional} name={props.parameter.name}
                        className="form-control"
                        type="number"
                        step="any" onChange={e => props.onChange(props.parameter.name, e)}/>
