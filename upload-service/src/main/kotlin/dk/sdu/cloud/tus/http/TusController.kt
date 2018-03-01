@@ -197,7 +197,7 @@ class TusController(
                     }
 
                     val id = UUID.randomUUID().toString()
-                    val fileName = metadata["filename"] ?: id
+                    val fileName = metadata["filename"] ?: metadata["name"] ?: id
 
                     val createdEvent = TusUploadEvent.Created(
                             id = id,
