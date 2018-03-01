@@ -70,7 +70,7 @@ class FilesController(private val storageService: StorageConnectionFactory) {
                         ok(Unit)
                     } catch (ex: Exception) {
                         error(
-                            CommonErrorMessage("An error has occured"),
+                            CommonErrorMessage("An error has occurred"),
                             HttpStatusCode.InternalServerError
                         )
                     }
@@ -108,7 +108,7 @@ class FilesController(private val storageService: StorageConnectionFactory) {
                         ok(Unit)
                     } catch (ex: Exception) {
                         error(
-                            CommonErrorMessage("An error has occured"),
+                            CommonErrorMessage("An error has occurred"),
                             HttpStatusCode.InternalServerError
                         )
                     }
