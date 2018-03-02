@@ -298,7 +298,7 @@ function ContextBar(props) {
                         className="ion-ios-home"/></Button></Link>
                 </div>
                 <hr/>
-                <button className="btn btn-primary ripple btn-block" id="uppy"
+                <button className="btn btn-primary ripple btn-block"
                         onClick={props.onClick}>
                     <span className="ion-android-upload pull-left"/> Upload Files
                 </button>
