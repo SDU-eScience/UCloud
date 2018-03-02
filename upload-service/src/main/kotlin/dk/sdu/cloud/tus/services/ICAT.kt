@@ -75,6 +75,21 @@ class ICATConnection(connection: Connection) : Connection by connection {
         return Pair(canWrite, nulledEntryIfNoAccess)
     }
 
+    fun findIRodsFileNamesLike(collectionId: Long, likeName: String): List<String> {
+        val desiredWithoutExtension = likeName.substringBefore('.')
+        val extension = '.' + likeName.substringAfter('.', missingDelimiterValue = "")
+        val query = "SELECT data_name FROM r_data_main WHERE coll_id = ? AND data_name LIKE ?;"
+        val results = prepareStatement(query).apply {
+            setLong(1, collectionId)
+            setString(2, "$desiredWithoutExtension%$extension")
+        }.executeQuery()
+
+        val names = ArrayList<String>()
+        while (results.next()) names.add(results.getString(1))
+        results.close()
+        return names
+    }
+
     fun registerDataObject(
         collectionId: Long, cephId: String, objectSize: Long,
         irodsName: String, irodsOwner: String, irodsOwnerZone: String, irodsResourceId: Long
@@ -171,6 +186,43 @@ class ICATConnection(connection: Connection) : Connection by connection {
         private val log = LoggerFactory.getLogger(ICAT::class.java)
     }
 }
+
+// TODO This should probably go into a service class.
+private val DUPLICATE_NAMING_REGEX = Regex("""\((\d+)\)""")
+
+fun ICATConnection.findAvailableIRodsFileName(collectionId: Long, desiredIRodsName: String): String {
+    val desiredWithoutExtension = desiredIRodsName.substringBefore('.')
+    val extension = '.' + desiredIRodsName.substringAfter('.', missingDelimiterValue = "")
+    val names = findIRodsFileNamesLike(collectionId, desiredIRodsName)
+
+    return if (names.isEmpty()) {
+        desiredIRodsName
+    } else {
+        val namesMappedAsIndices = names.mapNotNull {
+            val nameWithoutExtension = it.substringBefore('.')
+            val nameWithoutPrefix = nameWithoutExtension.substringAfter(desiredWithoutExtension)
+
+            if (nameWithoutExtension.isEmpty()) {
+                0 // We have an exact match on the file name
+            } else {
+                val match = DUPLICATE_NAMING_REGEX.matchEntire(nameWithoutPrefix)
+                if (match == null) {
+                    null // The file name doesn't match at all, i.e., the file doesn't collide with our desired name
+                } else {
+                    match.groupValues.getOrNull(1)?.toIntOrNull()
+                }
+            }
+        }
+
+        if (namesMappedAsIndices.isEmpty()) {
+            desiredIRodsName
+        } else {
+            val currentMax = namesMappedAsIndices.max() ?: 0
+            "$desiredWithoutExtension(${currentMax + 1})$extension"
+        }
+    }
+}
+
 
 data class ICATAccessEntry(
     val objectId: Long, val userId: Long, val accessType: Long,

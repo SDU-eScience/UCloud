@@ -7,9 +7,9 @@ sealed class SlurmEvent {
     abstract val name: String
 
     companion object {
-        val BASE_REGEX = Regex("SLURM Job_id=(\\d+) Name=(([^,]|[ \\t\\w])+) (([^,]|[ \\t\\w])+),(.+)")
-        val BEGAN_REGEX = Regex("Queued time (\\d+):(\\d+):(\\d+)")
-        val ENDED_REGEX = Regex("Run time (\\d+):(\\d+):(\\d+), (.+), ExitCode (\\d+)")
+        private val BASE_REGEX = Regex("SLURM Job_id=(\\d+) Name=(([^,]|[ \\t\\w])+) (([^,]|[ \\t\\w])+),(.+)")
+        private val BEGAN_REGEX = Regex("Queued time (\\d+):(\\d+):(\\d+)")
+        private val ENDED_REGEX = Regex("Run time (\\d+):(\\d+):(\\d+), (.+), ExitCode (\\d+)")
 
         private fun parsePeriodFromResults(match: MatchResult, startIdx: Int): Duration {
             val text = match.groupValues[0]
