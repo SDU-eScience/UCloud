@@ -85,8 +85,8 @@ class RunApp extends React.Component {
         }
         // FIXME HACK END
 
-        Cloud.post("/hpc/jobs", job).then(jobStatus => {
-            if (jobStatus.status === "STARTED") {
+        Cloud.post("/hpc/jobs", job).then(req => {
+            if (req.request.status === 200) {
                 this.props.history.push("/analyses");
             } else {
                 swal("And error occurred. Please try again later.");
