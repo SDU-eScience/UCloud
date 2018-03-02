@@ -7,7 +7,6 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.postgresql.util.PSQLException
-import org.postgresql.util.PSQLState
 import org.slf4j.LoggerFactory
 
 private val log = LoggerFactory.getLogger(UploadStateProcessor::class.java)

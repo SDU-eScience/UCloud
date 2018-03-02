@@ -1,6 +1,5 @@
 package dk.sdu.cloud.tus.api
 
-import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
