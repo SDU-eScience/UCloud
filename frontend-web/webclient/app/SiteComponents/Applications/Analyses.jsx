@@ -51,10 +51,10 @@ class Analyses extends React.Component {
             });
         }
 
-        this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(analyses => {
+        this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(req => {
             this.setState(() => ({
                 loading: false,
-                analyses: analyses,
+                analyses: req.response,
             }));
         });
     }

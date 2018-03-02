@@ -41,9 +41,9 @@ class Applications extends React.Component {
 
     getApplications() {
         this.setState({loading: true});
-        this.state.promises.makeCancelable(Cloud.get("/hpc/apps")).promise.then(apps => {
+        this.state.promises.makeCancelable(Cloud.get("/hpc/apps")).promise.then(req => {
             this.setState(() => ({
-                applications: apps.sort((a, b) => {
+                applications: req.response.sort((a, b) => {
                     return a.info.name.localeCompare(b.info.name)
                 }),
                 loading: false

@@ -34,8 +34,8 @@ class Sidebar extends React.Component {
     }
 
     getUserOptions() {
-        Cloud.get("/../mock-api/mock_sidebar_options.json").then((sidebarOptions) => {
-            this.setState({options: sidebarOptions});
+        Cloud.get("/../mock-api/mock_sidebar_options.json").then((res) => {
+            this.setState({options: res.response});
         });
     }
 

@@ -79,9 +79,9 @@ class FileSelector extends React.Component {
 
     getFiles(path) {
         this.setState(() => ({loading: true}));
-        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(files => {
+        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(req => {
             this.setState(() => ({
-                files: sortFilesByTypeAndName(files, true),
+                files: sortFilesByTypeAndName(req.response, true),
                 loading: false,
                 currentPath: path,
             }));
@@ -89,8 +89,18 @@ class FileSelector extends React.Component {
     }
 
     render() {
-        let uploadButton = this.props.allowUpload ?
-            (<UploadButton changeUppyShown={this.changeUppyShown}/>) : null;
+        let uploadButton, uppyModal;
+        uploadButton = uppyModal = null;
+        if (this.props.allowUpload) {
+            uploadButton = this.props.allowUpload ?
+                (<UploadButton changeUppyShown={this.changeUppyShown}/>) : null;
+            uppyModal = (<DashboardModal
+                uppy={this.props.uppy}
+                closeModalOnClickOutside
+                open={this.state.uppyOpen}
+                onRequestClose={this.setFileThroughUppy}
+            />)
+        }
         return (
             <div>
                 <div className="input-group col-sm-12">
@@ -115,12 +125,7 @@ class FileSelector extends React.Component {
                                       files={this.state.files} getFiles={this.getFiles}
                                       currentPath={this.state.currentPath}/>
                 </Modal>
-                <DashboardModal
-                    uppy={this.props.uppy}
-                    closeModalOnClickOutside
-                    open={this.state.uppyOpen}
-                    onRequestClose={this.setFileThroughUppy}
-                />
+                {uppyModal}
             </div>)
     }
 }

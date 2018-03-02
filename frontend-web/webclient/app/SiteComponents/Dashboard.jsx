@@ -42,8 +42,8 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             favoriteLoading: true,
         }));
-        this.state.promises.makeCancelable(Cloud.get(`/files?path=${Cloud.homeFolder}`)).promise.then(favorites => {
-            let actualFavorites = favorites.filter(file => file.favorited);
+        this.state.promises.makeCancelable(Cloud.get(`/files?path=${Cloud.homeFolder}`)).promise.then(req => {
+            let actualFavorites = req.response.filter(file => file.favorited);
             let subsetFavorites = sortFilesByTypeAndName(actualFavorites.slice(0, 10));
             this.setState(() => ({
                 favoriteFiles: subsetFavorites,
@@ -56,8 +56,8 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             recentLoading: true
         }));
-        this.state.promises.makeCancelable(Cloud.get(`/files?path=${Cloud.homeFolder}`)).promise.then(recent => {
-            let recentSubset = sortFilesByModified(recent.slice(0, 10));
+        this.state.promises.makeCancelable(Cloud.get(`/files?path=${Cloud.homeFolder}`)).promise.then(req => {
+            let recentSubset = sortFilesByModified(req.response.slice(0, 10));
             this.setState(() => ({
                 recentFiles: recentSubset,
                 recentLoading: false,
@@ -69,10 +69,10 @@ class Dashboard extends React.Component {
         this.setState(() => ({
             analysesLoading: true
         }));
-        this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(analyses => {
+        this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(req => {
             this.setState(() => ({
                 analysesLoading: false,
-                recentAnalyses: analyses.slice(0, 10),
+                recentAnalyses: req.response.slice(0, 10),
             }));
         });
     }

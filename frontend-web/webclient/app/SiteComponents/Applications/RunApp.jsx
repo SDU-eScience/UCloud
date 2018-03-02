@@ -144,10 +144,19 @@ class RunApp extends React.Component {
 
         this.setState({loading: true});
         this.state.promises.makeCancelable(Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}`))
-            .promise.then(app => {
+            .promise.then(req => {
+            const app = req.response;
+            let authors;
+            if (app.authors.length > 1) {
+                authors = app.authors.join(", ");
+            } else {
+                authors = app.authors[0];
+            }
+
             this.setState(() => ({
+                appName: app.prettyName,
                 parameters: app.parameters,
-                appAuthor: "Placeholder",
+                appAuthor: authors,
                 appDescription: app.info.description,
                 loading: false,
             }));

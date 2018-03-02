@@ -42,7 +42,7 @@ export default class SDUCloud {
                 req.setRequestHeader("contentType", "application/json");
                 req.onload = () => {
                     if (req.status === 200) {
-                        resolve(JSON.parse(req.response));
+                        resolve({ response: JSON.parse(req.response), request: req});
                     } else {
                         reject(req.status, req.response);
                     }

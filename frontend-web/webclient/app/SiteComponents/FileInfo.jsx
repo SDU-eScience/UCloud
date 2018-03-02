@@ -70,9 +70,13 @@ class FileInfo extends React.Component {
                 type: "revoke",
             };
 
-            Cloud.delete("/acl", body).then(response => {
-                swal("Success!", `Rights have been revoked`, "success");
-                this.removeAcl(acl);
+            Cloud.delete("/acl", body).then(res => {
+                if (res.request.statusCode) {
+                    swal("Success!", `Rights have been revoked`, "success");
+                    this.removeAcl(acl);
+                } else {
+                    swal("Error", `An error occurred revoking the rights. Please try again later`, "error");
+                }
             });
         });
     }
