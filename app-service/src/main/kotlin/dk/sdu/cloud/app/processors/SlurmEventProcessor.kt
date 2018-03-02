@@ -13,6 +13,8 @@ import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.EventProducer
+import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.storage.api.FindByPath
 import dk.sdu.cloud.tus.api.CreationCommand
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.internal.start
@@ -53,6 +55,7 @@ class SlurmEventProcessor(
         }
     }
 
+    // TODO Refactor and improve testability situation
     private suspend fun handleEndedEvent(event: SlurmEventEnded): Pair<String, HPCAppEvent.Ended> {
         val key = transaction { JobsDAO.findSystemIdFromSlurmId(event.jobId) }!!
 
@@ -64,6 +67,11 @@ class SlurmEventProcessor(
         }
 
         return sshPool.use {
+            val owner = jobWithStatus.jobInfo.owner
+            val jobId = jobWithStatus.jobInfo.jobId
+            val outputDirectoryWithoutZone = "/home/$owner/Jobs/$jobId"
+            val outputDirectory = "/${irodsConfig.zone}$outputDirectoryWithoutZone"
+
             log.info("Handling Slurm ended event! $key ${event.jobId}")
 
             log.debug("Locating output files")
@@ -76,6 +84,20 @@ class SlurmEventProcessor(
                     FileTransferDescription(file.absolutePath, file.name)
                 }
             log.debug("Found: $outputs")
+
+            run {
+                log.debug("Creating directory...")
+                val directoryCreation = runBlocking {
+                    FileDescriptions.createDirectory.call(FindByPath(outputDirectoryWithoutZone), cloud)
+                }
+
+                if (directoryCreation !is RESTResponse.Ok) {
+                    log.warn("Unable to create directory: $directoryCreation")
+                    return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
+                } else {
+                    log.debug("Directory created successfully")
+                }
+            }
 
             // Transfer output files
             for (transfer in outputs) {
@@ -100,7 +122,9 @@ class SlurmEventProcessor(
                     continue
                 }
 
-                if (sourceFile.isDir) {
+                val (fileToTransferFromHPC, fileToTransferSize) = if (!sourceFile.isDir) {
+                    Pair(source.path, sourceFile.size)
+                } else {
                     log.debug("Source file is a directory. Zipping it up")
                     val zipPath = source.path + ".zip"
                     val (status, output) = execWithOutputAsText(
@@ -118,35 +142,39 @@ class SlurmEventProcessor(
                         return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
                     }
 
-                    TODO("Handle directory uploads")
-                } else {
-                    log.debug("Downloading file from ${source.path}")
-
-                    val upload = runBlocking {
-                        val owner = jobWithStatus.jobInfo.owner
-                        val payload = CreationCommand(
-                            fileName = jobWithStatus.jobInfo.jobId + "-" + transfer.destination,
-                            owner = owner,
-                            location = "/${irodsConfig.zone}/home/$owner/Jobs",
-                            length = sourceFile.size,
-                            sensitive = false // TODO Sensitivity
-                        )
-                        log.debug("Upload to create at SDUCloud: $payload")
-                        TusDescriptions.create.call(payload, cloud)
-                    } as? RESTResponse.Ok ?: throw IllegalStateException("Upload failed")
-
-                    val uploadLocation = upload.response.headers["Location"]!!
-                    log.debug("Upload target is: $uploadLocation")
-
-                    if (sourceFile.size >= Int.MAX_VALUE) {
-                        log.warn("sourceFile.size (${sourceFile.size}) >= Int.MAX_VALUE. Currently not supported")
-                        throw IllegalStateException("sourceFile.size >= Int.MAX_VALUE")
+                    val zipStat = stat(zipPath) ?: return@use run {
+                        log.warn("Unable to find zip file after creation. Expected it at: $zipPath")
+                        Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
                     }
 
-                    scpDownload(source.path) {
-                        TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud).start {
-                            log.debug("${jobWithStatus.jobInfo.jobId}: $it/${sourceFile.size} bytes transferred")
-                        }
+                    Pair(zipPath, zipStat.size)
+                }
+
+                log.debug("Downloading file from $fileToTransferFromHPC")
+
+                val upload = runBlocking {
+                    val payload = CreationCommand(
+                        fileName = transfer.destination,
+                        owner = owner,
+                        location = outputDirectory,
+                        length = fileToTransferSize,
+                        sensitive = false // TODO Sensitivity
+                    )
+                    log.debug("Upload to create at SDUCloud: $payload")
+                    TusDescriptions.create.call(payload, cloud)
+                } as? RESTResponse.Ok ?: throw IllegalStateException("Upload failed")
+
+                val uploadLocation = upload.response.headers["Location"]!!
+                log.debug("Upload target is: $uploadLocation")
+
+                if (sourceFile.size >= Int.MAX_VALUE) {
+                    log.warn("sourceFile.size (${sourceFile.size}) >= Int.MAX_VALUE. Currently not supported")
+                    return@use Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
+                }
+
+                scpDownload(source.path) {
+                    TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud).start {
+                        log.debug("$jobId: $it/${sourceFile.size} bytes transferred")
                     }
                 }
             }

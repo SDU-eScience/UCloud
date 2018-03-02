@@ -86,6 +86,7 @@ dependencies {
 
     compile 'dk.sdu.cloud:client-core:0.1.0-SNAPSHOT'
     compile 'dk.sdu.cloud:service-common:0.6.0-SNAPSHOT'
+    compile "dk.sdu.cloud:storage-api:1.0.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
 
     // Tus
