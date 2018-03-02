@@ -42,7 +42,7 @@ export default class SDUCloud {
                 req.setRequestHeader("contentType", "application/json");
                 req.onload = () => {
                     if (req.status === 200) {
-                        resolve({ response: JSON.parse(req.response), request: req});
+                        resolve({response: JSON.parse(req.response), request: req});
                     } else {
                         reject(req.status, req.response);
                     }
@@ -157,11 +157,12 @@ export default class SDUCloud {
                 let oneTimeToken = `${this.authContext}/request/?audience=${permission}`;
                 return new Promise((resolve, reject) => {
                     let req = new XMLHttpRequest();
-                    req.setRequestHeader("Authorization", `Bearer ${token}`);
                     req.open("POST", oneTimeToken);
+                    req.setRequestHeader("Authorization", `Bearer ${token}`);
+                    req.setRequestHeader("contentType", "application/json");
                     req.onload = () => {
                         if (req.status === 200) {
-                            resolve(req.response);
+                            resolve({response: JSON.parse(req.response), request: req});
                         } else {
                             reject(req.response);
                         }
@@ -170,7 +171,7 @@ export default class SDUCloud {
                 });
             }).then((data) => {
                 return new Promise((resolve, reject) => {
-                    resolve(data.accessToken);
+                    resolve(data.response.accessToken);
                 });
             });
     }
@@ -179,9 +180,10 @@ export default class SDUCloud {
         let token = SDUCloud.storedRefreshToken;
         if (!token) {
             return new Promise((resolve, reject) => {
-               reject(this._missingAuth());
+                reject(this._missingAuth());
             });
-        };
+        }
+        ;
         let refreshPath = this.authContext + "/refresh";
         return new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
