@@ -116,7 +116,7 @@ function DashboardFavoriteFiles(props) {
             if (file.type === "DIRECTORY") {
                 return (
                     <tr key={file.path.uri}>
-                        <td onMouseEnter={console.log("HI")}><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
+                        <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
                         <td onClick={() => props.favorite(file.path.uri)}><em className="ion-star text-center"/></td>
                     </tr>)
             } else {

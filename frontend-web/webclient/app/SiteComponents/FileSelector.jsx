@@ -62,10 +62,8 @@ class FileSelector extends React.Component {
         this.setState(() => ({
             uppyOpen: false,
         }));
-
         const files = this.props.uppy.getState().files;
         for (const file in files) {
-            console.log(files[file]);
             this.setSelectedFile({path: {path: files[file].name}})
         }
         this.props.uppy.reset();
@@ -92,8 +90,7 @@ class FileSelector extends React.Component {
 
     render() {
         let uploadButton = this.props.allowUpload ?
-            (<UploadButton uppy={this.props.uppy} open={this.state.uppyOpen} changeUppyShown={this.changeUppyShown}
-                           callback={this.setFileThroughUppy}/>) : null;
+            (<UploadButton changeUppyShown={this.changeUppyShown}/>) : null;
         return (
             <div>
                 <div className="input-group col-sm-12">
@@ -118,6 +115,12 @@ class FileSelector extends React.Component {
                                       files={this.state.files} getFiles={this.getFiles}
                                       currentPath={this.state.currentPath}/>
                 </Modal>
+                <DashboardModal
+                    uppy={this.props.uppy}
+                    closeModalOnClickOutside
+                    open={this.state.uppyOpen}
+                    onRequestClose={this.setFileThroughUppy}
+                />
             </div>)
     }
 }
@@ -150,14 +153,7 @@ function FileSelectorBody(props) {
 
 function UploadButton(props) {
     return (
-        <span className="input-group-addon btn btn-info" onClick={() => props.changeUppyShown()}>Upload file
-            <DashboardModal
-                uppy={props.uppy}
-                closeModalOnClickOutside
-                open={props.open}
-                onRequestClose={props.callback}
-            />
-        </span>
+        <span className="input-group-addon btn btn-info" onClick={() => props.changeUppyShown()}>Upload file</span>
     );
 }
 

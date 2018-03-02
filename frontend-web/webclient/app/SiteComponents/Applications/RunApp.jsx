@@ -113,7 +113,9 @@ class RunApp extends React.Component {
             // TODO Deal with this correctly FIXME
             return result;
         });
-        event.preventDefault();
+        if (event.preventDefault) {
+            event.preventDefault();
+        }
     }
 
     handleFileSelectorChange(file, returnObject) {
@@ -227,7 +229,7 @@ function Parameter(props) {
     } else if (props.parameter.type === "text") {
         return (<fieldset><TextParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "boolean") {
-        return (<fieldset><BooleanParameter parameter={props.parameter}/></fieldset>)
+        return (<fieldset><BooleanParameter parameter={props.parameter} onChange={props.onChange}/></fieldset>)
     } else {
         return null;
     }
@@ -293,8 +295,10 @@ function BooleanParameter(props) {
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}{optional}</label>
             <div className="col-md-4">
-                <IndeterminateCheckbox defaultValue={props.parameter.defaultValue} onChange={(e) => props.onChange(props.parameter.name, e)} isIndeterminate={props.parameter.optional}/><span> {}</span>
-                    {optional}
+                <IndeterminateCheckbox parameter={props.parameter} defaultValue={props.parameter.defaultValue}
+                                       onChange={props.onChange}
+                                       isIndeterminate={props.parameter.optional}/><span> {}</span>
+                {optional}
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>

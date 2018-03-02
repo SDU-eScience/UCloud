@@ -18,29 +18,32 @@ export default class IndeterminateCheckbox extends React.Component {
         this.updateValue = this.updateValue.bind(this);
     }
 
-    updateValue() {
+    updateValue(e) {
         let checkbox = ReactDOM.findDOMNode(this);
         if (this.state.indeterminateAllowed) {
             const nextValue = (this.state.lastValue + 1) % 3;
+            let value = false;
             switch (nextValue) {
                 case 0: {
-                    checkbox.checked = checkbox.indeterminate = false;
+                    value = checkbox.checked = checkbox.indeterminate = false;
                     break;
                 }
                 case 1: {
-                    checkbox.checked = true;
+                    value = checkbox.checked = true;
                     checkbox.indeterminate = false;
                     break;
                 }
                 case 2: {
                     checkbox.checked = false;
                     checkbox.indeterminate = true;
+                    value = null;
                     break;
                 }
             }
             this.setState(() => ({
                 lastValue: nextValue
             }));
+            this.props.onChange(this.props.parameter.name, { target: { value: value }});
         } else {
             // Submit new value
         }
@@ -49,7 +52,6 @@ export default class IndeterminateCheckbox extends React.Component {
     componentDidMount() {
         ReactDOM.findDOMNode(this).indeterminate = this.props.isIndeterminate && (this.props.defaultValue === null || this.props.defaultValue === undefined);
     }
-
     render() {
         return (<input onChange={e => this.updateValue(e)} type="checkbox"/>)
     }

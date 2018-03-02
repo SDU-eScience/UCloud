@@ -161,7 +161,6 @@ export default class SDUCloud {
                     req.open("POST", oneTimeToken);
                     req.onload = () => {
                         if (req.status === 200) {
-                            console.log(req.response);
                             resolve(req.response);
                         } else {
                             reject(req.response);
