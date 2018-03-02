@@ -35,7 +35,7 @@
     "select2": "4.0.3",
     "select2-bootstrap-css": "1.4.6",
     "sweetalert2": "7.12.15",
-    "uppy": "0.23.0"
+    "uppy": "0.23.2"
   },
   "devDependencies": {
     "babel-core": "^6.26.0",

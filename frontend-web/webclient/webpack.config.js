@@ -87,11 +87,6 @@ module.exports = {
             to: 'fonts',
             context: path.join(__dirname, 'app')
         }]),
-        new webpack.ProvidePlugin({
-            $: 'jquery',
-            jQuery: 'jquery',
-            'window.jQuery': 'jquery'
-        }),
         // https://github.com/moment/moment/issues/2979#issuecomment-189899510
         new webpack.ContextReplacementPlugin(/\.\/locale$/, 'empty-module', false, /js$/),
         new webpack.DefinePlugin({
