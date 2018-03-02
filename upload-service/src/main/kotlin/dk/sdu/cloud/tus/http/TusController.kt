@@ -98,6 +98,7 @@ class TusController(
                         call.response.tusVersion(serverConfiguration.tusVersion)
                         call.response.tusLength(summary.length)
                         call.response.tusOffset(summary.offset)
+                        call.response.tusFileLocation(summary.savedAs)
 
                         // Response contains no body
                         call.respond(HttpStatusCode.NoContent)
@@ -397,6 +398,10 @@ class TusController(
 
     private fun ApplicationResponse.tusVersion(currentVersion: SimpleSemanticVersion) {
         header(TusHeaders.Resumable, currentVersion.toString())
+    }
+
+    private fun ApplicationResponse.tusFileLocation(savedAs: String?) {
+        if (savedAs != null) header("File-Location", savedAs)
     }
 
 

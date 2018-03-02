@@ -3,7 +3,8 @@ package dk.sdu.cloud.tus.api
 data class TransferSummary(
     val id: String,
     val length: Long,
-    val offset: Long
+    val offset: Long,
+    val savedAs: String?
 )
 
 data class TransferState(

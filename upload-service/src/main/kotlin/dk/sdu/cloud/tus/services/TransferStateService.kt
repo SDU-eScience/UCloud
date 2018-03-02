@@ -19,7 +19,7 @@ class TransferStateService {
                 (UploadDescriptions innerJoin UploadProgress)
                     .slice(
                         UploadDescriptions.id, UploadDescriptions.owner, UploadDescriptions.sizeInBytes,
-                        UploadProgress.numChunksVerified
+                        UploadProgress.numChunksVerified, UploadDescriptions.savedAs
                     )
                     .select {
                         var q = (UploadDescriptions.id eq id)
@@ -33,9 +33,10 @@ class TransferStateService {
                 val sizeInBytes = it[UploadDescriptions.sizeInBytes]
                 val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
                 val chunksVerified = it[UploadProgress.numChunksVerified]
+                val savedAs = it[UploadDescriptions.savedAs]
                 val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
 
-                TransferSummary(it[UploadDescriptions.id], sizeInBytes, offset)
+                TransferSummary(it[UploadDescriptions.id], sizeInBytes, offset, savedAs)
             }
         }
     }
@@ -106,6 +107,7 @@ object UploadDescriptions : Table() {
     val zone = varchar("zone", 256)
     val targetCollection = varchar("target_collection", 2048)
     val targetName = varchar("target_name", 1024)
+    val savedAs = text("saved_as").nullable()
     val doChecksum = bool("do_checksum")
     val sensitive = bool("sensitive")
 }

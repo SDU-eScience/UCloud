@@ -48,4 +48,12 @@ class ICATTest {
         val result = connection.findAvailableIRodsFileName(42, "foo.txt")
         assertEquals("foo.txt", result)
     }
+
+    @Test
+    fun testDuplicateRenamingWithNumberInName() {
+        val connection = mockk<ICATConnection>(relaxed = true)
+        every { connection.findIRodsFileNamesLike(any(), any()) } returns listOf("2Lenna.png")
+        val result = connection.findAvailableIRodsFileName(42, "2Lenna.png")
+        assertEquals("2Lenna(1).png", result)
+    }
 }

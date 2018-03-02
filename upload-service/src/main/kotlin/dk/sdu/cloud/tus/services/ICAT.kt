@@ -202,7 +202,7 @@ fun ICATConnection.findAvailableIRodsFileName(collectionId: Long, desiredIRodsNa
             val nameWithoutExtension = it.substringBefore('.')
             val nameWithoutPrefix = nameWithoutExtension.substringAfter(desiredWithoutExtension)
 
-            if (nameWithoutExtension.isEmpty()) {
+            if (nameWithoutPrefix.isEmpty()) {
                 0 // We have an exact match on the file name
             } else {
                 val match = DUPLICATE_NAMING_REGEX.matchEntire(nameWithoutPrefix)

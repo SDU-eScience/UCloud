@@ -97,6 +97,15 @@ class UploadStateProcessor(
                                 registerAccessEntry(ICATAccessEntry(objectId, entry.userId, 1200, now, now))
                                 commit()
 
+                                // Cannot do this in a single update, since we have multiple DBs and APIs. We should
+                                // really agree on a single one......
+                                transaction {
+                                    UploadDescriptions.update({ UploadDescriptions.id eq state.id }) {
+                                        it[UploadDescriptions.savedAs] =
+                                                "${irodsCollection.removePrefix("/tempZone").removeSuffix("/")}/$availableName"
+                                    }
+                                }
+
                                 log.info("Object has been registered: $event")
                             } else {
                                 log.info("User does not have permission to upload file to target resource!")
