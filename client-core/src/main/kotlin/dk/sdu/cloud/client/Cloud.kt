@@ -45,8 +45,7 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
                 HttpClient.get(url) {
                     context.apply { configureCall() }
                     configure()
-
-                    log.debug("Making call: $url: ${this}")
+                    log.debug("Making call: $url: ${this@PreparedRESTCall}")
                 }
             } catch (ex: ConnectException) {
                 log.debug("ConnectException: ${ex.message}")

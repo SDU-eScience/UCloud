@@ -97,6 +97,11 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
                     }
                 }
             }
+
+            override fun toString(): String {
+                val name = (fullName ?: "${method.name()} $resolvedPath") + " (${owner.name}@${owner.version})"
+                return "$name($payload)"
+            }
         }
     }
 

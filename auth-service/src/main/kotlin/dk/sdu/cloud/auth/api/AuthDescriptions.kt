@@ -23,7 +23,6 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     val refresh = callDescription<Unit, AccessToken, Unit> {
         method = HttpMethod.POST
         prettyName = "auth.refresh"
-        shouldProxyFromGateway = false
 
         path {
             using(baseContext)
@@ -34,7 +33,6 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     val logout = callDescription<Unit, Unit, Unit> {
         method = HttpMethod.POST
         prettyName = "auth.logout"
-        shouldProxyFromGateway = false
 
         path {
             using(baseContext)
@@ -45,7 +43,6 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     val claim = callDescription<ClaimOneTimeToken, Unit, Unit> {
         method = HttpMethod.POST
         prettyName = "auth.claim"
-        shouldProxyFromGateway = false
 
         path {
             using(baseContext)
@@ -57,7 +54,6 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     val requestOneTimeTokenWithAudience = callDescription<RequestOneTimeToken, OneTimeAccessToken, Unit> {
         method = HttpMethod.POST
         prettyName = "auth.requestOneTimeTokenWithAudience"
-        shouldProxyFromGateway = false
 
         path {
             using(baseContext)

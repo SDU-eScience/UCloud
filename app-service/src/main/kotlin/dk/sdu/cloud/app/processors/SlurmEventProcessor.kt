@@ -124,15 +124,15 @@ class SlurmEventProcessor(
 
                     val upload = runBlocking {
                         val owner = jobWithStatus.jobInfo.owner
-                        TusDescriptions.create.call(
-                            CreationCommand(
-                                fileName = jobWithStatus.jobInfo.jobId + "-" + transfer.source,
-                                owner = owner,
-                                location = "/${irodsConfig.zone}/home/$owner/Jobs",
-                                length = sourceFile.size,
-                                sensitive = false // TODO Sensitivity
-                            ), cloud
+                        val payload = CreationCommand(
+                            fileName = jobWithStatus.jobInfo.jobId + "-" + transfer.destination,
+                            owner = owner,
+                            location = "/${irodsConfig.zone}/home/$owner/Jobs",
+                            length = sourceFile.size,
+                            sensitive = false // TODO Sensitivity
                         )
+                        log.debug("Upload to create at SDUCloud: $payload")
+                        TusDescriptions.create.call(payload, cloud)
                     } as? RESTResponse.Ok ?: throw IllegalStateException("Upload failed")
 
                     val uploadLocation = upload.response.headers["Location"]!!

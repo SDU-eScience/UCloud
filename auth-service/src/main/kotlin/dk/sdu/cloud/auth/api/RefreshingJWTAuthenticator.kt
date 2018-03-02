@@ -5,16 +5,13 @@ import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.prepare
 import dk.sdu.cloud.service.TokenValidation
-import io.ktor.html.insert
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.BoundRequestBuilder
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalAmount
-import java.time.temporal.TemporalUnit
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 class RefreshingJWTAuthenticator(
     override val parent: CloudContext,
@@ -63,10 +60,22 @@ class RefreshingJWTAuthenticator(
                     currentAccessToken = result.result.accessToken
                     return currentAccessToken
                 } else {
-                    throw ConnectException(
-                        "Unable to connect to authentication service while trying " +
-                                "to refresh access token"
-                    )
+                    if (result.status == HttpStatusCode.BadGateway.value ||
+                        result.status == HttpStatusCode.GatewayTimeout.value
+                    ) {
+                        throw ConnectException(
+                            "Unable to connect to authentication service while trying " +
+                                    "to refresh access token"
+                        )
+                    }
+
+                    if (result.status == HttpStatusCode.Unauthorized.value ||
+                        result.status == HttpStatusCode.Forbidden.value
+                    ) {
+                        throw IllegalStateException("We are not authorized to refresh the token! $result")
+                    }
+
+                    throw ConnectException("Unexpected status code from auth service while refreshing: $result")
                 }
             }
             log.debug("Token already refreshed")
