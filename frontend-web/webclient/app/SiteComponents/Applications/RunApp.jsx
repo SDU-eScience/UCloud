@@ -107,7 +107,7 @@ class RunApp extends React.Component {
 
             if (parameterType === "integer") {
                 result.parameterValues[parameterName] = parseInt(result.parameterValues[parameterName]);
-            } else if (parameterType === "float") {
+            } else if (parameterType === "floating_point") {
                 result.parameterValues[parameterName] = parseFloat(result.parameterValues[parameterName]);
             }
             // TODO Deal with this correctly FIXME
