@@ -90,6 +90,58 @@ class ICATConnection(connection: Connection) : Connection by connection {
         return names
     }
 
+    fun registerCollection(collectionName: String, irodsOwner: String, irodsOwnerZone: String): Long? {
+        val query = """
+            INSERT INTO r_coll_main (
+              coll_id,
+              parent_coll_name,
+              coll_name,
+              coll_owner_name,
+              coll_owner_zone,
+              coll_map_id,
+              coll_inheritance,
+              coll_type,
+              coll_info1,
+              coll_info2,
+              coll_expiry_ts,
+              r_comment,
+              create_ts,
+              modify_ts
+            )
+
+            VALUES (
+              NEXTVAL('r_objectid'),
+              ?,
+              ?,
+              ?,
+              ?,
+              0,
+              '',
+              '',
+              '',
+              '',
+              NULL,
+              NULL,
+              ?,
+              ?
+            );
+            """
+
+        val now = convertTimestampToICAT(System.currentTimeMillis())
+        prepareStatement(query).apply {
+            setString(1, collectionName.substringBeforeLast('/', "/"))
+            setString(2, collectionName)
+            setString(3, irodsOwner)
+            setString(4, irodsOwnerZone)
+            setString(5, now)
+            setString(6, now)
+        }.executeUpdate()
+
+        return prepareStatement("SELECT currval('r_objectid')").executeQuery().run {
+            if (next()) getLong(1) else null
+        }
+    }
+
     fun registerDataObject(
         collectionId: Long, cephId: String, objectSize: Long,
         irodsName: String, irodsOwner: String, irodsOwnerZone: String, irodsResourceId: Long
