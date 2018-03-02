@@ -45,7 +45,7 @@ export default class IndeterminateCheckbox extends React.Component {
             }));
             this.props.onChange(this.props.parameter.name, {target: {value: value}});
         } else {
-            this.props.onChange(this.props.parameter.name, {target: {value: checkbox.checked}})
+            this.props.onChange(this.props.parameter.name, {target: {value: checkbox.checked}});
         }
     }
 

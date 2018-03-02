@@ -176,7 +176,9 @@ class RunApp extends React.Component {
                             <Parameters parameters={this.state.parameters} handleSubmit={this.handleSubmit}
                                         onChange={this.handleInputChange} comment={this.state.comment}
                                         onFileSelectionChange={this.handleFileSelectorChange}
-                                        onCommentChange={this.onCommentChange} uppy={this.state.uppy}/>
+                                        onCommentChange={this.onCommentChange} uppy={this.state.uppy}
+                                        values={this.state.parameterValues}
+                            />
                         </div>
                     </div>
                 </div>
@@ -201,7 +203,7 @@ function Parameters(props) {
     let i = 0;
     let parametersList = props.parameters.map(parameter =>
         <Parameter key={i++} parameter={parameter} onChange={props.onChange} uppyOpen={props.openUppy}
-                   onFileSelectionChange={props.onFileSelectionChange} uppy={props.uppy}/>
+                   onFileSelectionChange={props.onFileSelectionChange} uppy={props.uppy} values={props.values}/>
     );
     return (
         <form onSubmit={props.handleSubmit} className="form-horizontal">
@@ -232,9 +234,12 @@ function Parameter(props) {
     } else if (props.parameter.type === "output_file") {
         return null; // parameter = (<OutputFileParameter parameter={props.parameter}/>);
     } else if (props.parameter.type === "integer") {
-        return (<fieldset><IntegerParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
+        return (
+            <fieldset><IntegerParameter onChange={props.onChange} parameter={props.parameter} values={props.values}/>
+            </fieldset>);
     } else if (props.parameter.type === "floating_point") {
-        return (<fieldset><FloatParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
+        return (<fieldset><FloatParameter onChange={props.onChange} parameter={props.parameter} values={props.values}/>
+        </fieldset>);
     } else if (props.parameter.type === "text") {
         return (<fieldset><TextParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
     } else if (props.parameter.type === "boolean") {
@@ -282,6 +287,21 @@ function TextParameter(props) {
 }
 
 function IntegerParameter(props) {
+    let value = props.values[props.parameter.name];
+    value = value !== undefined && !isNaN(value) ? value.toString() : 0;
+    let slider = null;
+    if (props.parameter.min !== null && props.parameters.max !== null) {
+        slider = (
+            <input
+                min={props.parameter.min}
+                max={props.parameter.max}
+                value={value}
+                step={1}
+                type="range"
+                onChange={e => props.onChange(props.parameter.name, e)}
+            />
+        );
+    }
     return (
         <div className="form-group">
             <label
@@ -293,6 +313,7 @@ function IntegerParameter(props) {
                     className="form-control"
                     type="number"
                     step="1" onChange={e => props.onChange(props.parameter.name, e)}/>
+                {slider}
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>);
@@ -315,17 +336,37 @@ function BooleanParameter(props) {
 }
 
 function FloatParameter(props) {
+    let value = props.values[props.parameter.name];
+    value = value !== undefined && !isNaN(value) ? value.toString() : 0;
+    let slider = null;
+    if (props.parameter.min !== null && props.parameters.max !== null) {
+        slider = (
+            <input
+                min={props.parameter.min}
+                max={props.parameter.max}
+                value={value}
+                step={props.parameter.step}
+                type="range"
+                onChange={e => {
+                    props.onChange(props.parameter.name, e)
+                }}
+            />
+        );
+    }
     return (
         <div className="form-group">
             <label
                 className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
-                <input id="parameter.name"
-                       placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
-                       required={!props.parameter.optional} name={props.parameter.name}
-                       className="form-control"
-                       type="number"
-                       step="any" onChange={e => props.onChange(props.parameter.name, e)}/>
+                <input
+                    placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
+                    required={!props.parameter.optional} name={props.parameter.name}
+                    className="form-control"
+                    type="number"
+                    step="any"
+                    value={value}
+                    onChange={e => props.onChange(props.parameter.name, e)}/>
+                {slider}
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>
