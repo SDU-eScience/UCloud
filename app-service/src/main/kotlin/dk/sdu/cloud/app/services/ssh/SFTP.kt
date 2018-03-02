@@ -35,15 +35,11 @@ fun SSHConnection.stat(path: String): SftpATTRS? =
     }
 
 fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<Pair<String, Long>> {
-    val hasGlob = path.substringAfterLast('/').contains("*")
     val parentDirectory = baseDirectory.removeSuffix("/") + "/" + path.substringBeforeLast('/', ".")
     val query = baseDirectory.removeSuffix("/") + "/" + path.removeSuffix("/")
     return try {
         ls(query)
-            .map {
-                if (hasGlob) Pair(parentDirectory + "/" + it.filename, it.attrs.size)
-                else Pair(query + "/" + it.filename, it.attrs.size)
-            }
+            .map { Pair(parentDirectory + "/" + it.filename, it.attrs.size) }
             .map { Pair(File(it.first).normalize().absolutePath, it.second) }
             .filter { it.first.startsWith(baseDirectory) }
     } catch (ex: SftpException) {
