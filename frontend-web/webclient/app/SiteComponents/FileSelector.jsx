@@ -22,20 +22,49 @@ class FileSelector extends React.Component {
             uppyOpen: false,
             breadcrumbs: [],
             onFileSelectionChange: props.onFileSelectionChange,
+            uppyOnUploadSuccess: null,
         };
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.getFiles = this.getFiles.bind(this);
         this.setSelectedFile = this.setSelectedFile.bind(this);
-        this.changeUppyShown = this.changeUppyShown.bind(this);
-        this.setFileThroughUppy = this.setFileThroughUppy.bind(this);
+        this.openUppy = this.openUppy.bind(this);
+        this.onUppyClose = this.onUppyClose.bind(this);
     }
 
-    changeUppyShown() {
-        const shown = this.state.uppyOpen;
+    openUppy() {
+        let uppyOnUploadSuccess = (file, resp, uploadURL) => {
+            // TODO This is a hack.
+            let apiIndex = uploadURL.indexOf("/api/");
+            if (apiIndex === -1) throw "Did not expect upload URL to not contain /api/";
+
+            let apiEndpoint = uploadURL.substring(apiIndex + 5)
+            
+            Cloud.head(apiEndpoint).then(it => {
+                console.log("Got a response back!");
+                let path = it.request.getResponseHeader("File-Location");
+                let lastSlash = path.lastIndexOf("/");
+                if (lastSlash === -1) throw "Could not parse name of path: " + path;
+                let name = path.substring(lastSlash + 1);
+                let fileObject = {
+                    path: {
+                        host: "tempZone",
+                        path: path,
+                        uri: `storage://tempZone${path}`, // TODO The old format is being deprecated, hence the hardcoded string.
+                        name: name,
+                    }
+                };
+
+                this.setSelectedFile(fileObject);
+            });
+        };
+
+        this.props.uppy.on("upload-success", uppyOnUploadSuccess);
         this.setState(() => ({
-            uppyOpen: !shown
+            uppyOpen: true,
+            uppyOnUploadSuccess: uppyOnUploadSuccess,
         }));
+
     }
 
     componentDidMount() {
@@ -44,6 +73,13 @@ class FileSelector extends React.Component {
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
+        
+        // Clean up in uppy. TODO potentially refactor this
+        let uppyOnUploadSuccess = this.state.uppyOnUploadSuccess;
+        if (uppyOnUploadSuccess !== null) {
+            this.props.uppy.off("upload-success", uppyOnUploadSuccess);
+        }
+        this.props.uppy.reset();
     }
 
     openModal() {
@@ -58,23 +94,24 @@ class FileSelector extends React.Component {
         }));
     }
 
-    setFileThroughUppy() {
+    onUppyClose() {
+        this.props.uppy.off("upload-success", this.state.uppyOnUploadSuccess);
         this.setState(() => ({
             uppyOpen: false,
+            uppyOnUploadSuccess: null,
         }));
-        const files = this.props.uppy.getState().files;
-        for (const file in files) {
-            this.setSelectedFile({path: {path: files[file].name}})
-        }
         this.props.uppy.reset();
     }
 
     setSelectedFile(file) {
+        console.log(file);
+        let fileCopy = { path: Object.assign({}, file.path) }; 
+        console.log(fileCopy);
         this.setState(() => ({
-            selectedFile: file,
+            selectedFile: fileCopy,
             modalShown: false,
         }));
-        this.state.onFileSelectionChange(file, this.state.returnObject);
+        this.state.onFileSelectionChange(fileCopy, this.state.returnObject);
     }
 
     getFiles(path) {
@@ -93,12 +130,12 @@ class FileSelector extends React.Component {
         uploadButton = uppyModal = null;
         if (this.props.allowUpload) {
             uploadButton = this.props.allowUpload ?
-                (<UploadButton changeUppyShown={this.changeUppyShown}/>) : null;
+                (<UploadButton onClick={this.openUppy}/>) : null;
             uppyModal = (<DashboardModal
                 uppy={this.props.uppy}
                 closeModalOnClickOutside
                 open={this.state.uppyOpen}
-                onRequestClose={this.setFileThroughUppy}
+                onRequestClose={this.onUppyClose}
             />)
         }
         return (
@@ -158,7 +195,7 @@ function FileSelectorBody(props) {
 
 function UploadButton(props) {
     return (
-        <span className="input-group-addon btn btn-info" onClick={() => props.changeUppyShown()}>Upload file</span>
+        <span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>
     );
 }
 

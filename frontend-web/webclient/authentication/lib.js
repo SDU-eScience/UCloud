@@ -41,8 +41,22 @@ export default class SDUCloud {
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("contentType", "application/json");
                 req.onload = () => {
-                    if (req.status === 200) {
-                        resolve({response: JSON.parse(req.response), request: req});
+                    if (req.status >= 200 && req.status <= 299) {
+                        let responseContentType = req.getResponseHeader("content-type");
+                        let parsedResponse = req.response;
+
+                        // JSON Parsing
+                        if (responseContentType !== null) {
+                            if (responseContentType.indexOf("application/json") !== -1 || 
+                                    responseContentType.indexOf("application/javascript") !== -1) {
+                                parsedResponse = JSON.parse(parsedResponse);
+                            }
+                        }
+
+                        resolve({
+                            response: parsedResponse,
+                            request: req,
+                        });
                     } else {
                         reject(req.status, req.response);
                     }
@@ -96,6 +110,13 @@ export default class SDUCloud {
      */
     options(path, body) {
         return this.call("OPTIONS", path, body);
+    }
+
+    /**
+     * Calls with the HEAD HTTP method. See call(method, path, body)
+     */
+    head(path) {
+        return this.call("HEAD", path, null);
     }
 
     /**
@@ -161,7 +182,7 @@ export default class SDUCloud {
                     req.setRequestHeader("Authorization", `Bearer ${token}`);
                     req.setRequestHeader("contentType", "application/json");
                     req.onload = () => {
-                        if (req.status === 200) {
+                        if (req.status >= 200 && req.status <= 299) {
                             resolve({response: JSON.parse(req.response), request: req});
                         } else {
                             reject(req.response);
