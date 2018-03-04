@@ -7,13 +7,13 @@ import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.KafkaHttpRouteLogger
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.tus.ICatDatabaseConfig
+import dk.sdu.cloud.storage.ext.irods.ICAT
+import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.TusExtensions
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusUploadEvent
 import dk.sdu.cloud.tus.api.internal.UploadEventProducer
-import dk.sdu.cloud.tus.services.ICAT
 import dk.sdu.cloud.tus.services.IReadChannel
 import dk.sdu.cloud.tus.services.RadosStorage
 import dk.sdu.cloud.tus.services.TransferStateService

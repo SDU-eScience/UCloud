@@ -3,6 +3,7 @@ package dk.sdu.cloud.tus
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusServiceDescription
 import io.ktor.application.Application
 import io.ktor.server.cio.CIO
@@ -15,13 +16,6 @@ import java.io.File
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.project.MainKt")
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
-
-data class ICatDatabaseConfig(
-    val jdbcUrl: String,
-    val user: String,
-    val password: String,
-    val defaultZone: String
-)
 
 data class Configuration(
     private val connection: RawConnectionConfig,

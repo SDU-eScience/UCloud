@@ -4,11 +4,16 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.storage.model.StorageFile
 import io.netty.handler.codec.http.HttpMethod
 
 data class FindByPath(val path: String)
+data class CreateDirectoryRequest(
+    val path: String,
+    val owner: String?
+)
 
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
@@ -49,7 +54,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val createDirectory = callDescription<FindByPath, Unit, CommonErrorMessage> {
+    val createDirectory = callDescription<CreateDirectoryRequest, Unit, CommonErrorMessage> {
         prettyName = "createDirectory"
         method = HttpMethod.POST
 
@@ -58,8 +63,8 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
             +"directory"
         }
 
-        params {
-            +boundTo(FindByPath::path)
+        body {
+            bindEntireRequestFromBody()
         }
     }
 

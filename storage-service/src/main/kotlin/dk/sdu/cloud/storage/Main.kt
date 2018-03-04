@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
+import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
 import io.ktor.server.engine.embeddedServer
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory
 
 data class Configuration(
     val storage: StorageConfiguration,
+    val icat: ICatDatabaseConfig,
     private val connection: RawConnectionConfig,
     val refreshToken: String
 ) : ServerConfiguration {

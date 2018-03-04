@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.ext.irods.ICAT
 import dk.sdu.cloud.storage.http.ACLController
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
@@ -36,6 +37,8 @@ class Server(
     fun start() {
         val instance = StorageServiceDescription.instance(configuration.connConfig)
 
+        val icat = ICAT(configuration.icat)
+
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
             val kBuilder = StreamsBuilder()
@@ -62,7 +65,7 @@ class Server(
 
             routing {
                 route("api") {
-                    FilesController(storageService).configure(this)
+                    FilesController(storageService, icat, configuration.icat.defaultZone).configure(this)
                     SimpleDownloadController(cloud, storageService).configure(this)
                     ACLController(storageService).configure(this)
                 }

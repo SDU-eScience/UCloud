@@ -3,12 +3,12 @@ package dk.sdu.cloud.tus
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.storage.ext.irods.ICAT
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusServiceDescription
 import dk.sdu.cloud.tus.api.internal.TusStreams
 import dk.sdu.cloud.tus.http.TusController
 import dk.sdu.cloud.tus.processors.UploadStateProcessor
-import dk.sdu.cloud.tus.services.ICAT
 import dk.sdu.cloud.tus.services.RadosStorage
 import dk.sdu.cloud.tus.services.TransferStateService
 import io.ktor.application.install

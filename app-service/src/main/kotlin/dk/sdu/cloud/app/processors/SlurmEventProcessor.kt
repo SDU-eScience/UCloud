@@ -13,8 +13,8 @@ import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.EventProducer
+import dk.sdu.cloud.storage.api.CreateDirectoryRequest
 import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.FindByPath
 import dk.sdu.cloud.tus.api.CreationCommand
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.internal.start
@@ -88,7 +88,11 @@ class SlurmEventProcessor(
             run {
                 log.debug("Creating directory...")
                 val directoryCreation = runBlocking {
-                    FileDescriptions.createDirectory.call(FindByPath(outputDirectoryWithoutZone), cloud)
+                    FileDescriptions.createDirectory.call(
+                        CreateDirectoryRequest(
+                            outputDirectoryWithoutZone, owner
+                        ), cloud
+                    )
                 }
 
                 if (directoryCreation !is RESTResponse.Ok) {

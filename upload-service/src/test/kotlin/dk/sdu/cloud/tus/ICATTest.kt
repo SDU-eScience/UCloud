@@ -1,6 +1,6 @@
 package dk.sdu.cloud.tus
 
-import dk.sdu.cloud.tus.services.ICATConnection
+import dk.sdu.cloud.storage.ext.irods.ICATConnection
 import dk.sdu.cloud.tus.services.findAvailableIRodsFileName
 import io.mockk.every
 import io.mockk.mockk

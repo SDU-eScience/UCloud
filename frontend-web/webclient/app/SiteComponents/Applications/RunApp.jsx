@@ -16,6 +16,7 @@ class RunApp extends React.Component {
             promises: new PromiseKeeper(),
             loading: false,
             appName: props.match.params.appName,
+            displayAppName: props.match.params.appName,
             appVersion: props.match.params.appVersion,
             appDescription: "",
             appAuthor: "",
@@ -154,10 +155,11 @@ class RunApp extends React.Component {
             }
 
             this.setState(() => ({
-                appName: app.prettyName,
+                appName: app.info.name,
+                displayAppName: app.prettyName,
                 parameters: app.parameters,
                 appAuthor: authors,
-                appDescription: app.info.description,
+                appDescription: app.description,
                 loading: false,
             }));
         });
@@ -171,7 +173,7 @@ class RunApp extends React.Component {
                     <div className="card">
                         <div className="card-body">
                             <BallPulseLoading loading={this.state.loading}/>
-                            <ApplicationHeader name={this.state.appName} version={this.state.appVersion}
+                            <ApplicationHeader name={this.state.displayAppName} version={this.state.appVersion}
                                                description={this.state.appDescription} author={this.state.appAuthor}/>
                             <Parameters parameters={this.state.parameters} handleSubmit={this.handleSubmit}
                                         onChange={this.handleInputChange} comment={this.state.comment}

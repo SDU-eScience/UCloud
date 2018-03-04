@@ -1,5 +1,7 @@
 package dk.sdu.cloud.tus.processors
 
+import dk.sdu.cloud.storage.ext.irods.ICAT
+import dk.sdu.cloud.storage.ext.irods.ICATAccessEntry
 import dk.sdu.cloud.tus.api.TusUploadEvent
 import dk.sdu.cloud.tus.api.internal.UploadEventStream
 import dk.sdu.cloud.tus.services.*
