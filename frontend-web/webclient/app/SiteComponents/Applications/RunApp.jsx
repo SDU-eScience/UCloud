@@ -267,6 +267,7 @@ function InputFileParameter(props) {
                     className="form-control"
                     type="text"/>
                 <div>Destination of the file</div>
+                <OptionalText optional={props.parameter.optional}/>
             </div>
         </div>
     )
@@ -282,6 +283,7 @@ function TextParameter(props) {
                     required={!props.parameter.optional}
                     className="form-control"
                     type="text" onChange={e => props.onChange(props.parameter.name, e)}/>
+                <OptionalText optional={props.parameter.optional}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>
@@ -316,21 +318,21 @@ function IntegerParameter(props) {
                     type="number"
                     step="1" onChange={e => props.onChange(props.parameter.name, e)}/>
                 {slider}
+                <OptionalText optional={props.parameter.optional}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>);
 }
 
 function BooleanParameter(props) {
-    const optional = props.parameter.optional ? (<span className="help-block"><b>Optional</b></span>) : null;
     return (
         <div className="form-group">
-            <label className="col-sm-2 control-label">{props.parameter.prettyName}{optional}</label>
+            <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
                 <IndeterminateCheckbox parameter={props.parameter} defaultValue={props.parameter.defaultValue}
                                        onChange={props.onChange}
                                        isIndeterminate={props.parameter.optional}/><span> {}</span>
-                {optional}
+                <OptionalText optional={props.parameter.optional}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>
@@ -369,10 +371,15 @@ function FloatParameter(props) {
                     value={value}
                     onChange={e => props.onChange(props.parameter.name, e)}/>
                 {slider}
+                <OptionalText optional={props.parameter.optional}/>
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>
     )
+}
+
+function OptionalText(props) {
+    return props.optional ? (<span className="help-block"><b>Optional</b></span>) : null;
 }
 
 export default RunApp;
