@@ -2,7 +2,7 @@ import React from "react";
 import swal from "sweetalert2";
 import {RightsMap, RightsNameMap, SensitivityLevelMap, AnalysesStatusMap} from "./DefaultObjects"
 
-function NotificationIcon(props) {
+export function NotificationIcon(props) {
     if (props.type === "Complete") {
         return (<div className="initial32 bg-green-500">✓</div>)
     } else if (props.type === "In Progress") {
@@ -16,12 +16,14 @@ function NotificationIcon(props) {
     }
 }
 
-function toLowerCaseAndCapitalize(str) {
-    if (!str) { return ""; }
+export function toLowerCaseAndCapitalize(str) {
+    if (!str) {
+        return "";
+    }
     return str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 }
 
-function WebSocketSupport() {
+export function WebSocketSupport() {
     let hasWebSocketSupport = "WebSocket" in window;
     if (!hasWebSocketSupport) {
         return (
@@ -33,7 +35,7 @@ function WebSocketSupport() {
     return (null);
 }
 
-function sortFilesByFavorite(files, asc) {
+export function sortFilesByFavorite(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.favorited - b.favorited) * order
@@ -41,7 +43,7 @@ function sortFilesByFavorite(files, asc) {
     return files;
 }
 
-function sortFilesByModified(files, asc) {
+export function sortFilesByModified(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.modifiedAt - b.modifiedAt) * order;
@@ -49,7 +51,7 @@ function sortFilesByModified(files, asc) {
     return files;
 }
 
-function sortFilesByTypeAndName(files, asc) {
+export function sortFilesByTypeAndName(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
@@ -63,7 +65,7 @@ function sortFilesByTypeAndName(files, asc) {
     return files;
 }
 
-function sortFilesByOwner(files, asc) { // FIXME Should sort based on the value inside the acl (OWN, READ, READ/WRITE)
+export function sortFilesByOwner(files, asc) { // FIXME Should sort based on the value inside the acl (OWN, READ, READ/WRITE)
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.acl.length - b.acl.length) * order;
@@ -71,7 +73,7 @@ function sortFilesByOwner(files, asc) { // FIXME Should sort based on the value 
     return files;
 }
 
-function sortByStatus(analyses, asc) {
+export function sortByStatus(analyses, asc) {
     let order = asc ? 1 : -1;
     analyses.sort((a, b) => {
         return (AnalysesStatusMap[a.status] - AnalysesStatusMap[b.status]) * order;
@@ -79,7 +81,7 @@ function sortByStatus(analyses, asc) {
     return analyses;
 }
 
-function sortFilesBySensitivity(files, asc) {
+export function sortFilesBySensitivity(files, asc) {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return SensitivityLevelMap[a.sensitivityLevel] - SensitivityLevelMap[b.sensitivityLevel] * order;
@@ -87,7 +89,7 @@ function sortFilesBySensitivity(files, asc) {
     return files;
 }
 
-function favorite(files, uri, cloud) {
+export function favorite(files, uri, cloud) {
     let file = files.find(file => file.path.uri === uri);
     file.favorited = !file.favorited;
     if (file.favorited) {
@@ -98,7 +100,7 @@ function favorite(files, uri, cloud) {
     return files;
 }
 
-function getOwnerFromAcls(acls, cloud) {
+export function getOwnerFromAcls(acls, cloud) {
     let userName = cloud.username;
     let result = acls.find(acl => acl.entity.displayName === userName);
     if (!result) {
@@ -107,7 +109,7 @@ function getOwnerFromAcls(acls, cloud) {
     return result.right;
 }
 
-function updateSharingOfFile(filePath, user, currentRights, cloud) {
+export function updateSharingOfFile(filePath, user, currentRights, cloud) {
     swal({
         title: "Please specify access level",
         text: `The file ${filePath.name} is to be shared with ${user}.`,
@@ -138,7 +140,7 @@ function updateSharingOfFile(filePath, user, currentRights, cloud) {
     });
 }
 
-function shareFile(filePath, cloud) {
+export function shareFile(filePath, cloud) {
     swal({
         title: "Share file",
         text: `Enter a username to share ${filePath.name} with.`,
@@ -182,7 +184,7 @@ function shareFile(filePath, cloud) {
     );
 }
 
-function revokeSharing(filePath, person, rightsLevel, cloud) {
+export function revokeSharing(filePath, person, rightsLevel, cloud) {
     swal({
         title: "Revoke access",
         text: `Revoke ${rightsLevel} access for ${person}`,
@@ -202,7 +204,7 @@ function revokeSharing(filePath, person, rightsLevel, cloud) {
     });
 }
 
-function createFolder(currentPath) {
+export function createFolder(currentPath) {
     swal({
         title: "Create folder",
         text: `The folder will be created in:\n${currentPath}`,
@@ -219,7 +221,7 @@ function createFolder(currentPath) {
     })
 }
 
-function renameFile(filePath) {
+export function renameFile(filePath) {
     swal({
         title: "Rename file",
         text: `The file ${filePath.name} will be renamed`,
@@ -234,11 +236,7 @@ function renameFile(filePath) {
     })
 }
 
-function sendToAbacus(filePath) {
-
-}
-
-function showFileDeletionPrompt(filePath) {
+export function showFileDeletionPrompt(filePath) {
     swal({
         title: "Delete file",
         text: `Delete file ${filePath.name}`,
@@ -255,8 +253,10 @@ function showFileDeletionPrompt(filePath) {
     });
 }
 
-function getParentPath(path) {
-    if (!path) { return ""; }
+export function getParentPath(path) {
+    if (!path) {
+        return "";
+    }
     let splitPath = path.split("/");
     splitPath = splitPath.filter(path => path);
     let parentPath = "/";
@@ -266,11 +266,11 @@ function getParentPath(path) {
     return parentPath;
 }
 
-function publishToZenodo(uri) {
+export function publishToZenodo(uri) {
     console.log(uri);
 }
 
-function downloadFile(path, cloud) {
+export function downloadFile(path, cloud) {
     cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
         let link = document.createElement("a");
         window.location.href = "/api/files/download?path=" + encodeURI(path) + "&token=" + encodeURI(token);
@@ -279,28 +279,45 @@ function downloadFile(path, cloud) {
     });
 }
 
-function fileSizeToString(bytes) {
-    if (!bytes) { return ""; }
+export function fileSizeToString(bytes) {
+    if (!bytes) {
+        return "";
+    }
     if (bytes < 1000) {
         return `${bytes} B`;
-    } else if (bytes < 1000**2) {
+    } else if (bytes < 1000 ** 2) {
         return `${bytes / 1000} KB`;
-    } else if (bytes < 1000**3) {
+    } else if (bytes < 1000 ** 3) {
         return `${bytes / 1000 ** 2} MB`;
-    } else if (bytes < 1000**4) {
+    } else if (bytes < 1000 ** 4) {
         return `${bytes / 1000 ** 3} GB`;
-    } else if (bytes < 1000**5) {
+    } else if (bytes < 1000 ** 5) {
         return `${bytes / 1000 ** 4} TB`;
-    } else if  (bytes < 1000**6) {
+    } else if (bytes < 1000 ** 6) {
         return `${bytes / 1000 ** 5} PB`;
-    } else if (bytes < 1000**7) {
+    } else if (bytes < 1000 ** 7) {
         return `${bytes / 1000 ** 6} EB`;
     } else {
         return `${bytes} B`;
     }
 }
 
-function getCurrentRights(files, cloud) {
+export function castValueTo(parameterType = null, value = null) {
+    if (!parameterType) { return value; }
+    switch (parameterType) {
+        case "integer": {
+            return parseInt(value);
+        }
+        case "floating_point": {
+            return parseFloat(value)
+        }
+        default: {
+            return value;
+        }
+    }
+}
+
+export function getCurrentRights(files, cloud) {
     let lowestPrivilegeOptions = RightsMap["OWN"];
     files.forEach((it) => {
         it.acl.filter(acl => acl.entity.displayName === cloud.username).forEach((acl) => {
@@ -311,29 +328,4 @@ function getCurrentRights(files, cloud) {
         rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
         rightsLevel: lowestPrivilegeOptions
     }
-}
-
-export {
-    NotificationIcon,
-    WebSocketSupport,
-    createFolder,
-    favorite,
-    sortFilesByTypeAndName,
-    sortFilesByModified,
-    sortFilesByFavorite,
-    sortFilesByOwner,
-    sortFilesBySensitivity,
-    shareFile,
-    getOwnerFromAcls,
-    showFileDeletionPrompt,
-    sendToAbacus,
-    renameFile,
-    getParentPath,
-    updateSharingOfFile,
-    revokeSharing,
-    fileSizeToString,
-    downloadFile,
-    getCurrentRights,
-    toLowerCaseAndCapitalize,
-    publishToZenodo,
 }

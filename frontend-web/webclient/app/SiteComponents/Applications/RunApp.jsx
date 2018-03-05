@@ -8,6 +8,7 @@ import PromiseKeeper from "../../PromiseKeeper";
 import {tusConfig} from "../../Configurations";
 import Uppy from "uppy";
 import IndeterminateCheckbox from "../IndeterminateCheckbox";
+import {castValueTo} from "../../UtilityFunctions";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -103,15 +104,7 @@ class RunApp extends React.Component {
             let result = {
                 parameterValues: Object.assign({}, this.state.parameterValues),
             };
-
-            result.parameterValues[parameterName] = value;
-
-            if (parameterType === "integer") {
-                result.parameterValues[parameterName] = parseInt(result.parameterValues[parameterName]);
-            } else if (parameterType === "floating_point") {
-                result.parameterValues[parameterName] = parseFloat(result.parameterValues[parameterName]);
-            }
-            // TODO Deal with this correctly FIXME
+            result.parameterValues[parameterName] = castValueTo(parameterType, value);
             return result;
         });
         if (event.preventDefault) {
@@ -261,12 +254,6 @@ function InputFileParameter(props) {
                               isRequired={!props.parameter.optional} allowUpload={true}
                               returnObject={{parameter: props.parameter, isSource: true}}/>
                 <span className="help-block">Source of the file</span>
-                <input
-                    placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
-                    required={!props.parameter.optional}
-                    className="form-control"
-                    type="text"/>
-                <div>Destination of the file</div>
                 <OptionalText optional={props.parameter.optional}/>
             </div>
         </div>
@@ -292,7 +279,7 @@ function TextParameter(props) {
 
 function IntegerParameter(props) {
     let value = props.values[props.parameter.name];
-    value = value !== undefined && !isNaN(value) ? value.toString() : 0;
+    value = value !== undefined && !isNaN(value) ? value : NaN.toString();
     let slider = null;
     if (props.parameter.min !== null && props.parameters.max !== null) {
         slider = (
@@ -316,6 +303,7 @@ function IntegerParameter(props) {
                     required={!props.parameter.optional} name={props.parameter.name}
                     className="form-control"
                     type="number"
+                    value={value}
                     step="1" onChange={e => props.onChange(props.parameter.name, e)}/>
                 {slider}
                 <OptionalText optional={props.parameter.optional}/>
@@ -341,7 +329,7 @@ function BooleanParameter(props) {
 
 function FloatParameter(props) {
     let value = props.values[props.parameter.name];
-    value = value !== undefined && !isNaN(value) ? value.toString() : 0;
+    value = value !== undefined && !isNaN(value) ? value : NaN.toString();
     let slider = null;
     if (props.parameter.min !== null && props.parameters.max !== null) {
         slider = (

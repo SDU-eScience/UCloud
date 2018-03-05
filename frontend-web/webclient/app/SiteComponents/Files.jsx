@@ -299,12 +299,12 @@ function ContextBar(props) {
                         className="ion-ios-home"/></Button></Link>
                 </div>
                 <hr/>
-                <button className="btn btn-primary ripple btn-block"
+                <button className="btn btn-primary btn-block"
                         onClick={props.onClick}>
                     <span className="ion-android-upload pull-left"/> Upload Files
                 </button>
                 <br/>
-                <button className="btn btn-default ripple btn-block"
+                <button className="btn btn-default btn-block"
                         onClick={() => createFolder(props.currentPath)}>
                     <span className="ion-folder pull-left"/> New folder
                 </button>

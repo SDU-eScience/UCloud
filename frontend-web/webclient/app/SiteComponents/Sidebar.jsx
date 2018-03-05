@@ -80,7 +80,7 @@ function SingleSidebarOption(props) {
     if (props.option.href) {
         return (
             <li>
-                <Link to={props.option.href} className="ripple">
+                <Link to={props.option.href}>
                     <span className="pull-right nav-label"/><span
                     className="nav-icon"/>
                     <span>{props.option.name}</span>
@@ -101,7 +101,7 @@ function SingleSidebarOption(props) {
 
         return (
             <li>
-                    <a href="#" className="ripple">
+                    <a href="#">
                         <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span><span
                         className="pull-right nav-label"/><span className="nav-icon">
                                     <img src="" data-svg-replace="img/icons/connection-bars.svg" alt="MenuItem"
@@ -118,7 +118,7 @@ function SingleSidebarOption(props) {
 
 function NestedSidebarOption(props) {
     return (
-        <Link to={props.option.href} className="ripple">
+        <Link to={props.option.href}>
             <span className="pull-right nav-label"/><span>{props.option.name}</span>
         </Link>
     )
