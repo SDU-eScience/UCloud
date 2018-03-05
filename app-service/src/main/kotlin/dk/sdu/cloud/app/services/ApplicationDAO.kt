@@ -50,54 +50,63 @@ object ApplicationDAO {
 
                     ApplicationParameter.FloatingPoint(
                         name = "interval",
+                        prettyName = "Interval",
                         description = "duration of interval between results in seconds",
                         optional = true
                     ),
 
                     ApplicationParameter.Bool(
                         name = "insert_missing",
+                        prettyName = "Insert missing",
                         description = "if true, gaps in GPS fixes are replaced by the last valid fix",
                         optional = true
                     ),
 
                     ApplicationParameter.Bool(
                         name = "insert_until",
+                        prettyName = "Insert until",
                         description = "if true, inserts until a max time is reached",
                         optional = true
                     ),
 
                     ApplicationParameter.Bool(
                         name = "insert_max_seconds",
+                        prettyName = "Insert max seconds",
                         description = "max number of seconds to replace missing fixes with last valid fix",
                         optional = true
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "los_max_duration",
+                        prettyName = "Loss of Signal (Max duration)",
                         description = "max amount of time allowed to pass before Loss of Signal is declared",
                         optional = true
                     ),
 
                     ApplicationParameter.Bool(
                         name = "remove_lone",
+                        prettyName = "Remove lone",
                         description = "if true, removes lone fixes",
                         optional = true
                     ),
 
                     ApplicationParameter.Bool(
                         name = "filter_invalid",
+                        prettyName = "Filter invalid",
                         description = "if true, removes invalid fixes",
                         optional = true
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "max_speed",
+                        prettyName = "Max speed",
                         description = "Consider fix invalid if speed is greater than this value (in km/hr)",
                         optional = true
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "max_ele_change",
+                        prettyName = "Maximum elevation change",
                         description = "Consider fix invalid if elevation change is greater than this value (in meters)",
                         optional = true
                     ),
@@ -111,6 +120,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.Bool(
                         name = "detect_indoors",
+                        prettyName = "Detect indoors",
                         description = "If true, mark position as indoors, outdoors or in-vehicle",
                         optional = true
                     ),
@@ -121,6 +131,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.FloatingPoint(
                         name = "min_distance",
+                        prettyName = "Minimum distance",
                         description = "minimum distance (in meters) that must be travelled over one minute to " +
                                 "indicate the start of a trip. Default choosen to be 34 meters which is equal to " +
                                 "a typical walking speed of 2KM/hr.",
@@ -129,24 +140,28 @@ object ApplicationDAO {
 
                     ApplicationParameter.FloatingPoint(
                         name = "min_trip_length",
+                        prettyName = "Minimum trip length",
                         description = "trips less than this distance (in meters) are not considered trips.",
                         optional = true
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "min_trip_duration",
+                        prettyName = "Minimum trip duration",
                         description = "trips less than this duration (in seconds) are not considered trips.",
                         optional = true
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "min_pause_duration",
+                        prettyName = "Minimum pause duration",
                         description = "trips less than this duration (in seconds) are not considered trips.",
                         optional = true
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "max_pause_duration",
+                        prettyName = "Maximum pause duration",
                         description = " when the duration of a pause exceeds this value, the point is marked as an " +
                                 "end point.",
                         optional = true
