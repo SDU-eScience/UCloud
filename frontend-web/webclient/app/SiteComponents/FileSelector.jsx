@@ -48,9 +48,7 @@ class FileSelector extends React.Component {
                 let name = path.substring(lastSlash + 1);
                 let fileObject = {
                     path: {
-                        host: "tempZone",
                         path: path,
-                        uri: `storage://tempZone${path}`, // TODO The old format is being deprecated, hence the hardcoded string.
                         name: name,
                     }
                 };

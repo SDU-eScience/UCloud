@@ -118,7 +118,7 @@ class RunApp extends React.Component {
                 parameterValues: Object.assign({}, this.state.parameterValues),
             };
             result.parameterValues[returnObject.parameter.name] = {
-                source: file.path.uri,
+                source: file.path.path,
                 destination: file.path.name // TODO Should allow for custom name at destination
             };
             return result;

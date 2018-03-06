@@ -115,15 +115,15 @@ function DashboardFavoriteFiles(props) {
     const filesList = props.files.map((file) => {
             if (file.type === "DIRECTORY") {
                 return (
-                    <tr key={file.path.uri}>
+                    <tr key={file.path.path}>
                         <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
-                        <td onClick={() => props.favorite(file.path.uri)}><em className="ion-star text-center"/></td>
+                        <td onClick={() => props.favorite(file.path.path)}><em className="ion-star text-center"/></td>
                     </tr>)
             } else {
                 return (
-                    <tr key={file.path.uri}>
+                    <tr key={file.path.path}>
                         <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                        <td onClick={() => props.favorite(file.path.uri)} className="text-center"><em className="ion-star"/></td>
+                        <td onClick={() => props.favorite(file.path.path)} className="text-center"><em className="ion-star"/></td>
                     </tr>)
             }
         }
@@ -163,13 +163,13 @@ function DashboardRecentFiles(props) {
         let timeString = modified >= yesterday ? modified.toLocaleTimeString() : modified.toLocaleDateString();
         if (file.type === "DIRECTORY") {
             return (
-                <tr key={file.path.uri}>
+                <tr key={file.path.path}>
                     <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
                     <td>{timeString}</td>
                 </tr>)
         } else {
             return (
-                <tr key={file.path.uri}>
+                <tr key={file.path.path}>
                     <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
                     <td>{timeString}</td>
                 </tr>)

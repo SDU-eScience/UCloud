@@ -89,8 +89,8 @@ export function sortFilesBySensitivity(files, asc) {
     return files;
 }
 
-export function favorite(files, uri, cloud) {
-    let file = files.find(file => file.path.uri === uri);
+export function favorite(files, path, cloud) {
+    let file = files.find(file => file.path.path === path);
     file.favorited = !file.favorited;
     if (file.favorited) {
         cloud.post(`/files/favorite?path=${file.path.path}`);

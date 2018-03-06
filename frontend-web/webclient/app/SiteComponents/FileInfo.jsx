@@ -94,7 +94,7 @@ class FileInfo extends React.Component {
 
     favoriteFile() {
         this.setState(() => ({
-            file: favorite([this.state.file], this.state.file.path.uri, Cloud)[0],
+            file: favorite([this.state.file], this.state.file.path.path, Cloud)[0],
         }));
     }
 

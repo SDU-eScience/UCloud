@@ -85,9 +85,9 @@ class Files extends React.Component {
         this.componentWillReceiveProps = this.componentWillReceiveProps.bind(this);
     }
 
-    favoriteFile(fileUri) {
+    favoriteFile(filePath) {
         this.setState(() => ({
-            files: favorite(this.state.files.slice(), fileUri, Cloud),
+            files: favorite(this.state.files.slice(), filePath, Cloud),
         }));
     }
 
@@ -137,7 +137,7 @@ class Files extends React.Component {
 
     addOrRemoveFile(checked, newFile) {
         let files = this.state.files.slice();
-        files.find(file => file.path.uri === newFile.path.uri).isChecked = checked;
+        files.find(file => file.path.path === newFile.path.path).isChecked = checked;
         let currentPage = this.state.currentPage;
         let filesPerPage = this.state.filesPerPage;
         let currentlyShownFiles = this.state.files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
@@ -163,7 +163,7 @@ class Files extends React.Component {
             loading: true,
         });
         const queryPath = !path ? this.state.currentPath : path;
-        this.state.keeperOfPromises.makeCancelable(Cloud.get(`files?path=/${queryPath}`)).promise.then((res) => {
+        this.state.keeperOfPromises.makeCancelable(Cloud.get(`files?path=${queryPath}`)).promise.then((res) => {
             let files = res.response;
             files.forEach(file => file.isChecked = false);
             this.setState(() => ({
@@ -391,7 +391,7 @@ function FileOptions(props) {
             <p>
                 <Button className="btn btn-info btn-block ripple"
                         disabled={rights.rightsLevel < 3 || props.selectedFiles.length > 1}
-                        onClick={() => publishToZenodo(props.selectedFiles[0].path.uri)}>
+                        onClick={() => publishToZenodo(props.selectedFiles[0].path.path)}>
                     <em className="ion-ios-cloud-upload-outline pull-left"/>
                     Publish to Zenodo
                 </Button>
@@ -521,9 +521,9 @@ function FileType(props) {
 
 function Favorited(props) {
     if (props.file.favorited) {
-        return (<td><a onClick={() => props.favorite(props.file.path.uri)} className="ion-star"/></td>)
+        return (<td><a onClick={() => props.favorite(props.file.path.path)} className="ion-star"/></td>)
     }
-    return (<td><a className="ion-ios-star-outline" onClick={() => props.favorite(props.file.path.uri)}/></td>);
+    return (<td><a className="ion-ios-star-outline" onClick={() => props.favorite(props.file.path.path)}/></td>);
 }
 
 function MobileButtons(props) {
@@ -548,7 +548,7 @@ function MobileButtons(props) {
                     <li><Link className="btn btn-default ripple btn-block ion-ios-settings-strong"
                               to={`/fileInfo/${file.path.path}/`}> Properties</Link></li>
                     <li><a className="btn btn-default ripple btn-block ion-ios-cloud-upload-outline"
-                           onClick={() => publishToZenodo(file.path.uri)}> Publish to Zenodo
+                           onClick={() => publishToZenodo(file.path.path)}> Publish to Zenodo
                     </a></li>
                 </ul>
             </div>
