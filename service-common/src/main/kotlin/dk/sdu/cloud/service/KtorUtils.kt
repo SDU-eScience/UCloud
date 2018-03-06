@@ -25,8 +25,6 @@ import org.slf4j.LoggerFactory
 
 private val utilsLog = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtilsKt")
 
-// TODO Some of these should probably be a feature
-
 fun Application.installDefaultFeatures(
     cloud: AuthenticatedCloud,
     kafkaServices: KafkaServices,

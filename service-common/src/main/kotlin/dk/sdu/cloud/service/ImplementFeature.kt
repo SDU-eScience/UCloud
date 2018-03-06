@@ -27,7 +27,6 @@ internal fun Exception.stackTraceToString(): String = StringWriter().apply {
     printStackTrace(PrintWriter(this))
 }.toString()
 
-// TODO We should find a better solution for all of these "defaultMappers"
 object RESTServerSupport {
     var defaultMapper: ObjectMapper = jacksonObjectMapper()
     var allowMissingKafkaHttpLogger = false
@@ -78,18 +77,25 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     Unit as P
                 } else {
                     // Parse body as JSON (if any)
-                    val valueFromBody = parseRequestBody(call.receiveOrNull(), restCall.body).let {
-                        when (it) {
-                            is ParsedRequestBody.Parsed -> it.result
+                    val valueFromBody =
+                        try {
+                            parseRequestBody(call.receiveOrNull(), restCall.body).let {
+                                when (it) {
+                                    is ParsedRequestBody.Parsed -> it.result
 
-                            ParsedRequestBody.MissingAndNotRequired -> null
+                                    ParsedRequestBody.MissingAndNotRequired -> null
 
-                            ParsedRequestBody.MissingAndRequired -> {
-                                log.debug("Could not parse payload from body, which was required")
-                                return@handle call.respond(HttpStatusCode.BadRequest)
+                                    ParsedRequestBody.MissingAndRequired -> {
+                                        log.debug("Could not parse payload from body, which was required")
+                                        return@handle call.respond(HttpStatusCode.BadRequest)
+                                    }
+                                }
                             }
+                        } catch (ex: Exception) {
+                            log.warn("Caught exception while trying to deserialize body!")
+                            log.warn(ex.stackTraceToString())
+                            return@handle call.respond(HttpStatusCode.InternalServerError)
                         }
-                    }
 
                     // Retrieve argument values from path (if any)
                     val valuesFromPath = try {
@@ -113,7 +119,6 @@ fun <P : Any, S : Any, E : Any> Route.implement(
 
                     val allValuesFromRequest = valuesFromPath + valuesFromParams
 
-                    // TODO We need to handle this case for params too. That is, if the entire thing is bound
                     if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
                         val constructor =
                                 restCall.requestType.primaryConstructor ?: restCall.requestType.constructors.single()
@@ -201,8 +206,7 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): P
 
     return try {
         ParsedRequestBody.Parsed(RESTServerSupport.defaultMapper.readValue<Any>(requestBody, restBody.ref))
-    } catch (ex: Exception) {
-        // TODO Don't assume that all exceptions are user input errors
+    } catch (ex: IllegalArgumentException) {
         log.debug("Caught exception while trying to deserialize request body")
         log.debug(ex.stackTraceToString())
 

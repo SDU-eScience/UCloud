@@ -50,7 +50,8 @@ class ServiceRegistry(
         // when TTL expires)
         val serviceId = "${instance.hostname}:${instance.port}-${instance.definition.name}"
 
-        // TODO K/V store is not replicated by default across DCs. This strategy might not actually work...
+        // K/V store is not replicated by default across DCs.
+        //
         // But I think there will be other problems when we have multiple DCs and we might also want to keep a lot of
         // this local for each DC regardless. The Consul Replicate project might also solve this. (DC = Data Center)
         val apiKeyValueOperations = ArrayList<Operation>().apply {
