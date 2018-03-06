@@ -13,12 +13,13 @@ class SBatchGenerator {
         val tool = ToolDAO.findByNameAndVersion(description.tool.name, description.tool.version)!!
 
         val resolvedParameters = description.parameters.associate { it to it.map(parameters[it.name]) }
+        val givenParameters = resolvedParameters.filterValues { it != null }.mapValues { it.value!! }
 
         val numberOfNodes = tool.defaultNumberOfNodes
         val tasksPerNode = tool.defaultTasksPerNode
         val maxTime = tool.defaultMaxTime
 
-        val invocation = description.invocation.buildSafeBashString(resolvedParameters)
+        val invocation = description.invocation.buildSafeBashString(givenParameters)
 
         // We should validate at tool level as well, but we do it here as well, just in case
         val modules = tool.requiredModules.joinToString("\n") {

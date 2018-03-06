@@ -46,7 +46,7 @@ class StartCommandProcessor(
         for (input in app.parameters.filterIsInstance<ApplicationParameter.InputFile>()) {
             val inputParameter = parameters[input.name]
 
-            val transferDescription = input.map(inputParameter)
+            val transferDescription = input.map(inputParameter) ?: continue
             val sourcePath = StoragePath.fromURI(transferDescription.source)
 
             val stat = storage.fileQuery.stat(sourcePath).capture()

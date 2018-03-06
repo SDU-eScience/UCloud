@@ -25,12 +25,12 @@ sealed class ApplicationParameter<V : Any> {
     protected abstract fun internalMap(inputParameter: Any): V
     abstract fun toInvocationArgument(entry: V): String
 
-    fun map(inputParameter: Any?): V {
+    fun map(inputParameter: Any?): V? {
         return if (inputParameter == null) {
             if (!optional) {
                 throw IllegalArgumentException("Missing value for parameter '$name'")
             } else {
-                defaultValue ?: throw IllegalStateException("Missing default value for optional parameter '$name'")
+                defaultValue
             }
         } else {
             internalMap(inputParameter)

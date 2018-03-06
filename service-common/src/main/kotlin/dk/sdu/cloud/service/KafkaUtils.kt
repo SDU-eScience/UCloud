@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 import kotlin.coroutines.experimental.suspendCoroutine
+import kotlin.math.min
 import kotlin.reflect.KClass
 
 class EventProducer<in K, in V>(
@@ -28,7 +29,7 @@ class EventProducer<in K, in V>(
         val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
         val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
 
-        log.debug("Emitting event: $stringKey : $stringValue")
+        log.debug("Emitting event: $stringKey : ${stringValue.substring(0, min(100, stringValue.length))}")
         producer.send(ProducerRecord(description.name, stringKey, stringValue)) { result, ex ->
             if (ex == null) cont.resume(result)
             else cont.resumeWithException(ex)

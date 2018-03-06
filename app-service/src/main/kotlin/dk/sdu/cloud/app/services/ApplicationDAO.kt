@@ -38,7 +38,10 @@ object ApplicationDAO {
                 description = "Parms",
                 tool = NameAndVersion("parms", "1.0.0"),
                 info = NameAndVersion("parms", "1.0.0"),
-                invocation = listOf(),
+                invocation = listOf(
+                    VariableInvocationParameter(variableNames = listOf("input"), prefixVariable = "-i "),
+                    WordInvocationParameter("-o output.json")
+                ),
                 parameters = listOf(
                     ApplicationParameter.InputFile(
                         name = "input",
