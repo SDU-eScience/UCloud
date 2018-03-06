@@ -1,5 +1,6 @@
 package dk.sdu.cloud.client
 
+import kotlinx.coroutines.experimental.delay
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.Response
 import org.slf4j.LoggerFactory
@@ -38,7 +39,11 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
         //
         // When a connection issue is encountered the CloudContext is allowed to attempt reconfiguration. If it deems
         // it successful another attempt is made, otherwise the exception is thrown to the client.
+        var attempts = 0
         while (true) {
+            attempts++
+            if (attempts == 5) throw ConnectException("Too many retries!")
+
             val endpoint = context.parent.resolveEndpoint(this).removeSuffix("/")
             val url = "$endpoint/$resolvedEndpoint"
             val resp = try {
@@ -50,16 +55,9 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
             } catch (ex: ConnectException) {
                 log.debug("ConnectException: ${ex.message}")
                 val shouldRetry = context.parent.tryReconfigurationOnConnectException(this, ex)
-                if (shouldRetry) {
-                    log.debug("Retrying")
-                    continue
-                } else {
-                    log.debug("Exiting")
-                    throw ex
-                }
+                if (shouldRetry) continue else throw ex
             }
 
-            // TODO Automatic retries on internal server errors?
             log.debug("Retrieved the following HTTP response: $resp")
             val result: RESTResponse<T, E> = if (resp.statusCode in 200..299) {
                 val result = try {
@@ -76,6 +74,14 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
                     log.warn("Unable to deserialize _successful_ message!")
                     RESTResponse.Err(resp)
                 }
+            } else if (resp.statusCode in 500..599) {
+                log.info("Caught server error!")
+                log.info("Call was: $this, response was: $resp")
+                delay(250)
+
+                val ex = ConnectException()
+                val shouldRetry = context.parent.tryReconfigurationOnConnectException(this, ex)
+                if (shouldRetry) continue else throw ex
             } else {
                 val error = try {
                     deserializeError(resp)

@@ -54,21 +54,6 @@ abstract class RESTDescriptions(val owner: ServiceDescription) {
     }
 
     /**
-     * Utility function for creating KafkaDescriptions.
-     *
-     * This is the same as using [callDescription] with no registration at GW at with predefined [GatewayJobResponse]
-     * for both success and error messages.
-     */
-    protected inline fun <reified R : Any> kafkaDescription(
-            mapper: ObjectMapper = HttpClient.defaultMapper,
-            noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
-            body: RESTCallDescriptionBuilder<R, GatewayJobResponse, GatewayJobResponse>.() -> Unit
-    ): KafkaCallDescription<R> = callDescription(mapper, additionalRequestConfiguration) {
-        // Placed before call to body() to allow these to be overwritten
-        body()
-    }
-
-    /**
      * Registers a ktor style template in this container.
      */
     protected fun register(template: String, method: HttpMethod) {
