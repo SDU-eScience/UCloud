@@ -29,7 +29,8 @@ class Server(
     private val kafka: KafkaServices,
     private val serviceRegistry: ServiceRegistry,
     private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticator
+    private val cloud: RefreshingJWTAuthenticator,
+    private val shouldBench: Boolean
 ) {
     private lateinit var httpServer: ApplicationEngine
     private lateinit var kStreams: KafkaStreams
@@ -39,6 +40,13 @@ class Server(
 
         log.info("Creating core services")
         val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
+
+        if (shouldBench) {
+            log.info("Running benchmarks instead of server!")
+            rados.runAllBenchmarks()
+            return
+        }
+
         val transferState = TransferStateService()
         val icat = ICAT(configuration.database)
         val tus = TusController(

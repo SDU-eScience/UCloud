@@ -9,6 +9,7 @@ import kotlinx.coroutines.experimental.selects.select
 import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.File
+import java.util.concurrent.ThreadLocalRandom
 import kotlin.coroutines.experimental.suspendCoroutine
 
 interface IReadChannel : Closeable {
@@ -22,7 +23,7 @@ interface IReadChannel : Closeable {
 
 class RadosStorage(clientName: String, configurationFile: File, pool: String) {
     private val cluster: Rados = Rados("ceph", clientName, 0)
-    private val ioCtx: IoCTX
+    val ioCtx: IoCTX
 
     init {
         if (!configurationFile.exists()) {
@@ -39,6 +40,79 @@ class RadosStorage(clientName: String, configurationFile: File, pool: String) {
         log.info("Connected!")
 
         ioCtx = cluster.ioCtxCreate(pool)
+    }
+
+    fun runAllBenchmarks() {
+        Benchmark.apply {
+            this.ioCtx = this@RadosStorage.ioCtx
+            try {
+                runWriteBenchmarks()
+                runReadBenchmarks()
+                runWriteXAttrBenchmarks()
+                runReadXAttrBenchmarks()
+            } finally {
+                cleanup()
+            }
+        }
+    }
+
+    object Benchmark {
+        lateinit var ioCtx: IoCTX
+
+        const val BENCH_OID_PREFIX = "fsbench"
+        const val NUMBER_OF_FILES = 1000
+        const val FILE_SIZE = 4096
+        const val XATTR_SIZE = 1000
+        const val XATTR_NAME = "fsbench"
+
+        fun runWriteBenchmarks() {
+            val data = String(CharArray(FILE_SIZE) { ThreadLocalRandom.current().nextInt(256).toChar() })
+
+            val start = System.nanoTime()
+            repeat(NUMBER_OF_FILES) { i ->
+                ioCtx.write("$BENCH_OID_PREFIX-$i", data)
+            }
+            val end = System.nanoTime()
+            log.info("Write benchmark took ${end - start} ns")
+        }
+
+        fun runReadBenchmarks() {
+            val buffer = ByteArray(FILE_SIZE)
+            val start = System.nanoTime()
+            repeat(NUMBER_OF_FILES) { i ->
+                ioCtx.read("$BENCH_OID_PREFIX-$i", FILE_SIZE, 0L, buffer)
+            }
+            val end = System.nanoTime()
+            log.info("Read benchmark took ${end - start} ns")
+        }
+
+        fun runWriteXAttrBenchmarks() {
+            val data = String(CharArray(XATTR_SIZE) { ThreadLocalRandom.current().nextInt(256).toChar() })
+
+            val start = System.nanoTime()
+            repeat(NUMBER_OF_FILES) { i ->
+                ioCtx.setExtendedAttribute("$BENCH_OID_PREFIX-$i", XATTR_NAME, data)
+            }
+            val end = System.nanoTime()
+            log.info("XAttr write benchmark took ${end - start} ns")
+        }
+
+        fun runReadXAttrBenchmarks() {
+            val start = System.nanoTime()
+            repeat(NUMBER_OF_FILES) { i ->
+                ioCtx.getExtendedAttribute("$BENCH_OID_PREFIX-$i", XATTR_NAME)
+            }
+            val end = System.nanoTime()
+            log.info("XAttr read benchmark took ${end - start} ns")
+        }
+
+        fun cleanup() {
+            log.info("Cleaning up...")
+            repeat(NUMBER_OF_FILES) { i ->
+                ioCtx.remove("$BENCH_OID_PREFIX-$i")
+            }
+            log.info("Done.")
+        }
     }
 
     fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): RadosUpload =
