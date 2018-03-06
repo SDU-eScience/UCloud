@@ -41,24 +41,24 @@ export default class SDUCloud {
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("contentType", "application/json");
                 req.onload = () => {
-                    if (req.status >= 200 && req.status <= 299) {
-                        let responseContentType = req.getResponseHeader("content-type");
-                        let parsedResponse = req.response;
+                    let responseContentType = req.getResponseHeader("content-type");
+                    let parsedResponse = req.response;
 
-                        // JSON Parsing
-                        if (responseContentType !== null) {
-                            if (responseContentType.indexOf("application/json") !== -1 || 
-                                    responseContentType.indexOf("application/javascript") !== -1) {
-                                parsedResponse = JSON.parse(parsedResponse);
-                            }
+                    // JSON Parsing
+                    if (responseContentType !== null) {
+                        if (responseContentType.indexOf("application/json") !== -1 ||
+                            responseContentType.indexOf("application/javascript") !== -1) {
+                            parsedResponse = JSON.parse(parsedResponse);
                         }
+                    }
 
+                    if (req.status >= 200 && req.status <= 299) {
                         resolve({
                             response: parsedResponse,
                             request: req,
                         });
                     } else {
-                        reject(req.status, req.response);
+                        reject({request: req, response: parsedResponse});
                     }
                 };
                 if (body) {

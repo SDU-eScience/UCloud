@@ -29,12 +29,17 @@ class ZenodoHome extends React.Component {
         this.setState(() => ({
             loading: true,
         }));
-        this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((publications) => {
+        this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((res) => {
             this.setState(() => ({
-                connected: publications.connected,
-                publications: publications.inProgress,
+                connected: res.response.connected,
+                publications: res.response.inProgress,
                 loading: false,
             }));
+        }).catch(failure => {
+            this.setState(() => ({
+                connected: false,
+                loading: false,
+            }))
         });
     }
 

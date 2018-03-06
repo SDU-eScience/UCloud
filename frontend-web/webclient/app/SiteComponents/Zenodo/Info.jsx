@@ -20,10 +20,10 @@ class ZenodoInfo extends React.Component {
     componentWillMount() {
         pubsub.publish('setPageTitle', "Zenodo Publication Info");
         this.setState(() => ({loading: true,}));
-        this.state.promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`)).promise.then((publication) => {
+        this.state.promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`)).promise.then((res) => {
             this.setState(() => ({
-                publication: publication.publication,
-                uploads: publication.uploads,
+                publication: res.response.publication,
+                uploads: res.response.uploads,
                 loading: false,
             }));
         });

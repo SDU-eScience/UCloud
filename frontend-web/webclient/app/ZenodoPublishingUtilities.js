@@ -5,7 +5,7 @@ import {Button} from "react-bootstrap";
 
 function ZenodoRedirect() {
     Cloud.post(`/zenodo/request?returnTo=${window.location.href}`).then((data) => {
-        const redirectTo = data.redirectTo;
+        const redirectTo = data.response.redirectTo;
         if (redirectTo) window.location.href = redirectTo;
     });
 }

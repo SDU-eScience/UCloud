@@ -33,6 +33,11 @@ class ZenodoPublish extends React.Component {
                 connected: res.response.connected,
                 loading: false,
             }));
+        }).catch((failure) => {
+            this.setState(() => ({
+                connected: false,
+                loading: false
+            }));
         });
     }
 
