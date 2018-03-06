@@ -13,7 +13,10 @@ import org.irods.jargon.core.pub.domain.ObjStat
 import org.irods.jargon.core.pub.domain.UserFilePermission
 import org.irods.jargon.core.pub.domain.UserGroup
 import org.irods.jargon.core.pub.io.IRODSFile
-import org.irods.jargon.core.query.*
+import org.irods.jargon.core.query.IRODSGenQueryBuilder
+import org.irods.jargon.core.query.MetaDataAndDomainData
+import org.irods.jargon.core.query.QueryConditionOperators
+import org.irods.jargon.core.query.RodsGenQueryEnum
 import org.irods.jargon.core.query.RodsGenQueryEnum.*
 import org.irods.jargon.core.transfer.TransferStatus
 import org.irods.jargon.core.transfer.TransferStatusCallbackListener
@@ -27,28 +30,23 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 class IRodsPathOperations(override val services: AccountServices) : PathOperations, IRodsOperationService {
-    override val localRoot: StoragePath =
-            StoragePath.internalCreateFromHostAndAbsolutePath(services.connectionInformation.zone, "/")
-    override val homeDirectory: StoragePath = StoragePath.internalCreateFromHostAndAbsolutePath(
-            services.account.zone, "/home/${services.account.userName}")
+    override val localRoot: StoragePath = StoragePath("/", services.connectionInformation.zone)
+    override val homeDirectory: StoragePath = StoragePath("/home/${services.account.userName}", services.account.zone)
 
-    override fun parseAbsolute(absolutePath: String, addHost: Boolean): StoragePath {
+    override fun parseAbsolute(absolutePath: String, isMissingZone: Boolean): StoragePath {
         if (!absolutePath.startsWith("/")) throw IllegalArgumentException("Invalid iRODS path")
         val components = absolutePath.split("/").filter { it.isNotBlank() }
-        return if (addHost) {
-            localRoot.pushRelative('/' + components.joinToString("/"))
+        return if (isMissingZone) {
+            StoragePath(absolutePath, services.connectionInformation.zone)
         } else {
-            // TODO First component is empty
-            StoragePath.internalCreateFromHostAndAbsolutePath(
-                    components.first(), '/' + components.takeLast(components.size - 1).joinToString("/"))
+            StoragePath('/' + components.takeLast(components.size - 1).joinToString("/"), components.first())
         }
     }
 
 }
 
 class IRodsFileOperations(
-        val paths: PathOperations,
-        override val services: AccountServices
+    override val services: AccountServices
 ) : FileOperations, IRodsOperationService {
     override val usesTrashCan: Boolean = true
 
@@ -183,7 +181,10 @@ class IRodsFileOperations(
         var caughtException: Throwable? = null
             private set
 
-        override fun transferAsksWhetherToForceOperation(p0: String?, p1: Boolean): TransferStatusCallbackListener.CallbackResponse {
+        override fun transferAsksWhetherToForceOperation(
+            p0: String?,
+            p1: Boolean
+        ): TransferStatusCallbackListener.CallbackResponse {
             return TransferStatusCallbackListener.CallbackResponse.YES_FOR_ALL
         }
 
@@ -206,20 +207,23 @@ class IRodsFileOperations(
 }
 
 class IRodsMetadataOperations(
-        val paths: PathOperations,
-        override val services: AccountServices
+    override val services: AccountServices
 ) : MetadataOperations, IRodsOperationService {
-    override fun updateMetadata(path: StoragePath, newOrUpdatesAttributes: Metadata,
-                                attributesToDeleteIfExists: Metadata) {
+    override fun updateMetadata(
+        path: StoragePath, newOrUpdatesAttributes: Metadata,
+        attributesToDeleteIfExists: Metadata
+    ) {
         val absolutePath = path.toIRodsAbsolute()
         if (newOrUpdatesAttributes.isNotEmpty()) {
-            services.dataObjects.addBulkAVUMetadataToDataObject(absolutePath,
+            services.dataObjects.addBulkAVUMetadataToDataObject(
+                absolutePath,
                 newOrUpdatesAttributes.map { it.toIRods() }.toMutableList()
             )
         }
 
         if (attributesToDeleteIfExists.isNotEmpty()) {
-            services.dataObjects.deleteBulkAVUMetadataFromDataObject(absolutePath,
+            services.dataObjects.deleteBulkAVUMetadataFromDataObject(
+                absolutePath,
                 attributesToDeleteIfExists.map { it.toIRods() }.toMutableList()
             )
         }
@@ -231,10 +235,9 @@ class IRodsMetadataOperations(
 }
 
 class IRodsAccessControlOperations(
-        val paths: PathOperations,
-        override val services: AccountServices
+    override val services: AccountServices
 ) : AccessControlOperations,
-        IRodsOperationService {
+    IRodsOperationService {
     override fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean): Result<Unit> {
         val localZone = services.account.zone
         var result: Result<Unit> = Ok.empty()
@@ -264,10 +267,10 @@ class IRodsAccessControlOperations(
             // In must cases it is probably perfectly acceptable that this might fail on some entries. Either way,
             // we must document this.
             services.dataObjects.setAccessPermission(
-                    zone,
-                    path.toIRodsAbsolute(),
-                    entityName,
-                    it.right.toIRods()
+                zone,
+                path.toIRodsAbsolute(),
+                entityName,
+                it.right.toIRods()
             ).onError { result = it }
         }
 
@@ -283,9 +286,9 @@ class IRodsAccessControlOperations(
         val connectedUser = with(services.account) { User("$userName#zone", userName, zone) }
 
         return services.dataObjects.getPermissionForDataObject(
-                path.toIRodsAbsolute(),
-                connectedUser.displayName,
-                connectedUser.zone
+            path.toIRodsAbsolute(),
+            connectedUser.displayName,
+            connectedUser.zone
         ).map { it.toStorage() }
     }
 }
@@ -298,8 +301,8 @@ inline fun <T> doTime(name: String, log: Logger = LoggerFactory.getLogger("Timer
 }
 
 class IRodsFileQueryOperations(
-        val paths: PathOperations,
-        override val services: AccountServices
+    val paths: PathOperations,
+    override val services: AccountServices
 ) : FileQueryOperations, IRodsOperationService {
     override fun listAt(path: StoragePath): Result<List<StorageFile>> {
         val effectiveAbsolutePath = path.toIRodsAbsolute()
@@ -341,23 +344,25 @@ class IRodsFileQueryOperations(
             result.results.forEach {
                 val pathToEntry = it.getColumn(COL_COLL_NAME.getName())
                 val row = mappedResults[pathToEntry] ?: StorageFile(
-                        FileType.DIRECTORY,
-                        paths.parseAbsolute(pathToEntry),
-                        it.getColumnAsDateOrNull(COL_COLL_CREATE_TIME.getName())?.time ?: 0,
-                        it.getColumnAsDateOrNull(COL_COLL_MODIFY_TIME.getName())?.time ?: 0,
-                        0,
-                        arrayListOf(),
-                        false,
-                        SensitivityLevel.CONFIDENTIAL
+                    FileType.DIRECTORY,
+                    paths.parseAbsolute(pathToEntry),
+                    it.getColumnAsDateOrNull(COL_COLL_CREATE_TIME.getName())?.time ?: 0,
+                    it.getColumnAsDateOrNull(COL_COLL_MODIFY_TIME.getName())?.time ?: 0,
+                    0,
+                    arrayListOf(),
+                    false,
+                    SensitivityLevel.CONFIDENTIAL
                 )
 
-                (row.acl as MutableList<AccessEntry>).add(AccessEntry(
+                (row.acl as MutableList<AccessEntry>).add(
+                    AccessEntry(
                         IRodsUser.fromUsernameAndZone(
-                                it.getColumn(COL_COLL_ACCESS_USER_NAME.getName()),
-                                it.getColumn(COL_COLL_ACCESS_USER_ZONE.getName())
+                            it.getColumn(COL_COLL_ACCESS_USER_NAME.getName()),
+                            it.getColumn(COL_COLL_ACCESS_USER_ZONE.getName())
                         ),
                         mapAccessRight(it.getColumnAsIntOrZero(COL_COLL_ACCESS_TYPE.getName()))
-                ))
+                    )
+                )
 
                 mappedResults[pathToEntry] = row
             }
@@ -377,8 +382,10 @@ class IRodsFileQueryOperations(
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_USER_TYPE)
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_USER_ZONE)
 
-                addConditionAsGenQueryField(RodsGenQueryEnum.COL_COLL_NAME, QueryConditionOperators.EQUAL,
-                        effectiveAbsolutePath)
+                addConditionAsGenQueryField(
+                    RodsGenQueryEnum.COL_COLL_NAME, QueryConditionOperators.EQUAL,
+                    effectiveAbsolutePath
+                )
             }.exportIRODSQueryFromBuilder(1024 * 32)
             val result = doTime("data query") {
                 try {
@@ -393,25 +400,26 @@ class IRodsFileQueryOperations(
                 val dataName = it.getColumn(COL_DATA_NAME.getName())
                 val pathToEntry = "$collectionName/$dataName"
 
-                val row = mappedResults[pathToEntry] ?:
-                        StorageFile(
-                                FileType.FILE,
-                                paths.parseAbsolute(pathToEntry),
-                                it.getColumnAsDateOrNull(COL_D_CREATE_TIME.getName())?.time ?: 0,
-                                it.getColumnAsDateOrNull(COL_D_MODIFY_TIME.getName())?.time ?: 0,
-                                it.getColumnAsIntOrZero(COL_DATA_SIZE.getName()),
-                                arrayListOf(),
-                                false,
-                                SensitivityLevel.CONFIDENTIAL
-                        )
+                val row = mappedResults[pathToEntry] ?: StorageFile(
+                    FileType.FILE,
+                    paths.parseAbsolute(pathToEntry),
+                    it.getColumnAsDateOrNull(COL_D_CREATE_TIME.getName())?.time ?: 0,
+                    it.getColumnAsDateOrNull(COL_D_MODIFY_TIME.getName())?.time ?: 0,
+                    it.getColumnAsIntOrZero(COL_DATA_SIZE.getName()),
+                    arrayListOf(),
+                    false,
+                    SensitivityLevel.CONFIDENTIAL
+                )
 
-                (row.acl as MutableList<AccessEntry>).add(AccessEntry(
+                (row.acl as MutableList<AccessEntry>).add(
+                    AccessEntry(
                         IRodsUser.fromUsernameAndZone(
-                                it.getColumn(COL_USER_NAME.getName()),
-                                it.getColumn(COL_USER_ZONE.getName())
+                            it.getColumn(COL_USER_NAME.getName()),
+                            it.getColumn(COL_USER_ZONE.getName())
                         ),
                         mapAccessRight(it.getColumnAsIntOrZero(COL_DATA_ACCESS_TYPE.getName()))
-                ))
+                    )
+                )
 
                 mappedResults[pathToEntry] = row
             }
@@ -425,8 +433,10 @@ class IRodsFileQueryOperations(
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_META_DATA_ATTR_NAME)
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_META_DATA_ATTR_VALUE)
 
-                addConditionAsGenQueryField(RodsGenQueryEnum.COL_COLL_NAME, QueryConditionOperators.EQUAL,
-                        effectiveAbsolutePath)
+                addConditionAsGenQueryField(
+                    RodsGenQueryEnum.COL_COLL_NAME, QueryConditionOperators.EQUAL,
+                    effectiveAbsolutePath
+                )
             }.exportIRODSQueryFromBuilder(1024 * 32)
             val result = doTime("data query2") {
                 try {
@@ -499,14 +509,14 @@ class IRodsFileQueryOperations(
     }
 
     private fun ObjStat.toStorage(): FileStat =
-            FileStat(
-                    paths.parseAbsolute(this.absolutePath),
-                    this.createdAt.time,
-                    this.modifiedAt.time,
-                    "${this.ownerName}#${this.ownerZone}",
-                    this.objSize,
-                    this.checksum
-            )
+        FileStat(
+            paths.parseAbsolute(this.absolutePath),
+            this.createdAt.time,
+            this.modifiedAt.time,
+            "${this.ownerName}#${this.ownerZone}",
+            this.objSize,
+            this.checksum
+        )
 }
 
 class IRodsUserOperations(override val services: AccountServices) : UserOperations, IRodsOperationService {
@@ -616,7 +626,7 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
     }
 
     override fun findByUsername(username: String): Result<User> =
-            services.users.findByName(username).map { it.toStorage() }
+        services.users.findByName(username).map { it.toStorage() }
 }
 
 interface IRodsOperationService {
@@ -631,11 +641,10 @@ interface IRodsOperationService {
     }
 
     fun UserFilePermission.toStorage(): AccessEntry =
-            AccessEntry(IRodsUser.parse(services, this.nameWithZone), this.filePermissionEnum.toStorage())
+        AccessEntry(IRodsUser.parse(services, this.nameWithZone), this.filePermissionEnum.toStorage())
 
     fun MetaDataAndDomainData.toStorage(): MetadataEntry =
-            MetadataEntry(this.avuAttribute, this.avuValue)
-
+        MetadataEntry(this.avuAttribute, this.avuValue)
 
     fun org.irods.jargon.core.pub.domain.User.toStorage(): User {
         return IRodsUser.parse(services, this.nameWithZone)
