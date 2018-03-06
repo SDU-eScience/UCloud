@@ -14,7 +14,6 @@ import ReactDOM from 'react-dom';
 import { BrowserRouter } from "react-router-dom";
 
 import "uppy/src/scss/uppy.scss";
-import "./SiteComponents/Datatable.scss";
 import "./SiteComponents/Common/Common";
 import "./components/Colors/Colors"
 import "./SiteComponents/Common/Utils.scss";
