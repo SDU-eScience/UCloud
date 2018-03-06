@@ -65,10 +65,6 @@ public class DataobjectDirectory implements Serializable {
     private Date createdTs;
     @Column(name = "volatility")
     private Integer volatility;
-    @OneToMany(mappedBy = "dataobjectdirectyrefid")
-    private List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList;
-    @OneToMany(mappedBy = "dataobjectdirectoryrefid")
-    private List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList;
     @JoinColumn(name = "dataobjectdirectorytyperefid", referencedColumnName = "id")
     @ManyToOne
     private DataobjectDirectoryType dataobjectdirectorytyperefid;
@@ -79,6 +75,10 @@ public class DataobjectDirectory implements Serializable {
     private List<DataTransferHeader> dataTransferHeaderList;
     @OneToMany(mappedBy = "dataobjectdirectoryrefid")
     private List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList;
+    @OneToMany(mappedBy = "dataobjectdirectyrefid")
+    private List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList;
+    @OneToMany(mappedBy = "dataobjectdirectoryrefid")
+    private List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList;
 
     public DataobjectDirectory() {
     }
@@ -149,24 +149,6 @@ public class DataobjectDirectory implements Serializable {
         this.volatility = volatility;
     }
 
-    @XmlTransient
-    public List<DataobjectDirectoryProjectrolePermissionset> getDataobjectDirectoryProjectrolePermissionsetList() {
-        return dataobjectDirectoryProjectrolePermissionsetList;
-    }
-
-    public void setDataobjectDirectoryProjectrolePermissionsetList(List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList) {
-        this.dataobjectDirectoryProjectrolePermissionsetList = dataobjectDirectoryProjectrolePermissionsetList;
-    }
-
-    @XmlTransient
-    public List<DataobjectDirectoryRelation> getDataobjectDirectoryRelationList() {
-        return dataobjectDirectoryRelationList;
-    }
-
-    public void setDataobjectDirectoryRelationList(List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList) {
-        this.dataobjectDirectoryRelationList = dataobjectDirectoryRelationList;
-    }
-
     public DataobjectDirectoryType getDataobjectdirectorytyperefid() {
         return dataobjectdirectorytyperefid;
     }
@@ -199,6 +181,24 @@ public class DataobjectDirectory implements Serializable {
 
     public void setPersonDataobjectSpecialShareRelationList(List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList) {
         this.personDataobjectSpecialShareRelationList = personDataobjectSpecialShareRelationList;
+    }
+
+    @XmlTransient
+    public List<DataobjectDirectoryProjectrolePermissionset> getDataobjectDirectoryProjectrolePermissionsetList() {
+        return dataobjectDirectoryProjectrolePermissionsetList;
+    }
+
+    public void setDataobjectDirectoryProjectrolePermissionsetList(List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList) {
+        this.dataobjectDirectoryProjectrolePermissionsetList = dataobjectDirectoryProjectrolePermissionsetList;
+    }
+
+    @XmlTransient
+    public List<DataobjectDirectoryRelation> getDataobjectDirectoryRelationList() {
+        return dataobjectDirectoryRelationList;
+    }
+
+    public void setDataobjectDirectoryRelationList(List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList) {
+        this.dataobjectDirectoryRelationList = dataobjectDirectoryRelationList;
     }
 
     @Override

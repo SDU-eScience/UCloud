@@ -96,20 +96,12 @@ public class Person implements Serializable {
     private Date createdTs;
     @Column(name = "username")
     private String username;
-    @OneToMany(mappedBy = "personrefid")
-    private List<PersonEmailRelation> personEmailRelationList;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
     private List<ProjectPersonRelation> projectPersonRelationList;
-    @OneToMany(mappedBy = "personrefid")
-    private List<ProjectEventCalendar> projectEventCalendarList;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
     private List<PersonNotificationSubscriptiontypeRelation> personNotificationSubscriptiontypeRelationList;
     @OneToMany(mappedBy = "personrefid")
     private List<Notification> notificationList;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<SystemrolePersonRelation> systemrolePersonRelationList;
-    @OneToMany(mappedBy = "personrefid")
-    private List<PersonJwtHistory> personJwtHistoryList;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
     private List<PersonSystemroleRelation> personSystemroleRelationList;
     @OneToMany(mappedBy = "personrefid")
@@ -124,6 +116,14 @@ public class Person implements Serializable {
     private List<DataTransferHeader> dataTransferHeaderList;
     @OneToMany(mappedBy = "personrefid")
     private List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<PersonEmailRelation> personEmailRelationList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<ProjectEventCalendar> projectEventCalendarList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<SystemrolePersonRelation> systemrolePersonRelationList;
+    @OneToMany(mappedBy = "personrefid")
+    private List<PersonJwtHistory> personJwtHistoryList;
 
     public Person() {
     }
@@ -267,30 +267,12 @@ public class Person implements Serializable {
     }
 
     @XmlTransient
-    public List<PersonEmailRelation> getPersonEmailRelationList() {
-        return personEmailRelationList;
-    }
-
-    public void setPersonEmailRelationList(List<PersonEmailRelation> personEmailRelationList) {
-        this.personEmailRelationList = personEmailRelationList;
-    }
-
-    @XmlTransient
     public List<ProjectPersonRelation> getProjectPersonRelationList() {
         return projectPersonRelationList;
     }
 
     public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
         this.projectPersonRelationList = projectPersonRelationList;
-    }
-
-    @XmlTransient
-    public List<ProjectEventCalendar> getProjectEventCalendarList() {
-        return projectEventCalendarList;
-    }
-
-    public void setProjectEventCalendarList(List<ProjectEventCalendar> projectEventCalendarList) {
-        this.projectEventCalendarList = projectEventCalendarList;
     }
 
     @XmlTransient
@@ -309,24 +291,6 @@ public class Person implements Serializable {
 
     public void setNotificationList(List<Notification> notificationList) {
         this.notificationList = notificationList;
-    }
-
-    @XmlTransient
-    public List<SystemrolePersonRelation> getSystemrolePersonRelationList() {
-        return systemrolePersonRelationList;
-    }
-
-    public void setSystemrolePersonRelationList(List<SystemrolePersonRelation> systemrolePersonRelationList) {
-        this.systemrolePersonRelationList = systemrolePersonRelationList;
-    }
-
-    @XmlTransient
-    public List<PersonJwtHistory> getPersonJwtHistoryList() {
-        return personJwtHistoryList;
-    }
-
-    public void setPersonJwtHistoryList(List<PersonJwtHistory> personJwtHistoryList) {
-        this.personJwtHistoryList = personJwtHistoryList;
     }
 
     @XmlTransient
@@ -379,6 +343,42 @@ public class Person implements Serializable {
 
     public void setPersonDataobjectSpecialShareRelationList(List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList) {
         this.personDataobjectSpecialShareRelationList = personDataobjectSpecialShareRelationList;
+    }
+
+    @XmlTransient
+    public List<PersonEmailRelation> getPersonEmailRelationList() {
+        return personEmailRelationList;
+    }
+
+    public void setPersonEmailRelationList(List<PersonEmailRelation> personEmailRelationList) {
+        this.personEmailRelationList = personEmailRelationList;
+    }
+
+    @XmlTransient
+    public List<ProjectEventCalendar> getProjectEventCalendarList() {
+        return projectEventCalendarList;
+    }
+
+    public void setProjectEventCalendarList(List<ProjectEventCalendar> projectEventCalendarList) {
+        this.projectEventCalendarList = projectEventCalendarList;
+    }
+
+    @XmlTransient
+    public List<SystemrolePersonRelation> getSystemrolePersonRelationList() {
+        return systemrolePersonRelationList;
+    }
+
+    public void setSystemrolePersonRelationList(List<SystemrolePersonRelation> systemrolePersonRelationList) {
+        this.systemrolePersonRelationList = systemrolePersonRelationList;
+    }
+
+    @XmlTransient
+    public List<PersonJwtHistory> getPersonJwtHistoryList() {
+        return personJwtHistoryList;
+    }
+
+    public void setPersonJwtHistoryList(List<PersonJwtHistory> personJwtHistoryList) {
+        this.personJwtHistoryList = personJwtHistoryList;
     }
 
     @Override

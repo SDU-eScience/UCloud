@@ -122,13 +122,13 @@ public class ArangoDbHelpers {
 
         System.err.println(arangoDB.getDatabases().toString());
 
-        for (Dataobjectcollection dataobjectcollection :jpaHelpers.getJpaDataobjectcollectionList())
+        for (DataObjectDirectory jpaDataObjectDirectory :jpaHelpers.getJpaDataobjectcollectionList())
         {
             DataObjectDirectory dataObjectDirectory = new DataObjectDirectory();
             dataObjectDirectory.setKey(this.getUUID());
             dataObjectDirectory.setCreated_datetime(LocalDateTime.now());
             dataObjectDirectory.setModified_datetime(dataObjectDirectory.getCreated_datetime());
-            dataObjectDirectory.setData_object_directory_url(dataobjectcollection.getDataobjectcollectionurl());
+            dataObjectDirectory.setData_object_directory_url(dataObjectDirectory.getData_object_directory_url());
             collection.insertDocument(dataObjectDirectory);
         }
 
@@ -167,7 +167,7 @@ public class ArangoDbHelpers {
             person.setPerson_first_name(jpaPerson.getPersonfirstname());
             person.setPerson_middle_name(jpaPerson.getPersonmiddlename());
             person.setPerson_lastname(jpaPerson.getPersonlastname());
-            person.setPerson_fullname(jpaPerson.getFullname());
+            person.setPerson_fullname(jpaPerson.getPersonFullname());
             person.setPerson_phoneno(jpaPerson.getPersonphoneno());
             person.setPerson_username(jpaPerson.getUsername());
 

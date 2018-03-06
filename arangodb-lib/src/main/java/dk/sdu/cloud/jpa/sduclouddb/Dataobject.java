@@ -85,11 +85,11 @@ public class Dataobject implements Serializable {
     @OneToMany(mappedBy = "dataobjectrefid")
     private List<PublicationDataobjectRelation> publicationDataobjectRelationList;
     @OneToMany(mappedBy = "dataobjectrefid")
-    private List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList;
-    @OneToMany(mappedBy = "dataobjectrefid")
     private List<DataTransferDetail> dataTransferDetailList;
     @OneToMany(mappedBy = "dataobjectrefid")
     private List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList;
+    @OneToMany(mappedBy = "dataobjectrefid")
+    private List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList;
 
     public Dataobject() {
     }
@@ -219,15 +219,6 @@ public class Dataobject implements Serializable {
     }
 
     @XmlTransient
-    public List<DataobjectDirectoryRelation> getDataobjectDirectoryRelationList() {
-        return dataobjectDirectoryRelationList;
-    }
-
-    public void setDataobjectDirectoryRelationList(List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList) {
-        this.dataobjectDirectoryRelationList = dataobjectDirectoryRelationList;
-    }
-
-    @XmlTransient
     public List<DataTransferDetail> getDataTransferDetailList() {
         return dataTransferDetailList;
     }
@@ -243,6 +234,15 @@ public class Dataobject implements Serializable {
 
     public void setPersonDataobjectSpecialShareRelationList(List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList) {
         this.personDataobjectSpecialShareRelationList = personDataobjectSpecialShareRelationList;
+    }
+
+    @XmlTransient
+    public List<DataobjectDirectoryRelation> getDataobjectDirectoryRelationList() {
+        return dataobjectDirectoryRelationList;
+    }
+
+    public void setDataobjectDirectoryRelationList(List<DataobjectDirectoryRelation> dataobjectDirectoryRelationList) {
+        this.dataobjectDirectoryRelationList = dataobjectDirectoryRelationList;
     }
 
     @Override
