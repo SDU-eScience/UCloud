@@ -218,7 +218,7 @@ function FileList(props) {
             );
         } else {
             return (
-                <tr key={i++} className="gradeA row-settings">
+                <tr key={i++} className="gradeA row-settings" style={{cursor: "pointer"}}>
                     <td onClick={() => props.onClick(file)}><span className="ion-android-document"/> {file.path.name}
                     </td>
                 </tr>)
