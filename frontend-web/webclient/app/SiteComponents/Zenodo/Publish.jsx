@@ -15,6 +15,7 @@ class ZenodoPublish extends React.Component {
             files: [""],
             name: "",
             requestSent: false,
+            connected: false,
         };
         this.handleFileSelection = this.handleFileSelection.bind(this);
         this.submit = this.submit.bind(this);
@@ -27,9 +28,9 @@ class ZenodoPublish extends React.Component {
             loading: true,
         }));
         pubsub.publish('setPageTitle', "Zenodo Publication");
-        this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((publications) => {
+        this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((res) => {
             this.setState(() => ({
-                connected: publications.connected,
+                connected: res.response.connected,
                 loading: false,
             }));
         });

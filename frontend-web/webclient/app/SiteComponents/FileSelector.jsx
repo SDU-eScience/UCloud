@@ -73,13 +73,14 @@ class FileSelector extends React.Component {
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
-
         // Clean up in uppy. TODO potentially refactor this
-        let uppyOnUploadSuccess = this.state.uppyOnUploadSuccess;
-        if (uppyOnUploadSuccess !== null) {
-            this.props.uppy.off("upload-success", uppyOnUploadSuccess);
+        if (this.props.uppy) {
+            let uppyOnUploadSuccess = this.state.uppyOnUploadSuccess;
+            if (uppyOnUploadSuccess !== null) {
+                this.props.uppy.off("upload-success", uppyOnUploadSuccess);
+            }
+            this.props.uppy.reset();
         }
-        this.props.uppy.reset();
     }
 
     openModal() {

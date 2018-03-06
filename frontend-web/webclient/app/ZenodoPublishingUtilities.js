@@ -10,12 +10,10 @@ function ZenodoRedirect() {
     });
 }
 
-function NotConnectedToZenodo(props) {
+export function NotConnectedToZenodo(props) {
     return (
         <SectionContainerCard>
             <h1>You are not connected to Zenodo</h1>
             <Button onClick={() => ZenodoRedirect()}>Connect to Zenodo</Button>
         </SectionContainerCard>)
 }
-
-export { NotConnectedToZenodo }
