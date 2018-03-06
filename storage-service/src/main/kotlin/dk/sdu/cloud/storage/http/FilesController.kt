@@ -46,7 +46,12 @@ class FilesController(
                     when (listAt) {
                         is Ok -> ok(listAt.result)
                         is Error -> {
-                            error(CommonErrorMessage(listAt.message), HttpStatusCode.InternalServerError)
+                            val code = when (listAt.errorCode) {
+                                1 -> HttpStatusCode.NotFound
+                                4 -> HttpStatusCode.BadRequest
+                                else -> HttpStatusCode.InternalServerError
+                            }
+                            error(CommonErrorMessage(listAt.message), code)
                         }
                     }
                 }

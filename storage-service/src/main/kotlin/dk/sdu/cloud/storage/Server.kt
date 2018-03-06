@@ -81,7 +81,7 @@ class Server(
         kStreams.start()
         log.info("Kafka Streams started!")
 
-        serviceRegistry.register(listOf("/api/files"))
+        serviceRegistry.register(listOf("/api/files", "/api/acl"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }
