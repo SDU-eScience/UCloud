@@ -206,7 +206,7 @@ class FilesController(
     }
 
     private fun StorageConnection.parsePath(pathFromRequest: String): StoragePath =
-        paths.parseAbsolute(pathFromRequest, addHost = true)
+        paths.parseAbsolute(pathFromRequest, isMissingZone = true)
 
     companion object {
         private val log = LoggerFactory.getLogger(FilesController::class.java)

@@ -12,5 +12,5 @@ object IRodsUser {
         return User(stringRepresentation, username, zone)
     }
 
-    fun fromUsernameAndZone(username: String, zone: String) = User(username + '#' + zone, username, zone)
+    fun fromUsernameAndZone(username: String, zone: String) = User("$username#$zone", username, zone)
 }

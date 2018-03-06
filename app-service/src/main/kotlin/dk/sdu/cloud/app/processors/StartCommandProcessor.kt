@@ -47,7 +47,7 @@ class StartCommandProcessor(
             val inputParameter = parameters[input.name]
 
             val transferDescription = input.map(inputParameter) ?: continue
-            val sourcePath = StoragePath.fromURI(transferDescription.source)
+            val sourcePath = storage.paths.parseAbsolute(transferDescription.source, true)
 
             val stat = storage.fileQuery.stat(sourcePath).capture()
                     ?: return Error.invalidMessage("Missing file in storage: $sourcePath. Are you sure it exists?")
@@ -75,7 +75,7 @@ class StartCommandProcessor(
     ): HPCAppEvent {
         val event = request.event
         val app = with(event.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?: return run {
-            log.debug("Could not find application: ${event.application.name}@ ${event.application.version}")
+            log.debug("Could not find application: ${event.application.name}@${event.application.version}")
             HPCAppEvent.UnsuccessfullyCompleted
         }
 

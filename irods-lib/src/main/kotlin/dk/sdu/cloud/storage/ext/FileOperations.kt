@@ -20,7 +20,7 @@ class ConnectionException(cause: String) : StorageException(cause)
 interface PathOperations {
     val localRoot: StoragePath
     val homeDirectory: StoragePath
-    fun parseAbsolute(absolutePath: String, addHost: Boolean = false): StoragePath
+    fun parseAbsolute(absolutePath: String, isMissingZone: Boolean = false): StoragePath
 }
 
 interface FileOperations {

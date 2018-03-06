@@ -1,9 +1,6 @@
 package dk.sdu.cloud.storage.model
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.annotation.JsonSerialize
-import com.fasterxml.jackson.databind.ser.std.StdSerializer
+import com.fasterxml.jackson.annotation.JsonIgnore
 import java.net.URI
 
 // Contains the shared model (used as part of interface) of this service
@@ -14,6 +11,21 @@ enum class UserType {
     GROUP_ADMIN
 }
 
+data class StoragePath(
+    val path: String,
+    @get:JsonIgnore val host: String = "",
+    val name: String = path.substringAfterLast('/')
+) {
+    fun pushRelative(relativeURI: String): StoragePath {
+        return StoragePath(URI("$path/$relativeURI").normalize().path, host)
+    }
+
+    fun push(vararg components: String): StoragePath = pushRelative(components.joinToString("/"))
+
+    fun pop(): StoragePath = StoragePath(URI(path).resolve(".").normalize().path, host)
+}
+
+/*
 @JsonSerialize(using = StoragePath.Companion.Serializer::class)
 class StoragePath private constructor(private val uri: URI) {
     val host get() = uri.host
@@ -71,6 +83,7 @@ class StoragePath private constructor(private val uri: URI) {
         fun fromURI(uriAsString: String) = StoragePath(URI(uriAsString))
     }
 }
+*/
 
 enum class AccessRight {
     NONE,
@@ -91,14 +104,14 @@ enum class FileType {
 }
 
 data class StorageFile(
-        val type: FileType,
-        val path: StoragePath,
-        val createdAt: Long,
-        val modifiedAt: Long,
-        val size: Int,
-        val acl: List<AccessEntry>,
-        val favorited: Boolean,
-        val sensitivityLevel: SensitivityLevel
+    val type: FileType,
+    val path: StoragePath,
+    val createdAt: Long,
+    val modifiedAt: Long,
+    val size: Int,
+    val acl: List<AccessEntry>,
+    val favorited: Boolean,
+    val sensitivityLevel: SensitivityLevel
 )
 
 enum class SensitivityLevel {
@@ -108,12 +121,12 @@ enum class SensitivityLevel {
 }
 
 data class FileStat(
-        val path: StoragePath,
-        val createdAtUnixMs: Long,
-        val modifiedAtUnixMs: Long,
-        val ownerName: String,
-        val sizeInBytes: Long,
-        val systemDefinedChecksum: String
+    val path: StoragePath,
+    val createdAtUnixMs: Long,
+    val modifiedAtUnixMs: Long,
+    val ownerName: String,
+    val sizeInBytes: Long,
+    val systemDefinedChecksum: String
 )
 
 enum class ArchiveType {

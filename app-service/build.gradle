@@ -59,7 +59,7 @@ dependencies {
     // ------------
     // iRODS
     // ------------
-    compile "dk.sdu.cloud:cloud-storage:0.5.0-SNAPSHOT"
+    compile "dk.sdu.cloud:cloud-storage:0.6.0-SNAPSHOT"
 
     // ------------
     // Logging
