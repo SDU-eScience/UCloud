@@ -39,7 +39,7 @@ class FileSelector extends React.Component {
             if (apiIndex === -1) throw "Did not expect upload URL to not contain /api/";
 
             let apiEndpoint = uploadURL.substring(apiIndex + 5)
-            
+
             Cloud.head(apiEndpoint).then(it => {
                 console.log("Got a response back!");
                 let path = it.request.getResponseHeader("File-Location");
@@ -73,7 +73,7 @@ class FileSelector extends React.Component {
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
-        
+
         // Clean up in uppy. TODO potentially refactor this
         let uppyOnUploadSuccess = this.state.uppyOnUploadSuccess;
         if (uppyOnUploadSuccess !== null) {
@@ -104,9 +104,7 @@ class FileSelector extends React.Component {
     }
 
     setSelectedFile(file) {
-        console.log(file);
-        let fileCopy = { path: Object.assign({}, file.path) }; 
-        console.log(fileCopy);
+        let fileCopy = {path: Object.assign({}, file.path)};
         this.setState(() => ({
             selectedFile: fileCopy,
             modalShown: false,
@@ -171,13 +169,16 @@ function FileSelectorBody(props) {
     if (props.loading) {
         return null;
     }
-    let noFiles = !props.files.length ? <h4>
-        <small>No files in current folder.</small>
-    </h4> : null;
+    if (!props.files.length) {
+        return (
+            <h4 className="col-md-offset-1">
+                <small>No files in current folder.</small>
+            </h4>
+        );
+    }
     return (
         <Modal.Body>
             <div className="pre-scrollable">
-                {noFiles}
                 <Table className="table table-hover">
                     <thead>
                     <tr>
@@ -208,9 +209,9 @@ function FileList(props) {
     let filesList = files.map(file => {
         if (file.type === "DIRECTORY") {
             return (
-                <tr key={i++} className="gradeA row-settings">
-                    <td onClick={() => props.getFiles(file.path.path)}><em
-                        className="ion-android-folder"/> {file.path.name}
+                <tr key={i++} className="row-settings clickable-row" style={{cursor: "pointer"}}>
+                    <td onClick={() => props.getFiles(file.path.path)}>
+                        <a><i className="ion-android-folder"/> {file.path.name}</a>
                     </td>
                 </tr>
             );
