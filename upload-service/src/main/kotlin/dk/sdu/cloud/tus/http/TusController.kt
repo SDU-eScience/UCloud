@@ -17,6 +17,7 @@ import dk.sdu.cloud.tus.api.internal.UploadEventProducer
 import dk.sdu.cloud.tus.services.IReadChannel
 import dk.sdu.cloud.tus.services.RadosStorage
 import dk.sdu.cloud.tus.services.TransferStateService
+import dk.sdu.cloud.tus.services.UploadProgress
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -35,6 +36,8 @@ import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
 import kotlinx.coroutines.experimental.runBlocking
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 import java.util.*
@@ -331,15 +334,21 @@ class TusController(
         }
 
         val task = rados.createUpload(id, wrappedChannel, claimedOffset, state.length)
-        task.onProgress = {
+        task.onProgress = { chunk ->
             runBlocking {
                 producer.emit(
                     TusUploadEvent.ChunkVerified(
                         id = id,
-                        chunk = it + 1, // Chunks are 1-indexed, callbacks are 0-indexed
+                        chunk = chunk + 1, // Chunks are 1-indexed, callbacks are 0-indexed
                         numChunks = Math.ceil(state.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
                     )
                 )
+
+                transaction {
+                    UploadProgress.update({ UploadProgress.id eq id }) {
+                        it[numChunksVerified] = chunk + 1
+                    }
+                }
             }
         }
         task.upload()
