@@ -91,6 +91,7 @@ public class VwPersonDataobjectAcl implements Serializable {
     private Integer downloadDataobject;
     @Column(name = "enherited_from_parent")
     private Integer enheritedFromParent;
+    @Id
     @Column(name = "dataobjectrefid")
     private String dataobjectrefid;
     @Column(name = "dataobjectname")

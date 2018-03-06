@@ -23,13 +23,13 @@ import java.util.concurrent.ExecutionException;
 public class JpaHelpers {
 
 
-    public List<Dataobjectcollection> getJpaDataobjectcollectionList() {
+    public List<DataobjectDirectory> getJpaDataobjectcollectionList() {
 
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
         EntityManager em = emf.createEntityManager();
-        List<Dataobjectcollection> dataobjectcollectionList = new ArrayList<>();
+        List<DataobjectDirectory> dataobjectcollectionList = new ArrayList<>();
 
-        Query nq1 = em.createNamedQuery("Dataobjectcollection.findAll");
+        Query nq1 = em.createNamedQuery("Dataobjectdirectory.findAll");
         //nq1.setParameter("rescId", 10014);
 
         dataobjectcollectionList = nq1.getResultList();
@@ -330,9 +330,9 @@ public class JpaHelpers {
 
         int rc = 0;
 
-        for (Projectpersonrel projectpersonrel : person.getProjectpersonrelList()) {
-            if (projectpersonrel.getProjectrefid().getProjecttyperefid().getId() == 4) {
-                rc = projectpersonrel.getProjectrefid().getId();
+        for (ProjectPersonRelation projectPersonRelation : person.getProjectpersonrelList()) {
+            if (projectPersonRelation.getProjectrefid().getProjecttyperefid().getId() == 4) {
+                rc = projectPersonRelation.getProjectrefid().getId();
                 break;
             }
         }

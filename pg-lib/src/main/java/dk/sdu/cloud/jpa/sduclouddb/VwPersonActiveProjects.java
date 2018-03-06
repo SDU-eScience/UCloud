@@ -39,6 +39,7 @@ public class VwPersonActiveProjects implements Serializable {
     private static final long serialVersionUID = 1L;
     @Column(name = "personrefid")
     private Integer personrefid;
+    @Id
     @Column(name = "projectrefid")
     private Integer projectrefid;
     @Column(name = "projectrolerefid")
