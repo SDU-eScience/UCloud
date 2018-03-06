@@ -64,7 +64,7 @@ class SlurmPollAgent(
             if (active.isEmpty()) return
 
             ssh.use {
-                val events = pollSlurmStatus(lastPoll)
+                val events = pollSlurmStatus()
                 runBlocking {
                     synchronized(lock) {
                         events.filter { it.jobId in active }

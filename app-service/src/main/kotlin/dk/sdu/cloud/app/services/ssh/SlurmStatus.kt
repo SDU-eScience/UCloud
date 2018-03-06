@@ -5,22 +5,11 @@ import dk.sdu.cloud.app.services.SlurmEventEnded
 import dk.sdu.cloud.app.services.SlurmEventFailed
 import org.slf4j.LoggerFactory
 import java.time.Duration
-import java.time.ZoneId
-import java.time.ZonedDateTime
 
 private val log = LoggerFactory.getLogger("org.esciencecloud.app.ssh.SlurmStats")
-private val ABACUS_ZONE = ZoneId.of("Europe/Copenhagen")
 
-fun SSHConnection.pollSlurmStatus(sinceWhen: ZonedDateTime): List<SlurmEvent> {
-    fun Int.asTwoDigits() = toString().padStart(2, '0')
-    // Just in case this software will be run on hardware in another zone, we convert all to zone where HPC is located
-
-    // Go back a bit, we don't know if we are in sync with the HPC server
-    val then = sinceWhen.withZoneSameInstant(ABACUS_ZONE).minusMinutes(1L)
-    val since = "${then.year}-${then.monthValue.asTwoDigits()}-${then.dayOfMonth.asTwoDigits()}" +
-            "T${then.hour.asTwoDigits()}:${then.minute.asTwoDigits()}:${then.second.asTwoDigits()}"
-
-    val (_, text) = execWithOutputAsText("sacct -b -P -n -S $since")
+fun SSHConnection.pollSlurmStatus(): List<SlurmEvent> {
+    val (_, text) = execWithOutputAsText("sacct -b -P -n")
 
     return text.lines().mapNotNull {
         if (it.isBlank()) return@mapNotNull null
