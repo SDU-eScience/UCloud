@@ -11,11 +11,14 @@ enum class UserType {
     GROUP_ADMIN
 }
 
-data class StoragePath(
-    val path: String,
+class StoragePath(
+    path: String,
     @get:JsonIgnore val host: String = "",
     val name: String = path.substringAfterLast('/')
 ) {
+    // Remove trailing '/' (avoid doing so if the entire path is '/')
+    val path = if (path.length > 1) path.removeSuffix("/") else path
+
     fun pushRelative(relativeURI: String): StoragePath {
         return StoragePath(URI("$path/$relativeURI").normalize().path, host)
     }
