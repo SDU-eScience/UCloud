@@ -40,6 +40,7 @@ export default class SDUCloud {
                 req.open(method, this.apiContext + path);
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("contentType", "application/json");
+                req.responseType = "text"; // Explicitely set, otherwise issues with empty response
                 req.onload = () => {
                     let responseContentType = req.getResponseHeader("content-type");
                     let parsedResponse = req.response;
@@ -138,7 +139,7 @@ export default class SDUCloud {
 
     get homeFolder() {
         let username = this.username;
-        return `/home/${username}/`
+        return `/home/${username}`
     }
 
     /**

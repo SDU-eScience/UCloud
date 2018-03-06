@@ -21,7 +21,6 @@ import {
     sendToAbacus,
     downloadFile,
     toLowerCaseAndCapitalize,
-    publishToZenodo,
 } from "../UtilityFunctions";
 import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react";
@@ -388,14 +387,6 @@ function FileOptions(props) {
                     Delete
                 </Button>
             </p>
-            <p>
-                <Button className="btn btn-info btn-block ripple"
-                        disabled={rights.rightsLevel < 3 || props.selectedFiles.length > 1}
-                        onClick={() => publishToZenodo(props.selectedFiles[0].path.path)}>
-                    <em className="ion-ios-cloud-upload-outline pull-left"/>
-                    Publish to Zenodo
-                </Button>
-            </p>
         </div>
     )
 }
@@ -547,9 +538,6 @@ function MobileButtons(props) {
                            onClick={() => showFileDeletionPrompt(file.path)}> Delete file</a></li>
                     <li><Link className="btn btn-default ripple btn-block ion-ios-settings-strong"
                               to={`/fileInfo/${file.path.path}/`}> Properties</Link></li>
-                    <li><a className="btn btn-default ripple btn-block ion-ios-cloud-upload-outline"
-                           onClick={() => publishToZenodo(file.path.path)}> Publish to Zenodo
-                    </a></li>
                 </ul>
             </div>
         </span>)

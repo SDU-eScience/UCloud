@@ -129,7 +129,7 @@ function PublicationList(props) {
                 <td>{toLowerCaseAndCapitalize(publication.status)}</td>
                 <td>{actionButton}</td>
                 <td>
-                    <Link to={`/ZenodoInfo/${window.encodeURIComponent(publication.id)}`}><Button>Show
+                    <Link to={`/zenodo/info/${window.encodeURIComponent(publication.id)}`}><Button>Show
                         More</Button></Link>
                 </td>
                 <td>{new Date(publication.modifiedAt).toLocaleString()}</td>

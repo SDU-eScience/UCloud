@@ -266,10 +266,6 @@ export function getParentPath(path) {
     return parentPath;
 }
 
-export function publishToZenodo(uri) {
-    console.log(uri);
-}
-
 export function downloadFile(path, cloud) {
     cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
         let link = document.createElement("a");

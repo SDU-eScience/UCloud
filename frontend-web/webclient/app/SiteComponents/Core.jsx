@@ -42,10 +42,9 @@ class Core extends React.Component {
                         <Route exact path="/analyses" component={Analyses}/>
                         <Route exact path="/audit/user/:id" component={UserAuditing}/>
                         <Route exact path="/notifications" component={Notifications}/>
-                        <Route exact path="/ZenodoHome/" component={ZenodoHome}/>
-                        <Route exact path="/ZenodoInfo/:jobID" component={ZenodoInfo}/>
-                        <Route exact path="/ZenodoPublish/" component={ZenodoPublish}/>
-                        <Route exact path="/ZenodoPublish/*" component={ZenodoPublish}/>
+                        <Route exact path="/zenodo/" component={ZenodoHome}/>
+                        <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo}/>
+                        <Route exact path="/zenodo/publish/" component={ZenodoPublish}/>
                         <Route component={NotFound}/>
                     </Switch>
                     <footer>

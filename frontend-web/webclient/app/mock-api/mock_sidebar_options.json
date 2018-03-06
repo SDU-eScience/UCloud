@@ -57,13 +57,13 @@
       {
         "name": "Publications",
         "icon": "",
-        "href": "/ZenodoHome",
+        "href": "/zenodo/",
         "children": null
       },
       {
         "name": "Publish",
         "icon": "",
-        "href": "/ZenodoPublish",
+        "href": "/zenodo/publish",
         "children": null
       }
     ]

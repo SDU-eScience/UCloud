@@ -51,8 +51,8 @@ class ZenodoPublish extends React.Component {
         if (!filePaths.length || !this.state.name) {
             return
         }
-        Cloud.post("/zenodo/publish/", {filePaths: filePaths, name: this.state.name}).then(() => {
-            this.props.history.push("/ZenodoHome/");
+        Cloud.post("/zenodo/publish/", {filePaths: filePaths, name: this.state.name}).then((res) => {
+            this.props.history.push(`/zenodo/info/${res.response.publicationID}`);
         });
         this.setState(() => ({requestSent: true}));
     }
@@ -89,7 +89,7 @@ class ZenodoPublish extends React.Component {
 
     render() {
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
-        if (this.state.connected === false) {
+        if (!this.state.connected && !this.state.loading) {
             return (<NotConnectedToZenodo/>);
         }
         return (

@@ -71,12 +71,10 @@ class FileInfo extends React.Component {
             };
 
             Cloud.delete("/acl", body).then(res => {
-                if (res.request.statusCode) {
-                    swal("Success!", `Rights have been revoked`, "success");
-                    this.removeAcl(acl);
-                } else {
-                    swal("Error", `An error occurred revoking the rights. Please try again later`, "error");
-                }
+                this.removeAcl(acl);
+                swal("Success!", `Rights have been revoked`, "success");
+            }).catch((failure) => {
+                swal("Error", `An error occurred revoking the rights. Please try again later`, "error");
             });
         });
     }
@@ -104,8 +102,9 @@ class FileInfo extends React.Component {
             const currentRights = this.state.file.acl.find(acl => acl.entity.displayName === Cloud.username);
             if (currentRights) {
                 if (currentRights.right === "OWN") {
-                    button = (<Button onClick={() => shareFile(this.state.file.path, Cloud)} className="btn btn-primary">Share
-                        file</Button>);
+                    button = (
+                        <Button onClick={() => shareFile(this.state.file.path, Cloud)} className="btn btn-primary">Share
+                            file</Button>);
                 }
             }
         }
@@ -152,7 +151,8 @@ function FileView(props) {
             <ListGroup className="col-sm-4">
                 <ListGroupItem>Created at: {new Date(props.file.createdAt).toLocaleString()}</ListGroupItem>
                 <ListGroupItem>Modified at: {new Date(props.file.createdAt).toLocaleString()}</ListGroupItem>
-                <ListGroupItem>Favorite file: {props.file.favorited ? <em onClick={() => props.favorite()} className="ion-star"/> :
+                <ListGroupItem>Favorite file: {props.file.favorited ?
+                    <em onClick={() => props.favorite()} className="ion-star"/> :
                     <em onClick={() => props.favorite()} className="ion-ios-star-outline"/>}</ListGroupItem>
             </ListGroup>
             <ListGroup className="col-sm-4">
