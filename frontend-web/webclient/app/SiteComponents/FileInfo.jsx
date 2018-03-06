@@ -45,8 +45,8 @@ class FileInfo extends React.Component {
             loading: true,
         });
         let path = getParentPath(this.state.filePath);
-        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(files => {
-            let file = files.find(file => file.path.path === this.state.filePath); // FIXME massive overhead for single file
+        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(res => {
+            let file = res.response.find(file => file.path.path === this.state.filePath); // FIXME massive overhead for single file
             this.setState(() => ({
                 file: file,
                 loading: false,
@@ -85,16 +85,16 @@ class FileInfo extends React.Component {
         const file = Object.assign({}, this.state.file);
         let index = file.acl.findIndex(acl => acl.name === toRemoveAcl.entity.name);
         file.acl.splice(index, 1);
+        // TODO: rewrite as functional.
+        // TODO: E.g. file. file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1))
         this.setState(() => ({
             file: file,
         }));
     }
 
     favoriteFile() {
-        let filesList = [];
-        filesList.push(this.state.file);
         this.setState(() => ({
-            file: favorite(filesList, this.state.file.path.uri, Cloud)[0],
+            file: favorite([this.state.file], this.state.file.path.uri, Cloud)[0],
         }));
     }
 
