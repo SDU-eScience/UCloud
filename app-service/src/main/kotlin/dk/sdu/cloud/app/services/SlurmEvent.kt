@@ -4,7 +4,6 @@ import java.time.Duration
 
 sealed class SlurmEvent {
     abstract val jobId: Long
-    abstract val name: String
 
     companion object {
         private val BASE_REGEX = Regex("SLURM Job_id=(\\d+) Name=(([^,]|[ \\t\\w])+) (([^,]|[ \\t\\w])+),(.+)")
@@ -43,7 +42,7 @@ sealed class SlurmEvent {
                             ?: throw IllegalStateException("Unable to parse remaining part of began event: $text")
                     val duration = parsePeriodFromResults(beganMatches, 1)
 
-                    SlurmEventBegan(jobId, name, duration)
+                    SlurmEventBegan(jobId, duration)
                 }
 
                 "Ended" -> {
@@ -54,10 +53,10 @@ sealed class SlurmEvent {
                     val exitCode = endedMatches.groupValues[5].toIntOrNull()
                             ?: throw IllegalStateException("Unable to parse exit code from ended event: $text")
 
-                    SlurmEventEnded(jobId, name, duration, status, exitCode)
+                    SlurmEventEnded(jobId, duration, status, exitCode)
                 }
 
-                else -> SlurmEventUnknown(jobId, name, eventType)
+                else -> SlurmEventUnknown(jobId, name)
             }
         }
     }
@@ -65,19 +64,24 @@ sealed class SlurmEvent {
 
 data class SlurmEventBegan(
     override val jobId: Long,
-    override val name: String,
     val queueTime: Duration
 ) : SlurmEvent()
 
 data class SlurmEventEnded(
     override val jobId: Long,
-    override val name: String,
     val runTime: Duration,
     val status: String,
     val exitCode: Int
 ) : SlurmEvent()
 
-data class SlurmEventUnknown(override val jobId: Long, override val name: String, val type: String) : SlurmEvent()
+data class SlurmEventFailed(
+    override val jobId: Long
+) : SlurmEvent()
+
+data class SlurmEventUnknown(
+    override val jobId: Long,
+    val type: String
+) : SlurmEvent()
 
 typealias SlurmEventListener = (SlurmEvent) -> Unit
 

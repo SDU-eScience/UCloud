@@ -69,7 +69,7 @@ class SlurmPollAgent(
                     synchronized(lock) {
                         events.filter { it.jobId in active }
                     }.forEach {
-                        if (it is SlurmEventEnded) {
+                        if (it is SlurmEventEnded || it is SlurmEventFailed) {
                             log.debug("Removing ${it.jobId}")
                             active.remove(it.jobId)
                         }

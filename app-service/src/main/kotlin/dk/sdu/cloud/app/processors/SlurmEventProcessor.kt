@@ -37,7 +37,7 @@ class SlurmEventProcessor(
 ) {
     // Handles an event captured by te internal SlurmPollAgent and handles it. This will output
     // an event into Kafka once the entire thing has been handled. From this we create a Kafka event.
-    private suspend fun handle(event: SlurmEvent): Pair<String, HPCAppEvent> {
+    private suspend fun handle(event: SlurmEvent): Pair<String, HPCAppEvent>? {
         log.debug("handle($event)")
         return when (event) {
             is SlurmEventBegan -> {
@@ -45,6 +45,11 @@ class SlurmEventProcessor(
                 val appEvent = HPCAppEvent.Started(event.jobId)
 
                 Pair(key, appEvent)
+            }
+
+            is SlurmEventFailed -> {
+                val key = transaction { JobsDAO.findSystemIdFromSlurmId(event.jobId) } ?: return null
+                Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
             }
 
             is SlurmEventEnded -> handleEndedEvent(event)
@@ -196,7 +201,7 @@ class SlurmEventProcessor(
     fun init() {
         slurmAgent.addListener {
             runBlocking {
-                val (key, event) = handle(it)
+                val (key, event) = handle(it) ?: return@runBlocking
                 appEventProducer.emit(key, event)
             }
         }

@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.services.ssh
 
 import dk.sdu.cloud.app.services.SlurmEvent
 import dk.sdu.cloud.app.services.SlurmEventEnded
+import dk.sdu.cloud.app.services.SlurmEventFailed
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.time.ZoneId
@@ -38,7 +39,8 @@ fun SSHConnection.pollSlurmStatus(sinceWhen: ZonedDateTime): List<SlurmEvent> {
                 log.warn("Unable to parse exit code for line: $it")
                 null
             } else {
-                if (state == "COMPLETED") SlurmEventEnded(jobId, "job.sh", Duration.ZERO, state, exitCode)
+                if (state == "COMPLETED") SlurmEventEnded(jobId, Duration.ZERO, state, exitCode)
+                if (state == "FAILED") SlurmEventFailed(jobId)
                 else null
             }
         }
