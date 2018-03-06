@@ -52,12 +52,6 @@ class UploadStateProcessor(
                 }
 
                 is TusUploadEvent.ChunkVerified -> {
-                    transaction {
-                        UploadProgress.update({ UploadProgress.id eq event.id }) {
-                            it[numChunksVerified] = event.chunk
-                        }
-                    }
-
                     if (event.chunk == event.numChunks) {
                         val state = transferStateService.retrieveState(event.id)!!
                         val irodsUser = state.user

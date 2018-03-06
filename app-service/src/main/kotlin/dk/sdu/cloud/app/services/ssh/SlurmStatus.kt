@@ -28,9 +28,11 @@ fun SSHConnection.pollSlurmStatus(): List<SlurmEvent> {
                 log.warn("Unable to parse exit code for line: $it")
                 null
             } else {
-                if (state == "COMPLETED") SlurmEventEnded(jobId, Duration.ZERO, state, exitCode)
-                if (state == "FAILED") SlurmEventFailed(jobId)
-                else null
+                when (state) {
+                    "COMPLETED" -> SlurmEventEnded(jobId, Duration.ZERO, state, exitCode)
+                    "FAILED" -> SlurmEventFailed(jobId)
+                    else -> null
+                }
             }
         }
     }
