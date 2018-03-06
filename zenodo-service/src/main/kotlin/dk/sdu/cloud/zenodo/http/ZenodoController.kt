@@ -5,9 +5,7 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.zenodo.api.*
-import dk.sdu.cloud.zenodo.services.PublicationException
-import dk.sdu.cloud.zenodo.services.PublicationService
-import dk.sdu.cloud.zenodo.services.ZenodoRPCService
+import dk.sdu.cloud.zenodo.services.*
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
@@ -68,6 +66,16 @@ class ZenodoController(
 
             implement(ZenodoDescriptions.listPublications) {
                 logEntry(log, it)
+
+                try {
+                    zenodo.validateToken(call.request.validatedPrincipal)
+                } catch (ex: MissingOAuthToken) {
+                    error(ZenodoErrorMessage(false, "Not connected to Zenodo"), HttpStatusCode.BadRequest)
+                    return@implement
+                } catch (ex: TooManyRetries) {
+                    error(ZenodoErrorMessage(false, "Could not connect to Zenodo"), HttpStatusCode.BadGateway)
+                    return@implement
+                }
 
                 try {
                     ok(publicationService.findForUser(call.request.validatedPrincipal))

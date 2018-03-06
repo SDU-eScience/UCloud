@@ -39,6 +39,49 @@ class ZenodoRPCService(
         return oauthService.isConnected(jwt.subject)
     }
 
+    suspend fun validateToken(jwt: DecodedJWT, retries: Int = 0) {
+        if (retries >= 5) throw TooManyRetries()
+
+        val token =
+            oauthService.retrieveTokenOrRefresh(jwt.subject) ?: throw MissingOAuthToken()
+
+        val rawResponse = try {
+            HttpClient.get("${oauthService.baseUrl}/api/deposit/depositions") {
+                setHeader(HttpHeaders.Authorization, "Bearer ${token.accessToken}")
+            }
+        } catch (ex: TimeoutException) {
+            delay(500)
+            return validateToken(jwt, retries + 1)
+        }
+
+        try {
+            when (rawResponse.statusCode) {
+                in 200..299 -> {
+                    // All is good
+                    return
+                }
+
+                HttpStatusCode.Unauthorized.value, HttpStatusCode.Forbidden.value -> {
+                    oauthService.invalidateTokenForUser(jwt.subject)
+                    throw MissingOAuthToken()
+                }
+
+                in 500..599 -> {
+                    delay(500)
+                    return validateToken(jwt, retries + 1)
+                }
+
+                else -> {
+                    throw rawResponse.asJson<ZenodoRPCFailure>()
+                }
+            }
+        } catch (ex: Exception) {
+            log.info("Caught an exception while trying to parse Zenodo entities!")
+            log.info(ex.stackTraceToString())
+            return validateToken(jwt, retries + 1)
+        }
+    }
+
     suspend fun createDeposition(jwt: DecodedJWT, retries: Int = 0): ZenodoDepositionEntity {
         if (retries >= 5) throw TooManyRetries()
 
