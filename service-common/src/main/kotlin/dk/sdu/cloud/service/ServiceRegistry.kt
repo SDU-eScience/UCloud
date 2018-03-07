@@ -43,7 +43,6 @@ class ServiceRegistry(
         httpHealthEndpoint: String? = HEALTH_URI,
         serviceHealthCheck: (() -> Boolean)? = null
     ) {
-
         if (isRegistered) throw IllegalStateException("Already registered at Consul!")
 
         // Must be unique, but should be reused (old entries will stick around in Consul but in a failed state
@@ -84,21 +83,19 @@ class ServiceRegistry(
         )
 
         serviceCheckExecutor.scheduleAtFixedRate({
-            log.debug("Scheduling service check...")
-
+            healthLog.debug("Scheduling health check...")
             val result = try {
                 serviceHealthCheck?.invoke() ?: true
             } catch (ex: Exception) {
-                log.warn("Caught exception while running service check!")
-                log.warn(ex.stackTraceToString())
+                healthLog.warn("Caught exception while running service check!")
+                healthLog.warn(ex.stackTraceToString())
                 false
             }
-
-            log.debug("Result was $result")
+            if (serviceHealthCheck != null) healthLog.debug("Custom check returned: $result")
 
             val serviceIsOkay: Boolean = run {
                 if (!result) {
-                    log.warn("Service check returned false. Setting state to critical!")
+                    healthLog.warn("Service check returned false. Setting state to critical!")
                     return@run false
                 }
 
@@ -109,15 +106,15 @@ class ServiceRegistry(
                             HttpClient.get("http://${instance.hostname}:${instance.port}$HEALTH_URI")
                         }
                     } catch (ex: Exception) {
-                        log.warn("Caught exception while sending request to health endpoint!")
-                        log.warn(ex.stackTraceToString())
+                        healthLog.warn("Caught exception while sending request to health endpoint!")
+                        healthLog.warn(ex.stackTraceToString())
                         return@run false
                     }
 
                     if (status.statusCode !in 200..299) {
-                        log.warn("Health endpoint did not return a status code in range 200..299")
-                        log.warn("${status.statusCode} - ${status.statusText}")
-                        log.warn(status.responseBody)
+                        healthLog.warn("Health endpoint did not return a status code in range 200..299")
+                        healthLog.warn("${status.statusCode} - ${status.statusText}")
+                        healthLog.warn(status.responseBody)
 
                         agent.fail(serviceId)
                         return@run false
@@ -132,7 +129,7 @@ class ServiceRegistry(
             } else {
                 agent.fail(serviceId)
             }
-        }, 0L, CHECK_PERIOD_IN_SECONDS, TimeUnit.SECONDS)
+        }, CHECK_PERIOD_IN_SECONDS, CHECK_PERIOD_IN_SECONDS, TimeUnit.SECONDS)
 
         isRegistered = true
     }

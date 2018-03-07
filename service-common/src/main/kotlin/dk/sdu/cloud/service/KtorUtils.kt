@@ -24,6 +24,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 private val utilsLog = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtilsKt")
+internal val healthLog = LoggerFactory.getLogger("dk.sdu.cloud.service.HealthCheck")
 
 fun Application.installDefaultFeatures(
     cloud: AuthenticatedCloud,
@@ -35,7 +36,7 @@ fun Application.installDefaultFeatures(
 
     intercept(ApplicationCallPipeline.Infrastructure) {
         if (call.request.path() == HEALTH_URI) {
-            utilsLog.debug("Received request for health!")
+            healthLog.debug("Received request for health!")
             call.respond(HttpStatusCode.NoContent)
             finish()
             return@intercept
