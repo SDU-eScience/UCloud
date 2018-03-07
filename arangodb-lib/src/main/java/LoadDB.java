@@ -12,14 +12,16 @@ public class LoadDB {
         JpaHelpers jpaHelpers = new JpaHelpers();
         ArangoDbHelpers arangoDbHelpers = new ArangoDbHelpers();
         //arangoDbHelpers.loadDataObjectCollection();
-        //arangoDbHelpers.loadDataObjectDirectoryCollection();
-        //arangoDbHelpers.loadPersonCollection();
-        //arangoDbHelpers.loadProjectCollection();
+        arangoDbHelpers.loadDataObjectDirectoryCollection();
+
+        arangoDbHelpers.loadPersonCollection();
+        arangoDbHelpers.loadProjectCollection();
+
+
+
         //arangoDbHelpers.basicSetupSduCloudGraph();
         //arangoDbHelpers.setEdge();
-
-
-        jpaHelpers.setCollectionTestData();
+        //jpaHelpers.setCollectionTestData();
 
 
 

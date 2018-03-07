@@ -1,25 +1,23 @@
 package dk.sdu.cloud.utils.arangodb;
 
-import com.arangodb.ArangoCollection;
-import com.arangodb.ArangoDB;
-import com.arangodb.ArangoDatabase;
+import com.arangodb.*;
+import com.arangodb.entity.BaseDocument;
+import com.arangodb.entity.CollectionEntity;
+import com.arangodb.entity.DocumentEntity;
 import com.arangodb.entity.EdgeDefinition;
+import com.arangodb.util.MapBuilder;
 import com.arangodb.velocypack.*;
 import com.arangodb.velocypack.exception.VPackException;
 import dk.sdu.cloud.jpa.sduclouddb.Dataobject;
-import dk.sdu.cloud.jpa.sduclouddb.Dataobjectcollection;
-import dk.sdu.cloud.jpa.sduclouddb.Person;
-import dk.sdu.cloud.jpa.sduclouddb.Project;
 import dk.sdu.cloud.jpa.utils.JpaHelpers;
-import dk.sdu.cloud.models.arangodb.DataObject;
-import dk.sdu.cloud.models.arangodb.DataObjectDirectory;
+import dk.sdu.cloud.models.arangodb.vertexs.DataObject;
+import dk.sdu.cloud.models.arangodb.vertexs.DataObjectDirectory;
+import dk.sdu.cloud.models.arangodb.vertexs.Person;
+import dk.sdu.cloud.models.arangodb.vertexs.Project;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 
@@ -122,7 +120,7 @@ public class ArangoDbHelpers {
 
         System.err.println(arangoDB.getDatabases().toString());
 
-        for (DataObjectDirectory jpaDataObjectDirectory :jpaHelpers.getJpaDataobjectcollectionList())
+        for (dk.sdu.cloud.jpa.sduclouddb.DataobjectDirectory jpaDataObjectDirectory :jpaHelpers.getJpaDataobjectDirectoryList())
         {
             DataObjectDirectory dataObjectDirectory = new DataObjectDirectory();
             dataObjectDirectory.setKey(this.getUUID());
@@ -156,9 +154,9 @@ public class ArangoDbHelpers {
         collection = db.collection(COLLECTION_NAME);
 
 
-        for (Person jpaPerson :jpaHelpers.getJpaPersonList())
+        for (dk.sdu.cloud.jpa.sduclouddb.Person jpaPerson :jpaHelpers.getJpaPersonList())
         {
-            dk.sdu.cloud.models.arangodb.Person person = new dk.sdu.cloud.models.arangodb.Person();
+            Person person = new Person();
             person.setKey(this.getUUID());
             person.setPerson_id(jpaPerson.getId());
             person.setCreated_datetime(LocalDateTime.now());
@@ -200,9 +198,9 @@ public class ArangoDbHelpers {
 
 
 
-        for (Project jpaProject :jpaHelpers.getJpaProjectList())
+        for (dk.sdu.cloud.jpa.sduclouddb.Project jpaProject :jpaHelpers.getJpaProjectList())
         {
-            dk.sdu.cloud.models.arangodb.Project project = new dk.sdu.cloud.models.arangodb.Project();
+            Project project = new Project();
             project.setKey(this.getUUID());
             project.setProject_id(jpaProject.getId());
             project.setCreated_datetime(LocalDateTime.now());
@@ -260,32 +258,110 @@ public class ArangoDbHelpers {
 
     }
 
-    public void basicSetupSduCloudGraph()
+
+
+    public void setEdge(String edgeCollection)
     {
-        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
-        Collection<EdgeDefinition> edgeDefinitions = new ArrayList<>();
-        EdgeDefinition edgeDefinition = new EdgeDefinition();
-        // define the edgeCollection to store the edges
-        edgeDefinition.collection("sduCloudEdgeCollection");
-        // define a set of collections where an edge is going out...
-        edgeDefinition.from("personCollection", "projectCollection","dataObjectDirectoryCollection");
 
-        // repeat this for the collections where an edge is going into
-        edgeDefinition.to("projectCollection","dataObjectDirectoryCollection","dataObjectCollection");
-
-        edgeDefinitions.add(edgeDefinition);
-
-        // A graph can contain additional vertex collections, defined in the set of orphan collections
-//        GraphCreateOptions options = new GraphCreateOptions();
-//        options.orphanCollections("myCollection4", "myCollection5");
-
-        // now it's possible to create a graph
-        arangoDB.db("sduclouddb").createGraph("sduclouddbGraph", edgeDefinitions);
-        arangoDB.shutdown();
+//        BaseEdgeDocument edge = new BaseEdgeDocument("myVertexCollection/myFromKey",
+//                "myVertexCollection/myToKey");
+//        edge.addAttribute("label", "value");
+//        edge.addAttribute("whatever", 42);
+//        arangoDB.db("myDatabase").graph("myGraph").edgeCollection("myEdgeCollection").insertEdge(edge);
     }
 
-    public void setEdge()
+    //	(personEdgeToProject_with_role)
+    public void setPersonEdgeToProject_with_role()
     {
+        for (dk.sdu.cloud.jpa.sduclouddb.Person jpaPerson :jpaHelpers.getJpaPersonList())
+        {
+            for (dk.sdu.cloud.jpa.sduclouddb.ProjectPersonRelation jpaProjectPersonRelation :jpaPerson.getProjectPersonRelationList())
+            {
 
+            }
+        }
+    }
+
+    public void getPersonByPersonId(int person_id)
+    {
+        long startTime = 0;
+        long finishTime = 0;
+
+        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+
+        final String COLLECTION_NAME = "dataObjectCollection";
+
+        try {
+            final String query = "FOR t IN personCollection FILTER t.person_id == @person_id RETURN t";
+            startTime = System.currentTimeMillis();
+            final Map<String, Object> bindVars = new MapBuilder().put("person_id", person_id).get();
+
+            System.err.println("Start: " + System.currentTimeMillis());
+            final ArangoCursor<BaseDocument> cursor = arangoDB.db(DB_NAME).query(query, bindVars, null,
+                    BaseDocument.class);
+            for (; cursor.hasNext();) {
+               // System.out.println("Key: " + cursor.next().getKey() + " ");
+                System.err.println("key: " + cursor.next().getId());
+
+                finishTime = System.currentTimeMillis();
+
+            }
+            System.err.println("duration: " + (finishTime-startTime));
+        } catch (final ArangoDBException e) {
+            System.err.println("Failed to execute query. " + e.getMessage());
+        }
+
+
+
+
+    }
+
+
+    public void createEdgeCollections()
+    {
+        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+        db = arangoDB.db(DB_NAME);
+        Collection<EdgeDefinition> edgeDefinitions = new ArrayList<>();
+
+        EdgeDefinition edgeDefinitionPersonEdgeToProject_with_role = new EdgeDefinition();
+        // define the edgeCollection to store the edges
+        edgeDefinitionPersonEdgeToProject_with_role.collection("personCollectionEdgeToProject_with_role");
+        // define a set of collections where an edge is going out...
+        edgeDefinitionPersonEdgeToProject_with_role.from("personCollection");
+
+        // repeat this for the collections where an edge is going into
+        edgeDefinitionPersonEdgeToProject_with_role.to("projectCollection");
+
+        edgeDefinitions.add(edgeDefinitionPersonEdgeToProject_with_role);
+
+
+
+        EdgeDefinition edgeDefinitionProjectCollectionEdgeToDataObjectDirectoryCollection_simple = new EdgeDefinition();
+        // define the edgeCollection to store the edges
+        edgeDefinitionProjectCollectionEdgeToDataObjectDirectoryCollection_simple.collection("projectCollectionEdgeToDataObjectDirectoryCollection_simple");
+        // define a set of collections where an edge is going out...
+        edgeDefinitionProjectCollectionEdgeToDataObjectDirectoryCollection_simple.from("projectCollection");
+
+        // repeat this for the collections where an edge is going into
+        edgeDefinitionProjectCollectionEdgeToDataObjectDirectoryCollection_simple.to("dataObjectDirectoryCollection");
+
+        edgeDefinitions.add(edgeDefinitionProjectCollectionEdgeToDataObjectDirectoryCollection_simple);
+
+        EdgeDefinition edgeDefinitionDataObjectDirectoryCollectionEdgeToDataobjectCollection_simple = new EdgeDefinition();
+        // define the edgeCollection to store the edges
+        edgeDefinitionDataObjectDirectoryCollectionEdgeToDataobjectCollection_simple.collection("dataObjectDirectoryCollectionEdgeToDataobjectCollection_simple");
+        // define a set of collections where an edge is going out...
+        edgeDefinitionDataObjectDirectoryCollectionEdgeToDataobjectCollection_simple.from("dataObjectDirectoryCollection");
+
+        // repeat this for the collections where an edge is going into
+        edgeDefinitionDataObjectDirectoryCollectionEdgeToDataobjectCollection_simple.to("dataobjectCollection");
+
+        edgeDefinitions.add(edgeDefinitionDataObjectDirectoryCollectionEdgeToDataobjectCollection_simple);
+
+
+        // now it's possible to create a graph
+
+        arangoDB.db("sduclouddb").createGraph("sduclouddbGraph", edgeDefinitions);
+        arangoDB.shutdown();
     }
 }
