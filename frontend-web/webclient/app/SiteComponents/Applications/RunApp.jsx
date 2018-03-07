@@ -70,7 +70,7 @@ class RunApp extends React.Component {
     onJobInfoChange(field, value, timeField) {
         let {jobInfo} = this.state;
         if (timeField) {
-            jobInfo[field][timeField] = value;
+            jobInfo[field][timeField] = !isNaN(value) ? value : null;
         } else {
             jobInfo[field] = value;
         }
@@ -277,14 +277,14 @@ function JobInfo(props) {
                             <InputGroup>
                                 <input type="number" step="1" min="0" className="form-control" style={{width: 150}}
                                        placeholder={props.tool.defaultMaxTime.hours}
-                                       value={maxTime.hours === null ? "" : maxTime.hours}
+                                       value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
                                        onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "hours")}/>
                                 <span className="input-group-addon">Hours</span>
                             </InputGroup>{" "}
                             <InputGroup>
                                 <input type="number" step="1" min="0" max="59" className="form-control" style={{width: 150}}
                                        placeholder={props.tool.defaultMaxTime.minutes}
-                                       value={maxTime.minutes === null ? "" : maxTime.minutes}
+                                       value={maxTime.minutes === null || isNaN(maxTime.minutes)? "" : maxTime.minutes}
                                        onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "minutes")}/>
                                 <span className="input-group-addon">Minutes</span>
                             </InputGroup>{"  "}
