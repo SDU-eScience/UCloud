@@ -217,16 +217,15 @@ class RunApp extends React.Component {
     }
 }
 
-function ApplicationHeader(props) {
-    return (
-        <Jumbotron>
-            <h1>{props.name}</h1>
-            <h3>{props.description}</h3>
-            <h4>Author: {props.author}</h4>
-        </Jumbotron>)
-}
+const ApplicationHeader = (props) => (
+    <Jumbotron>
+        <h1>{props.name}</h1>
+        <h3>{props.description}</h3>
+        <h4>Author: {props.author}</h4>
+    </Jumbotron>
+);
 
-function Parameters(props) {
+const Parameters = (props) => {
     if (!props.parameters) {
         return null
     }
@@ -242,9 +241,9 @@ function Parameters(props) {
             <input value="Submit" className="btn btn-info" type="submit"/>
         </form>
     )
-}
+};
 
-function JobInfo(props) {
+const JobInfo = (props) => {
     // TODO refactor fields, very not DRY compliant
     const {maxTime} = props.jobInfo;
     return (
@@ -282,14 +281,16 @@ function JobInfo(props) {
                                 <span className="input-group-addon">Hours</span>
                             </InputGroup>{" "}
                             <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control" style={{width: 150}}
+                                <input type="number" step="1" min="0" max="59" className="form-control"
+                                       style={{width: 150}}
                                        placeholder={props.tool.defaultMaxTime.minutes}
-                                       value={maxTime.minutes === null || isNaN(maxTime.minutes)? "" : maxTime.minutes}
+                                       value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
                                        onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "minutes")}/>
                                 <span className="input-group-addon">Minutes</span>
                             </InputGroup>{"  "}
                             <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control" style={{width: 150}}
+                                <input type="number" step="1" min="0" max="59" className="form-control"
+                                       style={{width: 150}}
                                        placeholder={props.tool.defaultMaxTime.seconds}
                                        value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
                                        onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "seconds")}/>
@@ -302,21 +303,20 @@ function JobInfo(props) {
             <fieldset><CommentField onCommentChange={props.onCommentChange} comment={props.comment}/></fieldset>
         </span>
     )
-}
+};
 
-function CommentField(props) {
-    return (
-        <div className="form-group">
-            <label className="col-sm-2 control-label">Comment</label>
-            <div className="col-md-4">
+const CommentField = (props) => (
+    <div className="form-group">
+        <label className="col-sm-2 control-label">Comment</label>
+        <div className="col-md-4">
             <textarea disabled required style={{resize: "none"}} placeholder="Add a comment about this job..."
                       className="col-md-4 form-control" rows="5" onChange={e => props.onCommentChange(e.target.value)}/>
-            </div>
-        </div>);
-}
+        </div>
+    </div>
+);
 
 // Types: input, integer, floating_point, text
-function Parameter(props) {
+const Parameter = (props) => {
     if (props.parameter.type === "input_file") {
         return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange} uppy={props.uppy}
                                               parameter={props.parameter} uppyOpen={props.uppyOpen}/></fieldset>);
@@ -336,26 +336,23 @@ function Parameter(props) {
     } else {
         return null;
     }
-}
+};
 
-function InputFileParameter(props) {
-    return (
-        <div className="form-group">
-            <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
-            <div className="col-md-4">
-                <FileSelector onFileSelectionChange={props.onFileSelectionChange} uppyOpen={props.uppyOpen}
-                              uploadCallback={props.onFileSelectionChange} uppy={props.uppy}
-                              isRequired={!props.parameter.optional} allowUpload={true}
-                              returnObject={{parameter: props.parameter, isSource: true}}/>
-                <span className="help-block">Source of the file</span>
-                <OptionalText optional={props.parameter.optional}/>
-            </div>
+const InputFileParameter = (props) => (
+    <div className="form-group">
+        <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
+        <div className="col-md-4">
+            <FileSelector onFileSelectionChange={props.onFileSelectionChange} uppyOpen={props.uppyOpen}
+                          uploadCallback={props.onFileSelectionChange} uppy={props.uppy}
+                          isRequired={!props.parameter.optional} allowUpload={true}
+                          returnObject={{parameter: props.parameter, isSource: true}}/>
+            <span className="help-block">Source of the file</span>
+            <OptionalText optional={props.parameter.optional}/>
         </div>
-    )
-}
+    </div>
+);
 
-function TextParameter(props) {
-    return (
+const TextParameter = (props) => (
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
@@ -368,10 +365,9 @@ function TextParameter(props) {
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>
-    )
-}
+);
 
-function IntegerParameter(props) {
+const IntegerParameter = (props) => {
     let value = props.values[props.parameter.name];
     value = value !== undefined && !isNaN(value) ? value : NaN.toString();
     let slider = null;
@@ -404,10 +400,9 @@ function IntegerParameter(props) {
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>);
-}
+};
 
-function BooleanParameter(props) {
-    return (
+const BooleanParameter = (props) => (
         <div className="form-group">
             <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
             <div className="col-md-4">
@@ -418,10 +413,9 @@ function BooleanParameter(props) {
                 <span className="help-block">{props.parameter.description}</span>
             </div>
         </div>
-    );
-}
+);
 
-function FloatParameter(props) {
+const FloatParameter = (props) => {
     let value = props.values[props.parameter.name];
     value = value !== undefined && !isNaN(value) ? value : NaN.toString();
     let slider = null;
@@ -458,10 +452,10 @@ function FloatParameter(props) {
             </div>
         </div>
     )
-}
+};
 
-function OptionalText(props) {
+const OptionalText = (props) => {
     return props.optional ? (<span className="help-block"><b>Optional</b></span>) : null;
-}
+};
 
 export default RunApp;

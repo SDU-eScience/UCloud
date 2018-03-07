@@ -1,7 +1,7 @@
 import React from 'react';
 import {BallPulseLoading} from '../LoadingIcon';
 import {Link} from "react-router-dom";
-import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
+import {PaginationButtons, EntriesPerPageSelector} from "../Pagination";
 import {Table, Button} from 'react-bootstrap';
 import {Card} from "../Cards";
 import pubsub from "pubsub-js";
@@ -155,7 +155,8 @@ class Applications extends React.Component {
                                             className={"pull-right " + this.sortingIcon("visibility")}/></span></th>
                                         <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
                                             className={"pull-right " + this.sortingIcon("name")}/></span></th>
-                                        <th onClick={() => this.sortByVersion()}><span className="text-left">Version<span
+                                        <th onClick={() => this.sortByVersion()}><span
+                                            className="text-left">Version<span
                                             className={"pull-right " + this.sortingIcon("version")}/></span></th>
                                         <th/>
                                     </tr>
@@ -171,14 +172,15 @@ class Applications extends React.Component {
                             previousPage={this.previousPage}
                         />
                         <EntriesPerPageSelector entriesPerPage={this.state.applicationsPerPage}
-                                handlePageSizeSelection={this.handlePageSizeSelection}/> Applications per page
+                                                handlePageSizeSelection={this.handlePageSizeSelection}/> Applications
+                        per page
                     </div>
                 </div>
             </section>)
     }
 }
 
-function ApplicationsList(props) {
+const ApplicationsList = (props) => {
     let applications = props.applications.slice();
     let i = 0;
     let applicationsList = applications.map(app =>
@@ -188,24 +190,22 @@ function ApplicationsList(props) {
         <tbody>
         {applicationsList}
         </tbody>)
-}
+};
 
-function SingleApplication(props) {
-    return (
-        <tr className="gradeA row-settings">
-            <PrivateIcon isPrivate={props.app.info.isPrivate}/>
-            <td title={props.app.info.description}>{props.app.info.name}</td>
-            <td title={props.app.info.description}>{props.app.info.version}</td>
-            <th>
-                <Link to={`/applications/${props.app.info.name}/${props.app.info.version}/`}>
-                    <Button className="btn btn-info">Run</Button>
-                </Link>
-            </th>
-        </tr>
-    )
-}
+const SingleApplication = (props) => (
+    <tr className="gradeA row-settings">
+        <PrivateIcon isPrivate={props.app.info.isPrivate}/>
+        <td title={props.app.info.description}>{props.app.info.name}</td>
+        <td title={props.app.info.description}>{props.app.info.version}</td>
+        <th>
+            <Link to={`/applications/${props.app.info.name}/${props.app.info.version}/`}>
+                <Button className="btn btn-info">Run</Button>
+            </Link>
+        </th>
+    </tr>
+);
 
-function PrivateIcon(props) {
+const PrivateIcon = (props) => {
     if (props.isPrivate) {
         return (
             <td title="The app is private and can only be seen by the creator and people it was shared with">
@@ -214,6 +214,6 @@ function PrivateIcon(props) {
     } else {
         return (<td title="The application is openly available for everyone"><em className="ion-unlocked"/></td>)
     }
-}
+};
 
 export default Applications

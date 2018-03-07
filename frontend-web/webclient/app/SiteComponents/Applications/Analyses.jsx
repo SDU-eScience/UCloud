@@ -19,7 +19,6 @@ class Analyses extends React.Component {
             currentPage: 0,
             analysesPerPage: 10,
             totalPages: () => Math.ceil(this.state.analyses.length / this.state.analysesPerPage),
-
             reloadIntervalId: -1
         };
         this.nextPage = this.nextPage.bind(this);
@@ -129,16 +128,15 @@ class Analyses extends React.Component {
     }
 }
 
-function AnalysesList(props) {
+const AnalysesList = (props) => {
     if (!props.analyses && !props.analyses[0].name) {
         return null;
     }
-    let i = 0;
-    const analysesList = props.analyses.map(analysis => {
+    const analysesList = props.analyses.map((analysis, index) => {
             const jobIdField = analysis.status === "COMPLETE" ?
                 (<Link to={`/files/${Cloud.jobFolder}/${analysis.jobId}`}>{analysis.jobId}</Link>) : analysis.jobId;
             return (
-                <tr key={i++} className="gradeA row-settings">
+                <tr key={index} className="gradeA row-settings">
                     <td><Link
                         to={`/applications/${analysis.appName}/${analysis.appVersion}`}>{analysis.appName}@{analysis.appVersion}</Link>
                     </td>
@@ -149,21 +147,18 @@ function AnalysesList(props) {
                 </tr>)
         }
     );
-
     return (
         <tbody>
         {analysesList}
         </tbody>)
-}
+};
 
-function formatDate(millis) {
+const formatDate = (millis) => {
     // TODO Very primitive
     let d = new Date(millis);
     return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`
-}
+};
 
-function pad(value, length) {
-    return (value.toString().length < length) ? pad("0" + value, length) : value;
-}
+const pad = (value, length) => (value.toString().length < length) ? pad("0" + value, length) : value;
 
 export default Analyses
