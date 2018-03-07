@@ -12,10 +12,7 @@ import org.apache.kafka.streams.kstream.Serialized
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore
 import org.apache.kafka.streams.state.StreamsMetadata
-import dk.sdu.cloud.client.KafkaCallDescription
-import dk.sdu.cloud.client.KafkaCallDescriptionBundle
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
-import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 
 interface StreamDescription<K, V> {
@@ -65,19 +62,7 @@ data class RequestHeader(
 
 typealias RawAuthToken = String
 
-class KafkaMappingDescription<R : Any, K : Any, V : Any>(
-        val topicName: String,
-        val targets: KafkaCallDescriptionBundle<R>,
-        val keySerde: Serde<K>,
-        val valueSerde: Serde<V>,
-        val mappper: (KafkaRequest<R>) -> Pair<K, V>
-)
-
 abstract class KafkaDescriptions {
-    private val log = LoggerFactory.getLogger(javaClass)
-    private val _descriptions: MutableList<KafkaMappingDescription<*, *, *>> = ArrayList()
-    val descriptions: List<KafkaMappingDescription<*, *, *>> get() = _descriptions.toList()
-
     inline fun <reified K : Any, reified V : Any> stream(
             topicName: String,
             keySerde: Serde<K> = defaultSerdeOrJson(),
@@ -101,11 +86,6 @@ abstract class KafkaDescriptions {
             valueSerde: Serde<V> = defaultSerdeOrJson()
     ): TableDescription<K, V> {
         return TableDescription(topicName, keySerde, valueSerde)
-    }
-
-    fun registerMapping(description: KafkaMappingDescription<*, *, *>) {
-        log.debug("Registering new Kafka descriptions ${description.topicName}")
-        _descriptions.add(description)
     }
 }
 

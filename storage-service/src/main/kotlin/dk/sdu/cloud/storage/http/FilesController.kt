@@ -16,6 +16,7 @@ import dk.sdu.cloud.storage.ext.irods.ICAT
 import dk.sdu.cloud.storage.ext.irods.ICATAccessEntry
 import dk.sdu.cloud.storage.model.MetadataEntry
 import dk.sdu.cloud.storage.model.StoragePath
+import dk.sdu.cloud.storage.services.ICATService
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
 import io.ktor.routing.Route
@@ -25,8 +26,7 @@ import java.sql.SQLException
 
 class FilesController(
     private val storageService: StorageConnectionFactory,
-    private val icat: ICAT,
-    private val icatZone: String
+    private val icatService: ICATService
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
@@ -135,48 +135,10 @@ class FilesController(
 
                 if (call.request.principalRole in setOf(Role.ADMIN, Role.SERVICE) && req.owner != null) {
                     log.debug("Authenticated as a privileged account. Using direct strategy")
+                    val success = icatService.createDirectDirectory(req.path, req.owner)
 
-                    val success: Boolean = icat.useConnection {
-                        val irodsPath = "/$icatZone${req.path}"
-                        val parentPath = irodsPath.substringBeforeLast('/')
-                        val (userHasWriteAccess, parentAccessEntry) = userHasWriteAccess(
-                            req.owner,
-                            icatZone,
-                            parentPath
-                        )
-
-                        if (userHasWriteAccess && parentAccessEntry != null) {
-                            log.debug("Has write access and parent access entry is not null! $parentAccessEntry")
-                            log.debug("Registered collection for: ${req.path} and ${req.owner} in $icatZone")
-                            val objectId = try {
-                                registerCollection(irodsPath, req.owner, icatZone)
-                            } catch (ex: SQLException) {
-                                log.debug(ex.message)
-                                return@useConnection false
-                            }
-
-                            log.debug("Got back result: $objectId")
-                            if (objectId != null) {
-                                val now = System.currentTimeMillis()
-                                log.debug("Registering access entry: $objectId, ${parentAccessEntry.userId}")
-
-                                registerAccessEntry(
-                                    ICATAccessEntry(
-                                        objectId, parentAccessEntry.userId, 1200L,
-                                        now, now
-                                    )
-                                )
-                                return@useConnection true
-                            }
-                        }
-                        return@useConnection false
-                    }
-
-                    if (success) {
-                        ok(Unit)
-                    } else {
-                        error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    }
+                    if (success) ok(Unit)
+                    else error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                 } else {
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
                     val principal = call.request.validatedPrincipal

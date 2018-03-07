@@ -67,14 +67,9 @@ fun main(args: Array<String>) {
 
     val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), configuration.refreshToken)
 
-    val adminAccount = run {
-        val currentAccessToken = cloud.retrieveTokenRefreshIfNeeded()
-        storageService.createForAccount("_storage", currentAccessToken).orThrow()
-    }
-
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
-    Server(configuration, storageService, adminAccount, kafka, serverProvider, serviceRegistry, cloud).start()
+    Server(configuration, storageService, kafka, serverProvider, serviceRegistry, cloud).start()
 }
