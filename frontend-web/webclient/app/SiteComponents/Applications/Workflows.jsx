@@ -72,7 +72,7 @@ class Workflows extends React.Component {
     }
 }
 
-function WorkflowTable(props) {
+const WorkflowTable = (props) => {
     if (!props.workflows.length) {
         return (
             <h3 className="text-center">
@@ -89,9 +89,9 @@ function WorkflowTable(props) {
             </thead>
             <WorkflowsList workflows={props.workflows}/>
         </Table>)
-}
+};
 
-function WorkflowsList(props) {
+const WorkflowsList = (props) => {
     let workflowsList = props.workflows.map(workflow =>
         <tr className="gradeA row-settings">
             <td>{workflow.name}</td>
@@ -102,9 +102,9 @@ function WorkflowsList(props) {
         <tbody>
         {workflowsList}
         </tbody>)
-}
+};
 
-function ApplicationList(props) {
+const ApplicationList = (props) => {
     let applicationsList = props.applications.map(app =>
         <div>
             {app.info.name}<br/>
@@ -114,6 +114,6 @@ function ApplicationList(props) {
         <td>
             {applicationsList}
         </td>)
-}
+};
 
 export default Workflows

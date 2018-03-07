@@ -142,6 +142,10 @@ export default class SDUCloud {
         return `/home/${username}`
     }
 
+    get jobFolder() {
+        return `${this.homeFolder}/Jobs`
+    }
+
     /**
      * Returns the userInfo (the payload of the JWT). Be aware that the JWT is not verified, this means that a user
      * will be able to put whatever they want in this. This is normally not a problem since all backend services _will_

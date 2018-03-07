@@ -5,13 +5,13 @@ import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
-import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.irods.ICAT
 import dk.sdu.cloud.storage.http.ACLController
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
 import dk.sdu.cloud.storage.processor.UserProcessor
+import dk.sdu.cloud.storage.services.ICATService
 import io.ktor.application.install
 import io.ktor.routing.route
 import io.ktor.routing.routing
@@ -24,8 +24,6 @@ import java.util.concurrent.TimeUnit
 class Server(
     private val configuration: Configuration,
     private val storageService: StorageConnectionFactory,
-
-    private val adminAccount: StorageConnection,
     private val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val serviceRegistry: ServiceRegistry,
@@ -38,13 +36,14 @@ class Server(
         val instance = StorageServiceDescription.instance(configuration.connConfig)
 
         val icat = ICAT(configuration.icat)
+        val icatService = ICATService(icat, configuration.icat.defaultZone)
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), adminAccount).init()
+            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), storageService, cloud, icatService).init()
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {
@@ -65,7 +64,7 @@ class Server(
 
             routing {
                 route("api") {
-                    FilesController(storageService, icat, configuration.icat.defaultZone).configure(this)
+                    FilesController(storageService, icatService).configure(this)
                     SimpleDownloadController(cloud, storageService).configure(this)
                     ACLController(storageService).configure(this)
                 }

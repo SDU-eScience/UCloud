@@ -79,8 +79,6 @@ class StartCommandProcessor(
             HPCAppEvent.UnsuccessfullyCompleted
         }
 
-        val parameters = event.parameters
-
         // Must end in '/'. Otherwise resolve will do the wrong thing
         val homeDir = URI("file:///home/$sshUser/projects/")
         val jobDir = homeDir.resolve("${request.header.uuid}/")
@@ -99,14 +97,14 @@ class StartCommandProcessor(
 
 
         val job = try {
-            sBatchGenerator.generate(app, parameters, workDir.path)
+            sBatchGenerator.generate(app, event, workDir.path)
         } catch (ex: Exception) {
             log.warn("Unable to generate slurm job:")
             log.warn(ex.stackTraceToString())
             return HPCAppEvent.UnsuccessfullyCompleted
         }
 
-        val validatedFiles = validateInputFiles(app, parameters, storage, workDir).capture() ?: return run {
+        val validatedFiles = validateInputFiles(app, event.parameters, storage, workDir).capture() ?: return run {
             log.debug(Result.lastError<Any>().message)
             HPCAppEvent.UnsuccessfullyCompleted
         }
@@ -143,8 +141,6 @@ class StartCommandProcessor(
 
             // Submit job file
             val (_, output, slurmJobId) = sbatch(jobLocation.path)
-            // TODO Need to revisit the idea of status codes
-            // Crashing right here would cause incorrect resubmission of job to HPC
 
             if (slurmJobId == null) {
                 log.warn("Got back a null slurm job ID!")
@@ -167,11 +163,6 @@ class StartCommandProcessor(
                 handleStartCommand(connection, request as KafkaRequest<AppRequest.Start>).also {
                     log.info("${request.header.uuid}: $it")
                 }
-            }
-
-            is AppRequest.Cancel -> {
-                // TODO This won't really cancel anything
-                HPCAppEvent.UnsuccessfullyCompleted
             }
         }
 

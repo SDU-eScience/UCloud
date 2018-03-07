@@ -12,6 +12,7 @@ import dk.sdu.cloud.auth.services.OTTBlackListTable
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.Principals
 import dk.sdu.cloud.auth.services.RefreshTokens
+import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.service.*
 import io.ktor.application.Application
@@ -66,6 +67,7 @@ data class AuthConfiguration(
     val enablePasswords: Boolean = true,
     val enableWayf: Boolean = false,
     val database: DatabaseConfiguration,
+    val production: Boolean = true,
     private val connection: RawConnectionConfig
 ) {
     @get:JsonIgnore
@@ -121,6 +123,8 @@ fun main(args: Array<String>) {
         password = configuration.database.password
     )
     log.info("Connected to database!")
+
+    KtorUtils.runningInProduction = configuration.production
 
     when (args.getOrNull(1)) {
         null, "run-server" -> {
