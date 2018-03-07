@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.services.JobsDAO
 import dk.sdu.cloud.app.services.SlurmPollAgent
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.filterIsInstance
+import dk.sdu.cloud.service.stackTraceToString
 import org.apache.kafka.streams.kstream.KStream
 import org.h2.jdbc.JdbcSQLException
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -26,7 +27,6 @@ class AppEventProcessor(
             if (validated != null) {
                 try {
                     transaction {
-                        // TODO Created at is incorrect, should extract from event
                         JobsDAO.createJob(
                             systemId,
                             validated.subject,
@@ -40,8 +40,8 @@ class AppEventProcessor(
                         )
                     }
                 } catch (ex: JdbcSQLException) {
-                    // TODO
-                    log.warn("We should really catch this correctly")
+                    log.warn("Exception while handling PENDING event! systemId=$systemId")
+                    log.warn(ex.stackTraceToString())
                 }
             }
         }
@@ -51,7 +51,6 @@ class AppEventProcessor(
             log.info("Updating status for job with systemId=$key: $value")
             slurmPollAgent.handle(value)
             transaction {
-                // TODO Modified at incorrect, should extract from event
                 JobsDAO.updateJobBySystemId(key, value.toJobStatus(), System.currentTimeMillis())
             }
         }

@@ -1,23 +1,26 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 
 class SBatchGenerator {
     fun generate(
         description: ApplicationDescription,
-        parameters: Map<String, Any>,
+        startRequest: AppRequest.Start,
         workDir: String
     ): String {
+        val parameters = startRequest.parameters
+
         // TODO Exception handling
         val tool = ToolDAO.findByNameAndVersion(description.tool.name, description.tool.version)!!
 
         val resolvedParameters = description.parameters.associate { it to it.map(parameters[it.name]) }
         val givenParameters = resolvedParameters.filterValues { it != null }.mapValues { it.value!! }
 
-        val numberOfNodes = tool.defaultNumberOfNodes
-        val tasksPerNode = tool.defaultTasksPerNode
-        val maxTime = tool.defaultMaxTime
+        val numberOfNodes = startRequest.numberOfNodes ?: tool.defaultNumberOfNodes
+        val tasksPerNode = startRequest.tasksPerNode ?: tool.defaultTasksPerNode
+        val maxTime = startRequest.maxTime ?: tool.defaultMaxTime
 
         val invocation = description.invocation.buildSafeBashString(givenParameters)
 

@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.http
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.HPCJobDescriptions
-import dk.sdu.cloud.app.api.JobCancelledResponse
 import dk.sdu.cloud.app.api.JobStartedResponse
 import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.auth.api.validatedPrincipal
@@ -54,11 +53,6 @@ class JobController(
                 )
 
                 ok(JobStartedResponse(uuid))
-            }
-
-            implement(HPCJobDescriptions.cancel) {
-                logEntry(log, it)
-                error(JobCancelledResponse(false), HttpStatusCode.NotImplemented)
             }
         }
     }
