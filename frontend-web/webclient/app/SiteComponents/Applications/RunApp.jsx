@@ -1,5 +1,5 @@
 import React from 'react';
-import {Jumbotron} from "react-bootstrap";
+import {Jumbotron, InputGroup, FormGroup} from "react-bootstrap";
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -23,6 +23,16 @@ class RunApp extends React.Component {
             appAuthor: "",
             parameters: null,
             parameterValues: {},
+            jobInfo: {
+                maxTime: {
+                    hours: null,
+                    minutes: null,
+                    seconds: null
+                },
+                numberOfNodes: null,
+                tasksPerNode: null,
+            },
+            tool: {},
             comment: "",
             uppy: Uppy.Core({
                 autoProceed: false,
@@ -44,6 +54,7 @@ class RunApp extends React.Component {
         this.handleInputChange = this.handleInputChange.bind(this);
         this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
         this.onCommentChange = this.onCommentChange.bind(this);
+        this.onJobInfoChange = this.onJobInfoChange.bind(this);
     };
 
     componentDidMount() {
@@ -56,14 +67,36 @@ class RunApp extends React.Component {
         this.state.promises.cancelPromises();
     }
 
+    onJobInfoChange(field, value, timeField) {
+        let {jobInfo} = this.state;
+        if (timeField) {
+            jobInfo[field][timeField] = value;
+        } else {
+            jobInfo[field] = value;
+        }
+        this.setState(() => ({
+            jobInfo
+        }));
+    }
+
+
     handleSubmit(event) {
         event.preventDefault();
+        const maxTime = this.state.jobInfo.maxTime;
+        if (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null) {
+            maxTime.hours = maxTime.hours ? maxTime.hours : 0;
+            maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
+            maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
+        }
         let job = {
             application: {
                 name: this.state.appName,
                 version: this.state.appVersion,
             },
             parameters: Object.assign({}, this.state.parameterValues),
+            numberOfNodes: this.state.jobInfo.numberOfNodes,
+            tasksPerNode: this.state.jobInfo.tasksPerNode,
+            maxTime: maxTime,
             type: "start",
             //comment: this.state.comment.slice(),
         };
@@ -137,9 +170,10 @@ class RunApp extends React.Component {
         }));
 
         this.setState({loading: true});
-        this.state.promises.makeCancelable(Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}`))
+        this.state.promises.makeCancelable(Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}/?resolve=true`))
             .promise.then(req => {
-            const app = req.response;
+            const app = req.response.application;
+            const tool = req.response.tool;
             let authors;
             if (app.authors.length > 1) {
                 authors = app.authors.join(", ");
@@ -154,6 +188,7 @@ class RunApp extends React.Component {
                 appAuthor: authors,
                 appDescription: app.description,
                 loading: false,
+                tool,
             }));
         });
     }
@@ -172,7 +207,8 @@ class RunApp extends React.Component {
                                         onChange={this.handleInputChange} comment={this.state.comment}
                                         onFileSelectionChange={this.handleFileSelectorChange}
                                         onCommentChange={this.onCommentChange} uppy={this.state.uppy}
-                                        values={this.state.parameterValues}
+                                        values={this.state.parameterValues} jobInfo={this.state.jobInfo}
+                                        onJobInfoChange={this.onJobInfoChange} tool={this.state.tool}
                             />
                         </div>
                     </div>
@@ -190,7 +226,6 @@ function ApplicationHeader(props) {
         </Jumbotron>)
 }
 
-
 function Parameters(props) {
     if (!props.parameters) {
         return null
@@ -203,11 +238,70 @@ function Parameters(props) {
     return (
         <form onSubmit={props.handleSubmit} className="form-horizontal">
             {parametersList}
-            <fieldset><CommentField onCommentChange={props.onCommentChange} comment={props.comment}/></fieldset>
+            <JobInfo onJobInfoChange={props.onJobInfoChange} jobInfo={props.jobInfo} tool={props.tool}/>
             <input value="Submit" className="btn btn-info" type="submit"/>
         </form>
     )
+}
 
+function JobInfo(props) {
+    // TODO refactor fields, very not DRY compliant
+    const {maxTime} = props.jobInfo;
+    return (
+        <span>
+            <fieldset>
+                <div className="form-group">
+                    <label className="col-sm-2 control-label">Number of nodes</label>
+                    <div className="col-md-4">
+                    <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
+                           className="col-md-4 form-control"
+                           onChange={e => props.onJobInfoChange("numberOfNodes", parseInt(e.target.value), null)}/>
+                    </div>
+                </div>
+            </fieldset>
+            <fieldset>
+                <div className="form-group">
+                    <label className="col-sm-2 control-label">Tasks per node</label>
+                    <div className="col-md-4">
+                    <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultTasksPerNode}
+                           className="col-md-4 form-control"
+                           onChange={e => props.onJobInfoChange("tasksPerNode", parseInt(e.target.value), null)}/>
+                    </div>
+                </div>
+            </fieldset>
+            <fieldset>
+                <FormGroup>
+                    <label className="col-sm-2 control-label">Maximum time allowed</label>
+                    <div className="col-xs-10">
+                        <div className="form-inline">
+                            <InputGroup>
+                                <input type="number" step="1" min="0" className="form-control" style={{width: 150}}
+                                       placeholder={props.tool.defaultMaxTime.hours}
+                                       value={maxTime.hours === null ? "" : maxTime.hours}
+                                       onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "hours")}/>
+                                <span className="input-group-addon">Hours</span>
+                            </InputGroup>{" "}
+                            <InputGroup>
+                                <input type="number" step="1" min="0" max="59" className="form-control" style={{width: 150}}
+                                       placeholder={props.tool.defaultMaxTime.minutes}
+                                       value={maxTime.minutes === null ? "" : maxTime.minutes}
+                                       onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "minutes")}/>
+                                <span className="input-group-addon">Minutes</span>
+                            </InputGroup>{"  "}
+                            <InputGroup>
+                                <input type="number" step="1" min="0" max="59" className="form-control" style={{width: 150}}
+                                       placeholder={props.tool.defaultMaxTime.seconds}
+                                       value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
+                                       onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "seconds")}/>
+                                <span className="input-group-addon">Seconds</span>
+                            </InputGroup>
+                        </div>
+                    </div>
+                </FormGroup>
+            </fieldset>
+            <fieldset><CommentField onCommentChange={props.onCommentChange} comment={props.comment}/></fieldset>
+        </span>
+    )
 }
 
 function CommentField(props) {
@@ -221,7 +315,7 @@ function CommentField(props) {
         </div>);
 }
 
-// Types: input, output, int, float, string
+// Types: input, integer, floating_point, text
 function Parameter(props) {
     if (props.parameter.type === "input_file") {
         return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange} uppy={props.uppy}
