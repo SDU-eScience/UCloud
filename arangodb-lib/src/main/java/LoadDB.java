@@ -12,10 +12,11 @@ public class LoadDB {
         JpaHelpers jpaHelpers = new JpaHelpers();
         ArangoDbHelpers arangoDbHelpers = new ArangoDbHelpers();
         //arangoDbHelpers.loadDataObjectCollection();
-        arangoDbHelpers.loadDataObjectDirectoryCollection();
+        //arangoDbHelpers.loadDataObjectDirectoryCollection();
+        arangoDbHelpers.loadProjectRoleCollection();
 
-        arangoDbHelpers.loadPersonCollection();
-        arangoDbHelpers.loadProjectCollection();
+        //arangoDbHelpers.loadPersonCollection();
+        //arangoDbHelpers.loadProjectCollection();
 
 
 

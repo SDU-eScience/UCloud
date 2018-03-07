@@ -85,6 +85,44 @@ public class JpaHelpers {
         return jpaPersonList;
     }
 
+
+    public List<ProjectRole> getJpaProjectRoleList() {
+
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
+        EntityManager em = emf.createEntityManager();
+        List<ProjectRole> jpaProjectRoleList = new ArrayList<>();
+
+        Query nq1 = em.createNamedQuery("ProjectRole.findAll");
+        //nq1.setParameter("rescId", 10014);
+
+        jpaProjectRoleList = nq1.getResultList();
+
+        System.err.println("jpaProjectRoleList:" + jpaProjectRoleList.size());
+
+        em.close();
+        emf.close();
+        return jpaProjectRoleList;
+    }
+
+
+    public List<DataobjectDirectoryProjectrolePermissionset> getJpaDataobjectDirectoryProjectrolePermissionsetList() {
+
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
+        EntityManager em = emf.createEntityManager();
+        List<DataobjectDirectoryProjectrolePermissionset> jpaDataobjectDirectoryProjectrolePermissionsetList = new ArrayList<>();
+
+        Query nq1 = em.createNamedQuery("DataobjectDirectoryProjectrolePermissionset.findAll");
+
+
+        jpaDataobjectDirectoryProjectrolePermissionsetList = nq1.getResultList();
+
+        System.err.println("DataobjectDirectoryProjectrolePermissionset:" + jpaDataobjectDirectoryProjectrolePermissionsetList.size());
+
+        em.close();
+        emf.close();
+        return jpaDataobjectDirectoryProjectrolePermissionsetList;
+    }
+
 //    public List<Dataobject> getRandonDataObjectsForProjects() {
 //        List<Dataobject> jpaDataobjectList = new ArrayList<>();
 //

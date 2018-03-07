@@ -9,11 +9,11 @@ import com.arangodb.util.MapBuilder;
 import com.arangodb.velocypack.*;
 import com.arangodb.velocypack.exception.VPackException;
 import dk.sdu.cloud.jpa.sduclouddb.Dataobject;
+import dk.sdu.cloud.jpa.sduclouddb.DataobjectDirectoryProjectrolePermissionset;
 import dk.sdu.cloud.jpa.utils.JpaHelpers;
-import dk.sdu.cloud.models.arangodb.vertexs.DataObject;
-import dk.sdu.cloud.models.arangodb.vertexs.DataObjectDirectory;
-import dk.sdu.cloud.models.arangodb.vertexs.Person;
-import dk.sdu.cloud.models.arangodb.vertexs.Project;
+import dk.sdu.cloud.models.arangodb.edges.PersonCollectionEdgeToProject_with_role;
+import dk.sdu.cloud.models.arangodb.edges.ProjectCollectionEdgeToDataObjectDirectoryCollection_simple;
+import dk.sdu.cloud.models.arangodb.vertexs.*;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -100,6 +100,65 @@ public class ArangoDbHelpers {
     }
 
 
+
+    public void loadDataobjectDirectoryProjectrolePermissionsetCollection() throws ExecutionException, InterruptedException {
+        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+
+        String COLLECTION_NAME = "dataobjectDirectoryProjectrolePermissionsetCollection";
+
+
+        //Create DataObjectDirectoryCollecton
+
+        //arangoDB.createDatabase(DB_NAME).get();
+        db = arangoDB.db(DB_NAME);
+
+        if (db.collection(COLLECTION_NAME).exists())
+        {
+            db.collection(COLLECTION_NAME).drop();
+        }
+
+
+        db.createCollection(COLLECTION_NAME);
+        collection = db.collection(COLLECTION_NAME);
+
+        if (db.collection(COLLECTION_NAME).exists())
+        {
+            db.collection(COLLECTION_NAME).drop();
+        }
+
+        db.createCollection(COLLECTION_NAME);
+        collection = db.collection(COLLECTION_NAME);
+
+
+        System.err.println(arangoDB.getDatabases().toString());
+
+        for (dk.sdu.cloud.jpa.sduclouddb.DataobjectDirectoryProjectrolePermissionset jpaDataobjectDirectoryProjectrolePermissionset :jpaHelpers.getJpaDataobjectDirectoryProjectrolePermissionsetList())
+        {
+//            DataobjectDirectoryProjectrolePermissionset dataobjectDirectoryProjectrolePermissionset = new DataobjectDirectoryProjectrolePermissionset();
+//
+//            dataobjectDirectoryProjectrolePermissionset.setActive(1);
+//            dataobjectDirectoryProjectrolePermissionset.setAdministerDataobject();
+//            dataobjectDirectoryProjectrolePermissionset.setCreatedataobjectMetadata();
+//            dataobjectDirectoryProjectrolePermissionset.setDeleteDataobject();
+//            dataobjectDirectoryProjectrolePermissionset.setDownloadDataobject();
+//            dataobjectDirectoryProjectrolePermissionset.setEnheritedFromParent(1);
+//            dataobjectDirectoryProjectrolePermissionset.setMarkedfordelete(0);
+//            dataobjectDirectoryProjectrolePermissionset.setModifyDataobject();
+//            dataobjectDirectoryProjectrolePermissionset.setModifyDataobjectMetadata();
+//            dataobjectDirectoryProjectrolePermissionset.setReadDataobject();
+//            dataobjectDirectoryProjectrolePermissionset.setReadDataobjectMetadata();
+//            dataobjectDirectoryProjectrolePermissionset.setReadDataobjectSystemMetadata();
+//            collection.insertDocument(dataobjectDirectoryProjectrolePermissionset);
+        }
+
+        arangoDB.shutdown();
+        }
+
+
+
+
+
+
     public void loadDataObjectDirectoryCollection() throws ExecutionException, InterruptedException {
         ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
 
@@ -124,6 +183,7 @@ public class ArangoDbHelpers {
         {
             DataObjectDirectory dataObjectDirectory = new DataObjectDirectory();
             dataObjectDirectory.setKey(this.getUUID());
+            dataObjectDirectory.setData_object_directory_id(jpaDataObjectDirectory.getId());
             dataObjectDirectory.setCreated_datetime(LocalDateTime.now());
             dataObjectDirectory.setModified_datetime(dataObjectDirectory.getCreated_datetime());
             dataObjectDirectory.setData_object_directory_url(dataObjectDirectory.getData_object_directory_url());
@@ -134,6 +194,40 @@ public class ArangoDbHelpers {
 
     }
 
+    public void loadProjectRoleCollection() throws ExecutionException, InterruptedException {
+        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+
+        String COLLECTION_NAME = "dataProjectRoleCollection";
+        //Create DataObjectDirectoryCollecton
+
+        //arangoDB.createDatabase(DB_NAME).get();
+        db = arangoDB.db(DB_NAME);
+
+        if (db.collection(COLLECTION_NAME).exists())
+        {
+            db.collection(COLLECTION_NAME).drop();
+        }
+
+        db.createCollection(COLLECTION_NAME);
+        collection = db.collection(COLLECTION_NAME);
+
+
+        System.err.println(arangoDB.getDatabases().toString());
+
+        for (dk.sdu.cloud.jpa.sduclouddb.ProjectRole jpaProjectRole :jpaHelpers.getJpaProjectRoleList())
+        {
+            ProjectRole projectRole = new ProjectRole();
+            projectRole.setKey(this.getUUID());
+            projectRole.setProject_role_id(jpaProjectRole.getId());
+            projectRole.setCreated_datetime(LocalDateTime.now());
+            projectRole.setModified_datetime(projectRole.getCreated_datetime());
+
+            collection.insertDocument(projectRole);
+        }
+
+        arangoDB.shutdown();
+
+    }
 
     public void loadPersonCollection() throws ExecutionException, InterruptedException {
         ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
@@ -260,62 +354,6 @@ public class ArangoDbHelpers {
 
 
 
-    public void setEdge(String edgeCollection)
-    {
-
-//        BaseEdgeDocument edge = new BaseEdgeDocument("myVertexCollection/myFromKey",
-//                "myVertexCollection/myToKey");
-//        edge.addAttribute("label", "value");
-//        edge.addAttribute("whatever", 42);
-//        arangoDB.db("myDatabase").graph("myGraph").edgeCollection("myEdgeCollection").insertEdge(edge);
-    }
-
-    //	(personEdgeToProject_with_role)
-    public void setPersonEdgeToProject_with_role()
-    {
-        for (dk.sdu.cloud.jpa.sduclouddb.Person jpaPerson :jpaHelpers.getJpaPersonList())
-        {
-            for (dk.sdu.cloud.jpa.sduclouddb.ProjectPersonRelation jpaProjectPersonRelation :jpaPerson.getProjectPersonRelationList())
-            {
-
-            }
-        }
-    }
-
-    public void getPersonByPersonId(int person_id)
-    {
-        long startTime = 0;
-        long finishTime = 0;
-
-        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
-
-        final String COLLECTION_NAME = "dataObjectCollection";
-
-        try {
-            final String query = "FOR t IN personCollection FILTER t.person_id == @person_id RETURN t";
-            startTime = System.currentTimeMillis();
-            final Map<String, Object> bindVars = new MapBuilder().put("person_id", person_id).get();
-
-            System.err.println("Start: " + System.currentTimeMillis());
-            final ArangoCursor<BaseDocument> cursor = arangoDB.db(DB_NAME).query(query, bindVars, null,
-                    BaseDocument.class);
-            for (; cursor.hasNext();) {
-               // System.out.println("Key: " + cursor.next().getKey() + " ");
-                System.err.println("key: " + cursor.next().getId());
-
-                finishTime = System.currentTimeMillis();
-
-            }
-            System.err.println("duration: " + (finishTime-startTime));
-        } catch (final ArangoDBException e) {
-            System.err.println("Failed to execute query. " + e.getMessage());
-        }
-
-
-
-
-    }
-
 
     public void createEdgeCollections()
     {
@@ -364,4 +402,155 @@ public class ArangoDbHelpers {
         arangoDB.db("sduclouddb").createGraph("sduclouddbGraph", edgeDefinitions);
         arangoDB.shutdown();
     }
+
+    public String getPersonByPersonId(int person_id)
+    {
+        long startTime = 0;
+        long finishTime = 0;
+
+        String idString = "";
+
+        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+
+
+        try {
+            final String query = "FOR t IN personCollection FILTER t.person_id == @person_id RETURN t";
+            startTime = System.currentTimeMillis();
+            final Map<String, Object> bindVars = new MapBuilder().put("person_id", person_id).get();
+
+            System.err.println("Start: " + System.currentTimeMillis());
+            final ArangoCursor<BaseDocument> cursor = arangoDB.db(DB_NAME).query(query, bindVars, null,
+                    BaseDocument.class);
+            for (; cursor.hasNext();) {
+                idString =  cursor.next().getId();
+
+
+            }
+            System.err.println("duration: " + (finishTime-startTime));
+        } catch (final ArangoDBException e) {
+            System.err.println("Failed to execute query. " + e.getMessage());
+        }
+        arangoDB.shutdown();
+        return idString;
+
+
+    }
+
+    public String getProjectByProjectId(int project_id)
+    {
+
+        String idString = "";
+
+        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+
+
+        try {
+            final String query = "FOR t IN projectCollection FILTER t.project_id == @project_id RETURN t";
+
+            final Map<String, Object> bindVars = new MapBuilder().put("project_id", project_id).get();
+
+            System.err.println("Start: " + System.currentTimeMillis());
+            final ArangoCursor<BaseDocument> cursor = arangoDB.db(DB_NAME).query(query, bindVars, null,
+                    BaseDocument.class);
+            for (; cursor.hasNext();) {
+                idString =  cursor.next().getId();
+
+
+            }
+
+        } catch (final ArangoDBException e) {
+            System.err.println("Failed to execute query. " + e.getMessage());
+        }
+        arangoDB.shutdown();
+        return idString;
+
+
+    }
+
+
+    public String getDataObjectDirectoryByDataObjectDirectoryId(int data_object_directory_id)
+    {
+
+        String idString = "";
+
+        ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+
+
+        try {
+            final String query = "FOR t IN dataObjectDirectoryCollection FILTER t.data_object_directory_id == @data_object_directory_id RETURN t";
+
+            final Map<String, Object> bindVars = new MapBuilder().put("data_object_directory_id", data_object_directory_id).get();
+
+
+            final ArangoCursor<BaseDocument> cursor = arangoDB.db(DB_NAME).query(query, bindVars, null,
+                    BaseDocument.class);
+            for (; cursor.hasNext();) {
+                idString =  cursor.next().getId();
+
+
+            }
+
+        } catch (final ArangoDBException e) {
+            System.err.println("Failed to execute query. " + e.getMessage());
+        }
+        arangoDB.shutdown();
+        return idString;
+
+
+    }
+
+
+
+
+
+    //	(personEdgeToProject_with_role)
+    public void setPersonEdgeToProject_with_role()
+    {
+        for (dk.sdu.cloud.jpa.sduclouddb.Person jpaPerson :jpaHelpers.getJpaPersonList())
+        {
+
+            PersonCollectionEdgeToProject_with_role personCollectionEdgeToProject_with_role = new PersonCollectionEdgeToProject_with_role();
+
+            personCollectionEdgeToProject_with_role.setFrom(this.getPersonByPersonId(jpaPerson.getId()));
+
+
+            for (dk.sdu.cloud.jpa.sduclouddb.ProjectPersonRelation jpaProjectPersonRelation :jpaPerson.getProjectPersonRelationList())
+            {
+                ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+
+                personCollectionEdgeToProject_with_role.setTo(getProjectByProjectId(jpaProjectPersonRelation.getProjectrefid().getId()));
+                personCollectionEdgeToProject_with_role.setProjectRoleText(jpaProjectPersonRelation.getProjectrolerefid().getProjectrolename());
+                System.err.println(personCollectionEdgeToProject_with_role.toString());
+                arangoDB.db("sduclouddb").graph("sduclouddbGraph").edgeCollection("personCollectionEdgeToProject_with_role").insertEdge(personCollectionEdgeToProject_with_role);
+                arangoDB.shutdown();
+            }
+        }
+    }
+
+
+    //(DataObjectDirectoryCollectionEdgeToDataobjectCollection_simple)
+
+    public void setDataObjectDirectoryCollectionEdgeToDataobjectCollection_simple()
+    {
+        for (dk.sdu.cloud.jpa.sduclouddb.Project jpaProject :jpaHelpers.getJpaProjectList())
+        {
+
+            ProjectCollectionEdgeToDataObjectDirectoryCollection_simple projectCollectionEdgeToDataObjectDirectoryCollection_simple = new ProjectCollectionEdgeToDataObjectDirectoryCollection_simple();
+
+            projectCollectionEdgeToDataObjectDirectoryCollection_simple.setFrom(this.getProjectByProjectId(jpaProject.getId()));
+
+            for (dk.sdu.cloud.jpa.sduclouddb.DataobjectDirectory dataobjectDirectory :jpaProject.getDataobjectDirectoryList())
+            {
+                ArangoDB arangoDB = new ArangoDB.Builder().user("root").build();
+
+                projectCollectionEdgeToDataObjectDirectoryCollection_simple.setTo(getDataObjectDirectoryByDataObjectDirectoryId(dataobjectDirectory.getId()));
+                System.err.println(projectCollectionEdgeToDataObjectDirectoryCollection_simple.toString());
+                arangoDB.db("sduclouddb").graph("sduclouddbGraph").edgeCollection("projectCollectionEdgeToDataObjectDirectoryCollection_simple").insertEdge(projectCollectionEdgeToDataObjectDirectoryCollection_simple);
+                arangoDB.shutdown();
+            }
+        }
+    }
+
+
+
 }
