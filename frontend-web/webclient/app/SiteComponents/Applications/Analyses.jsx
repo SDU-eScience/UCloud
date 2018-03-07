@@ -134,16 +134,20 @@ function AnalysesList(props) {
         return null;
     }
     let i = 0;
-    const analysesList = props.analyses.map(analysis =>
-        <tr key={i++} className="gradeA row-settings">
-            <td><Link
-                to={`/applications/${analysis.appName}/${analysis.appVersion}`}>{analysis.appName}@{analysis.appVersion}</Link>
-            </td>
-            <td>{analysis.jobId}</td>
-            <td>{toLowerCaseAndCapitalize(analysis.status)}</td>
-            <td>{formatDate(analysis.createdAt)}</td>
-            <td>{formatDate(analysis.modifiedAt)}</td>
-        </tr>
+    const analysesList = props.analyses.map(analysis => {
+            const jobIdField = analysis.status === "COMPLETE" ?
+                (<Link to={`/files/${Cloud.jobFolder}/${analysis.jobId}`}>{analysis.jobId}</Link>) : analysis.jobId;
+            return (
+                <tr key={i++} className="gradeA row-settings">
+                    <td><Link
+                        to={`/applications/${analysis.appName}/${analysis.appVersion}`}>{analysis.appName}@{analysis.appVersion}</Link>
+                    </td>
+                    <td>{jobIdField}</td>
+                    <td>{toLowerCaseAndCapitalize(analysis.status)}</td>
+                    <td>{formatDate(analysis.createdAt)}</td>
+                    <td>{formatDate(analysis.modifiedAt)}</td>
+                </tr>)
+        }
     );
 
     return (
