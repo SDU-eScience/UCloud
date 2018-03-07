@@ -288,7 +288,16 @@ fun <R : Any> RESTQueryParameter<R>.bindValuesFromCall(call: ApplicationCall): P
 
             val converted = if (parameter != null) {
                 try {
-                    call.application.conversionService.fromValues(listOf(parameter), property.returnType.javaType)
+                    when (property.returnType.classifier) {
+                        Boolean::class -> {
+                            if (parameter.isEmpty()) true
+                            else parameter.toBoolean()
+                        }
+
+                        else -> {
+                            call.application.conversionService.fromValues(listOf(parameter), property.returnType.javaType)
+                        }
+                    }
                 } catch (ex: DataConversionException) {
                     throw IllegalArgumentException(ex)
                 } catch (ex: NoSuchElementException) {

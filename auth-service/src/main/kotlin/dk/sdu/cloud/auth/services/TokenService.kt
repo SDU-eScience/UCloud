@@ -116,16 +116,7 @@ class TokenService(
                 val existing = UserDAO.findById(id)
                 return if (existing == null) {
                     log.debug("User not found. Creating new user...")
-                    // In a replay, what do we actually replay? Just the initial requests? Or do we practically turn off
-                    // most processing and only replay state changes?
-                    // https://softwareengineering.stackexchange.com/questions/310176/event-sourcing-replaying-and-versioning#310323
-                    // It seems that we should (and hopefully this is quite close to what we're doing) make a distinction
-                    // between requests (commands) and events. Only the events cause state changes.
 
-                    // TODO We need a proper strategy from how to handle replays.
-                    // Should this block? Where do we store this in the DB?
-                    // From a performance perspective in makes no sense to go through Kafka before we create in DB.
-                    // But from a replay perspective we have to do that...
                     val userCreated = PersonUtils.createUserByWAYF(auth)
                     log.debug("userCreated=$userCreated")
                     launch {

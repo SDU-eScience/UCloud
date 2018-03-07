@@ -1,7 +1,10 @@
 package dk.sdu.cloud.app.http
 
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.app.api.ApplicationWithOptionalDependencies
 import dk.sdu.cloud.app.api.HPCApplicationDescriptions
 import dk.sdu.cloud.app.services.ApplicationDAO
+import dk.sdu.cloud.app.services.ToolDAO
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import io.ktor.http.HttpStatusCode
@@ -15,10 +18,25 @@ class AppController(private val source: ApplicationDAO) {
             implement(HPCApplicationDescriptions.findByNameAndVersion) {
                 logEntry(log, it)
 
-                val result = source.findByNameAndVersion(it.name, it.version)
+                val app = source.findByNameAndVersion(it.name, it.version) ?: return@implement error(
+                    CommonErrorMessage("Not found"),
+                    HttpStatusCode.NotFound
+                )
 
-                if (result == null) error("Not found", HttpStatusCode.NotFound)
-                else ok(result)
+                val tool = if (it.resolve == true) {
+                    ToolDAO.findByNameAndVersion(app.tool.name, app.tool.version) ?: return@implement run {
+                        log.warn("Could not resolve tool dependency for application: $app!")
+                        error(
+                            CommonErrorMessage("Internal server error"),
+                            HttpStatusCode.InternalServerError
+                        )
+                    }
+                } else {
+                    null
+                }
+
+                assert(it.resolve != true || tool != null)
+                ok(ApplicationWithOptionalDependencies(app, tool))
             }
 
             implement(HPCApplicationDescriptions.findByName) {
@@ -26,14 +44,14 @@ class AppController(private val source: ApplicationDAO) {
 
                 val result = source.findAllByName(it.name)
 
-                if (result.isEmpty()) error(emptyList(), HttpStatusCode.NotFound)
+                if (result.isEmpty()) error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
                 else ok(result)
             }
 
             implement(HPCApplicationDescriptions.listAll) {
                 logEntry(log, it)
 
-                ok(source.all())
+                ok(source.all().map { it.toSummary() })
             }
         }
     }
