@@ -287,39 +287,37 @@ class Files extends React.Component {
     }
 }
 
-function ContextBar(props) {
-    return (
-        <div className="col-lg-2 visible-lg">
-            <div>
-                <div className="center-block text-center">
-                    <Button className="btn btn-link btn-lg" onClick={() => props.getFavorites()}><i
-                        className="icon ion-star"/></Button>
-                    <Link to={`files?path=/home/${Cloud.username}`}><Button className="btn btn-link btn-lg"><i
-                        className="ion-ios-home"/></Button></Link>
-                </div>
-                <hr/>
-                <button className="btn btn-primary btn-block"
-                        onClick={props.onClick}>
-                    <span className="ion-android-upload pull-left"/> Upload Files
-                </button>
-                <br/>
-                <button className="btn btn-default btn-block"
-                        onClick={() => createFolder(props.currentPath)}>
-                    <span className="ion-folder pull-left"/> New folder
-                </button>
-                <br/>
-                <hr/>
-                <FileOptions selectedFiles={props.selectedFiles}/>
+const ContextBar = (props) => (
+    <div className="col-lg-2 visible-lg">
+        <div>
+            <div className="center-block text-center">
+                <Button className="btn btn-link btn-lg" onClick={() => props.getFavorites()}><i
+                    className="icon ion-star"/></Button>
+                <Link to={`files?path=/home/${Cloud.username}`}><Button className="btn btn-link btn-lg"><i
+                    className="ion-ios-home"/></Button></Link>
             </div>
+            <hr/>
+            <button className="btn btn-primary btn-block"
+                    onClick={props.onClick}>
+                <span className="ion-android-upload pull-left"/> Upload Files
+            </button>
+            <br/>
+            <button className="btn btn-default btn-block"
+                    onClick={() => createFolder(props.currentPath)}>
+                <span className="ion-folder pull-left"/> New folder
+            </button>
+            <br/>
+            <hr/>
+            <FileOptions selectedFiles={props.selectedFiles}/>
         </div>
-    )
-}
+    </div>
+);
 
-function Breadcrumbs(props) {
-    if (!props.path) {
+const Breadcrumbs = ({path}) => {
+    if (!path) {
         return null;
     }
-    const pathsMapping = buildBreadCrumbs(props.path);
+    const pathsMapping = buildBreadCrumbs(path);
     let i = 0;
     let breadcrumbs = pathsMapping.map(path =>
         <li key={i++} className="breadcrumb-item">
@@ -330,9 +328,9 @@ function Breadcrumbs(props) {
         <ol className="breadcrumb">
             {breadcrumbs}
         </ol>)
-}
+};
 
-function FileOptions(props) {
+const FileOptions = (props) => {
     if (!props.selectedFiles.length) {
         return null;
     }
@@ -392,7 +390,7 @@ function FileOptions(props) {
 }
 
 
-function FilesTable(props) {
+const FilesTable = (props) => {
     if (props.loading) {
         return null;
     } else if (!props.files.length) {
@@ -435,17 +433,16 @@ function FilesTable(props) {
                 </Table>
             </div>
         </div>)
-}
+};
 
-function FilesList(props) {
-    let i = 0;
-    let filesList = props.files.map(file => {
+const FilesList = ({files, addOrRemoveFile, favorite}) => {
+    let filesList = files.map((file, index) => {
         if (file.type === "DIRECTORY") {
-            return <Directory key={i++} file={file} addOrRemoveFile={props.addOrRemoveFile} favorite={props.favorite}
-                              isChecked={file.isChecked}/>
+            return <Directory key={index} file={file} addOrRemoveFile={addOrRemoveFile}
+                              favorite={favorite} owner={getOwnerFromAcls(file.acl, Cloud)}/>
         } else {
-            return <File key={i++} file={file} isChecked={file.isChecked} addOrRemoveFile={props.addOrRemoveFile}
-                         favorite={props.favorite}/>
+            return <File key={index} file={file} addOrRemoveFile={addOrRemoveFile} favorite={favorite}
+                         owner={getOwnerFromAcls(file.acl, Cloud)}/>
         }
     });
     return (
@@ -453,19 +450,17 @@ function FilesList(props) {
         {filesList}
         </tbody>
     )
-}
+};
 
-function File(props) {
-    const file = props.file;
-    const owner = getOwnerFromAcls(file.acl, Cloud);
+const File = ({file, favorite, addOrRemoveFile, owner}) => {
     return (
         <tr className="row-settings clickable-row">
             <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" className="select-box" checked={props.isChecked}
-                       type="checkbox" onChange={(e) => props.addOrRemoveFile(e.target.checked, file)}/>
+                <input name="select" className="select-box" checked={file.isChecked}
+                       type="checkbox" onChange={(e) => addOrRemoveFile(e.target.checked, file)}/>
                 <em className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
-            <Favorited file={file} favorite={props.favorite}/>
+            <Favorited file={file} favorite={favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
             <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
@@ -473,54 +468,38 @@ function File(props) {
                 <MobileButtons file={file}/>
             </td>
         </tr>)
-}
+};
 
-function Directory(props) {
-    const file = props.file;
-    const owner = getOwnerFromAcls(file.acl, Cloud);
-    return (
+const Directory = ({file, favorite, addOrRemoveFile, owner}) => (
         <tr className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" className="select-box" checked={props.isChecked}
-                       type="checkbox" onChange={(e) => props.addOrRemoveFile(e.target.checked, file)}/><em
+                <input name="select" className="select-box" checked={file.isChecked}
+                       type="checkbox" onChange={(e) => addOrRemoveFile(e.target.checked, file)}/><em
                 className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
-            <Favorited file={file} favorite={props.favorite}/>
+            <Favorited file={file} favorite={favorite}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
             <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
             <td>
                 <MobileButtons file={file}/>
             </td>
-        </tr>)
-}
+        </tr>
+);
 
-function FileType(props) {
-    if (props.type === "FILE")
-        return (
-            <td>
-                <span className="ion-android-document"/> {props.path.name}
-            </td>);
-    return (
-        <td>
-            <Link to={`/files/${props.path.path}`}>
-                <span className="ion-android-folder"/> {props.path.name}
-            </Link>
-        </td>);
-}
+const FileType = ({type, path}) =>
+    type === "FILE" ?
+        (<td><span className="ion-android-document"/> {path.name}</td>) :
+        (<td><Link to={`/files/${path.path}`}><span className="ion-android-folder"/> {path.name}</Link></td>);
 
-function Favorited(props) {
-    if (props.file.favorited) {
-        return (<td><a onClick={() => props.favorite(props.file.path.path)} className="ion-star"/></td>)
-    }
-    return (<td><a className="ion-ios-star-outline" onClick={() => props.favorite(props.file.path.path)}/></td>);
-}
+const Favorited = ({file, favorite}) =>
+    file.favorited ?
+        (<td><a onClick={() => favorite(file.path.path)} className="ion-star"/></td>) :
+        (<td><a className="ion-ios-star-outline" onClick={() => favorite(file.path.path)}/></td>);
 
-function MobileButtons(props) {
-    let file = props.file;
-    return (
-        <span className="hidden-lg">
+const MobileButtons = ({file}) =>
+    (<span className="hidden-lg">
             <div className="pull-right dropdown">
                 <button type="button" data-toggle="dropdown"
                         className="btn btn-flat btn-flat-icon"
@@ -540,7 +519,7 @@ function MobileButtons(props) {
                               to={`/fileInfo/${file.path.path}/`}> Properties</Link></li>
                 </ul>
             </div>
-        </span>)
-}
+        </span>
+    );
 
 export default Files;
