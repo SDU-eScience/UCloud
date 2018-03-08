@@ -31,9 +31,6 @@ class Header extends React.Component {
     }
 
     render() {
-        const ddMenuItem = (<span>
-                                <em className="ion-person"/><sup className="badge bg-danger">3</sup>
-                            </span>);
         return (
             <header className="header-container">
                 <nav>
@@ -59,13 +56,7 @@ class Header extends React.Component {
                                 <MenuItem onClick={() => {Cloud.logout()}}><em className="ion-log-out icon-fw"/>Logout</MenuItem>
                             </Dropdown.Menu>
                         </Dropdown>
-                        {/*<li>
-                            <a href="#" className="ripple" onClick={this.showSettings}>
-                                <em className="ion-gear-b"/>
-                            </a>
-                        </li>*/}
                     </ul>
-
                 </nav>
             </header>
         );

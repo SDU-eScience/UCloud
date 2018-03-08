@@ -1,8 +1,7 @@
 import React from "react";
 import {Breadcrumb} from "react-bootstrap";
-export { buildBreadCrumbs }
 
-export default function BreadCrumbs(props) {
+export function BreadCrumbs(props) {
     if (!props.path) {
         return null;
     }
@@ -17,7 +16,7 @@ export default function BreadCrumbs(props) {
         </Breadcrumb>)
 }
 
-function buildBreadCrumbs(path) {
+export function buildBreadCrumbs(path) {
     let paths = path.split("/");
     let pathsMapping = [];
     for (let i = 0; i < paths.length; i++) {

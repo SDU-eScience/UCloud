@@ -60,7 +60,7 @@ class ZenodoHome extends React.Component {
     }
 }
 
-function PublishStatus(props) {
+const PublishStatus = (props) => {
     let body = null;
     if (props.loading) {
         return (<BallPulseLoading loading={props.loading}/>
@@ -108,7 +108,7 @@ function PublishStatus(props) {
         </div>);
 }
 
-function PublicationList(props) {
+const PublicationList = (props) => {
     if (!props.publications) {
         return null;
     }
@@ -140,6 +140,6 @@ function PublicationList(props) {
         {publicationList}
         </tbody>
     );
-}
+};
 
 export default ZenodoHome;

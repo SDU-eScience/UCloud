@@ -9,19 +9,16 @@ import swal from "sweetalert2";
 import pubsub from "pubsub-js";
 import PromiseKeeper from "../PromiseKeeper";
 
-class FileInfo extends React.Component {
+export default class FileInfo extends React.Component {
     constructor(props) {
         super(props);
-        const filePath = props.match.params[0];
-        let path;
-        if (filePath.endsWith("/")) {
-            path = filePath.slice(0, filePath.length - 1)
-        } else {
-            path = filePath;
+        let path = props.match.params[0];
+        if (path.endsWith("/")) {
+            path = path.slice(0, path.length - 1);
         }
         this.state = {
-            promises: new PromiseKeeper(),
             filePath: path,
+            promises: new PromiseKeeper(),
             file: null,
             loading: false,
         };
@@ -120,7 +117,7 @@ class FileInfo extends React.Component {
     }
 }
 
-function FileHeader(props) {
+const FileHeader = (props) => {
     if (!props.file) {
         return null;
     }
@@ -134,7 +131,7 @@ function FileHeader(props) {
         </Jumbotron>)
 }
 
-function FileView(props) {
+const FileView = (props) => {
     if (!props.file) {
         return null;
     }
@@ -170,7 +167,7 @@ function FileView(props) {
     );
 }
 
-function FileSharing(props) {
+const FileSharing = (props) => {
     if (!props.file) {
         return null;
     }
@@ -206,5 +203,3 @@ function FileSharing(props) {
         </div>
     );
 }
-
-export default FileInfo;

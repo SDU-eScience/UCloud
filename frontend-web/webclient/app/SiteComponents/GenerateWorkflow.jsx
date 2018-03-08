@@ -60,8 +60,8 @@ class GenerateWorkflow extends React.Component {
     }
 }
 
-function Parameters() {
+const Parameters = () => {
     return null;
-}
+};
 
 export default GenerateWorkflow;

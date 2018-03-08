@@ -45,12 +45,8 @@ class ZenodoInfo extends React.Component {
     }
 }
 
-function ZenodoPublishingBody(props) {
-    const publication = props.publication;
-    const uploads = props.uploads;
-    const isActive = publication.status === "UPLOADING";
+const ZenodoPublishingBody = ({ publication, uploads }) => {
     let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
-    let style = getStatusBarColor(publication.status);
     return (
         <div>
             <Jumbotron>
@@ -68,25 +64,16 @@ function ZenodoPublishingBody(props) {
                     <span className="pull-right">{new Date(publication.modifiedAt).toLocaleString()}</span>
                 </ListGroupItem>
             </ListGroup>
-            <ProgressBar active={isActive} bsStyle={style} striped={isActive}
+            <ProgressBar active={publication.status === "UPLOADING"} bsStyle={getStatusBarColor(publication.status)} striped={isActive}
                          label={`${progressBarValue}%`}
                          now={progressBarValue}/>
-            <FilesList files={props.uploads}/>
+            <FilesList files={uploads}/>
         </div>)
-}
+};
 
-function FilesList(props) {
-    if (props.files === null) {
-        return null
-    }
-    const filesList = props.files.map((file, index) =>
-        <tr key={index}>
-            <td>{file.dataObject}</td>
-            <td>{file.hasBeenTransmitted ? "✓" : "…"}</td>
-        </tr>
-    );
-    return (
-        <Table>
+const FilesList = ({files}) =>
+    files === null ? null :
+        (<Table>
             <thead>
             <tr>
                 <th>File name</th>
@@ -94,13 +81,16 @@ function FilesList(props) {
             </tr>
             </thead>
             <tbody>
-            {filesList}
+            {files.map((file, index) =>
+                <tr key={index}>
+                    <td>{file.dataObject}</td>
+                    <td>{file.hasBeenTransmitted ? "✓" : "…"}</td>
+                </tr>
+            )}
             </tbody>
-        </Table>
-    );
-}
+        </Table>);
 
-function getStatusBarColor(status) {
+const getStatusBarColor = (status) => {
     switch (status) {
         case "UPLOADING": {
             return "info";
@@ -112,6 +102,6 @@ function getStatusBarColor(status) {
             return "danger";
         }
     }
-}
+};
 
 export default ZenodoInfo;

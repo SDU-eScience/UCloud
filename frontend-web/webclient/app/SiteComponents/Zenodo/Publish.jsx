@@ -130,32 +130,26 @@ class ZenodoPublish extends React.Component {
     }
 }
 
-function CardAndBody(props) {
-    return (
-        <div className="card">
-            <div className="card-body">
-                {props.children}
-            </div>
+const CardAndBody = ({children}) => (
+    <div className="card">
+        <div className="card-body">
+            {children}
         </div>
-    )
-}
+    </div>
+);
 
-function FileSelections(props) {
-    const files = props.files.slice();
-    const fileSelectors = files.map((file, index) =>
-        <ListGroupItem key={index} className="col-sm-offset-2 col-sm-4 input-group">
-            <FileSelector initialPath={file} onFileSelectionChange={props.handleFileSelection}
-                          returnObject={{index: index}}/>
-        </ListGroupItem>);
-    return (
-        <fieldset>
-            <FormGroup>
-                <ListGroup>
-                    {fileSelectors}
-                </ListGroup>
-            </FormGroup>
-        </fieldset>
-    );
-}
+const FileSelections = ({files, handleFileSelection}) => (
+    <fieldset>
+        <FormGroup>
+            <ListGroup>
+                {files.map((file, index) =>
+                    <ListGroupItem key={index} className="col-sm-offset-2 col-sm-4 input-group">
+                        <FileSelector initialPath={file} onFileSelectionChange={handleFileSelection}
+                                      returnObject={{index: index}}/>
+                    </ListGroupItem>)}
+            </ListGroup>
+        </FormGroup>
+    </fieldset>
+);
 
 export default ZenodoPublish;

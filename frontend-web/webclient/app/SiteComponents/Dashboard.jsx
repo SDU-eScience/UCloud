@@ -98,7 +98,7 @@ class Dashboard extends React.Component {
             <section>
                 <div className="container-fluid">
                     <DashboardFavoriteFiles files={this.state.favoriteFiles} isLoading={this.state.favoriteLoading}
-                                             favorite={this.favoriteOrUnfavorite}/>
+                                            favorite={this.favoriteOrUnfavorite}/>
                     <DashboardRecentFiles files={this.state.recentFiles} isLoading={this.state.recentLoading}/>
                     <DashboardAnalyses analyses={this.state.recentAnalyses} isLoading={this.state.analysesLoading}/>
                     <DashboardRecentActivity activities={this.state.activity} isLoading={this.state.activityLoading}/>
@@ -108,7 +108,7 @@ class Dashboard extends React.Component {
     }
 }
 
-function DashboardFavoriteFiles(props) {
+const DashboardFavoriteFiles = (props) => {
     const noFavorites = props.files.length || props.isLoading ? '' : <h3 className="text-center">
         <small>No favorites found.</small>
     </h3>;
@@ -123,7 +123,8 @@ function DashboardFavoriteFiles(props) {
                 return (
                     <tr key={file.path.path}>
                         <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                        <td onClick={() => props.favorite(file.path.path)} className="text-center"><em className="ion-star"/></td>
+                        <td onClick={() => props.favorite(file.path.path)} className="text-center"><em
+                            className="ion-star"/></td>
                     </tr>)
             }
         }
@@ -150,9 +151,9 @@ function DashboardFavoriteFiles(props) {
                 </Table>
             </div>
         </div>)
-}
+};
 
-function DashboardRecentFiles(props) {
+const DashboardRecentFiles = (props) => {
     const noRecents = props.files.length || props.isLoading ? '' : <h3 className="text-center">
         <small>No recent files found</small>
     </h3>;
@@ -197,83 +198,51 @@ function DashboardRecentFiles(props) {
                 </Table>
             </div>
         </div>)
+};
 
-}
-
-function DashboardAnalyses(props) {
-    const noAnalyses = props.analyses.length || props.isLoading ? '' : <h3 className="text-center">
-        <small>No analyses found</small>
-    </h3>;
-    const analyses = props.analyses;
-    let i = 0;
-    const analysesList = analyses.map((analysis) =>
-        <tr key={i++}>
-            <td>{analysis.appName}</td>
-            <td>{toLowerCaseAndCapitalize(analysis.status)}</td>
-        </tr>
-    );
-
-    return (
-        <div className="col-sm-3 align-self-center">
-            <div className="card">
-                <h5 className="card-heading pb0">
-                    Recent Analyses
-                </h5>
-                <BallPulseLoading loading={props.isLoading}/>
-                {noAnalyses}
-                <Table className="table table-hover mv-lg">
-                    <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Status</th>
+const DashboardAnalyses = ({analyses, isLoading}) => (
+    <div className="col-sm-3 align-self-center">
+        <div className="card">
+            <h5 className="card-heading pb0">
+                Recent Analyses
+            </h5>
+            <BallPulseLoading loading={isLoading}/>
+            {isLoading || analyses.length ? null :
+                (<h3 className="text-center">
+                    <small>No analyses found</small>
+                </h3>)
+            }
+            <Table className="table table-hover mv-lg">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                {analyses.map((analysis, index) =>
+                    <tr key={index}>
+                        <td>{analysis.appName}</td>
+                        <td>{toLowerCaseAndCapitalize(analysis.status)}</td>
                     </tr>
-                    </thead>
-                    <tbody>
-                    {analysesList}
-                    </tbody>
-                </Table>
-            </div>
-        </div>)
-}
-
-function DashboardRecentActivity(props) {
-    const noActivity = props.activities.length || props.isLoading ? '' : <h3 className="text-center">
-        <small>No activity found</small>
-    </h3>;
-    const activities = props.activities;
-    let i = 0;
-    const activityList = activities.map((activity) =>
-        <tr key={i++} className="msg-display clickable">
-            <td className="wd-xxs">
-                <NotificationIcon type={activity.type}/>
-            </td>
-            <th className="mda-list-item-text mda-2-line">
-                <small>{activity.message}</small>
-                <br/>
-                <small className="text-muted">{new Date(activity.timestamp).toLocaleString()}</small>
-            </th>
-            <td className="text">{activity.body}</td>
-        </tr>
-    );
-
-    return (
-        <div className="col-sm-3 align-self-center">
-            <div className="card">
-                <h5 className="card-heading pb0">
-                    Activity
-                </h5>
-                <BallPulseLoading loading={props.isLoading}/>
-                {noActivity}
-                <div>
-                    <Table className="table table-hover mv-lg">
-                        <tbody>
-                        {activityList}
-                        </tbody>
-                    </Table>
-                </div>
-            </div>
+                )}
+                </tbody>
+            </Table>
         </div>
-    );
-}
+    </div>
+);
+
+const DashboardRecentActivity = (props) => (
+    <div className="col-sm-3 align-self-center">
+        <div className="card">
+            <h5 className="card-heading pb0">
+                Recent Activity
+            </h5>
+            <h3 className="text-center">
+                <small>No activity found</small>
+            </h3>
+        </div>
+    </div>
+);
 
 export default Dashboard

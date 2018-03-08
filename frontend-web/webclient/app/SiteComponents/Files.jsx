@@ -387,7 +387,7 @@ const FileOptions = (props) => {
             </p>
         </div>
     )
-}
+};
 
 
 const FilesTable = (props) => {
@@ -452,8 +452,7 @@ const FilesList = ({files, addOrRemoveFile, favorite}) => {
     )
 };
 
-const File = ({file, favorite, addOrRemoveFile, owner}) => {
-    return (
+const File = ({file, favorite, addOrRemoveFile, owner}) => (
         <tr className="row-settings clickable-row">
             <td className="select-cell"><label className="mda-checkbox">
                 <input name="select" className="select-box" checked={file.isChecked}
@@ -467,8 +466,8 @@ const File = ({file, favorite, addOrRemoveFile, owner}) => {
             <td>
                 <MobileButtons file={file}/>
             </td>
-        </tr>)
-};
+        </tr>
+);
 
 const Directory = ({file, favorite, addOrRemoveFile, owner}) => (
         <tr className="row-settings clickable-row"

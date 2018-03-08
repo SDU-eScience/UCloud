@@ -2,7 +2,7 @@ import React from 'react';
 import {BallPulseLoading} from './LoadingIcon';
 import {Modal, Button, Breadcrumb, Table} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
-import Breadcrumbs from "./Breadcrumbs"
+import {BreadCrumbs} from "./Breadcrumbs"
 import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
 import {DashboardModal} from "uppy/lib/react";
@@ -153,7 +153,7 @@ class FileSelector extends React.Component {
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
                     </Modal.Header>
-                    <Breadcrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
+                    <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles}/>
                     <BallPulseLoading loading={this.state.loading}/>
                     <FileSelectorBody loading={this.state.loading} onClick={this.setSelectedFile}
                                       files={this.state.files} getFiles={this.getFiles}
@@ -164,7 +164,7 @@ class FileSelector extends React.Component {
     }
 }
 
-function FileSelectorBody(props) {
+const FileSelectorBody = (props) => {
     if (props.loading) {
         return null;
     }
@@ -191,42 +191,32 @@ function FileSelectorBody(props) {
                 Create new folder
             </Button>
         </Modal.Body>)
-}
+};
 
-function UploadButton(props) {
-    return (
-        <span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>
-    );
-}
+const UploadButton = (props) =>
+    (<span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>);
 
-function FileList(props) {
-    if (!props.files.length) {
-        return null;
-    }
-    let files = props.files.slice();
-    let i = 0;
-    let filesList = files.map(file => {
-        if (file.type === "DIRECTORY") {
-            return (
-                <tr key={i++} className="row-settings clickable-row" style={{cursor: "pointer"}}>
-                    <td onClick={() => props.getFiles(file.path.path)}>
-                        <a><i className="ion-android-folder"/> {file.path.name}</a>
-                    </td>
-                </tr>
-            );
-        } else {
-            return (
-                <tr key={i++} className="gradeA row-settings" style={{cursor: "pointer"}}>
-                    <td onClick={() => props.onClick(file)}><span className="ion-android-document"/> {file.path.name}
-                    </td>
-                </tr>)
-        }
-    });
-    return (
-        <tbody>
-        {filesList}
-        </tbody>
-    )
-}
+const FileList = ({files, getFiles, onClick}) =>
+    !files.length ? null :
+        (<tbody>
+        {files.map((file, index) => {
+            if (file.type === "DIRECTORY") {
+                return (
+                    <tr key={index} className="row-settings clickable-row" style={{cursor: "pointer"}}>
+                        <td onClick={() => getFiles(file.path.path)}>
+                            <a><i className="ion-android-folder"/> {file.path.name}</a>
+                        </td>
+                    </tr>
+                );
+            } else {
+                return (
+                    <tr key={index} className="gradeA row-settings" style={{cursor: "pointer"}}>
+                        <td onClick={() => onClick(file)}><span
+                            className="ion-android-document"/> {file.path.name}
+                        </td>
+                    </tr>)
+            }
+        })}
+        </tbody>);
 
 export default FileSelector;

@@ -2,7 +2,7 @@ import React from "react";
 import swal from "sweetalert2";
 import {RightsMap, RightsNameMap, SensitivityLevelMap, AnalysesStatusMap} from "./DefaultObjects"
 
-export function NotificationIcon(props) {
+export const NotificationIcon = (props) => {
     if (props.type === "Complete") {
         return (<div className="initial32 bg-green-500">✓</div>)
     } else if (props.type === "In Progress") {
@@ -14,44 +14,34 @@ export function NotificationIcon(props) {
     } else {
         return (<div>Unknown type</div>)
     }
-}
+};
 
-export function toLowerCaseAndCapitalize(str) {
-    if (!str) {
-        return "";
-    }
-    return str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
-}
+export const toLowerCaseAndCapitalize = (str) => !str ? "" : str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 
-export function WebSocketSupport() {
-    let hasWebSocketSupport = "WebSocket" in window;
-    if (!hasWebSocketSupport) {
-        return (
-            <h3>
-                <small>WebSockets are not supported in this browser. Notifications won't be updated automatically.
-                </small>
-            </h3>);
-    }
-    return (null);
-}
+export const WebSocketSupport = () =>
+    !("WebSocket" in window) ?
+        (<h3>
+            <small>WebSockets are not supported in this browser. Notifications won't be updated automatically.
+            </small>
+        </h3>) : null;
 
-export function sortFilesByFavorite(files, asc) {
+export const sortFilesByFavorite = (files, asc) => {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.favorited - b.favorited) * order
     });
     return files;
-}
+};
 
-export function sortFilesByModified(files, asc) {
+export const sortFilesByModified = (files, asc) => {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.modifiedAt - b.modifiedAt) * order;
     });
     return files;
-}
+};
 
-export function sortFilesByTypeAndName(files, asc) {
+export const sortFilesByTypeAndName = (files, asc) => {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
@@ -63,7 +53,7 @@ export function sortFilesByTypeAndName(files, asc) {
         }
     });
     return files;
-}
+};
 
 export function sortFilesByOwner(files, asc) { // FIXME Should sort based on the value inside the acl (OWN, READ, READ/WRITE)
     let order = asc ? 1 : -1;
@@ -275,7 +265,7 @@ export function downloadFile(path, cloud) {
     });
 }
 
-export function fileSizeToString(bytes) {
+export const fileSizeToString = (bytes) => {
     if (!bytes) {
         return "";
     }
@@ -296,10 +286,12 @@ export function fileSizeToString(bytes) {
     } else {
         return `${bytes} B`;
     }
-}
+};
 
-export function castValueTo(parameterType = null, value = null) {
-    if (!parameterType) { return value; }
+export const castValueTo = (parameterType = null, value = null) => {
+    if (!parameterType) {
+        return value;
+    }
     switch (parameterType) {
         case "integer": {
             return parseInt(value);
@@ -311,9 +303,9 @@ export function castValueTo(parameterType = null, value = null) {
             return value;
         }
     }
-}
+};
 
-export function getCurrentRights(files, cloud) {
+export const getCurrentRights = (files, cloud) => {
     let lowestPrivilegeOptions = RightsMap["OWN"];
     files.forEach((it) => {
         it.acl.filter(acl => acl.entity.displayName === cloud.username).forEach((acl) => {
@@ -324,4 +316,4 @@ export function getCurrentRights(files, cloud) {
         rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
         rightsLevel: lowestPrivilegeOptions
     }
-}
+};

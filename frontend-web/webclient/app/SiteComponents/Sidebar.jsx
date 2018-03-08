@@ -1,13 +1,13 @@
 import React from 'react';
 import PropTypes from "prop-types";
 import {Link} from 'react-router-dom'
-import { SidebarOptionsList } from "../MockObjects";
+import {SidebarOptionsList} from "../MockObjects";
 import './Sidebar.scss';
 
 
 import SidebarRun from './Sidebar.run';
 
-import { Cloud } from '../../authentication/SDUCloudObject'
+import {Cloud} from '../../authentication/SDUCloudObject'
 import {BallPulseLoading} from "./LoadingIcon";
 
 class Sidebar extends React.Component {
@@ -62,21 +62,16 @@ class Sidebar extends React.Component {
     }
 }
 
-function SidebarOptions(props) {
-    if (!props.options.length) return (<BallPulseLoading loading={true}/>);
-    let i = 0;
-    let optionsList = props.options.map(option =>
-        <SingleSidebarOption key={i++} option={option}/>
-    );
-    return (
-        <ul>
-            {optionsList}
-        </ul>
-    )
+const SidebarOptions = (props) =>
+    !props.options.length ?
+        (<BallPulseLoading loading={true}/>) :
+        (<ul>
+            {props.options.map((option, index) =>
+                <SingleSidebarOption key={index} option={option}/>
+            )}
+        </ul>);
 
-}
-
-function SingleSidebarOption(props) {
+const SingleSidebarOption = (props) => {
     if (props.option.href) {
         return (
             <li>
@@ -101,13 +96,13 @@ function SingleSidebarOption(props) {
 
         return (
             <li>
-                    <a href="#">
-                        <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span><span
-                        className="pull-right nav-label"/><span className="nav-icon">
+                <a href="#">
+                    <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span><span
+                    className="pull-right nav-label"/><span className="nav-icon">
                                     <img src="" data-svg-replace="img/icons/connection-bars.svg" alt="MenuItem"
                                          className="hidden"/></span>
-                        <span>{props.option.name}</span>
-                    </a>
+                    <span>{props.option.name}</span>
+                </a>
                 <ul>
                     {optionsList}
                 </ul>
@@ -116,13 +111,11 @@ function SingleSidebarOption(props) {
     }
 }
 
-function NestedSidebarOption(props) {
-    return (
-        <Link to={props.option.href}>
-            <span className="pull-right nav-label"/><span>{props.option.name}</span>
-        </Link>
-    )
-}
+const NestedSidebarOption = ({option}) => (
+    <Link to={option.href}>
+        <span className="pull-right nav-label"/><span>{option.name}</span>
+    </Link>
+);
 
 Sidebar.contextTypes = {
     router: PropTypes.object,

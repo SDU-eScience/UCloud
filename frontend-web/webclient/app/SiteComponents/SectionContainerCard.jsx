@@ -1,14 +1,13 @@
 import React from 'react';
 
-export default function SectionContainerCard(props) {
-    return (
-        <section>
-            <div className="container-fluid">
-                <div className="card">
-                    <div className="card-body">
-                        {props.children}
-                    </div>
+export default SectionContainerCard = ({children}) => (
+    <section>
+        <div className="container-fluid">
+            <div className="card">
+                <div className="card-body">
+                    {children}
                 </div>
             </div>
-        </section>);
-}
+        </div>
+    </section>
+);
