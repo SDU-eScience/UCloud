@@ -55,7 +55,7 @@ export const sortFilesByTypeAndName = (files, asc) => {
     return files;
 };
 
-export function sortFilesByOwner(files, asc) { // FIXME Should sort based on the value inside the acl (OWN, READ, READ/WRITE)
+export const sortFilesByOwner = (files, asc) => { // FIXME Should sort based on the value inside the acl (OWN, READ, READ/WRITE)
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return (a.acl.length - b.acl.length) * order;
@@ -63,7 +63,7 @@ export function sortFilesByOwner(files, asc) { // FIXME Should sort based on the
     return files;
 }
 
-export function sortByStatus(analyses, asc) {
+export const sortByStatus = (analyses, asc) => {
     let order = asc ? 1 : -1;
     analyses.sort((a, b) => {
         return (AnalysesStatusMap[a.status] - AnalysesStatusMap[b.status]) * order;
@@ -71,7 +71,7 @@ export function sortByStatus(analyses, asc) {
     return analyses;
 }
 
-export function sortFilesBySensitivity(files, asc) {
+export const sortFilesBySensitivity = (files, asc) => {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return SensitivityLevelMap[a.sensitivityLevel] - SensitivityLevelMap[b.sensitivityLevel] * order;
@@ -79,7 +79,7 @@ export function sortFilesBySensitivity(files, asc) {
     return files;
 }
 
-export function favorite(files, path, cloud) {
+export const favorite = (files, path, cloud) => {
     let file = files.find(file => file.path.path === path);
     file.favorited = !file.favorited;
     if (file.favorited) {
@@ -90,7 +90,7 @@ export function favorite(files, path, cloud) {
     return files;
 }
 
-export function getOwnerFromAcls(acls, cloud) {
+export const getOwnerFromAcls = (acls, cloud) => {
     let userName = cloud.username;
     let result = acls.find(acl => acl.entity.displayName === userName);
     if (!result) {
@@ -99,7 +99,7 @@ export function getOwnerFromAcls(acls, cloud) {
     return result.right;
 }
 
-export function updateSharingOfFile(filePath, user, currentRights, cloud) {
+export const updateSharingOfFile = (filePath, user, currentRights, cloud) => {
     swal({
         title: "Please specify access level",
         text: `The file ${filePath.name} is to be shared with ${user}.`,
@@ -130,7 +130,7 @@ export function updateSharingOfFile(filePath, user, currentRights, cloud) {
     });
 }
 
-export function shareFile(filePath, cloud) {
+export const shareFile = (filePath, cloud) => {
     swal({
         title: "Share file",
         text: `Enter a username to share ${filePath.name} with.`,
@@ -174,7 +174,7 @@ export function shareFile(filePath, cloud) {
     );
 }
 
-export function revokeSharing(filePath, person, rightsLevel, cloud) {
+export const revokeSharing = (filePath, person, rightsLevel, cloud) =>
     swal({
         title: "Revoke access",
         text: `Revoke ${rightsLevel} access for ${person}`,
@@ -192,9 +192,8 @@ export function revokeSharing(filePath, person, rightsLevel, cloud) {
 
         //});
     });
-}
 
-export function createFolder(currentPath) {
+export const createFolder = (currentPath) => {
     swal({
         title: "Create folder",
         text: `The folder will be created in:\n${currentPath}`,
@@ -211,7 +210,7 @@ export function createFolder(currentPath) {
     })
 }
 
-export function renameFile(filePath) {
+export const renameFile = (filePath) =>
     swal({
         title: "Rename file",
         text: `The file ${filePath.name} will be renamed`,
@@ -223,10 +222,9 @@ export function renameFile(filePath) {
         if (result.dismiss) {
             return;
         }
-    })
-}
+    });
 
-export function showFileDeletionPrompt(filePath) {
+export const showFileDeletionPrompt = (filePath) =>
     swal({
         title: "Delete file",
         text: `Delete file ${filePath.name}`,
@@ -241,9 +239,8 @@ export function showFileDeletionPrompt(filePath) {
             // DELETE FILE
         }
     });
-}
 
-export function getParentPath(path) {
+export const getParentPath = (path) => {
     if (!path) {
         return "";
     }
@@ -256,14 +253,13 @@ export function getParentPath(path) {
     return parentPath;
 }
 
-export function downloadFile(path, cloud) {
+export const downloadFile = (path, cloud) => 
     cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
         let link = document.createElement("a");
         window.location.href = "/api/files/download?path=" + encodeURI(path) + "&token=" + encodeURI(token);
         link.setAttribute("download", "");
         link.click();
     });
-}
 
 export const fileSizeToString = (bytes) => {
     if (!bytes) {
