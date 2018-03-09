@@ -1,4 +1,4 @@
-function sidebarNav() {
+export default sidebarNav = () => {
     let sidebarNav = document.querySelector(".sidebar-nav");
 
     sidebarNav.onclick = (event) => {
@@ -28,7 +28,7 @@ function sidebarNav() {
         layoutContainer.classList.toggle("sidebar-visible");
     };
     // Close sidebar when click on backdrop
-    document.querySelector(".sidebar-layout-obfuscator").onclick = e => {
+    document.querySelector(".sidebar-layout-obfuscator").onclick = (e) => {
         e.preventDefault();
         layoutContainer.classList.remove('sidebar-visible');
         // restore icon
@@ -53,12 +53,10 @@ function sidebarNav() {
 
 // find the a element in click context
 // doesn't check deeply, assuming two levels only
-function getItemElement(event) {
+const getItemElement = (event) => {
     let element = event.target,
         parent = element.parentNode;
     if (element.tagName.toLowerCase() === "a") return element;
     if (parent.tagName.toLowerCase() === "a") return parent;
     if (parent.parentNode.tagName.toLowerCase() === "a") return parent.parentNode;
 }
-
-export default sidebarNav;

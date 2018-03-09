@@ -29,8 +29,10 @@
     "react-bootstrap": "0.32.1",
     "react-dom": "16.2.0",
     "react-dropzone": "4.2.8",
+    "react-redux": "^5.0.7",
     "react-router": "4.2.0",
     "react-router-dom": "4.2.2",
+    "redux": "^3.7.2",
     "sweetalert2": "7.15.0",
     "uppy": "0.23.2"
   },
