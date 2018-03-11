@@ -43,6 +43,34 @@ public class DaoUtils {
         return initUiResponseString;
     }
 
+    public String admin_create_new_Person()
+    {
+        return null;
+    }
 
+    public String admin_create_new_Project()
+    {
+        return null;
+    }
+
+    public String admin_create_new_Share()
+    {
+        return null;
+    }
+
+    public String admin_modify_Person()
+    {
+        return null;
+    }
+
+    public String admin_modify_Project()
+    {
+        return null;
+    }
+
+    public String admin_modify_Share()
+    {
+        return null;
+    }
 
 }
