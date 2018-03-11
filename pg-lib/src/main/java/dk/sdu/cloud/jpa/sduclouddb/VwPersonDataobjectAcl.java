@@ -6,6 +6,7 @@
 package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.util.Date;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -25,6 +26,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 @NamedQueries({
     @NamedQuery(name = "VwPersonDataobjectAcl.findAll", query = "SELECT v FROM VwPersonDataobjectAcl v")
+    , @NamedQuery(name = "VwPersonDataobjectAcl.findById", query = "SELECT v FROM VwPersonDataobjectAcl v WHERE v.id = :id")
     , @NamedQuery(name = "VwPersonDataobjectAcl.findByPersonrefid", query = "SELECT v FROM VwPersonDataobjectAcl v WHERE v.personrefid = :personrefid")
     , @NamedQuery(name = "VwPersonDataobjectAcl.findByPersonFullname", query = "SELECT v FROM VwPersonDataobjectAcl v WHERE v.personFullname = :personFullname")
     , @NamedQuery(name = "VwPersonDataobjectAcl.findByProjectrefid", query = "SELECT v FROM VwPersonDataobjectAcl v WHERE v.projectrefid = :projectrefid")
@@ -53,6 +55,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 public class VwPersonDataobjectAcl implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    @Id
+    @Column(name = "id")
+    private BigInteger id;
     @Column(name = "personrefid")
     private Integer personrefid;
     @Column(name = "person_fullname")
@@ -91,7 +96,6 @@ public class VwPersonDataobjectAcl implements Serializable {
     private Integer downloadDataobject;
     @Column(name = "enherited_from_parent")
     private Integer enheritedFromParent;
-    @Id
     @Column(name = "dataobjectrefid")
     private String dataobjectrefid;
     @Column(name = "dataobjectname")
@@ -108,6 +112,14 @@ public class VwPersonDataobjectAcl implements Serializable {
     private Date createdTs;
 
     public VwPersonDataobjectAcl() {
+    }
+
+    public BigInteger getId() {
+        return id;
+    }
+
+    public void setId(BigInteger id) {
+        this.id = id;
     }
 
     public Integer getPersonrefid() {

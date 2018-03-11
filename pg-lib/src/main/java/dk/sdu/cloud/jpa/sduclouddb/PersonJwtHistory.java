@@ -63,13 +63,13 @@ public class PersonJwtHistory implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
+    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Person personrefid;
     @OneToMany(mappedBy = "personjwthistoryrefid")
     private List<SubsystemCommandQueue> subsystemCommandQueueList;
     @OneToOne(mappedBy = "personjwthistoryrefid")
     private Person person;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
-    @ManyToOne
-    private Person personrefid;
 
     public PersonJwtHistory() {
     }
@@ -132,6 +132,14 @@ public class PersonJwtHistory implements Serializable {
         this.createdTs = createdTs;
     }
 
+    public Person getPersonrefid() {
+        return personrefid;
+    }
+
+    public void setPersonrefid(Person personrefid) {
+        this.personrefid = personrefid;
+    }
+
     @XmlTransient
     public List<SubsystemCommandQueue> getSubsystemCommandQueueList() {
         return subsystemCommandQueueList;
@@ -147,14 +155,6 @@ public class PersonJwtHistory implements Serializable {
 
     public void setPerson(Person person) {
         this.person = person;
-    }
-
-    public Person getPersonrefid() {
-        return personrefid;
-    }
-
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
     }
 
     @Override

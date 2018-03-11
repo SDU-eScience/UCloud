@@ -64,10 +64,10 @@ public class Org implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "orgrefid")
-    private List<Person> personList;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "orgrefid")
     private List<ProjectOrgRelation> projectOrgRelationList;
+    @OneToMany(mappedBy = "orgrefid")
+    private List<Person> personList;
 
     public Org() {
     }
@@ -139,21 +139,21 @@ public class Org implements Serializable {
     }
 
     @XmlTransient
-    public List<Person> getPersonList() {
-        return personList;
-    }
-
-    public void setPersonList(List<Person> personList) {
-        this.personList = personList;
-    }
-
-    @XmlTransient
     public List<ProjectOrgRelation> getProjectOrgRelationList() {
         return projectOrgRelationList;
     }
 
     public void setProjectOrgRelationList(List<ProjectOrgRelation> projectOrgRelationList) {
         this.projectOrgRelationList = projectOrgRelationList;
+    }
+
+    @XmlTransient
+    public List<Person> getPersonList() {
+        return personList;
+    }
+
+    public void setPersonList(List<Person> personList) {
+        this.personList = personList;
     }
 
     @Override

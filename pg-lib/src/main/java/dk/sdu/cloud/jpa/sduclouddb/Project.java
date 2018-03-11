@@ -83,13 +83,15 @@ public class Project implements Serializable {
     @ManyToOne
     private ProjectType projecttyperefid;
     @OneToMany(mappedBy = "projectrefid")
-    private List<DataobjectDirectory> dataobjectDirectoryList;
-    @OneToMany(mappedBy = "projectrefid")
-    private List<ProjectPublicationRelation> projectPublicationRelationList;
-    @OneToMany(mappedBy = "projectrefid")
     private List<ProjectEventCalendar> projectEventCalendarList;
     @OneToMany(mappedBy = "projectrefid")
     private List<ProjectProjectresearchtypeRelation> projectProjectresearchtypeRelationList;
+    @OneToMany(mappedBy = "projectrefid")
+    private List<PersonDataobjectAcl> personDataobjectAclList;
+    @OneToMany(mappedBy = "projectrefid")
+    private List<DataobjectDirectory> dataobjectDirectoryList;
+    @OneToMany(mappedBy = "projectrefid")
+    private List<ProjectPublicationRelation> projectPublicationRelationList;
     @OneToMany(mappedBy = "projectrefid")
     private List<ProjectProjectdocumentRelation> projectProjectdocumentRelationList;
 
@@ -204,24 +206,6 @@ public class Project implements Serializable {
     }
 
     @XmlTransient
-    public List<DataobjectDirectory> getDataobjectDirectoryList() {
-        return dataobjectDirectoryList;
-    }
-
-    public void setDataobjectDirectoryList(List<DataobjectDirectory> dataobjectDirectoryList) {
-        this.dataobjectDirectoryList = dataobjectDirectoryList;
-    }
-
-    @XmlTransient
-    public List<ProjectPublicationRelation> getProjectPublicationRelationList() {
-        return projectPublicationRelationList;
-    }
-
-    public void setProjectPublicationRelationList(List<ProjectPublicationRelation> projectPublicationRelationList) {
-        this.projectPublicationRelationList = projectPublicationRelationList;
-    }
-
-    @XmlTransient
     public List<ProjectEventCalendar> getProjectEventCalendarList() {
         return projectEventCalendarList;
     }
@@ -237,6 +221,33 @@ public class Project implements Serializable {
 
     public void setProjectProjectresearchtypeRelationList(List<ProjectProjectresearchtypeRelation> projectProjectresearchtypeRelationList) {
         this.projectProjectresearchtypeRelationList = projectProjectresearchtypeRelationList;
+    }
+
+    @XmlTransient
+    public List<PersonDataobjectAcl> getPersonDataobjectAclList() {
+        return personDataobjectAclList;
+    }
+
+    public void setPersonDataobjectAclList(List<PersonDataobjectAcl> personDataobjectAclList) {
+        this.personDataobjectAclList = personDataobjectAclList;
+    }
+
+    @XmlTransient
+    public List<DataobjectDirectory> getDataobjectDirectoryList() {
+        return dataobjectDirectoryList;
+    }
+
+    public void setDataobjectDirectoryList(List<DataobjectDirectory> dataobjectDirectoryList) {
+        this.dataobjectDirectoryList = dataobjectDirectoryList;
+    }
+
+    @XmlTransient
+    public List<ProjectPublicationRelation> getProjectPublicationRelationList() {
+        return projectPublicationRelationList;
+    }
+
+    public void setProjectPublicationRelationList(List<ProjectPublicationRelation> projectPublicationRelationList) {
+        this.projectPublicationRelationList = projectPublicationRelationList;
     }
 
     @XmlTransient
