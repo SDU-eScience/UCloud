@@ -53,7 +53,7 @@ class Server(
         val sshPool = SSHConnectionPool(config.ssh)
         val sbatchGenerator = SBatchGenerator()
         val jobDao = JobsDAO()
-        val jobService = JobService(jobDao)
+        val jobService = JobService(jobDao, kafka.producer.forStream(HPCStreams.AppRequests))
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
         kStreams = run {
@@ -105,7 +105,7 @@ class Server(
                     protect()
 
                     AppController(ApplicationDAO).configure(this)
-                    JobController(jobService, kafka.producer.forStream(HPCStreams.AppRequests)).configure(this)
+                    JobController(jobService).configure(this)
                     ToolController(ToolDAO).configure(this)
                 }
             }

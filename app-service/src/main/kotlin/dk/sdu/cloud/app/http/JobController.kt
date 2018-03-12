@@ -14,8 +14,7 @@ import org.slf4j.LoggerFactory
 import java.util.*
 
 class JobController(
-    private val jobService: JobService,
-    private val jobRequestProducer: MappedEventProducer<String, KafkaRequest<AppRequest>>
+    private val jobService: JobService
 ) {
     fun configure(routing: Route) = with(routing) {
         route("jobs") {
@@ -38,20 +37,7 @@ class JobController(
 
             implement(HPCJobDescriptions.start) { req ->
                 logEntry(log, req)
-
-                val uuid = UUID.randomUUID().toString()
-                log.info("Starting job: ${call.request.jobId} -> $uuid")
-
-                jobRequestProducer.emit(
-                    KafkaRequest(
-                        RequestHeader(
-                            uuid,
-                            call.request.validatedPrincipal.token
-                        ),
-                        req
-                    )
-                )
-
+                val uuid = jobService.startJob(req, call.request.validatedPrincipal)
                 ok(JobStartedResponse(uuid))
             }
         }
