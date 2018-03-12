@@ -52,6 +52,8 @@ class Server(
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
         val sbatchGenerator = SBatchGenerator()
+        val jobDao = JobsDAO()
+        val jobService = JobService(jobDao)
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
         kStreams = run {
@@ -64,7 +66,8 @@ class Server(
                 sshPool = sshPool,
                 irodsConfig = config.storage,
                 slurmAgent = slurmPollAgent,
-                appEventProducer = kafka.producer.forStream(HPCStreams.AppEvents)
+                appEventProducer = kafka.producer.forStream(HPCStreams.AppEvents),
+                jobService = jobService
             ).also { it.init() }
 
             StartCommandProcessor(
@@ -76,7 +79,8 @@ class Server(
 
             AppEventProcessor(
                 appEvents = kBuilder.stream(HPCStreams.AppEvents),
-                slurmPollAgent = slurmPollAgent
+                slurmPollAgent = slurmPollAgent,
+                jobService = jobService
             ).also { it.init() }
             log.info("Stream processors configured!")
 
@@ -101,7 +105,7 @@ class Server(
                     protect()
 
                     AppController(ApplicationDAO).configure(this)
-                    JobController(kafka.producer.forStream(HPCStreams.AppRequests)).configure(this)
+                    JobController(jobService, kafka.producer.forStream(HPCStreams.AppRequests)).configure(this)
                     ToolController(ToolDAO).configure(this)
                 }
             }

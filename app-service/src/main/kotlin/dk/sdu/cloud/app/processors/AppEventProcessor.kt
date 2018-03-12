@@ -1,18 +1,18 @@
 package dk.sdu.cloud.app.processors
 
 import dk.sdu.cloud.app.api.HPCAppEvent
-import dk.sdu.cloud.app.services.JobsDAO
+import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.app.services.SlurmPollAgent
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.filterIsInstance
 import dk.sdu.cloud.service.stackTraceToString
 import org.apache.kafka.streams.kstream.KStream
 import org.h2.jdbc.JdbcSQLException
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 
 class AppEventProcessor(
     private val appEvents: KStream<String, HPCAppEvent>,
+    private val jobService: JobService,
     private val slurmPollAgent: SlurmPollAgent
 ) {
     fun init() {
@@ -26,20 +26,18 @@ class AppEventProcessor(
             val validated = TokenValidation.validateOrNull(value.originalRequest.header.performedFor)
             if (validated != null) {
                 try {
-                    transaction {
-                        JobsDAO.createJob(
-                            systemId,
-                            validated.subject,
-                            slurmId,
-                            value.originalRequest.event.application.name,
-                            value.originalRequest.event.application.version,
-                            value.workingDirectory,
-                            value.jobDirectory,
-                            value.originalRequest.event.parameters,
-                            System.currentTimeMillis()
-                        )
-                    }
-                } catch (ex: JdbcSQLException) {
+                    jobService.createJob(
+                        systemId,
+                        validated.subject,
+                        slurmId,
+                        value.originalRequest.event.application.name,
+                        value.originalRequest.event.application.version,
+                        value.workingDirectory,
+                        value.jobDirectory,
+                        value.originalRequest.event.parameters,
+                        System.currentTimeMillis()
+                    )
+                } catch (ex: JdbcSQLException) { // TODO Should catch these in service layer?
                     log.warn("Exception while handling PENDING event! systemId=$systemId")
                     log.warn(ex.stackTraceToString())
                 }
@@ -50,9 +48,7 @@ class AppEventProcessor(
         appEvents.foreach { key, value ->
             log.info("Updating status for job with systemId=$key: $value")
             slurmPollAgent.handle(value)
-            transaction {
-                JobsDAO.updateJobBySystemId(key, value.toJobStatus(), System.currentTimeMillis())
-            }
+            jobService.updateJobBySystemId(key, value.toJobStatus(), System.currentTimeMillis())
         }
     }
 

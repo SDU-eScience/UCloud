@@ -33,7 +33,8 @@ class SlurmEventProcessor(
     private val sshPool: SSHConnectionPool,
     private val irodsConfig: StorageConfiguration,
     private val slurmAgent: SlurmPollAgent,
-    private val appEventProducer: EventProducer<String, HPCAppEvent>
+    private val appEventProducer: EventProducer<String, HPCAppEvent>,
+    private val jobService: JobService
 ) {
     // Handles an event captured by te internal SlurmPollAgent and handles it. This will output
     // an event into Kafka once the entire thing has been handled. From this we create a Kafka event.
@@ -41,14 +42,14 @@ class SlurmEventProcessor(
         log.debug("handle($event)")
         return when (event) {
             is SlurmEventBegan -> {
-                val key = transaction { JobsDAO.findSystemIdFromSlurmId(event.jobId) }!!
+                val key = jobService.findSystemIdFromSlurmId(event.jobId)!!
                 val appEvent = HPCAppEvent.Started(event.jobId)
 
                 Pair(key, appEvent)
             }
 
             is SlurmEventFailed -> {
-                val key = transaction { JobsDAO.findSystemIdFromSlurmId(event.jobId) } ?: return null
+                val key = jobService.findSystemIdFromSlurmId(event.jobId) ?: return null
                 Pair(key, HPCAppEvent.UnsuccessfullyCompleted)
             }
 
@@ -60,10 +61,10 @@ class SlurmEventProcessor(
 
     // TODO Refactor and improve testability situation
     private suspend fun handleEndedEvent(event: SlurmEventEnded): Pair<String, HPCAppEvent.Ended> {
-        val key = transaction { JobsDAO.findSystemIdFromSlurmId(event.jobId) }!!
+        val key = jobService.findSystemIdFromSlurmId(event.jobId)!!
 
-        val (jobWithStatus, app) = transaction {
-            val jobWithStatus = JobsDAO.findJobWithStatusBySlurmId(event.jobId)!!
+        val (jobWithStatus, app) = run {
+            val jobWithStatus = jobService.findJobWithStatusBySlurmId(event.jobId)!!
             val app = ApplicationDAO.findByNameAndVersion(jobWithStatus.appName, jobWithStatus.appVersion)!!
 
             Pair(jobWithStatus, app)

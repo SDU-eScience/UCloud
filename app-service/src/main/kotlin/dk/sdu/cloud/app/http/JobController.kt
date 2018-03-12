@@ -10,11 +10,11 @@ import dk.sdu.cloud.service.*
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.util.*
 
 class JobController(
+    private val jobService: JobService,
     private val jobRequestProducer: MappedEventProducer<String, KafkaRequest<AppRequest>>
 ) {
     fun configure(routing: Route) = with(routing) {
@@ -22,7 +22,7 @@ class JobController(
             implement(HPCJobDescriptions.findById) {
                 logEntry(log, it)
                 val user = call.request.validatedPrincipal
-                val result = transaction { JobService.findJob(it.id, user) }
+                val result = jobService.findJob(it.id, user)
                 if (result == null) {
                     error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
                 } else {
@@ -33,7 +33,7 @@ class JobController(
             implement(HPCJobDescriptions.listRecent) {
                 logEntry(log, it)
                 val user = call.request.validatedPrincipal
-                ok(transaction { JobService.recentJobs(user) })
+                ok(jobService.recentJobs(user))
             }
 
             implement(HPCJobDescriptions.start) { req ->

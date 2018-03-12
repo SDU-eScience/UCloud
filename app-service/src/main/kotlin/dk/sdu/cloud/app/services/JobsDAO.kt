@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.services
 
-import com.auth0.jwt.interfaces.DecodedJWT
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.JobStatus
@@ -33,7 +32,7 @@ object JobStatusTable : Table() {
     val createdAt = datetime("created_at")
 }
 
-object JobsDAO {
+class JobsDAO {
     private val mapper = jacksonObjectMapper()
 
     private fun mapJobRow(row: ResultRow): JobToSlurm {
@@ -158,8 +157,3 @@ object JobsDAO {
     }
 }
 
-object JobService {
-    fun recentJobs(who: DecodedJWT): List<JobWithStatus> = JobsDAO.findAllJobsWithStatus(who.subject)
-    fun findJob(id: String, who: DecodedJWT): JobWithStatusAndInvocation? =
-        JobsDAO.findJobWithStatusById(id)?.takeIf { it.jobInfo.owner == who.subject }
-}
