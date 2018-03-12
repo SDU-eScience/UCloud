@@ -7,9 +7,6 @@ import java.util.List;
 
 public class InitUi {
 
-
-
-
     private String fullName;
     private int noProjects;
     private int diskSpaceMb;
