@@ -43,7 +43,9 @@ class SBatchGeneratorTest {
 
         val generator = SBatchGenerator()
 
-        val job = generator.generate(ApplicationDAO.findByNameAndVersion("app", "1.0.0")!!, emptyMap(), "")
+        val app = ApplicationDAO.findByNameAndVersion("app", "1.0.0")!!
+        val request = AppRequest.Start(app.info, emptyMap())
+        val job = generator.generate(app, request, "")
         val lines = job.lines()
 
         val runLine = lines.find { it.startsWith("srun singularity") }
@@ -110,7 +112,8 @@ class SBatchGeneratorTest {
         val parameters = serde.deserializer().deserialize("", parametersJson.toByteArray())
 
         val app = ApplicationDAO.findAllByName("hello").first()
-        val jobLines = gen.generate(app, parameters, "/test/a/b/c").lines()
+        val command = AppRequest.Start(app.info, parameters)
+        val jobLines = gen.generate(app, command, "/test/a/b/c").lines()
 
         val srunLine = jobLines.find { it.startsWith("srun singularity") }
         assertThat(
@@ -179,7 +182,8 @@ class SBatchGeneratorTest {
         val parameters = serde.deserializer().deserialize("", parametersJson.toByteArray())
 
         val app = ApplicationDAO.findAllByName("hello").first()
-        val jobLines = gen.generate(app, parameters, "/test/a/b/c").lines()
+        val request = AppRequest.Start(app.info, parameters)
+        val jobLines = gen.generate(app, request, "/test/a/b/c").lines()
 
         val srunLine = jobLines.find { it.startsWith("srun singularity") }
         assertThat(

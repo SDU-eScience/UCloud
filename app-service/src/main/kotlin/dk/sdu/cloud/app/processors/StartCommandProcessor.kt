@@ -25,7 +25,6 @@ class StartCommandProcessor(
     private val connectionFactory: StorageConnectionFactory,
     private val sBatchGenerator: SBatchGenerator,
     private val sshPool: SSHConnectionPool,
-    private val sshUser: String,
     private val appRequests: AuthenticatedStream<String, AppRequest>
 ) {
     private val log = LoggerFactory.getLogger(StartCommandProcessor::class.java)
@@ -80,7 +79,7 @@ class StartCommandProcessor(
         }
 
         // Must end in '/'. Otherwise resolve will do the wrong thing
-        val homeDir = URI("file:///home/$sshUser/projects/")
+        val homeDir = URI("file:///scratch/sduescience/projects/")
         val jobDir = homeDir.resolve("${request.header.uuid}/")
         val workDir = jobDir.resolve("files/")
 

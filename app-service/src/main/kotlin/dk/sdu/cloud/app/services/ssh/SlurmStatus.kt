@@ -29,7 +29,7 @@ fun SSHConnection.pollSlurmStatus(): List<SlurmEvent> {
                 null
             } else {
                 when (state) {
-                    "COMPLETED" -> SlurmEventEnded(jobId, Duration.ZERO, state, exitCode)
+                    "COMPLETED" -> SlurmEventEnded(jobId)
                     "FAILED" -> SlurmEventFailed(jobId)
                     else -> null
                 }

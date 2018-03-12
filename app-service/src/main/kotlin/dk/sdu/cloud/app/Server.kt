@@ -71,7 +71,6 @@ class Server(
                 connectionFactory = storageConnectionFactory,
                 sBatchGenerator = sbatchGenerator,
                 sshPool = sshPool,
-                sshUser = config.ssh.user,
                 appRequests = kBuilder.stream(HPCStreams.AppRequests).authenticate()
             ).also { it.init() }
 

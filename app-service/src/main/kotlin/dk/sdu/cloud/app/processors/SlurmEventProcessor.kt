@@ -53,8 +53,6 @@ class SlurmEventProcessor(
             }
 
             is SlurmEventEnded -> handleEndedEvent(event)
-
-            else -> throw IllegalStateException()
         }.also {
             log.debug("handle() returning $it")
         }
