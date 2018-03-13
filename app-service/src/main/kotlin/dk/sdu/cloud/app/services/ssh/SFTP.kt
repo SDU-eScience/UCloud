@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.services.ssh
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.SftpATTRS
 import com.jcraft.jsch.SftpException
+import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import java.io.File
 
 // TODO I'm not certain we should always disconnect after running a command. We might have to, but not sure.
@@ -46,4 +47,20 @@ fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<Pair<Str
         if (ex.id == 2) return emptyList()
         else throw ex
     }
+}
+
+fun SSHConnection.rm(path: String, recurse: Boolean = false, force: Boolean = false): Int {
+    val invocation = mutableListOf("rm")
+
+    val flags = run {
+        var flags = ""
+        if (recurse) flags += "r"
+        if (force) flags += "f"
+        if (flags.isNotEmpty()) "-$flags" else null
+    }
+    if (flags != null) invocation += flags
+
+    invocation += safeBashArgument(path)
+
+    return execWithOutputAsText(invocation.joinToString(" ")).first
 }

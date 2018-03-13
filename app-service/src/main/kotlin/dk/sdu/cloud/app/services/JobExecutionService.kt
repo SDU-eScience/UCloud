@@ -4,8 +4,6 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.app.StorageConfiguration
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ssh.*
-import dk.sdu.cloud.app.util.BashEscaper
-import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.MappedEventProducer
@@ -24,7 +22,6 @@ import dk.sdu.cloud.tus.api.internal.start
 import dk.sdu.cloud.tus.api.internal.uploader
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URI
@@ -55,6 +52,8 @@ class JobExecutionService(
         slurmPollAgent.removeListener(slurmListener)
     }
 
+    // TODO Maybe make the slurm and kafka interfaces behave the exact same way. Accept a callback for onScheduled?
+
     private fun handleSlurmEvent(event: SlurmEvent) {
         when (event) {
             is SlurmEventBegan -> {
@@ -63,12 +62,12 @@ class JobExecutionService(
 
             is SlurmEventFailed, is SlurmEventEnded -> {
                 val slurmId = event.jobId
-                val job = transaction {
+                val job = dao.transaction {
                     var jobToSlurm: JobInformation? = null
                     for (i in 0..3) {
                         if (i > 0) Thread.sleep(150)
 
-                        jobToSlurm = dao.findJobInformationBySlurmId(slurmId)
+                        jobToSlurm = findJobInformationBySlurmId(slurmId)
                         if (jobToSlurm != null) break
                     }
 
@@ -143,7 +142,7 @@ class JobExecutionService(
                 else -> null
             }
 
-            if (nextState != null) transaction { dao.updateJobBySystemId(event.systemId, nextState, message) }
+            if (nextState != null) dao.transaction { updateJobBySystemId(event.systemId, nextState, message) }
 
             // Then we handle the event (and potentially emit new events)
             val eventToEmit: AppEvent? = when (event) {
@@ -200,13 +199,14 @@ class JobExecutionService(
 
     fun startJob(req: AppRequest.Start, principal: DecodedJWT): String {
         val validatedJob = validateJob(req, principal)
-        transaction {
-            dao.createJob(
+        dao.transaction {
+            createJob(
                 validatedJob.systemId,
                 principal.subject,
                 validatedJob.appWithDependencies.application
             )
         }
+        runBlocking { producer.emit(validatedJob) }
         return validatedJob.systemId
     }
 
@@ -368,8 +368,8 @@ class JobExecutionService(
 
     private fun handleScheduledEvent(event: AppEvent.ScheduledAtSlurm): AppEvent? {
         slurmPollAgent.startTracking(event.slurmId)
-        transaction {
-            dao.updateJobWithSlurmInformation(
+        dao.transaction {
+            updateJobWithSlurmInformation(
                 event.systemId,
                 event.sshUser,
                 event.jobDirectory,
@@ -444,18 +444,13 @@ class JobExecutionService(
                 } else {
                     log.debug("Source file is a directory. Zipping it up")
                     val zipPath = source.path + ".zip"
-                    val (status, output) = execWithOutputAsText(
-                        "zip -r " +
-                                BashEscaper.safeBashArgument(zipPath) + " " +
-                                BashEscaper.safeBashArgument(source.path)
-                    )
+                    val status = createZipFileOfDirectory(zipPath, source.path)
 
                     if (status != 0) {
                         log.warn("Unable to create zip archive of output!")
                         log.warn("Path: ${source.path}")
                         log.warn("Status: $status")
-                        log.warn("Output: $output")
-                        throw JobInternalException("Unable to create output zip")
+                        throw JobInternalException("Unable to create output zip. Status = $status")
                     }
 
                     val zipStat = stat(zipPath) ?: run {
@@ -511,7 +506,12 @@ class JobExecutionService(
 
     private fun cleanUp(event: AppEvent.ExecutionCompleted): AppEvent {
         sshConnectionPool.use {
-            execWithOutputAsText("rm -rf ${safeBashArgument(event.jobDirectory)}")
+            val removeStatus = rm(event.jobDirectory, recurse = true, force = true)
+            if (removeStatus != 0) {
+                log.warn("Could not successfully delete directory of job!")
+                log.warn("Event is: $event")
+            }
+
             return AppEvent.Completed(
                 event.systemId,
                 System.currentTimeMillis(),

@@ -39,6 +39,10 @@ object JobStatusTable : Table() {
 }
 
 class JobsDAO {
+    fun <T> transaction(body: JobsDAO.() -> T): T {
+        return org.jetbrains.exposed.sql.transactions.transaction { body() }
+    }
+
     fun findJobInformationBySlurmId(slurmId: Long): JobInformation? {
         return JobsTable.select { JobsTable.slurmId eq slurmId }.toList().map {
             JobInformation(
