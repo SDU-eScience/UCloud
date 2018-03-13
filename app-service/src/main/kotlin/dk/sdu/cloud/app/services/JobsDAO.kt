@@ -1,62 +1,62 @@
 package dk.sdu.cloud.app.services
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.app.api.JobStatus
-import dk.sdu.cloud.app.api.JobWithStatus
-import dk.sdu.cloud.app.api.JobWithStatusAndInvocation
+import dk.sdu.cloud.app.api.*
 import org.jetbrains.exposed.sql.*
 import org.joda.time.DateTime
 
-data class JobToSlurm(val id: String, val slurmId: Long, val owner: String)
+data class JobInformation(
+    val systemId: String,
+    val owner: String,
+    val appName: String,
+    val appVersion: String,
+    val slurmId: Long?,
+    val status: String?,
+    val sshUser: String?,
+    val jobDirectory: String?,
+    val workingDirectory: String?,
+    val createdAt: Long
+)
 
-// TODO Created/modified timestamps
 object JobsTable : Table() {
     val systemId = varchar("system_id", 36).primaryKey()
-    val slurmId = long("slurm_id")
-    val owner = varchar("owner", 64)
+    val owner = text("owner")
+    val appName = text("app_name")
+    val appVersion = text("app_version")
+    val createdAt = datetime("created_at")
 
+    val slurmId = long("slurm_id").nullable()
+    val status = text("status").nullable()
 
-    val appName = varchar("app_name", 64)
-    val appVersion = varchar("app_version", 64)
-    val parameters = varchar("json_parameters", 4096) // TODO Not a big fan of this
-    val workingDirectory = varchar("working_directory", 1024)
-    val jobDirectory = varchar("job_directory", 1024)
+    val sshUser = text("ssh_user").nullable()
+    val jobDirectory = text("job_directory").nullable()
+    val workingDirectory = text("working_directory").nullable()
 }
 
 object JobStatusTable : Table() {
     val jobId = varchar("job_id", 36) references JobsTable.systemId
-    val status = varchar("status", 32)
-
-    val modifiedAt = datetime("modified_at")
+    val status = varchar("state", 32)
     val createdAt = datetime("created_at")
 }
 
 class JobsDAO {
-    private val mapper = jacksonObjectMapper()
-
-    private fun mapJobRow(row: ResultRow): JobToSlurm {
-        return JobToSlurm(
-            id = row[JobsTable.systemId],
-            slurmId = row[JobsTable.slurmId],
-            owner = row[JobsTable.owner]
-        )
+    fun findJobInformationBySlurmId(slurmId: Long): JobInformation? {
+        return JobsTable.select { JobsTable.slurmId eq slurmId }.toList().map {
+            JobInformation(
+                it[JobsTable.systemId],
+                it[JobsTable.owner],
+                it[JobsTable.appName],
+                it[JobsTable.appVersion],
+                it[JobsTable.slurmId],
+                it[JobsTable.status],
+                it[JobsTable.sshUser],
+                it[JobsTable.jobDirectory],
+                it[JobsTable.workingDirectory],
+                it[JobsTable.createdAt].millis
+            )
+        }.singleOrNull()
     }
 
-    fun findJobMappingById(id: String): JobToSlurm? {
-        return JobsTable.select { JobsTable.systemId eq id }.toList().map(::mapJobRow).singleOrNull()
-    }
-
-    fun findJobMappingBySlurmId(slurmId: String): JobToSlurm? {
-        return JobsTable.select { JobsTable.slurmId eq slurmId }.toList().map(::mapJobRow).singleOrNull()
-    }
-
-    fun findSystemIdFromSlurmId(slurmId: Long): String? {
-        return JobsTable
-            .select { JobsTable.slurmId eq slurmId }
-            .map { it[JobsTable.systemId] }.singleOrNull()
-    }
-
+    // TODO DB has changed
     fun findAllJobsWithStatus(owner: String): List<JobWithStatus> {
         return (JobsTable innerJoin JobStatusTable).slice(
             JobsTable.systemId,
@@ -64,96 +64,74 @@ class JobsDAO {
             JobsTable.appName,
             JobsTable.appVersion,
             JobStatusTable.status,
-            JobStatusTable.modifiedAt,
             JobStatusTable.createdAt
         ).select {
             JobsTable.owner eq owner
-        }.orderBy(JobStatusTable.modifiedAt, false)
+        }.orderBy(JobStatusTable.createdAt, false)
             .toList()
             .map {
                 JobWithStatus(
                     jobId = it[JobsTable.systemId],
                     owner = it[JobsTable.owner],
-                    status = JobStatus.valueOf(it[JobStatusTable.status]),
+                    status = AppState.valueOf(it[JobStatusTable.status]),
                     appName = it[JobsTable.appName],
                     appVersion = it[JobsTable.appVersion],
-                    createdAt = it[JobStatusTable.createdAt].millis,
-                    modifiedAt = it[JobStatusTable.modifiedAt].millis
+                    createdAt = it[JobsTable.createdAt].millis,
+                    modifiedAt = it[JobStatusTable.createdAt].millis
                 )
-            }
-    }
-
-    private fun findJobWithStatusAndInvocationWhere(
-        where: SqlExpressionBuilder.() -> Op<Boolean>
-    ): JobWithStatusAndInvocation? {
-        return (JobsTable innerJoin JobStatusTable).select(where).toList().map {
-            JobWithStatusAndInvocation(
-                jobInfo = JobWithStatus(
-                    jobId = it[JobsTable.systemId],
-                    owner = it[JobsTable.owner],
-                    status = JobStatus.valueOf(it[JobStatusTable.status]),
-                    appName = it[JobsTable.appName],
-                    appVersion = it[JobsTable.appVersion],
-                    createdAt = it[JobStatusTable.createdAt].millis,
-                    modifiedAt = it[JobStatusTable.modifiedAt].millis
-                ),
-                appName = it[JobsTable.appName],
-                appVersion = it[JobsTable.appVersion],
-                parameters = mapper.readValue(it[JobsTable.parameters]),
-                workingDirectory = it[JobsTable.workingDirectory],
-                jobDirectory = it[JobsTable.jobDirectory]
-            )
-        }.singleOrNull()
-    }
-
-    fun findJobWithStatusById(id: String): JobWithStatusAndInvocation? {
-        return findJobWithStatusAndInvocationWhere {
-            JobsTable.systemId eq id
-        }
-    }
-
-    fun findJobWithStatusBySlurmId(slurmId: Long): JobWithStatusAndInvocation? {
-        return findJobWithStatusAndInvocationWhere { JobsTable.slurmId eq slurmId }
+            } // TODO This should probably be done in the query
+            .groupBy { it.jobId }
+            .values
+            .map { it.first() }
     }
 
     fun createJob(
         systemId: String,
         owner: String,
-        slurmId: Long,
-        appName: String,
-        appVersion: String,
-        workingDirectory: String,
-        jobDirectory: String,
-        parameters: Map<String, Any>,
-        createdAt: Long,
-        initialStatus: JobStatus = JobStatus.PENDING
+        appDescription: ApplicationDescription
     ) {
         JobsTable.insert {
             it[JobsTable.systemId] = systemId
             it[JobsTable.owner] = owner
-            it[JobsTable.slurmId] = slurmId
-            it[JobsTable.appName] = appName
-            it[JobsTable.appVersion] = appVersion
-            it[JobsTable.workingDirectory] = workingDirectory
-            it[JobsTable.jobDirectory] = jobDirectory
-            it[JobsTable.parameters] = mapper.writeValueAsString(parameters)
+            it[JobsTable.appName] = appDescription.info.name
+            it[JobsTable.appVersion] = appDescription.info.version
+            it[JobsTable.createdAt] = DateTime.now()
         }
 
         JobStatusTable.insert {
             it[JobStatusTable.jobId] = systemId
-            it[JobStatusTable.status] = initialStatus.name
-            it[JobStatusTable.createdAt] = DateTime(createdAt)
-            it[JobStatusTable.modifiedAt] = DateTime(createdAt)
+            it[JobStatusTable.status] = AppState.VALIDATED.toString()
+            it[JobStatusTable.createdAt] = DateTime.now()
         }
     }
 
-    fun updateJobBySystemId(systemId: String, newStatus: JobStatus, modifiedAt: Long): Boolean {
-        val existing = findJobMappingById(systemId) ?: return false
-        JobStatusTable.update({ JobStatusTable.jobId eq existing.id }, limit = 1) {
-            it[JobStatusTable.status] = newStatus.name
-            it[JobStatusTable.modifiedAt] = DateTime(modifiedAt)
+    fun updateJobWithSlurmInformation(
+        systemId: String,
+        sshUser: String,
+        jobDirectory: String,
+        workingDirectory: String,
+        slurmId: Long
+    ) {
+        JobsTable.update({ JobsTable.systemId eq systemId }, limit = 1) {
+            it[JobsTable.sshUser] = sshUser
+            it[JobsTable.jobDirectory] = jobDirectory
+            it[JobsTable.workingDirectory] = workingDirectory
+            it[JobsTable.slurmId] = slurmId
         }
-        return true
+    }
+
+    fun updateJobBySystemId(systemId: String, newState: AppState, message: String? = null) {
+        JobStatusTable.insert {
+            it[JobStatusTable.jobId] = systemId
+            it[JobStatusTable.status] = newState.toString()
+            it[JobStatusTable.createdAt] = DateTime.now()
+        }
+
+        if (message != null) {
+            JobsTable.update({ JobStatusTable.jobId eq systemId }, limit = 1) {
+                it[JobsTable.status] = message
+            }
+        }
     }
 }
 
