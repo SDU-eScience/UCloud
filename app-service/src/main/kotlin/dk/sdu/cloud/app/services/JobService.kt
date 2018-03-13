@@ -1,10 +1,8 @@
 package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.StorageConfiguration
-import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.ssh.*
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.app.api.AppRequest
+import dk.sdu.cloud.app.api.JobWithStatus
 import org.jetbrains.exposed.sql.transactions.transaction
 
 class JobService(

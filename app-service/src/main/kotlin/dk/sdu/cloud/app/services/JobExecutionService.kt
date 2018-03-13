@@ -266,7 +266,11 @@ class JobExecutionService(
         for (input in app.parameters.filterIsInstance<ApplicationParameter.InputFile>()) {
             val inputParameter = applicationParameters[input.name]
 
-            val transferDescription = input.map(inputParameter) ?: continue
+            val transferDescription = try {
+                input.map(inputParameter)
+            } catch (ex: IllegalArgumentException) {
+                throw JobValidationException(ex.message ?: DEFAULT_ERROR_MESSAGE)
+            } ?: continue
             val sourcePath = storage.paths.parseAbsolute(transferDescription.source, true)
 
             val stat = storage.fileQuery.stat(sourcePath).capture()
