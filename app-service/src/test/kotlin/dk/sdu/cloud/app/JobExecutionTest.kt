@@ -439,31 +439,81 @@ class JobExecutionTest {
             inlineSBatchJob
         )
 
-        lateinit var fileNameSlot: List<String>
-        lateinit var fileWriterSlot: List<(OutputStream) -> Unit>
-        withMockedAuthentication {
-            val (names, writers) = withMockedSCPUpload {
+        val (fileNameSlot, fileContents) = withMockedAuthentication {
+            withMockedSCPUpload {
                 service.handleAppEvent(event)
             }
-
-            fileNameSlot = names
-            fileWriterSlot = writers
         }
 
         assertTrue(emitSlot.isCaptured)
         emitSlot.captured as AppEvent.Prepared
 
         assertEquals(1, fileNameSlot.size)
-        assertEquals(1, fileWriterSlot.size)
+        assertEquals(1, fileContents.size)
 
         assertEquals("job.sh", fileNameSlot.first())
-        val writer = fileWriterSlot.first()
-        val outputJob = ByteArrayOutputStream().let {
-            writer(it)
-            String(it.toByteArray())
+        assertEquals(inlineSBatchJob, String(fileContents.first()))
+    }
+
+    @Test
+    fun testJobPreparationWithFiles() {
+        val application = app(
+            "singlefile",
+            listOf(VariableInvocationParameter(listOf("myFile"))),
+            listOf(ApplicationParameter.InputFile("myFile", false))
+        )
+        createTemporaryApplication(application)
+
+        val writerSlot = slot<OutputStream>()
+        val fileName = "file.txt"
+        every { files.get(match { it.name == fileName }, capture(writerSlot)) } answers {
+            writerSlot.captured.write(fileName.toByteArray())
         }
 
-        assertEquals(inlineSBatchJob, outputJob)
+        val inlineSBatchJob = "job"
+        val workingDirectory = "/scratch/sduescience/p/files"
+        val event = AppEvent.Validated(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyToken.token,
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(application, dummyTool),
+            "/scratch/sduescience/p",
+            workingDirectory,
+            listOf(
+                ValidatedFileForUpload(
+                    irodsStat(fileName),
+                    fileName,
+                    "$workingDirectory/$fileName",
+                    StoragePath(fileName)
+                )
+            ),
+            inlineSBatchJob
+        )
+
+        val (fileNameSlot, fileContents) = withMockedAuthentication {
+            withMockedSCPUpload { service.handleAppEvent(event) }
+        }
+
+        assertTrue(emitSlot.isCaptured)
+        emitSlot.captured as AppEvent.Prepared
+
+        assertEquals(2, fileNameSlot.size)
+        assertEquals(2, fileContents.size)
+
+        run {
+            // Check job file
+            val jobSlot = fileNameSlot.indexOfFirst { it == "job.sh" }
+            assertNotEquals(-1, jobSlot)
+            assertEquals(inlineSBatchJob, String(fileContents[jobSlot]))
+        }
+
+        run {
+            // Check input file
+            val inputFileSlot = fileNameSlot.indexOfFirst { it == fileName }
+            assertNotEquals(-1, inputFileSlot)
+            assertEquals(fileName, String(fileContents[inputFileSlot]))
+        }
     }
 
     private inline fun <T> withMockedAuthentication(body: () -> T): T {
@@ -475,9 +525,9 @@ class JobExecutionTest {
     }
 
     private inline fun withMockedSCPUpload(body: () -> Unit):
-            Pair<List<String>, List<(OutputStream) -> Unit>> {
+            Pair<List<String>, List<ByteArray>> {
         val names = ArrayList<String>()
-        val writers = ArrayList<(OutputStream) -> Unit>()
+        val writers = ArrayList<ByteArray>()
 
         staticMockk("dk.sdu.cloud.app.services.ssh.SCPKt").use {
             every {
@@ -486,9 +536,19 @@ class JobExecutionTest {
                     capture(names),
                     any(),
                     any(),
-                    capture(writers)
+                    any()
                 )
-            } returns 0
+            } answers {
+                val os = ByteArrayOutputStream()
+
+                @Suppress("UNCHECKED_CAST")
+                val writer = call.invocation.args.last() as (OutputStream) -> Unit
+                writer(os)
+
+                writers.add(os.toByteArray())
+
+                0
+            }
             body()
         }
         return Pair(names, writers)
@@ -542,6 +602,17 @@ class JobExecutionTest {
             invocation = invocation,
             parameters = parameters,
             outputFileGlobs = fileGlobs
+        )
+    }
+
+    private fun irodsStat(name: String): FileStat {
+        return FileStat(
+            StoragePath(name),
+            System.currentTimeMillis(),
+            System.currentTimeMillis(),
+            dummyTokenSubject,
+            10L,
+            "foo"
         )
     }
 
