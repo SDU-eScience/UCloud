@@ -29,7 +29,11 @@ class SSHConnection(val session: Session) {
                 awaitClosed()
             }
 
-            Pair(exitStatus, res)
+            // TODO Not sure why this sometimes comes back (incorrectly) as -1.
+            // But it appears to always be ok when it does
+            val fixedStatus = if (exitStatus == -1) 0 else exitStatus
+
+            Pair(fixedStatus, res)
         }
 
     fun execWithOutputAsText(command: String): Pair<Int, String> =

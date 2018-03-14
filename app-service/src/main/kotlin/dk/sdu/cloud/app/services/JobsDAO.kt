@@ -67,6 +67,7 @@ class JobsDAO {
             JobsTable.owner,
             JobsTable.appName,
             JobsTable.appVersion,
+            JobsTable.createdAt,
             JobStatusTable.status,
             JobStatusTable.createdAt
         ).select {
@@ -121,6 +122,7 @@ class JobsDAO {
             it[JobsTable.jobDirectory] = jobDirectory
             it[JobsTable.workingDirectory] = workingDirectory
             it[JobsTable.slurmId] = slurmId
+            it[JobsTable.createdAt] = DateTime.now()
         }
     }
 
@@ -132,7 +134,7 @@ class JobsDAO {
         }
 
         if (message != null) {
-            JobsTable.update({ JobStatusTable.jobId eq systemId }, limit = 1) {
+            JobsTable.update({ JobsTable.systemId eq systemId }, limit = 1) {
                 it[JobsTable.status] = message
             }
         }

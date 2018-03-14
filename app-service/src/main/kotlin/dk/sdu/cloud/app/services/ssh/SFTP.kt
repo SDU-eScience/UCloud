@@ -3,8 +3,12 @@ package dk.sdu.cloud.app.services.ssh
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.SftpATTRS
 import com.jcraft.jsch.SftpException
+import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
+import org.slf4j.LoggerFactory
 import java.io.File
+
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.app.service.ssh.SFTPKt")
 
 // TODO I'm not certain we should always disconnect after running a command. We might have to, but not sure.
 fun <R> SSHConnection.sftp(body: ChannelSftp.() -> R): R = openSFTPChannel().run {
@@ -24,6 +28,18 @@ fun SSHConnection.ls(path: String): List<ChannelSftp.LsEntry> {
         }
     }
     return allFiles
+}
+
+fun SSHConnection.mkdir(path: String, createParents: Boolean = false): Int {
+    val invocation = arrayListOf("mkdir")
+    if (createParents) invocation += "-p"
+    invocation += BashEscaper.safeBashArgument(path)
+    val (status, output) = execWithOutputAsText(invocation.joinToString(" "))
+    if (status != 0) {
+        log.info("Unable to create directory at: $path")
+        log.info("Status: $status, output: $output")
+    }
+    return status
 }
 
 fun SSHConnection.stat(path: String): SftpATTRS? =

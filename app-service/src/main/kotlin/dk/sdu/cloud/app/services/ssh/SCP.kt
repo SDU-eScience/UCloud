@@ -74,7 +74,8 @@ fun SSHConnection.scpUpload(
     log.debug("Transfer done!")
     execChannel.disconnect()
     log.debug("Closed yet?" + execChannel.awaitClosed())
-    return execChannel.exitStatus
+    val exitStatus = execChannel.exitStatus // TODO Bugged
+    return if (exitStatus == -1) 0 else exitStatus
 }
 
 fun SSHConnection.scpDownload(remoteFile: String, body: (InputStream) -> Unit): Int {

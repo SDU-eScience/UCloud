@@ -323,6 +323,12 @@ class JobExecutionService(
         val principal = TokenValidation.validateOrNull(event.jwt) ?: throw JobNotAllowedException()
         sshConnectionPool.use {
             useIRods(principal) { storage ->
+                mkdir(event.workingDirectory, true)
+                    .takeIf { it != 0 }
+                    ?.let {
+                        throw JobInternalException("Could not create ${event.workingDirectory}. Returned status: $it")
+                    }
+
                 event.files.forEach { upload ->
                     log.debug("Uploading file: $upload")
                     var errorDuringUpload: Exception? = null

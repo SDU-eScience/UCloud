@@ -1349,6 +1349,4 @@ class JobExecutionTest {
             verify { sshConnection.rm(jobDirectiory, true, true) }
         }
     }
-
-
 }
