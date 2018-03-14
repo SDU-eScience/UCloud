@@ -454,8 +454,8 @@ class JobExecutionService(
                     lsWithGlob(event.workingDirectory, it)
                 }
                 .map {
-                    val file = File(it.first)
-                    FileTransferDescription(file.absolutePath, file.name)
+                    val file = File(it.fileName)
+                    file.absolutePath
                 }
             log.debug("Found: $outputs")
 
@@ -465,11 +465,11 @@ class JobExecutionService(
             for (transfer in outputs) {
                 log.debug("Transferring file: $transfer")
                 val workingDirectory = URI(event.workingDirectory)
-                val source = workingDirectory.resolve(transfer.source)
+                val source = workingDirectory.resolve(transfer)
 
                 if (!source.path.startsWith(workingDirectory.path)) {
                     log.warn(
-                        "File ${transfer.source} did not resolve to be within working directory " +
+                        "File $transfer did not resolve to be within working directory " +
                                 "($source versus $workingDirectory). Skipping this file"
                     )
                     continue
@@ -510,7 +510,7 @@ class JobExecutionService(
 
                 val upload = runBlocking {
                     val payload = CreationCommand(
-                        fileName = transfer.destination,
+                        fileName = fileToTransferFromHPC.substringAfterLast('/'),
                         owner = owner,
                         location = outputDirectory,
                         length = fileToTransferSize,
@@ -528,10 +528,14 @@ class JobExecutionService(
                     throw JobInternalException("Output file too large")
                 }
 
-                scpDownload(source.path) {
+                val transferStatus = scpDownload(fileToTransferFromHPC) {
                     TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud).start {
                         log.debug("$jobId: $it/${sourceFile.size} bytes transferred")
                     }
+                }
+
+                if (transferStatus != 0) {
+                    throw JobInternalException("Upload failed. Transfer status != 0 ($transferStatus)")
                 }
             }
 

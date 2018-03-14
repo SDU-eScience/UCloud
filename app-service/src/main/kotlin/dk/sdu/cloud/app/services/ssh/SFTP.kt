@@ -35,14 +35,15 @@ fun SSHConnection.stat(path: String): SftpATTRS? =
         }
     }
 
-fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<Pair<String, Long>> {
+data class LSWithGlobResult(val fileName: String, val size: Long)
+fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<LSWithGlobResult> {
     val parentDirectory = baseDirectory.removeSuffix("/") + "/" + path.substringBeforeLast('/', ".")
     val query = baseDirectory.removeSuffix("/") + "/" + path.removeSuffix("/")
     return try {
         ls(query)
             .map { Pair(parentDirectory + "/" + it.filename, it.attrs.size) }
-            .map { Pair(File(it.first).normalize().absolutePath, it.second) }
-            .filter { it.first.startsWith(baseDirectory) }
+            .map { LSWithGlobResult(File(it.first).normalize().absolutePath, it.second) }
+            .filter { it.fileName.startsWith(baseDirectory) }
     } catch (ex: SftpException) {
         if (ex.id == 2) return emptyList()
         else throw ex
