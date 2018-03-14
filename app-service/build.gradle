@@ -54,7 +54,6 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-    testCompile group: 'junit', name: 'junit', version: '4.12'
 
     // ------------
     // iRODS
@@ -89,11 +88,22 @@ dependencies {
     compile "dk.sdu.cloud:storage-api:1.0.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
 
+    // ------------
     // Tus
+    // ------------
     compile "dk.sdu.cloud:tus-api-internal:1.0.0-SNAPSHOT"
 
+    // ------------
+    // Databases
+    // ------------
     compile 'org.jetbrains.exposed:exposed:0.9.1'
     compile group: 'com.h2database', name: 'h2', version: '1.4.196'
+
+    // ------------
+    // Testing
+    // ------------
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile "io.mockk:mockk:1.7.10"
 }
 
 kotlin {

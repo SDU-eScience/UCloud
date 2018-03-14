@@ -25,7 +25,7 @@ class SSHConnectionPool(
         private val log = LoggerFactory.getLogger(SSHConnectionPool::class.java)
     }
 
-    fun <R> use(body: SSHConnection.() -> R): R {
+    inline fun <R> use(body: SSHConnection.() -> R): R {
         val (idx, session) = borrowConnection()
         return try {
             body(session)
@@ -34,7 +34,7 @@ class SSHConnectionPool(
         }
     }
 
-    private fun borrowConnection(): Pair<Int, SSHConnection> {
+    fun borrowConnection(): Pair<Int, SSHConnection> {
         fun getAndValidate(index: Int): SSHConnection? {
             val conn = objectPool[index] ?: return null
             return if (!conn.session.isConnected) null else conn
@@ -52,8 +52,7 @@ class SSHConnectionPool(
         }
     }
 
-
-    private fun returnConnection(idx: Int) {
+    fun returnConnection(idx: Int) {
         // We must mark as available before we start waking up other threads via permits.release()
         synchronized(objectPool) { available[idx] = true }
 

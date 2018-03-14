@@ -5,9 +5,6 @@ import dk.sdu.cloud.app.api.HPCStreams
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.JobController
 import dk.sdu.cloud.app.http.ToolController
-import dk.sdu.cloud.app.processors.AppEventProcessor
-import dk.sdu.cloud.app.processors.SlurmEventProcessor
-import dk.sdu.cloud.app.processors.StartCommandProcessor
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.auth.api.JWTProtection
@@ -52,6 +49,19 @@ class Server(
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
         val sbatchGenerator = SBatchGenerator()
+        val jobDao = JobsDAO()
+        val jobExecutionService = JobExecutionService(
+            cloud,
+            kafka.producer.forStream(HPCStreams.appEvents),
+            storageConnectionFactory,
+            config.storage,
+            sbatchGenerator,
+            jobDao,
+            slurmPollAgent,
+            sshPool,
+            config.ssh.user
+        )
+        val jobService = JobService(jobDao, jobExecutionService)
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
         kStreams = run {
@@ -59,25 +69,7 @@ class Server(
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            SlurmEventProcessor(
-                cloud = cloud,
-                sshPool = sshPool,
-                irodsConfig = config.storage,
-                slurmAgent = slurmPollAgent,
-                appEventProducer = kafka.producer.forStream(HPCStreams.AppEvents)
-            ).also { it.init() }
-
-            StartCommandProcessor(
-                connectionFactory = storageConnectionFactory,
-                sBatchGenerator = sbatchGenerator,
-                sshPool = sshPool,
-                appRequests = kBuilder.stream(HPCStreams.AppRequests).authenticate()
-            ).also { it.init() }
-
-            AppEventProcessor(
-                appEvents = kBuilder.stream(HPCStreams.AppEvents),
-                slurmPollAgent = slurmPollAgent
-            ).also { it.init() }
+            kBuilder.stream(HPCStreams.appEvents).foreach { _, event -> jobExecutionService.handleAppEvent(event) }
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {
@@ -101,7 +93,7 @@ class Server(
                     protect()
 
                     AppController(ApplicationDAO).configure(this)
-                    JobController(kafka.producer.forStream(HPCStreams.AppRequests)).configure(this)
+                    JobController(jobService).configure(this)
                     ToolController(ToolDAO).configure(this)
                 }
             }

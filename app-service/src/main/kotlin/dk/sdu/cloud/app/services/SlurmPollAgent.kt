@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.HPCAppEvent
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.services.ssh.pollSlurmStatus
 import kotlinx.coroutines.experimental.runBlocking
@@ -33,25 +32,14 @@ class SlurmPollAgent(
         future = executor.scheduleAtFixedRate({ tick() }, initialDelay, pollInterval, pollUnit)
     }
 
-    fun handle(event: HPCAppEvent) {
-        when (event) {
-            is HPCAppEvent.SuccessfullyCompleted -> {
-                log.debug("Removing ${event.jobId}")
-                synchronized(lock) { active.remove(event.jobId) }
-            }
-            is HPCAppEvent.Pending -> {
-                log.debug("Activating ${event.jobId}")
-                synchronized(lock) { active.add(event.jobId) }
-            }
-
-            else -> {
-                // Do nothing
-            }
-        }
+    fun startTracking(slurmId: Long) {
+        log.debug("Activating $slurmId")
+        synchronized(lock) { active.add(slurmId) }
     }
 
-    fun addListener(listener: SlurmEventListener) {
+    fun addListener(listener: SlurmEventListener): SlurmEventListener {
         listeners.add(listener)
+        return listener
     }
 
     fun removeListener(listener: SlurmEventListener) {

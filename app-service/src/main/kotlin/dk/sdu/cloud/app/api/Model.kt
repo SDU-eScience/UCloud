@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 data class JobWithStatus(
     val jobId: String,
     val owner: String,
-    val status: JobStatus,
+    val status: AppState,
     val appName: String,
     val appVersion: String,
 
