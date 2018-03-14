@@ -131,7 +131,7 @@ const DashboardFavoriteFiles = (props) => {
     );
 
     return (
-        <div className="col-sm-3 align-self-center">
+        <div className="col-md-6 col-lg-4 align-self-center">
             <div className="card">
                 <h5 className="card-heading pb0">
                     Favorite files
@@ -178,7 +178,7 @@ const DashboardRecentFiles = (props) => {
     });
 
     return (
-        <div className="col-sm-3 align-self-center">
+        <div className="col-md-6 col-lg-4 align-self-center">
             <div className="card">
                 <h5 className="card-heading pb0">
                     Recently used files
@@ -201,7 +201,7 @@ const DashboardRecentFiles = (props) => {
 };
 
 const DashboardAnalyses = ({analyses, isLoading}) => (
-    <div className="col-sm-3 align-self-center">
+    <div className="col-md-6 col-lg-4 align-self-center">
         <div className="card">
             <h5 className="card-heading pb0">
                 Recent Analyses
@@ -233,7 +233,7 @@ const DashboardAnalyses = ({analyses, isLoading}) => (
 );
 
 const DashboardRecentActivity = (props) => (
-    <div className="col-sm-3 align-self-center">
+    <div className="col-md-6 col-lg-4 align-self-center">
         <div className="card">
             <h5 className="card-heading pb0">
                 Recent Activity
