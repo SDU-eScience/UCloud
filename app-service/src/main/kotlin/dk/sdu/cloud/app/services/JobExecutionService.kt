@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import com.jcraft.jsch.JSchException
 import dk.sdu.cloud.app.StorageConfiguration
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ssh.*
@@ -167,33 +168,52 @@ class JobExecutionService(
             if (eventToEmit != null) {
                 runBlocking { producer.emit(eventToEmit) }
             }
-        } catch (ex: JobException) {
-            log.debug("Caught exception while handling app event: ${ex.message}")
+        } catch (ex: Exception) {
+            when (ex) {
+                is JobException, is JSchException -> {
+                    log.debug("Caught exception while handling app event: event = $event. ${ex.message}")
 
-            val eventToEmit: AppEvent = if (event is AppEvent.NeedsRemoteCleaning) {
-                AppEvent.ExecutionCompleted(
-                    event.systemId,
-                    System.currentTimeMillis(),
-                    event.owner,
-                    event.appWithDependencies,
-                    event.sshUser,
-                    event.jobDirectory,
-                    event.workingDirectory,
-                    false,
-                    ex.message ?: DEFAULT_ERROR_MESSAGE
-                )
-            } else {
-                AppEvent.Completed(
-                    event.systemId,
-                    System.currentTimeMillis(),
-                    event.owner,
-                    event.appWithDependencies,
-                    false,
-                    ex.message ?: DEFAULT_ERROR_MESSAGE
-                )
+                    val isCritical = ex is JobInternalException || ex is JSchException
+                    if (isCritical) {
+                        log.warn("Caught critical exception while handling app event ($event).")
+                        log.warn(ex.stackTraceToString())
+                    }
+
+                    val message = if (!isCritical) ex.message ?: DEFAULT_ERROR_MESSAGE else "Internal error"
+
+                    val eventToEmit: AppEvent = if (event is AppEvent.NeedsRemoteCleaning) {
+                        AppEvent.ExecutionCompleted(
+                            event.systemId,
+                            System.currentTimeMillis(),
+                            event.owner,
+                            event.appWithDependencies,
+                            event.sshUser,
+                            event.jobDirectory,
+                            event.workingDirectory,
+                            false,
+                            message
+                        )
+                    } else {
+                        AppEvent.Completed(
+                            event.systemId,
+                            System.currentTimeMillis(),
+                            event.owner,
+                            event.appWithDependencies,
+                            false,
+                            ex.message ?: DEFAULT_ERROR_MESSAGE
+                        )
+                    }
+
+                    runBlocking { producer.emit(eventToEmit) }
+                }
+
+                else -> {
+                    log.warn("Caught unexpected exception while handling app event: $event")
+                    log.warn(ex.stackTraceToString())
+                    log.warn("Rethrowing exception")
+                    throw ex
+                }
             }
-
-            runBlocking { producer.emit(eventToEmit) }
         }
     }
 
@@ -298,13 +318,15 @@ class JobExecutionService(
      * It is the responsibility of the caller to ensure that cleanup is performed in the event of a failure.
      */
     private fun prepareJob(event: AppEvent.Validated): AppEvent.Prepared {
+        log.debug("prepareJob(event = $event)")
         val principal = TokenValidation.validateOrNull(event.jwt) ?: throw JobNotAllowedException()
         sshConnectionPool.use {
             useIRods(principal) { storage ->
                 event.files.forEach { upload ->
+                    log.debug("Uploading file: $upload")
                     var errorDuringUpload: Exception? = null
 
-                    scpUpload(
+                    val uploadStatus = scpUpload(
                         upload.stat.sizeInBytes,
                         upload.destinationFileName,
                         upload.destinationPath,
@@ -324,15 +346,33 @@ class JobExecutionService(
                         log.warn(errorDuringUpload!!.stackTraceToString())
                         throw JobInternalException("Internal error")
                     }
+
+                    if (uploadStatus != 0) {
+                        log.warn("Caught error during upload:")
+                        log.warn("SCP Upload returned $uploadStatus")
+                        throw JobInternalException("Internal error")
+                    }
+
+                    log.debug("$upload successfully completed")
                 }
             }
 
+            log.debug("Uploading SBatch job")
             val jobLocation = URI(event.jobDirectory).resolve("job.sh").normalize()
             val serializedJob = event.inlineSBatchJob.toByteArray()
-            scpUpload(serializedJob.size.toLong(), "job.sh", jobLocation.path, "0600") {
+            val uploadStatus = scpUpload(serializedJob.size.toLong(), "job.sh", jobLocation.path, "0600") {
                 it.write(serializedJob)
             }
 
+            if (uploadStatus != 0) {
+                log.warn("Caught error during upload:")
+                log.warn("SCP Upload returned $uploadStatus")
+                throw JobInternalException("Internal error")
+            }
+
+            log.debug("SBatch job successfully uploaded")
+
+            log.debug("${event.systemId} successfully prepared")
             return AppEvent.Prepared(
                 event.systemId,
                 System.currentTimeMillis(),

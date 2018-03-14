@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app
 
 import com.auth0.jwt.JWT
+import com.jcraft.jsch.JSchException
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.SSHConnection
@@ -516,6 +517,139 @@ class JobExecutionTest {
         }
     }
 
+    @Test
+    fun testJobPreparationWithFilesWithIRodsFailure() {
+        val application = app(
+            "singlefile",
+            listOf(VariableInvocationParameter(listOf("myFile"))),
+            listOf(ApplicationParameter.InputFile("myFile", false))
+        )
+        createTemporaryApplication(application)
+
+        val writerSlot = slot<OutputStream>()
+        val fileName = "file.txt"
+        every { files.get(match { it.name == fileName }, capture(writerSlot)) } throws StorageException("Bad failure")
+
+        val inlineSBatchJob = "job"
+        val workingDirectory = "/scratch/sduescience/p/files"
+        val event = AppEvent.Validated(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyToken.token,
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(application, dummyTool),
+            "/scratch/sduescience/p",
+            workingDirectory,
+            listOf(
+                ValidatedFileForUpload(
+                    irodsStat(fileName),
+                    fileName,
+                    "$workingDirectory/$fileName",
+                    StoragePath(fileName)
+                )
+            ),
+            inlineSBatchJob
+        )
+
+        withMockedAuthentication {
+            withMockedSCPUpload { service.handleAppEvent(event) }
+        }
+
+        assertTrue(emitSlot.isCaptured)
+        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertFalse(outputEvent.successful)
+    }
+
+    @Test
+    fun testJobPreparationWithFilesWithUploadFailure() {
+        val application = app(
+            "singlefile",
+            listOf(VariableInvocationParameter(listOf("myFile"))),
+            listOf(ApplicationParameter.InputFile("myFile", false))
+        )
+        createTemporaryApplication(application)
+
+        val writerSlot = slot<OutputStream>()
+        val fileName = "file.txt"
+        every { files.get(match { it.name == fileName }, capture(writerSlot)) } answers {
+            writerSlot.captured.write(fileName.toByteArray())
+        }
+
+        val inlineSBatchJob = "job"
+        val workingDirectory = "/scratch/sduescience/p/files"
+        val event = AppEvent.Validated(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyToken.token,
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(application, dummyTool),
+            "/scratch/sduescience/p",
+            workingDirectory,
+            listOf(
+                ValidatedFileForUpload(
+                    irodsStat(fileName),
+                    fileName,
+                    "$workingDirectory/$fileName",
+                    StoragePath(fileName)
+                )
+            ),
+            inlineSBatchJob
+        )
+
+        withMockedAuthentication {
+            withMockedSCPUpload(commandFailure = true) { service.handleAppEvent(event) }
+        }
+
+        assertTrue(emitSlot.isCaptured)
+        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertFalse(outputEvent.successful)
+    }
+
+    @Test
+    fun testJobPreparationWithSSHFailure() {
+        val application = app(
+            "singlefile",
+            listOf(VariableInvocationParameter(listOf("myFile"))),
+            listOf(ApplicationParameter.InputFile("myFile", false))
+        )
+        createTemporaryApplication(application)
+
+        val writerSlot = slot<OutputStream>()
+        val fileName = "file.txt"
+        every { files.get(match { it.name == fileName }, capture(writerSlot)) } answers {
+            writerSlot.captured.write(fileName.toByteArray())
+        }
+
+        val inlineSBatchJob = "job"
+        val workingDirectory = "/scratch/sduescience/p/files"
+        val event = AppEvent.Validated(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyToken.token,
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(application, dummyTool),
+            "/scratch/sduescience/p",
+            workingDirectory,
+            listOf(
+                ValidatedFileForUpload(
+                    irodsStat(fileName),
+                    fileName,
+                    "$workingDirectory/$fileName",
+                    StoragePath(fileName)
+                )
+            ),
+            inlineSBatchJob
+        )
+
+        withMockedAuthentication {
+            withMockedSCPUpload(sshFailure = true) { service.handleAppEvent(event) }
+        }
+
+        assertTrue(emitSlot.isCaptured)
+        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertFalse(outputEvent.successful)
+    }
+
     private inline fun <T> withMockedAuthentication(body: () -> T): T {
         objectMockk(TokenValidation).use {
             every { TokenValidation.validate(dummyToken.token) } returns dummyToken
@@ -524,30 +658,44 @@ class JobExecutionTest {
         }
     }
 
-    private inline fun withMockedSCPUpload(body: () -> Unit):
+    private inline fun withMockedSCPUpload(
+        commandFailure: Boolean = false,
+        sshFailure: Boolean = false,
+        body: () -> Unit
+    ):
             Pair<List<String>, List<ByteArray>> {
         val names = ArrayList<String>()
         val writers = ArrayList<ByteArray>()
 
         staticMockk("dk.sdu.cloud.app.services.ssh.SCPKt").use {
-            every {
-                sshConnection.scpUpload(
-                    any(),
-                    capture(names),
-                    any(),
-                    any(),
-                    any()
-                )
-            } answers {
-                val os = ByteArrayOutputStream()
+            if (!sshFailure) {
+                every {
+                    sshConnection.scpUpload(
+                        any(),
+                        capture(names),
+                        any(),
+                        any(),
+                        any()
+                    )
+                } answers {
+                    if (!commandFailure) {
+                        val os = ByteArrayOutputStream()
 
-                @Suppress("UNCHECKED_CAST")
-                val writer = call.invocation.args.last() as (OutputStream) -> Unit
-                writer(os)
+                        @Suppress("UNCHECKED_CAST")
+                        val writer = call.invocation.args.last() as (OutputStream) -> Unit
+                        writer(os)
 
-                writers.add(os.toByteArray())
+                        writers.add(os.toByteArray())
 
-                0
+                        0
+                    } else {
+                        writers.add(ByteArray(0))
+
+                        1
+                    }
+                }
+            } else {
+                every { sshConnection.scpUpload(any(), any(), any(), any(), any()) } throws JSchException("Bad!")
             }
             body()
         }
