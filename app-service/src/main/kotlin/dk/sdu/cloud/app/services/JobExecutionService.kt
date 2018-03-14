@@ -130,6 +130,7 @@ class JobExecutionService(
     fun handleAppEvent(event: AppEvent) {
         try {
             // First we update DB status depending on the event
+            // TODO Test updateJobBySystemId
             val nextState: AppState? = when (event) {
                 is AppEvent.Validated -> AppState.VALIDATED
                 is AppEvent.ScheduledAtSlurm -> AppState.SCHEDULED

@@ -4,9 +4,7 @@ import com.auth0.jwt.JWT
 import com.jcraft.jsch.JSchException
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.*
-import dk.sdu.cloud.app.services.ssh.SSHConnection
-import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
-import dk.sdu.cloud.app.services.ssh.scpUpload
+import dk.sdu.cloud.app.services.ssh.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
@@ -65,7 +63,7 @@ class JobExecutionTest {
 
     lateinit var service: JobExecutionService
 
-    val emitSlot = slot<AppEvent>()
+    val emitSlot = ArrayList<AppEvent>()
 
     @Before
     fun setup() {
@@ -237,7 +235,7 @@ class JobExecutionTest {
         )
 
         verifyJobStarted(result, application)
-        val captured = emitSlot.captured as AppEvent.Validated
+        val captured = emitSlot.first() as AppEvent.Validated
         val workDir = URI(captured.workingDirectory)
 
         assertEquals(1, captured.files.size)
@@ -316,7 +314,7 @@ class JobExecutionTest {
         )
 
         verifyJobStarted(result, application)
-        val captured = emitSlot.captured as AppEvent.Validated
+        val captured = emitSlot.first() as AppEvent.Validated
         val workDir = URI(captured.workingDirectory)
 
         assertEquals(paths.size, captured.files.size)
@@ -370,7 +368,7 @@ class JobExecutionTest {
         )
 
         verifyJobStarted(result, application)
-        val captured = emitSlot.captured as AppEvent.Validated
+        val captured = emitSlot.first() as AppEvent.Validated
         val workDir = URI(captured.workingDirectory)
 
         assertEquals(paths.size, captured.files.size)
@@ -420,8 +418,8 @@ class JobExecutionTest {
         // We just check that we actually output the correct event
         service.handleAppEvent(event)
 
-        assertTrue(emitSlot.isCaptured)
-        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -446,8 +444,8 @@ class JobExecutionTest {
             }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        emitSlot.captured as AppEvent.Prepared
+        assertTrue(emitSlot.isNotEmpty())
+        emitSlot.first() as AppEvent.Prepared
 
         assertEquals(1, fileNameSlot.size)
         assertEquals(1, fileContents.size)
@@ -496,8 +494,8 @@ class JobExecutionTest {
             withMockedSCPUpload { service.handleAppEvent(event) }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        emitSlot.captured as AppEvent.Prepared
+        assertTrue(emitSlot.isNotEmpty())
+        emitSlot.first() as AppEvent.Prepared
 
         assertEquals(2, fileNameSlot.size)
         assertEquals(2, fileContents.size)
@@ -555,8 +553,8 @@ class JobExecutionTest {
             withMockedSCPUpload { service.handleAppEvent(event) }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -600,8 +598,8 @@ class JobExecutionTest {
             withMockedSCPUpload(commandFailure = true) { service.handleAppEvent(event) }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -621,20 +619,19 @@ class JobExecutionTest {
         }
 
         val inlineSBatchJob = "job"
-        val workingDirectory = "/scratch/sduescience/p/files"
         val event = AppEvent.Validated(
             UUID.randomUUID().toString(),
             System.currentTimeMillis(),
             dummyToken.token,
             dummyTokenSubject,
             ApplicationWithOptionalDependencies(application, dummyTool),
-            "/scratch/sduescience/p",
+            jobDirectiory,
             workingDirectory,
             listOf(
                 ValidatedFileForUpload(
                     irodsStat(fileName),
                     fileName,
-                    "$workingDirectory/$fileName",
+                    "$workingDirectory$fileName",
                     StoragePath(fileName)
                 )
             ),
@@ -645,8 +642,8 @@ class JobExecutionTest {
             withMockedSCPUpload(sshFailure = true) { service.handleAppEvent(event) }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -702,6 +699,125 @@ class JobExecutionTest {
         return Pair(names, writers)
     }
 
+    @Test
+    fun testValidJobScheduling() {
+        val event = AppEvent.Prepared(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            "nobody",
+            jobDirectiory,
+            workingDirectory,
+            jobDirectiory + "job.sh"
+        )
+
+        val batchJobs = withMockedSBatch(jobId = 123L) {
+            service.handleAppEvent(event)
+        }
+
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.ScheduledAtSlurm
+        assertEquals(123L, outputEvent.slurmId)
+
+        assertEquals(1, batchJobs.size)
+        assertEquals(event.jobScriptLocation, batchJobs.first())
+    }
+
+    @Test
+    fun testJobSchedulingWithSlurmFailure() {
+        val event = AppEvent.Prepared(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            "nobody",
+            jobDirectiory,
+            workingDirectory,
+            jobDirectiory + "job.sh"
+        )
+
+        withMockedSBatch(commandFailure = true, jobId = 123L) {
+            service.handleAppEvent(event)
+        }
+
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+        assertFalse(outputEvent.successful)
+    }
+
+    @Test
+    fun testJobSchedulingWithSSHFailure() {
+        val event = AppEvent.Prepared(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            "nobody",
+            jobDirectiory,
+            workingDirectory,
+            jobDirectiory + "job.sh"
+        )
+
+        withMockedSBatch(sshFailure = true, jobId = 123L) {
+            service.handleAppEvent(event)
+        }
+
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+        assertFalse(outputEvent.successful)
+    }
+
+    private inline fun withMockedSBatch(
+        commandFailure: Boolean = false,
+        sshFailure: Boolean = false,
+        jobId: Long,
+        body: () -> Unit
+    ): List<String> {
+        val names = ArrayList<String>()
+        staticMockk("dk.sdu.cloud.app.services.ssh.SBatchKt").use {
+            if (!sshFailure) {
+                every { sshConnection.sbatch(capture(names)) } answers {
+                    if (commandFailure) SBatchSubmissionResult(1, "Bad", null)
+                    else SBatchSubmissionResult(0, "OK", jobId)
+                }
+            } else {
+                every { sshConnection.sbatch(any()) } throws JSchException("Bad!")
+            }
+            body()
+        }
+
+        return names
+    }
+
+    @Test
+    fun testScheduledAtSlurm() {
+        val slurmId = 123L
+        val systemId = UUID.randomUUID().toString()
+        val owner = dummyTokenSubject
+        val sshUser = dummyTokenSubject
+
+        val event = AppEvent.ScheduledAtSlurm(
+            systemId,
+            System.currentTimeMillis(),
+            owner,
+            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            sshUser,
+            jobDirectiory,
+            workingDirectory,
+            slurmId
+        )
+
+        service.handleAppEvent(event)
+
+        verify {
+            slurmPollAgent.startTracking(slurmId)
+            jobsDao.updateJobWithSlurmInformation(systemId, sshUser, jobDirectiory, workingDirectory, slurmId)
+        }
+
+        assertEquals(0, emitSlot.size)
+    }
+
     // ============================================================
     // ====================== Test resources ======================
     // ============================================================
@@ -712,6 +828,9 @@ class JobExecutionTest {
                 "eyJzdWIiOiJ0ZXN0IiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ." +
                 "GxfHPZdY5aBZRt2g-ogPn6LfaG7MnAag-psqzquZKw8"
     )
+
+    private val workingDirectory = "/scratch/sduescience/p/"
+    private val jobDirectiory = "/scratch/sduescience/p/files/"
 
     private val dummyTool = ToolDescription(
         info = NameAndVersion("dummy", "1.0.0"),
