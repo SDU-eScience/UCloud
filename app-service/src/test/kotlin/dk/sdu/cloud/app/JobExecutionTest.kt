@@ -2,25 +2,36 @@ package dk.sdu.cloud.app
 
 import com.auth0.jwt.JWT
 import com.jcraft.jsch.JSchException
+import com.jcraft.jsch.SftpATTRS
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.*
-import dk.sdu.cloud.app.services.ssh.SSHConnection
-import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
-import dk.sdu.cloud.app.services.ssh.scpUpload
+import dk.sdu.cloud.app.services.ssh.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.client.RESTCallDescription
+import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.storage.Error
 import dk.sdu.cloud.storage.Ok
+import dk.sdu.cloud.storage.api.CreateDirectoryRequest
+import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.ext.*
 import dk.sdu.cloud.storage.model.FileStat
 import dk.sdu.cloud.storage.model.StoragePath
+import dk.sdu.cloud.tus.api.CreationCommand
+import dk.sdu.cloud.tus.api.TusDescriptions
+import dk.sdu.cloud.tus.api.internal.start
 import io.mockk.*
 import io.mockk.impl.annotations.RelaxedMockK
+import io.tus.java.client.TusUploader
+import org.asynchttpclient.Response
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
 import java.util.*
@@ -65,7 +76,111 @@ class JobExecutionTest {
 
     lateinit var service: JobExecutionService
 
-    val emitSlot = slot<AppEvent>()
+    val emitSlot = ArrayList<AppEvent>()
+
+
+    // ============================================================
+    // ====================== Test resources ======================
+    // ============================================================
+
+    private val dummyTokenSubject = "test"
+    private val dummyToken = JWT.decode(
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                "eyJzdWIiOiJ0ZXN0IiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ." +
+                "GxfHPZdY5aBZRt2g-ogPn6LfaG7MnAag-psqzquZKw8"
+    )
+
+    private val jobDirectiory = "/scratch/sduescience/p/"
+    private val workingDirectory = "/scratch/sduescience/p/files/"
+
+    private val dummyTool = ToolDescription(
+        info = NameAndVersion("dummy", "1.0.0"),
+        container = "dummy.simg",
+        defaultNumberOfNodes = 1,
+        defaultTasksPerNode = 1,
+        defaultMaxTime = SimpleDuration(1, 0, 0),
+        requiredModules = emptyList(),
+        authors = listOf("Author"),
+        prettyName = "Dummy",
+        createdAt = System.currentTimeMillis(),
+        modifiedAt = System.currentTimeMillis(),
+        description = "Dummy description"
+    )
+
+    private val noParamsApplication = app(
+        "noparams",
+        invocation = listOf(WordInvocationParameter("noparms")),
+        parameters = emptyList()
+    )
+
+    private val txtFilesGlob = "*.txt"
+    private val singleFileGlob = "b.txt"
+    private val directoryGlob = "c/"
+    private val filesUnderDirectoryGlob = "d/*"
+    private val applicationWithOutputs = app(
+        "appwithoutput",
+        invocation = emptyList(),
+        parameters = emptyList(),
+        fileGlobs = listOf(txtFilesGlob, singleFileGlob, directoryGlob, filesUnderDirectoryGlob)
+    )
+
+    private fun app(
+        name: String,
+        invocation: List<InvocationParameter>,
+        parameters: List<ApplicationParameter<*>>,
+        fileGlobs: List<String> = emptyList()
+    ): ApplicationDescription {
+        return ApplicationDescription(
+            tool = dummyTool.info,
+            info = NameAndVersion(name, "1.0.0"),
+            authors = listOf("Author"),
+            prettyName = name,
+            createdAt = System.currentTimeMillis(),
+            modifiedAt = System.currentTimeMillis(),
+            description = name,
+            invocation = invocation,
+            parameters = parameters,
+            outputFileGlobs = fileGlobs
+        )
+    }
+
+    private fun irodsStat(name: String): FileStat {
+        return FileStat(
+            StoragePath(name),
+            System.currentTimeMillis(),
+            System.currentTimeMillis(),
+            dummyTokenSubject,
+            10L,
+            "foo"
+        )
+    }
+
+    private fun createTemporaryApplication(application: ApplicationDescription) {
+        ApplicationDAO.inMemoryDB[application.info.name] = listOf(application)
+    }
+
+    private fun createTemporaryTool(tool: ToolDescription) {
+        ToolDAO.inMemoryDB[tool.info.name] = listOf(tool)
+    }
+
+    private fun withMockScopes(vararg scopes: MockKUnmockKScope, body: () -> Unit) {
+        scopes.forEach { it.mock() }
+        try {
+            body()
+        } finally {
+            scopes.reversed().forEach { it.unmock() }
+        }
+    }
+
+    private fun tusHelperScope() = staticMockk("dk.sdu.cloud.tus.api.internal.TusServiceHelpersKt")
+    private fun scpScope() = staticMockk("dk.sdu.cloud.app.services.ssh.SCPKt")
+    private fun sftpScope() = staticMockk("dk.sdu.cloud.app.services.ssh.SFTPKt")
+    private fun zipScope() = staticMockk("dk.sdu.cloud.app.services.ssh.ZIPKt")
+    private fun tusScope() = objectMockk(TusDescriptions)
+
+    // =========================================
+    // TESTS
+    // =========================================
 
     @Before
     fun setup() {
@@ -102,7 +217,7 @@ class JobExecutionTest {
         val tools = listOf(dummyTool)
         tools.forEach { createTemporaryTool(it) }
 
-        val applications = listOf(noParamsApplication)
+        val applications = listOf(noParamsApplication, applicationWithOutputs)
         applications.forEach { createTemporaryApplication(it) }
     }
 
@@ -237,7 +352,7 @@ class JobExecutionTest {
         )
 
         verifyJobStarted(result, application)
-        val captured = emitSlot.captured as AppEvent.Validated
+        val captured = emitSlot.first() as AppEvent.Validated
         val workDir = URI(captured.workingDirectory)
 
         assertEquals(1, captured.files.size)
@@ -316,7 +431,7 @@ class JobExecutionTest {
         )
 
         verifyJobStarted(result, application)
-        val captured = emitSlot.captured as AppEvent.Validated
+        val captured = emitSlot.first() as AppEvent.Validated
         val workDir = URI(captured.workingDirectory)
 
         assertEquals(paths.size, captured.files.size)
@@ -370,7 +485,7 @@ class JobExecutionTest {
         )
 
         verifyJobStarted(result, application)
-        val captured = emitSlot.captured as AppEvent.Validated
+        val captured = emitSlot.first() as AppEvent.Validated
         val workDir = URI(captured.workingDirectory)
 
         assertEquals(paths.size, captured.files.size)
@@ -420,8 +535,8 @@ class JobExecutionTest {
         // We just check that we actually output the correct event
         service.handleAppEvent(event)
 
-        assertTrue(emitSlot.isCaptured)
-        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -446,8 +561,8 @@ class JobExecutionTest {
             }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        emitSlot.captured as AppEvent.Prepared
+        assertTrue(emitSlot.isNotEmpty())
+        emitSlot.first() as AppEvent.Prepared
 
         assertEquals(1, fileNameSlot.size)
         assertEquals(1, fileContents.size)
@@ -496,8 +611,8 @@ class JobExecutionTest {
             withMockedSCPUpload { service.handleAppEvent(event) }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        emitSlot.captured as AppEvent.Prepared
+        assertTrue(emitSlot.isNotEmpty())
+        emitSlot.first() as AppEvent.Prepared
 
         assertEquals(2, fileNameSlot.size)
         assertEquals(2, fileContents.size)
@@ -555,8 +670,8 @@ class JobExecutionTest {
             withMockedSCPUpload { service.handleAppEvent(event) }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -600,8 +715,8 @@ class JobExecutionTest {
             withMockedSCPUpload(commandFailure = true) { service.handleAppEvent(event) }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -621,20 +736,19 @@ class JobExecutionTest {
         }
 
         val inlineSBatchJob = "job"
-        val workingDirectory = "/scratch/sduescience/p/files"
         val event = AppEvent.Validated(
             UUID.randomUUID().toString(),
             System.currentTimeMillis(),
             dummyToken.token,
             dummyTokenSubject,
             ApplicationWithOptionalDependencies(application, dummyTool),
-            "/scratch/sduescience/p",
+            jobDirectiory,
             workingDirectory,
             listOf(
                 ValidatedFileForUpload(
                     irodsStat(fileName),
                     fileName,
-                    "$workingDirectory/$fileName",
+                    "$workingDirectory$fileName",
                     StoragePath(fileName)
                 )
             ),
@@ -645,8 +759,8 @@ class JobExecutionTest {
             withMockedSCPUpload(sshFailure = true) { service.handleAppEvent(event) }
         }
 
-        assertTrue(emitSlot.isCaptured)
-        val outputEvent = emitSlot.captured as AppEvent.Completed
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -702,73 +816,537 @@ class JobExecutionTest {
         return Pair(names, writers)
     }
 
-    // ============================================================
-    // ====================== Test resources ======================
-    // ============================================================
-
-    private val dummyTokenSubject = "test"
-    private val dummyToken = JWT.decode(
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
-                "eyJzdWIiOiJ0ZXN0IiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ." +
-                "GxfHPZdY5aBZRt2g-ogPn6LfaG7MnAag-psqzquZKw8"
-    )
-
-    private val dummyTool = ToolDescription(
-        info = NameAndVersion("dummy", "1.0.0"),
-        container = "dummy.simg",
-        defaultNumberOfNodes = 1,
-        defaultTasksPerNode = 1,
-        defaultMaxTime = SimpleDuration(1, 0, 0),
-        requiredModules = emptyList(),
-        authors = listOf("Author"),
-        prettyName = "Dummy",
-        createdAt = System.currentTimeMillis(),
-        modifiedAt = System.currentTimeMillis(),
-        description = "Dummy description"
-    )
-
-    private val noParamsApplication = app(
-        "noparams",
-        invocation = listOf(WordInvocationParameter("noparms")),
-        parameters = emptyList()
-    )
-
-    private fun app(
-        name: String,
-        invocation: List<InvocationParameter>,
-        parameters: List<ApplicationParameter<*>>,
-        fileGlobs: List<String> = emptyList()
-    ): ApplicationDescription {
-        return ApplicationDescription(
-            tool = dummyTool.info,
-            info = NameAndVersion(name, "1.0.0"),
-            authors = listOf("Author"),
-            prettyName = name,
-            createdAt = System.currentTimeMillis(),
-            modifiedAt = System.currentTimeMillis(),
-            description = name,
-            invocation = invocation,
-            parameters = parameters,
-            outputFileGlobs = fileGlobs
-        )
-    }
-
-    private fun irodsStat(name: String): FileStat {
-        return FileStat(
-            StoragePath(name),
-            System.currentTimeMillis(),
+    @Test
+    fun testValidJobScheduling() {
+        val event = AppEvent.Prepared(
+            UUID.randomUUID().toString(),
             System.currentTimeMillis(),
             dummyTokenSubject,
-            10L,
-            "foo"
+            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            "nobody",
+            jobDirectiory,
+            workingDirectory,
+            jobDirectiory + "job.sh"
         )
+
+        val batchJobs = withMockedSBatch(jobId = 123L) {
+            service.handleAppEvent(event)
+        }
+
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.ScheduledAtSlurm
+        assertEquals(123L, outputEvent.slurmId)
+
+        assertEquals(1, batchJobs.size)
+        assertEquals(event.jobScriptLocation, batchJobs.first())
     }
 
-    private fun createTemporaryApplication(application: ApplicationDescription) {
-        ApplicationDAO.inMemoryDB[application.info.name] = listOf(application)
+    @Test
+    fun testJobSchedulingWithSlurmFailure() {
+        val event = AppEvent.Prepared(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            "nobody",
+            jobDirectiory,
+            workingDirectory,
+            jobDirectiory + "job.sh"
+        )
+
+        withMockedSBatch(commandFailure = true, jobId = 123L) {
+            service.handleAppEvent(event)
+        }
+
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+        assertFalse(outputEvent.successful)
     }
 
-    private fun createTemporaryTool(tool: ToolDescription) {
-        ToolDAO.inMemoryDB[tool.info.name] = listOf(tool)
+    @Test
+    fun testJobSchedulingWithSSHFailure() {
+        val event = AppEvent.Prepared(
+            UUID.randomUUID().toString(),
+            System.currentTimeMillis(),
+            dummyTokenSubject,
+            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            "nobody",
+            jobDirectiory,
+            workingDirectory,
+            jobDirectiory + "job.sh"
+        )
+
+        withMockedSBatch(sshFailure = true, jobId = 123L) {
+            service.handleAppEvent(event)
+        }
+
+        assertTrue(emitSlot.isNotEmpty())
+        val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+        assertFalse(outputEvent.successful)
+    }
+
+    private inline fun withMockedSBatch(
+        commandFailure: Boolean = false,
+        sshFailure: Boolean = false,
+        jobId: Long,
+        body: () -> Unit
+    ): List<String> {
+        val names = ArrayList<String>()
+        staticMockk("dk.sdu.cloud.app.services.ssh.SBatchKt").use {
+            if (!sshFailure) {
+                every { sshConnection.sbatch(capture(names)) } answers {
+                    if (commandFailure) SBatchSubmissionResult(1, "Bad", null)
+                    else SBatchSubmissionResult(0, "OK", jobId)
+                }
+            } else {
+                every { sshConnection.sbatch(any()) } throws JSchException("Bad!")
+            }
+            body()
+        }
+
+        return names
+    }
+
+    @Test
+    fun testScheduledAtSlurm() {
+        val slurmId = 123L
+        val systemId = UUID.randomUUID().toString()
+        val owner = dummyTokenSubject
+        val sshUser = dummyTokenSubject
+
+        val event = AppEvent.ScheduledAtSlurm(
+            systemId,
+            System.currentTimeMillis(),
+            owner,
+            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            sshUser,
+            jobDirectiory,
+            workingDirectory,
+            slurmId
+        )
+
+        service.handleAppEvent(event)
+
+        verify {
+            slurmPollAgent.startTracking(slurmId)
+            jobsDao.updateJobWithSlurmInformation(systemId, sshUser, jobDirectiory, workingDirectory, slurmId)
+        }
+
+        assertEquals(0, emitSlot.size)
+    }
+
+    private val completedInSlurmEvent = AppEvent.CompletedInSlurm(
+        UUID.randomUUID().toString(),
+        System.currentTimeMillis(),
+        dummyTokenSubject,
+        ApplicationWithOptionalDependencies(applicationWithOutputs, dummyTool),
+        dummyTokenSubject,
+        jobDirectiory,
+        workingDirectory,
+        true,
+        123L
+    )
+
+    @Test
+    fun testShippingResultsWithDirectoryFailure() {
+        objectMockk(FileDescriptions).use {
+            val directoryCall = mockk<RESTCallDescription<CreateDirectoryRequest, Unit, CommonErrorMessage>>()
+            every { FileDescriptions.createDirectory } returns directoryCall
+
+            coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Err(mockk(relaxed = true))
+
+            service.handleAppEvent(completedInSlurmEvent)
+            assertEquals(1, emitSlot.size)
+            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertFalse(outputEvent.successful)
+        }
+    }
+
+    @Test
+    fun testShippingResultsWithNoOutputFiles() {
+        withMockScopes(objectMockk(FileDescriptions), sftpScope()) {
+            val directoryCall = mockk<RESTCallDescription<CreateDirectoryRequest, Unit, CommonErrorMessage>>()
+            every { FileDescriptions.createDirectory } returns directoryCall
+            coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Ok(mockk(relaxed = true), Unit)
+
+            every { sshConnection.lsWithGlob(any(), any()) } returns emptyList()
+
+            service.handleAppEvent(completedInSlurmEvent)
+            assertEquals(1, emitSlot.size)
+
+            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertTrue(outputEvent.successful)
+
+            completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
+                verify { sshConnection.lsWithGlob(workingDirectory, it) }
+            }
+        }
+    }
+
+    @Test
+    fun testShippingResultWithSingleFile() {
+        withAllShippingScopes {
+            mockCreateDirectoryCall(success = true)
+            every { sshConnection.lsWithGlob(any(), any()) } returns emptyList()
+
+            run {
+                // Single file present
+                every { sshConnection.lsWithGlob(workingDirectory, singleFileGlob) } returns listOf(
+                    LSWithGlobResult(workingDirectory + singleFileGlob, 10L)
+                )
+
+                mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
+            }
+
+            val creationCommands = mockTusUploadCreationAndGetCommands()
+            val remoteFiles = mockScpDownloadAndGetFileList()
+            val (_, _, tusUploader) = mockTusUploaderAndGetLocationsAndSizes()
+
+            // Run tests
+            service.handleAppEvent(completedInSlurmEvent)
+
+            // Check results
+            assertEquals(1, emitSlot.size)
+            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertTrue(outputEvent.successful)
+
+
+            completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
+                verify { sshConnection.lsWithGlob(workingDirectory, it) }
+            }
+
+            verify(exactly = 1) { tusUploader.start(any()) }
+
+            assertEquals(1, creationCommands.size)
+            assertEquals(singleFileGlob, creationCommands.first().fileName)
+
+            assertEquals(1, remoteFiles.size)
+            assertEquals(workingDirectory + singleFileGlob, remoteFiles.first())
+        }
+    }
+
+    @Test
+    fun testShippingResultWithMultipleFiles() {
+        withAllShippingScopes {
+            mockCreateDirectoryCall(success = true)
+            every { sshConnection.lsWithGlob(any(), any()) } returns emptyList()
+            val fileNames = listOf("1.txt", "2.txt", "3.txt")
+
+            run {
+                every { sshConnection.lsWithGlob(workingDirectory, txtFilesGlob) } returns fileNames.map {
+                    LSWithGlobResult(workingDirectory + it, 10L)
+                }
+
+                fileNames.forEach {
+                    mockStatForRemoteFile(workingDirectory + it, 10L, false)
+                }
+            }
+
+            val creationCommands = mockTusUploadCreationAndGetCommands()
+            val remoteFiles = mockScpDownloadAndGetFileList()
+            val (_, _, tusUploader) = mockTusUploaderAndGetLocationsAndSizes()
+
+            // Run tests
+            service.handleAppEvent(completedInSlurmEvent)
+
+            // Check results
+            assertEquals(1, emitSlot.size)
+            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertTrue(outputEvent.successful)
+
+            completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
+                verify { sshConnection.lsWithGlob(workingDirectory, it) }
+            }
+
+            verify(exactly = fileNames.size) { tusUploader.start(any()) }
+
+            assertEquals(fileNames.size, creationCommands.size)
+            val createdFiles = creationCommands.map { it.fileName!! }.sorted()
+            assertEquals(fileNames.sorted(), createdFiles)
+
+            assertEquals(fileNames.size, remoteFiles.size)
+            val expectedRemotes = fileNames.map { workingDirectory + it }.sorted()
+            val actualRemote = remoteFiles.sorted()
+            assertEquals(expectedRemotes, actualRemote)
+        }
+    }
+
+    @Test
+    fun testShippingResultsWithDirectory() {
+        withAllShippingScopes {
+            mockCreateDirectoryCall(success = true)
+            every { sshConnection.lsWithGlob(any(), any()) } returns emptyList()
+            val fileNames = "c/"
+
+            run {
+                every { sshConnection.lsWithGlob(workingDirectory, directoryGlob) } returns listOf(fileNames).map {
+                    LSWithGlobResult(workingDirectory + it, 10L)
+                }
+
+                fileNames.forEach {
+                    mockStatForRemoteFile(workingDirectory + it, 10L, true)
+                }
+            }
+
+            val creationCommands = mockTusUploadCreationAndGetCommands()
+            val remoteFiles = mockScpDownloadAndGetFileList()
+            val (_, _, tusUploader) = mockTusUploaderAndGetLocationsAndSizes()
+            val (zipOutputs, zipInputs) = mockZipCall(commandFailure = false)
+            val expectedZipOutput = workingDirectory + "c.zip"
+            mockStatForRemoteFile(expectedZipOutput, 10L, false)
+
+            // Run tests
+            service.handleAppEvent(completedInSlurmEvent)
+
+            // Check results
+            assertEquals(1, emitSlot.size)
+            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertTrue(outputEvent.successful)
+
+
+            completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
+                verify { sshConnection.lsWithGlob(workingDirectory, it) }
+            }
+
+            verify(exactly = 1) { tusUploader.start(any()) }
+
+            assertEquals(1, creationCommands.size)
+            assertEquals(expectedZipOutput.substringAfterLast('/'), creationCommands.first().fileName)
+
+            assertEquals(1, remoteFiles.size)
+            assertEquals(expectedZipOutput, remoteFiles.first())
+
+            verify(exactly = 1) { sshConnection.stat(expectedZipOutput) }
+            assertEquals(1, zipOutputs.size)
+            assertEquals(expectedZipOutput, zipOutputs.first())
+            assertEquals(1, zipInputs.size)
+            assertEquals(workingDirectory + fileNames.removeSuffix("/"), zipInputs.first())
+        }
+    }
+
+    // TODO Is this a good idea?
+    @Test(expected = IllegalStateException::class)
+    fun testShippingResultWithSingleFileUploadCreationFailure() {
+        withAllShippingScopes {
+            mockCreateDirectoryCall(success = true)
+            every { sshConnection.lsWithGlob(any(), any()) } returns emptyList()
+
+            run {
+                // Single file present
+                every { sshConnection.lsWithGlob(workingDirectory, singleFileGlob) } returns listOf(
+                    LSWithGlobResult(workingDirectory + singleFileGlob, 10L)
+                )
+
+                mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
+            }
+
+            mockTusUploadCreationAndGetCommands(commandFailure = true)
+            mockScpDownloadAndGetFileList()
+            mockTusUploaderAndGetLocationsAndSizes()
+
+            // Run tests
+            service.handleAppEvent(completedInSlurmEvent)
+        }
+    }
+
+    @Test
+    fun testShippingResultWithSingleFileUploadTransferFailure() {
+        withAllShippingScopes {
+            mockCreateDirectoryCall(success = true)
+            every { sshConnection.lsWithGlob(any(), any()) } returns emptyList()
+
+            run {
+                // Single file present
+                every { sshConnection.lsWithGlob(workingDirectory, singleFileGlob) } returns listOf(
+                    LSWithGlobResult(workingDirectory + singleFileGlob, 10L)
+                )
+
+                mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
+            }
+
+            mockTusUploadCreationAndGetCommands()
+            mockScpDownloadAndGetFileList(commandFailure = true)
+            mockTusUploaderAndGetLocationsAndSizes()
+
+            // Run tests
+            service.handleAppEvent(completedInSlurmEvent)
+
+            // Check results
+            assertEquals(1, emitSlot.size)
+            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertFalse(outputEvent.successful)
+        }
+    }
+
+
+    private fun withAllShippingScopes(body: () -> Unit) {
+        withMockScopes(
+            objectMockk(FileDescriptions),
+
+            tusScope(),
+            tusHelperScope(),
+
+            sftpScope(),
+            scpScope(),
+            zipScope()
+        ) {
+            body()
+        }
+    }
+
+    data class DirectoryZipMock(val outputs: List<String>, val inputs: List<String>)
+
+    private fun mockZipCall(commandFailure: Boolean = false): DirectoryZipMock {
+        val outputs = ArrayList<String>()
+        val inputs = ArrayList<String>()
+        if (!commandFailure) {
+            every { sshConnection.createZipFileOfDirectory(capture(outputs), capture(inputs)) } returns 0
+        } else {
+            every { sshConnection.createZipFileOfDirectory(capture(outputs), capture(inputs)) } returns 1
+        }
+        return DirectoryZipMock(outputs, inputs)
+    }
+
+    private fun mockCreateDirectoryCall(
+        success: Boolean
+    ): RESTCallDescription<CreateDirectoryRequest, Unit, CommonErrorMessage> {
+        val directoryCall = mockk<RESTCallDescription<CreateDirectoryRequest, Unit, CommonErrorMessage>>()
+        every { FileDescriptions.createDirectory } returns directoryCall
+        if (success) {
+            coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Ok(mockk(relaxed = true), Unit)
+        } else {
+            coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Err(mockk(relaxed = true))
+        }
+        return directoryCall
+    }
+
+    private fun mockTusUploadCreationAndGetCommands(commandFailure: Boolean = false): List<CreationCommand> {
+        // Upload creation
+        val commands = ArrayList<CreationCommand>()
+        val createMock = mockk<RESTCallDescription<CreationCommand, Unit, Unit>>()
+        every { TusDescriptions.create } returns createMock
+
+        if (!commandFailure) {
+            val response = mockk<Response>(relaxed = true)
+            every { response.headers["Location"] } returns "https://cloud.sdu.dk/api/tus/upload-id"
+            coEvery { createMock.call(capture(commands), any()) } returns RESTResponse.Ok(
+                response,
+                Unit
+            )
+        } else {
+            coEvery { createMock.call(capture(commands), any()) } returns RESTResponse.Err(
+                mockk(relaxed = true),
+                Unit
+            )
+        }
+
+        return commands
+    }
+
+    data class TusUploaderMock(val locations: List<String>, val sizes: List<Int>, val uploader: TusUploader)
+
+    private fun mockTusUploaderAndGetLocationsAndSizes(): TusUploaderMock {
+        val uploadLocations = ArrayList<String>()
+        val uploadSizes = ArrayList<Int>()
+        val tusUploader = mockk<TusUploader>(relaxed = true)
+        every {
+            TusDescriptions.uploader(
+                any(),
+                capture(uploadLocations),
+                capture(uploadSizes),
+                any(),
+                any()
+            )
+        } returns tusUploader
+
+        every { tusUploader.start(any()) } just Runs
+        return TusUploaderMock(uploadLocations, uploadSizes, tusUploader)
+    }
+
+    private fun mockScpDownloadAndGetFileList(commandFailure: Boolean = false): List<String> {
+        val remoteFiles = ArrayList<String>()
+        if (!commandFailure) {
+            every {
+                sshConnection.scpDownload(
+                    capture(remoteFiles),
+                    any()
+                )
+            } answers {
+                @Suppress("UNCHECKED_CAST")
+                val reader = call.invocation.args.last() as (InputStream) -> Unit
+                reader(ByteArrayInputStream(ByteArray(0)))
+                0
+            }
+        } else {
+            every {
+                sshConnection.scpDownload(
+                    capture(remoteFiles),
+                    any()
+                )
+            } returns 1
+        }
+
+        return remoteFiles
+    }
+
+    private fun mockStatForRemoteFile(absolutePath: String, size: Long, isDir: Boolean) {
+        val returnedFile: SftpATTRS = mockk(relaxed = true)
+        every { sshConnection.stat(absolutePath) } returns returnedFile
+        every { returnedFile.size } returns size
+        every { returnedFile.isDir } returns isDir
+    }
+
+    @Test
+    fun testCleanup() {
+        withMockScopes(sftpScope()) {
+            val event = AppEvent.ExecutionCompleted(
+                UUID.randomUUID().toString(),
+                System.currentTimeMillis(),
+                dummyTokenSubject,
+                ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+                "nobody",
+                jobDirectiory,
+                workingDirectory,
+                true,
+                "Foo"
+            )
+
+            every { sshConnection.rm(any(), any(), any()) } returns 0
+
+            service.handleAppEvent(event)
+
+            assertEquals(1, emitSlot.size)
+            val outputEvent = emitSlot.first() as AppEvent.Completed
+            assertEquals(event.successful, outputEvent.successful)
+
+            verify { sshConnection.rm(jobDirectiory, true, true) }
+        }
+    }
+
+    @Test
+    fun testCleanupWithDeletionFailure() {
+        withMockScopes(sftpScope()) {
+            val event = AppEvent.ExecutionCompleted(
+                UUID.randomUUID().toString(),
+                System.currentTimeMillis(),
+                dummyTokenSubject,
+                ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+                "nobody",
+                jobDirectiory,
+                workingDirectory,
+                true,
+                "Foo"
+            )
+
+            every { sshConnection.rm(any(), any(), any()) } returns 1
+
+            service.handleAppEvent(event)
+
+            assertEquals(1, emitSlot.size)
+            val outputEvent = emitSlot.first() as AppEvent.Completed
+            assertEquals(event.successful, outputEvent.successful)
+
+            verify { sshConnection.rm(jobDirectiory, true, true) }
+        }
     }
 }

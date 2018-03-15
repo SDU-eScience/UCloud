@@ -49,6 +49,8 @@ class Server(
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
         val sbatchGenerator = SBatchGenerator()
+        slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
+
         val jobDao = JobsDAO()
         val jobExecutionService = JobExecutionService(
             cloud,
@@ -62,7 +64,6 @@ class Server(
             config.ssh.user
         )
         val jobService = JobService(jobDao, jobExecutionService)
-        slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
@@ -102,6 +103,7 @@ class Server(
 
         log.info("Starting Application Services")
         slurmPollAgent.start()
+        jobExecutionService.initialize()
 
         log.info("Starting HTTP server...")
         // TODO We don't actually wait for the server to be ready before we register health endpoint!
