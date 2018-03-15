@@ -129,7 +129,7 @@ class JobExecutionService(
 
     fun handleAppEvent(event: AppEvent) {
         try {
-            // First we update DB status depending on the event
+            // First we update DB state depending on the event
             // TODO Test updateJobBySystemId
             val nextState: AppState? = when (event) {
                 is AppEvent.Validated -> AppState.VALIDATED
@@ -326,7 +326,7 @@ class JobExecutionService(
                 mkdir(event.workingDirectory, true)
                     .takeIf { it != 0 }
                     ?.let {
-                        throw JobInternalException("Could not create ${event.workingDirectory}. Returned status: $it")
+                        throw JobInternalException("Could not create ${event.workingDirectory}. Returned state: $it")
                     }
 
                 event.files.forEach { upload ->
@@ -541,7 +541,7 @@ class JobExecutionService(
                 }
 
                 if (transferStatus != 0) {
-                    throw JobInternalException("Upload failed. Transfer status != 0 ($transferStatus)")
+                    throw JobInternalException("Upload failed. Transfer state != 0 ($transferStatus)")
                 }
             }
 

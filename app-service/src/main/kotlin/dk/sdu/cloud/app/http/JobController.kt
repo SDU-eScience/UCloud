@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.HPCJobDescriptions
 import dk.sdu.cloud.app.api.JobStartedResponse
 import dk.sdu.cloud.app.services.JobException
@@ -12,7 +11,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
-import java.util.*
 
 class JobController(
     private val jobService: JobService
@@ -22,27 +20,24 @@ class JobController(
             implement(HPCJobDescriptions.findById) {
                 logEntry(log, it)
                 val user = call.request.validatedPrincipal
-                TODO()
-                /*
-                val result = jobService.findJob(it.id, user)
+                val result = jobService.findJobById(user, it.id)
                 if (result == null) {
                     error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
                 } else {
                     ok(result)
                 }
-                */
             }
 
             implement(HPCJobDescriptions.listRecent) {
                 logEntry(log, it)
                 val user = call.request.validatedPrincipal
-                ok(jobService.recentJobs(user))
+                ok(jobService.recentJobs(user, it))
             }
 
             implement(HPCJobDescriptions.start) { req ->
                 logEntry(log, req)
                 try {
-                    val uuid = jobService.startJob(req, call.request.validatedPrincipal)
+                    val uuid = jobService.startJob(call.request.validatedPrincipal, req)
                     ok(JobStartedResponse(uuid))
                 } catch (ex: JobException) {
                     if (ex.statusCode.value in 500..599) log.warn(ex.stackTraceToString())

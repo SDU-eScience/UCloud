@@ -7,8 +7,8 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
 import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
-import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.jetbrains.exposed.sql.Database
@@ -76,7 +76,7 @@ fun main(args: Array<String>) {
 
     val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), configuration.refreshToken)
     val serverProvider: HttpServerProvider = { block ->
-        embeddedServer(CIO, port = configuration.connConfig.service.port, module = block)
+        embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
     val server = Server(kafka, serviceRegistry, cloud, configuration, serverProvider, irodsConnectionFactory)
