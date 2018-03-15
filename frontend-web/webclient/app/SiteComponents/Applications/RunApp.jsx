@@ -82,11 +82,14 @@ class RunApp extends React.Component {
 
     handleSubmit(event) {
         event.preventDefault();
-        const maxTime = this.state.jobInfo.maxTime;
+        let maxTime = this.state.jobInfo.maxTime;
         if (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null) {
             maxTime.hours = maxTime.hours ? maxTime.hours : 0;
             maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
             maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
+        }
+        if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
+            maxTime = null;
         }
         let job = {
             application: {
@@ -119,7 +122,6 @@ class RunApp extends React.Component {
             });
         }
         // FIXME HACK END
-
         Cloud.post("/hpc/jobs", job).then(req => {
             if (req.request.status === 200) {
                 this.props.history.push("/analyses");
