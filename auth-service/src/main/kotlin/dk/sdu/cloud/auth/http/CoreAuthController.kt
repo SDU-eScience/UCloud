@@ -7,11 +7,7 @@ import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
-import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.service.ok
-import dk.sdu.cloud.service.error
+import dk.sdu.cloud.service.*
 import io.ktor.application.call
 import io.ktor.content.files
 import io.ktor.content.static
@@ -63,6 +59,7 @@ class CoreAuthController(
                     name: String, text: String, iconType: String,
                     type: String = "text"
                 ) {
+                    /*
                     div(classes = "mda-form-group float-label mda-input-group") {
                         div(classes = "mda-form-control") {
                             input(classes = "form-control") {
@@ -80,6 +77,18 @@ class CoreAuthController(
                         }
                         span(classes = "mda-input-group-addon") {
                             em(classes = "ion-ios-$iconType icon-lg")
+                        }
+                    }
+                    */
+                    div(classes = "input-group") {
+                        span(classes = "input-group-addon") {
+                            i(classes = "glyphicon glyphicon-$iconType")
+                        }
+                        input(classes = "form-control") {
+                            this.type = InputType.valueOf(type)
+                            this.name = name
+                            this.id = name
+                            this.placeholder = text
                         }
                     }
                 }
@@ -132,7 +141,7 @@ class CoreAuthController(
                                                             +"Login"
                                                         }
                                                     }
-                                                    div(classes = "card-body") {
+                                                    div(classes = "card-body form-horizontal") {
                                                         input {
                                                             type = InputType.hidden
                                                             value = service.name
@@ -142,13 +151,13 @@ class CoreAuthController(
                                                         formControlField(
                                                             name = "username",
                                                             text = "Username",
-                                                            iconType = "email-outline"
+                                                            iconType = "user"
                                                         )
 
                                                         formControlField(
                                                             name = "password",
                                                             text = "Password",
-                                                            iconType = "locked-outline",
+                                                            iconType = "lock",
                                                             type = "password"
                                                         )
                                                     }
@@ -182,7 +191,7 @@ class CoreAuthController(
                                         }
 
                                         div(classes = "row") {
-                                            div(classes = "col-sm-3 pull-right") {
+                                            div(classes = "col-xs-3 pull-right") {
                                                 img(
                                                     alt = "SDU Cloud Logo",
                                                     src = "sdu_plain_white.png",
