@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.HttpMethod
 object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
     private const val baseContext = "/api/hpc/jobs"
 
-    val findById = callDescription<FindByStringId, JobWithStatusAndInvocation, CommonErrorMessage> {
+    val findById = callDescription<FindByStringId, JobWithStatus, CommonErrorMessage> {
         prettyName = "jobsFindById"
         path {
             using(baseContext)
@@ -17,10 +17,15 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
         }
     }
 
-    val listRecent = callDescription<Unit, List<JobWithStatus>, CommonErrorMessage> {
+    val listRecent = callDescription<PaginationRequest, Page<JobWithStatus>, CommonErrorMessage> {
         prettyName = "jobsListRecent"
         path {
             using(baseContext)
+        }
+
+        params {
+            +boundTo(PaginationRequest::itemsPerPage)
+            +boundTo(PaginationRequest::page)
         }
     }
 

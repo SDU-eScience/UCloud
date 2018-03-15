@@ -19,10 +19,12 @@ data class JobInformation(
 
 object JobsTable : Table() {
     val systemId = varchar("system_id", 36).primaryKey()
-    val owner = text("owner")
+    val owner = varchar("owner", 128).index()
     val appName = text("app_name")
     val appVersion = text("app_version")
     val createdAt = datetime("created_at")
+    val modifiedAt = datetime("modified_at")
+    val state = text("state")
 
     val slurmId = long("slurm_id").nullable()
     val status = text("status").nullable()
@@ -30,12 +32,6 @@ object JobsTable : Table() {
     val sshUser = text("ssh_user").nullable()
     val jobDirectory = text("job_directory").nullable()
     val workingDirectory = text("working_directory").nullable()
-}
-
-object JobStatusTable : Table() {
-    val jobId = varchar("job_id", 36) references JobsTable.systemId
-    val status = varchar("state", 32)
-    val createdAt = datetime("created_at")
 }
 
 class JobsDAO {
@@ -60,34 +56,74 @@ class JobsDAO {
         }.singleOrNull()
     }
 
-    // TODO DB has changed
-    fun findAllJobsWithStatus(owner: String): List<JobWithStatus> {
-        return (JobsTable innerJoin JobStatusTable).slice(
+    fun findAllJobsWithStatus(
+        owner: String,
+        paginationRequest: NormalizedPaginationRequest
+    ): Page<JobWithStatus> {
+        val jobsOwnedByUser = JobsTable.select { JobsTable.owner eq owner }.count()
+
+        val rawItems =
+            if (jobsOwnedByUser == 0) emptyList()
+            else JobsTable.slice(
+                JobsTable.systemId,
+                JobsTable.owner,
+                JobsTable.appName,
+                JobsTable.appVersion,
+                JobsTable.createdAt,
+                JobsTable.modifiedAt,
+                JobsTable.state,
+                JobsTable.status
+            ).select { JobsTable.owner eq owner }
+                .orderBy(JobsTable.modifiedAt, false)
+                .limit(
+                    n = paginationRequest.itemsPerPage,
+                    offset = paginationRequest.itemsPerPage * paginationRequest.page
+                )
+                .toList()
+                .map {
+                    JobWithStatus(
+                        jobId = it[JobsTable.systemId],
+                        owner = it[JobsTable.owner],
+                        state = AppState.valueOf(it[JobsTable.state]),
+                        status = it[JobsTable.status] ?: "",
+                        appName = it[JobsTable.appName],
+                        appVersion = it[JobsTable.appVersion],
+                        createdAt = it[JobsTable.createdAt].millis,
+                        modifiedAt = it[JobsTable.modifiedAt].millis
+                    )
+                }
+        return Page(jobsOwnedByUser, paginationRequest.itemsPerPage, paginationRequest.page, rawItems)
+    }
+
+    fun findJobById(owner: String, jobId: String): JobWithStatus? {
+        return JobsTable.slice(
             JobsTable.systemId,
             JobsTable.owner,
             JobsTable.appName,
             JobsTable.appVersion,
             JobsTable.createdAt,
-            JobStatusTable.status,
-            JobStatusTable.createdAt
-        ).select {
-            JobsTable.owner eq owner
-        }.orderBy(JobStatusTable.createdAt, false)
+            JobsTable.modifiedAt,
+            JobsTable.state,
+            JobsTable.status
+        )
+            .select {
+                (JobsTable.owner eq owner) and
+                        (JobsTable.systemId eq jobId)
+            }
             .toList()
             .map {
                 JobWithStatus(
                     jobId = it[JobsTable.systemId],
                     owner = it[JobsTable.owner],
-                    status = AppState.valueOf(it[JobStatusTable.status]),
+                    state = AppState.valueOf(it[JobsTable.state]),
+                    status = it[JobsTable.status] ?: "",
                     appName = it[JobsTable.appName],
                     appVersion = it[JobsTable.appVersion],
                     createdAt = it[JobsTable.createdAt].millis,
-                    modifiedAt = it[JobStatusTable.createdAt].millis
+                    modifiedAt = it[JobsTable.modifiedAt].millis
                 )
-            } // TODO This should probably be done in the query
-            .groupBy { it.jobId }
-            .values
-            .map { it.first() }
+            }
+            .singleOrNull()
     }
 
     fun createJob(
@@ -101,12 +137,8 @@ class JobsDAO {
             it[JobsTable.appName] = appDescription.info.name
             it[JobsTable.appVersion] = appDescription.info.version
             it[JobsTable.createdAt] = DateTime.now()
-        }
-
-        JobStatusTable.insert {
-            it[JobStatusTable.jobId] = systemId
-            it[JobStatusTable.status] = AppState.VALIDATED.toString()
-            it[JobStatusTable.createdAt] = DateTime.now()
+            it[JobsTable.modifiedAt] = DateTime.now()
+            it[JobsTable.state] = AppState.VALIDATED.toString()
         }
     }
 
@@ -127,16 +159,10 @@ class JobsDAO {
     }
 
     fun updateJobBySystemId(systemId: String, newState: AppState, message: String? = null) {
-        JobStatusTable.insert {
-            it[JobStatusTable.jobId] = systemId
-            it[JobStatusTable.status] = newState.toString()
-            it[JobStatusTable.createdAt] = DateTime.now()
-        }
-
-        if (message != null) {
-            JobsTable.update({ JobsTable.systemId eq systemId }, limit = 1) {
-                it[JobsTable.status] = message
-            }
+        JobsTable.update({ JobsTable.systemId eq systemId }, limit = 1) {
+            if (message != null) it[JobsTable.status] = message
+            it[JobsTable.state] = newState.toString()
+            it[JobsTable.modifiedAt] = DateTime.now()
         }
     }
 }

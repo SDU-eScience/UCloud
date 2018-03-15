@@ -2,6 +2,7 @@ package dk.sdu.cloud.app
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.app.api.AppServiceDescription
+import dk.sdu.cloud.app.services.JobsTable
 import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
@@ -12,6 +13,8 @@ import io.ktor.server.engine.embeddedServer
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SchemaUtils.create
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 
 data class DatabaseConfiguration(
