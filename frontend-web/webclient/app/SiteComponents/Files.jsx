@@ -1,10 +1,12 @@
 import React from "react";
+import PropTypes from "prop-types";
+import { connect } from 'react-redux'
 import {BallPulseLoading} from "./LoadingIcon";
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from "react-router-dom";
 import {Button, Table} from "react-bootstrap";
 import {PaginationButtons, EntriesPerPageSelector} from "./Pagination";
-import {buildBreadCrumbs} from "./Breadcrumbs";
+import {BreadCrumbs} from "./Breadcrumbs";
 import {
     sortFilesByTypeAndName,
     createFolder,
@@ -26,30 +28,18 @@ import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
-import PromiseKeeper from "../PromiseKeeper"
+import PromiseKeeper from "../PromiseKeeper";
+import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
 
 class Files extends React.Component {
-    constructor(props) {
+    constructor(props, context) {
         super(props);
-        let pathname = props.location.pathname.slice("/files/".length); // Remove prepended /files/ from pathname
-        let currentPath = !pathname.length ? Cloud.homeFolder : pathname;
+        let path = props.location.pathname.slice("/files/".length);
+        if (path) {
+            props.dispatch(updatePath(path));
+        }
         this.state = {
-            keeperOfPromises: new PromiseKeeper(),
-            files: [],
-            loading: false,
-            totalPages: () => Math.ceil(this.state.files.length / this.state.filesPerPage),
-            currentPage: 0,
-            filesPerPage: 10,
-            masterCheckbox: false,
-            currentPath: currentPath,
             uploadFileOpen: false,
-            sortingFunctions: {
-                typeAndName: sortFilesByTypeAndName,
-                modifiedAt: sortFilesByModified,
-                favorite: sortFilesByFavorite,
-                owner: sortFilesByOwner,
-                sensitivity: sortFilesBySensitivity,
-            },
             lastSorting: {
                 name: "typeAndName",
                 asc: true,
@@ -67,39 +57,20 @@ class Files extends React.Component {
                 }
             }),
         };
-        this.getFavorites = this.getFavorites.bind(this);
-        this.getFiles = this.getFiles.bind(this);
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
-        this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
-        this.getCurrentFiles = this.getCurrentFiles.bind(this);
-        this.toPage = this.toPage.bind(this);
-        this.previousPage = this.previousPage.bind(this);
-        this.nextPage = this.nextPage.bind(this);
         this.handleClose = this.handleClose.bind(this);
         this.handleOpen = this.handleOpen.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.getSortingIcon = this.getSortingIcon.bind(this);
-        this.favoriteFile = this.favoriteFile.bind(this);
         this.componentWillReceiveProps = this.componentWillReceiveProps.bind(this);
     }
-
-    favoriteFile(filePath) {
-        this.setState(() => ({
-            files: favorite(this.state.files.slice(), filePath, Cloud),
-        }));
-    }
-
+    
     getSortingIcon(name) {
         if (this.state.lastSorting.name === name) {
             return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
         }
         return "";
-    }
-
-    componentWillReceiveProps(nextProps) {
-        let newPath = nextProps.location.pathname.slice("/files/".length);
-        this.getFiles(newPath);
     }
 
     handleOpen() {
@@ -115,132 +86,48 @@ class Files extends React.Component {
     }
 
     selectOrDeselectAllFiles(checked) {
-        let currentPage = this.state.currentPage;
-        let filesPerPage = this.state.filesPerPage;
-        let files = this.state.files.slice();
+        const { currentFilesPage, filesPerPage, files, dispatch } = this.props;
         files.forEach(file => file.isChecked = false);
         if (checked) {
-            let selectedFiles = files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
+            let selectedFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage);
             selectedFiles.forEach(file => file.isChecked = true);
-            this.setState(() => ({
-                files: files,
-                masterCheckbox: true,
-            }));
-        } else {
-            this.setState(() => ({
-                files: files,
-                masterCheckbox: false,
-            }));
         }
+        dispatch(updateFiles(files));
     }
 
     addOrRemoveFile(checked, newFile) {
-        let files = this.state.files.slice();
+        const {files, currentPage, filesPerPage, dispatch} = this.props;
         files.find(file => file.path.path === newFile.path.path).isChecked = checked;
-        let currentPage = this.state.currentPage;
-        let filesPerPage = this.state.filesPerPage;
-        let currentlyShownFiles = this.state.files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
-        let selectedFilesCount = currentlyShownFiles.filter(file => file.isChecked).length;
+        dispatch(updateFiles(files));
+    }
+
+    sortFilesBy(fileSorting, sortingFunction) {
+        const {files, dispatch, filesPerPage} = this.props;
+        const asc = (this.state.lastSorting.name === fileSorting) ? !this.state.lastSorting.asc : true;
+        const sortedFiles = sortingFunction(files, asc);
+        if (sortedFiles.length > filesPerPage) { sortedFiles.forEach((file) => file.isChecked = false); }
+        dispatch(updateFiles(sortedFiles));
         this.setState(() => ({
-            files: files,
-            masterCheckbox: currentlyShownFiles.length === selectedFilesCount,
+            lastSorting: { name: fileSorting, asc: asc }
         }));
-    }
-
-    handlePageSizeSelection(newPageSize) {
-        const files = this.state.files.slice();
-        files.forEach(file => file.isChecked = false);
-        this.setState(() => ({
-            files: files,
-            filesPerPage: newPageSize,
-            masterCheckbox: false,
-        }));
-    }
-
-    getFiles(path) {
-        this.setState({
-            loading: true,
-        });
-        const queryPath = !path ? this.state.currentPath : path;
-        this.state.keeperOfPromises.makeCancelable(Cloud.get(`files?path=${queryPath}`)).promise.then((res) => {
-            let files = res.response;
-            files.forEach(file => file.isChecked = false);
-            this.setState(() => ({
-                files: this.state.sortingFunctions[this.state.lastSorting.name](files, this.state.lastSorting.asc),
-                currentPath: queryPath,
-                loading: false,
-            }));
-        });
-    }
-
-    sortFilesBy(fileSorting) {
-        let asc = (this.state.lastSorting.name === fileSorting) ? !this.state.lastSorting.asc : true;
-        let files = this.state.sortingFunctions[fileSorting](this.state.files, asc);
-        this.setState(() => ({
-            files: files,
-            lastSorting: {
-                name: fileSorting,
-                asc: asc,
-            },
-        }));
-    }
-
-    toPage(n) {
-        let files = this.state.files;
-        files.forEach(file => file.isChecked = false);
-        this.setState(() => ({
-            files: files,
-            currentPage: n,
-            masterCheckbox: false,
-        }));
-    }
-
-    getCurrentFiles() {
-        let filesPerPage = this.state.filesPerPage;
-        let currentPage = this.state.currentPage;
-        return this.state.files.slice(currentPage * filesPerPage, currentPage * filesPerPage + filesPerPage);
-    }
-
-    nextPage() {
-        let files = this.state.files.slice();
-        files.forEach(file => file.isChecked = false);
-        this.setState(() => ({
-            files: files,
-            currentPage: this.state.currentPage + 1,
-            masterCheckbox: false,
-        }));
-    }
-
-    previousPage() {
-        let files = this.state.files.slice();
-        files.forEach(file => file.isChecked = false);
-        this.setState(() => ({
-            files: files,
-            currentPage: this.state.currentPage - 1,
-            masterCheckbox: false,
-        }));
-    }
-
-    getFavorites() {
-        this.setState({
-            loading: true,
-        });
-        this.state.keeperOfPromises.makeCancelable(Cloud.get(`files?path=${Cloud.homeFolder}`)).promise.then((files) => {
-            files.forEach(file => file.isChecked = false);
-            let favorites = files.filter(file => file.favorited);
-            this.setState(() => ({
-                files: this.state.sortingFunctions.typeAndName(favorites, true),
-                loading: false,
-                currentPath: currentPath,
-            }));
-        });
     }
 
     componentWillMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
         this.state.uppy.use(Uppy.Tus, tusConfig);
         this.state.uppy.run();
-        this.getFiles();
+        const { dispatch, path } = this.props;
+        dispatch(setLoading(true));
+        dispatch(fetchFiles(path, sortFilesByTypeAndName, true));
+    }
+
+    componentWillReceiveProps(nextProps) {
+        const {dispatch, path} = this.props;
+        let newPath = nextProps.location.pathname.slice("/files/".length);
+        if ((!newPath && path === Cloud.homeFolder) || (newPath === path)) { return; }
+        dispatch(setLoading(true));
+        dispatch(fetchFiles(newPath ? newPath : Cloud.homeFolder, sortFilesByTypeAndName, true));
+        dispatch(updatePath(newPath ? newPath : Cloud.homeFolder));
     }
 
     componentWillUnmount() {
@@ -251,40 +138,41 @@ class Files extends React.Component {
             result.uppy.close();
             return result;
         });
-        this.state.keeperOfPromises.cancelPromises();
     }
 
-
     render() {
+        const {dispatch, files, filesPerPage, currentFilesPage, path, filesLoading, history} = this.props;
+        const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage);
+        const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
         return (
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <Breadcrumbs getFiles={this.getFiles} path={this.state.currentPath}/>
-                        <FilesTable files={this.getCurrentFiles()} loading={this.state.loading}
-                                    masterCheckbox={this.state.masterCheckbox} sortingIcon={this.getSortingIcon}
-                                    favorite={this.favoriteFile} addOrRemoveFile={this.addOrRemoveFile}
+                        <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)}/>
+                        <FilesTable files={shownFiles} loading={filesLoading}
+                                    masterCheckbox={masterCheckboxChecked} sortingIcon={this.getSortingIcon}
+                                    addOrRemoveFile={this.addOrRemoveFile}
                                     sortFiles={this.sortFilesBy}
+                                    favoriteFile={(filePath) => dispatch(updateFiles(favorite(files, filePath, Cloud)))}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
-                        <BallPulseLoading loading={this.state.loading}/>
+                        <BallPulseLoading loading={filesLoading}/>
                         <PaginationButtons
-                            currentPage={this.state.currentPage}
-                            totalPages={this.state.totalPages}
-                            nextPage={this.nextPage}
-                            previousPage={this.previousPage}
-                            toPage={this.toPage}/>
+                            currentPage={currentFilesPage}
+                            totalEntries={this.props.files.length}
+                            entriesPerPage={filesPerPage}
+                            toPage={pageNumber => dispatch(toPage(pageNumber))}/>
                         <EntriesPerPageSelector entriesPerPage={this.state.filesPerPage}
-                                                handlePageSizeSelection={this.handlePageSizeSelection}/> Files per page
+                                                handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}/> Files per page
                     </div>
-                    <ContextBar selectedFiles={this.state.files.filter(file => file.isChecked)}
-                                currentPath={this.state.currentPath}
+                    <ContextBar selectedFiles={shownFiles.filter(file => file.isChecked)}
+                                currentPath={path}
                                 getFavorites={this.getFavorites}
                                 onClick={this.handleOpen}/>
                 </div>
                 <DashboardModal uppy={this.state.uppy} open={this.state.uploadFileOpen} closeModalOnClickOutside
                                 onRequestClose={this.handleClose}/>
             </section>)
-    }
+    } // TODO: Remove dashboard modal from this and move it to root.
 }
 
 const ContextBar = (props) => (
@@ -313,74 +201,57 @@ const ContextBar = (props) => (
     </div>
 );
 
-const Breadcrumbs = ({path}) => {
-    if (!path) {
+const FileOptions = ({selectedFiles, ...props}) => {
+    if (!selectedFiles.length) {
         return null;
     }
-    const pathsMapping = buildBreadCrumbs(path);
-    let i = 0;
-    let breadcrumbs = pathsMapping.map(path =>
-        <li key={i++} className="breadcrumb-item">
-            <Link to={`/files/${path.actualPath}`}>{path.local}</Link>
-        </li>
-    );
-    return (
-        <ol className="breadcrumb">
-            {breadcrumbs}
-        </ol>)
-};
-
-const FileOptions = (props) => {
-    if (!props.selectedFiles.length) {
-        return null;
-    }
-    let rights = getCurrentRights(props.selectedFiles, Cloud);
+    let rights = getCurrentRights(selectedFiles, Cloud);
     let fileText = "";
-    if (props.selectedFiles.length > 1) {
-        fileText = `${props.selectedFiles.length} files selected.`;
+    if (selectedFiles.length > 1) {
+        fileText = `${selectedFiles.length} files selected.`;
     } else {
-        let filename = props.selectedFiles[0].path.name;
+        let filename = selectedFiles[0].path.name;
         if (filename.length > 10) {
             fileText = filename.slice(0, 17) + "...";
         } else {
             fileText = filename;
         }
     }
-    const downloadDisabled = (props.selectedFiles.length > 1 || props.selectedFiles[0].sensitivityLevel === "SENSITIVE");
+    const downloadDisabled = (selectedFiles.length > 1 || selectedFiles[0].sensitivityLevel === "SENSITIVE");
     return (
         <div>
             <h3>{fileText}</h3>
             <p>
-                <Link disabled={props.selectedFiles.length !== 1} className="btn btn-primary ripple btn-block"
-                      to={`/fileInfo/${props.selectedFiles[0].path.path}/`}><span
+                <Link disabled={selectedFiles.length !== 1} className="btn btn-primary ripple btn-block"
+                      to={`/fileInfo/${selectedFiles[0].path.path}/`}><span
                     className="ion-ios-settings-strong pull-left"/>Properties</Link>
             </p>
             <p>
                 <Button type="button" className="btn btn-default ripple btn-block"
-                        disabled={props.selectedFiles.length > 1}
-                        onClick={() => shareFile(props.selectedFiles[0].path, Cloud)}><span
+                        disabled={selectedFiles.length > 1}
+                        onClick={() => shareFile(selectedFiles[0].path, Cloud)}><span
                     className="ion-share pull-left"/> Share
                 </Button>
             </p>
             <p>
                 <Button disabled={downloadDisabled} className="btn btn-default ripple btn-block"
-                        onClick={() => downloadFile(props.selectedFiles[0].path.path, Cloud)}>
+                        onClick={() => downloadFile(selectedFiles[0].path.path, Cloud)}>
                     <span className="ion-ios-download pull-left"/>
                     Download
                 </Button>
             </p>
             <p>
                 <Button type="button" className="btn btn-default btn-block ripple"
-                        onClick={() => renameFile(props.selectedFiles[0].path)}
-                        disabled={rights.rightsLevel < 3 || props.selectedFiles.length !== 1}>
+                        onClick={() => renameFile(selectedFiles[0].path)}
+                        disabled={rights.rightsLevel < 3 || selectedFiles.length !== 1}>
                     <span className="ion-ios-compose pull-left"/>
                     Rename
                 </Button>
             </p>
             <p>
                 <Button className="btn btn-danger btn-block ripple"
-                        disabled={rights.rightsLevel < 3 || props.selectedFiles.length > 1}
-                        onClick={() => showFileDeletionPrompt(props.selectedFiles[0].path)}>
+                        disabled={rights.rightsLevel < 3 || selectedFiles.length > 1}
+                        onClick={() => showFileDeletionPrompt(selectedFiles[0].path)}>
                     <em className="ion-ios-trash pull-left"/>
                     Delete
                 </Button>
@@ -412,22 +283,22 @@ const FilesTable = (props) => {
                                    checked={props.masterCheckbox}
                                    type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e.target.checked)}/><em
                             className="bg-info"/></label></th>
-                        <th onClick={() => props.sortFiles("typeAndName")}><span className="text-left">Filename<span
+                        <th onClick={() => props.sortFiles("typeAndName", sortFilesByTypeAndName)}><span className="text-left">Filename<span
                             className={"pull-right " + props.sortingIcon("typeAndName")}/></span>
                         </th>
-                        <th onClick={() => props.sortFiles("favorite")}><span><em className="ion-star"/><span
+                        <th onClick={() => props.sortFiles("favorite", sortFilesByFavorite)}><span><em className="ion-star"/><span
                             className={"pull-right " + props.sortingIcon("favorite")}/></span></th>
-                        <th onClick={() => props.sortFiles("modifiedAt")}><span className="text-left">Last Modified<span
+                        <th onClick={() => props.sortFiles("modifiedAt", sortFilesByModified)}><span className="text-left">Last Modified<span
                             className={"pull-right " + props.sortingIcon("modifiedAt")}/></span></th>
-                        <th onClick={() => props.sortFiles("owner")}><span className="text-left">File Rights<span
+                        <th onClick={() => props.sortFiles("owner", sortFilesByOwner)}><span className="text-left">File Rights<span
                             className={"pull-right " + props.sortingIcon("owner")}/></span>
                         </th>
-                        <th onClick={() => props.sortFiles("sensitivity")}><span
+                        <th onClick={() => props.sortFiles("sensitivity", sortFilesBySensitivity)}><span
                             className="text-left">Sensitivity Level<span
                             className={"pull-right " + props.sortingIcon("sensitivity")}/></span></th>
                     </tr>
                     </thead>
-                    <FilesList files={props.files} favorite={props.favorite}
+                    <FilesList files={props.files} favoriteFile={props.favoriteFile}
                                selectedFiles={props.selectedFiles}
                                addOrRemoveFile={props.addOrRemoveFile}/>
                 </Table>
@@ -435,13 +306,13 @@ const FilesTable = (props) => {
         </div>)
 };
 
-const FilesList = ({files, addOrRemoveFile, favorite}) => {
+const FilesList = ({files, addOrRemoveFile, favoriteFile}) => {
     let filesList = files.map((file, index) => {
         if (file.type === "DIRECTORY") {
             return <Directory key={index} file={file} addOrRemoveFile={addOrRemoveFile}
-                              favorite={favorite} owner={getOwnerFromAcls(file.acl, Cloud)}/>
+                              favoriteFile={favoriteFile} owner={getOwnerFromAcls(file.acl, Cloud)}/>
         } else {
-            return <File key={index} file={file} addOrRemoveFile={addOrRemoveFile} favorite={favorite}
+            return <File key={index} file={file} addOrRemoveFile={addOrRemoveFile} favoriteFile={favoriteFile}
                          owner={getOwnerFromAcls(file.acl, Cloud)}/>
         }
     });
@@ -452,14 +323,14 @@ const FilesList = ({files, addOrRemoveFile, favorite}) => {
     )
 };
 
-const File = ({file, favorite, addOrRemoveFile, owner}) => (
+const File = ({file, favoriteFile, addOrRemoveFile, owner}) => (
         <tr className="row-settings clickable-row">
             <td className="select-cell"><label className="mda-checkbox">
                 <input name="select" className="select-box" checked={file.isChecked}
                        type="checkbox" onChange={(e) => addOrRemoveFile(e.target.checked, file)}/>
                 <em className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
-            <Favorited file={file} favorite={favorite}/>
+            <Favorited file={file} favoriteFile={favoriteFile}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
             <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
@@ -469,7 +340,7 @@ const File = ({file, favorite, addOrRemoveFile, owner}) => (
         </tr>
 );
 
-const Directory = ({file, favorite, addOrRemoveFile, owner}) => (
+const Directory = ({file, favoriteFile, addOrRemoveFile, owner}) => (
         <tr className="row-settings clickable-row"
             style={{cursor: "pointer"}}>
             <td className="select-cell"><label className="mda-checkbox">
@@ -477,7 +348,7 @@ const Directory = ({file, favorite, addOrRemoveFile, owner}) => (
                        type="checkbox" onChange={(e) => addOrRemoveFile(e.target.checked, file)}/><em
                 className="bg-info"/></label></td>
             <FileType type={file.type} path={file.path}/>
-            <Favorited file={file} favorite={favorite}/>
+            <Favorited file={file} favoriteFile={favoriteFile}/>
             <td>{new Date(file.modifiedAt).toLocaleString()}</td>
             <td>{owner}</td>
             <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
@@ -492,10 +363,10 @@ const FileType = ({type, path}) =>
         (<td><span className="ion-android-document"/> {path.name}</td>) :
         (<td><Link to={`/files/${path.path}`}><span className="ion-android-folder"/> {path.name}</Link></td>);
 
-const Favorited = ({file, favorite}) =>
+const Favorited = ({file, favoriteFile}) =>
     file.favorited ?
-        (<td><a onClick={() => favorite(file.path.path)} className="ion-star"/></td>) :
-        (<td><a className="ion-ios-star-outline" onClick={() => favorite(file.path.path)}/></td>);
+        (<td><a onClick={() => favoriteFile(file.path.path)} className="ion-star"/></td>) :
+        (<td><a className="ion-ios-star-outline" onClick={() => favoriteFile(file.path.path)}/></td>);
 
 const MobileButtons = ({file}) =>
     (<span className="hidden-lg">
@@ -521,4 +392,24 @@ const MobileButtons = ({file}) =>
         </span>
     );
 
-export default Files;
+
+Files.propTypes = {
+    files: PropTypes.array.isRequired,
+    filesPerPage: PropTypes.number.isRequired,
+    currentFilesPage: PropTypes.number.isRequired,
+    favFilesCount: PropTypes.number.isRequired,
+    checkedFilesCount: PropTypes.number.isRequired,
+    filesLoading: PropTypes.bool.isRequired,
+    path: PropTypes.string.isRequired
+}
+
+const mapStateToProps = (state) => {
+    const { files, filesPerPage, currentFilesPage, filesLoading, path } = state.files;
+    const favFilesCount = files.filter(file => file.favorited).length; // Hack to ensure changes to favorites are rendered.
+    const checkedFilesCount = files.filter(file => file.isChecked).length; // Hack to ensure changes to favorites are rendered.
+    return {
+        files, filesPerPage, currentFilesPage, filesLoading, path, favFilesCount, checkedFilesCount
+    }
+};
+
+export default connect(mapStateToProps)(Files);

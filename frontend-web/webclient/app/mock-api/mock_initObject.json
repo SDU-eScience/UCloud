@@ -2,8 +2,6 @@
   "rc": "success",
   "initUi": {
     "fullName": "Jonas Malte Hinchely",
-    "noDataObjectCollections": 7,
-    "noProjects": 6,
     "diskSpaceMb": 100,
     "noSystemroles": 1,
     "noMessages": 10,

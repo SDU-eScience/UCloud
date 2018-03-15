@@ -31,7 +31,6 @@ class Analyses extends React.Component {
     componentDidMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
         this.getAnalyses(false);
-
         let reloadIntervalId = setInterval(() => {
             this.getAnalyses(true)
         }, 10000);
@@ -116,7 +115,8 @@ class Analyses extends React.Component {
                                 </Table>
                             </div>
                         </Card>
-                        <PaginationButtons totalPages={this.state.totalPages} currentPage={this.state.currentPage}
+                        <PaginationButtons entriesPerPage={this.state.analysesPerPage} totalEntries={this.state.analyses.length}
+                                           currentPage={this.state.currentPage}
                                            toPage={this.toPage} nextPage={this.nextPage}
                                            previousPage={this.previousPage}/>
                         <EntriesPerPageSelector entriesPerPage={this.state.analysesPerPage}

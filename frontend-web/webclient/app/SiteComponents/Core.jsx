@@ -2,6 +2,7 @@ import React from "react";
 import "./Core.scss";
 import "./LayoutVariants.scss";
 import {Switch, Route} from "react-router-dom";
+import PropTypes from "prop-types";
 import Files from "./Files";
 import FileInfo from "./FileInfo";
 import Workflows from "./Applications/Workflows";
@@ -54,6 +55,11 @@ class Core extends React.Component {
             </div>
         );
     }
+}
+
+
+Core.contextTypes = {
+    store: PropTypes.object,
 }
 
 export default Core;

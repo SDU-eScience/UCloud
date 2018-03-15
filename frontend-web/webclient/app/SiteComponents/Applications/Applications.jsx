@@ -15,7 +15,6 @@ class Applications extends React.Component {
             promises: new PromiseKeeper(),
             loading: false,
             applications: [],
-            totalPages: () => Math.ceil(this.state.applications.length / this.state.applicationsPerPage),
             currentPage: 0,
             applicationsPerPage: 10,
             lastSorting: {
@@ -166,8 +165,9 @@ class Applications extends React.Component {
                             </div>
                         </Card>
                         <PaginationButtons
+                            entriesPerPage={this.state.applicationsPerPage}
                             currentPage={this.state.currentPage}
-                            totalPages={this.state.totalPages}
+                            totalEntries={this.state.applications.length}
                             nextPage={this.nextPage}
                             previousPage={this.previousPage}
                         />

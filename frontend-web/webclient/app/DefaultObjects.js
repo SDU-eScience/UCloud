@@ -1,39 +1,51 @@
-const DefaultStatus = {
+import {Cloud} from "../authentication/SDUCloudObject"
+
+export const DefaultStatus = {
     title: "No Issues",
     level: "NO ISSUES",
     body: "The system is running as intended.",
 };
 
-const RightsMap = {
+export const RightsMap = {
     NONE: 0,
     READ: 1,
     READ_WRITE: 2,
     OWN: 3,
 };
 
-const AnalysesStatusMap = {
+export const AnalysesStatusMap = {
     "PENDING": 0,
     "IN PROGRESS": 1,
     "COMPLETED": 2,
 };
 
-const RightsNameMap = {
+export const RightsNameMap = {
     NONE: "None",
     READ: "Read",
     READ_WRITE: "Read/Write",
     OWN: "Own",
 };
 
-const SensitivityLevel = {
+export const SensitivityLevel = {
     "OPEN_ACCESS": "Open Access",
     "CONFIDENTIAL": "Confidential",
     "SENSITIVE": "Sensitive",
 };
 
-const SensitivityLevelMap = {
+export const SensitivityLevelMap = {
     "OPEN_ACCESS": 0,
     "CONFIDENTIAL": 1,
     "SENSITIVE": 2,
 };
 
-export {DefaultStatus, RightsMap, SensitivityLevel, SensitivityLevelMap, RightsNameMap, AnalysesStatusMap}
+export const initObject = {
+    files: {
+        files: [],
+        filesShown: 10,
+        filesPerPage: 10,
+        currentFilesPage: 0,
+        filesLoading: true,
+        path: Cloud.homeFolder,
+        projects: []
+    }
+}
