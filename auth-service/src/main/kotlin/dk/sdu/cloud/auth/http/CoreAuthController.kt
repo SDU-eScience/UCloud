@@ -59,27 +59,6 @@ class CoreAuthController(
                     name: String, text: String, iconType: String,
                     type: String = "text"
                 ) {
-                    /*
-                    div(classes = "mda-form-group float-label mda-input-group") {
-                        div(classes = "mda-form-control") {
-                            input(classes = "form-control") {
-                                this.type = InputType.valueOf(type)
-                                this.name = name
-                                this.id = name
-                            }
-
-                            div(classes = "mda-form-control-line")
-
-                            label {
-                                htmlFor = name
-                                +text
-                            }
-                        }
-                        span(classes = "mda-input-group-addon") {
-                            em(classes = "ion-ios-$iconType icon-lg")
-                        }
-                    }
-                    */
                     div(classes = "input-group") {
                         span(classes = "input-group-addon") {
                             i(classes = "glyphicon glyphicon-$iconType")
