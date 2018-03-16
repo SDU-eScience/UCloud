@@ -1,7 +1,7 @@
 import React from 'react'
 import {BallPulseLoading} from './LoadingIcon'
 import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
-import {Table} from 'react-bootstrap'
+import {Table, Row} from 'react-bootstrap'
 import pubsub from "pubsub-js";
 import {Link} from "react-router-dom";
 import {Cloud} from '../../authentication/SDUCloudObject'
@@ -72,7 +72,7 @@ class Dashboard extends React.Component {
         this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(req => {
             this.setState(() => ({
                 analysesLoading: false,
-                recentAnalyses: req.response.slice(0, 10),
+                recentAnalyses: req.response.items.slice(0, 10),
             }));
         });
     }
@@ -97,11 +97,13 @@ class Dashboard extends React.Component {
         return (
             <section>
                 <div className="container-fluid">
-                    <DashboardFavoriteFiles files={this.state.favoriteFiles} isLoading={this.state.favoriteLoading}
-                                            favorite={this.favoriteOrUnfavorite}/>
-                    <DashboardRecentFiles files={this.state.recentFiles} isLoading={this.state.recentLoading}/>
-                    <DashboardAnalyses analyses={this.state.recentAnalyses} isLoading={this.state.analysesLoading}/>
-                    <DashboardRecentActivity activities={this.state.activity} isLoading={this.state.activityLoading}/>
+                    <Row>
+                        <DashboardFavoriteFiles files={this.state.favoriteFiles} isLoading={this.state.favoriteLoading}
+                                                favorite={this.favoriteOrUnfavorite}/>
+                        <DashboardRecentFiles files={this.state.recentFiles} isLoading={this.state.recentLoading}/>
+                        <DashboardAnalyses analyses={this.state.recentAnalyses} isLoading={this.state.analysesLoading}/>
+                        <DashboardRecentActivity activities={this.state.activity} isLoading={this.state.activityLoading}/>
+                    </Row>
                 </div>
             </section>
         )
