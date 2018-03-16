@@ -1,4 +1,6 @@
 import {Cloud} from "../authentication/SDUCloudObject"
+import Uppy from "uppy";
+import {tusConfig} from "./Configurations";
 
 export const DefaultStatus = {
     title: "No Issues",
@@ -45,7 +47,22 @@ export const initObject = {
         filesPerPage: 10,
         currentFilesPage: 0,
         filesLoading: true,
-        path: Cloud.homeFolder,
+        path: `${Cloud.homeFolder}/`,
         projects: []
+    },
+    uppy: {
+        uppy: Uppy.Core({
+            autoProceed: false,
+            debug: false,
+            meta: {
+                sensitive: false,
+            },
+            onBeforeUpload: () => {
+                return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
+                    tusConfig.headers["Authorization"] = "Bearer " + data;
+                });
+            }
+        }),
+        uppyOpen: false,
     }
 }

@@ -5,7 +5,7 @@ import { RECEIVE_FILES, UPDATE_FILES_PER_PAGE, UPDATE_FILES, SET_LOADING, UPDATE
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
 * and implicitely sets @filesLoading to false in the reducer when the files are fetched.
 */
-export const fetchFiles = (path, sorting, sortAscending) =>
+export const fetchFiles = (path, sorting, sortAscending) => 
   Cloud.get(`files?path=${path}`).then((res) => {
       let files = res.response;
       files.forEach(file => file.isChecked = false);
@@ -21,7 +21,7 @@ export const toPage = (pageNumber) => ({
 })
 
 /*
-* Updates the files stored. Intended for use when sorting the files, for instance.
+* Updates the files stored. Intended for use when sorting the files, checking or favoriting, for instance.
 */
 export const updateFiles = (files) => {
   return {

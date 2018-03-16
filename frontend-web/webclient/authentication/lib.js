@@ -219,7 +219,7 @@ export default class SDUCloud {
                 if (req.status === 200) {
                     resolve(JSON.parse(req.response));
                 } else {
-                    reject(req.status, req.response);
+                    reject(req.status, JSON.parse(req.response));
                 }
             };
             req.send();

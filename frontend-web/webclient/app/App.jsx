@@ -12,11 +12,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { connect, Provider } from "react-redux";
-import { createStore } from "redux";
+import { createStore, combineReducers } from "redux";
 import { BrowserRouter } from "react-router-dom";
 import Core from './SiteComponents/Core';
 import { Cloud } from "../authentication/SDUCloudObject";
 import files from "./Reducers/Files";
+import uppyReducers from "./Reducers/UppyReducers";
 import { initObject } from "./DefaultObjects"
 
 window.onload = () => {
@@ -34,8 +35,10 @@ const addPromiseSupportToDispatch = (store) => {
     };
 };
 
+const rootReducer = combineReducers({files, uppy: uppyReducers});
+
 const configureStore = () => {
-    let store = createStore(files, initObject);
+    let store = createStore(rootReducer, initObject);
     store.dispatch = addPromiseSupportToDispatch(store);
     return store;
 };

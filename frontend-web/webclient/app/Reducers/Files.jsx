@@ -9,22 +9,22 @@ export const TO_PAGE = "TO_PAGE";
 const files = (state = [], action) => {
     switch (action.type) {
         case RECEIVE_FILES: {
-            return { ...state, files: { ...state.files, files: action.files, filesLoading: false, path: action.path }};
+            return { ...state, files: action.files, filesLoading: false, path: action.path };
         }
         case UPDATE_FILES_PER_PAGE: {
-            return { ...state, files: { ...state.files, files: action.files, filesPerPage: action.filesPerPage } };
+            return { ...state, files: action.files, filesPerPage: action.filesPerPage };
         }
         case UPDATE_FILES: {
-            return { ...state, files: { ...state.files, files: action.files }};
+            return { ...state, files: action.files};
         }
         case SET_LOADING: {
-            return { ...state, files: { ...state.files, filesLoading: action.loading }};
+            return { ...state, filesLoading: action.loading };
         }
         case UPDATE_PATH: {
-            return { ...state, files: { ...state.files, path: action.path }};
+            return { ...state, path: action.path };
         }
         case TO_PAGE: {
-            return { ...state, files: { ...state.files, currentFilesPage: action.pageNumber }};
+            return { ...state, currentFilesPage: action.pageNumber };
         }
         default: {
             return state;

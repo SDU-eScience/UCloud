@@ -28,8 +28,9 @@ import Uppy from "uppy";
 import {DashboardModal} from "uppy/lib/react";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
-import PromiseKeeper from "../PromiseKeeper";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
+import { changeUppyOpen } from "../Actions/UppyActions";
+
 
 class Files extends React.Component {
     constructor(props, context) {
@@ -44,18 +45,6 @@ class Files extends React.Component {
                 name: "typeAndName",
                 asc: true,
             },
-            uppy: Uppy.Core({
-                autoProceed: false,
-                debug: false,
-                meta: {
-                    sensitive: false,
-                },
-                onBeforeUpload: () => {
-                    return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
-                        tusConfig.headers["Authorization"] = "Bearer " + data;
-                    });
-                }
-            }),
         };
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
@@ -114,8 +103,8 @@ class Files extends React.Component {
 
     componentWillMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
-        this.state.uppy.use(Uppy.Tus, tusConfig);
-        this.state.uppy.run();
+        this.props.uppy.use(Uppy.Tus, tusConfig);
+        this.props.uppy.run();
         const { dispatch, path } = this.props;
         dispatch(setLoading(true));
         dispatch(fetchFiles(path, sortFilesByTypeAndName, true));
@@ -124,20 +113,13 @@ class Files extends React.Component {
     componentWillReceiveProps(nextProps) {
         const {dispatch, path} = this.props;
         let newPath = nextProps.location.pathname.slice("/files/".length);
-        if ((!newPath && path === Cloud.homeFolder) || (newPath === path)) { return; }
+        if ((!newPath && path === `${Cloud.homeFolder}/`) || (newPath === path)) { return; }
         dispatch(setLoading(true));
-        dispatch(fetchFiles(newPath ? newPath : Cloud.homeFolder, sortFilesByTypeAndName, true));
-        dispatch(updatePath(newPath ? newPath : Cloud.homeFolder));
+        dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
     }
 
     componentWillUnmount() {
-        this.setState(() => {
-            let result = {
-                uppy: this.state.uppy,
-            };
-            result.uppy.close();
-            return result;
-        });
+        this.props.uppy.close();
     }
 
     render() {
@@ -161,16 +143,16 @@ class Files extends React.Component {
                             totalEntries={this.props.files.length}
                             entriesPerPage={filesPerPage}
                             toPage={pageNumber => dispatch(toPage(pageNumber))}/>
-                        <EntriesPerPageSelector entriesPerPage={this.state.filesPerPage}
+                        <EntriesPerPageSelector entriesPerPage={filesPerPage}
                                                 handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}/> Files per page
                     </div>
                     <ContextBar selectedFiles={shownFiles.filter(file => file.isChecked)}
                                 currentPath={path}
                                 getFavorites={this.getFavorites}
-                                onClick={this.handleOpen}/>
+                                onClick={open => dispatch(changeUppyOpen(open))}/>
                 </div>
-                <DashboardModal uppy={this.state.uppy} open={this.state.uploadFileOpen} closeModalOnClickOutside
-                                onRequestClose={this.handleClose}/>
+                <DashboardModal uppy={this.props.uppy} open={this.props.uppyOpen} closeModalOnClickOutside
+                                onRequestClose={() => dispatch(changeUppyOpen(false))}/>
             </section>)
     } // TODO: Remove dashboard modal from this and move it to root.
 }
@@ -186,7 +168,7 @@ const ContextBar = (props) => (
             </div>
             <hr/>
             <button className="btn btn-primary btn-block"
-                    onClick={props.onClick}>
+                    onClick={() => props.onClick(true)}>
                 <span className="ion-android-upload pull-left"/> Upload Files
             </button>
             <br/>
@@ -400,15 +382,18 @@ Files.propTypes = {
     favFilesCount: PropTypes.number.isRequired,
     checkedFilesCount: PropTypes.number.isRequired,
     filesLoading: PropTypes.bool.isRequired,
-    path: PropTypes.string.isRequired
+    path: PropTypes.string.isRequired,
+    uppy: PropTypes.object.isRequired,
+    uppyOpen: PropTypes.bool.isRequired,
 }
 
 const mapStateToProps = (state) => {
     const { files, filesPerPage, currentFilesPage, filesLoading, path } = state.files;
+    const { uppy, uppyOpen } = state.uppy;
     const favFilesCount = files.filter(file => file.favorited).length; // Hack to ensure changes to favorites are rendered.
-    const checkedFilesCount = files.filter(file => file.isChecked).length; // Hack to ensure changes to favorites are rendered.
+    const checkedFilesCount = files.filter(file => file.isChecked).length; // Hack to ensure changes to file checkings are rendered.
     return {
-        files, filesPerPage, currentFilesPage, filesLoading, path, favFilesCount, checkedFilesCount
+        files, filesPerPage, currentFilesPage, filesLoading, path, uppy, uppyOpen, favFilesCount, checkedFilesCount
     }
 };
 
