@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.utils.Bytes
@@ -12,7 +13,6 @@ import org.apache.kafka.streams.kstream.Serialized
 import org.apache.kafka.streams.state.QueryableStoreTypes
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore
 import org.apache.kafka.streams.state.StreamsMetadata
-import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import java.nio.ByteBuffer
 
 interface StreamDescription<K, V> {
@@ -25,19 +25,19 @@ interface StreamDescription<K, V> {
 }
 
 class SimpleStreamDescription<Key, Value>(
-        override val name: String,
-        override val keySerde: Serde<Key>,
-        override val valueSerde: Serde<Value>
+    override val name: String,
+    override val keySerde: Serde<Key>,
+    override val valueSerde: Serde<Value>
 ) : StreamDescription<Key, Value> {
     fun groupByKey(builder: StreamsBuilder): KGroupedStream<Key, Value> =
-            stream(builder).groupByKey(Serialized.with(keySerde, valueSerde))
+        stream(builder).groupByKey(Serialized.with(keySerde, valueSerde))
 }
 
 class MappedStreamDescription<K, V>(
-        override val name: String,
-        override val keySerde: Serde<K>,
-        override val valueSerde: Serde<V>,
-        val mapper: (V) -> K
+    override val name: String,
+    override val keySerde: Serde<K>,
+    override val valueSerde: Serde<V>,
+    val mapper: (V) -> K
 ) : StreamDescription<K, V>
 
 class TableDescription<Key, Value>(val name: String, val keySerde: Serde<Key>, val valueSerde: Serde<Value>) {
@@ -46,7 +46,7 @@ class TableDescription<Key, Value>(val name: String, val keySerde: Serde<Key>, v
     }
 
     fun localKeyValueStore(streams: KafkaStreams): ReadOnlyKeyValueStore<Key, Value> =
-            streams.store(name, QueryableStoreTypes.keyValueStore<Key, Value>())
+        streams.store(name, QueryableStoreTypes.keyValueStore<Key, Value>())
 }
 
 data class KafkaRequest<out EventType>(val header: RequestHeader, val event: EventType) {
@@ -56,34 +56,34 @@ data class KafkaRequest<out EventType>(val header: RequestHeader, val event: Eve
 }
 
 data class RequestHeader(
-        val uuid: String,
-        val performedFor: RawAuthToken
+    val uuid: String,
+    val performedFor: RawAuthToken
 )
 
 typealias RawAuthToken = String
 
 abstract class KafkaDescriptions {
     inline fun <reified K : Any, reified V : Any> stream(
-            topicName: String,
-            keySerde: Serde<K> = defaultSerdeOrJson(),
-            valueSerde: Serde<V> = defaultSerdeOrJson()
+        topicName: String,
+        keySerde: Serde<K> = defaultSerdeOrJson(),
+        valueSerde: Serde<V> = defaultSerdeOrJson()
     ): StreamDescription<K, V> {
         return SimpleStreamDescription(topicName, keySerde, valueSerde)
     }
 
     inline fun <reified K : Any, reified V : Any> stream(
-            topicName: String,
-            keySerde: Serde<K> = defaultSerdeOrJson(),
-            valueSerde: Serde<V> = defaultSerdeOrJson(),
-            noinline keyMapper: (V) -> K
+        topicName: String,
+        keySerde: Serde<K> = defaultSerdeOrJson(),
+        valueSerde: Serde<V> = defaultSerdeOrJson(),
+        noinline keyMapper: (V) -> K
     ): MappedStreamDescription<K, V> {
         return MappedStreamDescription(topicName, keySerde, valueSerde, keyMapper)
     }
 
     inline fun <reified K : Any, reified V : Any> table(
-            topicName: String,
-            keySerde: Serde<K> = defaultSerdeOrJson(),
-            valueSerde: Serde<V> = defaultSerdeOrJson()
+        topicName: String,
+        keySerde: Serde<K> = defaultSerdeOrJson(),
+        valueSerde: Serde<V> = defaultSerdeOrJson()
     ): TableDescription<K, V> {
         return TableDescription(topicName, keySerde, valueSerde)
     }

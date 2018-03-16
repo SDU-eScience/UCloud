@@ -7,44 +7,45 @@ import org.slf4j.LoggerFactory
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.ConnectionConfig")
 
 data class KafkaHostConfig(
-        val hostname: String,
-        val port: Int = 9092
+    val hostname: String,
+    val port: Int = 9092
 ) {
     override fun toString(): String = "$hostname:$port"
 }
 
 data class DatabaseConfiguration(
-        val url: String,
-        val driver: String,
-        val username: String,
-        val password: String
+    val url: String,
+    val driver: String,
+    val username: String,
+    val password: String
 )
 
 data class KafkaConnectionConfig(val servers: List<KafkaHostConfig>)
 
 data class RawServiceConnectionConfig(
-        val hostname: String,
-        val port: Int
+    val hostname: String,
+    val port: Int
 )
 
 data class ServiceConnectionConfig(
-        val description: ServiceDescription,
-        val hostname: String,
-        val port: Int
+    val description: ServiceDescription,
+    val hostname: String,
+    val port: Int
 )
 
 data class RawConnectionConfig(
-        // All private to encourage correct usage
-        private val kafka: KafkaConnectionConfig,
-        private val service: RawServiceConnectionConfig?,
-        private val database: DatabaseConfiguration?
+    // All private to encourage correct usage
+    private val kafka: KafkaConnectionConfig,
+    private val service: RawServiceConnectionConfig?,
+    private val database: DatabaseConfiguration?
 ) {
     @get:JsonIgnore
     private var _processed: ConnectionConfig? = null
 
     @get:JsonIgnore
-    val processed: ConnectionConfig get() =
-        _processed ?: throw NullPointerException("Not yet configured. Use configure()")
+    val processed: ConnectionConfig
+        get() =
+            _processed ?: throw NullPointerException("Not yet configured. Use configure()")
 
     fun configure(description: ServiceDescription, defaultPort: Int = -1): ConnectionConfig {
         val existing = _processed
@@ -77,8 +78,8 @@ data class RawConnectionConfig(
             }
 
             log.debug("Attempting to retrieve hostname through hostname executable")
-            return exec { command("hostname") }.lines().firstOrNull() ?:
-                    throw IllegalStateException("Unable to retrieve hostname")
+            return exec { command("hostname") }.lines().firstOrNull()
+                    ?: throw IllegalStateException("Unable to retrieve hostname")
         }
     }
 
@@ -90,7 +91,7 @@ data class RawConnectionConfig(
 }
 
 data class ConnectionConfig(
-        val kafka: KafkaConnectionConfig,
-        val service: ServiceConnectionConfig,
-        val database: DatabaseConfiguration?
+    val kafka: KafkaConnectionConfig,
+    val service: ServiceConnectionConfig,
+    val database: DatabaseConfiguration?
 )

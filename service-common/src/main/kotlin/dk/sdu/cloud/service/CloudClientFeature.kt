@@ -6,9 +6,7 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.ApplicationFeature
 import io.ktor.application.call
-import io.ktor.http.HttpHeaders
 import io.ktor.pipeline.PipelineContext
-import io.ktor.request.header
 import io.ktor.util.AttributeKey
 import org.asynchttpclient.BoundRequestBuilder
 import java.util.*
@@ -51,7 +49,7 @@ private class KtorCallBoundAuthenticatedCloud(
         get() = delegate.parent
 
     override fun BoundRequestBuilder.configureCall() {
-        with (delegate) { configureCall() }
+        with(delegate) { configureCall() }
 
         val jobId = call.request.safeJobId
         if (jobId != null) {

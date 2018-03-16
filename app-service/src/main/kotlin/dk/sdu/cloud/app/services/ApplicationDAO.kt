@@ -5,7 +5,7 @@ import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.NameAndVersion
 
 object ApplicationDAO {
-    val inMemoryDB = mutableMapOf(
+    val inMemoryDB: MutableMap<String, List<ApplicationDescription>> = mutableMapOf(
         "figlet" to listOf(
             ApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
@@ -15,7 +15,7 @@ object ApplicationDAO {
                 description = "Render some text!",
                 tool = NameAndVersion("figlet", "1.0.0"),
                 info = NameAndVersion("figlet", "1.0.0"),
-                invocation = listOf(VariableInvocationParameter(listOf("text"))),
+                invocation = listOf(WordInvocationParameter("figlet"), VariableInvocationParameter(listOf("text"))),
                 parameters = listOf(
                     ApplicationParameter.Text(
                         name = "text",
@@ -25,7 +25,7 @@ object ApplicationDAO {
                         description = "Some text to render with figlet"
                     )
                 ),
-                outputFileGlobs = listOf("output.txt")
+                outputFileGlobs = listOf("stdout.txt")
             )
         ),
 
@@ -39,6 +39,7 @@ object ApplicationDAO {
                 tool = NameAndVersion("parms", "1.0.0"),
                 info = NameAndVersion("parms", "1.0.0"),
                 invocation = listOf(
+                    WordInvocationParameter("parms"),
                     VariableInvocationParameter(variableNames = listOf("input"), prefixVariable = "-i "),
                     WordInvocationParameter("-o output.json")
                 ),
@@ -265,6 +266,162 @@ object ApplicationDAO {
                     )
                 ),
                 outputFileGlobs = listOf("output.json")
+            )
+        ),
+
+        "tqdist_triplet" to listOf(
+            ApplicationDescription(
+                tool = NameAndVersion("tqdist", "1.0.1"),
+                info = NameAndVersion("tqdist_triplet", "1.0.1"),
+                prettyName = "tqDist: Triplet Distance",
+                authors = listOf(
+                    "Andreas Sand",
+                    "Morten K. Holt",
+                    "Jens Johansen",
+                    "Gerth Stølting Brodal",
+                    "Thomas Mailund",
+                    "Christian N.S. Pedersen"
+                ),
+                createdAt = 1521121661000L,
+                modifiedAt = 1521121661000L,
+                description = """
+                    Distance measures between trees are useful for comparing trees in a systematic manner and
+                    several different distance measures have been proposed. The triplet and quartet distances, for
+                    rooted and unrooted trees, are defined as the number of subsets of three or four leaves,
+                    respectively, where the topologies of the induced sub-trees differ. These distances can trivially
+                    be computed by explicitly enumerating all sets of three or four leaves and testing if the
+                    topologies are different, but this leads to time complexities at least of the order n³ or n⁴ just
+                    for enumerating the sets. The different topologies can be counted implicitly, however, and using
+                    this tqDist computes the triplet distance between rooted trees in O(n log n) time and the quartet
+                    distance between unrooted trees in O(dn log n) time, where d degree of the tree with the smallest
+                    degree.
+                """.trimIndent(),
+                invocation = listOf(
+                    WordInvocationParameter("triplet_dist"),
+                    BooleanFlagParameter("verbose", "-v"),
+                    VariableInvocationParameter(listOf("tree_one", "tree_two"))
+                ),
+                parameters = listOf(
+                    ApplicationParameter.InputFile(name = "tree_one", optional = false, prettyName = "Tree One"),
+                    ApplicationParameter.InputFile(name = "tree_two", optional = false, prettyName = "Tree Two"),
+                    ApplicationParameter.Bool(
+                        name = "verbose",
+                        optional = true,
+                        defaultValue = true,
+                        prettyName = "Verbose",
+                        description = """
+                        If the -v option is used, the following numbers will be reported (in this order):
+
+                          - The number of leaves in the trees (should be the same for both).
+                          - The number of triplets in the two trees (n choose 3).
+                          - The triplet distance between the two trees.
+                          - The normalized triplet distance between the two trees.
+                          - The number of resolved triplets that agree in the two trees.
+                          - The normalized number of resolved triplets that agree in the two trees.
+                          - The number triplets that are unresolved in both trees.
+                          - The normalized number triplets that are unresolved in both trees.
+                    """.trimIndent()
+                    )
+                ),
+                outputFileGlobs = listOf("stdout.txt")
+            )
+        ),
+
+        "tqdist_quartet" to listOf(
+            ApplicationDescription(
+                tool = NameAndVersion("tqdist", "1.0.1"),
+                info = NameAndVersion("tqdist_quartet", "1.0.1"),
+                prettyName = "tqDist: Quartet Distance",
+                authors = listOf(
+                    "Andreas Sand",
+                    "Morten K. Holt",
+                    "Jens Johansen",
+                    "Gerth Stølting Brodal",
+                    "Thomas Mailund",
+                    "Christian N.S. Pedersen"
+                ),
+                createdAt = 1521121661000L,
+                modifiedAt = 1521121661000L,
+                description = """
+                    Distance measures between trees are useful for comparing trees in a systematic manner and
+                    several different distance measures have been proposed. The triplet and quartet distances, for
+                    rooted and unrooted trees, are defined as the number of subsets of three or four leaves,
+                    respectively, where the topologies of the induced sub-trees differ. These distances can trivially
+                    be computed by explicitly enumerating all sets of three or four leaves and testing if the
+                    topologies are different, but this leads to time complexities at least of the order n³ or n⁴ just
+                    for enumerating the sets. The different topologies can be counted implicitly, however, and using
+                    this tqDist computes the triplet distance between rooted trees in O(n log n) time and the quartet
+                    distance between unrooted trees in O(dn log n) time, where d degree of the tree with the smallest
+                    degree.
+                """.trimIndent(),
+                invocation = listOf(
+                    WordInvocationParameter("quartet_dist"),
+                    BooleanFlagParameter("verbose", "-v"),
+                    VariableInvocationParameter(listOf("tree_one", "tree_two"))
+                ),
+                parameters = listOf(
+                    ApplicationParameter.InputFile(name = "tree_one", optional = false, prettyName = "Tree One"),
+                    ApplicationParameter.InputFile(name = "tree_two", optional = false, prettyName = "Tree Two"),
+                    ApplicationParameter.Bool(
+                        name = "verbose",
+                        optional = true,
+                        defaultValue = true,
+                        prettyName = "Verbose",
+                        description = """
+                            If the -v option is used, the following numbers will be reported (in this order):
+
+                              - The number of leaves in the trees (should be the same for both).
+                              - The number of quartets in the two trees (n choose 4).
+                              - The quartet distance between the two trees.
+                              - The normalized quartet distance between the two trees.
+                              - The number of resolved quartets that agree in the two trees.
+                              - The normalized number of resolved quartets that agree in the two trees.
+                              - The number of quartets that are unresolved in both trees.
+                              - The normalized number of quartets that are unresolved in both trees.
+                        """.trimIndent()
+                    )
+                ),
+                outputFileGlobs = listOf("stdout.txt")
+            )
+        ),
+
+        "rapidnj" to listOf(
+            ApplicationDescription(
+                tool = NameAndVersion("rapidnj", "2.3.2"),
+                info = NameAndVersion("rapidnj", "2.3.2"),
+                prettyName = "RapidNJ",
+                authors = listOf(
+                    "Martin Simonsen",
+                    "Thomas Mailund",
+                    "Christian N. S. Pedersen"
+                ),
+                createdAt = 1521121661000L,
+                modifiedAt = 1521121661000L,
+                description = """
+                    RapidNJ is an algorithmic engineered implementation of canonical neighbour-joining. It uses an
+                    efficient search heuristic to speed-up the core computations of the neighbour-joining method that
+                    enables RapidNJ to outperform other state-of-the-art neighbour-joining implementations
+                """.trimIndent(),
+
+                invocation = listOf(
+                    WordInvocationParameter("rapidnj"),
+                    VariableInvocationParameter(listOf("file")),
+                    VariableInvocationParameter(listOf("format"), prefixVariable = "-i ")
+                ),
+
+                parameters = listOf(
+                    ApplicationParameter.InputFile("file", optional = false, prettyName = "Input File"),
+                    ApplicationParameter.Text(
+                        "format",
+                        optional = true,
+                        prettyName = "Input Format",
+                        description = "The program can usually guess the input format, otherwise this option can be " +
+                                "used to choose between different formats. To infer a tree from an alignment in " +
+                                "Stockholm format use 'sth'."
+                    )
+                ),
+
+                outputFileGlobs = listOf("stdout.txt")
             )
         )
     )

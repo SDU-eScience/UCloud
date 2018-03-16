@@ -20,8 +20,8 @@ import kotlin.math.min
 import kotlin.reflect.KClass
 
 class EventProducer<in K, in V>(
-        private val producer: KafkaProducer<String, String>,
-        private val description: StreamDescription<K, V>
+    private val producer: KafkaProducer<String, String>,
+    private val description: StreamDescription<K, V>
 ) {
     val topicName: String get() = description.name
 
@@ -42,8 +42,8 @@ class EventProducer<in K, in V>(
 }
 
 class MappedEventProducer<in K, in V>(
-        producer: KafkaProducer<String, String>,
-        private val description: MappedStreamDescription<K, V>
+    producer: KafkaProducer<String, String>,
+    private val description: MappedStreamDescription<K, V>
 ) {
     private val delegate = EventProducer(producer, description)
 
@@ -54,66 +54,66 @@ class MappedEventProducer<in K, in V>(
 }
 
 fun <K, V> KafkaProducer<String, String>.forStream(description: StreamDescription<K, V>): EventProducer<K, V> =
-        EventProducer(this, description)
+    EventProducer(this, description)
 
 fun <K, V> KafkaProducer<String, String>.forStream(
-        description: MappedStreamDescription<K, V>
+    description: MappedStreamDescription<K, V>
 ): MappedEventProducer<K, V> = MappedEventProducer(this, description)
 
 fun <K, V> StreamsBuilder.stream(description: StreamDescription<K, V>): KStream<K, V> =
-        stream(description.name, Consumed.with(description.keySerde, description.valueSerde))
+    stream(description.name, Consumed.with(description.keySerde, description.valueSerde))
 
 fun <K, V> StreamsBuilder.table(description: StreamDescription<K, V>): KTable<K, V> =
-        table(description.name, Consumed.with(description.keySerde, description.valueSerde))
+    table(description.name, Consumed.with(description.keySerde, description.valueSerde))
 
 fun <K, V, A> StreamsBuilder.aggregate(
-        description: StreamDescription<K, V>,
-        tableDescription: TableDescription<K, A>,
-        initializer: () -> A? = { null },
-        aggregate: (K, V, A?) -> A
+    description: StreamDescription<K, V>,
+    tableDescription: TableDescription<K, A>,
+    initializer: () -> A? = { null },
+    aggregate: (K, V, A?) -> A
 ): KTable<K, A> {
     val materializedAs = Materialized.`as`<K, A, KeyValueStore<Bytes, ByteArray>>(tableDescription.name)
-            .withKeySerde(tableDescription.keySerde)
-            .withValueSerde(tableDescription.valueSerde)
+        .withKeySerde(tableDescription.keySerde)
+        .withValueSerde(tableDescription.valueSerde)
 
     return stream(description).groupByKey(Serialized.with(description.keySerde, description.valueSerde)).aggregate(
-            initializer,
-            aggregate,
-            materializedAs
+        initializer,
+        aggregate,
+        materializedAs
     )
 }
 
 fun <K, V, A> KGroupedStream<K, V>.aggregate(
-        target: TableDescription<K, A>,
-        initializer: () -> A? = { null },
-        aggregate: (K, V, A?) -> A
+    target: TableDescription<K, A>,
+    initializer: () -> A? = { null },
+    aggregate: (K, V, A?) -> A
 ) {
     val materializedAs = Materialized.`as`<K, A, KeyValueStore<Bytes, ByteArray>>(target.name)
-            .withKeySerde(target.keySerde)
-            .withValueSerde(target.valueSerde)
+        .withKeySerde(target.keySerde)
+        .withValueSerde(target.valueSerde)
     aggregate(initializer, aggregate, materializedAs)
 }
 
 fun <K, V : Any, R : V> KStream<K, V>.filterIsInstance(klass: KClass<R>) =
-        filter { _, value -> klass.isInstance(value) }.mapValues {
-            @Suppress("UNCHECKED_CAST")
-            it as R
-        }
+    filter { _, value -> klass.isInstance(value) }.mapValues {
+        @Suppress("UNCHECKED_CAST")
+        it as R
+    }
 
 fun <K, V> KStream<K, V>.toTable(): KTable<K, V> = groupByKey().reduce { _, newValue -> newValue }
 fun <K, V> KStream<K, V>.toTable(keySerde: Serde<K>, valSerde: Serde<V>): KTable<K, V> =
-        groupByKey(Serialized.with(keySerde, valSerde)).reduce { _, newValue -> newValue }
+    groupByKey(Serialized.with(keySerde, valSerde)).reduce { _, newValue -> newValue }
 
 fun <K, V> KStream<K, V>.through(description: StreamDescription<K, V>): KStream<K, V> =
-        through(description.name, Produced.with(description.keySerde, description.valueSerde))
+    through(description.name, Produced.with(description.keySerde, description.valueSerde))
 
 fun <K, V> KStream<K, V>.to(description: StreamDescription<K, V>) {
     to(description.name, Produced.with(description.keySerde, description.valueSerde))
 }
 
 class KafkaServices(
-        private val streamsConfig: Properties,
-        val producer: KafkaProducer<String, String>
+    private val streamsConfig: Properties,
+    val producer: KafkaProducer<String, String>
 ) {
     fun build(block: Topology): KafkaStreams {
         return KafkaStreams(block, streamsConfig)
@@ -126,8 +126,8 @@ object KafkaUtil {
     }
 
     fun retrieveKafkaStreamsConfiguration(
-            kafkaConnectionConfig: KafkaConnectionConfig,
-            serviceConfig: ServiceConnectionConfig
+        kafkaConnectionConfig: KafkaConnectionConfig,
+        serviceConfig: ServiceConnectionConfig
     ): Properties = Properties().apply {
         this[StreamsConfig.APPLICATION_ID_CONFIG] = serviceConfig.description.name
         this[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaConnectionConfig.servers.joinToString(",") { it.toString() }
@@ -154,10 +154,10 @@ object KafkaUtil {
      * It is possible to change the configuration used by passing either [streamsConfigBody] or [producerConfigBody]
      */
     inline fun createKafkaServices(
-            configuration: ServerConfiguration,
-            streamsConfigBody: (Properties) -> Unit = {},
-            producerConfigBody: (Properties) -> Unit = {},
-            log: Logger = LoggerFactory.getLogger(KafkaUtil::class.java)
+        configuration: ServerConfiguration,
+        streamsConfigBody: (Properties) -> Unit = {},
+        producerConfigBody: (Properties) -> Unit = {},
+        log: Logger = LoggerFactory.getLogger(KafkaUtil::class.java)
     ): KafkaServices {
         log.info("Connecting to Kafka")
         val streamsConfig = retrieveKafkaStreamsConfiguration(configuration.connConfig).also(streamsConfigBody)

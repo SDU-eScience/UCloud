@@ -47,7 +47,7 @@ class SBatchGenerator {
             module add singularity
             $modules
 
-            srun singularity run -C -H ${safeBashArgument(workDir)} ${safeBashArgument(tool.container)} $invocation
+            srun singularity exec -C -H ${safeBashArgument(workDir)} ${safeBashArgument(tool.container)} $invocation 2> ${safeBashArgument(workDir + "/stderr.txt")} > ${safeBashArgument(workDir + "/stdout.txt")}
             """.trimIndent()
 
         return batchJob
