@@ -16,13 +16,13 @@ import kotlinx.coroutines.experimental.async
 import org.slf4j.LoggerFactory
 
 @JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = "type"
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = "type"
 )
 @JsonSubTypes(
-        JsonSubTypes.Type(value = HttpProxyCallLogEntry::class, name = "proxy"),
-        JsonSubTypes.Type(value = HttpRequestHandledEntry::class, name = "request")
+    JsonSubTypes.Type(value = HttpProxyCallLogEntry::class, name = "proxy"),
+    JsonSubTypes.Type(value = HttpRequestHandledEntry::class, name = "request")
 )
 sealed class HttpCallLogEntry {
     abstract val jobId: String
@@ -31,46 +31,46 @@ sealed class HttpCallLogEntry {
 
 // Added by the gateway. If we see a proxy entry but no request entry we know that something went wrong between them
 data class HttpProxyCallLogEntry(
-        override val jobId: String,
-        override val handledBy: ServiceInstance,
+    override val jobId: String,
+    override val handledBy: ServiceInstance,
 
-        val userAgent: String?,
-        val origin: String
+    val userAgent: String?,
+    val origin: String
 ) : HttpCallLogEntry()
 
 // Hide sensitive information (i.e. the signature) and keep just the crucial information
 // We can still infer which JWT was used (from sub, iat, and exp should limit the number of JWTs to one). From this
 // we can determine which refreshToken was used to generate it.
 data class LogEntryPrincipal(
-        val id: String,
-        val role: String,
+    val id: String,
+    val role: String,
 
-        val tokenIssuedAt: Long,
-        val tokenExpiresAt: Long
+    val tokenIssuedAt: Long,
+    val tokenExpiresAt: Long
 )
 
 // Added by the server
 data class HttpRequestHandledEntry(
-        override val jobId: String,
-        override val handledBy: ServiceInstance,
-        val causedBy: String?,
+    override val jobId: String,
+    override val handledBy: ServiceInstance,
+    val causedBy: String?,
 
-        val requestName: String,
-        val httpMethod: String,
-        val uri: String,
-        val userAgent: String?,
-        val remoteOrigin: String,
+    val requestName: String,
+    val httpMethod: String,
+    val uri: String,
+    val userAgent: String?,
+    val remoteOrigin: String,
 
-        val principal: LogEntryPrincipal?,
-        val requestContentType: String?,
-        val requestSize: Long,
-        val requestJson: Any?,
+    val principal: LogEntryPrincipal?,
+    val requestContentType: String?,
+    val requestSize: Long,
+    val requestJson: Any?,
 
-        val responseCode: Int,
-        val responseTime: Long,
-        val responseContentType: String,
-        val responseSize: Long,
-        val responseJson: Any?
+    val responseCode: Int,
+    val responseTime: Long,
+    val responseContentType: String,
+    val responseSize: Long,
+    val responseJson: Any?
 ) : HttpCallLogEntry()
 
 // TODO(Dan): The amount of data we send through these are going to be rather large.
@@ -112,8 +112,8 @@ class KafkaHttpRouteLogger {
     }
 
     private suspend fun interceptAfter(
-            context: PipelineContext<Any, ApplicationCall>,
-            message: Any
+        context: PipelineContext<Any, ApplicationCall>,
+        message: Any
     ) = with(context) {
         loadFromParentFeature()
 
@@ -159,16 +159,18 @@ class KafkaHttpRouteLogger {
         async {
             val token = bearerToken?.let { TokenValidation.validateOrNull(it) }
             val principal = if (token != null) {
-                LogEntryPrincipal(token.subject, token.getClaim("role").asString(),
-                        token.issuedAt.time, token.expiresAt.time)
+                LogEntryPrincipal(
+                    token.subject, token.getClaim("role").asString(),
+                    token.issuedAt.time, token.expiresAt.time
+                )
             } else {
                 null
             }
 
             val entry = HttpRequestHandledEntry(
-                    jobId, serviceDescription, causedBy, requestName, method, uri, userAgent, remoteOrigin, principal,
-                    requestContentType, requestContentLength, requestPayload, statusCode, responseTime,
-                    responseContentType, responseSize, responsePayload
+                jobId, serviceDescription, causedBy, requestName, method, uri, userAgent, remoteOrigin, principal,
+                requestContentType, requestContentLength, requestPayload, statusCode, responseTime,
+                responseContentType, responseSize, responsePayload
             )
 
             producer.emit(jobId, entry)
@@ -184,8 +186,8 @@ class KafkaHttpRouteLogger {
         override val key: AttributeKey<KafkaHttpRouteLogger> = AttributeKey("kafka-http-route-log")
 
         override fun install(
-                pipeline: ApplicationCallPipeline,
-                configure: KafkaHttpRouteLogger.() -> Unit
+            pipeline: ApplicationCallPipeline,
+            configure: KafkaHttpRouteLogger.() -> Unit
         ): KafkaHttpRouteLogger {
             val feature = KafkaHttpRouteLogger()
             feature.configure()
@@ -205,13 +207,13 @@ class KafkaHttpLogger {
     companion object Feature : ApplicationFeature<ApplicationCallPipeline, KafkaHttpLogger, KafkaHttpLogger> {
         override val key: AttributeKey<KafkaHttpLogger> = AttributeKey("kafka-http-logger")
         val httpLogsStream = SimpleStreamDescription<String, HttpCallLogEntry>(
-                "http.logs", defaultSerdeOrJson(),
-                defaultSerdeOrJson()
+            "http.logs", defaultSerdeOrJson(),
+            defaultSerdeOrJson()
         )
 
         override fun install(
-                pipeline: ApplicationCallPipeline,
-                configure: KafkaHttpLogger.() -> Unit
+            pipeline: ApplicationCallPipeline,
+            configure: KafkaHttpLogger.() -> Unit
         ): KafkaHttpLogger {
             val feature = KafkaHttpLogger()
             feature.configure()

@@ -35,11 +35,11 @@ object RESTServerSupport {
 private var didComplainAboutMissingKafkaLogger = false
 
 fun <P : Any, S : Any, E : Any> Route.implement(
-        restCall: RESTCallDescription<P, S, E>,
-        logPayload: Boolean = true,
-        logResponse: Boolean = true,
-        payloadTransformerForLog: (P) -> Any = { it },
-        handler: suspend RESTHandler<P, S, E>.(P) -> Unit
+    restCall: RESTCallDescription<P, S, E>,
+    logPayload: Boolean = true,
+    logResponse: Boolean = true,
+    payloadTransformerForLog: (P) -> Any = { it },
+    handler: suspend RESTHandler<P, S, E>.(P) -> Unit
 ) {
     val template = restCall.path.toKtorTemplate(fullyQualified = false)
     route(template) {
@@ -50,8 +50,10 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
-                    log.warn("NO Kafka logging will be performed without this feature present. The implement " +
-                            "call was placed here:")
+                    log.warn(
+                        "NO Kafka logging will be performed without this feature present. The implement " +
+                                "call was placed here:"
+                    )
                     log.debug("Use RESTServerSupport.allowMissingKafkaHttpLogger = true to suppress this message")
                     try {
                         throw RuntimeException()
@@ -121,13 +123,13 @@ fun <P : Any, S : Any, E : Any> Route.implement(
 
                     if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
                         val constructor =
-                                restCall.requestType.primaryConstructor ?: restCall.requestType.constructors.single()
+                            restCall.requestType.primaryConstructor ?: restCall.requestType.constructors.single()
 
                         val resolvedArguments = constructor.parameters.map {
                             val name = it.name ?: run {
                                 throw IllegalStateException(
-                                        "Unable to determine name of property in request " +
-                                                "type. Please use a data class instead to solve this problem."
+                                    "Unable to determine name of property in request " +
+                                            "type. Please use a data class instead to solve this problem."
                                 )
                             }
 
@@ -215,8 +217,8 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): P
 }
 
 class RESTHandler<P : Any, in S : Any, in E : Any>(
-        val boundTo: PipelineContext<*, ApplicationCall>,
-        val shouldLogResponse: Boolean = true
+    val boundTo: PipelineContext<*, ApplicationCall>,
+    val shouldLogResponse: Boolean = true
 ) {
     val call: ApplicationCall get() = boundTo.call
     val application: Application get() = boundTo.application
@@ -295,7 +297,10 @@ fun <R : Any> RESTQueryParameter<R>.bindValuesFromCall(call: ApplicationCall): P
                         }
 
                         else -> {
-                            call.application.conversionService.fromValues(listOf(parameter), property.returnType.javaType)
+                            call.application.conversionService.fromValues(
+                                listOf(parameter),
+                                property.returnType.javaType
+                            )
                         }
                     }
                 } catch (ex: DataConversionException) {

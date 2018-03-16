@@ -16,9 +16,9 @@ interface ServerConfiguration {
 }
 
 inline fun <reified T : ServerConfiguration> readConfigurationBasedOnArgs(
-        args: Array<String>,
-        serviceDescription: ServiceDescription,
-        log: Logger = LoggerFactory.getLogger(T::class.java)
+    args: Array<String>,
+    serviceDescription: ServiceDescription,
+    log: Logger = LoggerFactory.getLogger(T::class.java)
 ): T {
     log.info("Reading configuration...")
     val configMapper = jacksonObjectMapper().apply {
@@ -32,8 +32,10 @@ inline fun <reified T : ServerConfiguration> readConfigurationBasedOnArgs(
     val configFile = File(configFilePath)
     log.debug("Using path: $configFilePath. This has resolved to: ${configFile.absolutePath}")
     if (!configFile.exists()) {
-        throw IllegalStateException("Unable to find configuration file. Attempted to locate it at: " +
-                configFile.absolutePath)
+        throw IllegalStateException(
+            "Unable to find configuration file. Attempted to locate it at: " +
+                    configFile.absolutePath
+        )
     }
 
     return configMapper.readValue<T>(configFile).also {
