@@ -50,11 +50,11 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
                     log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
+                    log.debug("Use RESTServerSupport.allowMissingKafkaHttpLogger = true to suppress this message")
                     log.warn(
                         "NO Kafka logging will be performed without this feature present. The implement " +
                                 "call was placed here:"
                     )
-                    log.debug("Use RESTServerSupport.allowMissingKafkaHttpLogger = true to suppress this message")
                     try {
                         throw RuntimeException()
                     } catch (ex: RuntimeException) {

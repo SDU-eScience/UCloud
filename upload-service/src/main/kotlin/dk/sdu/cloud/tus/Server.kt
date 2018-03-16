@@ -1,6 +1,7 @@
 package dk.sdu.cloud.tus
 
 import dk.sdu.cloud.auth.api.JWTProtection
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.ext.irods.ICAT
@@ -29,7 +30,7 @@ class Server(
     private val kafka: KafkaServices,
     private val serviceRegistry: ServiceRegistry,
     private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticator,
+    private val cloud: RefreshingJWTAuthenticatedCloud,
     private val shouldBench: Boolean
 ) {
     private lateinit var httpServer: ApplicationEngine

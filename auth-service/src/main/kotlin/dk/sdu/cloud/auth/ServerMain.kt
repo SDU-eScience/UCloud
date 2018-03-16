@@ -143,7 +143,8 @@ fun main(args: Array<String>) {
             val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
             val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
-            val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), "TODO") // TODO FIXME!!!
+            // TODO FIXME!!!
+            val cloud = RefreshingJWTAuthenticatedCloud(defaultServiceClient(args, serviceRegistry), "TODO")
 
             AuthServer(
                 jwtAlg = Algorithm.RSA256(null, priv),

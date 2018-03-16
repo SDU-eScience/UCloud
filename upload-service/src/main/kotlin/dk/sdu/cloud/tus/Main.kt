@@ -1,6 +1,7 @@
 package dk.sdu.cloud.tus
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
@@ -47,7 +48,7 @@ fun main(args: Array<String>) {
     val serviceRegistry = ServiceRegistry(TusServiceDescription.instance(configuration.connConfig))
     log.info("Connected to Service Registry")
 
-    val cloud = RefreshingJWTAuthenticator(DirectServiceClient(serviceRegistry), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticatedCloud(DirectServiceClient(serviceRegistry), configuration.refreshToken)
 
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(CIO, port = configuration.connConfig.service.port, module = block)

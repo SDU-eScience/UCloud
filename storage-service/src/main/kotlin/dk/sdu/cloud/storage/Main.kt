@@ -1,6 +1,7 @@
 package dk.sdu.cloud.storage
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
@@ -65,7 +66,10 @@ fun main(args: Array<String>) {
         )
     }
 
-    val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticatedCloud(
+        defaultServiceClient(args, serviceRegistry),
+        configuration.refreshToken
+    )
 
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)

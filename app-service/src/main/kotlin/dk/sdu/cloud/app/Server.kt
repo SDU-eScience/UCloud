@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.http.ToolController
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.auth.api.JWTProtection
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
@@ -26,7 +27,7 @@ import java.util.concurrent.TimeUnit
 class Server(
     private val kafka: KafkaServices,
     private val serviceRegistry: ServiceRegistry,
-    private val cloud: RefreshingJWTAuthenticator,
+    private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: HPCConfig,
     private val ktor: HttpServerProvider,
     private val storageConnectionFactory: StorageConnectionFactory

@@ -14,12 +14,12 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 
 class RefreshingJWTAuthenticator(
-    override val parent: CloudContext,
+    cloud: CloudContext,
     refreshToken: String
-) : AuthenticatedCloud {
+) {
     private val lock = Any()
     private var currentAccessToken = "~~token will not validate~~"
-    private val refreshAuthenticator = RefreshTokenAuthenticator(parent, refreshToken)
+    private val refreshAuthenticator = RefreshTokenAuthenticator(cloud, refreshToken)
 
     fun retrieveTokenRefreshIfNeeded(): String {
         log.debug("retrieveTokenRefreshIfNeeded()")
@@ -31,11 +31,6 @@ class RefreshingJWTAuthenticator(
             log.debug("Using currentToken: $tempToken")
             tempToken
         }
-    }
-
-    override fun BoundRequestBuilder.configureCall() {
-        val actualToken = retrieveTokenRefreshIfNeeded()
-        setHeader("Authorization", "Bearer $actualToken")
     }
 
     private fun refresh(): String {
@@ -85,6 +80,18 @@ class RefreshingJWTAuthenticator(
 
     companion object {
         private val log = LoggerFactory.getLogger(RefreshingJWTAuthenticator::class.java)
+    }
+}
+
+class RefreshingJWTAuthenticatedCloud(
+    override val parent: CloudContext,
+    refreshToken: String
+) : AuthenticatedCloud {
+    val tokenRefresher = RefreshingJWTAuthenticator(parent, refreshToken)
+
+    override fun BoundRequestBuilder.configureCall() {
+        val actualToken = tokenRefresher.retrieveTokenRefreshIfNeeded()
+        setHeader("Authorization", "Bearer $actualToken")
     }
 }
 

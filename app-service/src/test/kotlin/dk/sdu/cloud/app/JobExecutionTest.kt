@@ -7,7 +7,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.*
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.MappedEventProducer
@@ -42,7 +42,7 @@ class JobExecutionTest {
     val sBatchGenerator = SBatchGenerator()
 
     @RelaxedMockK
-    lateinit var cloud: RefreshingJWTAuthenticator
+    lateinit var cloud: RefreshingJWTAuthenticatedCloud
 
     @RelaxedMockK
     lateinit var producer: MappedEventProducer<String, AppEvent>
