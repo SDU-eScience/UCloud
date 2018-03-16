@@ -43,7 +43,7 @@ class Applications extends React.Component {
         this.state.promises.makeCancelable(Cloud.get("/hpc/apps")).promise.then(req => {
             this.setState(() => ({
                 applications: req.response.sort((a, b) => {
-                    return a.info.name.localeCompare(b.info.name)
+                    return a.prettyName.localeCompare(b.prettyName)
                 }),
                 loading: false
             }));
@@ -62,7 +62,7 @@ class Applications extends React.Component {
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
-            return (a.info.isPrivate - b.info.isPrivate) * order;
+            return (a.isPrivate - b.isPrivate) * order;
         });
         this.setState(() => ({
             applications: apps,
@@ -78,7 +78,7 @@ class Applications extends React.Component {
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
-            return a.info.name.localeCompare(b.info.name) * order;
+            return a.prettyName.localeCompare(b.prettyName) * order;
         });
         this.setState(() => ({
             applications: apps,
@@ -195,8 +195,8 @@ const ApplicationsList = (props) => {
 const SingleApplication = (props) => (
     <tr className="gradeA row-settings">
         <PrivateIcon isPrivate={props.app.info.isPrivate}/>
-        <td title={props.app.info.description}>{props.app.info.name}</td>
-        <td title={props.app.info.description}>{props.app.info.version}</td>
+        <td title={props.app.description}>{props.app.prettyName}</td>
+        <td title={props.app.description}>{props.app.info.version}</td>
         <th>
             <Link to={`/applications/${props.app.info.name}/${props.app.info.version}/`}>
                 <Button className="btn btn-info">Run</Button>
