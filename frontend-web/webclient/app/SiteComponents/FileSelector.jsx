@@ -1,6 +1,6 @@
 import React from 'react';
 import {BallPulseLoading} from './LoadingIcon';
-import {Modal, Button, Breadcrumb, Table} from 'react-bootstrap';
+import {Modal, Button, Table} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {BreadCrumbs} from "./Breadcrumbs"
 import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
@@ -38,7 +38,7 @@ class FileSelector extends React.Component {
             let apiIndex = uploadURL.indexOf("/api/");
             if (apiIndex === -1) throw "Did not expect upload URL to not contain /api/";
 
-            let apiEndpoint = uploadURL.substring(apiIndex + 5)
+            let apiEndpoint = uploadURL.substring(apiIndex + 5);
 
             Cloud.head(apiEndpoint).then(it => {
                 console.log("Got a response back!");
@@ -137,7 +137,7 @@ class FileSelector extends React.Component {
         }
         return (
             <div>
-                <div className="input-group col-sm-12">
+                <div className="input-group">
                     <span className="input-group-btn">
                         <Button onClick={this.openModal}
                                 type="button"

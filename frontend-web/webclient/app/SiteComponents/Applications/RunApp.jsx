@@ -7,8 +7,6 @@ import {BallPulseLoading} from "../LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import {tusConfig} from "../../Configurations";
 import Uppy from "uppy";
-import IndeterminateCheckbox from "../IndeterminateCheckbox";
-import {castValueTo} from "../../UtilityFunctions";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -54,7 +52,7 @@ class RunApp extends React.Component {
         this.handleInputChange = this.handleInputChange.bind(this);
         this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
         this.onCommentChange = this.onCommentChange.bind(this);
-        this.onJobInfoChange = this.onJobInfoChange.bind(this);
+        this.onJobSchedulingParamsChange = this.onJobSchedulingParamsChange.bind(this);
     };
 
     componentDidMount() {
@@ -67,7 +65,7 @@ class RunApp extends React.Component {
         this.state.promises.cancelPromises();
     }
 
-    onJobInfoChange(field, value, timeField) {
+    onJobSchedulingParamsChange(field, value, timeField) {
         let {jobInfo} = this.state;
         if (timeField) {
             jobInfo[field][timeField] = !isNaN(value) ? value : null;
@@ -104,24 +102,6 @@ class RunApp extends React.Component {
             //comment: this.state.comment.slice(),
         };
 
-        // FIXME HACK
-        let dummyParameter = this.state.parameters.find(par => par.type === "input_file");
-        if (!!dummyParameter) {
-            let name = dummyParameter.name;
-            let dummyFile = this.state.parameterValues[name];
-            this.state.parameters.forEach(par => {
-                if (par.type === "output_file") {
-                    job.parameters[par.name] = {destination: dummyFile.destination, source: dummyFile.destination};
-                }
-            });
-        } else {
-            this.state.parameters.forEach(par => {
-                if (par.type === "output_file") {
-                    job.parameters[par.name] = {destination: "ignored", source: "output.txt"};
-                }
-            });
-        }
-        // FIXME HACK END
         Cloud.post("/hpc/jobs", job).then(req => {
             if (req.request.status === 200) {
                 this.props.history.push("/analyses");
@@ -131,20 +111,15 @@ class RunApp extends React.Component {
         });
     }
 
-    handleInputChange(parameterName, event) {
-        let value = event.target.value;
-        let parameterDescription = this.state.parameters.find((e) => e.name === parameterName);
-        let parameterType = parameterDescription.type;
+    handleInputChange(parameterName, value) {
         this.setState(() => {
             let result = {
                 parameterValues: Object.assign({}, this.state.parameterValues),
             };
-            result.parameterValues[parameterName] = castValueTo(parameterType, value);
+
+            result.parameterValues[parameterName] = value;
             return result;
         });
-        if (event.preventDefault) {
-            event.preventDefault();
-        }
     }
 
     handleFileSelectorChange(file, returnObject) {
@@ -172,8 +147,9 @@ class RunApp extends React.Component {
         }));
 
         this.setState({loading: true});
-        this.state.promises.makeCancelable(Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}/?resolve=true`))
-            .promise.then(req => {
+        this.state.promises.makeCancelable(
+            Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}/?resolve=true`)
+        ).promise.then(req => {
             const app = req.response.application;
             const tool = req.response.tool;
             let authors;
@@ -203,14 +179,25 @@ class RunApp extends React.Component {
                     <div className="card">
                         <div className="card-body">
                             <BallPulseLoading loading={this.state.loading}/>
-                            <ApplicationHeader name={this.state.displayAppName} version={this.state.appVersion}
-                                               description={this.state.appDescription} author={this.state.appAuthor}/>
-                            <Parameters parameters={this.state.parameters} handleSubmit={this.handleSubmit}
-                                        onChange={this.handleInputChange} comment={this.state.comment}
-                                        onFileSelectionChange={this.handleFileSelectorChange}
-                                        onCommentChange={this.onCommentChange} uppy={this.state.uppy}
-                                        values={this.state.parameterValues} jobInfo={this.state.jobInfo}
-                                        onJobInfoChange={this.onJobInfoChange} tool={this.state.tool}
+
+                            <ApplicationHeader
+                                name={this.state.displayAppName}
+                                version={this.state.appVersion}
+                                description={this.state.appDescription}
+                                author={this.state.appAuthor}
+                            />
+
+                            <Parameters
+                                values={this.state.parameterValues}
+                                parameters={this.state.parameters}
+                                handleSubmit={this.handleSubmit}
+                                onChange={this.handleInputChange}
+                                comment={this.state.comment}
+                                onCommentChange={this.onCommentChange}
+                                uppy={this.state.uppy}
+                                jobInfo={this.state.jobInfo}
+                                onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
+                                tool={this.state.tool}
                             />
                         </div>
                     </div>
@@ -222,8 +209,8 @@ class RunApp extends React.Component {
 const ApplicationHeader = (props) => (
     <Jumbotron>
         <h1>{props.name}</h1>
-        <h3>{props.description}</h3>
         <h4>Author: {props.author}</h4>
+        <p>{props.description}</p>
     </Jumbotron>
 );
 
@@ -231,21 +218,38 @@ const Parameters = (props) => {
     if (!props.parameters) {
         return null
     }
+
     let i = 0;
-    let parametersList = props.parameters.map(parameter =>
-        <Parameter key={i++} parameter={parameter} onChange={props.onChange} uppyOpen={props.openUppy}
-                   onFileSelectionChange={props.onFileSelectionChange} uppy={props.uppy} values={props.values}/>
-    );
+    let parametersList = props.parameters.map(parameter => {
+        let value = props.values[parameter.name];
+        return (
+            <Parameter
+                key={i++}
+                parameter={parameter}
+                onChange={props.onChange}
+                value={value}
+
+                // TODO These should be removed from the parameter interface
+                uppyOpen={props.openUppy}
+                uppy={props.uppy}
+            />
+        );
+    });
+
     return (
         <form onSubmit={props.handleSubmit} className="form-horizontal">
             {parametersList}
-            <JobInfo onJobInfoChange={props.onJobInfoChange} jobInfo={props.jobInfo} tool={props.tool}/>
+            <JobSchedulingParams
+                onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
+                jobInfo={props.jobInfo}
+                tool={props.tool}
+            />
             <input value="Submit" className="btn btn-info" type="submit"/>
         </form>
     )
 };
 
-const JobInfo = (props) => {
+const JobSchedulingParams = (props) => {
     // TODO refactor fields, very not DRY compliant
     const {maxTime} = props.jobInfo;
     return (
@@ -256,7 +260,7 @@ const JobInfo = (props) => {
                     <div className="col-md-4">
                     <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
                            className="col-md-4 form-control"
-                           onChange={e => props.onJobInfoChange("numberOfNodes", parseInt(e.target.value), null)}/>
+                           onChange={e => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(e.target.value), null)}/>
                     </div>
                 </div>
             </fieldset>
@@ -266,7 +270,7 @@ const JobInfo = (props) => {
                     <div className="col-md-4">
                     <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultTasksPerNode}
                            className="col-md-4 form-control"
-                           onChange={e => props.onJobInfoChange("tasksPerNode", parseInt(e.target.value), null)}/>
+                           onChange={e => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(e.target.value), null)}/>
                     </div>
                 </div>
             </fieldset>
@@ -279,7 +283,7 @@ const JobInfo = (props) => {
                                 <input type="number" step="1" min="0" className="form-control" style={{width: 150}}
                                        placeholder={props.tool.defaultMaxTime.hours}
                                        value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
-                                       onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "hours")}/>
+                                       onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")}/>
                                 <span className="input-group-addon">Hours</span>
                             </InputGroup>{" "}
                             <InputGroup>
@@ -287,7 +291,7 @@ const JobInfo = (props) => {
                                        style={{width: 150}}
                                        placeholder={props.tool.defaultMaxTime.minutes}
                                        value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
-                                       onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "minutes")}/>
+                                       onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "minutes")}/>
                                 <span className="input-group-addon">Minutes</span>
                             </InputGroup>{"  "}
                             <InputGroup>
@@ -295,7 +299,7 @@ const JobInfo = (props) => {
                                        style={{width: 150}}
                                        placeholder={props.tool.defaultMaxTime.seconds}
                                        value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
-                                       onChange={e => props.onJobInfoChange("maxTime", parseInt(e.target.value), "seconds")}/>
+                                       onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "seconds")}/>
                                 <span className="input-group-addon">Seconds</span>
                             </InputGroup>
                         </div>
@@ -310,150 +314,206 @@ const JobInfo = (props) => {
 const CommentField = (props) => (
     <div className="form-group">
         <label className="col-sm-2 control-label">Comment</label>
-        <div className="col-md-4">
-            <textarea disabled required style={{resize: "none"}} placeholder="Add a comment about this job..."
-                      className="col-md-4 form-control" rows="5" onChange={e => props.onCommentChange(e.target.value)}/>
+        <div className="col-md-8 col-lg-6">
+            <textarea
+                disabled
+                required
+                style={{resize: "none"}}
+                placeholder="Add a comment about this job..."
+                className="col-md-4 form-control"
+                rows="5"
+                onChange={e => props.onCommentChange(e.target.value)}
+            />
         </div>
     </div>
 );
 
-// Types: input, integer, floating_point, text
-const Parameter = (props) => {
-    if (props.parameter.type === "input_file") {
-        return (<fieldset><InputFileParameter onFileSelectionChange={props.onFileSelectionChange} uppy={props.uppy}
-                                              parameter={props.parameter} uppyOpen={props.uppyOpen}/></fieldset>);
-    } else if (props.parameter.type === "output_file") {
-        return null; // parameter = (<OutputFileParameter parameter={props.parameter}/>);
-    } else if (props.parameter.type === "integer") {
-        return (
-            <fieldset><IntegerParameter onChange={props.onChange} parameter={props.parameter} values={props.values}/>
-            </fieldset>);
-    } else if (props.parameter.type === "floating_point") {
-        return (<fieldset><FloatParameter onChange={props.onChange} parameter={props.parameter} values={props.values}/>
-        </fieldset>);
-    } else if (props.parameter.type === "text") {
-        return (<fieldset><TextParameter onChange={props.onChange} parameter={props.parameter}/></fieldset>);
-    } else if (props.parameter.type === "boolean") {
-        return (<fieldset><BooleanParameter parameter={props.parameter} onChange={props.onChange}/></fieldset>)
-    } else {
-        return null;
+const parameterTypeToComponent = (type) => {
+    switch (type) {
+        case "input_file":
+            return InputFileParameter;
+        case "integer":
+            return IntegerParameter;
+        case "floating_point":
+            return FloatingParameter;
+        case "text":
+            return TextParameter;
+        case "boolean":
+            return BooleanParameter;
+
+        default:
+            console.warn(`Unknown parameter type: ${type}`);
+            return null;
     }
 };
 
-const InputFileParameter = (props) => (
-    <div className="form-group">
-        <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
-        <div className="col-md-4">
-            <FileSelector onFileSelectionChange={props.onFileSelectionChange} uppyOpen={props.uppyOpen}
-                          uploadCallback={props.onFileSelectionChange} uppy={props.uppy}
-                          isRequired={!props.parameter.optional} allowUpload={true}
-                          returnObject={{parameter: props.parameter, isSource: true}}/>
-            <span className="help-block">Source of the file</span>
-            <OptionalText optional={props.parameter.optional}/>
-        </div>
-    </div>
-);
+const Parameter = (props) => {
+    let Component = parameterTypeToComponent(props.parameter.type);
+    return (<Component {...props} />);
+};
 
-const TextParameter = (props) => (
-        <div className="form-group">
-            <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
-            <div className="col-md-4">
-                <input
-                    placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
-                    required={!props.parameter.optional}
-                    className="form-control"
-                    type="text" onChange={e => props.onChange(props.parameter.name, e)}/>
-                <OptionalText optional={props.parameter.optional}/>
-                <span className="help-block">{props.parameter.description}</span>
-            </div>
-        </div>
-);
+const InputFileParameter = (props) => {
+    const internalOnChange = (file) => {
+        props.onChange(props.parameter.name, {
+            source: file.path.path,
+            destination: file.path.name // TODO Should allow for custom name at destination
+        });
+    };
 
-const IntegerParameter = (props) => {
-    let value = props.values[props.parameter.name];
-    value = value !== undefined && !isNaN(value) ? value : NaN.toString();
-    let slider = null;
-    if (props.parameter.min !== null && props.parameters.max !== null) {
-        slider = (
-            <input
-                min={props.parameter.min}
-                max={props.parameter.max}
-                value={value}
-                step={1}
-                type="range"
-                onChange={e => props.onChange(props.parameter.name, e)}
+    return (
+        <GenericParameter parameter={props.parameter}>
+            <FileSelector
+                onFileSelectionChange={file => internalOnChange(file)}
+                uppyOpen={props.uppyOpen}
+                uploadCallback={file => internalOnChange(file)}
+                uppy={props.uppy}
+                isRequired={!props.parameter.optional}
+                allowUpload={true}
             />
+        </GenericParameter>
+    );
+};
+
+const TextParameter = (props) => {
+    const internalOnChange = (event) => {
+        event.preventDefault();
+        props.onChange(props.parameter.name, event.target.value);
+    };
+
+    return (
+        <GenericParameter parameter={props.parameter}>
+            <input
+                placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
+                required={!props.parameter.optional}
+                className="form-control"
+                type="text" onChange={e => internalOnChange(e)}
+            />
+        </GenericParameter>
+    );
+};
+
+const BooleanParameter = (props) => {
+    let options = [{value: true, display: "Yes"}, {value: false, display: "No"}];
+    if (props.parameter.optional) {
+        options.unshift({value: null, display: ""});
+    }
+
+    const internalOnChange = (event) => {
+        let index = parseInt(event.target.value);
+        let actualValue = options[index];
+        props.onChange(props.parameter.name, actualValue.value);
+        event.preventDefault();
+    };
+
+    let selected = options.findIndex(it => it.value === props.value);
+
+    return (
+        <GenericParameter parameter={props.parameter}>
+            <select id={props.parameter} onChange={e => internalOnChange(e)} value={selected}>
+                {
+                    options.map((it, idx) =>
+                        <option key={idx} value={idx}>
+                            {it.display}
+                        </option>)
+                }
+            </select>
+        </GenericParameter>
+    );
+};
+
+const GenericNumberParameter = (props) => {
+    const internalOnChange = (event) => {
+        event.preventDefault();
+
+        if (event.target.value === '') {
+            props.onChange(props.parameter.name, undefined);
+        } else {
+            let value = props.parseValue(event.target.value);
+            if (!isNaN(value)) {
+                props.onChange(props.parameter.name, value);
+            }
+        }
+    };
+
+    let value = (props.value != null) ? props.value : "";
+
+    let baseField = (
+        <input
+            placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
+            required={!props.parameter.optional} name={props.parameter.name}
+            className="form-control"
+            type="number"
+            step="any"
+            value={value}
+            id={props.parameter.name}
+            onChange={e => internalOnChange(e)}/>
+    );
+
+    if (props.parameter.unitName !== null) {
+        baseField = (
+            <InputGroup>
+                {baseField}
+                <span className="input-group-addon">{props.parameter.unitName}</span>
+            </InputGroup>
         );
     }
-    return (
-        <div className="form-group">
-            <label
-                className="col-sm-2 control-label">{props.parameter.prettyName}</label>
-            <div className="col-md-4">
-                <input
-                    placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
-                    required={!props.parameter.optional} name={props.parameter.name}
-                    className="form-control"
-                    type="number"
-                    value={value}
-                    step="1" onChange={e => props.onChange(props.parameter.name, e)}/>
-                {slider}
-                <OptionalText optional={props.parameter.optional}/>
-                <span className="help-block">{props.parameter.description}</span>
-            </div>
-        </div>);
-};
 
-const BooleanParameter = (props) => (
-        <div className="form-group">
-            <label className="col-sm-2 control-label">{props.parameter.prettyName}</label>
-            <div className="col-md-4">
-                <IndeterminateCheckbox parameter={props.parameter} defaultValue={props.parameter.defaultValue}
-                                       onChange={props.onChange}
-                                       isIndeterminate={props.parameter.optional}/><span> {}</span>
-                <OptionalText optional={props.parameter.optional}/>
-                <span className="help-block">{props.parameter.description}</span>
-            </div>
-        </div>
-);
-
-const FloatParameter = (props) => {
-    let value = props.values[props.parameter.name];
-    value = value !== undefined && !isNaN(value) ? value : NaN.toString();
     let slider = null;
-    if (props.parameter.min !== null && props.parameters.max !== null) {
+    if (props.parameter.min !== null && props.parameter.max !== null) {
         slider = (
             <input
                 min={props.parameter.min}
                 max={props.parameter.max}
-                value={value}
                 step={props.parameter.step}
                 type="range"
-                onChange={e => {
-                    props.onChange(props.parameter.name, e)
-                }}
+                value={value}
+                onChange={e => internalOnChange(e)}
             />
         );
     }
+
     return (
-        <div className="form-group">
-            <label
-                className="col-sm-2 control-label">{props.parameter.prettyName}</label>
-            <div className="col-md-4">
-                <input
-                    placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
-                    required={!props.parameter.optional} name={props.parameter.name}
-                    className="form-control"
-                    type="number"
-                    step="any"
-                    value={value}
-                    onChange={e => props.onChange(props.parameter.name, e)}/>
-                {slider}
-                <OptionalText optional={props.parameter.optional}/>
-                <span className="help-block">{props.parameter.description}</span>
+        <GenericParameter parameter={props.parameter}>
+            {baseField}
+            {slider}
+        </GenericParameter>
+    );
+};
+
+const IntegerParameter = (props) => {
+    let childProps = Object.assign({}, props);
+    childProps.parser = (it) => parseInt(it);
+    return <GenericNumberParameter {...childProps} />;
+};
+
+const FloatingParameter = (props) => {
+    let childProps = Object.assign({}, props);
+    childProps.parseValue = (it) => parseFloat(it);
+    return <GenericNumberParameter {...childProps} />;
+};
+
+const GenericParameter = (props) => {
+    return (
+        <fieldset>
+            <div className="form-group">
+                <div className="row">
+                    <label className="col-md-2 control-label" htmlFor={props.parameter.name}>
+                        {props.parameter.prettyName}
+                    </label>
+                    <div className="col-md-8 col-lg-6">
+                        {props.children}
+                    </div>
+                </div>
+                <div className="row">
+                    <div className="col-md-2"/>
+                    <div className="col-md-8 col-lg-6">
+                        <OptionalText optional={props.parameter.optional}/>
+                        <span className="help-block">{props.parameter.description}</span>
+                    </div>
+                </div>
             </div>
-        </div>
-    )
+        </fieldset>
+    );
 };
 
 const OptionalText = (props) => {

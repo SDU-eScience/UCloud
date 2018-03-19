@@ -251,7 +251,7 @@ export const getParentPath = (path) => {
         parentPath += splitPath[i] + "/";
     }
     return parentPath;
-}
+};
 
 export const downloadFile = (path, cloud) => 
     cloud.createOneTimeTokenWithPermission("downloadFile,irods").then(token => {
@@ -281,23 +281,6 @@ export const fileSizeToString = (bytes) => {
         return `${bytes / 1000 ** 6} EB`;
     } else {
         return `${bytes} B`;
-    }
-};
-
-export const castValueTo = (parameterType = null, value = null) => {
-    if (!parameterType) {
-        return value;
-    }
-    switch (parameterType) {
-        case "integer": {
-            return parseInt(value);
-        }
-        case "floating_point": {
-            return parseFloat(value)
-        }
-        default: {
-            return value;
-        }
     }
 };
 
