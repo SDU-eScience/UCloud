@@ -56,7 +56,8 @@ object ApplicationDAO {
                         name = "interval",
                         prettyName = "Interval",
                         description = "duration of interval between results in seconds",
-                        optional = true
+                        optional = true,
+                        unitName = "seconds"
                     ),
 
                     ApplicationParameter.Bool(
@@ -84,7 +85,8 @@ object ApplicationDAO {
                         name = "los_max_duration",
                         prettyName = "Loss of Signal (Max duration)",
                         description = "max amount of time allowed to pass before Loss of Signal is declared",
-                        optional = true
+                        optional = true,
+                        unitName = "seconds"
                     ),
 
                     ApplicationParameter.Bool(
@@ -105,14 +107,16 @@ object ApplicationDAO {
                         name = "max_speed",
                         prettyName = "Max speed",
                         description = "Consider fix invalid if speed is greater than this value (in km/hr)",
-                        optional = true
+                        optional = true,
+                        unitName = "km/hr"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "max_ele_change",
                         prettyName = "Maximum elevation change",
                         description = "Consider fix invalid if elevation change is greater than this value (in meters)",
-                        optional = true
+                        optional = true,
+                        unitName = "meters"
                     ),
 
                     ApplicationParameter.Bool(
@@ -139,28 +143,32 @@ object ApplicationDAO {
                         description = "minimum distance (in meters) that must be travelled over one minute to " +
                                 "indicate the start of a trip. Default choosen to be 34 meters which is equal to " +
                                 "a typical walking speed of 2KM/hr.",
-                        optional = true
+                        optional = true,
+                        unitName = "km/hr"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "min_trip_length",
                         prettyName = "Minimum trip length",
                         description = "trips less than this distance (in meters) are not considered trips.",
-                        optional = true
+                        optional = true,
+                        unitName = "meters"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "min_trip_duration",
                         prettyName = "Minimum trip duration",
                         description = "trips less than this duration (in seconds) are not considered trips.",
-                        optional = true
+                        optional = true,
+                        unitName = "seconds"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "min_pause_duration",
                         prettyName = "Minimum pause duration",
                         description = "trips less than this duration (in seconds) are not considered trips.",
-                        optional = true
+                        optional = true,
+                        unitName = "seconds"
                     ),
 
                     ApplicationParameter.FloatingPoint(
@@ -174,13 +182,19 @@ object ApplicationDAO {
                     ApplicationParameter.FloatingPoint(
                         name = "max_percent_single_location",
                         description = "maximum percentage of a trip's fixes that can occur at a single location.",
-                        optional = true
+                        optional = true,
+                        min = 0.0,
+                        max = 100.0,
+                        unitName = "%"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "max_percent_allowed_indoors",
                         description = "maximum percentage of a trip that is allowed indoors.",
-                        optional = true
+                        optional = true,
+                        min = 0.0,
+                        max = 100.0,
+                        unitName = "%"
                     ),
 
                     ApplicationParameter.Bool(
@@ -224,32 +238,37 @@ object ApplicationDAO {
                     ApplicationParameter.FloatingPoint(
                         name = "location_radius",
                         description = "defines radius (in meters) of location in which fixes are trapped.",
-                        optional = true
+                        optional = true,
+                        unitName = "meters"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "min_duration_at_location",
                         description = "minimum amount of time (in seconds) that must be spent at a location for it " +
                                 "to be considered a location.",
-                        optional = true
+                        optional = true,
+                        unitName = "seconds"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "vehicle_cutoff",
                         description = "speeds greater than this value (in KM/hr) will be marked as vehicle.",
-                        optional = true
+                        optional = true,
+                        unitName = "km/hr"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "bicycle_cutoff",
                         description = "speeds greater than this value (in KM/hr) will be marked as bicycle.",
-                        optional = true
+                        optional = true,
+                        unitName = "km/hr"
                     ),
 
                     ApplicationParameter.FloatingPoint(
                         name = "walk_cutoff",
                         description = "speeds greater than this value (in KM/hr) will be marked as pedestrian.",
-                        optional = true
+                        optional = true,
+                        unitName = "km/hr"
                     ),
 
                     ApplicationParameter.FloatingPoint(
@@ -262,7 +281,8 @@ object ApplicationDAO {
                         name = "min_segment_length",
                         description = "minimum length (in meters) of segments used to classify mode of " +
                                 "transportation.",
-                        optional = true
+                        optional = true,
+                        unitName = "meters"
                     )
                 ),
                 outputFileGlobs = listOf("output.json")

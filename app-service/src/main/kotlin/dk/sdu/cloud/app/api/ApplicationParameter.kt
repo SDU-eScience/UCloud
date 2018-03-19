@@ -77,7 +77,8 @@ sealed class ApplicationParameter<V : Any> {
         override val description: String = "",
         val min: Int? = null,
         val max: Int? = null,
-        val step: Int? = null
+        val step: Int? = null,
+        val unitName: String? = null
     ) : ApplicationParameter<Int>() {
         override fun internalMap(inputParameter: Any): Int =
             (inputParameter as? Int) ?: inputParameter.toString().toInt()
@@ -93,7 +94,8 @@ sealed class ApplicationParameter<V : Any> {
         override val description: String = "",
         val min: Double? = null,
         val max: Double? = null,
-        val step: Double? = null
+        val step: Double? = null,
+        val unitName: String? = null
     ) : ApplicationParameter<Double>() {
         override fun internalMap(inputParameter: Any): Double =
             (inputParameter as? Double) ?: inputParameter.toString().toDouble()
