@@ -10,6 +10,7 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.stream
+import dk.sdu.cloud.service.withCausedBy
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.DownloadByURI
 import dk.sdu.cloud.storage.api.FileDescriptions
@@ -47,8 +48,7 @@ class PublishProcessor(
                                 log.debug("Bad command was: $command")
                             }
 
-                // TODO We need to add caused by here!
-                val cloud = JWTAuthenticatedCloud(cloudContext, validatedPrincipal.token)
+                val cloud = JWTAuthenticatedCloud(cloudContext, validatedPrincipal.token).withCausedBy(command.uuid)
 
                 log.debug("Updating status of command: ${command.publicationId} to UPLOADING")
                 publicationService.updateStatusOf(command.publicationId, ZenodoPublicationStatus.UPLOADING)
