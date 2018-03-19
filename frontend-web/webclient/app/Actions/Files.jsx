@@ -12,7 +12,7 @@ export const fetchFiles = (path, sorting, sortAscending) =>
       if (sorting) {
         files = sorting(files, sortAscending);
       }
-      return receiveFiles(files, path);
+      return receiveFiles(files);
   });
 
 export const toPage = (pageNumber) => ({
@@ -21,7 +21,8 @@ export const toPage = (pageNumber) => ({
 })
 
 /*
-* Updates the files stored. Intended for use when sorting the files, checking or favoriting, for instance.
+* Updates the files stored. 
+* Intended for use when sorting the files, checking or favoriting, for instance.
 */
 export const updateFiles = (files) => {
   return {

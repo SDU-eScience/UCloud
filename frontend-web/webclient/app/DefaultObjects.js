@@ -46,8 +46,8 @@ export const initObject = {
         filesShown: 10,
         filesPerPage: 10,
         currentFilesPage: 0,
-        filesLoading: true,
-        path: `${Cloud.homeFolder}/`,
+        loading: false,
+        path: "",
         projects: []
     },
     uppy: {

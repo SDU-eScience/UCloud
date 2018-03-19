@@ -9,7 +9,7 @@ export const TO_PAGE = "TO_PAGE";
 const files = (state = [], action) => {
     switch (action.type) {
         case RECEIVE_FILES: {
-            return { ...state, files: action.files, filesLoading: false, path: action.path };
+            return { ...state, files: action.files, loading: false };
         }
         case UPDATE_FILES_PER_PAGE: {
             return { ...state, files: action.files, filesPerPage: action.filesPerPage };
@@ -18,7 +18,7 @@ const files = (state = [], action) => {
             return { ...state, files: action.files};
         }
         case SET_LOADING: {
-            return { ...state, filesLoading: action.loading };
+            return { ...state, loading: action.loading };
         }
         case UPDATE_PATH: {
             return { ...state, path: action.path };

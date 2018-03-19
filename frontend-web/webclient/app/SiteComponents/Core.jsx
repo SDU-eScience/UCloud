@@ -31,7 +31,6 @@ class Core extends React.Component {
                 <div className="sidebar-layout-obfuscator"/>
                 <div className="main-container">
                     <Switch>
-                        <Route path="/files/" component={Files}/>
                         <Route path="/files/*" component={Files}/>
                         <Route exact path="/dashboard" component={Dashboard}/>
                         <Route exact path="/fileInfo/*" component={FileInfo}/>

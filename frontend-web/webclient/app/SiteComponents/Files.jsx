@@ -35,12 +35,16 @@ import { changeUppyOpen } from "../Actions/UppyActions";
 class Files extends React.Component {
     constructor(props, context) {
         super(props);
-        let path = props.location.pathname.slice("/files/".length);
-        if (path) {
-            props.dispatch(updatePath(path));
+        const urlPath = props.match.params[0];
+        const { dispatch, history } = props;
+        if (urlPath) {
+            dispatch(updatePath(urlPath));
+        } else {
+            history.push(`/files/${Cloud.homeFolder}/`);
         }
+        props.uppy.run();        
+        pubsub.publish('setPageTitle', this.constructor.name);
         this.state = {
-            uploadFileOpen: false,
             lastSorting: {
                 name: "typeAndName",
                 asc: true,
@@ -50,7 +54,6 @@ class Files extends React.Component {
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.getSortingIcon = this.getSortingIcon.bind(this);
-        this.componentWillReceiveProps = this.componentWillReceiveProps.bind(this);
     }
     
     getSortingIcon(name) {
@@ -87,20 +90,15 @@ class Files extends React.Component {
         }));
     }
 
-    componentWillMount() {
-        pubsub.publish('setPageTitle', this.constructor.name);
-        this.props.uppy.run();
-        const { dispatch, path } = this.props;
-        dispatch(setLoading(true));
-        dispatch(fetchFiles(path, sortFilesByTypeAndName, true));
-    }
-
     componentWillReceiveProps(nextProps) {
         const {dispatch, path} = this.props;
-        let newPath = nextProps.location.pathname.slice("/files/".length);
-        if ((!newPath && path === `${Cloud.homeFolder}/`) || (newPath === path)) { return; }
-        dispatch(setLoading(true));
-        dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
+        let newPath = nextProps.match.params[0];
+        if (!newPath) { this.props.history.push(`/files/${Cloud.homeFolder}`); return }
+        if (path !== newPath && !nextProps.loading) {
+            dispatch(updatePath(newPath));
+            dispatch(setLoading(true));
+            dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
+        }
     }
 
     componentWillUnmount() {
@@ -366,19 +364,19 @@ Files.propTypes = {
     currentFilesPage: PropTypes.number.isRequired,
     favFilesCount: PropTypes.number.isRequired,
     checkedFilesCount: PropTypes.number.isRequired,
-    filesLoading: PropTypes.bool.isRequired,
+    loading: PropTypes.bool.isRequired,
     path: PropTypes.string.isRequired,
     uppy: PropTypes.object.isRequired,
     uppyOpen: PropTypes.bool.isRequired,
 }
 
 const mapStateToProps = (state) => {
-    const { files, filesPerPage, currentFilesPage, filesLoading, path } = state.files;
+    const { files, filesPerPage, currentFilesPage, loading, path } = state.files;
     const { uppy, uppyOpen } = state.uppy;
     const favFilesCount = files.filter(file => file.favorited).length; // Hack to ensure changes to favorites are rendered.
     const checkedFilesCount = files.filter(file => file.isChecked).length; // Hack to ensure changes to file checkings are rendered.
     return {
-        files, filesPerPage, currentFilesPage, filesLoading, path, uppy, uppyOpen, favFilesCount, checkedFilesCount
+        files, filesPerPage, currentFilesPage, loading, path, uppy, uppyOpen, favFilesCount, checkedFilesCount
     }
 };
 
