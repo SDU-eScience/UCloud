@@ -42,7 +42,14 @@ class FilesController(
                     }
 
                 connection.use {
-                    val listAt = connection.fileQuery.listAt(connection.parsePath(request.path))
+                    val path = try {
+                        connection.parsePath(request.path)
+                    } catch (ex: IllegalArgumentException) {
+                        error(CommonErrorMessage("Illegal path"), HttpStatusCode.BadRequest)
+                        return@implement
+                    }
+
+                    val listAt = connection.fileQuery.listAt(path)
                     when (listAt) {
                         is Ok -> ok(listAt.result)
                         is Error -> {
