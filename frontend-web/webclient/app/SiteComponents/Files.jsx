@@ -25,7 +25,6 @@ import {
     toLowerCaseAndCapitalize,
 } from "../UtilityFunctions";
 import Uppy from "uppy";
-import {DashboardModal} from "uppy/lib/react";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
@@ -67,8 +66,8 @@ class Files extends React.Component {
         const { currentFilesPage, filesPerPage, files, dispatch } = this.props;
         files.forEach(file => file.isChecked = false);
         if (checked) {
-            let selectedFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage);
-            selectedFiles.forEach(file => file.isChecked = true);
+            files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
+                 .forEach(file => file.isChecked = true);
         }
         dispatch(updateFiles(files));
     }
@@ -134,8 +133,6 @@ class Files extends React.Component {
                                 getFavorites={this.getFavorites}
                                 onClick={open => dispatch(changeUppyOpen(open))}/>
                 </div>
-                <DashboardModal uppy={this.props.uppy} open={this.props.uppyOpen} closeModalOnClickOutside
-                                onRequestClose={() => dispatch(changeUppyOpen(false))}/>
             </section>)
     } // TODO: Remove dashboard modal from this and move it to root.
 }

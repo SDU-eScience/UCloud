@@ -12,7 +12,7 @@ const files = (state = [], action) => {
             return { ...state, files: action.files, loading: false };
         }
         case UPDATE_FILES_PER_PAGE: {
-            return { ...state, files: action.files, filesPerPage: action.filesPerPage };
+            return { ...state, files: action.files, filesPerPage: action.filesPerPage, currentFilesPage: 0 };
         }
         case UPDATE_FILES: {
             return { ...state, files: action.files};

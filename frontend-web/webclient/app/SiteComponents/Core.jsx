@@ -19,46 +19,41 @@ import GenerateWorkflow from "./GenerateWorkflow";
 import ZenodoPublish from "./Zenodo/Publish";
 import ZenodoHome from "./Zenodo/Zenodo";
 import ZenodoInfo from "./Zenodo/Info";
+import {connect} from "react-redux";
+import {changeUppyOpen} from "../Actions/UppyActions";
+import UppyWrapper from "./UppyWrapper"
 
 const NotFound = () => (<div className="container-fluid"><h1>Not found.</h1></div>);
 
-class Core extends React.Component {
-    render() {
-        return (
-            <div className="layout-container">
-                <Header/>
-                <Sidebar/>
-                <div className="sidebar-layout-obfuscator"/>
-                <div className="main-container">
-                    <Switch>
-                        <Route path="/files/*" component={Files}/>
-                        <Route exact path="/dashboard" component={Dashboard}/>
-                        <Route exact path="/fileInfo/*" component={FileInfo}/>
-                        <Route exact path="/status" component={Status}/>
-                        <Route exact path="/applications" component={Applications}/>
-                        <Route exact path="/applications/:appName/:appVersion" component={RunApp}/>
-                        <Route exact path="/workflows" component={Workflows}/>
-                        <Route exact path="/generateworkflow" component={GenerateWorkflow}/>
-                        <Route exact path="/analyses" component={Analyses}/>
-                        <Route exact path="/audit/user/:id" component={UserAuditing}/>
-                        <Route exact path="/notifications" component={Notifications}/>
-                        <Route exact path="/zenodo/" component={ZenodoHome}/>
-                        <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo}/>
-                        <Route exact path="/zenodo/publish/" component={ZenodoPublish}/>
-                        <Route component={NotFound}/>
-                    </Switch>
-                    <footer>
-                        <span>{new Date().getFullYear()} - SDUCloud.</span>
-                    </footer>
-                </div>
-            </div>
-        );
-    }
-}
-
-
-Core.contextTypes = {
-    store: PropTypes.object,
-}
+const Core = () => (
+    <div className="layout-container">
+        <Header/>
+        <Sidebar/>
+        <div className="sidebar-layout-obfuscator"/>
+        <div className="main-container">
+            <Switch>
+                <Route path="/files/*" component={Files}/>
+                <Route exact path="/dashboard" component={Dashboard}/>
+                <Route exact path="/fileInfo/*" component={FileInfo}/>
+                <Route exact path="/status" component={Status}/>
+                <Route exact path="/applications" component={Applications}/>
+                <Route exact path="/applications/:appName/:appVersion" component={RunApp}/>
+                <Route exact path="/workflows" component={Workflows}/>
+                <Route exact path="/generateworkflow" component={GenerateWorkflow}/>
+                <Route exact path="/analyses" component={Analyses}/>
+                <Route exact path="/audit/user/:id" component={UserAuditing}/>
+                <Route exact path="/notifications" component={Notifications}/>
+                <Route exact path="/zenodo/" component={ZenodoHome}/>
+                <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo}/>
+                <Route exact path="/zenodo/publish/" component={ZenodoPublish}/>
+                <Route component={NotFound}/>
+            </Switch>
+            <footer>
+                <span>{new Date().getFullYear()} - SDUCloud.</span>
+            </footer>
+            <UppyWrapper/>
+        </div>
+    </div>
+);
 
 export default Core;

@@ -18,7 +18,7 @@ import Core from './SiteComponents/Core';
 import { Cloud } from "../authentication/SDUCloudObject";
 import files from "./Reducers/Files";
 import uppyReducers from "./Reducers/UppyReducers";
-import { initObject } from "./DefaultObjects"
+import { initObject } from "./DefaultObjects";
 
 window.onload = () => {
     Cloud.receiveAccessTokenOrRefreshIt();
