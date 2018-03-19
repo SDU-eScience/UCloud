@@ -106,7 +106,7 @@ class Files extends React.Component {
     }
 
     render() {
-        const {dispatch, files, filesPerPage, currentFilesPage, path, filesLoading, history} = this.props;
+        const {dispatch, files, filesPerPage, currentFilesPage, path, loading, history} = this.props;
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage);
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
         return (
@@ -114,13 +114,13 @@ class Files extends React.Component {
                 <div className="container-fluid">
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)}/>
-                        <FilesTable files={shownFiles} loading={filesLoading}
+                        <FilesTable files={shownFiles} loading={loading}
                                     masterCheckbox={masterCheckboxChecked} sortingIcon={this.getSortingIcon}
                                     addOrRemoveFile={this.addOrRemoveFile}
                                     sortFiles={this.sortFilesBy}
                                     favoriteFile={(filePath) => dispatch(updateFiles(favorite(files, filePath, Cloud)))}
                                     selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}/>
-                        <BallPulseLoading loading={filesLoading}/>
+                        <BallPulseLoading loading={loading}/>
                         <PaginationButtons
                             currentPage={currentFilesPage}
                             totalEntries={this.props.files.length}
