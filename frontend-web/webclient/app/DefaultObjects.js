@@ -62,7 +62,7 @@ export const initObject = {
                     tusConfig.headers["Authorization"] = "Bearer " + data;
                 });
             }
-        }),
+        }).use(Uppy.Tus, tusConfig),
         uppyOpen: false,
     }
 }

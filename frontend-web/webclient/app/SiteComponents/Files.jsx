@@ -48,8 +48,6 @@ class Files extends React.Component {
         };
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
-        this.handleClose = this.handleClose.bind(this);
-        this.handleOpen = this.handleOpen.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.getSortingIcon = this.getSortingIcon.bind(this);
         this.componentWillReceiveProps = this.componentWillReceiveProps.bind(this);
@@ -60,18 +58,6 @@ class Files extends React.Component {
             return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
         }
         return "";
-    }
-
-    handleOpen() {
-        this.setState(() => ({
-            uploadFileOpen: true,
-        }));
-    }
-
-    handleClose() {
-        this.setState(() => ({
-            uploadFileOpen: false,
-        }));
     }
 
     selectOrDeselectAllFiles(checked) {
@@ -103,7 +89,6 @@ class Files extends React.Component {
 
     componentWillMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
-        this.props.uppy.use(Uppy.Tus, tusConfig);
         this.props.uppy.run();
         const { dispatch, path } = this.props;
         dispatch(setLoading(true));
