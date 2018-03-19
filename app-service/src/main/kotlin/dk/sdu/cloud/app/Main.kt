@@ -3,6 +3,7 @@ package dk.sdu.cloud.app
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.app.api.AppServiceDescription
 import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
@@ -74,7 +75,10 @@ fun main(args: Array<String>) {
         )
     )
 
-    val cloud = RefreshingJWTAuthenticator(defaultServiceClient(args, serviceRegistry), configuration.refreshToken)
+    val cloud = RefreshingJWTAuthenticatedCloud(
+        defaultServiceClient(args, serviceRegistry),
+        configuration.refreshToken
+    )
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }

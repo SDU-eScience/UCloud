@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.JWTProtection
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
@@ -27,7 +28,7 @@ class Server(
     private val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val serviceRegistry: ServiceRegistry,
-    private val cloud: RefreshingJWTAuthenticator
+    private val cloud: RefreshingJWTAuthenticatedCloud
 ) {
     private lateinit var httpServer: ApplicationEngine
     private lateinit var kStreams: KafkaStreams

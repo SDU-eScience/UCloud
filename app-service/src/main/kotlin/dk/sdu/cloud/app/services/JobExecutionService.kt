@@ -5,11 +5,14 @@ import com.jcraft.jsch.JSchException
 import dk.sdu.cloud.app.StorageConfiguration
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ssh.*
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.withCausedBy
 import dk.sdu.cloud.storage.api.CreateDirectoryRequest
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.ext.StorageConnection
@@ -29,7 +32,7 @@ import java.net.URI
 import java.util.*
 
 class JobExecutionService(
-    private val cloud: RefreshingJWTAuthenticator,
+    cloud: RefreshingJWTAuthenticatedCloud,
     private val producer: MappedEventProducer<String, AppEvent>,
     private val irods: StorageConnectionFactory,
     private val irodsConfig: StorageConfiguration, // TODO This shouldn't be needed
@@ -39,6 +42,7 @@ class JobExecutionService(
     private val sshConnectionPool: SSHConnectionPool,
     private val sshUser: String // TODO This won't be needed in final version
 ) {
+    private val __cloudDoNotUseDirectly = cloud
     private var slurmListener: SlurmEventListener? = null
 
     fun initialize() {
@@ -129,6 +133,9 @@ class JobExecutionService(
 
     fun handleAppEvent(event: AppEvent) {
         try {
+            val cloud = __cloudDoNotUseDirectly.withCausedBy(event.systemId)
+            val tokenRefresher = __cloudDoNotUseDirectly.tokenRefresher
+
             // First we update DB state depending on the event
             // TODO Test updateJobBySystemId
             val nextState: AppState? = when (event) {
@@ -155,7 +162,7 @@ class JobExecutionService(
                 is AppEvent.ScheduledAtSlurm -> handleScheduledEvent(event)
 
                 is AppEvent.CompletedInSlurm ->
-                    if (event.success) shipResults(event)
+                    if (event.success) shipResults(event, cloud, tokenRefresher)
                     else goToCleanupState(event, "Failure in Slurm or non-zero exit code")
 
                 is AppEvent.ExecutionCompleted -> cleanUp(event)
@@ -433,7 +440,11 @@ class JobExecutionService(
         return null
     }
 
-    private fun shipResults(event: AppEvent.CompletedInSlurm): AppEvent.ExecutionCompleted {
+    private fun shipResults(
+        event: AppEvent.CompletedInSlurm,
+        cloud: AuthenticatedCloud,
+        tokenRefresher: RefreshingJWTAuthenticator
+    ): AppEvent.ExecutionCompleted {
         val jobId = event.systemId
         val owner = event.owner
         val outputDirectoryWithoutZone = "/home/$owner/Jobs/$jobId"
@@ -535,7 +546,7 @@ class JobExecutionService(
                 }
 
                 val transferStatus = scpDownload(fileToTransferFromHPC) {
-                    TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud).start {
+                    TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud, tokenRefresher).start {
                         log.debug("$jobId: $it/${sourceFile.size} bytes transferred")
                     }
                 }
