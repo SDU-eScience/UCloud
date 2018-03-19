@@ -132,7 +132,7 @@ class KafkaHttpRouteLogger {
         }
 
         val startTime = call.attributes.getOrNull(requestStartTime) ?: return@with run {
-            log.debug("Missing start time")
+            log.warn("Missing start time. This should probably not happen.")
         }
         val responseTime = System.currentTimeMillis() - startTime
 

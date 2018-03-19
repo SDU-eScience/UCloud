@@ -146,7 +146,7 @@ fun PipelineContext<*, ApplicationCall>.logEntry(
         "[HEADERS: $justHeaders]"
     }
 
-    log.info("$method $uri $jobId $causedBy $parameterString $headerString")
+    log.info("$method $uri jobId=$jobId causedBy=$causedBy payload={$parameterString $headerString}")
 }
 
 fun <R : Any> RESTHandler<R, *, *>.logEntry(
@@ -154,13 +154,17 @@ fun <R : Any> RESTHandler<R, *, *>.logEntry(
     payload: R,
     requestToString: (R) -> String = { it.toString() }
 ) {
+    val requestName = restCall.fullName
     val method = call.request.httpMethod.value
     val uri = call.request.uri
     val jobId = call.request.safeJobId
     val causedBy = call.request.causedBy
 
+    var name = "$method $uri"
+    if (requestName != null) name += " ($requestName)"
 
-    log.info("$method $uri $jobId $causedBy ${requestToString(payload)}")
+
+    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)}")
 }
 
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine

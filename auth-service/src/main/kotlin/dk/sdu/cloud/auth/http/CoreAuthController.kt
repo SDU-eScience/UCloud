@@ -267,19 +267,19 @@ class CoreAuthController(
             }
 
 
-            post("refresh") {
-                logEntry(log, headerIncludeFilter = { it == HttpHeaders.Authorization })
+            implement(AuthDescriptions.refresh) {
+                logEntry(log, Unit) { "refreshToken=${call.request.headers[HttpHeaders.Authorization]}" }
 
-                val refreshToken = call.request.bearerToken ?: return@post run {
-                    call.respond(HttpStatusCode.Unauthorized)
+                val refreshToken = call.request.bearerToken ?: return@implement run {
+                    error(HttpStatusCode.Unauthorized)
                 }
 
                 try {
                     val token = tokenService.refresh(refreshToken)
-                    call.respond(token)
+                    ok(token)
                 } catch (ex: TokenService.RefreshTokenException) {
                     log.info(ex.message)
-                    call.respond(ex.httpCode)
+                    error(ex.httpCode)
                 }
             }
 
@@ -287,15 +287,15 @@ class CoreAuthController(
                 logEntry(log, it)
 
                 val bearerToken = call.request.bearerToken ?: return@implement run {
-                    call.respond(HttpStatusCode.Unauthorized)
+                    error(HttpStatusCode.Unauthorized)
                 }
 
                 try {
                     val token = tokenService.requestOneTimeToken(bearerToken, *it.audience.split(",").toTypedArray())
-                    call.respond(token)
+                    ok(token)
                 } catch (ex: TokenService.RefreshTokenException) {
                     log.info(ex.message)
-                    call.respond(ex.httpCode)
+                    error(ex.httpCode)
                 }
             }
 
@@ -304,25 +304,25 @@ class CoreAuthController(
                 val jti = it.jti
                 val token = call.request.bearer ?: return@implement run {
                     log.debug("Missing bearer token")
-                    call.respond(HttpStatusCode.Unauthorized)
+                    error(HttpStatusCode.Unauthorized)
                 }
 
                 val principal = TokenValidation.validateOrNull(token) ?: return@implement run {
                     log.debug("Invalid token")
-                    call.respond(HttpStatusCode.Forbidden)
+                    error(HttpStatusCode.Forbidden)
                 }
 
                 val principalRole = try {
                     Role.valueOf(principal.getClaim("role").asString())
                 } catch (ex: Exception) {
                     log.debug("Invalid or missing role for principal")
-                    call.respond(HttpStatusCode.Forbidden)
+                    error(HttpStatusCode.Forbidden)
                     return@implement
                 }
 
                 if (principalRole != Role.SERVICE && principalRole != Role.ADMIN) {
                     log.debug("Cannot claim token as non-service/admin principal")
-                    call.respond(HttpStatusCode.Forbidden)
+                    error(HttpStatusCode.Forbidden)
                     return@implement
                 }
 

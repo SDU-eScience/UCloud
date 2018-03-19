@@ -79,7 +79,7 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
                 log.info("Call was: $this, response was: $resp")
                 delay(250)
 
-                val ex = ConnectException()
+                val ex = ConnectException("Remote server had an internal server error (${resp.statusText})")
                 val shouldRetry = context.parent.tryReconfigurationOnConnectException(this, ex)
                 if (shouldRetry) continue else throw ex
             } else {
@@ -120,17 +120,6 @@ interface AuthenticatedCloud {
     fun BoundRequestBuilder.configureCall()
 }
 
-@Deprecated(message = "Use JWT auth instead", replaceWith = ReplaceWith("JWTAuthenticatedCloud(token)"))
-class BasicAuthenticatedCloud(
-        override val parent: CloudContext,
-        private val username: String,
-        private val password: String
-) : AuthenticatedCloud {
-    override fun BoundRequestBuilder.configureCall() {
-        addBasicAuth(username, password)
-    }
-}
-
 class JWTAuthenticatedCloud(
         override val parent: CloudContext,
         val token: String // token is kept public such that tools may check if JWT has expired
@@ -139,8 +128,5 @@ class JWTAuthenticatedCloud(
         setHeader("Authorization", "Bearer $token")
     }
 }
-
-@Deprecated(message = "Use JWT auth instead", replaceWith = ReplaceWith("jwtAuth", "dk.sdu.cloud.client.jwtAuth"))
-fun CloudContext.basicAuth(username: String, password: String) = BasicAuthenticatedCloud(this, username, password)
 
 fun CloudContext.jwtAuth(token: String) = JWTAuthenticatedCloud(this, token)

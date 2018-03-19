@@ -178,7 +178,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                 }
 
                 // Call the handler with the payload
-                RESTHandler<P, S, E>(this, logResponse).handler(payload)
+                RESTHandler(this, logResponse, restCall).handler(payload)
             }
         }
     }
@@ -216,9 +216,10 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): P
     }
 }
 
-class RESTHandler<P : Any, in S : Any, in E : Any>(
+class RESTHandler<P : Any, S : Any, E : Any>(
     val boundTo: PipelineContext<*, ApplicationCall>,
-    val shouldLogResponse: Boolean = true
+    val shouldLogResponse: Boolean = true,
+    val restCall: RESTCallDescription<P, S, E>
 ) {
     val call: ApplicationCall get() = boundTo.call
     val application: Application get() = boundTo.application
