@@ -163,7 +163,7 @@ const ContextBar = (props) => (
             <div className="center-block text-center">
                 <Button className="btn btn-link btn-lg" onClick={() => props.getFavorites()}><i
                     className="icon ion-star"/></Button>
-                <Link to={`files?path=/home/${Cloud.username}`}><Button className="btn btn-link btn-lg"><i
+                <Link to={`/files/${Cloud.homeFolder}`}><Button className="btn btn-link btn-lg"><i
                     className="ion-ios-home"/></Button></Link>
             </div>
             <hr/>
