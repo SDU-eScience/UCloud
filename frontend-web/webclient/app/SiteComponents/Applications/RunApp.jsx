@@ -153,18 +153,12 @@ class RunApp extends React.Component {
         ).promise.then(req => {
             const app = req.response.application;
             const tool = req.response.tool;
-            let authors;
-            if (app.authors.length > 1) {
-                authors = app.authors.join(", ");
-            } else {
-                authors = app.authors[0];
-            }
 
             this.setState(() => ({
                 appName: app.info.name,
                 displayAppName: app.prettyName,
                 parameters: app.parameters,
-                appAuthor: authors,
+                appAuthor: app.authors,
                 appDescription: app.description,
                 loading: false,
                 tool,
@@ -185,7 +179,7 @@ class RunApp extends React.Component {
                                 name={this.state.displayAppName}
                                 version={this.state.appVersion}
                                 description={this.state.appDescription}
-                                author={this.state.appAuthor}
+                                authors={this.state.appAuthor}
                             />
 
                             <Parameters
@@ -207,17 +201,18 @@ class RunApp extends React.Component {
     }
 }
 
-const ApplicationHeader = (props) => {
+const ApplicationHeader = ({authors, name, description}) => {
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
+    let authorString = (!!authors) ? authors.join(", ") : "";
 
     return (
         <Jumbotron>
             <div className="row">
                 <div className="col-lg-8">
-                    <h1>{props.name}</h1>
-                    <h4>{pluralize(props.author, "Author")}: {props.author}</h4>
-                    <ReactMarkdown source={props.description}/>
+                    <h1>{name}</h1>
+                    <h4>{pluralize(authors, "Author")}: {authorString}</h4>
+                    <ReactMarkdown source={description}/>
                 </div>
             </div>
         </Jumbotron>
