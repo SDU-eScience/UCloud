@@ -7,6 +7,7 @@ import {BallPulseLoading} from "../LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import {tusConfig} from "../../Configurations";
 import Uppy from "uppy";
+import ReactMarkdown from "react-markdown";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -58,7 +59,7 @@ class RunApp extends React.Component {
     componentDidMount() {
         this.state.uppy.use(Uppy.Tus, tusConfig);
         this.state.uppy.run();
-        this.getApplication();
+        this.retrieveApplication();
     }
 
     componentWillUnmount() {
@@ -141,7 +142,7 @@ class RunApp extends React.Component {
         }));
     }
 
-    getApplication() {
+    retrieveApplication() {
         this.setState(() => ({
             loading: true
         }));
@@ -206,13 +207,22 @@ class RunApp extends React.Component {
     }
 }
 
-const ApplicationHeader = (props) => (
-    <Jumbotron>
-        <h1>{props.name}</h1>
-        <h4>Author: {props.author}</h4>
-        <p>{props.description}</p>
-    </Jumbotron>
-);
+const ApplicationHeader = (props) => {
+    // Not a very good pluralize function.
+    const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
+
+    return (
+        <Jumbotron>
+            <div className="row">
+                <div className="col-lg-8">
+                    <h1>{props.name}</h1>
+                    <h4>{pluralize(props.author, "Author")}: {props.author}</h4>
+                    <ReactMarkdown source={props.description}/>
+                </div>
+            </div>
+        </Jumbotron>
+    );
+};
 
 const Parameters = (props) => {
     if (!props.parameters) {
@@ -508,7 +518,7 @@ const GenericParameter = (props) => {
                     <div className="col-md-2"/>
                     <div className="col-md-8 col-lg-6">
                         <OptionalText optional={props.parameter.optional}/>
-                        <span className="help-block">{props.parameter.description}</span>
+                        <ReactMarkdown className="help-block" source={props.parameter.description}/>
                     </div>
                 </div>
             </div>
