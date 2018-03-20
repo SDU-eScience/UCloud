@@ -139,5 +139,11 @@ enum class AppState {
     /**
      * The job has completed unsuccessfully
      */
-    FAILURE
+    FAILURE;
+
+    fun isFinal(): Boolean =
+        when (this) {
+            SUCCESS, FAILURE -> true
+            else -> false
+        }
 }

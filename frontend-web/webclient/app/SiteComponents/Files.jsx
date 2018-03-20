@@ -35,7 +35,7 @@ class Files extends React.Component {
     constructor(props, context) {
         super(props);
         const urlPath = props.match.params[0];
-        const { dispatch, history } = props;
+        const {dispatch, history} = props;
         if (urlPath) {
             dispatch(updatePath(urlPath));
         } else {
@@ -67,11 +67,11 @@ class Files extends React.Component {
     }
 
     selectOrDeselectAllFiles(checked) {
-        const { currentFilesPage, filesPerPage, files, dispatch } = this.props;
+        const {currentFilesPage, filesPerPage, files, dispatch} = this.props;
         files.forEach(file => file.isChecked = false);
         if (checked) {
             files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
-                 .forEach(file => file.isChecked = true);
+                .forEach(file => file.isChecked = true);
         }
 
         dispatch(updateFiles(files));
@@ -87,17 +87,22 @@ class Files extends React.Component {
         const {files, dispatch, filesPerPage} = this.props;
         const asc = (this.state.lastSorting.name === fileSorting) ? !this.state.lastSorting.asc : true;
         const sortedFiles = sortingFunction(files, asc);
-        if (sortedFiles.length > filesPerPage) { sortedFiles.forEach((file) => file.isChecked = false); }
+        if (sortedFiles.length > filesPerPage) {
+            sortedFiles.forEach((file) => file.isChecked = false);
+        }
         dispatch(updateFiles(sortedFiles));
         this.setState(() => ({
-            lastSorting: { name: fileSorting, asc: asc }
+            lastSorting: {name: fileSorting, asc: asc}
         }));
     }
 
     componentWillReceiveProps(nextProps) {
         const {dispatch, path} = this.props;
         let newPath = nextProps.match.params[0];
-        if (!newPath) { this.props.history.push(`/files/${Cloud.homeFolder}`); return }
+        if (!newPath) {
+            this.props.history.push(`/files/${Cloud.homeFolder}`);
+            return
+        }
         if (path !== newPath && !nextProps.loading) {
             dispatch(updatePath(newPath));
             dispatch(setLoading(true));
@@ -127,7 +132,8 @@ class Files extends React.Component {
                             entriesPerPage={filesPerPage}
                             toPage={pageNumber => dispatch(toPage(pageNumber))}/>
                         <EntriesPerPageSelector entriesPerPage={filesPerPage}
-                                                handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}/> Files per page
+                                                handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}/> Files
+                        per page
                     </div>
                     <ContextBar selectedFiles={shownFiles.filter(file => file.isChecked)}
                                 currentPath={path}
@@ -246,12 +252,15 @@ const FilesTable = (props) => {
                                    checked={props.masterCheckbox}
                                    type="checkbox" onChange={e => props.selectOrDeselectAllFiles(e.target.checked)}/><em
                             className="bg-info"/></label></th>
-                        <th onClick={() => props.sortFiles("typeAndName", sortFilesByTypeAndName)}><span className="text-left">Filename<span
+                        <th onClick={() => props.sortFiles("typeAndName", sortFilesByTypeAndName)}><span
+                            className="text-left">Filename<span
                             className={"pull-right " + props.sortingIcon("typeAndName")}/></span>
                         </th>
-                        <th onClick={() => props.sortFiles("favorite", sortFilesByFavorite)}><span><em className="ion-star"/><span
+                        <th onClick={() => props.sortFiles("favorite", sortFilesByFavorite)}><span><em
+                            className="ion-star"/><span
                             className={"pull-right " + props.sortingIcon("favorite")}/></span></th>
-                        <th onClick={() => props.sortFiles("modifiedAt", sortFilesByModified)}><span className="text-left">Last Modified<span
+                        <th onClick={() => props.sortFiles("modifiedAt", sortFilesByModified)}><span
+                            className="text-left">Last Modified<span
                             className={"pull-right " + props.sortingIcon("modifiedAt")}/></span></th>
                         <th onClick={() => props.sortFiles("owner", sortFilesByOwner)}><span className="text-left">File Rights<span
                             className={"pull-right " + props.sortingIcon("owner")}/></span>
@@ -287,38 +296,46 @@ const FilesList = ({files, addOrRemoveFile, favoriteFile}) => {
 };
 
 const File = ({file, favoriteFile, addOrRemoveFile, owner}) => (
-        <tr className="row-settings clickable-row">
-            <td className="select-cell"><label className="mda-checkbox">
+    <tr className="row-settings clickable-row">
+        <td className="select-cell">
+            <label className="mda-checkbox">
                 <input name="select" className="select-box" checked={file.isChecked}
                        type="checkbox" onChange={(e) => addOrRemoveFile(e.target.checked, file)}/>
-                <em className="bg-info"/></label></td>
-            <FileType type={file.type} path={file.path}/>
-            <Favorited file={file} favoriteFile={favoriteFile}/>
-            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-            <td>{owner}</td>
-            <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
-            <td>
-                <MobileButtons file={file}/>
-            </td>
-        </tr>
+                <em className="bg-info"/>
+            </label>
+        </td>
+        <FileType type={file.type} path={file.path}/>
+        <Favorited file={file} favoriteFile={favoriteFile}/>
+        <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+        <td>{owner}</td>
+        <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
+        <td>
+            <MobileButtons file={file}/>
+        </td>
+    </tr>
 );
 
 const Directory = ({file, favoriteFile, addOrRemoveFile, owner}) => (
-        <tr className="row-settings clickable-row"
-            style={{cursor: "pointer"}}>
-            <td className="select-cell"><label className="mda-checkbox">
-                <input name="select" className="select-box" checked={file.isChecked}
-                       type="checkbox" onChange={(e) => addOrRemoveFile(e.target.checked, file)}/><em
-                className="bg-info"/></label></td>
-            <FileType type={file.type} path={file.path}/>
-            <Favorited file={file} favoriteFile={favoriteFile}/>
-            <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-            <td>{owner}</td>
-            <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
-            <td>
-                <MobileButtons file={file}/>
-            </td>
-        </tr>
+    <tr className="row-settings clickable-row" style={{cursor: "pointer"}}>
+        <td className="select-cell">
+            <label className="mda-checkbox">
+                <input
+                    name="select"
+                    className="select-box"
+                    checked={file.isChecked}
+                    type="checkbox"
+                    onChange={(e) => addOrRemoveFile(e.target.checked, file)}
+                />
+                <em className="bg-info"/>
+            </label>
+        </td>
+        <FileType type={file.type} path={file.path}/>
+        <Favorited file={file} favoriteFile={favoriteFile}/>
+        <td>{new Date(file.modifiedAt).toLocaleString()}</td>
+        <td>{owner}</td>
+        <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
+        <td><MobileButtons file={file}/></td>
+    </tr>
 );
 
 const FileType = ({type, path}) =>

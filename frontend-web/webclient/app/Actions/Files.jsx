@@ -18,7 +18,7 @@ export const fetchFiles = (path, sorting, sortAscending) =>
 export const toPage = (pageNumber) => ({
   type: TO_PAGE,
   pageNumber: pageNumber
-})
+});
 
 /*
 * Updates the files stored. 
@@ -29,14 +29,14 @@ export const updateFiles = (files) => {
     type: UPDATE_FILES,
     files
   }
-}
+};
 
 export const setLoading = (loading) => {
   return {
     type: SET_LOADING,
     loading
   }
-}
+};
 
 export const updatePath = (newPath) => ({
     type: UPDATE_PATH,

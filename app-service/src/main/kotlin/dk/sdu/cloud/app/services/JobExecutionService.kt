@@ -545,11 +545,18 @@ class JobExecutionService(
                     throw JobInternalException("Output file too large")
                 }
 
-                val transferStatus = scpDownload(fileToTransferFromHPC) {
-                    TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud, tokenRefresher).start {
-                        log.debug("$jobId: $it/${sourceFile.size} bytes transferred")
+                val transferStatus =
+                    try {
+                        scpDownload(fileToTransferFromHPC) {
+                            TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud, tokenRefresher)
+                                .start {
+                                    log.debug("$jobId: $it/${sourceFile.size} bytes transferred")
+                                }
+                        }
+                    } catch (ex: Exception) {
+                        log.warn("Caught exception while uploading file to SDUCloud")
+                        throw JobInternalException("Upload failed. ${ex.message}")
                     }
-                }
 
                 if (transferStatus != 0) {
                     throw JobInternalException("Upload failed. Transfer state != 0 ($transferStatus)")

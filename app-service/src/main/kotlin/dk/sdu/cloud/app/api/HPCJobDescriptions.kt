@@ -86,5 +86,11 @@ data class FollowStdStreamsResponse(
     val stdoutNextLine: Int,
 
     val stderr: String,
-    val stderrNextLine: Int
+    val stderrNextLine: Int,
+
+    val application: NameAndVersion,
+    val state: AppState,
+    val status: String,
+    val complete: Boolean,
+    val id: String
 )

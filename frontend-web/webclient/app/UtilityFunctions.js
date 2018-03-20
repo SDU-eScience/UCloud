@@ -295,4 +295,6 @@ export const getCurrentRights = (files, cloud) => {
         rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
         rightsLevel: lowestPrivilegeOptions
     }
-}
+};
+
+export const shortUUID = (uuid) => uuid.substring(0, 8);
