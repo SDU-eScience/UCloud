@@ -8,7 +8,7 @@ import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
 import {DashboardModal} from "uppy/lib/react";
 import { dispatch } from "redux";
-import { changeUppyOpen } from "../Actions/UppyActions";
+import { changeUppyOpen, updateUppy } from "../Actions/UppyActions";
 
 class FileSelector extends React.Component {
     constructor(props, context) {
@@ -49,7 +49,11 @@ class FileSelector extends React.Component {
             });
         };
         
-        this.props.uppy.on("upload-success", uppyOnUploadSuccess);
+
+
+        let uppy = this.props.uppy;
+        uppy.on("upload-success", uppyOnUploadSuccess);
+        this.context.store.dispatch(updateUppy(uppy));
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.getFiles = this.getFiles.bind(this);
@@ -80,7 +84,6 @@ class FileSelector extends React.Component {
         if (uppyOnUploadSuccess !== null) {
             this.props.uppy.off("upload-success", uppyOnUploadSuccess);
         }
-        this.props.uppy.reset();
     }
 
     onUppyClose() {

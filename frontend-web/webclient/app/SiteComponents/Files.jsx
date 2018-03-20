@@ -42,9 +42,11 @@ class Files extends React.Component {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
 
-        this.props.dispatch(updateUppy(initializeUppy({ maxNumberOfFiles: false })));
-        this.props.uppy.run();
+        let uppy = initializeUppy({ maxNumberOfFiles: false });
+        uppy.run();
+        this.props.dispatch(updateUppy(uppy));
         
+
         pubsub.publish('setPageTitle', this.constructor.name);
         this.state = {
             lastSorting: {
@@ -59,7 +61,9 @@ class Files extends React.Component {
     }
     
     componentWillUnmount() {
-       this.props.uppy.close();
+       let {uppy} = this.props;
+       uppy.reset();
+       this.props.dispatch(updateUppy(uppy));
     }
 
     getSortingIcon(name) {
@@ -76,6 +80,7 @@ class Files extends React.Component {
             files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
                  .forEach(file => file.isChecked = true);
         }
+
         dispatch(updateFiles(files));
     }
 
