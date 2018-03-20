@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import {connect} from 'react-redux'
+import { connect } from 'react-redux'
 import {BallPulseLoading} from "./LoadingIcon";
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from "react-router-dom";
@@ -27,9 +27,9 @@ import {
 import Uppy from "uppy";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
-import {fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage} from "../Actions/Files";
-import {changeUppyOpen} from "../Actions/UppyActions";
-
+import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
+import { changeUppyOpen, updateUppy } from "../Actions/UppyActions";
+import { initializeUppy } from "../DefaultObjects";
 
 class Files extends React.Component {
     constructor(props, context) {
@@ -41,7 +41,12 @@ class Files extends React.Component {
         } else {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
-        props.uppy.run();
+
+        let uppy = initializeUppy({ maxNumberOfFiles: false });
+        uppy.run();
+        this.props.dispatch(updateUppy(uppy));
+        
+
         pubsub.publish('setPageTitle', this.constructor.name);
         this.state = {
             lastSorting: {
@@ -53,6 +58,12 @@ class Files extends React.Component {
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.getSortingIcon = this.getSortingIcon.bind(this);
+    }
+    
+    componentWillUnmount() {
+       let {uppy} = this.props;
+       uppy.reset();
+       this.props.dispatch(updateUppy(uppy));
     }
 
     getSortingIcon(name) {
@@ -69,6 +80,7 @@ class Files extends React.Component {
             files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
                 .forEach(file => file.isChecked = true);
         }
+
         dispatch(updateFiles(files));
     }
 
@@ -103,10 +115,6 @@ class Files extends React.Component {
             dispatch(setLoading(true));
             dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
         }
-    }
-
-    componentWillUnmount() {
-        this.props.uppy.close();
     }
 
     render() {
@@ -380,12 +388,12 @@ Files.propTypes = {
     checkedFilesCount: PropTypes.number.isRequired,
     loading: PropTypes.bool.isRequired,
     path: PropTypes.string.isRequired,
-    uppy: PropTypes.object.isRequired,
+    uppy: PropTypes.object,
     uppyOpen: PropTypes.bool.isRequired,
 }
 
 const mapStateToProps = (state) => {
-    const {files, filesPerPage, currentFilesPage, loading, path} = state.files;
+    const {files, filesPerPage, currentFilesPage, loading, path} = state.files;ß
     const {uppy, uppyOpen} = state.uppy;
     const favFilesCount = files.filter(file => file.favorited).length; // Hack to ensure changes to favorites are rendered.
     const checkedFilesCount = files.filter(file => file.isChecked).length; // Hack to ensure changes to file checkings are rendered.

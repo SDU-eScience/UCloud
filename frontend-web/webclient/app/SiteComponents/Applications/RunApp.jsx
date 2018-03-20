@@ -1,13 +1,15 @@
 import React from 'react';
-import {Jumbotron, InputGroup, FormGroup} from "react-bootstrap";
+import { Jumbotron, InputGroup, FormGroup } from "react-bootstrap";
 import FileSelector from '../FileSelector';
-import {Cloud} from "../../../authentication/SDUCloudObject";
+import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
-import {BallPulseLoading} from "../LoadingIcon"
+import PropTypes from "prop-types";
+import { BallPulseLoading } from "../LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
-import {tusConfig} from "../../Configurations";
-import Uppy from "uppy";
 import ReactMarkdown from "react-markdown";
+import { connect } from "react-redux";
+import { initializeUppy } from "../../DefaultObjects";
+import { updateUppy } from "../../Actions/UppyActions";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -32,23 +34,13 @@ class RunApp extends React.Component {
                 tasksPerNode: null,
             },
             tool: {},
-            comment: "",
-            uppy: Uppy.Core({
-                autoProceed: false,
-                debug: false,
-                restrictions: {
-                    maxNumberOfFiles: 1,
-                },
-                meta: {
-                    sensitive: false,
-                },
-                onBeforeUpload: () => {
-                    return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
-                        tusConfig.headers["Authorization"] = "Bearer " + data;
-                    });
-                }
-            }),
+            comment: ""
         };
+
+
+        let uppy = initializeUppy({ maxNumberOfFiles: 1 });
+        this.props.dispatch(updateUppy(uppy));
+
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
         this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
@@ -57,17 +49,18 @@ class RunApp extends React.Component {
     };
 
     componentDidMount() {
-        this.state.uppy.use(Uppy.Tus, tusConfig);
-        this.state.uppy.run();
         this.retrieveApplication();
     }
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
+        let { uppy } = this.props;
+        uppy.reset();
+        this.props.dispatch(updateUppy(uppy));
     }
 
     onJobSchedulingParamsChange(field, value, timeField) {
-        let {jobInfo} = this.state;
+        let { jobInfo } = this.state;
         if (timeField) {
             jobInfo[field][timeField] = !isNaN(value) ? value : null;
         } else {
@@ -116,7 +109,7 @@ class RunApp extends React.Component {
     handleInputChange(parameterName, value) {
         this.setState(() => {
             let result = {
-                parameterValues: Object.assign({}, this.state.parameterValues),
+                parameterValues: { ...this.state.parameterValues },
             };
 
             result.parameterValues[parameterName] = value;
@@ -127,7 +120,7 @@ class RunApp extends React.Component {
     handleFileSelectorChange(file, returnObject) {
         this.setState(() => {
             let result = {
-                parameterValues: Object.assign({}, this.state.parameterValues),
+                parameterValues: { ...this.state.parameterValues },
             };
             result.parameterValues[returnObject.parameter.name] = {
                 source: file.path.path,
@@ -173,7 +166,7 @@ class RunApp extends React.Component {
                 <div className="container-fluid">
                     <div className="card">
                         <div className="card-body">
-                            <BallPulseLoading loading={this.state.loading}/>
+                            <BallPulseLoading loading={this.state.loading} />
 
                             <ApplicationHeader
                                 name={this.state.displayAppName}
@@ -189,7 +182,7 @@ class RunApp extends React.Component {
                                 onChange={this.handleInputChange}
                                 comment={this.state.comment}
                                 onCommentChange={this.onCommentChange}
-                                uppy={this.state.uppy}
+                                uppy={this.props.uppy}
                                 jobInfo={this.state.jobInfo}
                                 onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
                                 tool={this.state.tool}
@@ -201,7 +194,7 @@ class RunApp extends React.Component {
     }
 }
 
-const ApplicationHeader = ({authors, name, description}) => {
+const ApplicationHeader = ({ authors, name, description }) => {
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!authors) ? authors.join(", ") : "";
@@ -212,7 +205,7 @@ const ApplicationHeader = ({authors, name, description}) => {
                 <div className="col-lg-8">
                     <h1>{name}</h1>
                     <h4>{pluralize(authors, "Author")}: {authorString}</h4>
-                    <ReactMarkdown source={description}/>
+                    <ReactMarkdown source={description} />
                 </div>
             </div>
         </Jumbotron>
@@ -249,23 +242,23 @@ const Parameters = (props) => {
                 jobInfo={props.jobInfo}
                 tool={props.tool}
             />
-            <input value="Submit" className="btn btn-info" type="submit"/>
+            <input value="Submit" className="btn btn-info" type="submit" />
         </form>
     )
 };
 
 const JobSchedulingParams = (props) => {
     // TODO refactor fields, very not DRY compliant
-    const {maxTime} = props.jobInfo;
+    const { maxTime } = props.jobInfo;
     return (
         <span>
             <fieldset>
                 <div className="form-group">
                     <label className="col-sm-2 control-label">Number of nodes</label>
                     <div className="col-md-4">
-                    <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
-                           className="col-md-4 form-control"
-                           onChange={e => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(e.target.value), null)}/>
+                        <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
+                            className="col-md-4 form-control"
+                            onChange={e => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(e.target.value), null)} />
                     </div>
                 </div>
             </fieldset>
@@ -273,9 +266,9 @@ const JobSchedulingParams = (props) => {
                 <div className="form-group">
                     <label className="col-sm-2 control-label">Tasks per node</label>
                     <div className="col-md-4">
-                    <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultTasksPerNode}
-                           className="col-md-4 form-control"
-                           onChange={e => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(e.target.value), null)}/>
+                        <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultTasksPerNode}
+                            className="col-md-4 form-control"
+                            onChange={e => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(e.target.value), null)} />
                     </div>
                 </div>
             </fieldset>
@@ -285,33 +278,33 @@ const JobSchedulingParams = (props) => {
                     <div className="col-xs-10">
                         <div className="form-inline">
                             <InputGroup>
-                                <input type="number" step="1" min="0" className="form-control" style={{width: 150}}
-                                       placeholder={props.tool.defaultMaxTime.hours}
-                                       value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
-                                       onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")}/>
+                                <input type="number" step="1" min="0" className="form-control" style={{ width: 150 }}
+                                    placeholder={props.tool.defaultMaxTime.hours}
+                                    value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
+                                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")} />
                                 <span className="input-group-addon">Hours</span>
                             </InputGroup>{" "}
                             <InputGroup>
                                 <input type="number" step="1" min="0" max="59" className="form-control"
-                                       style={{width: 150}}
-                                       placeholder={props.tool.defaultMaxTime.minutes}
-                                       value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
-                                       onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "minutes")}/>
+                                    style={{ width: 150 }}
+                                    placeholder={props.tool.defaultMaxTime.minutes}
+                                    value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
+                                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "minutes")} />
                                 <span className="input-group-addon">Minutes</span>
                             </InputGroup>{"  "}
                             <InputGroup>
                                 <input type="number" step="1" min="0" max="59" className="form-control"
-                                       style={{width: 150}}
-                                       placeholder={props.tool.defaultMaxTime.seconds}
-                                       value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
-                                       onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "seconds")}/>
+                                    style={{ width: 150 }}
+                                    placeholder={props.tool.defaultMaxTime.seconds}
+                                    value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
+                                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "seconds")} />
                                 <span className="input-group-addon">Seconds</span>
                             </InputGroup>
                         </div>
                     </div>
                 </FormGroup>
             </fieldset>
-            <fieldset><CommentField onCommentChange={props.onCommentChange} comment={props.comment}/></fieldset>
+            <fieldset><CommentField onCommentChange={props.onCommentChange} comment={props.comment} /></fieldset>
         </span>
     )
 };
@@ -323,7 +316,7 @@ const CommentField = (props) => (
             <textarea
                 disabled
                 required
-                style={{resize: "none"}}
+                style={{ resize: "none" }}
                 placeholder="Add a comment about this job..."
                 className="col-md-4 form-control"
                 rows="5"
@@ -364,7 +357,7 @@ const InputFileParameter = (props) => {
             destination: file.path.name // TODO Should allow for custom name at destination
         });
     };
-
+    const path = props.value ? props.value.source : "";
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
@@ -372,6 +365,7 @@ const InputFileParameter = (props) => {
                 uppyOpen={props.uppyOpen}
                 uploadCallback={file => internalOnChange(file)}
                 uppy={props.uppy}
+                path={path}
                 isRequired={!props.parameter.optional}
                 allowUpload={true}
             />
@@ -398,9 +392,9 @@ const TextParameter = (props) => {
 };
 
 const BooleanParameter = (props) => {
-    let options = [{value: true, display: "Yes"}, {value: false, display: "No"}];
+    let options = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
     if (props.parameter.optional) {
-        options.unshift({value: null, display: ""});
+        options.unshift({ value: null, display: "" });
     }
 
     const internalOnChange = (event) => {
@@ -451,7 +445,7 @@ const GenericNumberParameter = (props) => {
             step="any"
             value={value}
             id={props.parameter.name}
-            onChange={e => internalOnChange(e)}/>
+            onChange={e => internalOnChange(e)} />
     );
 
     if (props.parameter.unitName !== null) {
@@ -492,7 +486,7 @@ const IntegerParameter = (props) => {
 };
 
 const FloatingParameter = (props) => {
-    let childProps = Object.assign({}, props);
+    let childProps = { ...props };
     childProps.parseValue = (it) => parseFloat(it);
     return <GenericNumberParameter {...childProps} />;
 };
@@ -510,10 +504,10 @@ const GenericParameter = (props) => {
                     </div>
                 </div>
                 <div className="row">
-                    <div className="col-md-2"/>
+                    <div className="col-md-2" />
                     <div className="col-md-8 col-lg-6">
-                        <OptionalText optional={props.parameter.optional}/>
-                        <ReactMarkdown className="help-block" source={props.parameter.description}/>
+                        <OptionalText optional={props.parameter.optional} />
+                        <ReactMarkdown className="help-block" source={props.parameter.description} />
                     </div>
                 </div>
             </div>
@@ -525,4 +519,14 @@ const OptionalText = (props) => {
     return props.optional ? (<span className="help-block"><b>Optional</b></span>) : null;
 };
 
-export default RunApp;
+const mapStateToProps = (state) => {
+    const { uppy, uppyOpen } = state.uppy;
+    return { uppy, uppyOpen };
+}
+
+RunApp.propTypes = {
+    uppy: PropTypes.object.isRequired,
+    uppyOpen: PropTypes.bool.isRequired
+};
+
+export default connect(mapStateToProps)(RunApp);
