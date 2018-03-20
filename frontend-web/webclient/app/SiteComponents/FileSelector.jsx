@@ -8,7 +8,7 @@ import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
 import {DashboardModal} from "uppy/lib/react";
 import { dispatch } from "redux";
-import { changeUppyOpen, updateUppy } from "../Actions/UppyActions";
+import { changeUppyRunAppOpen } from "../Actions/UppyActions";
 
 class FileSelector extends React.Component {
     constructor(props, context) {
@@ -53,7 +53,6 @@ class FileSelector extends React.Component {
 
         let uppy = this.props.uppy;
         uppy.on("upload-success", uppyOnUploadSuccess);
-        this.context.store.dispatch(updateUppy(uppy));
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.getFiles = this.getFiles.bind(this);
@@ -113,7 +112,7 @@ class FileSelector extends React.Component {
     }
 
     render() {
-        const uploadButton = this.props.allowUpload ? (<UploadButton onClick={() => this.context.store.dispatch(changeUppyOpen(true))}/>) : null;
+        const uploadButton = this.props.allowUpload ? (<UploadButton onClick={() => this.context.store.dispatch(changeUppyRunAppOpen(true))}/>) : null;
         return (
             <div>
                 <div className="input-group">

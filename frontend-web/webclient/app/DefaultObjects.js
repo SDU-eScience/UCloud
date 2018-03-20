@@ -66,9 +66,9 @@ export const initObject = {
         projects: []
     },
     uppy: {
-        uppy: initializeUppy({}),
-        uppyOpen: false
+        uppyFiles: initializeUppy({maxNumberOfFiles: false}),
+        uppyFilesOpen: false,
+        uppyRunApp: initializeUppy({ maxNumberOfFiles: 1}),
+        uppyRunAppOpen: false
     }
 };
-
-export { initializeUppy }
