@@ -51,8 +51,10 @@ class FileSelector extends React.Component {
         
 
 
-        let uppy = this.props.uppy;
-        uppy.on("upload-success", uppyOnUploadSuccess);
+        if (props.allowUpload) {
+            let uppy = this.props.uppy;
+            uppy.on("upload-success", uppyOnUploadSuccess);
+        }
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.getFiles = this.getFiles.bind(this);

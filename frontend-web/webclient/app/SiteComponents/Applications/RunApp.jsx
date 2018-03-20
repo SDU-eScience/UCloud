@@ -361,7 +361,7 @@ const InputFileParameter = (props) => {
                 uppy={props.uppy}
                 path={path}
                 isRequired={!props.parameter.optional}
-                allowUpload={true}
+                allowUpload
             />
         </GenericParameter>
     );
