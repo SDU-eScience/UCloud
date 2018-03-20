@@ -17,28 +17,39 @@ class JobService(
         dao.transaction { findAllJobsWithStatus(who.subject, paginationRequest.normalize()) }
 
     fun findJobById(who: DecodedJWT, jobId: String): JobWithStatus? =
-            dao.transaction { findJobById(who.subject, jobId) }
+        dao.transaction { findJobById(who.subject, jobId) }
 
     fun findJobForInternalUseById(who: DecodedJWT, jobId: String): JobInformation? =
-            dao.transaction { findJobInformationByJobId(who.subject, jobId) }
+        dao.transaction { findJobInformationByJobId(who.subject, jobId) }
 
     fun followStdStreams(lines: FollowStdStreamsRequest, job: JobInformation): FollowStdStreamsResponse {
+        fun respond(stdout: String = "", stdoutNext: Int = 0, stderr: String = "", stderrNext: Int = 0) =
+            FollowStdStreamsResponse(
+                stdout,
+                stdoutNext,
+                stderr,
+                stderrNext,
+                NameAndVersion(job.appName, job.appVersion),
+                job.state,
+                job.status ?: "Unknown",
+                job.state.isFinal(),
+                job.systemId
+            )
+
         when (job.state) {
-            AppState.VALIDATED, AppState.PREPARED -> throw JobServiceException.NotReady()
-            AppState.FAILURE, AppState.SUCCESS -> throw JobServiceException.AlreadyComplete()
+            AppState.VALIDATED, AppState.PREPARED -> return respond()
+            AppState.FAILURE, AppState.SUCCESS -> return respond()
 
             AppState.RUNNING, AppState.SCHEDULED -> {
                 // We can continue
             }
         }
 
-        if (job.workingDirectory == null) throw JobServiceException.NotReady()
-
         val shouldFollowStdout = lines.stdoutMaxLines > 0
         val shouldFollowStderr = lines.stderrMaxLines > 0
-        if (!shouldFollowStdout && !shouldFollowStderr) {
-            return FollowStdStreamsResponse("", 0, "", 0)
-        }
+
+        if (!shouldFollowStdout && !shouldFollowStderr) return respond()
+        if (job.workingDirectory == null) return respond()
 
         sshPool.use {
             val stdOutLines = min(lines.stdoutMaxLines, 1000)
@@ -60,7 +71,7 @@ class JobService(
                 ""
             }
 
-            return FollowStdStreamsResponse(
+            return respond(
                 stdout, stdout.count { it == '\n' } + lines.stdoutLineStart,
                 stderr, stderr.count { it == '\n' } + lines.stderrLineStart
             )
