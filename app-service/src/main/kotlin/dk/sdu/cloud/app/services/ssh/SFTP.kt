@@ -52,9 +52,11 @@ fun SSHConnection.stat(path: String): SftpATTRS? =
     }
 
 data class LSWithGlobResult(val fileName: String, val size: Long)
+
 fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<LSWithGlobResult> {
     val parentDirectory = baseDirectory.removeSuffix("/") + "/" + path.substringBeforeLast('/', ".")
     val query = baseDirectory.removeSuffix("/") + "/" + path.removeSuffix("/")
+    // TODO FIXME Should this be escaped?
     return try {
         ls(query)
             .map { Pair(parentDirectory + "/" + it.filename, it.attrs.size) }
@@ -80,4 +82,11 @@ fun SSHConnection.rm(path: String, recurse: Boolean = false, force: Boolean = fa
     invocation += safeBashArgument(path)
 
     return execWithOutputAsText(invocation.joinToString(" ")).first
+}
+
+fun SSHConnection.linesInRange(path: String, startingAt: Int, maxLines: Int): Pair<Int, String> {
+    val invocation = """
+            bash -c "tail -n +$startingAt ${safeBashArgument(safeBashArgument(path))} | head -n $maxLines"
+        """.trimIndent().lines().first()
+    return execWithOutputAsText(invocation)
 }

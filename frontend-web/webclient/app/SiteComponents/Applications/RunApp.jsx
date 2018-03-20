@@ -81,15 +81,16 @@ class RunApp extends React.Component {
 
     handleSubmit(event) {
         event.preventDefault();
+
         let maxTime = this.state.jobInfo.maxTime;
         if (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null) {
             maxTime.hours = maxTime.hours ? maxTime.hours : 0;
             maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
             maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
-        }
-        if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
+        } else if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
             maxTime = null;
         }
+
         let job = {
             application: {
                 name: this.state.appName,
@@ -147,7 +148,6 @@ class RunApp extends React.Component {
             loading: true
         }));
 
-        this.setState({loading: true});
         this.state.promises.makeCancelable(
             Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}/?resolve=true`)
         ).promise.then(req => {

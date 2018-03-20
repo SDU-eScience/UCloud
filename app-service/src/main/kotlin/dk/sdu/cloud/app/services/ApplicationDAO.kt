@@ -29,6 +29,29 @@ object ApplicationDAO {
             )
         ),
 
+        "figlet-count" to listOf(
+            ApplicationDescription(
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+                prettyName = "Figlet Counter",
+                createdAt = 1519910207000L,
+                modifiedAt = 1519910207000L,
+                description = "Count with Figlet!",
+                tool = NameAndVersion("figlet", "1.0.0"),
+                info = NameAndVersion("figlet-count", "1.0.0"),
+                invocation = listOf(WordInvocationParameter("figlet-count"), VariableInvocationParameter(listOf("n"))),
+                parameters = listOf(
+                    ApplicationParameter.Integer(
+                        name = "n",
+                        optional = true,
+                        defaultValue = 100,
+                        prettyName = "Count",
+                        description = "How much should we count to?"
+                    )
+                ),
+                outputFileGlobs = listOf("stdout.txt", "stderr.txt")
+            )
+        ),
+
         "parms" to listOf(
             ApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),

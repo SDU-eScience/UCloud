@@ -41,7 +41,50 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
             bindEntireRequestFromBody()
         }
     }
+
+    val follow = callDescription<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage> {
+        prettyName = "followStdStreams"
+        method = HttpMethod.GET
+
+        path {
+            using(baseContext)
+            +"follow"
+            +boundTo(FollowStdStreamsRequest::jobId)
+        }
+
+        params {
+            +boundTo(FollowStdStreamsRequest::stderrLineStart)
+            +boundTo(FollowStdStreamsRequest::stderrMaxLines)
+            +boundTo(FollowStdStreamsRequest::stdoutLineStart)
+            +boundTo(FollowStdStreamsRequest::stdoutMaxLines)
+        }
+    }
 }
 
 data class FindByNameAndVersion(val name: String, val version: String)
 data class JobStartedResponse(val jobId: String)
+
+
+data class FollowStdStreamsRequest(
+    val jobId: String,
+    val stdoutLineStart: Int,
+    val stdoutMaxLines: Int,
+
+    val stderrLineStart: Int,
+    val stderrMaxLines: Int
+) {
+    init {
+        if (stderrMaxLines < 0) throw IllegalArgumentException("stderrMaxLines < 0")
+        if (stdoutMaxLines < 0) throw IllegalArgumentException("stdoutMaxLines < 0")
+        if (stdoutLineStart < 0) throw IllegalArgumentException("stdoutLineStart < 0")
+        if (stderrLineStart < 0) throw IllegalArgumentException("stderrLinesStart < 0")
+    }
+}
+
+data class FollowStdStreamsResponse(
+    val stdout: String,
+    val stdoutNextLine: Int,
+
+    val stderr: String,
+    val stderrNextLine: Int
+)
