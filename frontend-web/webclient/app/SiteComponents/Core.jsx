@@ -11,6 +11,7 @@ import Status from "./StatusPage";
 import Applications from "./Applications/Applications";
 import RunApp from "./Applications/RunApp";
 import Analyses from "./Applications/Analyses";
+import DetailedResult from "./Applications/DetailedResult";
 import Notifications from "./Activity/Notifications";
 import Header from "./Header";
 import Sidebar from "../SiteComponents/Sidebar";
@@ -41,6 +42,7 @@ const Core = () => (
                 <Route exact path="/workflows" component={Workflows}/>
                 <Route exact path="/generateworkflow" component={GenerateWorkflow}/>
                 <Route exact path="/analyses" component={Analyses}/>
+                <Route exact path="/analyses/:jobId" component={DetailedResult}/>
                 <Route exact path="/audit/user/:id" component={UserAuditing}/>
                 <Route exact path="/notifications" component={Notifications}/>
                 <Route exact path="/zenodo/" component={ZenodoHome}/>

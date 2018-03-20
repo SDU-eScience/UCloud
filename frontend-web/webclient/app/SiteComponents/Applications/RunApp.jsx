@@ -106,7 +106,7 @@ class RunApp extends React.Component {
 
         Cloud.post("/hpc/jobs", job).then(req => {
             if (req.request.status === 200) {
-                this.props.history.push("/analyses");
+                this.props.history.push(`/analyses/${req.response.jobId}`);
             } else {
                 swal("And error occurred. Please try again later.");
             }
@@ -487,7 +487,7 @@ const GenericNumberParameter = (props) => {
 
 const IntegerParameter = (props) => {
     let childProps = Object.assign({}, props);
-    childProps.parser = (it) => parseInt(it);
+    childProps.parseValue = (it) => parseInt(it);
     return <GenericNumberParameter {...childProps} />;
 };
 
