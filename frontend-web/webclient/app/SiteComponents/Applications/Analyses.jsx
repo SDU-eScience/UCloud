@@ -1,6 +1,6 @@
 import React from 'react';
 import {BallPulseLoading} from '../LoadingIcon'
-import {WebSocketSupport, toLowerCaseAndCapitalize} from '../../UtilityFunctions'
+import {WebSocketSupport, toLowerCaseAndCapitalize, shortUUID} from '../../UtilityFunctions'
 import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {Card} from "../Cards";
@@ -106,6 +106,7 @@ class Analyses extends React.Component {
                                     <tr>
                                         <th>App Name</th>
                                         <th>Job Id</th>
+                                        <th>State</th>
                                         <th>Status</th>
                                         <th>Started at</th>
                                         <th>Last updated at</th>
@@ -115,7 +116,8 @@ class Analyses extends React.Component {
                                 </Table>
                             </div>
                         </Card>
-                        <PaginationButtons entriesPerPage={this.state.analysesPerPage} totalEntries={this.state.analyses.length}
+                        <PaginationButtons entriesPerPage={this.state.analysesPerPage}
+                                           totalEntries={this.state.analyses.length}
                                            currentPage={this.state.currentPage}
                                            toPage={this.toPage} nextPage={this.nextPage}
                                            previousPage={this.previousPage}/>
@@ -137,11 +139,18 @@ const AnalysesList = (props) => {
                 (<Link to={`/files/${Cloud.jobFolder}/${analysis.jobId}`}>{analysis.jobId}</Link>) : analysis.jobId;
             return (
                 <tr key={index} className="gradeA row-settings">
-                    <td><Link
-                        to={`/applications/${analysis.appName}/${analysis.appVersion}`}>{analysis.appName}@{analysis.appVersion}</Link>
+                    <td>
+                        <Link to={`/applications/${analysis.appName}/${analysis.appVersion}`}>
+                            {analysis.appName}@{analysis.appVersion}
+                        </Link>
                     </td>
-                    <td>{jobIdField}</td>
-                    <td>{toLowerCaseAndCapitalize(analysis.status)}</td>
+                    <td>
+                        <Link to={`/analyses/${jobIdField}`}>
+                            <span title={jobIdField}>{shortUUID(jobIdField)}</span>
+                        </Link>
+                    </td>
+                    <td>{toLowerCaseAndCapitalize(analysis.state)}</td>
+                    <td>{analysis.status}</td>
                     <td>{formatDate(analysis.createdAt)}</td>
                     <td>{formatDate(analysis.modifiedAt)}</td>
                 </tr>)
