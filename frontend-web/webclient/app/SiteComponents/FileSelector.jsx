@@ -1,4 +1,5 @@
-import React from 'react';
+import React from "react";
+import PropTypes from "prop-types";
 import {BallPulseLoading} from './LoadingIcon';
 import {Modal, Button, Table} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
@@ -6,33 +7,24 @@ import {BreadCrumbs} from "./Breadcrumbs"
 import {sortFilesByTypeAndName, createFolder} from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
 import {DashboardModal} from "uppy/lib/react";
+import { dispatch } from "redux";
+import { changeUppyOpen } from "../Actions/UppyActions";
 
 class FileSelector extends React.Component {
-    constructor(props) {
-        super(props);
-        let file = props.initialFile ? props.initialFile : {path: {path: ""}};
+    constructor(props, context) {
+        super(props, context);
         this.state = {
             promises: new PromiseKeeper(),
             returnObject: props.returnObject,
-            selectedFile: file,
             currentPath: `/home/${Cloud.username}`,
             loading: false,
             files: [],
             modalShown: false,
-            uppyOpen: false,
             breadcrumbs: [],
             onFileSelectionChange: props.onFileSelectionChange,
             uppyOnUploadSuccess: null,
         };
-        this.openModal = this.openModal.bind(this);
-        this.closeModal = this.closeModal.bind(this);
-        this.getFiles = this.getFiles.bind(this);
-        this.setSelectedFile = this.setSelectedFile.bind(this);
-        this.openUppy = this.openUppy.bind(this);
-        this.onUppyClose = this.onUppyClose.bind(this);
-    }
 
-    openUppy() {
         let uppyOnUploadSuccess = (file, resp, uploadURL) => {
             // TODO This is a hack.
             let apiIndex = uploadURL.indexOf("/api/");
@@ -53,32 +45,16 @@ class FileSelector extends React.Component {
                     }
                 };
 
-                this.setSelectedFile(fileObject);
+                this.props.uploadCallback(fileObject);
             });
         };
-
+        
         this.props.uppy.on("upload-success", uppyOnUploadSuccess);
-        this.setState(() => ({
-            uppyOpen: true,
-            uppyOnUploadSuccess: uppyOnUploadSuccess,
-        }));
-
-    }
-
-    componentDidMount() {
-        this.getFiles(`/home/${Cloud.username}`);
-    }
-
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-        // Clean up in uppy. TODO potentially refactor this
-        if (this.props.uppy) {
-            let uppyOnUploadSuccess = this.state.uppyOnUploadSuccess;
-            if (uppyOnUploadSuccess !== null) {
-                this.props.uppy.off("upload-success", uppyOnUploadSuccess);
-            }
-            this.props.uppy.reset();
-        }
+        this.openModal = this.openModal.bind(this);
+        this.closeModal = this.closeModal.bind(this);
+        this.getFiles = this.getFiles.bind(this);
+        this.setSelectedFile = this.setSelectedFile.bind(this);
+        this.onUppyClose = this.onUppyClose.bind(this);
     }
 
     openModal() {
@@ -93,22 +69,33 @@ class FileSelector extends React.Component {
         }));
     }
 
-    onUppyClose() {
-        this.props.uppy.off("upload-success", this.state.uppyOnUploadSuccess);
-        this.setState(() => ({
-            uppyOpen: false,
-            uppyOnUploadSuccess: null,
-        }));
+    componentDidMount() {
+        this.getFiles(`/home/${Cloud.username}`);
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
+        // Clean up in uppy. TODO potentially refactor this
+        let uppyOnUploadSuccess = this.state.uppyOnUploadSuccess;
+        if (uppyOnUploadSuccess !== null) {
+            this.props.uppy.off("upload-success", uppyOnUploadSuccess);
+        }
         this.props.uppy.reset();
     }
 
-    setSelectedFile(file) {
-        let fileCopy = {path: Object.assign({}, file.path)};
+    onUppyClose() {
+        this.props.uppy.off("upload-success", this.state.uppyOnUploadSuccess);
         this.setState(() => ({
-            selectedFile: fileCopy,
+            uppyOnUploadSuccess: null,
+        }));
+    }
+
+    setSelectedFile(file) {
+        let fileCopy = { path: Object.assign({}, file.path)};
+        this.setState(() => ({
             modalShown: false,
         }));
-        this.state.onFileSelectionChange(fileCopy, this.state.returnObject);
+        this.props.uploadCallback(fileCopy);
     }
 
     getFiles(path) {
@@ -123,18 +110,7 @@ class FileSelector extends React.Component {
     }
 
     render() {
-        let uploadButton, uppyModal;
-        uploadButton = uppyModal = null;
-        if (this.props.allowUpload) {
-            uploadButton = this.props.allowUpload ?
-                (<UploadButton onClick={this.openUppy}/>) : null;
-            uppyModal = (<DashboardModal
-                uppy={this.props.uppy}
-                closeModalOnClickOutside
-                open={this.state.uppyOpen}
-                onRequestClose={this.onUppyClose}
-            />)
-        }
+        const uploadButton = this.props.allowUpload ? (<UploadButton onClick={() => this.context.store.dispatch(changeUppyOpen(true))}/>) : null;
         return (
             <div>
                 <div className="input-group">
@@ -146,7 +122,7 @@ class FileSelector extends React.Component {
                     </span>
                     <input className="form-control readonly" required={this.props.isRequired} type="text"
                            placeholder={"No file selected"}
-                           value={this.state.selectedFile.path.path}/>
+                           value={this.props.path}/>
                     {uploadButton}
                 </div>
                 <Modal show={this.state.modalShown} onHide={this.closeModal}>
@@ -159,7 +135,6 @@ class FileSelector extends React.Component {
                                       files={this.state.files} getFiles={this.getFiles}
                                       currentPath={this.state.currentPath}/>
                 </Modal>
-                {uppyModal}
             </div>)
     }
 }
@@ -193,8 +168,7 @@ const FileSelectorBody = (props) => {
         </Modal.Body>)
 };
 
-const UploadButton = (props) =>
-    (<span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>);
+const UploadButton = (props) => (<span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>);
 
 const FileList = ({files, getFiles, onClick}) =>
     !files.length ? null :
@@ -218,5 +192,9 @@ const FileList = ({files, getFiles, onClick}) =>
             }
         })}
         </tbody>);
+
+FileSelector.contextTypes = {
+    store: PropTypes.object.isRequired,
+};
 
 export default FileSelector;

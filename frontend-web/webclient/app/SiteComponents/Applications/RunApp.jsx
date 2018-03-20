@@ -3,11 +3,13 @@ import {Jumbotron, InputGroup, FormGroup} from "react-bootstrap";
 import FileSelector from '../FileSelector';
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
+import PropTypes from "prop-types";
 import {BallPulseLoading} from "../LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
-import {tusConfig} from "../../Configurations";
-import Uppy from "uppy";
 import ReactMarkdown from "react-markdown";
+import { connect } from "react-redux";
+import {initializeUppy} from "../../DefaultObjects";
+import { updateUppy } from "../../Actions/UppyActions";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -32,23 +34,12 @@ class RunApp extends React.Component {
                 tasksPerNode: null,
             },
             tool: {},
-            comment: "",
-            uppy: Uppy.Core({
-                autoProceed: false,
-                debug: false,
-                restrictions: {
-                    maxNumberOfFiles: 1,
-                },
-                meta: {
-                    sensitive: false,
-                },
-                onBeforeUpload: () => {
-                    return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
-                        tusConfig.headers["Authorization"] = "Bearer " + data;
-                    });
-                }
-            }),
+            comment: ""
         };
+
+        this.props.dispatch(updateUppy(initializeUppy({ maxNumberOfFiles: 1 })));
+        this.props.uppy.run();
+
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
         this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
@@ -57,13 +48,12 @@ class RunApp extends React.Component {
     };
 
     componentDidMount() {
-        this.state.uppy.use(Uppy.Tus, tusConfig);
-        this.state.uppy.run();
         this.retrieveApplication();
     }
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
+        this.props.uppy.close();
     }
 
     onJobSchedulingParamsChange(field, value, timeField) {
@@ -115,7 +105,7 @@ class RunApp extends React.Component {
     handleInputChange(parameterName, value) {
         this.setState(() => {
             let result = {
-                parameterValues: Object.assign({}, this.state.parameterValues),
+                parameterValues: { ...this.state.parameterValues},
             };
 
             result.parameterValues[parameterName] = value;
@@ -126,7 +116,7 @@ class RunApp extends React.Component {
     handleFileSelectorChange(file, returnObject) {
         this.setState(() => {
             let result = {
-                parameterValues: Object.assign({}, this.state.parameterValues),
+                parameterValues: { ...this.state.parameterValues},
             };
             result.parameterValues[returnObject.parameter.name] = {
                 source: file.path.path,
@@ -189,7 +179,7 @@ class RunApp extends React.Component {
                                 onChange={this.handleInputChange}
                                 comment={this.state.comment}
                                 onCommentChange={this.onCommentChange}
-                                uppy={this.state.uppy}
+                                uppy={this.props.uppy}
                                 jobInfo={this.state.jobInfo}
                                 onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
                                 tool={this.state.tool}
@@ -364,7 +354,7 @@ const InputFileParameter = (props) => {
             destination: file.path.name // TODO Should allow for custom name at destination
         });
     };
-
+    const path = props.value ? props.value.source : "";
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
@@ -372,6 +362,7 @@ const InputFileParameter = (props) => {
                 uppyOpen={props.uppyOpen}
                 uploadCallback={file => internalOnChange(file)}
                 uppy={props.uppy}
+                path={path}
                 isRequired={!props.parameter.optional}
                 allowUpload={true}
             />
@@ -486,13 +477,13 @@ const GenericNumberParameter = (props) => {
 };
 
 const IntegerParameter = (props) => {
-    let childProps = Object.assign({}, props);
+    let childProps = {...props};
     childProps.parser = (it) => parseInt(it);
     return <GenericNumberParameter {...childProps} />;
 };
 
 const FloatingParameter = (props) => {
-    let childProps = Object.assign({}, props);
+    let childProps = {...props};
     childProps.parseValue = (it) => parseFloat(it);
     return <GenericNumberParameter {...childProps} />;
 };
@@ -525,4 +516,14 @@ const OptionalText = (props) => {
     return props.optional ? (<span className="help-block"><b>Optional</b></span>) : null;
 };
 
-export default RunApp;
+const mapStateToProps = (state) => {
+    const { uppy, uppyOpen } = state.uppy;
+    return { uppy, uppyOpen };
+}
+
+RunApp.propTypes = {
+    uppy: PropTypes.object.isRequired,
+    uppyOpen: PropTypes.bool.isRequired
+};
+
+export default connect(mapStateToProps)(RunApp);

@@ -28,8 +28,8 @@ import Uppy from "uppy";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
-import { changeUppyOpen } from "../Actions/UppyActions";
-
+import { changeUppyOpen, updateUppy } from "../Actions/UppyActions";
+import { initializeUppy } from "../DefaultObjects";
 
 class Files extends React.Component {
     constructor(props, context) {
@@ -41,7 +41,10 @@ class Files extends React.Component {
         } else {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
-        props.uppy.run();        
+
+        this.props.dispatch(updateUppy(initializeUppy({ maxNumberOfFiles: false })));
+        this.props.uppy.run();
+        
         pubsub.publish('setPageTitle', this.constructor.name);
         this.state = {
             lastSorting: {
@@ -55,6 +58,10 @@ class Files extends React.Component {
         this.getSortingIcon = this.getSortingIcon.bind(this);
     }
     
+    componentWillUnmount() {
+       this.props.uppy.close();
+    }
+
     getSortingIcon(name) {
         if (this.state.lastSorting.name === name) {
             return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
@@ -98,10 +105,6 @@ class Files extends React.Component {
             dispatch(setLoading(true));
             dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
         }
-    }
-
-    componentWillUnmount() {
-        this.props.uppy.close();
     }
 
     render() {
@@ -363,7 +366,7 @@ Files.propTypes = {
     checkedFilesCount: PropTypes.number.isRequired,
     loading: PropTypes.bool.isRequired,
     path: PropTypes.string.isRequired,
-    uppy: PropTypes.object.isRequired,
+    uppy: PropTypes.object,
     uppyOpen: PropTypes.bool.isRequired,
 }
 

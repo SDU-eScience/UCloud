@@ -1,15 +1,15 @@
 import React from "react";
 import swal from "sweetalert2";
-import {RightsMap, RightsNameMap, SensitivityLevelMap, AnalysesStatusMap} from "./DefaultObjects"
+import {RightsMap, RightsNameMap, SensitivityLevelMap, AnalysesStatusMap} from "./DefaultObjects";
 
-export const NotificationIcon = (props) => {
-    if (props.type === "Complete") {
+export const NotificationIcon = ({type}) => {
+    if (type === "Complete") {
         return (<div className="initial32 bg-green-500">✓</div>)
-    } else if (props.type === "In Progress") {
+    } else if (type === "In Progress") {
         return (<div className="initial32 bg-blue-500">...</div>)
-    } else if (props.type === "Pending") {
+    } else if (type === "Pending") {
         return (<div className="initial32 bg-blue-500"/>)
-    } else if (props.type === "Failed") {
+    } else if (type === "Failed") {
         return (<div className="initial32 bg-red-500">&times;</div>)
     } else {
         return (<div>Unknown type</div>)
@@ -281,18 +281,5 @@ export const fileSizeToString = (bytes) => {
         return `${bytes / 1000 ** 6} EB`;
     } else {
         return `${bytes} B`;
-    }
-};
-
-export const getCurrentRights = (files, cloud) => {
-    let lowestPrivilegeOptions = RightsMap["OWN"];
-    files.forEach((it) => {
-        it.acl.filter(acl => acl.entity.displayName === cloud.username).forEach((acl) => {
-            lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
-        });
-    });
-    return {
-        rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
-        rightsLevel: lowestPrivilegeOptions
     }
 };

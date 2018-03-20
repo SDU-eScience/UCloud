@@ -1,6 +1,6 @@
 import {Cloud} from "../authentication/SDUCloudObject"
-import Uppy from "uppy";
 import {tusConfig} from "./Configurations";
+import Uppy from "uppy";
 
 export const DefaultStatus = {
     title: "No Issues",
@@ -40,6 +40,21 @@ export const SensitivityLevelMap = {
     "SENSITIVE": 2,
 };
 
+const initializeUppy = (restrictions) => 
+    Uppy.Core({
+        autoProceed: false,
+        debug: false,
+        restrictions: restrictions,
+        meta: {
+            sensitive: false,
+        },
+        onBeforeUpload: () => {
+            return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
+                tusConfig.headers["Authorization"] = `Bearer ${data}`;
+            });
+        }
+    }).use(Uppy.Tus, tusConfig);
+
 export const initObject = {
     files: {
         files: [],
@@ -51,18 +66,9 @@ export const initObject = {
         projects: []
     },
     uppy: {
-        uppy: Uppy.Core({
-            autoProceed: false,
-            debug: false,
-            meta: {
-                sensitive: false,
-            },
-            onBeforeUpload: () => {
-                return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
-                    tusConfig.headers["Authorization"] = "Bearer " + data;
-                });
-            }
-        }).use(Uppy.Tus, tusConfig),
-        uppyOpen: false,
+        uppy: initializeUppy({}),
+        uppyOpen: false
     }
-}
+};
+
+export { initializeUppy }

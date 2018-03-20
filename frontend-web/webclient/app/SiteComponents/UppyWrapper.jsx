@@ -1,6 +1,6 @@
 import React from "react";
 import { connect } from "react-redux";
-import { changeUppyOpen } from "../Reducers/UppyReducers";
+import { changeUppyOpen } from "../Actions/UppyActions";
 import {DashboardModal} from "uppy/lib/react";
 
 const UppyWrapper = ({ uppy, uppyOpen, dispatch }) => {
