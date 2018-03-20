@@ -64,7 +64,7 @@ class Server(
             sshPool,
             config.ssh.user
         )
-        val jobService = JobService(jobDao, jobExecutionService)
+        val jobService = JobService(jobDao, sshPool, jobExecutionService)
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")

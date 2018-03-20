@@ -14,7 +14,8 @@ data class JobInformation(
     val sshUser: String?,
     val jobDirectory: String?,
     val workingDirectory: String?,
-    val createdAt: Long
+    val createdAt: Long,
+    val state: AppState
 )
 
 object JobsTable : Table() {
@@ -40,21 +41,35 @@ class JobsDAO {
     }
 
     fun findJobInformationBySlurmId(slurmId: Long): JobInformation? {
-        return JobsTable.select { JobsTable.slurmId eq slurmId }.toList().map {
-            JobInformation(
-                it[JobsTable.systemId],
-                it[JobsTable.owner],
-                it[JobsTable.appName],
-                it[JobsTable.appVersion],
-                it[JobsTable.slurmId],
-                it[JobsTable.status],
-                it[JobsTable.sshUser],
-                it[JobsTable.jobDirectory],
-                it[JobsTable.workingDirectory],
-                it[JobsTable.createdAt].millis
-            )
-        }.singleOrNull()
+        return JobsTable
+            .select { JobsTable.slurmId eq slurmId }
+            .toList()
+            .map(this::mapJobsTableRowToJobInformation)
+            .singleOrNull()
     }
+
+    fun findJobInformationByJobId(owner: String, jobId: String): JobInformation? {
+        return JobsTable
+            .select { (JobsTable.systemId eq jobId) and (JobsTable.owner eq owner) }
+            .toList()
+            .map(this::mapJobsTableRowToJobInformation)
+            .singleOrNull()
+    }
+
+    private fun mapJobsTableRowToJobInformation(it: ResultRow): JobInformation =
+        JobInformation(
+            it[JobsTable.systemId],
+            it[JobsTable.owner],
+            it[JobsTable.appName],
+            it[JobsTable.appVersion],
+            it[JobsTable.slurmId],
+            it[JobsTable.status],
+            it[JobsTable.sshUser],
+            it[JobsTable.jobDirectory],
+            it[JobsTable.workingDirectory],
+            it[JobsTable.createdAt].millis,
+            AppState.valueOf(it[JobsTable.state])
+        )
 
     fun findAllJobsWithStatus(
         owner: String,

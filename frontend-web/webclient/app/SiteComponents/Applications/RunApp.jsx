@@ -71,15 +71,16 @@ class RunApp extends React.Component {
 
     handleSubmit(event) {
         event.preventDefault();
+
         let maxTime = this.state.jobInfo.maxTime;
         if (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null) {
             maxTime.hours = maxTime.hours ? maxTime.hours : 0;
             maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
             maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
-        }
-        if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
+        } else if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
             maxTime = null;
         }
+
         let job = {
             application: {
                 name: this.state.appName,
@@ -95,7 +96,7 @@ class RunApp extends React.Component {
 
         Cloud.post("/hpc/jobs", job).then(req => {
             if (req.request.status === 200) {
-                this.props.history.push("/analyses");
+                this.props.history.push(`/analyses/${req.response.jobId}`);
             } else {
                 swal("And error occurred. Please try again later.");
             }
@@ -137,7 +138,6 @@ class RunApp extends React.Component {
             loading: true
         }));
 
-        this.setState({loading: true});
         this.state.promises.makeCancelable(
             Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}/?resolve=true`)
         ).promise.then(req => {
@@ -477,8 +477,8 @@ const GenericNumberParameter = (props) => {
 };
 
 const IntegerParameter = (props) => {
-    let childProps = {...props};
-    childProps.parser = (it) => parseInt(it);
+    let childProps = Object.assign({}, props);
+    childProps.parseValue = (it) => parseInt(it);
     return <GenericNumberParameter {...childProps} />;
 };
 

@@ -5,10 +5,14 @@ import dk.sdu.cloud.app.api.HPCJobDescriptions
 import dk.sdu.cloud.app.api.JobStartedResponse
 import dk.sdu.cloud.app.services.JobException
 import dk.sdu.cloud.app.services.JobService
+import dk.sdu.cloud.app.services.JobServiceException
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.*
+import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
+import io.ktor.response.respond
 import io.ktor.routing.Route
+import io.ktor.routing.get
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
@@ -38,11 +42,31 @@ class JobController(
                 logEntry(log, req)
                 try {
                     val uuid = jobService.startJob(call.request.validatedPrincipal, req)
+                    println("Job has started now, right?")
                     ok(JobStartedResponse(uuid))
                 } catch (ex: JobException) {
                     if (ex.statusCode.value in 500..599) log.warn(ex.stackTraceToString())
                     error(CommonErrorMessage(ex.message ?: "An error has occurred"), ex.statusCode)
                 }
+            }
+
+            implement(HPCJobDescriptions.follow) { req ->
+                logEntry(log, req)
+
+                val user = call.request.validatedPrincipal
+                val job = jobService.findJobForInternalUseById(user, req.jobId) ?: return@implement run {
+                    log.debug("Could not find job id: ${req.jobId}")
+                    error(CommonErrorMessage("Job not found"), HttpStatusCode.NotFound)
+                }
+
+                val result = try {
+                    jobService.followStdStreams(req, job)
+                } catch (ex: JobServiceException) {
+                    error(CommonErrorMessage(ex.message ?: "Unknown error"), ex.statusCode)
+                    return@implement
+                }
+
+                ok(result)
             }
         }
     }
