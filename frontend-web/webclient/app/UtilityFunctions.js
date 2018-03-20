@@ -283,3 +283,16 @@ export const fileSizeToString = (bytes) => {
         return `${bytes} B`;
     }
 };
+
+export const getCurrentRights = (files, cloud) => {
+    let lowestPrivilegeOptions = RightsMap["OWN"];
+    files.forEach((it) => {
+        it.acl.filter(acl => acl.entity.displayName === cloud.username).forEach((acl) => {
+            lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
+        });
+    });
+    return {
+        rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
+        rightsLevel: lowestPrivilegeOptions
+    }
+}
