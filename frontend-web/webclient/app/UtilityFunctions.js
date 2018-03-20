@@ -297,4 +297,4 @@ export const getCurrentRights = (files, cloud) => {
     }
 };
 
-export const shortUUID = (uuid) => uuid.substring(0, 8);
+export const shortUUID = (uuid) => uuid.substring(0, 8).toUpperCase();

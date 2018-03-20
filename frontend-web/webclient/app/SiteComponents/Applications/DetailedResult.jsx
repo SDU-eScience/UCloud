@@ -6,6 +6,7 @@ import {Cloud} from "../../../authentication/SDUCloudObject";
 import {shortUUID} from "../../UtilityFunctions";
 import {ListGroup, ListGroupItem} from "react-bootstrap";
 import {Link} from "react-router-dom";
+import {FilesTable} from "../Files";
 import "./wizard.scss";
 
 export default class DetailedResult extends React.Component {
@@ -35,7 +36,7 @@ export default class DetailedResult extends React.Component {
         pubsub.publish('setPageTitle', `Results for Job: ${shortUUID(this.jobId)}`);
 
         this.retrieveStdStreams();
-        let reloadIntervalId = setInterval(() => this.retrieveStdStreams(), 3000);
+        let reloadIntervalId = setInterval(() => this.retrieveStdStreams(), 1000);
         this.setState({reloadIntervalId: reloadIntervalId});
     }
 
@@ -62,7 +63,10 @@ export default class DetailedResult extends React.Component {
     }
 
     retrieveStdStreams() {
-        if (this.state.complete) return;
+        if (this.state.complete) {
+            this.retrieveStateWhenCompleted();
+            return;
+        }
 
         this.setState({loading: true});
         this.state.promises.makeCancelable(
@@ -82,7 +86,9 @@ export default class DetailedResult extends React.Component {
                         appState: response.state,
                         complete: response.complete
                     });
-                    this.scrollIfNeeded()
+
+                    this.scrollIfNeeded();
+                    if (response.complete) this.retrieveStateWhenCompleted();
                 },
 
                 failure => {
@@ -90,6 +96,16 @@ export default class DetailedResult extends React.Component {
                 }
             ).finally(() => this.setState({loading: false}))
         );
+    }
+
+    retrieveStateWhenCompleted() {
+        if (!this.state.complete) return;
+        if (this.state.files || this.state.loading) return;
+        this.setState({loading: true});
+
+        Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}`).then(({response}) => {
+            this.setState({files: response, loading: false});
+        });
     }
 
     renderProgressPanel() {
@@ -138,7 +154,8 @@ export default class DetailedResult extends React.Component {
         if (this.state.appState === "SUCCESS") {
             domEntries.push(
                 <ListGroupItem key="app-complete">
-                    Application has completed successfully. Click <Link to={`/files//home/${Cloud.username}/Jobs/${this.jobId}`}>here</Link> to go to the output.
+                    Application has completed successfully. Click <Link
+                    to={`/files//home/${Cloud.username}/Jobs/${this.jobId}`}>here</Link> to go to the output.
                 </ListGroupItem>
             );
         }
@@ -168,20 +185,28 @@ export default class DetailedResult extends React.Component {
                         <div className={"row"}>
                             <div className="col-md-6">
                                 <h4>Output Stream</h4>
-                                <pre style={{height: "500px", overflow: "auto"}} ref={el => this.stdoutEl = el}>
-                        <code>{this.state.stdout}</code>
-                    </pre>
+                                <pre style={{height: "500px", overflow: "auto"}}
+                                     ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></pre>
                             </div>
 
                             <div className="col-md-6">
                                 <h4>Error Stream</h4>
-                                <pre style={{height: "500px", overflow: "auto"}} ref={el => this.stderrEl = el}>
-                        <code>{this.state.stderr}</code>
-                    </pre>
+                                <pre style={{height: "500px", overflow: "auto"}}
+                                     ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></pre>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    renderFilePanel() {
+        if (!this.state.files) return null;
+        return (
+            <div>
+                <h4>Output Files</h4>
+                <FilesTable files={this.state.files} forceInlineButtons/>
             </div>
         );
     }
@@ -191,6 +216,7 @@ export default class DetailedResult extends React.Component {
             <div className="container">
                 <div className="row">{this.renderProgressPanel()}</div>
                 <div className="row">{this.renderInfoPanel()}</div>
+                <div className="row">{this.renderFilePanel()}</div>
                 <div className="row">{this.renderStreamPanel()}</div>
 
                 <div className="row">
