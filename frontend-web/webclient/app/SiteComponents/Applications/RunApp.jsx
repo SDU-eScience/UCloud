@@ -36,10 +36,7 @@ class RunApp extends React.Component {
             tool: {},
             comment: ""
         };
-
-
-        let uppy = initializeUppy({ maxNumberOfFiles: 1 });
-        this.props.dispatch(updateUppy(uppy));
+        this.props.uppy.run();
 
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
@@ -54,9 +51,6 @@ class RunApp extends React.Component {
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
-        let { uppy } = this.props;
-        uppy.reset();
-        this.props.dispatch(updateUppy(uppy));
     }
 
     onJobSchedulingParamsChange(field, value, timeField) {
@@ -520,8 +514,8 @@ const OptionalText = (props) => {
 };
 
 const mapStateToProps = (state) => {
-    const { uppy, uppyOpen } = state.uppy;
-    return { uppy, uppyOpen };
+    const { uppyRunApp,uppyRunAppOpen } = state.uppy; 
+    return { uppy: uppyRunApp, uppyOpen: uppyRunAppOpen };
 }
 
 RunApp.propTypes = {

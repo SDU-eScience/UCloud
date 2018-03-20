@@ -28,7 +28,7 @@ import Uppy from "uppy";
 import {tusConfig} from "../Configurations";
 import pubsub from "pubsub-js";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
-import { changeUppyOpen, updateUppy } from "../Actions/UppyActions";
+import { changeUppyFilesOpen } from "../Actions/UppyActions";
 import { initializeUppy } from "../DefaultObjects";
 
 class Files extends React.Component {
@@ -41,11 +41,7 @@ class Files extends React.Component {
         } else {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
-
-        let uppy = initializeUppy({ maxNumberOfFiles: false });
-        uppy.run();
-        this.props.dispatch(updateUppy(uppy));
-        
+        this.props.uppy.run();
 
         pubsub.publish('setPageTitle', this.constructor.name);
         this.state = {
@@ -61,9 +57,6 @@ class Files extends React.Component {
     }
     
     componentWillUnmount() {
-       let {uppy} = this.props;
-       uppy.reset();
-       this.props.dispatch(updateUppy(uppy));
     }
 
     getSortingIcon(name) {
@@ -139,7 +132,7 @@ class Files extends React.Component {
                     <ContextBar selectedFiles={shownFiles.filter(file => file.isChecked)}
                                 currentPath={path}
                                 getFavorites={this.getFavorites}
-                                onClick={open => dispatch(changeUppyOpen(open))}/>
+                                onClick={open => dispatch(changeUppyFilesOpen(open))}/>
                 </div>
             </section>)
     } // TODO: Remove dashboard modal from this and move it to root.
@@ -377,11 +370,11 @@ Files.propTypes = {
 
 const mapStateToProps = (state) => {
     const { files, filesPerPage, currentFilesPage, loading, path } = state.files;
-    const { uppy, uppyOpen } = state.uppy;
+    const { uppyFiles, uppyFilesOpen } = state.uppy;
     const favFilesCount = files.filter(file => file.favorited).length; // Hack to ensure changes to favorites are rendered.
     const checkedFilesCount = files.filter(file => file.isChecked).length; // Hack to ensure changes to file checkings are rendered.
     return {
-        files, filesPerPage, currentFilesPage, loading, path, uppy, uppyOpen, favFilesCount, checkedFilesCount
+        files, filesPerPage, currentFilesPage, loading, path, uppy: uppyFiles, uppyOpen: uppyFilesOpen, favFilesCount, checkedFilesCount
     }
 };
 
