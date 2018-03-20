@@ -393,7 +393,7 @@ Files.propTypes = {
 }
 
 const mapStateToProps = (state) => {
-    const {files, filesPerPage, currentFilesPage, loading, path} = state.files;ß
+    const {files, filesPerPage, currentFilesPage, loading, path} = state.files;
     const {uppy, uppyOpen} = state.uppy;
     const favFilesCount = files.filter(file => file.favorited).length; // Hack to ensure changes to favorites are rendered.
     const checkedFilesCount = files.filter(file => file.isChecked).length; // Hack to ensure changes to file checkings are rendered.
