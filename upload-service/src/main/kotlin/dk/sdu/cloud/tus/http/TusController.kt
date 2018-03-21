@@ -5,19 +5,15 @@ import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.KafkaHttpRouteLogger
-import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.ext.irods.ICAT
+import dk.sdu.cloud.storage.ext.irods.ICATAccessEntry
 import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.TusExtensions
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusUploadEvent
-import dk.sdu.cloud.tus.api.internal.UploadEventProducer
-import dk.sdu.cloud.tus.services.IReadChannel
-import dk.sdu.cloud.tus.services.RadosStorage
-import dk.sdu.cloud.tus.services.TransferStateService
-import dk.sdu.cloud.tus.services.UploadProgress
+import dk.sdu.cloud.tus.services.*
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -35,7 +31,7 @@ import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
-import kotlinx.coroutines.experimental.runBlocking
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
@@ -45,10 +41,8 @@ import java.util.*
 class TusController(
     private val config: ICatDatabaseConfig,
     private val rados: RadosStorage,
-    private val producer: UploadEventProducer,
     private val transferState: TransferStateService,
-    private val icat: ICAT,
-    private val kafka: KafkaServices
+    private val icat: ICAT
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
@@ -116,13 +110,12 @@ class TusController(
                     handle {
                         logEntry(log, parameterIncludeFilter = { it == "id" })
                         if (call.request.header("X-HTTP-Method-Override").equals("PATCH", ignoreCase = true)) {
-                            upload()
+                            upload(transferState)
                         } else {
                             call.respond(HttpStatusCode.MethodNotAllowed)
                         }
                     }
                 }
-
 
                 method(HttpMethod.Patch) {
                     TusDescriptions.uploadChunk.fullName?.let { reqName ->
@@ -131,7 +124,7 @@ class TusController(
 
                     handle {
                         logEntry(log, parameterIncludeFilter = { it == "id" })
-                        upload()
+                        upload(transferState)
                     }
                 }
             }
@@ -205,24 +198,28 @@ class TusController(
                     val id = UUID.randomUUID().toString()
                     val fileName = metadata["filename"] ?: metadata["name"] ?: id
 
-                    val createdEvent = TusUploadEvent.Created(
-                        id = id,
-                        sizeInBytes = length,
-                        owner = owner,
-                        zone = config.defaultZone,
-                        targetCollection = location,
-                        sensitive = sensitive,
-                        targetName = fileName,
-                        doChecksum = false
-                    )
-                    producer.emit(createdEvent)
-                    log.info("Created upload: $createdEvent")
+                    transaction {
+                        UploadDescriptions.insert {
+                            it[UploadDescriptions.id] = id
+                            it[UploadDescriptions.sizeInBytes] = length
+                            it[UploadDescriptions.owner] = owner
+                            it[UploadDescriptions.zone] = config.defaultZone
+                            it[UploadDescriptions.targetCollection] = location
+                            it[UploadDescriptions.targetName] = fileName
+                            it[UploadDescriptions.doChecksum] = false
+                            it[UploadDescriptions.sensitive] = sensitive
+                        }
+
+                        UploadProgress.insert {
+                            it[UploadProgress.id] = id
+                            it[UploadProgress.numChunksVerified] = 0
+                        }
+                    }
 
                     call.response.header(HttpHeaders.Location, "${serverConfiguration.prefix}/$id")
                     call.respond(HttpStatusCode.Created)
                 }
             }
-
 
             method(HttpMethod.Options) {
                 TusDescriptions.probeTusConfiguration.fullName?.let { reqName ->
@@ -249,7 +246,7 @@ class TusController(
             return principalRole == Role.SERVICE || principalRole == Role.ADMIN
         }
 
-    private suspend fun PipelineContext<Unit, ApplicationCall>.upload() {
+    private suspend fun PipelineContext<Unit, ApplicationCall>.upload(transferStateService: TransferStateService) {
         log.debug("Handling incoming upload request")
         // Check and retrieve transfer state
         val id = call.parameters["id"] ?: return run {
@@ -258,7 +255,7 @@ class TusController(
         }
 
         val ownerParamForState = if (call.isPrivileged) null else call.request.validatedPrincipal.subject
-        val state = transferState.retrieveState(id, ownerParamForState) ?: return run {
+        val initialState = transferState.retrieveState(id, ownerParamForState) ?: return run {
             log.debug("Missing upload state for transfer with id: $id")
             call.respond(HttpStatusCode.NotFound)
         }
@@ -280,12 +277,12 @@ class TusController(
             call.respond(HttpStatusCode.BadRequest)
         }
 
-        if (claimedOffset != state.offset) {
-            log.debug("Claimed offset was $claimedOffset but expected ${state.offset}")
+        if (claimedOffset != initialState.offset) {
+            log.debug("Claimed offset was $claimedOffset but expected ${initialState.offset}")
             return call.respond(HttpStatusCode.Conflict)
         }
 
-        log.info("Starting upload for: $state")
+        log.info("Starting upload for: $initialState")
         // Start reading some contents
         val channel = call.receiveChannel()
         val internalBuffer = ByteBuffer.allocate(1024 * 32)
@@ -333,27 +330,75 @@ class TusController(
             }
         }
 
-        val task = rados.createUpload(id, wrappedChannel, claimedOffset, state.length)
+        val task = rados.createUpload(id, wrappedChannel, claimedOffset, initialState.length)
         task.onProgress = { chunk ->
-            runBlocking {
-                producer.emit(
-                    TusUploadEvent.ChunkVerified(
-                        id = id,
-                        chunk = chunk + 1, // Chunks are 1-indexed, callbacks are 0-indexed
-                        numChunks = Math.ceil(state.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
-                    )
-                )
+            val oneIndexedChunk = chunk + 1
+            val numberOfChunks = Math.ceil(initialState.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+
+            if (oneIndexedChunk == numberOfChunks) {
+                val state = transferStateService.retrieveState(id)!!
+                val irodsUser = state.user
+                val irodsZone = state.zone
+
+                val irodsCollection = state.targetCollection
+                val irodsFileName = state.targetName
+
+                // Finalize upload
+                log.debug("Upload ${state.id} has been completed!")
+                icat.useConnection {
+                    autoCommit = false
+                    log.debug("Registration of object...")
+
+                    val resource = findResourceByNameAndZone("child_01", "tempZone") ?: return@useConnection
+                    log.debug("Using resource $resource. $irodsUser, $irodsZone, $irodsCollection")
+
+                    val (_, entry) = userHasWriteAccess(irodsUser, irodsZone, irodsCollection)
+                    if (entry != null) {
+                        val availableName = findAvailableIRodsFileName(entry.objectId, irodsFileName)
+                        val objectId = registerDataObject(
+                            entry.objectId,
+                            state.id,
+                            state.length,
+                            availableName,
+                            irodsUser,
+                            irodsZone,
+                            resource
+                        ) ?: return@useConnection run {
+                            log.warn("Was unable to register data object! Issue in $id")
+                            rollback()
+                        }
+
+                        log.debug("Auto-generated ID is $objectId")
+                        val now = System.currentTimeMillis()
+
+                        registerAccessEntry(ICATAccessEntry(objectId, entry.userId, 1200, now, now))
+                        commit()
+
+                        // Cannot do this in a single update, since we have multiple DBs and APIs. We should
+                        // really agree on a single one......
+                        transaction {
+                            UploadDescriptions.update({ UploadDescriptions.id eq state.id }) {
+                                it[UploadDescriptions.savedAs] =
+                                        "${irodsCollection.removePrefix("/tempZone").removeSuffix("/")}/$availableName"
+                            }
+                        }
+
+                        log.info("Object has been registered: $id")
+                    } else {
+                        log.info("User does not have permission to upload file to target resource!")
+                    }
+                }
 
                 transaction {
                     UploadProgress.update({ UploadProgress.id eq id }) {
-                        it[numChunksVerified] = chunk + 1
+                        it[numChunksVerified] = oneIndexedChunk
                     }
                 }
             }
         }
         task.upload()
 
-        log.info("Upload complete! Offset is: ${task.offset}. ${state.length}")
+        log.info("Upload complete! Offset is: ${task.offset}. ${initialState.length}")
 
         call.response.tusOffset(task.offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))
@@ -412,7 +457,6 @@ class TusController(
     private fun ApplicationResponse.tusFileLocation(savedAs: String?) {
         if (savedAs != null) header("File-Location", savedAs)
     }
-
 
     companion object {
         private val log = LoggerFactory.getLogger(TusController::class.java)

@@ -4,7 +4,7 @@ import FileSelector from "../FileSelector";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import pubsub from "pubsub-js";
 import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
-import {LoadingButton} from "../LoadingIcon";
+import {LoadingButton} from "../LoadingIcon/LoadingIcon";
 import PromiseKeeper from "../../PromiseKeeper";
 
 class ZenodoPublish extends React.Component {

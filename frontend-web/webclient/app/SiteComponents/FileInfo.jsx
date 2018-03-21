@@ -2,7 +2,7 @@ import React from "react";
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString} from "../UtilityFunctions";
 import SectionContainerCard from "./SectionContainerCard";
-import {BallPulseLoading} from "./LoadingIcon";
+import {BallPulseLoading} from "./LoadingIcon/LoadingIcon";
 import {SensitivityLevel, RightsNameMap} from "../DefaultObjects"
 import {ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup} from "react-bootstrap";
 import swal from "sweetalert2";

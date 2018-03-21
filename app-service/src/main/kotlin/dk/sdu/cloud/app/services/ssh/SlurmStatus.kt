@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.services.ssh
 
-import dk.sdu.cloud.app.services.SlurmEvent
-import dk.sdu.cloud.app.services.SlurmEventEnded
-import dk.sdu.cloud.app.services.SlurmEventFailed
+import dk.sdu.cloud.app.services.*
 import org.slf4j.LoggerFactory
-import java.time.Duration
 
 private val log = LoggerFactory.getLogger("org.esciencecloud.app.ssh.SlurmStats")
 
@@ -29,6 +26,8 @@ fun SSHConnection.pollSlurmStatus(): List<SlurmEvent> {
                 null
             } else {
                 when (state) {
+                    "RUNNING" -> SlurmEventRunning(jobId)
+                    "TIMEOUT" -> SlurmEventTimeout(jobId)
                     "COMPLETED" -> SlurmEventEnded(jobId)
                     "FAILED" -> SlurmEventFailed(jobId)
                     else -> null

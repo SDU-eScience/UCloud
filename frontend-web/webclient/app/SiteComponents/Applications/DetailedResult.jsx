@@ -1,10 +1,10 @@
 import React from 'react';
-import {BallPulseLoading} from '../LoadingIcon'
+import {Spinner} from '../LoadingIcon/LoadingIcon'
 import pubsub from "pubsub-js";
 import PromiseKeeper from "../../PromiseKeeper";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {shortUUID} from "../../UtilityFunctions";
-import {ListGroup, ListGroupItem} from "react-bootstrap";
+import {Glyphicon, ListGroup, ListGroupItem, OverlayTrigger, Tooltip} from "react-bootstrap";
 import {Link} from "react-router-dom";
 import {FilesTable} from "../Files";
 import "./wizard.scss";
@@ -109,6 +109,11 @@ export default class DetailedResult extends React.Component {
     }
 
     renderProgressPanel() {
+        const isFailure = this.state.appState === "FAILURE";
+        const isSuccess = this.state.appState === "SUCCESS";
+        const lastStep = isFailure ? "FAILURE" : "SUCCESS";
+        const lastStepName = isFailure ? "Failure" : "Success";
+
         return (
             <div>
                 <h4>Progress</h4>
@@ -116,25 +121,35 @@ export default class DetailedResult extends React.Component {
                     <div className="card-body">
                         <ProgressTracker>
                             <ProgressTrackerItem
+                                error={isFailure}
+                                success={isSuccess}
                                 active={this.isStateActive("VALIDATED")}
                                 complete={this.isStateComplete("VALIDATED")}
                                 title={"Validated"}/>
                             <ProgressTrackerItem
+                                error={isFailure}
+                                success={isSuccess}
                                 active={this.isStateActive("PENDING")}
                                 complete={this.isStateComplete("PENDING")}
                                 title={"Pending"}/>
                             <ProgressTrackerItem
+                                error={isFailure}
+                                success={isSuccess}
                                 active={this.isStateActive("SCHEDULED")}
                                 complete={this.isStateComplete("SCHEDULED")}
                                 title={"Scheduled"}/>
                             <ProgressTrackerItem
+                                error={isFailure}
+                                success={isSuccess}
                                 active={this.isStateActive("RUNNING")}
                                 complete={this.isStateComplete("RUNNING")}
                                 title={"Running"}/>
                             <ProgressTrackerItem
-                                active={this.isStateActive("SUCCESS")}
-                                complete={this.isStateComplete("SUCCESS")}
-                                title={"Success"}/>
+                                error={isFailure}
+                                success={isSuccess}
+                                active={this.isStateActive(lastStep)}
+                                complete={this.isStateComplete(lastStep)}
+                                title={lastStepName}/>
                         </ProgressTracker>
                     </div>
                 </div>
@@ -151,13 +166,36 @@ export default class DetailedResult extends React.Component {
 
         let domEntries = entries.map((it, idx) => <ListGroupItem key={idx}><b>{it.key}</b>: {it.value}</ListGroupItem>);
 
-        if (this.state.appState === "SUCCESS") {
-            domEntries.push(
-                <ListGroupItem key="app-complete">
-                    Application has completed successfully. Click <Link
-                    to={`/files//home/${Cloud.username}/Jobs/${this.jobId}`}>here</Link> to go to the output.
-                </ListGroupItem>
-            );
+        switch (this.state.appState) {
+            case "SUCCESS":
+                domEntries.push(
+                    <ListGroupItem key="app-info">
+                        Application has completed successfully. Click <Link
+                        to={`/files//home/${Cloud.username}/Jobs/${this.jobId}`}>here</Link> to go to the output.
+                    </ListGroupItem>
+                );
+                break;
+            case "SCHEDULED":
+                domEntries.push(
+                    <ListGroupItem key="app-info">
+                        Your application is currently in the Slurm queue on ABC2 <Spinner loading color="primary"/>
+                    </ListGroupItem>
+                );
+                break;
+            case "PENDING":
+                domEntries.push(
+                    <ListGroupItem key="app-info">
+                        We are currently transferring your job from SDUCloud to ABC2 <Spinner loading color="primary"/>
+                    </ListGroupItem>
+                );
+                break;
+            case "RUNNING":
+                domEntries.push(
+                    <ListGroupItem key="app-info">
+                        Your job is currently being executed on ABC2 <Spinner loading color="primary"/>
+                    </ListGroupItem>
+                );
+                break;
         }
 
         return (
@@ -177,20 +215,31 @@ export default class DetailedResult extends React.Component {
     }
 
     renderStreamPanel() {
-        return (this.state.complete && this.state.stdout === "" && this.state.stderr === "") ? null : (
+        if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
+        let tooltip = <Tooltip placement="right" className="in" id="tooltip-right">
+            Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.
+        </Tooltip>;
+
+        return (
             <div>
-                <h4>Standard Streams</h4>
+                <h4>
+                    Standard Streams
+                    &nbsp;
+                    <OverlayTrigger placement="right" overlay={tooltip}>
+                        <Glyphicon glyph="info-sign"/>
+                    </OverlayTrigger>
+                </h4>
                 <div className="card">
                     <div className={"card-body"}>
                         <div className={"row"}>
                             <div className="col-md-6">
-                                <h4>Output Stream</h4>
+                                <h4>Output</h4>
                                 <pre style={{height: "500px", overflow: "auto"}}
                                      ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></pre>
                             </div>
 
                             <div className="col-md-6">
-                                <h4>Error Stream</h4>
+                                <h4>Information</h4>
                                 <pre style={{height: "500px", overflow: "auto"}}
                                      ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></pre>
                             </div>
@@ -218,10 +267,6 @@ export default class DetailedResult extends React.Component {
                 <div className="row">{this.renderInfoPanel()}</div>
                 <div className="row">{this.renderFilePanel()}</div>
                 <div className="row">{this.renderStreamPanel()}</div>
-
-                <div className="row">
-                    <BallPulseLoading loading={this.state.loading}/>
-                </div>
             </div>
         );
     }
@@ -254,16 +299,22 @@ export default class DetailedResult extends React.Component {
     }
 }
 
-const ProgressTracker = (props) => <ul
-    className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{props.children}</ul>;
-const ProgressTrackerItem = (props) =>
-    <li
-        className={"progress-step " +
-        ((props.complete) ? "is-complete " : "") +
-        ((props.active) ? "is-active " : "")}
-    >
-        <span className="progress-marker"/>
-        <span className={"progress-text"}>
+const
+    ProgressTracker = (props) => <ul
+        className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{props.children}</ul>;
+const
+    ProgressTrackerItem = (props) =>
+        <li
+            className={
+                "progress-step " +
+                ((props.complete) ? "is-complete " : "") +
+                ((props.active) ? "is-active " : "") +
+                ((props.error) ? "error" : "") +
+                ((props.success) ? "success" : "")
+            }
+        >
+            <span className="progress-marker"/>
+            <span className={"progress-text"}>
             <h4 className={"progress-title visible-md visible-lg"}>{props.title}</h4>
         </span>
-    </li>;
+        </li>;

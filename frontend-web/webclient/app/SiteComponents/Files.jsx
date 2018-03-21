@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import {connect} from "react-redux";
-import {BallPulseLoading} from "./LoadingIcon";
+import {BallPulseLoading} from "./LoadingIcon/LoadingIcon";
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from "react-router-dom";
 import {Button, Table, Dropdown, MenuItem, Glyphicon} from "react-bootstrap";

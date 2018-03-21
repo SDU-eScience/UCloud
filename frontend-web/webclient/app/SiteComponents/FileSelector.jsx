@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import {BallPulseLoading} from './LoadingIcon';
+import {BallPulseLoading} from './LoadingIcon/LoadingIcon';
 import {Modal, Button, Table} from 'react-bootstrap';
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {BreadCrumbs} from "./Breadcrumbs"

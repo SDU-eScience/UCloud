@@ -2,14 +2,11 @@ package dk.sdu.cloud.tus
 
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.ext.irods.ICAT
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusServiceDescription
-import dk.sdu.cloud.tus.api.internal.TusStreams
 import dk.sdu.cloud.tus.http.TusController
-import dk.sdu.cloud.tus.processors.UploadStateProcessor
 import dk.sdu.cloud.tus.services.RadosStorage
 import dk.sdu.cloud.tus.services.TransferStateService
 import io.ktor.application.install
@@ -53,25 +50,14 @@ class Server(
         val tus = TusController(
             config = configuration.database,
             rados = rados,
-            producer = kafka.producer.forStream(TusStreams.UploadEvents),
             transferState = transferState,
-            icat = icat,
-            kafka = kafka
+            icat = icat
         )
         log.info("Core services constructed!")
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
             val kBuilder = StreamsBuilder()
-
-            log.info("Configuring stream processors...")
-            UploadStateProcessor(
-                TusStreams.UploadEvents.stream(kBuilder),
-                transferState,
-                icat
-            ).also { it.init() }
-            log.info("Stream processors configured!")
-
             kafka.build(kBuilder.build()).also {
                 log.info("Kafka Streams Topology successfully built!")
             }
