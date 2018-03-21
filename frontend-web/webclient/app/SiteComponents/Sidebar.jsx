@@ -79,7 +79,7 @@ const SingleSidebarOption = (props) => {
                 <Link to={props.option.href}>
                     <span className="pull-right nav-label"/>
                     <span className="nav-icon"/>
-                    <Glyphicon style={{ color: "#448aff", marginRight: "5px"}} glyph={props.option.icon}/> {props.option.name}
+                    <i style={{ color: "#448aff", marginRight: "5px", fontSize: "16px"}} className={props.option.icon}/> {props.option.name}
                 </Link>
             </li>)
     } else { // We have children we need to render
@@ -94,7 +94,7 @@ const SingleSidebarOption = (props) => {
                 <Link to="#">
                     <span className="pull-right nav-label"/>
                     <span className="nav-icon"/>
-                    <Glyphicon style={{ color: "#448aff", marginRight: "5px"}} glyph={props.option.icon}/> {props.option.name}
+                    <i style={{ color: "#448aff", marginRight: "5px", fontSize: "16px"}} className={props.option.icon}/> {props.option.name}
                     <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span>
                 </Link>
                 <ul>
@@ -107,7 +107,7 @@ const SingleSidebarOption = (props) => {
 
 const NestedSidebarOption = ({option}) => (
     <Link to={option.href}>
-        <Glyphicon style={{ color: "#448aff", marginRight: "5px"}} glyph={option.icon}/><span> {option.name}</span>
+        <i style={{ color: "#448aff", marginRight: "5px", fontSize: "16px"}} className={option.icon}/> {option.name}
     </Link>
 );
 
