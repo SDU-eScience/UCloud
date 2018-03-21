@@ -1,5 +1,5 @@
 import React from 'react'
-import {BallPulseLoading} from './LoadingIcon'
+import {BallPulseLoading} from './LoadingIcon/LoadingIcon'
 import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
 import {Table, Row} from 'react-bootstrap'
 import pubsub from "pubsub-js";

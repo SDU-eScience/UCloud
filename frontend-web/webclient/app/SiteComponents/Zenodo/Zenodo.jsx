@@ -5,7 +5,7 @@ import {Link} from "react-router-dom";
 import {Card} from "../Cards";
 import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
 import pubsub from "pubsub-js";
-import {BallPulseLoading} from "../LoadingIcon";
+import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
 import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
 import PromiseKeeper from "../../PromiseKeeper";
 

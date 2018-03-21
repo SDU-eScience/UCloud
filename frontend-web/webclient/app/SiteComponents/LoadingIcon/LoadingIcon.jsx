@@ -1,6 +1,7 @@
 import React from "react";
 import {Button} from "react-bootstrap";
-import "../../node_modules/loaders.css/loaders.css";
+import "../../../node_modules/loaders.css/loaders.css";
+import "./colors.scss";
 
 export const PacmanLoading = ({loading}) =>
     !loading ? null :
@@ -28,12 +29,19 @@ export const BallPulseLoading = (props) =>
             </div>
         </div>);
 
-export const Spinner = (props) => (props.loading) ?
-    <i className="loader-inner ball-pulse">
+export const Spinner = ({loading, color}) => (loading) ?
+    <i className={"loader-inner ball-pulse " + color}>
         <div/>
         <div/>
         <div/>
     </i> : null;
+
+export const SmallSpinner = ({loading, color}) => (loading) ?
+    <i className={"ball-clip-rotate-multiple " + color}>
+        <div/>
+        <div/>
+    </i> : null;
+
 export const LoadingButton = (props) => (
     <Button
         bsStyle={props.bsStyle}

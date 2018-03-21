@@ -8,7 +8,7 @@ import './Sidebar.scss';
 import SidebarRun from './Sidebar.run';
 
 import {Cloud} from '../../authentication/SDUCloudObject'
-import {BallPulseLoading} from "./LoadingIcon";
+import {BallPulseLoading} from "./LoadingIcon/LoadingIcon";
 
 class Sidebar extends React.Component {
 

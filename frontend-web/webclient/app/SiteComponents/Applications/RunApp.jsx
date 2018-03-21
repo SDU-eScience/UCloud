@@ -4,7 +4,7 @@ import FileSelector from '../FileSelector';
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
-import { BallPulseLoading } from "../LoadingIcon"
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";

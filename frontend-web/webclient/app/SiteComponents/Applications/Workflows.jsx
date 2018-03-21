@@ -1,6 +1,6 @@
 import React from 'react';
 import {Table, Button} from 'react-bootstrap';
-import {BallPulseLoading} from '../LoadingIcon'
+import {BallPulseLoading} from '../LoadingIcon/LoadingIcon'
 import pubsub from "pubsub-js";
 import {Card} from "../Cards";
 import {Link} from "react-router-dom";

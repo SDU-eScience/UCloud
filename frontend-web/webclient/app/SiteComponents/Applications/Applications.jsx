@@ -1,5 +1,5 @@
 import React from 'react';
-import {BallPulseLoading} from '../LoadingIcon';
+import {BallPulseLoading} from '../LoadingIcon/LoadingIcon';
 import {Link} from "react-router-dom";
 import {PaginationButtons, EntriesPerPageSelector} from "../Pagination";
 import {Table, Button} from 'react-bootstrap';

@@ -2,7 +2,7 @@ import React from "react";
 import {Jumbotron, Table, ListGroupItem, ListGroup, ProgressBar} from "react-bootstrap";
 import pubsub from "pubsub-js";
 import SectionContainerCard from "../SectionContainerCard";
-import {BallPulseLoading} from "../LoadingIcon";
+import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
 

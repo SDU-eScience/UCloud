@@ -146,7 +146,6 @@ class JobExecutionService(
             val nextState: AppState? = when (event) {
                 is AppEvent.Validated -> AppState.VALIDATED
                 is AppEvent.ScheduledAtSlurm -> AppState.SCHEDULED
-                is AppEvent.CompletedInSlurm -> if (event.success) AppState.SUCCESS else AppState.FAILURE
                 is AppEvent.Completed -> if (event.successful) AppState.SUCCESS else AppState.FAILURE
                 else -> null
             }
