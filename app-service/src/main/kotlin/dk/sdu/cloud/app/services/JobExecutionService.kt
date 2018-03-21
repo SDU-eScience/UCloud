@@ -302,7 +302,7 @@ class JobExecutionService(
             val sourcePath = storage.paths.parseAbsolute(transferDescription.source, true)
 
             val stat = storage.fileQuery.stat(sourcePath).capture()
-                    ?: throw JobValidationException("Missing file in storage: $sourcePath. Are you sure it exists?")
+                    ?: throw JobValidationException("Missing file in storage: ${sourcePath.path}. Are you sure it exists?")
 
             // Resolve relative path against working directory. Ensure that file is still inside of
             // the working directory.
@@ -338,26 +338,25 @@ class JobExecutionService(
 
                 event.files.forEach { upload ->
                     log.debug("Uploading file: $upload")
-                    var errorDuringUpload: Exception? = null
 
-                    val uploadStatus = scpUpload(
-                        upload.stat.sizeInBytes,
-                        upload.destinationFileName,
-                        upload.destinationPath,
-                        "0600"
-                    ) {
-                        // TODO Replace with download endpoint
-                        try {
-                            storage.files.get(upload.sourcePath, it)
-                        } catch (ex: StorageException) {
-                            errorDuringUpload = ex
+                    val uploadStatus = try {
+                        scpUpload(
+                            upload.stat.sizeInBytes,
+                            upload.destinationFileName,
+                            upload.destinationPath,
+                            "0600"
+                        ) {
+                            // TODO Replace with download endpoint
+                            try {
+                                storage.files.get(upload.sourcePath, it)
+                            } catch (ex: StorageException) {
+                                throw ex
+                            }
                         }
-                    }
-
-                    if (errorDuringUpload != null) {
+                    } catch (ex: StorageException) {
                         // TODO Don't treat all errors like this
                         log.warn("Caught error during upload:")
-                        log.warn(errorDuringUpload!!.stackTraceToString())
+                        log.warn(ex.stackTraceToString())
                         throw JobInternalException("Internal error")
                     }
 

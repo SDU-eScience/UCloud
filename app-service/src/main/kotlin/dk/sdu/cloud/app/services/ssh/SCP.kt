@@ -50,13 +50,16 @@ fun SSHConnection.scpUpload(
     fileLength: Long, fileName: String, fileDestination: String, filePermissions: String,
     fileWriter: (OutputStream) -> Unit
 ): Int {
+    log.debug("scpUpload(fileLength=$fileLength, fileName=$fileName, fileDestination=$fileDestination, " +
+            "filePermissions=$filePermissions, fileWriter=$fileWriter)")
     val execChannel = openExecChannel()
 
     val ins = execChannel.inputStream
     val outs = execChannel.outputStream
 
-    log.debug("Setting command")
-    execChannel.setCommand("scp -t ${BashEscaper.safeBashArgument(fileDestination)}")
+    val scpCommand= "scp -t ${BashEscaper.safeBashArgument(fileDestination)}"
+    log.debug("Setting command: $scpCommand")
+    execChannel.setCommand(scpCommand)
     execChannel.connect()
     scpCheckAck(ins).also { if (it != 0) return it }
 
@@ -69,9 +72,9 @@ fun SSHConnection.scpUpload(
     fileWriter(GuardedOutputStream(outs))
     outs.write(byteArrayOf(0))
     outs.flush()
-    log.debug("Done!")
+    log.debug("Done! Awaiting acknowledgement")
     scpCheckAck(ins).also { if (it != 0) return it }
-    log.debug("Transfer done!")
+    log.debug("Acknowledgement received. Transfer done!")
     execChannel.disconnect()
     log.debug("Closed yet?" + execChannel.awaitClosed())
     val exitStatus = execChannel.exitStatus // TODO Bugged
