@@ -218,14 +218,14 @@ const DashboardAnalyses = ({analyses, isLoading}) => (
                 <thead>
                 <tr>
                     <th>Name</th>
-                    <th>Status</th>
+                    <th>State</th>
                 </tr>
                 </thead>
                 <tbody>
                 {analyses.map((analysis, index) =>
                     <tr key={index}>
                         <td>{analysis.appName}</td>
-                        <td>{toLowerCaseAndCapitalize(analysis.status)}</td>
+                        <td>{toLowerCaseAndCapitalize(analysis.state)}</td>
                     </tr>
                 )}
                 </tbody>
