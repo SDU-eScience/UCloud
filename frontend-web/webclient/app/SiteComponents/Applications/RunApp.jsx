@@ -4,7 +4,7 @@ import FileSelector from '../FileSelector';
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon"
+import { BallPulseLoading, LoadingButton } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
@@ -34,7 +34,8 @@ class RunApp extends React.Component {
                 tasksPerNode: null,
             },
             tool: {},
-            comment: ""
+            comment: "",
+            jobSubmitted: false
         };
         this.props.uppy.run();
 
@@ -90,7 +91,6 @@ class RunApp extends React.Component {
             type: "start",
             //comment: this.state.comment.slice(),
         };
-
         Cloud.post("/hpc/jobs", job).then(req => {
             if (req.request.status === 200) {
                 this.props.history.push(`/analyses/${req.response.jobId}`);
@@ -98,6 +98,7 @@ class RunApp extends React.Component {
                 swal("And error occurred. Please try again later.");
             }
         });
+        this.setState(() => ({ jobSubmitted: true }));
     }
 
     handleInputChange(parameterName, value) {
@@ -180,6 +181,7 @@ class RunApp extends React.Component {
                                 jobInfo={this.state.jobInfo}
                                 onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
                                 tool={this.state.tool}
+                                jobSubmitted={this.state.jobSubmitted}
                             />
                         </div>
                     </div>
@@ -229,14 +231,17 @@ const Parameters = (props) => {
     });
 
     return (
-        <form onSubmit={props.handleSubmit} className="form-horizontal">
+        <form className="form-horizontal">
             {parametersList}
             <JobSchedulingParams
                 onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
                 jobInfo={props.jobInfo}
                 tool={props.tool}
             />
-            <input value="Submit" className="btn btn-info" type="submit" />
+            <LoadingButton bsStyle={"primary"} disabled={props.jobSubmitted}
+                                               loading={props.jobSubmitted}
+                                               style={""} buttonContent={"Submit"}
+                                               handler={props.handleSubmit}/>
         </form>
     )
 };
