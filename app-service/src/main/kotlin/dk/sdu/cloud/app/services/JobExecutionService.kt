@@ -78,7 +78,6 @@ class JobExecutionService(
             return
         }
 
-
         when (event) {
             is SlurmEventRunning -> {
                 if (job.state == AppState.RUNNING) return

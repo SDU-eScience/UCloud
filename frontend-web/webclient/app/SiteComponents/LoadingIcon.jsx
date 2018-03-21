@@ -28,14 +28,19 @@ export const BallPulseLoading = (props) =>
             </div>
         </div>);
 
+export const Spinner = (props) => (props.loading) ?
+    <i className="loader-inner ball-pulse">
+        <div/>
+        <div/>
+        <div/>
+    </i> : null;
 export const LoadingButton = (props) => (
-    <Button bsStyle={props.bsStyle} onClick={e => props.handler(e)} className={props.style}
-            disabled={props.disabled}>
-        {props.loading ?
-            <i className="loader-inner ball-pulse">
-                <div/>
-                <div/>
-                <div/>
-            </i> : props.buttonContent}
+    <Button
+        bsStyle={props.bsStyle}
+        onClick={e => props.handler(e)}
+        className={props.style}
+        disabled={props.disabled}
+    >
+        {props.loading ? <Spinner loading/> : props.buttonContent}
     </Button>
 );
