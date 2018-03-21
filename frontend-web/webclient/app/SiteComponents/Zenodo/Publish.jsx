@@ -52,7 +52,7 @@ class ZenodoPublish extends React.Component {
             return
         }
         Cloud.post("/zenodo/publish/", {filePaths: filePaths, name: this.state.name}).then((res) => {
-            this.props.history.push(`/zenodo/info/${res.response.publicationID}`);
+            this.props.history.push(`/zenodo/info/${res.response.publicationId}`);
         });
         this.setState(() => ({requestSent: true}));
     }

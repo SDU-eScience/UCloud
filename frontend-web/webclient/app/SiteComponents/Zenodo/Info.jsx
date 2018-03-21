@@ -45,7 +45,7 @@ class ZenodoInfo extends React.Component {
     }
 }
 
-const ZenodoPublishingBody = ({ publication, uploads }) => {
+const ZenodoPublishingBody = ({ publication, uploads, isActive }) => {
     let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
     return (
         <div>

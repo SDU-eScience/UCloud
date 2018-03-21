@@ -100,7 +100,7 @@ const PublishStatus = (props) => {
                         <small>Connected to Zenodo</small>
                     </h3>
                     {body}
-                    <Link to="/ZenodoPublish/">
+                    <Link to="/zenodo/publish/">
                         <Button>Create new upload</Button>
                     </Link>
                 </div>
