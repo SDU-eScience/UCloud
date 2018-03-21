@@ -1,50 +1,31 @@
 [
   {
     "name": "Dashboard",
-    "icon": "nav-icon",
+    "icon": "home",
     "href": "/dashboard",
     "children": null
   },
   {
     "name": "Files",
-    "icon": "nav-icon",
+    "icon": "folder-open",
     "href": "/files/",
     "children": null
   },
   {
-    "name": "Apps",
+    "name": "Applications",
     "icon": "",
     "href": "",
     "children": [
       {
-        "name": "Applications",
-        "icon": "",
+        "name": "Run",
+        "icon": "play",
         "href": "/applications",
         "children": null
       },
       {
-        "name": "Workflows",
-        "icon": "",
-        "href": "/workflows",
-        "children": null
-      },
-      {
-        "name": "Analyses",
-        "icon": "",
+        "name": "Results",
+        "icon": "tasks",
         "href": "/analyses",
-        "children": null
-      }
-    ]
-  },
-  {
-    "name": "Activity",
-    "icon": "",
-    "href": "",
-    "children": [
-      {
-        "name": "Notifications",
-        "icon": "",
-        "href": "/notifications",
         "children": null
       }
     ]
@@ -62,7 +43,7 @@
       },
       {
         "name": "Publish",
-        "icon": "",
+        "icon": "file-cloud-upload",
         "href": "/zenodo/publish",
         "children": null
       }

@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import {Link} from 'react-router-dom'
 import {SidebarOptionsList} from "../MockObjects";
 import './Sidebar.scss';
+import { Glyphicon } from "react-bootstrap";
 
 
 import SidebarRun from './Sidebar.run';
@@ -76,33 +77,26 @@ const SingleSidebarOption = (props) => {
         return (
             <li>
                 <Link to={props.option.href}>
-                    <span className="pull-right nav-label"/><span
-                    className="nav-icon"/>
-                    <span>{props.option.name}</span>
+                    <span className="pull-right nav-label"/>
+                    <span className="nav-icon"/>
+                    <Glyphicon style={{ color: "#448aff", marginRight: "5px"}} glyph={props.option.icon}/> {props.option.name}
                 </Link>
             </li>)
     } else { // We have children we need to render
-        let children = props.option.children.slice();
-        let childrenHrefs = [];
-        children.forEach((it) => {
-            childrenHrefs.push(it.name);
-        });
-        let i = 0;
-        let optionsList = children.map(option =>
-            <li key={i++}>
+        let optionsList = props.option.children.map((option, i) =>
+            <li key={i}>
                 <NestedSidebarOption option={option}/>
             </li>
         );
 
         return (
             <li>
-                <a href="#">
-                    <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span><span
-                    className="pull-right nav-label"/><span className="nav-icon">
-                                    <img src="" data-svg-replace="img/icons/connection-bars.svg" alt="MenuItem"
-                                         className="hidden"/></span>
-                    <span>{props.option.name}</span>
-                </a>
+                <Link to="#">
+                    <span className="pull-right nav-label"/>
+                    <span className="nav-icon"/>
+                    <Glyphicon style={{ color: "#448aff", marginRight: "5px"}} glyph={props.option.icon}/> {props.option.name}
+                    <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span>
+                </Link>
                 <ul>
                     {optionsList}
                 </ul>
@@ -113,7 +107,7 @@ const SingleSidebarOption = (props) => {
 
 const NestedSidebarOption = ({option}) => (
     <Link to={option.href}>
-        <span className="pull-right nav-label"/><span>{option.name}</span>
+        <Glyphicon style={{ color: "#448aff", marginRight: "5px"}} glyph={option.icon}/><span> {option.name}</span>
     </Link>
 );
 

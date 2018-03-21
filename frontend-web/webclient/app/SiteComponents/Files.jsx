@@ -1,10 +1,10 @@
 import React from "react";
 import PropTypes from "prop-types";
-import {connect} from 'react-redux'
+import {connect} from "react-redux";
 import {BallPulseLoading} from "./LoadingIcon";
 import {Cloud} from "../../authentication/SDUCloudObject";
 import {Link} from "react-router-dom";
-import {Button, Table} from "react-bootstrap";
+import {Button, Table, Dropdown, MenuItem, Glyphicon} from "react-bootstrap";
 import {PaginationButtons, EntriesPerPageSelector} from "./Pagination";
 import {BreadCrumbs} from "./Breadcrumbs";
 import {
@@ -415,29 +415,33 @@ const Favorited = ({file, favoriteFile}) =>
         (<td><a onClick={() => favoriteFile(file.path.path)} className="ion-star"/></td>) :
         (<td><a className="ion-ios-star-outline" onClick={() => favoriteFile(file.path.path)}/></td>);
 
-const MobileButtons = ({file, forceInlineButtons}) =>
-    (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
-            <div className="pull-right dropdown">
-                <button type="button" data-toggle="dropdown"
-                        className="btn btn-flat btn-flat-icon"
-                        aria-expanded="false"><em className="ion-android-more-vertical"/></button>
-                <ul role="menu" className="dropdown-menu md-dropdown-menu dropdown-menu-right">
-                    <li><a className="btn btn-info ripple btn-block"
-                           onClick={() => sendToAbacus()}> Send to Abacus 2.0</a></li>
-                    <li><a className="btn btn-default ripple btn-block ion-share"
-                           onClick={() => shareFile(file.path, Cloud)}> Share file</a></li>
-                    <li><a className="btn btn-default ripple btn-block ion-ios-download"
-                           onClick={() => downloadFile(file.path.path, Cloud)}> Download file</a></li>
-                    <li><a className="btn btn-default ripple ion-ios-compose"
-                           onClick={() => renameFile(file.path)}> Rename file</a></li>
-                    <li><a className="btn btn-danger ripple ion-ios-trash"
-                           onClick={() => showFileDeletionPrompt(file.path)}> Delete file</a></li>
-                    <li><Link className="btn btn-default ripple btn-block ion-ios-settings-strong"
-                              to={`/fileInfo/${file.path.path}/`}> Properties</Link></li>
-                </ul>
-            </div>
-        </span>
-    );
+const MobileButtons = ({file, forceInlineButtons}) =>(
+    <span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
+        <Dropdown pullRight id="dropdownforfile">
+            <Dropdown.Toggle/>
+            <Dropdown.Menu>
+                <MenuItem onClick={() => sendToAbacus()}> Send to Abacus 2.0</MenuItem>
+                <MenuItem onClick={() => shareFile(file.path, Cloud)}>
+                    <em className="ion-share"/> Share file
+                </MenuItem>
+                <MenuItem onClick={() => downloadFile(file.path.path, Cloud)}>
+                    <em className="ion-ios-download"/>  Download file
+                </MenuItem>
+                <MenuItem onClick={() => renameFile(file.path)}> 
+                    <em className="ion-ios-compose"/> Rename file
+                </MenuItem>
+                <MenuItem onClick={() => showFileDeletionPrompt(file.path)}>
+                    <em className="ion-ios-trash"/> Delete file
+                </MenuItem>
+                <li>
+                    <Link to={`/fileInfo/${file.path.path}/`}>
+                        <em className="ion-ios-settings-strong"/> Properties
+                    </Link>
+                </li>
+            </Dropdown.Menu>
+        </Dropdown>
+    </span>
+);
 
 
 Files.propTypes = {
