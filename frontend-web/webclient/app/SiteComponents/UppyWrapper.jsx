@@ -6,7 +6,7 @@ import PropTypes from "prop-types";
 
 const UppyWrapper = ({ uppy, uppyOpen, dispatch }) => {
     if (!uppyOpen) {return null;}
-    return (<DashboardModal uppy={uppy} open={uppyOpen} closeModalOnClickOutside onRequestClose={() => dispatch(closeUppy())}/>);
+    return (<DashboardModal uppy={uppy} open={uppyOpen} closeModalOnClickOutside onRequestClose={() => dispatch(closeUppy(uppy))}/>);
 }
 
 UppyWrapper.propTypes = {
@@ -23,8 +23,8 @@ const mapStateToProps = (state) => {
         uppy = uppyRunApp;
         uppyOpen = true;
     }
-    return { uppy, uppyOpen}
 
+    return { uppy, uppyOpen };
 }
 
 export default connect(mapStateToProps)(UppyWrapper);

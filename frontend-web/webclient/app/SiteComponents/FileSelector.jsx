@@ -25,42 +25,39 @@ class FileSelector extends React.Component {
             uppyOnUploadSuccess: null,
         };
 
-        let uppyOnUploadSuccess = (file, resp, uploadURL) => {
-            // TODO This is a hack.
-            let apiIndex = uploadURL.indexOf("/api/");
-            if (apiIndex === -1) throw "Did not expect upload URL to not contain /api/";
-
-            let apiEndpoint = uploadURL.substring(apiIndex + 5);
-
-            Cloud.head(apiEndpoint).then(it => {
-                console.log("Got a response back!");
-                let path = it.request.getResponseHeader("File-Location");
-                let lastSlash = path.lastIndexOf("/");
-                if (lastSlash === -1) throw "Could not parse name of path: " + path;
-                let name = path.substring(lastSlash + 1);
-                let fileObject = {
-                    path: {
-                        path: path,
-                        name: name,
-                    }
-                };
-
-                this.props.uploadCallback(fileObject);
-            });
-        };
-        
-
-
-        if (props.allowUpload) {
-            let uppy = this.props.uppy;
-            uppy.on("upload-success", uppyOnUploadSuccess);
-        }
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.getFiles = this.getFiles.bind(this);
         this.setSelectedFile = this.setSelectedFile.bind(this);
         this.onUppyClose = this.onUppyClose.bind(this);
+        this.uppyOnUploadSuccess = this.uppyOnUploadSuccess.bind(this);
     }
+
+    uppyOnUploadSuccess(file, resp, uploadURL) {
+        if (!this.props.allowUpload) return;
+        // TODO This is a hack.
+        let apiIndex = uploadURL.indexOf("/api/");
+        if (apiIndex === -1) throw "Did not expect upload URL to not contain /api/";
+
+        let apiEndpoint = uploadURL.substring(apiIndex + 5);
+
+        Cloud.head(apiEndpoint).then(it => {
+            console.log("Got a response back!");
+            let path = it.request.getResponseHeader("File-Location");
+            let lastSlash = path.lastIndexOf("/");
+            if (lastSlash === -1) throw "Could not parse name of path: " + path;
+            let name = path.substring(lastSlash + 1);
+            let fileObject = {
+                path: {
+                    path: path,
+                    name: name,
+                }
+            };
+
+            this.props.uploadCallback(fileObject);
+        });
+    };
+
 
     openModal() {
         this.setState(() => ({
@@ -80,11 +77,6 @@ class FileSelector extends React.Component {
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
-        // Clean up in uppy. TODO potentially refactor this
-        let uppyOnUploadSuccess = this.state.uppyOnUploadSuccess;
-        if (uppyOnUploadSuccess !== null) {
-            this.props.uppy.off("upload-success", uppyOnUploadSuccess);
-        }
     }
 
     onUppyClose() {
@@ -114,7 +106,15 @@ class FileSelector extends React.Component {
     }
 
     render() {
-        const uploadButton = this.props.allowUpload ? (<UploadButton onClick={() => this.context.store.dispatch(changeUppyRunAppOpen(true))}/>) : null;
+        const onUpload = () => {
+            if (!this.props.allowUpload) return;
+            this.context.store.dispatch(changeUppyRunAppOpen(true));
+            let uppy = this.props.uppy;
+            uppy.reset();
+            uppy.once("upload-success", this.uppyOnUploadSuccess);
+        };
+
+        const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         return (
             <div>
                 <div className="input-group">

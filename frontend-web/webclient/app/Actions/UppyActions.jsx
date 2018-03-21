@@ -12,6 +12,10 @@ export const changeUppyRunAppOpen = (open) =>
     open,
 });
 
-export const closeUppy = () => ({
-    type: CLOSE_UPPY
-})
+export const closeUppy = (uppy) => {
+    // TODO Gigantic hack to remove all (non-uppy) callbacks when closed
+    uppy.emitter._fns["upload-success"] = uppy.emitter._fns["upload-success"].slice(0, 1);
+    return {
+        type: CLOSE_UPPY
+    };
+};
