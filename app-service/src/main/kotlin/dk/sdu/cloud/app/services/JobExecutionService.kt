@@ -60,30 +60,35 @@ class JobExecutionService(
     // TODO Maybe make the slurm and kafka interfaces behave the exact same way. Accept a callback for onScheduled?
 
     private fun handleSlurmEvent(event: SlurmEvent) {
-        when (event) {
-            is SlurmEventBegan -> {
-                // TODO Not yet implemented
+        val slurmId = event.jobId
+        val job = dao.transaction {
+            var jobToSlurm: JobInformation? = null
+            for (i in 0..3) {
+                if (i > 0) Thread.sleep(150)
+
+                jobToSlurm = findJobInformationBySlurmId(slurmId)
+                if (jobToSlurm != null) break
             }
 
-            is SlurmEventFailed, is SlurmEventEnded -> {
-                val slurmId = event.jobId
-                val job = dao.transaction {
-                    var jobToSlurm: JobInformation? = null
-                    for (i in 0..3) {
-                        if (i > 0) Thread.sleep(150)
+            jobToSlurm
+        }
 
-                        jobToSlurm = findJobInformationBySlurmId(slurmId)
-                        if (jobToSlurm != null) break
-                    }
+        if (job == null) {
+            log.info("Unable to resolve completed Slurm to internal app. JobId = $slurmId, skipping...")
+            return
+        }
 
-                    jobToSlurm
+
+        when (event) {
+            is SlurmEventRunning -> {
+                if (job.state == AppState.RUNNING) return
+
+                dao.transaction {
+                    updateJobBySystemId(job.systemId, AppState.RUNNING, "Running...")
                 }
+            }
 
-                if (job == null) {
-                    log.info("Unable to resolve completed Slurm to internal app. JobId = $slurmId, skipping...")
-                    return
-                }
-
+            is SlurmEventTimeout, is SlurmEventFailed, is SlurmEventEnded -> {
                 val app = ApplicationDAO.findByNameAndVersion(job.appName, job.appVersion) ?: run {
                     log.warn("Unable to find app for job: $job")
                     return
@@ -113,6 +118,7 @@ class JobExecutionService(
                 }
 
                 runBlocking {
+                    // TODO Should implement error codes here, before we lose them
                     producer.emit(
                         AppEvent.CompletedInSlurm(
                             job.systemId,
