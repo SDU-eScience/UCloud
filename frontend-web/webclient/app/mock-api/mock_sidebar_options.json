@@ -14,7 +14,7 @@
   {
     "name": "Applications",
     "icon": "ion-play",
-    "href": "",
+    "href": "#",
     "children": [
       {
         "name": "Run",
@@ -33,7 +33,7 @@
   {
     "name": "Publishing",
     "icon": "ion-ios-paper",
-    "href": "",
+    "href": "#",
     "children": [
       {
         "name": "Publications",

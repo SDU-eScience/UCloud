@@ -73,7 +73,6 @@ class Files extends React.Component {
             files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
                 .forEach(file => file.isChecked = true);
         }
-
         dispatch(updateFiles(files));
     }
 

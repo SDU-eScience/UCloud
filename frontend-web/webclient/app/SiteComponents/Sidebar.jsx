@@ -72,44 +72,38 @@ const SidebarOptions = (props) =>
             )}
         </ul>);
 
-const SingleSidebarOption = (props) => {
-    if (props.option.href) {
-        return (
-            <li>
-                <Link to={props.option.href}>
-                    <span className="pull-right nav-label"/>
-                    <span className="nav-icon"/>
-                    <i style={{ color: "#448aff", marginRight: "5px", fontSize: "16px"}} className={props.option.icon}/> {props.option.name}
-                </Link>
-            </li>)
-    } else { // We have children we need to render
-        let optionsList = props.option.children.map((option, i) =>
-            <li key={i}>
-                <NestedSidebarOption option={option}/>
-            </li>
-        );
-
-        return (
-            <li>
-                <Link to="#">
-                    <span className="pull-right nav-label"/>
-                    <span className="nav-icon"/>
-                    <i style={{ color: "#448aff", marginRight: "5px", fontSize: "16px"}} className={props.option.icon}/> {props.option.name}
-                    <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span>
-                </Link>
-                <ul>
-                    {optionsList}
-                </ul>
-            </li>
-        )
-    }
-}
-
-const NestedSidebarOption = ({option}) => (
-    <Link to={option.href}>
-        <i style={{ color: "#448aff", marginRight: "5px", fontSize: "16px"}} className={option.icon}/> {option.name}
-    </Link>
+const SingleSidebarOption = (props) => (
+    <li>
+        <SidebarOption option={props.option}/>
+        {props.option.children ? (
+            <ul>
+                {props.option.children.map((option, i) =>
+                    <li key={i}>
+                        <SidebarOption option={option}/>
+                    </li>)}
+            </ul>) : null
+        }
+    </li>
 );
+
+const SidebarOption = ({option}) => {
+    if (option.icon || option.href === "#") {
+        const arrowRight = option.href === "#" ? <span className="pull-right nav-caret"><em className="ion-ios-arrow-right"/></span> : null;
+        return (
+            <Link to={option.href}>
+                <span className="nav-icon"/>
+                <i style={{ color: "#448aff", marginRight: "5px", fontSize: "16px"}} className={option.icon}/> {option.name}
+                {arrowRight}
+            </Link>
+        ); 
+    } else {
+        return (
+            <Link to={option.href}>
+                {option.name}
+            </Link>
+        );
+    }
+};
 
 Sidebar.contextTypes = {
     router: PropTypes.object,
