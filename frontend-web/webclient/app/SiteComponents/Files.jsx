@@ -130,14 +130,17 @@ class Files extends React.Component {
                             currentPage={currentFilesPage}
                             totalPages={Math.ceil(this.props.files.length / filesPerPage)}
                             toPage={pageNumber => dispatch(toPage(pageNumber))}/>
-                        <EntriesPerPageSelector entriesPerPage={filesPerPage}
-                                                handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}/> Files
-                        per page
+                        <EntriesPerPageSelector 
+                            entriesPerPage={filesPerPage}
+                            handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}
+                        /> Files per page
                     </div>
-                    <ContextBar selectedFiles={shownFiles.filter(file => file.isChecked)}
-                                currentPath={path}
-                                getFavorites={this.getFavorites}
-                                onClick={open => dispatch(changeUppyFilesOpen(open))}/>
+                    <ContextBar 
+                        selectedFiles={shownFiles.filter(file => file.isChecked)}
+                        currentPath={path}
+                        getFavorites={this.getFavorites}
+                        onClick={open => dispatch(changeUppyFilesOpen(open))}
+                    />
                 </div>
             </section>)
     } // TODO: Remove dashboard modal from this and move it to root.

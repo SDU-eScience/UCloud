@@ -16,25 +16,16 @@ class Sidebar extends React.Component {
     constructor(props, context) {
         super(props, context);
         this.state = {
-            username: "",
             options: [],
         }
-    }
-
-    componentWillMount() {
-        this.getUserName();
-        this.getUserOptions();
+        this.retrieveUserOptions();
     }
 
     componentDidMount() {
         SidebarRun();
     }
 
-    getUserName() {
-        this.setState(() => ({username: Cloud.userInfo.firstNames}));
-    }
-
-    getUserOptions() {
+    retrieveUserOptions() {
         Cloud.get("/../mock-api/mock_sidebar_options.json").then((res) => {
             this.setState({options: res.response});
         });
@@ -52,7 +43,7 @@ class Sidebar extends React.Component {
                 <div className="sidebar-content">
                     <div className="sidebar-toolbar text-center">
                         <a href=""><img src="/img/user/01.jpg" alt="Profile" className="img-circle thumb64"/></a>
-                        <div className="mt">Welcome, {this.state.username}</div>
+                        <div className="mt">Welcome, {Cloud.userInfo.firstNames}</div>
                     </div>
                     <nav className="sidebar-nav">
                         <SidebarOptions options={this.state.options}/>

@@ -158,7 +158,7 @@ class RunApp extends React.Component {
     render() {
         return (
             <section>
-                <div className="container-fluid">
+                <div className="container" style={{marginTop: "60px"}}>
                     <div className="card">
                         <div className="card-body">
                             <BallPulseLoading loading={this.state.loading} />
@@ -254,7 +254,7 @@ const JobSchedulingParams = (props) => {
             <fieldset>
                 <div className="form-group">
                     <label className="col-sm-2 control-label">Number of nodes</label>
-                    <div className="col-md-4">
+                    <div className={"col-md-8"}>
                         <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
                             className="col-md-4 form-control"
                             onChange={e => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(e.target.value), null)} />
@@ -264,7 +264,7 @@ const JobSchedulingParams = (props) => {
             <fieldset>
                 <div className="form-group">
                     <label className="col-sm-2 control-label">Tasks per node</label>
-                    <div className="col-md-4">
+                    <div className="col-md-8">
                         <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultTasksPerNode}
                             className="col-md-4 form-control"
                             onChange={e => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(e.target.value), null)} />
@@ -274,17 +274,17 @@ const JobSchedulingParams = (props) => {
             <fieldset>
                 <FormGroup>
                     <label className="col-sm-2 control-label">Maximum time allowed</label>
-                    <div className="col-xs-10">
+                    <div className="col-xs-8">
                         <div className="form-inline">
                             <InputGroup>
-                                <input type="number" step="1" min="0" className="form-control" style={{ width: 150 }}
+                                <input type="number" step="1" min="0" className="form-control" style={{ width: 100 }}
                                     placeholder={props.tool.defaultMaxTime.hours}
                                     value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
                                     onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")} />
                                 <span className="input-group-addon">Hours</span>
                             </InputGroup>{" "}
                             <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control"
+                                <input type="number" step="1" min="0" max="59" className="form-control" style={{ width: 80 }}
                                     style={{ width: 150 }}
                                     placeholder={props.tool.defaultMaxTime.minutes}
                                     value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
@@ -292,7 +292,7 @@ const JobSchedulingParams = (props) => {
                                 <span className="input-group-addon">Minutes</span>
                             </InputGroup>{"  "}
                             <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control"
+                                <input type="number" step="1" min="0" max="59" className="form-control" style={{ width: 80 }}
                                     style={{ width: 150 }}
                                     placeholder={props.tool.defaultMaxTime.seconds}
                                     value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
@@ -498,13 +498,13 @@ const GenericParameter = (props) => {
                     <label className="col-md-2 control-label" htmlFor={props.parameter.name}>
                         {props.parameter.prettyName}
                     </label>
-                    <div className="col-md-8 col-lg-6">
+                    <div className="col-md-8">
                         {props.children}
                     </div>
                 </div>
                 <div className="row">
                     <div className="col-md-2" />
-                    <div className="col-md-8 col-lg-6">
+                    <div className="col-md-8">
                         <OptionalText optional={props.parameter.optional} />
                         <ReactMarkdown className="help-block" source={props.parameter.description} />
                     </div>

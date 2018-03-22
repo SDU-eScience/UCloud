@@ -96,7 +96,7 @@ class Dashboard extends React.Component {
     render() {
         return (
             <section>
-                <div className="container-fluid">
+                <div className="container" style={{marginTop: "60px"}} >
                     <Row>
                         <DashboardFavoriteFiles files={this.state.favoriteFiles} isLoading={this.state.favoriteLoading}
                                                 favorite={this.favoriteOrUnfavorite}/>

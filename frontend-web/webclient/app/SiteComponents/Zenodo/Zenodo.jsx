@@ -52,7 +52,8 @@ class ZenodoHome extends React.Component {
             return (<NotConnectedToZenodo/>);
         } else {
             return (
-                <div className="container-fluid">
+                <div className="container">
+                    <h4>Upload progress<small className="pull-right">Connected to Zenodo</small></h4>   
                     <PublishStatus publications={this.state.publications} loading={this.state.loading}/>
                 </div>
             );
@@ -75,7 +76,6 @@ const PublishStatus = (props) => {
     } else {
         body = (
             <div>
-                <h3 className="text-center">File upload progress</h3>
                 <Table responsive>
                     <thead>
                     <tr>
@@ -96,9 +96,6 @@ const PublishStatus = (props) => {
         <div>
             <Card>
                 <div className="card-body">
-                    <h3>
-                        <small>Connected to Zenodo</small>
-                    </h3>
                     {body}
                     <Link to="/zenodo/publish/">
                         <Button>Create new upload</Button>

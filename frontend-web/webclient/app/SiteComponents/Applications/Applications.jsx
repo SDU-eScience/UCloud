@@ -140,7 +140,7 @@ class Applications extends React.Component {
     render() {
         return (
             <section>
-                <div className="container-fluid">
+                <div className="container" style={{ "marginTop": "60px" }}>
                     <div>
                         <BallPulseLoading loading={!this.state.applications.length}/>
                         <Card>

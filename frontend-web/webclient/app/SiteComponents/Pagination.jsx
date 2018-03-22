@@ -2,7 +2,6 @@ import React from "react";
 import {Pager} from "react-bootstrap";
 
 export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
-    console.log( totalPages, currentPage );
     if (totalPages < 1) {
         return null;
     }
