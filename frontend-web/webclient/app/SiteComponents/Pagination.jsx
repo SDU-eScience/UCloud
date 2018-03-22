@@ -1,22 +1,22 @@
 import React from "react";
 import {Pager} from "react-bootstrap";
 
-export const PaginationButtons = (props) => {
-    const totalPages = Math.ceil(props.totalEntries / props.entriesPerPage);
-    if (totalPages < 2) {
+export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
+    console.log( totalPages, currentPage );
+    if (totalPages < 1) {
         return null;
     }
     let pagination = [...Array(totalPages).keys()].map(i =>
-        <Pager.Item href="#" onClick={() => props.toPage(i)} disabled={i === props.currentPage} key={i}>
+        <Pager.Item href="#" onClick={() => toPage(i)} disabled={i === currentPage} key={i}>
             {i + 1}
         </Pager.Item>);
     return (
         <Pager>
-            <Pager.Item disabled={props.currentPage === 0} onClick={() => props.toPage(props.currentPage - 1)}>
+            <Pager.Item disabled={currentPage === 0} onClick={() => toPage(currentPage - 1)}>
                 {"<"}
             </Pager.Item>
             {pagination}
-            <Pager.Item disabled={props.currentPage === totalPages - 1} onClick={() => props.toPage(props.currentPage + 1)}>
+            <Pager.Item disabled={currentPage === totalPages - 1} onClick={() => toPage(currentPage + 1)}>
                 {">"}
             </Pager.Item>
         </Pager>);

@@ -16,25 +16,20 @@ class Analyses extends React.Component {
             promises: new PromiseKeeper(),
             analyses: [],
             loading: false,
+            itemsInTotal: 0,
             currentPage: 0,
-            analysesPerPage: 10,
-            totalPages: () => Math.ceil(this.state.analyses.length / this.state.analysesPerPage),
+            analysesPerPage: 15,
+            totalPages: 0,
             reloadIntervalId: -1
         };
-        this.nextPage = this.nextPage.bind(this);
-        this.previousPage = this.previousPage.bind(this);
-        this.toPage = this.toPage.bind(this);
-        this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
-        this.getCurrentAnalyses = this.getCurrentAnalyses.bind(this);
-    }
-
-    componentDidMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
         this.getAnalyses(false);
-        let reloadIntervalId = setInterval(() => {
+        const reloadIntervalId = setInterval(() => {
             this.getAnalyses(true)
         }, 10000);
-        this.setState({reloadIntervalId: reloadIntervalId});
+        this.setState(() => {reloadIntervalId});
+        this.toPage = this.toPage.bind(this);
+        this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
     }
 
     componentWillUnmount() {
@@ -49,18 +44,15 @@ class Analyses extends React.Component {
             });
         }
 
-        this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(req => {
+        this.state.promises.makeCancelable(Cloud.get(`/hpc/jobs/?itemsPerPage=${this.state.analysesPerPage}&page=${this.state.currentPage}`)).promise.then(({response}) => {
             this.setState(() => ({
                 loading: false,
-                analyses: req.response.items,
+                analyses: response.items,
+                analysesPerPage: response.itemsPerPage,
+                pageNumber: response.pageNumber,
+                totalPages: response.pagesInTotal 
             }));
         });
-    }
-
-    getCurrentAnalyses() {
-        let analysesPerPage = this.state.analysesPerPage;
-        let currentPage = this.state.currentPage;
-        return this.state.analyses.slice(currentPage * analysesPerPage, currentPage * analysesPerPage + analysesPerPage);
     }
 
     handlePageSizeSelection(newPageSize) {
@@ -73,18 +65,7 @@ class Analyses extends React.Component {
         this.setState(() => ({
             currentPage: n,
         }));
-    }
-
-    nextPage() {
-        this.setState(() => ({
-            currentPage: this.state.currentPage + 1,
-        }));
-    }
-
-    previousPage() {
-        this.setState(() => ({
-            currentPage: this.state.currentPage - 1,
-        }));
+        this.getAnalyses(false);
     }
 
     render() {
@@ -112,15 +93,13 @@ class Analyses extends React.Component {
                                         <th>Last updated at</th>
                                     </tr>
                                     </thead>
-                                    <AnalysesList analyses={this.getCurrentAnalyses()}/>
+                                    <AnalysesList analyses={this.state.analyses}/>
                                 </Table>
                             </div>
                         </Card>
-                        <PaginationButtons entriesPerPage={this.state.analysesPerPage}
-                                           totalEntries={this.state.analyses.length}
+                        <PaginationButtons totalPages={this.state.totalPages}
                                            currentPage={this.state.currentPage}
-                                           toPage={this.toPage} nextPage={this.nextPage}
-                                           previousPage={this.previousPage}/>
+                                           toPage={this.toPage}/>
                         <EntriesPerPageSelector entriesPerPage={this.state.analysesPerPage}
                                                 handlePageSizeSelection={this.handlePageSizeSelection}/>
                     </div>

@@ -56,9 +56,6 @@ class Files extends React.Component {
         this.getSortingIcon = this.getSortingIcon.bind(this);
     }
 
-    componentWillUnmount() {
-    }
-
     getSortingIcon(name) {
         if (this.state.lastSorting.name === name) {
             return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
@@ -120,7 +117,6 @@ class Files extends React.Component {
                         <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)}/>
                         <FilesTable
                             files={shownFiles}
-
                             loading={loading}
                             masterCheckbox={masterCheckboxChecked}
                             sortingIcon={this.getSortingIcon}
@@ -132,8 +128,7 @@ class Files extends React.Component {
                         <BallPulseLoading loading={loading}/>
                         <PaginationButtons
                             currentPage={currentFilesPage}
-                            totalEntries={this.props.files.length}
-                            entriesPerPage={filesPerPage}
+                            totalPages={Math.ceil(this.props.files.length / filesPerPage)}
                             toPage={pageNumber => dispatch(toPage(pageNumber))}/>
                         <EntriesPerPageSelector entriesPerPage={filesPerPage}
                                                 handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}/> Files

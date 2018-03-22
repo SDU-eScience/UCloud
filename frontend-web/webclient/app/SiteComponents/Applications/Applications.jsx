@@ -26,8 +26,6 @@ class Applications extends React.Component {
         this.sortByVisibility = this.sortByVisibility.bind(this);
         this.sortByVersion = this.sortByVersion.bind(this);
         this.sortingIcon = this.sortingIcon.bind(this);
-        this.nextPage = this.nextPage.bind(this);
-        this.previousPage = this.previousPage.bind(this);
         this.toPage = this.toPage.bind(this);
         this.getCurrentApplications = this.getCurrentApplications.bind(this);
         this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
@@ -165,11 +163,9 @@ class Applications extends React.Component {
                             </div>
                         </Card>
                         <PaginationButtons
-                            entriesPerPage={this.state.applicationsPerPage}
+                            toPage={this.toPage}
                             currentPage={this.state.currentPage}
-                            totalEntries={this.state.applications.length}
-                            nextPage={this.nextPage}
-                            previousPage={this.previousPage}
+                            totalPages={Math.ceil(this.state.applications.length / this.state.applicationsPerPage)}
                         />
                         <EntriesPerPageSelector entriesPerPage={this.state.applicationsPerPage}
                                                 handlePageSizeSelection={this.handlePageSizeSelection}/> Applications
