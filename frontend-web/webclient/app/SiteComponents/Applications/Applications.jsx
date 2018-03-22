@@ -27,16 +27,16 @@ class Applications extends React.Component {
         this.sortByVersion = this.sortByVersion.bind(this);
         this.sortingIcon = this.sortingIcon.bind(this);
         this.toPage = this.toPage.bind(this);
-        this.getCurrentApplications = this.getCurrentApplications.bind(this);
+        this.getCurrentApplications = this.retrieveCurrentApplications.bind(this);
         this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
     }
 
     componentDidMount() {
         pubsub.publish('setPageTitle', this.constructor.name);
-        this.getApplications();
+        this.retrieveApplications();
     }
 
-    getApplications() {
+    retrieveApplications() {
         this.setState({loading: true});
         this.state.promises.makeCancelable(Cloud.get("/hpc/apps")).promise.then(req => {
             this.setState(() => ({
@@ -103,22 +103,10 @@ class Applications extends React.Component {
         }));
     }
 
-    getCurrentApplications() {
+    retrieveCurrentApplications() {
         let applicationsPerPage = this.state.applicationsPerPage;
         let currentPage = this.state.currentPage;
         return this.state.applications.slice(currentPage * applicationsPerPage, currentPage * applicationsPerPage + applicationsPerPage);
-    }
-
-    nextPage() {
-        this.setState(() => ({
-            currentPage: this.state.currentPage + 1,
-        }));
-    }
-
-    previousPage() {
-        this.setState(() => ({
-            currentPage: this.state.currentPage - 1,
-        }));
     }
 
     toPage(n) {
@@ -159,7 +147,7 @@ class Applications extends React.Component {
                                         <th/>
                                     </tr>
                                     </thead>
-                                    <ApplicationsList applications={this.getCurrentApplications()}/>
+                                    <ApplicationsList applications={this.retrieveCurrentApplications()}/>
                                 </Table>
                             </div>
                         </Card>
