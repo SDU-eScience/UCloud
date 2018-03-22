@@ -22,14 +22,17 @@ class Analyses extends React.Component {
             totalPages: 0,
             reloadIntervalId: -1
         };
-        pubsub.publish('setPageTitle', this.constructor.name);
-        this.getAnalyses(false);
-        const reloadIntervalId = setInterval(() => {
-            this.getAnalyses(true)
-        }, 10000);
-        this.setState(() => {reloadIntervalId});
         this.toPage = this.toPage.bind(this);
         this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
+    }
+
+    componentWillMount() {
+        pubsub.publish('setPageTitle', this.constructor.name);
+        this.getAnalyses(false);
+        let reloadIntervalId = setInterval(() => {
+            this.getAnalyses(true)
+        }, 10000);
+        this.setState({reloadIntervalId});
     }
 
     componentWillUnmount() {
