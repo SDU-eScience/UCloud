@@ -2,7 +2,7 @@ import React from "react";
 import {Pager} from "react-bootstrap";
 
 export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
-    if (totalPages < 1) {
+    if (totalPages < 2) {
         return null;
     }
     let pagination = [...Array(totalPages).keys()].map(i =>
@@ -22,11 +22,16 @@ export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
 };
 
 
-export const EntriesPerPageSelector = ({entriesPerPage, handlePageSizeSelection}) => (
-    <select value={entriesPerPage} onChange={e => handlePageSizeSelection(parseInt(e.target.value))}>
-        <option value="10">10</option>
-        <option value="25">25</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-    </select>
-);
+export const EntriesPerPageSelector = ({entriesPerPage, handlePageSizeSelection, totalPages, children}) => {
+    if (totalPages < 2) { return null; }
+    return (
+        <span>
+            <select value={entriesPerPage} onChange={e => handlePageSizeSelection(parseInt(e.target.value))}>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select> {children}
+        </span>
+    )
+};

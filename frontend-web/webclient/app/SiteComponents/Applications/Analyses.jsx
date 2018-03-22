@@ -78,7 +78,7 @@ class Analyses extends React.Component {
 
         return (
             <section>
-                <div className="container-fluid">
+                <div className="container" style={{ marginTop: "60px"}}>
                     <div>
                         <BallPulseLoading loading={this.state.loading}/>
                         <Card>
@@ -100,11 +100,18 @@ class Analyses extends React.Component {
                                 </Table>
                             </div>
                         </Card>
-                        <PaginationButtons totalPages={this.state.totalPages}
-                                           currentPage={this.state.currentPage}
-                                           toPage={this.toPage}/>
-                        <EntriesPerPageSelector entriesPerPage={this.state.analysesPerPage}
-                                                handlePageSizeSelection={this.handlePageSizeSelection}/>
+                        <PaginationButtons 
+                            totalPages={this.state.totalPages}
+                            currentPage={this.state.currentPage}
+                            toPage={this.toPage}
+                        />
+                        <EntriesPerPageSelector 
+                            entriesPerPage={this.state.analysesPerPage}
+                            handlePageSizeSelection={this.handlePageSizeSelection}
+                            totalPages={this.state.totalPages}    
+                        >
+                        Analyses per page
+                        </EntriesPerPageSelector>
                     </div>
                 </div>
             </section>

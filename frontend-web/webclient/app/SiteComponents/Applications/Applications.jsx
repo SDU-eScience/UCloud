@@ -138,6 +138,7 @@ class Applications extends React.Component {
     }
 
     render() {
+        const totalPages = Math.ceil(this.state.applications.length / this.state.applicationsPerPage);
         return (
             <section>
                 <div className="container" style={{ "marginTop": "60px" }}>
@@ -165,11 +166,15 @@ class Applications extends React.Component {
                         <PaginationButtons
                             toPage={this.toPage}
                             currentPage={this.state.currentPage}
-                            totalPages={Math.ceil(this.state.applications.length / this.state.applicationsPerPage)}
+                            totalPages={totalPages}
                         />
-                        <EntriesPerPageSelector entriesPerPage={this.state.applicationsPerPage}
-                                                handlePageSizeSelection={this.handlePageSizeSelection}/> Applications
-                        per page
+                        <EntriesPerPageSelector 
+                            entriesPerPage={this.state.applicationsPerPage}
+                            handlePageSizeSelection={this.handlePageSizeSelection}
+                            totalPages={totalPages}
+                        >
+                        Applications per page
+                        </EntriesPerPageSelector>
                     </div>
                 </div>
             </section>)

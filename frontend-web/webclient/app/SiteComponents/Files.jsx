@@ -108,6 +108,7 @@ class Files extends React.Component {
 
     render() {
         const {dispatch, files, filesPerPage, currentFilesPage, path, loading, history} = this.props;
+        const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage);
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
         return (
@@ -128,12 +129,15 @@ class Files extends React.Component {
                         <BallPulseLoading loading={loading}/>
                         <PaginationButtons
                             currentPage={currentFilesPage}
-                            totalPages={Math.ceil(this.props.files.length / filesPerPage)}
+                            totalPages={totalPages}
                             toPage={pageNumber => dispatch(toPage(pageNumber))}/>
                         <EntriesPerPageSelector 
                             entriesPerPage={filesPerPage}
+                            totalPages={totalPages}
                             handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}
-                        /> Files per page
+                        >
+                        Files per page
+                        </EntriesPerPageSelector>
                     </div>
                     <ContextBar 
                         selectedFiles={shownFiles.filter(file => file.isChecked)}
