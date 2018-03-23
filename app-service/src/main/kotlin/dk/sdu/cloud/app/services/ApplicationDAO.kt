@@ -58,17 +58,45 @@ object ApplicationDAO {
                 prettyName = "Parms",
                 createdAt = 1519910207000L,
                 modifiedAt = 1519910207000L,
-                description = "Good his morning he fruitful signs days years fruit their them our fish rule shall greater can't she'd him god seas seas bearing land whales you're. Behold in winged, darkness she'd doesn't herb Called multiply abundantly. God signs creeping after doesn't. Make creature had which can't appear fish fly, said living void moved rule appear you blessed the. Multiply Meat saw is above in that of won't firmament have let a waters abundantly wherein divide subdue bearing creeping isn't is man. Isn't our itself stars our two fish. Fill great greater gathered abundantly creature created morning in second gathering. Seasons. Place us. Be after saying created lights moved give seas was stars own lesser image after third great whales, life stars. Hath him spirit his yielding beginning. Yielding brought fish a make under set them there said said sixth replenish fifth meat. Multiply form together unto land fourth void you'll. So his under gathering winged image to which lesser gathered god female. Likeness morning every, you female Under.\n" +
-                        "\n" +
-                        "Waters saying light light. From you blessed Good you brought god fish bring spirit sea give signs firmament i sea Every saying the seasons after good, gathered. Grass for abundantly fourth brought night morning own Tree meat don't made lights air image great and years creepeth seed darkness two fill moved stars in fruit which sixth you night. Light man place above meat land of. Fly doesn't divide forth sea yielding all were. Over every wherein Midst moving female, great. Abundantly kind, over good darkness gathered without second was every created, life. One together multiply dominion. Itself. Wherein also great for gathered isn't form image, you're he gathering multiply can't without day creature there third life seasons land divide likeness cattle shall above life him upon. Years appear, called living i fill. Great bearing winged every meat tree. Seasons be doesn't after, image herb. Moveth.\n" +
-                        "\n" +
-                        "Fowl spirit first. Moveth grass firmament likeness you're which replenish they're years moveth appear gathering air without. Gathering bring, you'll doesn't of is above don't day creeping shall you said called place set don't life man that evening creepeth fish first under she'd itself be. Beast moving after and day let dominion you open you'll second, creepeth over. Fowl thing. Beast stars i creeping to seed light you'll fowl there. Lights you're let be fourth earth called meat second one shall place fourth saying in. Lesser fruitful.\n",
+                description = "Good his morning he fruitful signs days years fruit their them our fish rule shall greater can't she'd him god seas seas bearing land whales you're. Behold in winged, darkness she'd doesn't herb Called multiply abundantly. God signs creeping after doesn't. Make creature had which can't appear fish fly, said living void moved rule appear you blessed the. Multiply Meat saw is above in that of won't firmament have let a waters abundantly wherein divide subdue bearing creeping isn't is man. Isn't our itself stars our two fish. Fill great greater gathered abundantly creature created morning in second gathering. Seasons. Place us. Be after saying created lights moved give seas was stars own lesser image after third great whales, life stars. Hath him spirit his yielding beginning. Yielding brought fish a make under set them there said said sixth replenish fifth meat. Multiply form together unto land fourth void you'll. So his under gathering winged image to which lesser gathered god female. Likeness morning every, you female Under.\n",
                 tool = NameAndVersion("parms", "1.0.0"),
                 info = NameAndVersion("parms", "1.0.0"),
                 invocation = listOf(
                     WordInvocationParameter("parms"),
                     VariableInvocationParameter(variableNames = listOf("input"), prefixVariable = "-i "),
-                    WordInvocationParameter("-o output.json")
+                    WordInvocationParameter("-o output.json"),
+
+                    VariableInvocationParameter(variableNames = listOf("interval"), prefixVariable = "--interval "),
+                    VariableInvocationParameter(variableNames = listOf("insert_missing"), prefixVariable = "--insert_missing "),
+                    VariableInvocationParameter(variableNames = listOf("insert_until"), prefixVariable = "--insert_until "),
+                    VariableInvocationParameter(variableNames = listOf("insert_max_seconds"), prefixVariable = "--insert_max_seconds "),
+                    VariableInvocationParameter(variableNames = listOf("los_max_duration"), prefixVariable = "--los_max_duration "),
+                    VariableInvocationParameter(variableNames = listOf("remove_lone"), prefixVariable = "--remove_lone "),
+                    VariableInvocationParameter(variableNames = listOf("filter_invalid"), prefixVariable = "--filter_invalid "),
+                    VariableInvocationParameter(variableNames = listOf("max_speed"), prefixVariable = "--max_speed "),
+                    VariableInvocationParameter(variableNames = listOf("max_ele_change"), prefixVariable = "--max_ele_change "),
+                    VariableInvocationParameter(variableNames = listOf("min_change_3_fixes"), prefixVariable = "--min_change_3_fixes "),
+                    VariableInvocationParameter(variableNames = listOf("detect_indoors"), prefixVariable = "--detect_indoors "),
+                    VariableInvocationParameter(variableNames = listOf("min_distance"), prefixVariable = "--min_distance "),
+                    VariableInvocationParameter(variableNames = listOf("min_trip_length"), prefixVariable = "--min_trip_length "),
+                    VariableInvocationParameter(variableNames = listOf("min_trip_duration"), prefixVariable = "--min_trip_duration "),
+                    VariableInvocationParameter(variableNames = listOf("min_pause_duration"), prefixVariable = "--min_pause_duration "),
+                    VariableInvocationParameter(variableNames = listOf("max_pause_duration"), prefixVariable = "--max_pause_duration "),
+                    VariableInvocationParameter(variableNames = listOf("max_percent_single_location"), prefixVariable = "--max_percent_single_location "),
+                    VariableInvocationParameter(variableNames = listOf("max_percent_allowed_indoors"), prefixVariable = "--max_percent_allowed_indoors "),
+                    VariableInvocationParameter(variableNames = listOf("remove_indoor_fixes"), prefixVariable = "--remove_indoor_fixes "),
+                    VariableInvocationParameter(variableNames = listOf("include_trip_pauses"), prefixVariable = "--include_trip_pauses "),
+                    VariableInvocationParameter(variableNames = listOf("trap_indoor_fixes"), prefixVariable = "--trap_indoor_fixes "),
+                    VariableInvocationParameter(variableNames = listOf("trap_outdoor_fixes"), prefixVariable = "--trap_outdoor_fixes "),
+                    VariableInvocationParameter(variableNames = listOf("trap_trip_fixes"), prefixVariable = "--trap_trip_fixes "),
+                    VariableInvocationParameter(variableNames = listOf("allow_non_trips"), prefixVariable = "--allow_non_trips "),
+                    VariableInvocationParameter(variableNames = listOf("location_radius"), prefixVariable = "--location_radius "),
+                    VariableInvocationParameter(variableNames = listOf("min_duration_at_location"), prefixVariable = "--min_duration_at_location "),
+                    VariableInvocationParameter(variableNames = listOf("vehicle_cutoff"), prefixVariable = "--vehicle_cutoff "),
+                    VariableInvocationParameter(variableNames = listOf("bicycle_cutoff"), prefixVariable = "--bicycle_cutoff "),
+                    VariableInvocationParameter(variableNames = listOf("walk_cutoff"), prefixVariable = "--walk_cutoff "),
+                    VariableInvocationParameter(variableNames = listOf("percentile_to_sample"), prefixVariable = "--percentile_to_sample "),
+                    VariableInvocationParameter(variableNames = listOf("min_segment_length"), prefixVariable = "--min_segment_length ")
                 ),
                 parameters = listOf(
                     ApplicationParameter.InputFile(
@@ -79,7 +107,7 @@ object ApplicationDAO {
                         description = ""
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "interval",
                         prettyName = "Interval",
                         description = "duration of interval between results in seconds",
@@ -108,7 +136,7 @@ object ApplicationDAO {
                         optional = true
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "los_max_duration",
                         prettyName = "Loss of Signal (Max duration)",
                         description = "max amount of time allowed to pass before Loss of Signal is declared",
@@ -130,7 +158,7 @@ object ApplicationDAO {
                         optional = true
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "max_speed",
                         prettyName = "Max speed",
                         description = "Consider fix invalid if speed is greater than this value (in km/hr)",
@@ -138,7 +166,7 @@ object ApplicationDAO {
                         unitName = "km/hr"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "max_ele_change",
                         prettyName = "Maximum elevation change",
                         description = "Consider fix invalid if elevation change is greater than this value (in meters)",
@@ -160,21 +188,21 @@ object ApplicationDAO {
                         optional = true
                     ),
 
-                    ApplicationParameter.FloatingPoint(name = "max_sat_ratio", description = "", optional = true),
+                    ApplicationParameter.Integer(name = "max_sat_ratio", description = "", optional = true),
 
-                    ApplicationParameter.FloatingPoint(name = "max_SNR_value", description = "", optional = true),
+                    ApplicationParameter.Integer(name = "max_SNR_value", description = "", optional = true),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "min_distance",
                         prettyName = "Minimum distance",
                         description = "minimum distance (in meters) that must be travelled over one minute to " +
-                                "indicate the start of a trip. Default choosen to be 34 meters which is equal to " +
+                                "indicate the start of a trip. Default chosen to be 34 meters which is equal to " +
                                 "a typical walking speed of 2KM/hr.",
                         optional = true,
                         unitName = "km/hr"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "min_trip_length",
                         prettyName = "Minimum trip length",
                         description = "trips less than this distance (in meters) are not considered trips.",
@@ -182,7 +210,7 @@ object ApplicationDAO {
                         unitName = "meters"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "min_trip_duration",
                         prettyName = "Minimum trip duration",
                         description = "trips less than this duration (in seconds) are not considered trips.",
@@ -190,7 +218,7 @@ object ApplicationDAO {
                         unitName = "seconds"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "min_pause_duration",
                         prettyName = "Minimum pause duration",
                         description = "trips less than this duration (in seconds) are not considered trips.",
@@ -198,7 +226,7 @@ object ApplicationDAO {
                         unitName = "seconds"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "max_pause_duration",
                         prettyName = "Maximum pause duration",
                         description = " when the duration of a pause exceeds this value, the point is marked as an " +
@@ -206,21 +234,21 @@ object ApplicationDAO {
                         optional = true
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "max_percent_single_location",
                         description = "maximum percentage of a trip's fixes that can occur at a single location.",
                         optional = true,
-                        min = 0.0,
-                        max = 100.0,
+                        min = 0,
+                        max = 100,
                         unitName = "%"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "max_percent_allowed_indoors",
                         description = "maximum percentage of a trip that is allowed indoors.",
                         optional = true,
-                        min = 0.0,
-                        max = 100.0,
+                        min = 0,
+                        max = 100,
                         unitName = "%"
                     ),
 
@@ -262,14 +290,14 @@ object ApplicationDAO {
                         optional = true
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "location_radius",
                         description = "defines radius (in meters) of location in which fixes are trapped.",
                         optional = true,
                         unitName = "meters"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "min_duration_at_location",
                         description = "minimum amount of time (in seconds) that must be spent at a location for it " +
                                 "to be considered a location.",
@@ -277,34 +305,34 @@ object ApplicationDAO {
                         unitName = "seconds"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "vehicle_cutoff",
                         description = "speeds greater than this value (in KM/hr) will be marked as vehicle.",
                         optional = true,
                         unitName = "km/hr"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "bicycle_cutoff",
                         description = "speeds greater than this value (in KM/hr) will be marked as bicycle.",
                         optional = true,
                         unitName = "km/hr"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "walk_cutoff",
                         description = "speeds greater than this value (in KM/hr) will be marked as pedestrian.",
                         optional = true,
                         unitName = "km/hr"
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "percentile_to_sample",
                         description = "speed comparisons are made at this percentile.",
                         optional = true
                     ),
 
-                    ApplicationParameter.FloatingPoint(
+                    ApplicationParameter.Integer(
                         name = "min_segment_length",
                         description = "minimum length (in meters) of segments used to classify mode of " +
                                 "transportation.",
