@@ -58,10 +58,11 @@ class ZenodoPublish extends React.Component {
     }
 
     removeFile(index) {
-        const files = this.state.files.slice();
+        console.log(index);
+        const files = this.state.files;
         files.splice(index, 1);
         this.setState(() => ({
-            files: files,
+            files,
         }));
     }
 
@@ -69,7 +70,7 @@ class ZenodoPublish extends React.Component {
         const files = this.state.files.slice();
         files[index] = file.path.path;
         this.setState(() => ({
-            files: files,
+            files,
         }));
     }
 
@@ -77,17 +78,18 @@ class ZenodoPublish extends React.Component {
         const files = this.state.files.slice();
         files.push("");
         this.setState(() => ({
-            files: files,
+            files,
         }));
     }
 
-    updateName(newName) {
+    updateName(name) {
         this.setState(() => ({
-            name: newName
+            name
         }));
     }
 
     render() {
+        console.log(this.state.files);
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
         if (!this.state.connected && !this.state.loading) {
             return (<NotConnectedToZenodo />);
@@ -98,10 +100,10 @@ class ZenodoPublish extends React.Component {
                     <h3>File Selection</h3>
                     <CardAndBody>
                         <form onSubmit={e => this.submit(e)} className="form-horizontal">
-                            <FileSelections 
+                            <FileSelections
                                 handleFileSelection={this.handleFileSelection}
                                 files={this.state.files}
-                                newFile={this.newFile} removeFile={this.removeFile} 
+                                newFile={this.newFile} removeFile={this.removeFile}
                             />
                             <fieldset>
                                 <div className="form-group">
@@ -141,14 +143,14 @@ const CardAndBody = ({ children }) => (
     </div>
 );
 
-const FileSelections = ({ files, handleFileSelection }) => (
+const FileSelections = ({ files, handleFileSelection, removeFile }) => (
     <fieldset>
         <FormGroup>
             <ListGroup>
                 {files.map((file, index) =>
-                    <ListGroupItem key={index} className="col-sm-offset-2 col-sm-4 input-group">
+                    <ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group">
                         <FileSelector path={file} uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
-                            returnObject={{ index: index }} allowUpload={false} />
+                            returnObject={{ index: index }} allowUpload={false} remove={files.length > 1 ? () => removeFile(index) : false} />
                     </ListGroupItem>)}
             </ListGroup>
         </FormGroup>
