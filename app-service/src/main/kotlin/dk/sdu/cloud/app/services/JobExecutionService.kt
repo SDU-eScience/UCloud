@@ -582,12 +582,10 @@ class JobExecutionService(
 
     private fun cleanUp(event: AppEvent.ExecutionCompleted): AppEvent {
         sshConnectionPool.use {
-            if (false) {
-                val removeStatus = rm(event.jobDirectory, recurse = true, force = true)
-                if (removeStatus != 0) {
-                    log.warn("Could not successfully delete directory of job!")
-                    log.warn("Event is: $event")
-                }
+            val removeStatus = rm(event.jobDirectory, recurse = true, force = true)
+            if (removeStatus != 0) {
+                log.warn("Could not successfully delete directory of job!")
+                log.warn("Event is: $event")
             }
 
             return AppEvent.Completed(
