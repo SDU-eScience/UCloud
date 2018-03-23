@@ -310,7 +310,7 @@ class JobExecutionService(
 
             // Resolve relative path against working directory. Ensure that file is still inside of
             // the working directory.
-            val destinationPath = workDir.resolve(URI(transferDescription.destination)).normalize().path
+            val destinationPath = File(workDir.toURL().path, transferDescription.destination).normalize().path
             if (!destinationPath.startsWith(workDir.path)) {
                 throw JobValidationException(
                     "Not allowed to leave working directory via relative paths. Please avoid using '..' in paths."
@@ -582,10 +582,12 @@ class JobExecutionService(
 
     private fun cleanUp(event: AppEvent.ExecutionCompleted): AppEvent {
         sshConnectionPool.use {
-            val removeStatus = rm(event.jobDirectory, recurse = true, force = true)
-            if (removeStatus != 0) {
-                log.warn("Could not successfully delete directory of job!")
-                log.warn("Event is: $event")
+            if (false) {
+                val removeStatus = rm(event.jobDirectory, recurse = true, force = true)
+                if (removeStatus != 0) {
+                    log.warn("Could not successfully delete directory of job!")
+                    log.warn("Event is: $event")
+                }
             }
 
             return AppEvent.Completed(

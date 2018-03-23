@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.ToolDescription
 
 object ToolDAO {
@@ -109,6 +110,29 @@ object ToolDAO {
                 defaultTasksPerNode = 1,
                 defaultMaxTime = SimpleDuration(0, 10, 0),
                 requiredModules = emptyList()
+            )
+        ),
+
+        "searchgui" to listOf(
+            ToolDescription(
+                prettyName = "SearchGUI",
+                authors = listOf(
+                    "Vaudel M",
+                    "Barsnes H",
+                    "Berven FS",
+                    "Sickmann A",
+                    "Martens L."
+                ),
+                createdAt = 1521121661000L,
+                modifiedAt = 1521121661000L,
+                description = "",
+                info = NameAndVersion("searchgui", "3.3.0"),
+                container = "sgui",
+                defaultNumberOfNodes = 1,
+                defaultTasksPerNode = 1,
+                defaultMaxTime = SimpleDuration(3, 0, 0),
+                requiredModules = emptyList(),
+                backend = ToolBackend.UDOCKER
             )
         )
     )

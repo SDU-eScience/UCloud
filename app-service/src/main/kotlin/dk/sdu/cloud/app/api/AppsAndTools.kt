@@ -35,6 +35,11 @@ data class ApplicationDescription(
     )
 }
 
+enum class ToolBackend {
+    SINGULARITY,
+    UDOCKER
+}
+
 data class NameAndVersion(val name: String, val version: String) {
     override fun toString() = "$name@$version"
 }
@@ -50,5 +55,6 @@ data class ToolDescription(
     val prettyName: String,
     val createdAt: Long,
     val modifiedAt: Long,
-    val description: String
+    val description: String,
+    val backend: ToolBackend = ToolBackend.SINGULARITY
 )

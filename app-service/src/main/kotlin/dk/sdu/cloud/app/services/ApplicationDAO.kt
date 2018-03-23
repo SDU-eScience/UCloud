@@ -67,36 +67,123 @@ object ApplicationDAO {
                     WordInvocationParameter("-o output.json"),
 
                     VariableInvocationParameter(variableNames = listOf("interval"), prefixVariable = "--interval "),
-                    VariableInvocationParameter(variableNames = listOf("insert_missing"), prefixVariable = "--insert_missing "),
-                    VariableInvocationParameter(variableNames = listOf("insert_until"), prefixVariable = "--insert_until "),
-                    VariableInvocationParameter(variableNames = listOf("insert_max_seconds"), prefixVariable = "--insert_max_seconds "),
-                    VariableInvocationParameter(variableNames = listOf("los_max_duration"), prefixVariable = "--los_max_duration "),
-                    VariableInvocationParameter(variableNames = listOf("remove_lone"), prefixVariable = "--remove_lone "),
-                    VariableInvocationParameter(variableNames = listOf("filter_invalid"), prefixVariable = "--filter_invalid "),
+                    VariableInvocationParameter(
+                        variableNames = listOf("insert_missing"),
+                        prefixVariable = "--insert_missing "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("insert_until"),
+                        prefixVariable = "--insert_until "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("insert_max_seconds"),
+                        prefixVariable = "--insert_max_seconds "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("los_max_duration"),
+                        prefixVariable = "--los_max_duration "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("remove_lone"),
+                        prefixVariable = "--remove_lone "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("filter_invalid"),
+                        prefixVariable = "--filter_invalid "
+                    ),
                     VariableInvocationParameter(variableNames = listOf("max_speed"), prefixVariable = "--max_speed "),
-                    VariableInvocationParameter(variableNames = listOf("max_ele_change"), prefixVariable = "--max_ele_change "),
-                    VariableInvocationParameter(variableNames = listOf("min_change_3_fixes"), prefixVariable = "--min_change_3_fixes "),
-                    VariableInvocationParameter(variableNames = listOf("detect_indoors"), prefixVariable = "--detect_indoors "),
-                    VariableInvocationParameter(variableNames = listOf("min_distance"), prefixVariable = "--min_distance "),
-                    VariableInvocationParameter(variableNames = listOf("min_trip_length"), prefixVariable = "--min_trip_length "),
-                    VariableInvocationParameter(variableNames = listOf("min_trip_duration"), prefixVariable = "--min_trip_duration "),
-                    VariableInvocationParameter(variableNames = listOf("min_pause_duration"), prefixVariable = "--min_pause_duration "),
-                    VariableInvocationParameter(variableNames = listOf("max_pause_duration"), prefixVariable = "--max_pause_duration "),
-                    VariableInvocationParameter(variableNames = listOf("max_percent_single_location"), prefixVariable = "--max_percent_single_location "),
-                    VariableInvocationParameter(variableNames = listOf("max_percent_allowed_indoors"), prefixVariable = "--max_percent_allowed_indoors "),
-                    VariableInvocationParameter(variableNames = listOf("remove_indoor_fixes"), prefixVariable = "--remove_indoor_fixes "),
-                    VariableInvocationParameter(variableNames = listOf("include_trip_pauses"), prefixVariable = "--include_trip_pauses "),
-                    VariableInvocationParameter(variableNames = listOf("trap_indoor_fixes"), prefixVariable = "--trap_indoor_fixes "),
-                    VariableInvocationParameter(variableNames = listOf("trap_outdoor_fixes"), prefixVariable = "--trap_outdoor_fixes "),
-                    VariableInvocationParameter(variableNames = listOf("trap_trip_fixes"), prefixVariable = "--trap_trip_fixes "),
-                    VariableInvocationParameter(variableNames = listOf("allow_non_trips"), prefixVariable = "--allow_non_trips "),
-                    VariableInvocationParameter(variableNames = listOf("location_radius"), prefixVariable = "--location_radius "),
-                    VariableInvocationParameter(variableNames = listOf("min_duration_at_location"), prefixVariable = "--min_duration_at_location "),
-                    VariableInvocationParameter(variableNames = listOf("vehicle_cutoff"), prefixVariable = "--vehicle_cutoff "),
-                    VariableInvocationParameter(variableNames = listOf("bicycle_cutoff"), prefixVariable = "--bicycle_cutoff "),
-                    VariableInvocationParameter(variableNames = listOf("walk_cutoff"), prefixVariable = "--walk_cutoff "),
-                    VariableInvocationParameter(variableNames = listOf("percentile_to_sample"), prefixVariable = "--percentile_to_sample "),
-                    VariableInvocationParameter(variableNames = listOf("min_segment_length"), prefixVariable = "--min_segment_length ")
+                    VariableInvocationParameter(
+                        variableNames = listOf("max_ele_change"),
+                        prefixVariable = "--max_ele_change "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("min_change_3_fixes"),
+                        prefixVariable = "--min_change_3_fixes "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("detect_indoors"),
+                        prefixVariable = "--detect_indoors "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("min_distance"),
+                        prefixVariable = "--min_distance "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("min_trip_length"),
+                        prefixVariable = "--min_trip_length "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("min_trip_duration"),
+                        prefixVariable = "--min_trip_duration "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("min_pause_duration"),
+                        prefixVariable = "--min_pause_duration "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("max_pause_duration"),
+                        prefixVariable = "--max_pause_duration "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("max_percent_single_location"),
+                        prefixVariable = "--max_percent_single_location "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("max_percent_allowed_indoors"),
+                        prefixVariable = "--max_percent_allowed_indoors "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("remove_indoor_fixes"),
+                        prefixVariable = "--remove_indoor_fixes "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("include_trip_pauses"),
+                        prefixVariable = "--include_trip_pauses "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("trap_indoor_fixes"),
+                        prefixVariable = "--trap_indoor_fixes "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("trap_outdoor_fixes"),
+                        prefixVariable = "--trap_outdoor_fixes "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("trap_trip_fixes"),
+                        prefixVariable = "--trap_trip_fixes "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("allow_non_trips"),
+                        prefixVariable = "--allow_non_trips "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("location_radius"),
+                        prefixVariable = "--location_radius "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("min_duration_at_location"),
+                        prefixVariable = "--min_duration_at_location "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("vehicle_cutoff"),
+                        prefixVariable = "--vehicle_cutoff "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("bicycle_cutoff"),
+                        prefixVariable = "--bicycle_cutoff "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("walk_cutoff"),
+                        prefixVariable = "--walk_cutoff "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("percentile_to_sample"),
+                        prefixVariable = "--percentile_to_sample "
+                    ),
+                    VariableInvocationParameter(
+                        variableNames = listOf("min_segment_length"),
+                        prefixVariable = "--min_segment_length "
+                    )
                 ),
                 parameters = listOf(
                     ApplicationParameter.InputFile(
@@ -497,6 +584,73 @@ object ApplicationDAO {
                 ),
 
                 outputFileGlobs = listOf("stdout.txt")
+            )
+        ),
+
+        "searchgui_msgf" to listOf(
+            ApplicationDescription(
+                tool = NameAndVersion("searchgui", "3.3.0"),
+                info = NameAndVersion("searchgui_msgf", "3.3.0"),
+                prettyName = "SearchCLI: MS-GF+",
+                authors = listOf(
+                    "Vaudel M",
+                    "Barsnes H",
+                    "Berven FS",
+                    "Sickmann A",
+                    "Martens L."
+                ),
+                createdAt = 1521121661000L,
+                modifiedAt = 1521121661000L,
+                description = """
+                    SearchGUI is a user-friendly open-source graphical user interface for configuring and running
+                    proteomics identification search engines and de novo sequencing algorithms, currently supporting
+                    [X! Tandem](http://www.thegpm.org/tandem),
+                    [MS-GF+](http://www.ncbi.nlm.nih.gov/pubmed/?term=25358478),
+                    [MS Amanda](http://ms.imp.ac.at/?goto#msamanda),
+                    [MyriMatch](http://www.ncbi.nlm.nih.gov/pubmed/?term=17269722),
+                    [Comet](http://comet-ms.sourceforge.net/),
+                    [Tide](http://cruxtoolkit.sourceforge.net),
+                    [Andromeda](http://www.coxdocs.org/doku.php?id=maxquant:andromeda:start),
+                    [OMSSA](http://www.ncbi.nlm.nih.gov/pubmed/15473683),
+                    [Novor](http://rapidnovor.com) and
+                    [DirecTag](http://fenchurch.mc.vanderbilt.edu/bumbershoot/directag/).
+                """.trimIndent(),
+
+                invocation = listOf(
+                    WordInvocationParameter("java"),
+                    WordInvocationParameter("-Xmx4G"),
+                    WordInvocationParameter("-cp"),
+                    WordInvocationParameter("/opt/sgui/SearchGUI-3.2.20.jar"),
+                    WordInvocationParameter("eu.isas.searchgui.cmd.SearchCLI"),
+                    WordInvocationParameter("-spectrum_files"),
+                    WordInvocationParameter("./"),
+                    WordInvocationParameter("-output_folder"),
+                    WordInvocationParameter("./"),
+                    VariableInvocationParameter(listOf("id_params"), prefixVariable = "-id_params "),
+                    WordInvocationParameter("-xtandem"),
+                    WordInvocationParameter("0"),
+                    WordInvocationParameter("-msgf"),
+                    WordInvocationParameter("1"),
+                    WordInvocationParameter("-comet"),
+                    WordInvocationParameter("0"),
+                    WordInvocationParameter("-myrimatch"),
+                    WordInvocationParameter("0"),
+                    WordInvocationParameter("-omssa"),
+                    WordInvocationParameter("0"),
+                    WordInvocationParameter("-tide"),
+                    WordInvocationParameter("0"),
+                    WordInvocationParameter("-andromeda"),
+                    WordInvocationParameter("0"),
+                    VariableInvocationParameter(listOf("threads"), prefixVariable = "-threads ")
+                ),
+
+                parameters = listOf(
+                    ApplicationParameter.InputFile("id_params", optional = false, prettyName = ".par file"),
+                    ApplicationParameter.InputFile("fasta", optional = false, prettyName = ".fasta file"),
+                    ApplicationParameter.InputFile("mgf", optional = false, prettyName = ".mgf file")
+                ),
+
+                outputFileGlobs = listOf("stdout.txt", "stderr.txt", "*.html", "*.zip")
             )
         )
     )
