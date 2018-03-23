@@ -106,7 +106,7 @@ class ZenodoPublish extends React.Component {
                             <fieldset>
                                 <div className="form-group">
                                     <label className="col-sm-2 control-label">Publication Name</label>
-                                    <div className="col-md-4">
+                                    <div className="col-md-8">
                                         <input required={true}
                                             value={this.state.name}
                                             className="form-control"
@@ -140,15 +140,11 @@ const CardAndBody = ({ children }) => (
 
 const FileSelections = ({ files, handleFileSelection, removeFile }) => (
     <fieldset>
-        <FormGroup>
-            <ListGroup>
-                {files.map((file, index) =>
-                    <ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group">
-                        <FileSelector path={file} uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
-                            returnObject={{ index: index }} allowUpload={false} remove={files.length > 1 ? () => removeFile(index) : false} />
-                    </ListGroupItem>)}
-            </ListGroup>
-        </FormGroup>
+        {files.map((file, index) =>
+            <ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group">
+                <FileSelector path={file} uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
+                    returnObject={{ index: index }} allowUpload={false} remove={files.length > 1 ? () => removeFile(index) : false} />
+            </ListGroupItem>)}
     </fieldset>
 );
 
