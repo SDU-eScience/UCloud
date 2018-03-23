@@ -58,7 +58,6 @@ class ZenodoPublish extends React.Component {
     }
 
     removeFile(index) {
-        console.log(index);
         const files = this.state.files;
         files.splice(index, 1);
         this.setState(() => ({
@@ -89,7 +88,6 @@ class ZenodoPublish extends React.Component {
     }
 
     render() {
-        console.log(this.state.files);
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
         if (!this.state.connected && !this.state.loading) {
             return (<NotConnectedToZenodo />);
@@ -119,9 +117,6 @@ class ZenodoPublish extends React.Component {
                             </fieldset>
                             <ButtonToolbar>
                                 <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
-                                <Button disabled={this.state.files.length === 1}
-                                    onClick={() => this.removeFile(this.state.files.length - 1)}>Remove file
-                                    field</Button>
                                 <LoadingButton bsStyle={"primary"} disabled={!filesSelected}
                                     loading={this.state.requestSent}
                                     style={"pull-right"} buttonContent={"Upload files for publishing"}
