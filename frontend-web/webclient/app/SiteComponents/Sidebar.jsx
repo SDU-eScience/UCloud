@@ -35,9 +35,10 @@ class Sidebar extends React.Component {
             <aside className="sidebar-container">
                 <div className="sidebar-header">
                     <div className="pull-right pt-lg text-muted hidden"><em className="ion-close-round"/></div>
-                    <a href="#" className="sidebar-header-logo"><img src="img/logo.png" data-svg-replace="img/logo.svg"
-                                                                     alt="Logo"/><span
-                        className="sidebar-header-logo-text">SDUCloud</span></a>
+                    <a href="#" className="sidebar-header-logo">
+                        <img src="img/logo.png" data-svg-replace="img/logo.svg" alt="Logo"/>
+                        <span className="sidebar-header-logo-text">SDUCloud</span>
+                    </a>
                 </div>
                 <div className="sidebar-content">
                     <div className="sidebar-toolbar text-center">

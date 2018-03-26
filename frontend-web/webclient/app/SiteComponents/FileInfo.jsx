@@ -13,89 +13,84 @@ import { connect } from "react-redux";
 import { updatePageTitle } from "../Actions/Status";
 
 
-class FileInfo extends React.Component {
-    constructor(props) {
-        super(props);
-        this.revokeRights = this.revokeRights.bind(this);
-        this.props.dispatch(updatePageTitle("File Info"));
+const FileInfo = ({ dispatch, files, loading, ...props}) => {
+    dispatch(updatePageTitle("File Info"));
+    let file;
+    const path = props.match.params[0];
+    const parentPath = getParentPath(path);
+    if (parentPath === props.filesPath) {
+        const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
+        file = files.find(file => file.path.path === filePath);
+    } else {
+        dispatch(setLoading(true));
+        dispatch(fetchFiles(parentPath));
+        dispatch(updatePath(parentPath));
     }
 
-    revokeRights(file, acl, callback) {
-        swal({
-            title: "Revoke access",
-            text: `Revoke ${RightsNameMap[acl.right]} access for ${acl.entity.displayName}.`,
-            showCancelButton: true,
-            showCloseButton: true,
-        }).then(input => {
-            if (input.dismiss) {
-                return;
-            }
-            const body = {
-                onFile: file.path.path,
-                entity: acl.entity.displayName,
-                type: "revoke",
-            };
-            Cloud.delete("/acl", body).then(res => {
-                this.removeAcl(file, acl);
-                swal("Success!", `Rights have been revoked`, "success").then(() => callback ? callback() : null );
-            }).catch((failure) => {
-                swal("Error", `An error occurred revoking the rights. Please try again later`, "error");
-            });
-        });
+    if (!file) { return (<BallPulseLoading loading={true} />) }
+
+    const retrieveFilesCallback = () => { 
+        dispatch(setLoading(true)); 
+        dispatch(fetchFiles(props.filesPath));
     }
 
-    removeAcl(file, toRemoveAcl) {
-        let index = file.acl.findIndex(acl => acl.entity.name === toRemoveAcl.entity.name);
-        file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1));
-    }
-
-    render() {
-        let file;
-        const path = this.props.match.params[0];
-        const { dispatch, loading } = this.props;
-        const parentPath = getParentPath(path);
-        if (parentPath === this.props.filesPath) {
-            const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
-            file = this.props.files.find(file => file.path.path === filePath);
-        } else {
-            const { dispatch } = this.props;
-            dispatch(fetchFiles(parentPath));
-            dispatch(updatePath(parentPath));
-        }
-
-        if (!file) { return (<BallPulseLoading loading={true} />) }
-
-        const retrieveFilesCallback = () => { dispatch(setLoading(true)); dispatch(fetchFiles(this.props.filesPath))}
-
-        let button = (<div />);
-        if (file) {
-            const currentRights = file.acl.find(acl => acl.entity.displayName === Cloud.username);
-            if (currentRights) {
-                if (currentRights.right === "OWN") {
-                    button = (
-                        <Button 
-                            onClick={() => shareFile(file.path, Cloud, retrieveFilesCallback)}
-                            className="btn btn-primary"
-                        >    
-                            Share file
+    let button = (<div />);
+    if (file) {
+        const currentRights = file.acl.find(acl => acl.entity.displayName === Cloud.username);
+        if (currentRights) {
+            if (currentRights.right === "OWN") {
+                button = (
+                    <Button
+                        onClick={() => shareFile(file.path, Cloud, retrieveFilesCallback)}
+                        className="btn btn-primary"
+                    >
+                        Share file
                         </Button>);
-                }
             }
         }
-        return (
-            <SectionContainerCard>
-                <FileHeader file={file} />
-                <FileView file={file} favorite={() => dispatch(updateFiles(favorite(this.props.files, file.path.path, Cloud)))} />
-                <FileSharing 
-                    file={file} 
-                    revokeRights={(acl) => this.revokeRights(file, acl, () => dispatch(updateFiles(this.props.files)))} 
-                    updateSharing={(acl) => updateSharingOfFile(file.path, acl.entity.displayName, acl.right, Cloud, retrieveFilesCallback)}
-                />
-                <BallPulseLoading loading={loading} />
-                {button}
-            </SectionContainerCard>
-        );
     }
+    return (
+        <SectionContainerCard>
+            <FileHeader file={file} />
+            <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path.path, Cloud)))} />
+            <FileSharing
+                file={file}
+                revokeRights={(acl) => revokeRights(file, acl, () => dispatch(updateFiles(files)))}
+                updateSharing={(acl) => updateSharingOfFile(file.path, acl.entity.displayName, acl.right, Cloud, retrieveFilesCallback)}
+            />
+            <BallPulseLoading loading={loading} />
+            {button}
+        </SectionContainerCard>
+    );
+}
+
+const revokeRights = (file, acl, callback) => {
+    swal({
+        title: "Revoke access",
+        text: `Revoke ${RightsNameMap[acl.right]} access for ${acl.entity.displayName}.`,
+        showCancelButton: true,
+        showCloseButton: true,
+    }).then(input => {
+        if (input.dismiss) {
+            return;
+        }
+        const body = {
+            onFile: file.path.path,
+            entity: acl.entity.displayName,
+            type: "revoke",
+        };
+        Cloud.delete("/acl", body).then(res => {
+            removeAcl(file, acl);
+            swal("Success!", `Rights have been revoked`, "success").then(() => callback ? callback() : null);
+        }).catch((failure) => {
+            swal("Error", `An error occurred revoking the rights. Please try again later`, "error");
+        });
+    });
+}
+
+const removeAcl = (file, toRemoveAcl) => {
+    let index = file.acl.findIndex(acl => acl.entity.name === toRemoveAcl.entity.name);
+    file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1));
 }
 
 const FileHeader = ({ file }) => {
