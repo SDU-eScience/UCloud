@@ -2,10 +2,10 @@ import React from "react";
 import { Button, FormGroup, ButtonToolbar, ListGroup, ListGroupItem } from "react-bootstrap";
 import FileSelector from "../FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import pubsub from "pubsub-js";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
 import { LoadingButton } from "../LoadingIcon/LoadingIcon";
 import PromiseKeeper from "../../PromiseKeeper";
+import { updatePageTitle } from "../../Actions/Status";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
@@ -21,13 +21,13 @@ class ZenodoPublish extends React.Component {
         this.submit = this.submit.bind(this);
         this.removeFile = this.removeFile.bind(this);
         this.updateName = this.updateName.bind(this);
+        //this.props.dispatch(updatePageTitle("Zenodo Publication"));
     }
 
     componentWillMount() {
         this.setState(() => ({
             loading: true,
         }));
-        pubsub.publish('setPageTitle', "Zenodo Publication");
         this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((res) => {
             this.setState(() => ({
                 connected: res.response.connected,

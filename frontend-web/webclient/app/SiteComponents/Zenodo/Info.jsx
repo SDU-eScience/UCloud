@@ -1,10 +1,10 @@
 import React from "react";
 import {Jumbotron, Table, ListGroupItem, ListGroup, ProgressBar} from "react-bootstrap";
-import pubsub from "pubsub-js";
 import SectionContainerCard from "../SectionContainerCard";
 import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
+import { updatePageTitle } from "../../Actions/Status";
 
 class ZenodoInfo extends React.Component {
     constructor(props) {
@@ -15,10 +15,10 @@ class ZenodoInfo extends React.Component {
             publicationID: window.decodeURIComponent(props.match.params.jobID),
             publication: null,
         };
+        //this.props.dispatch(updatePageTitle("Zenodo Publication Info"));
     }
 
     componentWillMount() {
-        pubsub.publish('setPageTitle', "Zenodo Publication Info");
         this.setState(() => ({loading: true,}));
         this.state.promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`)).promise.then((res) => {
             this.setState(() => ({

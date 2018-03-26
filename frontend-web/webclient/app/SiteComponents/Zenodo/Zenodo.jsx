@@ -4,10 +4,10 @@ import {Cloud} from "../../../authentication/SDUCloudObject"
 import {Link} from "react-router-dom";
 import {Card} from "../Cards";
 import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
-import pubsub from "pubsub-js";
 import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
 import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
 import PromiseKeeper from "../../PromiseKeeper";
+import { updatePageTitle } from "../../Actions/Status";
 
 class ZenodoHome extends React.Component {
     constructor(props) {
@@ -22,10 +22,10 @@ class ZenodoHome extends React.Component {
                 asc: true,
             }
         };
+        //this.props.dispatch(updatePageTitle("Zenodo Overview"));
     }
 
     componentWillMount() {
-        pubsub.publish('setPageTitle', "Zenodo Overview");
         this.setState(() => ({
             loading: true,
         }));
