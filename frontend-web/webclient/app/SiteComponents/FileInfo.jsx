@@ -1,7 +1,7 @@
 import React from "react";
 import { Cloud } from "../../authentication/SDUCloudObject";
 import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString } from "../UtilityFunctions";
-import { fetchFiles, updatePath, updateFiles } from "../Actions/Files";
+import { fetchFiles, updatePath, updateFiles, setLoading } from "../Actions/Files";
 import SectionContainerCard from "./SectionContainerCard";
 import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../DefaultObjects"
@@ -46,18 +46,13 @@ class FileInfo extends React.Component {
 
     removeAcl(file, toRemoveAcl) {
         let index = file.acl.findIndex(acl => acl.entity.name === toRemoveAcl.entity.name);
-        console.log("toRemove", toRemoveAcl)
-        console.log("acls", file.acl);
-        console.log("index", index);
-        console.log(file.acl);
         file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1));
-        console.log(file.acl);
     }
 
     render() {
         let file;
         const path = this.props.match.params[0];
-        const { dispatch } = this.props;
+        const { dispatch, loading } = this.props;
         const parentPath = getParentPath(path);
         if (parentPath === this.props.filesPath) {
             const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
@@ -70,14 +65,20 @@ class FileInfo extends React.Component {
 
         if (!file) { return (<BallPulseLoading loading={true} />) }
 
+        const retrieveFilesCallback = () => { dispatch(setLoading(true)); dispatch(fetchFiles(this.props.filesPath))}
+
         let button = (<div />);
         if (file) {
             const currentRights = file.acl.find(acl => acl.entity.displayName === Cloud.username);
             if (currentRights) {
                 if (currentRights.right === "OWN") {
                     button = (
-                        <Button onClick={() => shareFile(file.path, Cloud)} className="btn btn-primary">Share
-                            file</Button>);
+                        <Button 
+                            onClick={() => shareFile(file.path, Cloud, retrieveFilesCallback)}
+                            className="btn btn-primary"
+                        >    
+                            Share file
+                        </Button>);
                 }
             }
         }
@@ -85,21 +86,26 @@ class FileInfo extends React.Component {
             <SectionContainerCard>
                 <FileHeader file={file} />
                 <FileView file={file} favorite={() => dispatch(updateFiles(favorite(this.props.files, file.path.path, Cloud)))} />
-                <FileSharing file={file} revokeRights={(acl) => this.revokeRights(file, acl, () => dispatch(updateFiles(this.props.files)))} updateSharing={(acl) => updateSharingOfFile(file.path, acl.entity.displayName, acl.right, Cloud)} />
+                <FileSharing 
+                    file={file} 
+                    revokeRights={(acl) => this.revokeRights(file, acl, () => dispatch(updateFiles(this.props.files)))} 
+                    updateSharing={(acl) => updateSharingOfFile(file.path, acl.entity.displayName, acl.right, Cloud, retrieveFilesCallback)}
+                />
+                <BallPulseLoading loading={loading} />
                 {button}
             </SectionContainerCard>
         );
     }
 }
 
-const FileHeader = (props) => {
-    if (!props.file) {
+const FileHeader = ({ file }) => {
+    if (!file) {
         return null;
     }
-    let type = props.file.type === "DIRECTORY" ? "Directory" : "File";
+    let type = file.type === "DIRECTORY" ? "Directory" : "File";
     return (
         <Jumbotron>
-            <h3>{props.file.path.path}</h3>
+            <h3>{file.path.path}</h3>
             <h5>
                 <small>{type}</small>
             </h5>

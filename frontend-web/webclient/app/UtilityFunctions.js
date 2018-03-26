@@ -99,7 +99,7 @@ export const getOwnerFromAcls = (acls, cloud) => {
     return result.right;
 }
 
-export const updateSharingOfFile = (filePath, user, currentRights, cloud) => {
+export const updateSharingOfFile = (filePath, user, currentRights, cloud, callback) => {
     swal({
         title: "Please specify access level",
         text: `The file ${filePath.name} is to be shared with ${user}.`,
@@ -125,12 +125,12 @@ export const updateSharingOfFile = (filePath, user, currentRights, cloud) => {
             type: "grant",
         };
         cloud.put("/acl", body).then(response => {
-            swal("Success!", `The file has been shared with ${user}`, "success");
+            swal("Success!", `The file has been shared with ${user}`, "success").then(() => callback ? callback() : null);
         });
     });
 }
 
-export const shareFile = (filePath, cloud) => {
+export const shareFile = (filePath, cloud, callback) => {
     swal({
         title: "Share file",
         text: `Enter a username to share ${filePath.name} with.`,
@@ -167,7 +167,7 @@ export const shareFile = (filePath, cloud) => {
                     type: "grant",
                 };
                 cloud.put("/acl", body).then(response => {
-                    swal("Success!", `The file has been shared with ${input.value}`, "success");
+                    swal("Success!", `The file has been shared with ${input.value}`, "success").then(() => callback ? callback() : null);
                 });
             });
         }

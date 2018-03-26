@@ -39,12 +39,10 @@ export const updateFiles = (files) => {
   }
 };
 
-export const setLoading = (loading) => {
-  return {
-    type: SET_LOADING,
-    loading
-  }
-};
+export const setLoading = (loading) => ({
+  type: SET_LOADING,
+  loading
+});
 
 export const updatePath = (newPath) => ({
   type: UPDATE_PATH,
