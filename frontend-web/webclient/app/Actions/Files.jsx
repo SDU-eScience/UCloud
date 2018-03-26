@@ -1,18 +1,26 @@
-import {Cloud} from "../../authentication/SDUCloudObject"
-import { RECEIVE_FILES, UPDATE_FILES_PER_PAGE, UPDATE_FILES, SET_LOADING, UPDATE_PATH, TO_PAGE } from "../Reducers/Files"
+import { Cloud } from "../../authentication/SDUCloudObject";
+import {
+  RECEIVE_FILES,
+  UPDATE_FILES_PER_PAGE,
+  UPDATE_FILES,
+  SET_LOADING,
+  UPDATE_PATH,
+  TO_PAGE,
+  UPDATE_FILES_INFO_PATH
+} from "../Reducers/Files";
+import { getParentPath } from "../UtilityFunctions";
 
 /*
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
 * and implicitely sets @filesLoading to false in the reducer when the files are fetched.
 */
-export const fetchFiles = (path, sorting, sortAscending) => 
-  Cloud.get(`files?path=${path}`).then((res) => {
-      let files = res.response;
-      files.forEach(file => file.isChecked = false);
-      if (sorting) {
-        files = sorting(files, sortAscending);
-      }
-      return receiveFiles(files);
+export const fetchFiles = (path, sorting, sortAscending) =>
+  Cloud.get(`files?path=${path}`).then(({ response }) => {
+    response.forEach(file => file.isChecked = false);
+    if (sorting) {
+      response = sorting(response, sortAscending);
+    }
+    return receiveFiles(response);
   });
 
 export const toPage = (pageNumber) => ({
@@ -39,8 +47,8 @@ export const setLoading = (loading) => {
 };
 
 export const updatePath = (newPath) => ({
-    type: UPDATE_PATH,
-    path: newPath
+  type: UPDATE_PATH,
+  path: newPath
 });
 
 export const updateFilesPerPage = (filesPerPage, files) => {
@@ -57,3 +65,16 @@ const receiveFiles = (files, path) => ({
   files,
   path
 });
+
+const updateFilesInfo = (filesInfoPath) =>
+  Cloud.get(`files?path=${path}`).then(({ response }) => {
+    response.files.forEach(it => it.isChecked = false);
+    return ({
+      type: updateFilesInfoPath,
+      path: getParentPath(filesInfoPath),
+      filesInfoPath
+    });
+  });
+
+
+

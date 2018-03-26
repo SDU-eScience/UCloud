@@ -1,54 +1,24 @@
 import React from "react";
-import {Cloud} from "../../authentication/SDUCloudObject";
-import {getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString} from "../UtilityFunctions";
+import { Cloud } from "../../authentication/SDUCloudObject";
+import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString } from "../UtilityFunctions";
+import {fetchFiles, updatePath} from "../Actions/Files";
 import SectionContainerCard from "./SectionContainerCard";
-import {BallPulseLoading} from "./LoadingIcon/LoadingIcon";
-import {SensitivityLevel, RightsNameMap} from "../DefaultObjects"
-import {ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup} from "react-bootstrap";
+import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
+import { SensitivityLevel, RightsNameMap } from "../DefaultObjects"
+import { ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup } from "react-bootstrap";
 import swal from "sweetalert2";
 import pubsub from "pubsub-js";
+import PropTypes from "prop-types";
 import PromiseKeeper from "../PromiseKeeper";
+import { connect } from "react-redux";
 
-export default class FileInfo extends React.Component {
+class FileInfo extends React.Component {
     constructor(props) {
         super(props);
-        let path = props.match.params[0];
-        if (path.endsWith("/")) {
-            path = path.slice(0, path.length - 1);
-        }
-        this.state = {
-            filePath: path,
-            promises: new PromiseKeeper(),
-            file: null,
-            loading: false,
-        };
-        this.getFile = this.getFile.bind(this);
         this.revokeRights = this.revokeRights.bind(this);
         this.removeAcl = this.removeAcl.bind(this);
         this.favoriteFile = this.favoriteFile.bind(this);
-    }
-
-    componentWillMount() {
-        pubsub.publish('setPageTitle', "File Info");
-        this.getFile();
-    }
-
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
-
-    getFile() {
-        this.setState({
-            loading: true,
-        });
-        let path = getParentPath(this.state.filePath);
-        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(res => {
-            let file = res.response.find(file => file.path.path === this.state.filePath); // FIXME massive overhead for single file
-            this.setState(() => ({
-                file: file,
-                loading: false,
-            }));
-        });
+        pubsub.publish("setPageTitle", "File Info");
     }
 
     revokeRights(file, acl) {
@@ -94,23 +64,37 @@ export default class FileInfo extends React.Component {
     }
 
     render() {
-        let button = (<div/>);
-        if (this.state.file) {
-            const currentRights = this.state.file.acl.find(acl => acl.entity.displayName === Cloud.username);
+        let file;
+        const path = this.props.match.params[0];
+        console.log("path from props", path);
+        const parentPath = getParentPath(path);
+        if (parentPath === this.props.filesPath) {
+            const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
+            file = this.props.files.find(file => file.path.path === filePath);
+        } else {
+            const { dispatch } = this.props;
+            dispatch(fetchFiles(parentPath));
+            dispatch(updatePath(parentPath));
+        }
+
+        if (!file) { return (<BallPulseLoading loading={true} />)}
+
+        let button = (<div />);
+        if (file) {
+            const currentRights = file.acl.find(acl => acl.entity.displayName === Cloud.username);
             if (currentRights) {
                 if (currentRights.right === "OWN") {
                     button = (
-                        <Button onClick={() => shareFile(this.state.file.path, Cloud)} className="btn btn-primary">Share
+                        <Button onClick={() => shareFile(file.path, Cloud)} className="btn btn-primary">Share
                             file</Button>);
                 }
             }
         }
         return (
             <SectionContainerCard>
-                <BallPulseLoading loading={this.state.loading}/>
-                <FileHeader file={this.state.file}/>
-                <FileView file={this.state.file} favorite={this.favoriteFile}/>
-                <FileSharing file={this.state.file} revokeRights={this.revokeRights}/>
+                <FileHeader file={file} />
+                <FileView file={file} favorite={this.favoriteFile} />
+                <FileSharing file={file} revokeRights={this.revokeRights} />
                 {button}
             </SectionContainerCard>
         );
@@ -149,8 +133,8 @@ const FileView = (props) => {
                 <ListGroupItem>Created at: {new Date(props.file.createdAt).toLocaleString()}</ListGroupItem>
                 <ListGroupItem>Modified at: {new Date(props.file.createdAt).toLocaleString()}</ListGroupItem>
                 <ListGroupItem>Favorite file: {props.file.favorited ?
-                    <em onClick={() => props.favorite()} className="ion-star"/> :
-                    <em onClick={() => props.favorite()} className="ion-ios-star-outline"/>}</ListGroupItem>
+                    <em onClick={() => props.favorite()} className="ion-star" /> :
+                    <em onClick={() => props.favorite()} className="ion-ios-star-outline" />}</ListGroupItem>
             </ListGroup>
             <ListGroup className="col-sm-4">
                 <ListGroupItem>Sensitivity: {SensitivityLevel[props.file.sensitivityLevel]}</ListGroupItem>
@@ -182,24 +166,38 @@ const FileSharing = (props) => {
                 <small>This file has not been shared with anyone.</small>
             </h3>);
     }
-    let i = 0;
-    const sharedWithList = sharedWith.map(acl =>
-        <ListGroupItem key={i++}>
-            <span
-                className="text-left"><b>{acl.entity.displayName}</b> has <b>{RightsNameMap[acl.right]}</b> access.</span>
-            <ButtonGroup bsSize="xsmall" className="pull-right">
-                <Button onClick={() => updateSharingOfFile(props.file.path, acl.entity.displayName, acl.right, Cloud)}
-                        className="btn btn-primary">Change</Button>
-                <Button onClick={() => props.revokeRights(props.file, acl)}
-                        className="btn btn-danger">Revoke</Button>
-            </ButtonGroup>
-        </ListGroupItem>
-    );
     return (
         <div className="container-fluid">
             <ListGroup className="col-sm-4 col-sm-offset-4">
-                {sharedWithList}
+                {sharedWith.map((acl, index) =>
+                    (<ListGroupItem key={index}>
+                        <span
+                            className="text-left"><b>{acl.entity.displayName}</b> has <b>{RightsNameMap[acl.right]}</b> access.</span>
+                        <ButtonGroup bsSize="xsmall" className="pull-right">
+                            <Button onClick={() => updateSharingOfFile(props.file.path, acl.entity.displayName, acl.right, Cloud)}
+                                className="btn btn-primary">Change</Button>
+                            <Button onClick={() => props.revokeRights(props.file, acl)}
+                                className="btn btn-danger">Revoke</Button>
+                        </ButtonGroup>
+                    </ListGroupItem>))}
             </ListGroup>
         </div>
     );
 }
+
+FileInfo.propTypes = {
+    loading: PropTypes.bool.isRequired,
+    files: PropTypes.array.isRequired,
+    filesPath: PropTypes.string.isRequired,
+}
+
+const mapStateToProps = (state) => {
+    const { loading, files, path } = state.files;
+    return {
+        loading,
+        files,
+        filesPath: path,
+    }
+}
+
+export default connect(mapStateToProps)(FileInfo);

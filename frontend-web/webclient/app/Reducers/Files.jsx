@@ -5,6 +5,7 @@ export const UPDATE_FILES = "UPDATE_FILES";
 export const SET_LOADING = "SET_LOADING";
 export const UPDATE_PATH = "UPDATE_PATH";
 export const TO_PAGE = "TO_PAGE";
+export const UPDATE_FILES_INFO_PATH = "UPDATE_FILES_INFO_PATH";
 
 const files = (state = [], action) => {
     switch (action.type) {
@@ -15,7 +16,7 @@ const files = (state = [], action) => {
             return { ...state, files: action.files, filesPerPage: action.filesPerPage, currentFilesPage: 0 };
         }
         case UPDATE_FILES: {
-            return { ...state, files: action.files};
+            return { ...state, files: action.files };
         }
         case SET_LOADING: {
             return { ...state, loading: action.loading };

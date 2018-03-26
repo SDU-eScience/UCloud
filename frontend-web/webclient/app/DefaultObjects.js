@@ -63,6 +63,8 @@ export const initObject = {
         currentFilesPage: 0,
         loading: false,
         path: "",
+        filesInfoPath: "",
+        filesInfoFile: null,
         projects: []
     },
     uppy: {

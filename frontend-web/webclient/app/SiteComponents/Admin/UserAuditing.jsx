@@ -1,5 +1,4 @@
 import React from 'react';
-import {ActivityCardExample1} from "../../MockObjects";
 import LoadingIcon from "../LoadingIcon/LoadingIcon";
 import {Table, Button} from "react-bootstrap";
 
@@ -11,11 +10,7 @@ class UserAuditing extends React.Component {
             activityCards: [],
         }
     }
-
-    componentDidMount() {
-        // Don't do here?
-    }
-
+    
     render() {
         return (
             <section>

@@ -34,7 +34,6 @@ class Notifications extends React.Component {
 
     getNotifications() {
         this.setState({loading: true});
-        // TODO ADD PROMISE KEEPER WHEN GETTING NOTIFICATIONS
         let notifications = [];//Cloud.get().then(notifications => {
             let yesterday = new Date().getTime() - 24 * 60 * 60 * 1000;
             const recentNotifications = this.state.recent.slice();

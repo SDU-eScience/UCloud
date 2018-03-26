@@ -1,7 +1,6 @@
 import React from 'react';
 import PropTypes from "prop-types";
 import {Link} from 'react-router-dom'
-import {SidebarOptionsList} from "../MockObjects";
 import './Sidebar.scss';
 import { Glyphicon } from "react-bootstrap";
 
@@ -26,8 +25,8 @@ class Sidebar extends React.Component {
     }
 
     retrieveUserOptions() {
-        Cloud.get("/../mock-api/mock_sidebar_options.json").then((res) => {
-            this.setState({options: res.response});
+        Cloud.get("/../mock-api/mock_sidebar_options.json").then(({response}) => {
+            this.setState({options: response});
         });
     }
 
