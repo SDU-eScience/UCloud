@@ -1,7 +1,7 @@
 import React from "react";
 import { Cloud } from "../../authentication/SDUCloudObject";
 import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString } from "../UtilityFunctions";
-import {fetchFiles, updatePath} from "../Actions/Files";
+import {fetchFiles, updatePath, updateFiles} from "../Actions/Files";
 import SectionContainerCard from "./SectionContainerCard";
 import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../DefaultObjects"
@@ -17,7 +17,6 @@ class FileInfo extends React.Component {
         super(props);
         this.revokeRights = this.revokeRights.bind(this);
         this.removeAcl = this.removeAcl.bind(this);
-        this.favoriteFile = this.favoriteFile.bind(this);
         pubsub.publish("setPageTitle", "File Info");
     }
 
@@ -57,16 +56,10 @@ class FileInfo extends React.Component {
         }));
     }
 
-    favoriteFile() {
-        this.setState(() => ({
-            file: favorite([this.state.file], this.state.file.path.path, Cloud)[0],
-        }));
-    }
-
     render() {
         let file;
         const path = this.props.match.params[0];
-        console.log("path from props", path);
+        const { dispatch } = this.props;
         const parentPath = getParentPath(path);
         if (parentPath === this.props.filesPath) {
             const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
@@ -93,7 +86,7 @@ class FileInfo extends React.Component {
         return (
             <SectionContainerCard>
                 <FileHeader file={file} />
-                <FileView file={file} favorite={this.favoriteFile} />
+                <FileView file={file} favorite={() => dispatch(updateFiles(favorite(this.props.files, file.path.path, Cloud)))} />
                 <FileSharing file={file} revokeRights={this.revokeRights} />
                 {button}
             </SectionContainerCard>
@@ -189,6 +182,7 @@ FileInfo.propTypes = {
     loading: PropTypes.bool.isRequired,
     files: PropTypes.array.isRequired,
     filesPath: PropTypes.string.isRequired,
+    favoriteCount: PropTypes.number.isRequired
 }
 
 const mapStateToProps = (state) => {
@@ -197,6 +191,7 @@ const mapStateToProps = (state) => {
         loading,
         files,
         filesPath: path,
+        favoriteCount: files.filter(file => file.favorited).length
     }
 }
 
