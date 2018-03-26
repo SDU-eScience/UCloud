@@ -134,12 +134,12 @@ class Applications extends React.Component {
                                     <thead>
                                     <tr>
                                         <th onClick={() => this.sortByVisibility()}><span className="text-left">Visibility<span
-                                            className={"pull-right " + this.sortingIcon("visibility")}/></span></th>
+                                            className={`pull-right ${this.sortingIcon("visibility")}`}/></span></th>
                                         <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
-                                            className={"pull-right " + this.sortingIcon("name")}/></span></th>
+                                            className={`pull-right ${this.sortingIcon("name")}`}/></span></th>
                                         <th onClick={() => this.sortByVersion()}><span
                                             className="text-left">Version<span
-                                            className={"pull-right " + this.sortingIcon("version")}/></span></th>
+                                            className={`pull-right ${this.sortingIcon("version")}`}/></span></th>
                                         <th/>
                                     </tr>
                                     </thead>
@@ -161,7 +161,7 @@ class Applications extends React.Component {
                         </EntriesPerPageSelector>
                     </div>
                 </div>
-            </section>)
+            </section>);
     }
 }
 
@@ -190,8 +190,8 @@ const SingleApplication = (props) => (
     </tr>
 );
 
-const PrivateIcon = (props) => {
-    if (props.isPrivate) {
+const PrivateIcon = ({ isPrivate }) => {
+    if (isPrivate) {
         return (
             <td title="The app is private and can only be seen by the creator and people it was shared with">
                 <em className="ion-locked"/></td>
