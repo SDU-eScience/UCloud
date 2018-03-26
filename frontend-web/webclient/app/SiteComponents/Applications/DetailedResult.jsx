@@ -1,6 +1,5 @@
 import React from 'react';
 import {Spinner} from '../LoadingIcon/LoadingIcon'
-import pubsub from "pubsub-js";
 import PromiseKeeper from "../../PromiseKeeper";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {shortUUID} from "../../UtilityFunctions";
@@ -26,6 +25,7 @@ export default class DetailedResult extends React.Component {
             stderrOldTop: -1,
             promises: new PromiseKeeper()
         };
+        // this.props.dispatch(updatePageTitle(`Results for Job: ${shortUUID(this.jobId)}`));
     }
 
     get jobId() {
@@ -33,8 +33,6 @@ export default class DetailedResult extends React.Component {
     }
 
     componentDidMount() {
-        pubsub.publish('setPageTitle', `Results for Job: ${shortUUID(this.jobId)}`);
-
         this.retrieveStdStreams();
         let reloadIntervalId = setInterval(() => this.retrieveStdStreams(), 1000);
         this.setState({reloadIntervalId: reloadIntervalId});

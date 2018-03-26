@@ -1,7 +1,6 @@
-import React from 'react';
-import {Table, Button} from 'react-bootstrap';
-import {BallPulseLoading} from '../LoadingIcon/LoadingIcon'
-import pubsub from "pubsub-js";
+import React from "react";
+import {Table, Button} from "react-bootstrap";
+import {BallPulseLoading} from "../LoadingIcon/LoadingIcon"
 import {Card} from "../Cards";
 import {Link} from "react-router-dom";
 import PromiseKeeper from "../../PromiseKeeper";
@@ -17,7 +16,9 @@ class Workflows extends React.Component {
                 name: "name",
                 asc: true,
             },
-        }
+        };
+        //this.props.dispatch(updatePageTitle(this.constructor.name));
+        this.getWorkflows();
     }
 
     getSortingIcon(name) {
@@ -25,11 +26,6 @@ class Workflows extends React.Component {
             return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
         }
         return "";
-    }
-
-    componentDidMount() {
-        this.getWorkflows();
-        pubsub.publish('setPageTitle', this.constructor.name);
     }
 
     getWorkflows() {

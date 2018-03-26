@@ -1,34 +1,33 @@
-import React from 'react';
+import React from "react";
+import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import { DefaultStatus } from "../DefaultObjects";
 import { Button } from "react-bootstrap";
+import { updatePageTitle } from '../Actions/Status';
+import { connect } from "react-redux";
 
-export default class StatusBar extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            status: DefaultStatus
-        };
-    }
+const StatusBar = ({ status, dispatch }) => {
+    return (
+        <Link to={"/status"}>
+            <Button className={"btn btn-info center-text " + statusToButton(status)} title={status.body}>{status.title}</Button>
+        </Link>);
+}
 
-    componentDidMount() {
-        // Cloud.get("systemstatus/");
-    }
-
-    statusToButton() {
-        if (this.state.status.level === 'NO ISSUES') {
+const statusToButton = (status) => {
+    switch (status.level) {
+        case "NO ISSUES":
             return 'bg-green-500';
-        } else if (this.state.status.level === 'MAINTENANCE' || this.state.status.level === 'UPCOMING MAINTENANCE') {
+        case "MAINTENANCE":
+        case "UPCOMING MAINTENANCE":
             return 'bg-yellow-500';
-        } else if (this.state.status.level === 'ERROR') {
+        case "ERROR":
             return 'bg-red-500';
-        }
-    }
-
-    render() {
-        return (
-            <Link to={"/status"}>
-                <Button className={"btn btn-info center-text " + this.statusToButton()} title={this.state.status.body}>{this.state.status.title}</Button>
-            </Link>);
     }
 }
+
+StatusBar.propTypes = {
+    status: PropTypes.object.isRequired
+}
+
+const mapStateToProps = (state) => ({ status: state.status.status });
+
+export default connect(mapStateToProps)(StatusBar);

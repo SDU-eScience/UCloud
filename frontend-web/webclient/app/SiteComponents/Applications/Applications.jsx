@@ -4,7 +4,6 @@ import {Link} from "react-router-dom";
 import {PaginationButtons, EntriesPerPageSelector} from "../Pagination";
 import {Table, Button} from 'react-bootstrap';
 import {Card} from "../Cards";
-import pubsub from "pubsub-js";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
 
@@ -29,10 +28,7 @@ class Applications extends React.Component {
         this.toPage = this.toPage.bind(this);
         this.getCurrentApplications = this.retrieveCurrentApplications.bind(this);
         this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
-    }
-
-    componentDidMount() {
-        pubsub.publish('setPageTitle', this.constructor.name);
+        // dispatch(updatePageTitle(this.constructor.name));
         this.retrieveApplications();
     }
 

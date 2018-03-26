@@ -72,5 +72,9 @@ export const initObject = {
         uppyFilesOpen: false,
         uppyRunApp: initializeUppy({ maxNumberOfFiles: 1}),
         uppyRunAppOpen: false
+    },
+    status: {
+        status: DefaultStatus,
+        title: ""
     }
 };

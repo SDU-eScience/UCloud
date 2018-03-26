@@ -7,17 +7,17 @@ import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../DefaultObjects"
 import { ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup } from "react-bootstrap";
 import swal from "sweetalert2";
-import pubsub from "pubsub-js";
 import PropTypes from "prop-types";
 import PromiseKeeper from "../PromiseKeeper";
 import { connect } from "react-redux";
+import { updatePageTitle } from "../Actions/Status";
 
 
 class FileInfo extends React.Component {
     constructor(props) {
         super(props);
         this.revokeRights = this.revokeRights.bind(this);
-        pubsub.publish("setPageTitle", "File Info");
+        this.props.dispatch(updatePageTitle("File Info"));
     }
 
     revokeRights(file, acl, callback) {

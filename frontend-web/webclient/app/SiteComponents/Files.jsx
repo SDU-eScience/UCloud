@@ -25,9 +25,8 @@ import {
     toLowerCaseAndCapitalize,
 } from "../UtilityFunctions";
 import Uppy from "uppy";
-import {tusConfig} from "../Configurations";
-import pubsub from "pubsub-js";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
+import { updatePageTitle } from "../Actions/Status";
 import { changeUppyFilesOpen } from "../Actions/UppyActions";
 import { initializeUppy } from "../DefaultObjects";
 
@@ -42,8 +41,7 @@ class Files extends React.Component {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
         this.props.uppy.run();
-
-        pubsub.publish('setPageTitle', this.constructor.name);
+        dispatch(updatePageTitle(this.constructor.name));
         this.state = {
             lastSorting: {
                 name: "typeAndName",
