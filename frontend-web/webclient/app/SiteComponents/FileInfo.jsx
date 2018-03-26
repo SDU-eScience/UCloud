@@ -1,7 +1,7 @@
 import React from "react";
 import { Cloud } from "../../authentication/SDUCloudObject";
 import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString } from "../UtilityFunctions";
-import {fetchFiles, updatePath, updateFiles} from "../Actions/Files";
+import { fetchFiles, updatePath, updateFiles } from "../Actions/Files";
 import SectionContainerCard from "./SectionContainerCard";
 import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../DefaultObjects"
@@ -12,15 +12,15 @@ import PropTypes from "prop-types";
 import PromiseKeeper from "../PromiseKeeper";
 import { connect } from "react-redux";
 
+
 class FileInfo extends React.Component {
     constructor(props) {
         super(props);
         this.revokeRights = this.revokeRights.bind(this);
-        this.removeAcl = this.removeAcl.bind(this);
         pubsub.publish("setPageTitle", "File Info");
     }
 
-    revokeRights(file, acl) {
+    revokeRights(file, acl, callback) {
         swal({
             title: "Revoke access",
             text: `Revoke ${RightsNameMap[acl.right]} access for ${acl.entity.displayName}.`,
@@ -35,25 +35,23 @@ class FileInfo extends React.Component {
                 entity: acl.entity.displayName,
                 type: "revoke",
             };
-
             Cloud.delete("/acl", body).then(res => {
-                this.removeAcl(acl);
-                swal("Success!", `Rights have been revoked`, "success");
+                this.removeAcl(file, acl);
+                swal("Success!", `Rights have been revoked`, "success").then(() => callback ? callback() : null );
             }).catch((failure) => {
                 swal("Error", `An error occurred revoking the rights. Please try again later`, "error");
             });
         });
     }
 
-    removeAcl(toRemoveAcl) {
-        const file = Object.assign({}, this.state.file);
-        let index = file.acl.findIndex(acl => acl.name === toRemoveAcl.entity.name);
-        file.acl.splice(index, 1);
-        // TODO: rewrite as functional.
-        // TODO: E.g. file. file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1))
-        this.setState(() => ({
-            file: file,
-        }));
+    removeAcl(file, toRemoveAcl) {
+        let index = file.acl.findIndex(acl => acl.entity.name === toRemoveAcl.entity.name);
+        console.log("toRemove", toRemoveAcl)
+        console.log("acls", file.acl);
+        console.log("index", index);
+        console.log(file.acl);
+        file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1));
+        console.log(file.acl);
     }
 
     render() {
@@ -70,7 +68,7 @@ class FileInfo extends React.Component {
             dispatch(updatePath(parentPath));
         }
 
-        if (!file) { return (<BallPulseLoading loading={true} />)}
+        if (!file) { return (<BallPulseLoading loading={true} />) }
 
         let button = (<div />);
         if (file) {
@@ -87,7 +85,7 @@ class FileInfo extends React.Component {
             <SectionContainerCard>
                 <FileHeader file={file} />
                 <FileView file={file} favorite={() => dispatch(updateFiles(favorite(this.props.files, file.path.path, Cloud)))} />
-                <FileSharing file={file} revokeRights={this.revokeRights} />
+                <FileSharing file={file} revokeRights={(acl) => this.revokeRights(file, acl, () => dispatch(updateFiles(this.props.files)))} updateSharing={(acl) => updateSharingOfFile(file.path, acl.entity.displayName, acl.right, Cloud)} />
                 {button}
             </SectionContainerCard>
         );
@@ -167,9 +165,9 @@ const FileSharing = (props) => {
                         <span
                             className="text-left"><b>{acl.entity.displayName}</b> has <b>{RightsNameMap[acl.right]}</b> access.</span>
                         <ButtonGroup bsSize="xsmall" className="pull-right">
-                            <Button onClick={() => updateSharingOfFile(props.file.path, acl.entity.displayName, acl.right, Cloud)}
+                            <Button onClick={() => props.updateSharing(acl)}
                                 className="btn btn-primary">Change</Button>
-                            <Button onClick={() => props.revokeRights(props.file, acl)}
+                            <Button onClick={() => props.revokeRights(acl)}
                                 className="btn btn-danger">Revoke</Button>
                         </ButtonGroup>
                     </ListGroupItem>))}
@@ -182,16 +180,22 @@ FileInfo.propTypes = {
     loading: PropTypes.bool.isRequired,
     files: PropTypes.array.isRequired,
     filesPath: PropTypes.string.isRequired,
-    favoriteCount: PropTypes.number.isRequired
+    favoriteCount: PropTypes.number.isRequired,
+    aclCount: PropTypes.number.isRequired
 }
 
 const mapStateToProps = (state) => {
     const { loading, files, path } = state.files;
+    let aclCount = 0;
+    files.forEach((file) => {
+        aclCount += file.acl.length;
+    });
     return {
         loading,
         files,
         filesPath: path,
-        favoriteCount: files.filter(file => file.favorited).length
+        aclCount,
+        favoriteCount: files.filter(file => file.favorited).length // Hack to ensure rerender
     }
 }
 
