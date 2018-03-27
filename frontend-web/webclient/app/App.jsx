@@ -11,7 +11,7 @@
 
 import React from "react";
 import ReactDOM from "react-dom";
-import { connect, Provider } from "react-redux";
+import { Provider } from "react-redux";
 import { createStore, combineReducers } from "redux";
 import { BrowserRouter } from "react-router-dom";
 import Core from './SiteComponents/Core';
@@ -19,7 +19,7 @@ import { Cloud } from "../authentication/SDUCloudObject";
 import files from "./Reducers/Files";
 import uppyReducers from "./Reducers/UppyReducers";
 import status from "./Reducers/Status";
-import applications from "./Reducers/Status";
+import applications from "./Reducers/Applications";
 import { initObject } from "./DefaultObjects";
 
 window.onload = () => {
@@ -37,7 +37,7 @@ const addPromiseSupportToDispatch = (store) => {
     };
 };
 
-const rootReducer = combineReducers({files, uppy: uppyReducers, status, applications});
+const rootReducer = combineReducers({files, applications, uppy: uppyReducers, status});
 
 const configureStore = () => {
     let store = createStore(rootReducer, initObject);

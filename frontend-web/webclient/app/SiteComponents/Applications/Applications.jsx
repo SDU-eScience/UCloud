@@ -4,18 +4,14 @@ import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { Table, Button } from 'react-bootstrap';
 import { Card } from "../Cards";
-import { Cloud } from "../../../authentication/SDUCloudObject";
-import PromiseKeeper from "../../PromiseKeeper";
+import { connect } from "react-redux";
+import { fetchApplications, setLoading, toPage, updateApplicationsPerPage } from '../../Actions/Applications';
+import { updatePageTitle } from "../../Actions/Status";
 
 class Applications extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            promises: new PromiseKeeper(),
-            loading: false,
-            applications: [],
-            currentPage: 0,
-            applicationsPerPage: 10,
             lastSorting: {
                 name: "name",
                 asc: true,
@@ -25,23 +21,10 @@ class Applications extends React.Component {
         this.sortByVisibility = this.sortByVisibility.bind(this);
         this.sortByVersion = this.sortByVersion.bind(this);
         this.sortingIcon = this.sortingIcon.bind(this);
-        this.toPage = this.toPage.bind(this);
-        this.getCurrentApplications = this.retrieveCurrentApplications.bind(this);
-        this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
-        // dispatch(updatePageTitle(this.constructor.name));
-        this.retrieveApplications();
-    }
-
-    retrieveApplications() {
-        this.setState({ loading: true });
-        this.state.promises.makeCancelable(Cloud.get("/hpc/apps")).promise.then(req => {
-            this.setState(() => ({
-                applications: req.response.sort((a, b) => 
-                    a.prettyName.localeCompare(b.prettyName)
-                ),
-                loading: false
-            }));
-        });
+        const { dispatch } = this.props;
+        dispatch(updatePageTitle(this.constructor.name));
+        dispatch(setLoading(true));
+        dispatch(fetchApplications());
     }
 
     sortingIcon(name) {
@@ -52,7 +35,7 @@ class Applications extends React.Component {
     }
 
     sortByVisibility() {
-        let apps = this.state.applications.slice();
+        let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
@@ -68,7 +51,7 @@ class Applications extends React.Component {
     }
 
     sortByName() {
-        let apps = this.state.applications.slice();
+        let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
@@ -84,50 +67,30 @@ class Applications extends React.Component {
     }
 
     sortByVersion() {
-        let apps = this.state.applications.slice();
+        let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
             return a.info.version.localeCompare(b.info.version) * order;
         });
         this.setState(() => ({
-            applications: apps,
             lastSorting: {
                 name: "version",
                 asc: asc,
-            },
+            }
         }));
-    }
-
-    retrieveCurrentApplications() {
-        let applicationsPerPage = this.state.applicationsPerPage;
-        let currentPage = this.state.currentPage;
-        return this.state.applications.slice(currentPage * applicationsPerPage, currentPage * applicationsPerPage + applicationsPerPage);
-    }
-
-    toPage(n) {
-        this.setState(() => ({
-            currentPage: n,
-        }));
-    }
-
-    handlePageSizeSelection(newPageSize) {
-        this.setState(() => ({
-            applicationsPerPage: newPageSize,
-        }));
-    }
-
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
+        dispatch(updateApplications(apps));
     }
 
     render() {
-        const totalPages = Math.ceil(this.state.applications.length / this.state.applicationsPerPage);
+        const { applications, loading, applicationsPerPage, currentApplicationsPage, dispatch } = this.props;
+        const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
+        const totalPages = Math.ceil(applications.length / applicationsPerPage);
         return (
             <section>
                 <div className="container" style={{ "marginTop": "60px" }}>
                     <div>
-                        <BallPulseLoading loading={!this.state.applications.length} />
+                        <BallPulseLoading loading={!applications.length} />
                         <Card>
                             <div className="card-body">
                                 <Table responsive className="table table-hover mv-lg">
@@ -137,24 +100,26 @@ class Applications extends React.Component {
                                                 className={`pull-right ${this.sortingIcon("visibility")}`} /></span></th>
                                             <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
                                                 className={`pull-right ${this.sortingIcon("name")}`} /></span></th>
-                                            <th onClick={() => this.sortByVersion()}><span
-                                                className="text-left">Version<span
-                                                    className={`pull-right ${this.sortingIcon("version")}`} /></span></th>
+                                            <th onClick={() => this.sortByVersion()}>
+                                                <span className="text-left">Version
+                                                    <span className={`pull-right ${this.sortingIcon("version")}`} />
+                                                </span>
+                                            </th>
                                             <th />
                                         </tr>
                                     </thead>
-                                    <ApplicationsList applications={this.retrieveCurrentApplications()} />
+                                    <ApplicationsList applications={currentlyShownApplications} />
                                 </Table>
                             </div>
                         </Card>
                         <PaginationButtons
-                            toPage={this.toPage}
-                            currentPage={this.state.currentPage}
+                            toPage={(page) => dispatch(toPage(page))}
+                            currentPage={currentApplicationsPage}
                             totalPages={totalPages}
                         />
                         <EntriesPerPageSelector
-                            entriesPerPage={this.state.applicationsPerPage}
-                            handlePageSizeSelection={this.handlePageSizeSelection}
+                            entriesPerPage={applicationsPerPage}
+                            handlePageSizeSelection={(size) => dispatch(updateApplicationsPerPage(size))}
                             totalPages={totalPages}
                         >
                             Applications per page
@@ -199,4 +164,8 @@ const PrivateIcon = ({ isPrivate }) => {
     }
 };
 
-export default Applications
+const mapStateToProps = (state) => {
+    return { applications, loading, applicationsPerPage, currentApplicationsPage } = state.applications;
+}
+
+export default connect(mapStateToProps)(Applications);

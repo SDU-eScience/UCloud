@@ -58,13 +58,11 @@ const initializeUppy = (restrictions) =>
 export const initObject = {
     files: {
         files: [],
-        filesShown: 10,
         filesPerPage: 10,
         currentFilesPage: 0,
         loading: false,
         path: "",
         filesInfoPath: "",
-        filesInfoFile: null,
         projects: []
     },
     uppy: {
@@ -76,5 +74,11 @@ export const initObject = {
     status: {
         status: DefaultStatus,
         title: ""
+    },
+    applications: {
+        applications: [],
+        loading: false,
+        applicationsPerPage: 10,
+        currentApplicationsPage: 0
     }
 };
