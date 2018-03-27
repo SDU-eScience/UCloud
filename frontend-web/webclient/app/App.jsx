@@ -20,6 +20,7 @@ import files from "./Reducers/Files";
 import uppyReducers from "./Reducers/UppyReducers";
 import status from "./Reducers/Status";
 import applications from "./Reducers/Applications";
+import dashboard from "./Reducers/Dashboard";
 import { initObject } from "./DefaultObjects";
 
 window.onload = () => {
@@ -37,7 +38,7 @@ const addPromiseSupportToDispatch = (store) => {
     };
 };
 
-const rootReducer = combineReducers({files, applications, uppy: uppyReducers, status});
+const rootReducer = combineReducers({files, dashboard, applications, uppy: uppyReducers, status});
 
 const configureStore = () => {
     let store = createStore(rootReducer, initObject(Cloud));

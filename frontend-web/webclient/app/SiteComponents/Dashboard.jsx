@@ -1,83 +1,26 @@
-import React from 'react'
-import {BallPulseLoading} from './LoadingIcon/LoadingIcon'
+import React from "react";
+import {BallPulseLoading} from "./LoadingIcon/LoadingIcon";
 import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
-import {Table, Row} from 'react-bootstrap'
+import {Table, Row} from "react-bootstrap"
 import {Link} from "react-router-dom";
-import {Cloud} from '../../authentication/SDUCloudObject'
-import {sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize} from "../UtilityFunctions";
+import {Cloud} from "../../authentication/SDUCloudObject"
+import {sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize } from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
-import { updatePageTitle } from '../Actions/Status';
-
+import { updatePageTitle } from "../Actions/Status";
+import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles } from "../Actions/Dashboard";
+import { connect } from "react-redux";
 
 class Dashboard extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {
-            promises: new PromiseKeeper(),
-            favoriteFiles: [],
-            favoriteLoading: false,
-            recentFiles: [],
-            recentLoading: false,
-            recentAnalyses: [],
-            analysesLoading: false,
-            activity: [],
-            activityLoading: false,
-        };
-        this.getFavoriteFiles = this.getFavoriteFiles.bind(this);
-        this.getMostRecentFiles = this.getMostRecentFiles.bind(this);
-        this.getRecentActivity = this.getRecentActivity.bind(this);
-        this.getRecentAnalyses = this.getRecentAnalyses.bind(this);
         this.favoriteOrUnfavorite = this.favoriteOrUnfavorite.bind(this);
-        // this.props.dispatch(updatePageTitle(this.constructor.name));
-        this.getFavoriteFiles();
-        this.getMostRecentFiles();
-        this.getRecentAnalyses();
-        /*this.getRecentActivity();*/
-    }
-
-    getFavoriteFiles() {
-        this.setState(() => ({
-            favoriteLoading: true,
-        }));
-        this.state.promises.makeCancelable(Cloud.get(`/files?path=${Cloud.homeFolder}`)).promise.then(req => {
-            let actualFavorites = req.response.filter(file => file.favorited);
-            let subsetFavorites = sortFilesByTypeAndName(actualFavorites.slice(0, 10));
-            this.setState(() => ({
-                favoriteFiles: subsetFavorites,
-                favoriteLoading: false,
-            }));
-        });
-    }
-
-    getMostRecentFiles() {
-        this.setState(() => ({
-            recentLoading: true
-        }));
-        this.state.promises.makeCancelable(Cloud.get(`/files?path=${Cloud.homeFolder}`)).promise.then(req => {
-            let recentSubset = sortFilesByModified(req.response.slice(0, 10));
-            this.setState(() => ({
-                recentFiles: recentSubset,
-                recentLoading: false,
-            }));
-        });
-    }
-
-    getRecentAnalyses() {
-        this.setState(() => ({
-            analysesLoading: true
-        }));
-        this.state.promises.makeCancelable(Cloud.get("/hpc/jobs")).promise.then(req => {
-            this.setState(() => ({
-                analysesLoading: false,
-                recentAnalyses: req.response.items.slice(0, 10),
-            }));
-        });
-    }
-
-    getRecentActivity() {
-        this.setState(() => ({
-            activityLoading: false
-        }));
+        const { dispatch } = this.props;
+        dispatch(updatePageTitle(this.constructor.name));
+        dispatch(setAllLoading(true));
+        dispatch(fetchFavorites());
+        dispatch(fetchRecentFiles());
+        dispatch(fetchRecentAnalyses());
+        //dispatch(fetchRecentActivity());
     }
 
     favoriteOrUnfavorite(fileUri) {
@@ -86,20 +29,17 @@ class Dashboard extends React.Component {
         }));
     }
 
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
-
     render() {
+        const { favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
         return (
             <section>
                 <div className="container" style={{marginTop: "60px"}} >
                     <Row>
-                        <DashboardFavoriteFiles files={this.state.favoriteFiles} isLoading={this.state.favoriteLoading}
+                        <DashboardFavoriteFiles files={this.props.favoriteFiles} isLoading={this.props.favoriteLoading}
                                                 favorite={this.favoriteOrUnfavorite}/>
-                        <DashboardRecentFiles files={this.state.recentFiles} isLoading={this.state.recentLoading}/>
-                        <DashboardAnalyses analyses={this.state.recentAnalyses} isLoading={this.state.analysesLoading}/>
-                        <DashboardRecentActivity activities={this.state.activity} isLoading={this.state.activityLoading}/>
+                        <DashboardRecentFiles files={this.props.recentFiles} isLoading={this.props.recentLoading}/>
+                        <DashboardAnalyses analyses={this.props.recentAnalyses} isLoading={this.props.analysesLoading}/>
+                        <DashboardRecentActivity activities={this.props.activity} isLoading={this.props.activityLoading}/>
                     </Row>
                 </div>
             </section>
@@ -244,4 +184,16 @@ const DashboardRecentActivity = (props) => (
     </div>
 );
 
-export default Dashboard
+const mapStateToProps = (state) => { 
+    return { favoriteFiles,
+        recentFiles,
+        recentAnalyses,
+        activity,
+        favoriteLoading,
+        recentLoading,
+        analysesLoading,
+        activityLoading 
+    } = state.dashboard;
+}
+
+export default connect(mapStateToProps)(Dashboard)

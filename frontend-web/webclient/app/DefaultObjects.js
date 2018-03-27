@@ -55,6 +55,16 @@ const initializeUppy = (restrictions, cloud) =>
     }).use(Uppy.Tus, tusConfig);
 
 export const initObject = (cloud) => ({
+    dashboard: {
+        favoriteFiles: [],
+        recentFiles: [],
+        recentAnalyses: [],
+        activity: [],
+        favoriteLoading: false,
+        recentLoading: false,
+        analysesLoading: false,
+        activityLoading: false,
+    },
     files: {
         files: [],
         filesPerPage: 10,
