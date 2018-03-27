@@ -1,12 +1,12 @@
-import React from 'react';
-import { BallPulseLoading } from '../LoadingIcon/LoadingIcon';
+import React from "react";
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
-import { Table, Button } from 'react-bootstrap';
+import { Table, Button } from "react-bootstrap";
 import { Card } from "../Cards";
 import { getSortingIcon } from "../../UtilityFunctions";
 import { connect } from "react-redux";
-import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from '../../Actions/Applications';
+import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
 import { updatePageTitle } from "../../Actions/Status";
 
 class Applications extends React.Component {
@@ -18,58 +18,41 @@ class Applications extends React.Component {
                 asc: true,
             }
         };
-        this.sortByName = this.sortByName.bind(this);
-        this.sortByVisibility = this.sortByVisibility.bind(this);
-        this.sortByVersion = this.sortByVersion.bind(this);
+        this.sortByString = this.sortByString.bind(this);
+        this.sortByNumber = this.sortByNumber.bind(this);
         const { dispatch } = this.props;
         dispatch(updatePageTitle(this.constructor.name));
         dispatch(setLoading(true));
         dispatch(fetchApplications());
     }
-    
-    sortByVisibility() {
+
+    sortByNumber(name) {
         let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
-            return (a.isPrivate - b.isPrivate) * order;
+            return (a[name] - b[name]) * order;
         });
         this.setState(() => ({
             lastSorting: {
-                name: "visibility",
-                asc: asc,
-            },
+                name,
+                asc
+            }
         }));
         this.props.dispatch(updateApplications(apps));
     }
 
-    sortByName() {
+    sortByString(name) {
         let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
-            return a.prettyName.localeCompare(b.prettyName) * order;
+            return a.info[name].localeCompare(b.info[name]) * order;
         });
         this.setState(() => ({
             lastSorting: {
-                name: "name",
-                asc: asc,
-            },
-        }));
-        this.props.dispatch(updateApplications(apps));
-    }
-
-    sortByVersion() {
-        let apps = this.props.applications.slice();
-        let asc = !this.state.lastSorting.asc;
-        let order = asc ? 1 : -1;
-        apps.sort((a, b) => {
-            return a.info.version.localeCompare(b.info.version) * order;
-        });
-        this.setState(() => ({
-            lastSorting: {
-                name: "version",
-                asc: asc,
+                name,
+                asc
             }
         }));
         this.props.dispatch(updateApplications(apps));
@@ -89,11 +72,11 @@ class Applications extends React.Component {
                                 <Table responsive className="table table-hover mv-lg">
                                     <thead>
                                         <tr>
-                                            <th onClick={() => this.sortByVisibility()}><span className="text-left">Visibility<span
+                                            <th onClick={() => this.sortByNumber("visibility")}><span className="text-left">Visibility<span
                                                 className={`pull-right ${getSortingIcon(this.state.lastSorting, "visibility")}`} /></span></th>
-                                            <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
+                                            <th onClick={() => this.sortByString("name")}><span className="text-left">Application Name<span
                                                 className={`pull-right ${getSortingIcon(this.state.lastSorting, "name")}`} /></span></th>
-                                            <th onClick={() => this.sortByVersion()}>
+                                            <th onClick={() => this.sortByString("version")}>
                                                 <span className="text-left">Version
                                                     <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "version")}`} />
                                                 </span>
@@ -146,16 +129,14 @@ const SingleApplication = ({ app }) => (
     </tr>
 );
 
-const PrivateIcon = ({ isPrivate }) => {
-    if (isPrivate) {
-        return (
-            <td title="The app is private and can only be seen by the creator and people it was shared with">
-                <em className="ion-locked" /></td>
-        )
-    } else {
-        return (<td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>)
-    }
-};
+const PrivateIcon = ({ isPrivate }) =>
+    isPrivate ? (
+        <td title="The app is private and can only be seen by the creator and people it was shared with">
+            <em className="ion-locked" />
+        </td>
+        ) : (
+            <td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>
+        );
 
 const mapStateToProps = (state) => {
     return { applications, loading, applicationsPerPage, currentApplicationsPage } = state.applications;
