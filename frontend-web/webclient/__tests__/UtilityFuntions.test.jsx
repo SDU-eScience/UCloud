@@ -1,5 +1,4 @@
-import { getParentPath, toLowerCaseAndCapitalize, fileSizeToString, castValueTo } from "../app/UtilityFunctions";
-import SDUCloud from "../authentication/lib";
+import { getParentPath, toLowerCaseAndCapitalize, fileSizeToString } from "../app/UtilityFunctions";
 import initializeTestCloudObject from "./mock/TestCloudObject";
 
 
@@ -35,7 +34,7 @@ test("All lower case", () => {
 });
 
 test("Mixed case and special characters", () => {
-    expect(toLowerCaseAndCapitalize("aBaCuS 2.0 !@#$%^&*()"))
+    expect(toLowerCaseAndCapitalize("aBaCuS 2.0 !@#$%^&*()")).toBe("Abacus 2.0 !@#$%^&*()")
 });
 
 test("Empty string", () => {
@@ -87,39 +86,3 @@ test("Null as input", () => {
 test("Undefined as input", () => {
     expect(fileSizeToString()).toBe("");
 });
-
-// Cast Value To
-
-test("Cast string to floating point", () => {
-    expect(castValueTo("floating_point", "3.15")).toBe(3.15);
-});
-
-test("Cast string to int", () => {
-   expect(castValueTo("integer", "42")).toBe(42);
-});
-
-test("Unhandled case, boolean: True as string", () => {
-    expect(castValueTo("Boolean", "true")).toBe("true");
-});
-
-test("true as value, return as is", () => {
-    expect(castValueTo("boolean", true)).toBe(true);
-});
-
-test("Return type string as is.", () => {
-    expect(castValueTo("string", "A string.")).toBe("A string.");
-});
-
-test("Type null, return value as is", () => {
-    expect(castValueTo(null, null)).toBe(null);
-});
-
-test("Type null, return non-null value as is", () => {
-    expect(castValueTo(null, "String")).toBe("String");
-});
-
-test("Undefined returns null",() => {
-    expect(castValueTo()).toBe(null);
-});
-
-const cloud = initializeTestCloudObject();

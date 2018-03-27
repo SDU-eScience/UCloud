@@ -1,4 +1,3 @@
-import {Cloud} from "../authentication/SDUCloudObject"
 import {tusConfig} from "./Configurations";
 import Uppy from "uppy";
 
@@ -40,7 +39,7 @@ export const SensitivityLevelMap = {
     "SENSITIVE": 2,
 };
 
-const initializeUppy = (restrictions) => 
+const initializeUppy = (restrictions, cloud) => 
     Uppy.Core({
         autoProceed: false,
         debug: false,
@@ -49,13 +48,13 @@ const initializeUppy = (restrictions) =>
             sensitive: false,
         },
         onBeforeUpload: () => {
-            return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
+            return cloud.receiveAccessTokenOrRefreshIt().then((data) => {
                 tusConfig.headers["Authorization"] = `Bearer ${data}`;
             });
         }
     }).use(Uppy.Tus, tusConfig);
 
-export const initObject = {
+export const initObject = (cloud) => ({
     files: {
         files: [],
         filesPerPage: 10,
@@ -81,4 +80,4 @@ export const initObject = {
         applicationsPerPage: 10,
         currentApplicationsPage: 0
     }
-};
+});

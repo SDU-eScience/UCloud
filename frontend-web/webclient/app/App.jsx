@@ -40,7 +40,7 @@ const addPromiseSupportToDispatch = (store) => {
 const rootReducer = combineReducers({files, applications, uppy: uppyReducers, status});
 
 const configureStore = () => {
-    let store = createStore(rootReducer, initObject);
+    let store = createStore(rootReducer, initObject(Cloud));
     store.dispatch = addPromiseSupportToDispatch(store);
     return store;
 };
