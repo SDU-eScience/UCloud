@@ -5,7 +5,7 @@ import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { Table, Button } from 'react-bootstrap';
 import { Card } from "../Cards";
 import { connect } from "react-redux";
-import { fetchApplications, setLoading, toPage, updateApplicationsPerPage } from '../../Actions/Applications';
+import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from '../../Actions/Applications';
 import { updatePageTitle } from "../../Actions/Status";
 
 class Applications extends React.Component {
@@ -42,12 +42,12 @@ class Applications extends React.Component {
             return (a.isPrivate - b.isPrivate) * order;
         });
         this.setState(() => ({
-            applications: apps,
             lastSorting: {
                 name: "visibility",
                 asc: asc,
             },
         }));
+        this.props.dispatch(updateApplications(apps));
     }
 
     sortByName() {
@@ -58,12 +58,12 @@ class Applications extends React.Component {
             return a.prettyName.localeCompare(b.prettyName) * order;
         });
         this.setState(() => ({
-            applications: apps,
             lastSorting: {
                 name: "name",
                 asc: asc,
             },
         }));
+        this.props.dispatch(updateApplications(apps));
     }
 
     sortByVersion() {
@@ -79,7 +79,7 @@ class Applications extends React.Component {
                 asc: asc,
             }
         }));
-        dispatch(updateApplications(apps));
+        this.props.dispatch(updateApplications(apps));
     }
 
     render() {

@@ -1,5 +1,5 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { RECEIVE_APPLICATIONS, SET_LOADING, UPDATE_APPLICATIONS_PER_PAGE } from "../Reducers/Applications";
+import { RECEIVE_APPLICATIONS, SET_LOADING, UPDATE_APPLICATIONS_PER_PAGE, UPDATE_APPLICATIONS } from "../Reducers/Applications";
 
 const receiveApplications = (applications) => ({
     type: RECEIVE_APPLICATIONS,
