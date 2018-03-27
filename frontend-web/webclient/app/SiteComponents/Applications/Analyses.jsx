@@ -1,10 +1,10 @@
-import React from 'react';
-import {BallPulseLoading} from '../LoadingIcon/LoadingIcon'
-import {WebSocketSupport, toLowerCaseAndCapitalize, shortUUID} from '../../UtilityFunctions'
-import pubsub from "pubsub-js";
+import React from "react";
+import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
+import {WebSocketSupport, toLowerCaseAndCapitalize, shortUUID} from "../../UtilityFunctions"
+import { updatePageTitle } from "../../Actions/Status";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {Card} from "../Cards";
-import {Table} from 'react-bootstrap';
+import {Table} from "react-bootstrap";
 import {Link} from "react-router-dom";
 import {PaginationButtons, EntriesPerPageSelector} from "../Pagination"
 import PromiseKeeper from "../../PromiseKeeper";
@@ -24,10 +24,11 @@ class Analyses extends React.Component {
         };
         this.toPage = this.toPage.bind(this);
         this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
+        //dispatch(updatePageTitle(this.constructor.name));
     }
 
     componentWillMount() {
-        pubsub.publish('setPageTitle', this.constructor.name);
+        
         this.getAnalyses(false);
         let reloadIntervalId = setInterval(() => {
             this.getAnalyses(true)

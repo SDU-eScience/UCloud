@@ -1,7 +1,6 @@
 import React from 'react';
 import PropTypes from "prop-types";
 import {Link} from 'react-router-dom'
-import {SidebarOptionsList} from "../MockObjects";
 import './Sidebar.scss';
 import { Glyphicon } from "react-bootstrap";
 
@@ -26,8 +25,8 @@ class Sidebar extends React.Component {
     }
 
     retrieveUserOptions() {
-        Cloud.get("/../mock-api/mock_sidebar_options.json").then((res) => {
-            this.setState({options: res.response});
+        Cloud.get("/../mock-api/mock_sidebar_options.json").then(({response}) => {
+            this.setState({options: response});
         });
     }
 
@@ -36,9 +35,10 @@ class Sidebar extends React.Component {
             <aside className="sidebar-container">
                 <div className="sidebar-header">
                     <div className="pull-right pt-lg text-muted hidden"><em className="ion-close-round"/></div>
-                    <a href="#" className="sidebar-header-logo"><img src="img/logo.png" data-svg-replace="img/logo.svg"
-                                                                     alt="Logo"/><span
-                        className="sidebar-header-logo-text">SDUCloud</span></a>
+                    <a href="#" className="sidebar-header-logo">
+                        <img src="img/logo.png" data-svg-replace="img/logo.svg" alt="Logo"/>
+                        <span className="sidebar-header-logo-text">SDUCloud</span>
+                    </a>
                 </div>
                 <div className="sidebar-content">
                     <div className="sidebar-toolbar text-center">

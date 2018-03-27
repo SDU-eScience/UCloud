@@ -1,7 +1,6 @@
 import React from 'react';
 import {BallPulseLoading} from '../LoadingIcon/LoadingIcon'
 import {NotificationIcon, WebSocketSupport} from '../../UtilityFunctions'
-import pubsub from "pubsub-js";
 import {Table} from 'react-bootstrap';
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
@@ -24,17 +23,13 @@ class Notifications extends React.Component {
             ws: new WebSocket("ws://localhost:8080/ws/notifications"),
             recentShown: 10,
             remainingShown: 10,
-        }
-    }
-
-    componentDidMount() {
-        pubsub.publish('setPageTitle', this.constructor.name);
+        };
         this.getNotifications();
+        this.props.dispatch(updateTitle(this.constructor.name));
     }
 
     getNotifications() {
         this.setState({loading: true});
-        // TODO ADD PROMISE KEEPER WHEN GETTING NOTIFICATIONS
         let notifications = [];//Cloud.get().then(notifications => {
             let yesterday = new Date().getTime() - 24 * 60 * 60 * 1000;
             const recentNotifications = this.state.recent.slice();

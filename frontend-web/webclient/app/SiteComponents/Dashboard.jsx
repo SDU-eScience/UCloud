@@ -2,11 +2,11 @@ import React from 'react'
 import {BallPulseLoading} from './LoadingIcon/LoadingIcon'
 import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
 import {Table, Row} from 'react-bootstrap'
-import pubsub from "pubsub-js";
 import {Link} from "react-router-dom";
 import {Cloud} from '../../authentication/SDUCloudObject'
 import {sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize} from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
+import { updatePageTitle } from '../Actions/Status';
 
 
 class Dashboard extends React.Component {
@@ -28,10 +28,7 @@ class Dashboard extends React.Component {
         this.getRecentActivity = this.getRecentActivity.bind(this);
         this.getRecentAnalyses = this.getRecentAnalyses.bind(this);
         this.favoriteOrUnfavorite = this.favoriteOrUnfavorite.bind(this);
-    }
-
-    componentDidMount() {
-        pubsub.publish('setPageTitle', this.constructor.name);
+        // this.props.dispatch(updatePageTitle(this.constructor.name));
         this.getFavoriteFiles();
         this.getMostRecentFiles();
         this.getRecentAnalyses();

@@ -1,6 +1,6 @@
-import React from 'react';
-import './Cards.scss';
-import {Col} from 'react-bootstrap';
+import React from "react";
+import "./Cards.scss";
+import {Col} from "react-bootstrap";
 
 
 export const Card = ({xs, sm, children}) => (

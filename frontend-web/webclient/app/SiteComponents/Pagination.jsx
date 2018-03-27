@@ -22,9 +22,8 @@ export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
 };
 
 
-export const EntriesPerPageSelector = ({entriesPerPage, handlePageSizeSelection, totalPages, children}) => {
-    if (totalPages < 2) { return null; }
-    return (
+export const EntriesPerPageSelector = ({entriesPerPage, handlePageSizeSelection, totalPages, children}) =>
+    totalPages < 2 ? null : (
         <span>
             <select value={entriesPerPage} onChange={e => handlePageSizeSelection(parseInt(e.target.value))}>
                 <option value="10">10</option>
@@ -33,5 +32,4 @@ export const EntriesPerPageSelector = ({entriesPerPage, handlePageSizeSelection,
                 <option value="100">100</option>
             </select> {children}
         </span>
-    )
-};
+    );

@@ -25,9 +25,8 @@ import {
     toLowerCaseAndCapitalize,
 } from "../UtilityFunctions";
 import Uppy from "uppy";
-import {tusConfig} from "../Configurations";
-import pubsub from "pubsub-js";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
+import { updatePageTitle } from "../Actions/Status";
 import { changeUppyFilesOpen } from "../Actions/UppyActions";
 import { initializeUppy } from "../DefaultObjects";
 
@@ -42,8 +41,7 @@ class Files extends React.Component {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
         this.props.uppy.run();
-
-        pubsub.publish('setPageTitle', this.constructor.name);
+        dispatch(updatePageTitle(this.constructor.name));
         this.state = {
             lastSorting: {
                 name: "typeAndName",
@@ -130,7 +128,8 @@ class Files extends React.Component {
                         <PaginationButtons
                             currentPage={currentFilesPage}
                             totalPages={totalPages}
-                            toPage={pageNumber => dispatch(toPage(pageNumber))}/>
+                            toPage={pageNumber => dispatch(toPage(pageNumber))}
+                        />
                         <EntriesPerPageSelector 
                             entriesPerPage={filesPerPage}
                             totalPages={totalPages}
@@ -344,7 +343,7 @@ const fileTypeToConstructor = (type) => {
 const FilesList = ({files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInlineButtons}) => {
     let filesList = files.map((file, index) => {
         let Component = fileTypeToConstructor(file.type);
-        return <Component
+        return (<Component
             key={index}
             file={file}
             addOrRemoveFile={addOrRemoveFile}
@@ -352,7 +351,7 @@ const FilesList = ({files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInli
             hasCheckbox={hasCheckbox}
             forceInlineButtons={forceInlineButtons}
             owner={getOwnerFromAcls(file.acl, Cloud)}
-        />
+        />)
     });
 
     return <tbody>{filesList}</tbody>;

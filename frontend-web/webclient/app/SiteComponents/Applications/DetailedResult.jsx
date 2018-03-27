@@ -1,6 +1,5 @@
 import React from 'react';
 import {Spinner} from '../LoadingIcon/LoadingIcon'
-import pubsub from "pubsub-js";
 import PromiseKeeper from "../../PromiseKeeper";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {shortUUID} from "../../UtilityFunctions";
@@ -9,7 +8,7 @@ import {Link} from "react-router-dom";
 import {FilesTable} from "../Files";
 import "./wizard.scss";
 
-export default class DetailedResult extends React.Component {
+class DetailedResult extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -26,6 +25,7 @@ export default class DetailedResult extends React.Component {
             stderrOldTop: -1,
             promises: new PromiseKeeper()
         };
+        // this.props.dispatch(updatePageTitle(`Results for Job: ${shortUUID(this.jobId)}`));
     }
 
     get jobId() {
@@ -33,8 +33,6 @@ export default class DetailedResult extends React.Component {
     }
 
     componentDidMount() {
-        pubsub.publish('setPageTitle', `Results for Job: ${shortUUID(this.jobId)}`);
-
         this.retrieveStdStreams();
         let reloadIntervalId = setInterval(() => this.retrieveStdStreams(), 1000);
         this.setState({reloadIntervalId: reloadIntervalId});
@@ -299,22 +297,24 @@ export default class DetailedResult extends React.Component {
     }
 }
 
-const
-    ProgressTracker = (props) => <ul
-        className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{props.children}</ul>;
-const
-    ProgressTrackerItem = (props) =>
-        <li
-            className={
-                "progress-step " +
-                ((props.complete) ? "is-complete " : "") +
-                ((props.active) ? "is-active " : "") +
-                ((props.error) ? "error" : "") +
-                ((props.success) ? "success" : "")
-            }
-        >
-            <span className="progress-marker"/>
-            <span className={"progress-text"}>
-            <h4 className={"progress-title visible-md visible-lg"}>{props.title}</h4>
-        </span>
-        </li>;
+const ProgressTracker = (props) => (
+    <ul className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{props.children}</ul>
+);
+const ProgressTrackerItem = (props) => (
+    <li
+        className={
+            "progress-step " +
+            ((props.complete) ? "is-complete " : "") +
+            ((props.active) ? "is-active " : "") +
+            ((props.error) ? "error" : "") +
+            ((props.success) ? "success" : "")
+        }
+    >
+        <span className="progress-marker"/>
+        <span className={"progress-text"}>
+        <h4 className={"progress-title visible-md visible-lg"}>{props.title}</h4>
+    </span>
+    </li>
+);
+
+export default DetailedResult;

@@ -43,7 +43,7 @@ export default sidebarNav = () => {
 
     // remove desktop offcanvas when app changes to mobile
     // so when it returns, the sidebar is shown again
-    window.addEventListener('resize', function () {
+    window.addEventListener("resize", () => {
         if (window.innerWidth < 768) {
             body.classList.remove("offcanvas-visible");
             document.querySelector("#offcanvas-toggler").parentNode.classList.add("active");

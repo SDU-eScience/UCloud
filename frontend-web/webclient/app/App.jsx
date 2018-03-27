@@ -18,6 +18,8 @@ import Core from './SiteComponents/Core';
 import { Cloud } from "../authentication/SDUCloudObject";
 import files from "./Reducers/Files";
 import uppyReducers from "./Reducers/UppyReducers";
+import status from "./Reducers/Status";
+import applications from "./Reducers/Status";
 import { initObject } from "./DefaultObjects";
 
 window.onload = () => {
@@ -35,7 +37,7 @@ const addPromiseSupportToDispatch = (store) => {
     };
 };
 
-const rootReducer = combineReducers({files, uppy: uppyReducers});
+const rootReducer = combineReducers({files, uppy: uppyReducers, status, applications});
 
 const configureStore = () => {
     let store = createStore(rootReducer, initObject);
