@@ -1,0 +1,30 @@
+version: '3'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "9092"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "appEvents:1:1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  consul:
+    image: consul
+    ports:
+      - "8500:8500"
+
+  storage:
+    build: .
+    ports:
+      - "42000:42000"
+    volumes:
+      - .:/usr/src/app
+      - ${HOME}/docker-gradle:/root/.gradle

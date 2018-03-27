@@ -16,11 +16,9 @@ buildscript {
 
 apply plugin: 'idea'
 apply plugin: 'kotlin'
-apply plugin: 'application'
 apply plugin: 'maven-publish'
 
 sourceCompatibility = 1.8
-mainClassName = "dk.sdu.cloud.storage.MainKt"
 
 repositories {
     mavenCentral()
@@ -86,6 +84,11 @@ dependencies {
     // ------------
     compile "dk.sdu.cloud:service-common:0.6.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
+
+    // ------------
+    // Bulk download test
+    // ------------
+    compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
 }
 
 kotlin {
@@ -214,3 +217,12 @@ task apiJar(type: Jar) {
     with jar
 }
 apiJar.dependsOn(generateServiceManifest)
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.storage.MainKt"
+
+run {
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}

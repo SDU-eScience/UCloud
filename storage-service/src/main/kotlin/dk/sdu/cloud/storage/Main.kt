@@ -1,6 +1,8 @@
 package dk.sdu.cloud.storage
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.google.common.net.HostAndPort
+import com.orbitz.consul.Consul
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
@@ -46,7 +48,11 @@ fun main(args: Array<String>) {
     val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
 
     log.info("Connecting to Service Registry")
-    val serviceRegistry = ServiceRegistry(StorageServiceDescription.instance(configuration.connConfig))
+    val serviceRegistry = ServiceRegistry(StorageServiceDescription.instance(configuration.connConfig),
+        Consul.builder()
+            .withHostAndPort(HostAndPort.fromHost("consul").withDefaultPort(8500))
+            .build()
+    )
     log.info("Connected to Service Registry")
 
     val storageService = with(configuration.storage) {
