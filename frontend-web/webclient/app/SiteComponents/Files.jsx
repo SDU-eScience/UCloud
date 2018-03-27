@@ -128,7 +128,8 @@ class Files extends React.Component {
                         <PaginationButtons
                             currentPage={currentFilesPage}
                             totalPages={totalPages}
-                            toPage={pageNumber => dispatch(toPage(pageNumber))}/>
+                            toPage={pageNumber => dispatch(toPage(pageNumber))}
+                        />
                         <EntriesPerPageSelector 
                             entriesPerPage={filesPerPage}
                             totalPages={totalPages}
@@ -342,7 +343,7 @@ const fileTypeToConstructor = (type) => {
 const FilesList = ({files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInlineButtons}) => {
     let filesList = files.map((file, index) => {
         let Component = fileTypeToConstructor(file.type);
-        return <Component
+        return (<Component
             key={index}
             file={file}
             addOrRemoveFile={addOrRemoveFile}
@@ -350,7 +351,7 @@ const FilesList = ({files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInli
             hasCheckbox={hasCheckbox}
             forceInlineButtons={forceInlineButtons}
             owner={getOwnerFromAcls(file.acl, Cloud)}
-        />
+        />)
     });
 
     return <tbody>{filesList}</tbody>;

@@ -8,7 +8,7 @@ import {Link} from "react-router-dom";
 import {FilesTable} from "../Files";
 import "./wizard.scss";
 
-export default class DetailedResult extends React.Component {
+class DetailedResult extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -297,22 +297,24 @@ export default class DetailedResult extends React.Component {
     }
 }
 
-const
-    ProgressTracker = (props) => <ul
-        className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{props.children}</ul>;
-const
-    ProgressTrackerItem = (props) =>
-        <li
-            className={
-                "progress-step " +
-                ((props.complete) ? "is-complete " : "") +
-                ((props.active) ? "is-active " : "") +
-                ((props.error) ? "error" : "") +
-                ((props.success) ? "success" : "")
-            }
-        >
-            <span className="progress-marker"/>
-            <span className={"progress-text"}>
-            <h4 className={"progress-title visible-md visible-lg"}>{props.title}</h4>
-        </span>
-        </li>;
+const ProgressTracker = (props) => (
+    <ul className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{props.children}</ul>
+);
+const ProgressTrackerItem = (props) => (
+    <li
+        className={
+            "progress-step " +
+            ((props.complete) ? "is-complete " : "") +
+            ((props.active) ? "is-active " : "") +
+            ((props.error) ? "error" : "") +
+            ((props.success) ? "success" : "")
+        }
+    >
+        <span className="progress-marker"/>
+        <span className={"progress-text"}>
+        <h4 className={"progress-title visible-md visible-lg"}>{props.title}</h4>
+    </span>
+    </li>
+);
+
+export default DetailedResult;

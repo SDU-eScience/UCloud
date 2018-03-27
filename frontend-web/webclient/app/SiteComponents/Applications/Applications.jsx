@@ -1,10 +1,10 @@
 import React from 'react';
-import {BallPulseLoading} from '../LoadingIcon/LoadingIcon';
-import {Link} from "react-router-dom";
-import {PaginationButtons, EntriesPerPageSelector} from "../Pagination";
-import {Table, Button} from 'react-bootstrap';
-import {Card} from "../Cards";
-import {Cloud} from "../../../authentication/SDUCloudObject";
+import { BallPulseLoading } from '../LoadingIcon/LoadingIcon';
+import { Link } from "react-router-dom";
+import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
+import { Table, Button } from 'react-bootstrap';
+import { Card } from "../Cards";
+import { Cloud } from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
 
 class Applications extends React.Component {
@@ -33,12 +33,12 @@ class Applications extends React.Component {
     }
 
     retrieveApplications() {
-        this.setState({loading: true});
+        this.setState({ loading: true });
         this.state.promises.makeCancelable(Cloud.get("/hpc/apps")).promise.then(req => {
             this.setState(() => ({
-                applications: req.response.sort((a, b) => {
-                    return a.prettyName.localeCompare(b.prettyName)
-                }),
+                applications: req.response.sort((a, b) => 
+                    a.prettyName.localeCompare(b.prettyName)
+                ),
                 loading: false
             }));
         });
@@ -127,23 +127,23 @@ class Applications extends React.Component {
             <section>
                 <div className="container" style={{ "marginTop": "60px" }}>
                     <div>
-                        <BallPulseLoading loading={!this.state.applications.length}/>
+                        <BallPulseLoading loading={!this.state.applications.length} />
                         <Card>
                             <div className="card-body">
                                 <Table responsive className="table table-hover mv-lg">
                                     <thead>
-                                    <tr>
-                                        <th onClick={() => this.sortByVisibility()}><span className="text-left">Visibility<span
-                                            className={`pull-right ${this.sortingIcon("visibility")}`}/></span></th>
-                                        <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
-                                            className={`pull-right ${this.sortingIcon("name")}`}/></span></th>
-                                        <th onClick={() => this.sortByVersion()}><span
-                                            className="text-left">Version<span
-                                            className={`pull-right ${this.sortingIcon("version")}`}/></span></th>
-                                        <th/>
-                                    </tr>
+                                        <tr>
+                                            <th onClick={() => this.sortByVisibility()}><span className="text-left">Visibility<span
+                                                className={`pull-right ${this.sortingIcon("visibility")}`} /></span></th>
+                                            <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
+                                                className={`pull-right ${this.sortingIcon("name")}`} /></span></th>
+                                            <th onClick={() => this.sortByVersion()}><span
+                                                className="text-left">Version<span
+                                                    className={`pull-right ${this.sortingIcon("version")}`} /></span></th>
+                                            <th />
+                                        </tr>
                                     </thead>
-                                    <ApplicationsList applications={this.retrieveCurrentApplications()}/>
+                                    <ApplicationsList applications={this.retrieveCurrentApplications()} />
                                 </Table>
                             </div>
                         </Card>
@@ -152,12 +152,12 @@ class Applications extends React.Component {
                             currentPage={this.state.currentPage}
                             totalPages={totalPages}
                         />
-                        <EntriesPerPageSelector 
+                        <EntriesPerPageSelector
                             entriesPerPage={this.state.applicationsPerPage}
                             handlePageSizeSelection={this.handlePageSizeSelection}
                             totalPages={totalPages}
                         >
-                        Applications per page
+                            Applications per page
                         </EntriesPerPageSelector>
                     </div>
                 </div>
@@ -165,25 +165,23 @@ class Applications extends React.Component {
     }
 }
 
-const ApplicationsList = (props) => {
-    let applications = props.applications.slice();
-    let i = 0;
-    let applicationsList = applications.map(app =>
-        <SingleApplication key={i++} app={app}/>
+const ApplicationsList = ({ applications }) => {
+    let applicationsList = applications.map((app, index) =>
+        <SingleApplication key={index} app={app} />
     );
     return (
         <tbody>
-        {applicationsList}
+            {applicationsList}
         </tbody>)
 };
 
-const SingleApplication = (props) => (
+const SingleApplication = ({ app }) => (
     <tr className="gradeA row-settings">
-        <PrivateIcon isPrivate={props.app.info.isPrivate}/>
-        <td title={props.app.description}>{props.app.prettyName}</td>
-        <td title={props.app.description}>{props.app.info.version}</td>
+        <PrivateIcon isPrivate={app.info.isPrivate} />
+        <td title={app.description}>{app.prettyName}</td>
+        <td title={app.description}>{app.info.version}</td>
         <th>
-            <Link to={`/applications/${props.app.info.name}/${props.app.info.version}/`}>
+            <Link to={`/applications/${app.info.name}/${app.info.version}/`}>
                 <Button className="btn btn-info">Run</Button>
             </Link>
         </th>
@@ -194,10 +192,10 @@ const PrivateIcon = ({ isPrivate }) => {
     if (isPrivate) {
         return (
             <td title="The app is private and can only be seen by the creator and people it was shared with">
-                <em className="ion-locked"/></td>
+                <em className="ion-locked" /></td>
         )
     } else {
-        return (<td title="The application is openly available for everyone"><em className="ion-unlocked"/></td>)
+        return (<td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>)
     }
 };
 
