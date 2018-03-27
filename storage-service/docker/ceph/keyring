@@ -1,0 +1,4 @@
+[client.irods]
+	key = AQCNIrpaufAGERAAeIl9UFPKu+6RfnHf1tRxWw==
+	caps mon = "allow r"
+	caps osd = "allow rw pool=irods"

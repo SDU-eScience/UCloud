@@ -2,6 +2,8 @@ version: '3'
 services:
   zookeeper:
     image: wurstmeister/zookeeper
+    networks:
+      - default
     ports:
       - "2181:2181"
 
@@ -13,18 +15,42 @@ services:
       KAFKA_ADVERTISED_LISTENERS: kafka
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_CREATE_TOPICS: "appEvents:1:1"
+    networks:
+      - default
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
   consul:
     image: consul
+    networks:
+      - default
     ports:
       - "8500:8500"
+
+  ceph:
+    build: docker/ceph
+    ports:
+      - "6789"
+    networks:
+      default:
+         ipv4_address: 175.20.0.12
+    environment:
+      MON_IP: 175.20.0.12
+      CEPH_PUBLIC_NETWORK: 175.20.0.0/16
 
   storage:
     build: .
     ports:
       - "42000:42000"
+    networks:
+      - default
     volumes:
       - .:/usr/src/app
       - ${HOME}/docker-gradle:/root/.gradle
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 175.20.0.0/16
+
