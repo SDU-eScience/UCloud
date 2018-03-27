@@ -20,7 +20,8 @@ data class Configuration(
     val storage: StorageConfiguration,
     val icat: ICatDatabaseConfig,
     private val connection: RawConnectionConfig,
-    val refreshToken: String
+    val refreshToken: String,
+    val consulHostname: String = "localhost"
 ) : ServerConfiguration {
     @get:JsonIgnore
     override val connConfig: ConnectionConfig
@@ -50,7 +51,7 @@ fun main(args: Array<String>) {
     log.info("Connecting to Service Registry")
     val serviceRegistry = ServiceRegistry(StorageServiceDescription.instance(configuration.connConfig),
         Consul.builder()
-            .withHostAndPort(HostAndPort.fromHost("consul").withDefaultPort(8500))
+            .withHostAndPort(HostAndPort.fromHost(configuration.consulHostname).withDefaultPort(8500))
             .build()
     )
     log.info("Connected to Service Registry")
