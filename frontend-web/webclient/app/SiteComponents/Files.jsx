@@ -23,6 +23,7 @@ import {
     sendToAbacus,
     downloadFile,
     toLowerCaseAndCapitalize,
+    getSortingIcon
 } from "../UtilityFunctions";
 import Uppy from "uppy";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
@@ -51,14 +52,6 @@ class Files extends React.Component {
         this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
-        this.getSortingIcon = this.getSortingIcon.bind(this);
-    }
-
-    getSortingIcon(name) {
-        if (this.state.lastSorting.name === name) {
-            return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
-        }
-        return "";
     }
 
     selectOrDeselectAllFiles(checked) {
@@ -118,7 +111,7 @@ class Files extends React.Component {
                             files={shownFiles}
                             loading={loading}
                             masterCheckbox={masterCheckboxChecked}
-                            sortingIcon={this.getSortingIcon}
+                            sortingIcon={(name) => getSortingIcon(this.state.lastSorting, name)}
                             addOrRemoveFile={this.addOrRemoveFile}
                             sortFiles={this.sortFilesBy}
                             favoriteFile={(filePath) => dispatch(updateFiles(favorite(files, filePath, Cloud)))}

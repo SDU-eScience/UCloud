@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { Table, Button } from 'react-bootstrap';
 import { Card } from "../Cards";
+import { getSortingIcon } from "../../UtilityFunctions";
 import { connect } from "react-redux";
 import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from '../../Actions/Applications';
 import { updatePageTitle } from "../../Actions/Status";
@@ -20,20 +21,12 @@ class Applications extends React.Component {
         this.sortByName = this.sortByName.bind(this);
         this.sortByVisibility = this.sortByVisibility.bind(this);
         this.sortByVersion = this.sortByVersion.bind(this);
-        this.sortingIcon = this.sortingIcon.bind(this);
         const { dispatch } = this.props;
         dispatch(updatePageTitle(this.constructor.name));
         dispatch(setLoading(true));
         dispatch(fetchApplications());
     }
-
-    sortingIcon(name) {
-        if (this.state.lastSorting.name === name) {
-            return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
-        }
-        return "";
-    }
-
+    
     sortByVisibility() {
         let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
@@ -97,12 +90,12 @@ class Applications extends React.Component {
                                     <thead>
                                         <tr>
                                             <th onClick={() => this.sortByVisibility()}><span className="text-left">Visibility<span
-                                                className={`pull-right ${this.sortingIcon("visibility")}`} /></span></th>
+                                                className={`pull-right ${getSortingIcon(this.state.lastSorting, "visibility")}`} /></span></th>
                                             <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
-                                                className={`pull-right ${this.sortingIcon("name")}`} /></span></th>
+                                                className={`pull-right ${getSortingIcon(this.state.lastSorting, "name")}`} /></span></th>
                                             <th onClick={() => this.sortByVersion()}>
                                                 <span className="text-left">Version
-                                                    <span className={`pull-right ${this.sortingIcon("version")}`} />
+                                                    <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "version")}`} />
                                                 </span>
                                             </th>
                                             <th />

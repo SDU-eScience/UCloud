@@ -297,4 +297,11 @@ export const getCurrentRights = (files, cloud) => {
     }
 };
 
+export const getSortingIcon = (lastSorting, name) => {
+    if (lastSorting.name === name) {
+        return lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
+    }
+    return "";
+}
+
 export const shortUUID = (uuid) => uuid.substring(0, 8).toUpperCase();
