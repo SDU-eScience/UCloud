@@ -12,7 +12,6 @@ import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.TusExtensions
 import dk.sdu.cloud.tus.api.TusHeaders
-import dk.sdu.cloud.tus.api.TusUploadEvent
 import dk.sdu.cloud.tus.services.*
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
@@ -31,6 +30,8 @@ import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
+import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.experimental.runBlocking
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -42,6 +43,7 @@ class TusController(
     private val config: ICatDatabaseConfig,
     private val rados: RadosStorage,
     private val transferState: TransferStateService,
+    private val checksumService: ChecksumService,
     private val icat: ICAT
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
@@ -346,6 +348,10 @@ class TusController(
                 // Finalize upload
                 log.debug("Upload ${state.id} has been completed!")
                 icat.useConnection {
+                    val checksumJob = launch {
+                        checksumService.computeAndAttachChecksumAndFileSize(id)
+                    }
+
                     autoCommit = false
                     log.debug("Registration of object...")
 
@@ -387,6 +393,9 @@ class TusController(
                     } else {
                         log.info("User does not have permission to upload file to target resource!")
                     }
+
+                    runBlocking { checksumJob.join() }
+                    log.info("Checksum and file size attached successfully to file!")
                 }
 
                 transaction {

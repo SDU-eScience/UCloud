@@ -328,27 +328,3 @@ class RadosUpload(
     }
 }
 
-suspend fun IoCTX.aWrite(
-    oid: String,
-    buffer: ByteArray,
-    objectOffset: Long = 0L,
-    awaitSafe: Boolean = false
-) = suspendCoroutine<Unit> { continuation ->
-    val callback = if (!awaitSafe) {
-        object : Completion(true, false) {
-            override fun onComplete() {
-                continuation.resume(Unit)
-            }
-        }
-    } else {
-        object : Completion(false, true) {
-            override fun onSafe() {
-                continuation.resume(Unit)
-            }
-        }
-    }
-
-    aioWrite(oid, callback, buffer, objectOffset)
-}
-
-

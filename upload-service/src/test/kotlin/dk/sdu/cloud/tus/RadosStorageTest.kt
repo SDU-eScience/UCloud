@@ -1,10 +1,7 @@
 package dk.sdu.cloud.tus
 
 import com.ceph.rados.IoCTX
-import dk.sdu.cloud.tus.services.IReadChannel
-import dk.sdu.cloud.tus.services.RadosStorage
-import dk.sdu.cloud.tus.services.RadosUpload
-import dk.sdu.cloud.tus.services.aWrite
+import dk.sdu.cloud.tus.services.*
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.staticMockk
@@ -90,7 +87,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
             val upload = RadosUpload("small-oid", 0, byteArray.size.toLong(), readChannel, ctx)
@@ -124,7 +121,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
             val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
@@ -157,7 +154,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
             val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
@@ -190,7 +187,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
             val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
@@ -223,7 +220,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
             val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
@@ -256,7 +253,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } coAnswers {
                 delay(100)
                 Unit
@@ -293,7 +290,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } coAnswers {
                 delay(500) // 8M/s. This is likely to be a lot faster
                 Unit
@@ -329,7 +326,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
             // we add the offset to make read channel work
@@ -365,7 +362,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
             val upload = RadosUpload(objectId, RadosStorage.BLOCK_SIZE * 4.toLong(), byteArray.size.toLong(),
@@ -400,7 +397,7 @@ class RadosStorageTest {
         val verified = arrayListOf<Long>()
         val ctx: IoCTX = mockk(relaxed = true)
 
-        staticMockk("dk.sdu.cloud.tus.services.CephStorageKt").use {
+        staticMockk(CephExtensionsFullJvmName).use {
             coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
 
             val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)

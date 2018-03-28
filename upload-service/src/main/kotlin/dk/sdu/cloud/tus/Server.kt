@@ -7,8 +7,7 @@ import dk.sdu.cloud.storage.ext.irods.ICAT
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.api.TusServiceDescription
 import dk.sdu.cloud.tus.http.TusController
-import dk.sdu.cloud.tus.services.RadosStorage
-import dk.sdu.cloud.tus.services.TransferStateService
+import dk.sdu.cloud.tus.services.*
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpHeaders
@@ -16,6 +15,8 @@ import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
+import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
@@ -28,7 +29,7 @@ class Server(
     private val serviceRegistry: ServiceRegistry,
     private val ktor: HttpServerProvider,
     private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val shouldBench: Boolean
+    private val args: Array<String>
 ) {
     private lateinit var httpServer: ApplicationEngine
     private lateinit var kStreams: KafkaStreams
@@ -38,22 +39,73 @@ class Server(
 
         log.info("Creating core services")
         val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
-
-        if (shouldBench) {
-            log.info("Running benchmarks instead of server!")
-            rados.runAllBenchmarks()
-            return
-        }
-
+        val ioCtx = rados.ioCtx
+        val downloadService = DownloadService(ioCtx)
+        val checksumService = ChecksumService(downloadService, ioCtx)
         val transferState = TransferStateService()
         val icat = ICAT(configuration.database)
         val tus = TusController(
             config = configuration.database,
             rados = rados,
             transferState = transferState,
-            icat = icat
+            icat = icat,
+            checksumService = checksumService
         )
         log.info("Core services constructed!")
+
+        // Scripts
+        if (args.contains("--bench")) {
+            log.info("Running benchmarks instead of server!")
+            rados.runAllBenchmarks()
+            return
+        }
+
+        val checksumIdx = args.indexOfFirst { it == "--checksum" }
+        if (checksumIdx != -1) {
+            val objectId = args[checksumIdx + 1]
+            val (checksum, fileSize) = runBlocking {
+                checksumService.computeChecksumAndFileSize(objectId)
+            }
+
+            log.info("Checksum: ${checksum.toHexString()}")
+            log.info("File size: $fileSize")
+            return
+        }
+
+        val checksumFileIdx = args.indexOfFirst { it == "--checksum-file" }
+        if (checksumFileIdx != -1) {
+            val file = File(args[checksumFileIdx + 1])
+            val objectIds = file.readLines()
+            runBlocking {
+                objectIds.map { oid ->
+                    launch {
+                        val (checksum, fileSize) = checksumService.computeChecksumAndFileSize(oid)
+                        checksumService.attachChecksumToObject(oid, checksum)
+                        checksumService.attachFilesizeToObject(oid, fileSize)
+
+                        log.info("$oid: $fileSize ${checksum.toHexString()}")
+                    }
+                }.forEach { it.join() }
+            }
+            return
+        }
+
+        val readChecksums = args.indexOfFirst { it == "--read-checksum-file" }
+        if (readChecksums != -1) {
+            val file = File(args[readChecksums + 1])
+            val objectIds = file.readLines()
+            runBlocking {
+                objectIds.map { oid ->
+                    launch {
+                        val checksum = checksumService.getChecksum(oid)
+                        val fileSize = checksumService.getFilesize(oid)
+                        log.info("$oid: $fileSize $checksum")
+                    }
+                }.forEach { it.join() }
+            }
+            return
+        }
+        // End of scripts
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
