@@ -1,21 +1,20 @@
 import React from "react";
-import {BallPulseLoading} from "./LoadingIcon/LoadingIcon";
-import {NotificationIcon, getParentPath} from "./../UtilityFunctions";
-import {Table, Row} from "react-bootstrap"
-import {Link} from "react-router-dom";
-import {Cloud} from "../../authentication/SDUCloudObject"
-import {sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize } from "../UtilityFunctions";
+import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
+import { NotificationIcon, getParentPath } from "./../UtilityFunctions";
+import { Table, Row } from "react-bootstrap"
+import { Link } from "react-router-dom";
+import { Cloud } from "../../authentication/SDUCloudObject"
+import { sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize } from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
 import { updatePageTitle } from "../Actions/Status";
-import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles } from "../Actions/Dashboard";
+import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../Actions/Dashboard";
 import { connect } from "react-redux";
 
 class Dashboard extends React.Component {
     constructor(props) {
         super(props);
-        this.favoriteOrUnfavorite = this.favoriteOrUnfavorite.bind(this);
         const { dispatch } = this.props;
-        dispatch(updatePageTitle(this.constructor.name));
+        dispatch(updatePageTitle("Dashboard"));
         dispatch(setAllLoading(true));
         dispatch(fetchFavorites());
         dispatch(fetchRecentFiles());
@@ -23,50 +22,52 @@ class Dashboard extends React.Component {
         //dispatch(fetchRecentActivity());
     }
 
-    favoriteOrUnfavorite(fileUri) {
-        this.setState(() => ({
-            favoriteFiles: favorite(this.state.favoriteFiles, fileUri, Cloud).filter(file => file.favorited),
-        }));
-    }
 
     render() {
-        const { favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
+        const { favoriteFiles, recentFiles, recentAnalyses, activity, dispatch,
+            favoriteLoading, recentLoading, analysesLoading, activityLoading } = this.props;
+        const favoriteOrUnfavorite = (filePath) => 
+            dispatch(receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited)));
         return (
             <section>
-                <div className="container" style={{marginTop: "60px"}} >
+                <div className="container" style={{ marginTop: "60px" }} >
                     <Row>
-                        <DashboardFavoriteFiles files={this.props.favoriteFiles} isLoading={this.props.favoriteLoading}
-                                                favorite={this.favoriteOrUnfavorite}/>
-                        <DashboardRecentFiles files={this.props.recentFiles} isLoading={this.props.recentLoading}/>
-                        <DashboardAnalyses analyses={this.props.recentAnalyses} isLoading={this.props.analysesLoading}/>
-                        <DashboardRecentActivity activities={this.props.activity} isLoading={this.props.activityLoading}/>
+                        <DashboardFavoriteFiles
+                            files={favoriteFiles}
+                            isLoading={favoriteLoading}
+                            favorite={(filePath) => favoriteOrUnfavorite(filePath)}
+                        />
+                        <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
+                        <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
+                        <DashboardRecentActivity activities={activity} isLoading={activityLoading} />
                     </Row>
                 </div>
             </section>
-        )
+        );
     }
 }
+
 
 const DashboardFavoriteFiles = (props) => {
     const noFavorites = props.files.length || props.isLoading ? '' : <h3 className="text-center">
         <small>No favorites found.</small>
     </h3>;
     const filesList = props.files.map((file) => {
-            if (file.type === "DIRECTORY") {
-                return (
-                    <tr key={file.path.path}>
-                        <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
-                        <td onClick={() => props.favorite(file.path.path)}><em className="ion-star text-center"/></td>
-                    </tr>)
-            } else {
-                return (
-                    <tr key={file.path.path}>
-                        <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                        <td onClick={() => props.favorite(file.path.path)} className="text-center"><em
-                            className="ion-star"/></td>
-                    </tr>)
-            }
+        if (file.type === "DIRECTORY") {
+            return (
+                <tr key={file.path.path}>
+                    <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
+                    <td onClick={() => props.favorite(file.path.path)}><em className="ion-star text-center" /></td>
+                </tr>)
+        } else {
+            return (
+                <tr key={file.path.path}>
+                    <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
+                    <td onClick={() => props.favorite(file.path.path)} className="text-center"><em
+                        className="ion-star" /></td>
+                </tr>)
         }
+    }
     );
 
     return (
@@ -75,17 +76,17 @@ const DashboardFavoriteFiles = (props) => {
                 <h5 className="card-heading pb0">
                     Favorite files
                 </h5>
-                <BallPulseLoading loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading} />
                 {noFavorites}
                 <Table responsive className="table table-hover mv-lg">
                     <thead>
-                    <tr>
-                        <th>File</th>
-                        <th className="text-center">Starred</th>
-                    </tr>
+                        <tr>
+                            <th>File</th>
+                            <th className="text-center">Starred</th>
+                        </tr>
                     </thead>
                     <tbody>
-                    {filesList}
+                        {filesList}
                     </tbody>
                 </Table>
             </div>
@@ -122,30 +123,30 @@ const DashboardRecentFiles = (props) => {
                 <h5 className="card-heading pb0">
                     Recently used files
                 </h5>
-                <BallPulseLoading loading={props.isLoading}/>
+                <BallPulseLoading loading={props.isLoading} />
                 {noRecents}
                 <Table responsive className="table table-hover mv-lg">
                     <thead>
-                    <tr>
-                        <th>File</th>
-                        <th>Modified</th>
-                    </tr>
+                        <tr>
+                            <th>File</th>
+                            <th>Modified</th>
+                        </tr>
                     </thead>
                     <tbody>
-                    {filesList}
+                        {filesList}
                     </tbody>
                 </Table>
             </div>
         </div>)
 };
 
-const DashboardAnalyses = ({analyses, isLoading}) => (
+const DashboardAnalyses = ({ analyses, isLoading }) => (
     <div className="col-md-6 col-lg-4 align-self-center">
         <div className="card">
             <h5 className="card-heading pb0">
                 Recent Analyses
             </h5>
-            <BallPulseLoading loading={isLoading}/>
+            <BallPulseLoading loading={isLoading} />
             {isLoading || analyses.length ? null :
                 (<h3 className="text-center">
                     <small>No analyses found</small>
@@ -153,18 +154,18 @@ const DashboardAnalyses = ({analyses, isLoading}) => (
             }
             <Table className="table table-hover mv-lg">
                 <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>State</th>
-                </tr>
+                    <tr>
+                        <th>Name</th>
+                        <th>State</th>
+                    </tr>
                 </thead>
                 <tbody>
-                {analyses.map((analysis, index) =>
-                    <tr key={index}>
-                        <td>{analysis.appName}</td>
-                        <td>{toLowerCaseAndCapitalize(analysis.state)}</td>
-                    </tr>
-                )}
+                    {analyses.map((analysis, index) =>
+                        <tr key={index}>
+                            <td>{analysis.appName}</td>
+                            <td>{toLowerCaseAndCapitalize(analysis.state)}</td>
+                        </tr>
+                    )}
                 </tbody>
             </Table>
         </div>
@@ -184,16 +185,28 @@ const DashboardRecentActivity = (props) => (
     </div>
 );
 
-const mapStateToProps = (state) => { 
-    return { favoriteFiles,
+const mapStateToProps = (state) => {
+    const {
+        favoriteFiles,
         recentFiles,
         recentAnalyses,
         activity,
         favoriteLoading,
         recentLoading,
         analysesLoading,
-        activityLoading 
+        activityLoading,
     } = state.dashboard;
+    return {
+        favoriteFiles,
+        recentFiles,
+        recentAnalyses,
+        activity,
+        favoriteLoading,
+        recentLoading,
+        analysesLoading,
+        activityLoading,
+        favoriteFilesLength: favoriteFiles.length
+    };
 }
 
 export default connect(mapStateToProps)(Dashboard)

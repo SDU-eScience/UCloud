@@ -13,7 +13,7 @@ export const fetchFavorites = () =>
         return receiveFavorites(subsetFavorites);
     });
 
-const receiveFavorites = (favorites) => ({
+export const receiveFavorites = (favorites) => ({
     type: RECEIVE_FAVORITES,
     favorites
 });
