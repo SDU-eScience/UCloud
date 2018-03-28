@@ -1,160 +1,101 @@
-import React from 'react';
-import { BallPulseLoading } from '../LoadingIcon/LoadingIcon';
+import React from "react";
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
-import { Table, Button } from 'react-bootstrap';
+import { Table, Button } from "react-bootstrap";
 import { Card } from "../Cards";
-import { Cloud } from "../../../authentication/SDUCloudObject";
-import PromiseKeeper from "../../PromiseKeeper";
+import { getSortingIcon } from "../../UtilityFunctions";
+import { connect } from "react-redux";
+import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
+import { updatePageTitle } from "../../Actions/Status";
 
 class Applications extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            promises: new PromiseKeeper(),
-            loading: false,
-            applications: [],
-            currentPage: 0,
-            applicationsPerPage: 10,
             lastSorting: {
                 name: "name",
                 asc: true,
             }
         };
-        this.sortByName = this.sortByName.bind(this);
-        this.sortByVisibility = this.sortByVisibility.bind(this);
-        this.sortByVersion = this.sortByVersion.bind(this);
-        this.sortingIcon = this.sortingIcon.bind(this);
-        this.toPage = this.toPage.bind(this);
-        this.getCurrentApplications = this.retrieveCurrentApplications.bind(this);
-        this.handlePageSizeSelection = this.handlePageSizeSelection.bind(this);
-        // dispatch(updatePageTitle(this.constructor.name));
-        this.retrieveApplications();
+        this.sortByString = this.sortByString.bind(this);
+        this.sortByNumber = this.sortByNumber.bind(this);
+        const { dispatch } = this.props;
+        dispatch(updatePageTitle(this.constructor.name));
+        dispatch(setLoading(true));
+        dispatch(fetchApplications());
     }
 
-    retrieveApplications() {
-        this.setState({ loading: true });
-        this.state.promises.makeCancelable(Cloud.get("/hpc/apps")).promise.then(req => {
-            this.setState(() => ({
-                applications: req.response.sort((a, b) => 
-                    a.prettyName.localeCompare(b.prettyName)
-                ),
-                loading: false
-            }));
-        });
-    }
-
-    sortingIcon(name) {
-        if (this.state.lastSorting.name === name) {
-            return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
-        }
-        return "";
-    }
-
-    sortByVisibility() {
-        let apps = this.state.applications.slice();
+    sortByNumber(name) {
+        let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
-            return (a.isPrivate - b.isPrivate) * order;
+            return (a[name] - b[name]) * order;
         });
         this.setState(() => ({
-            applications: apps,
             lastSorting: {
-                name: "visibility",
-                asc: asc,
-            },
+                name,
+                asc
+            }
         }));
+        this.props.dispatch(updateApplications(apps));
     }
 
-    sortByName() {
-        let apps = this.state.applications.slice();
+    sortByString(name) {
+        let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
         apps.sort((a, b) => {
-            return a.prettyName.localeCompare(b.prettyName) * order;
+            return a.info[name].localeCompare(b.info[name]) * order;
         });
         this.setState(() => ({
-            applications: apps,
             lastSorting: {
-                name: "name",
-                asc: asc,
-            },
+                name,
+                asc
+            }
         }));
-    }
-
-    sortByVersion() {
-        let apps = this.state.applications.slice();
-        let asc = !this.state.lastSorting.asc;
-        let order = asc ? 1 : -1;
-        apps.sort((a, b) => {
-            return a.info.version.localeCompare(b.info.version) * order;
-        });
-        this.setState(() => ({
-            applications: apps,
-            lastSorting: {
-                name: "version",
-                asc: asc,
-            },
-        }));
-    }
-
-    retrieveCurrentApplications() {
-        let applicationsPerPage = this.state.applicationsPerPage;
-        let currentPage = this.state.currentPage;
-        return this.state.applications.slice(currentPage * applicationsPerPage, currentPage * applicationsPerPage + applicationsPerPage);
-    }
-
-    toPage(n) {
-        this.setState(() => ({
-            currentPage: n,
-        }));
-    }
-
-    handlePageSizeSelection(newPageSize) {
-        this.setState(() => ({
-            applicationsPerPage: newPageSize,
-        }));
-    }
-
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
+        this.props.dispatch(updateApplications(apps));
     }
 
     render() {
-        const totalPages = Math.ceil(this.state.applications.length / this.state.applicationsPerPage);
+        const { applications, loading, applicationsPerPage, currentApplicationsPage, dispatch } = this.props;
+        const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
+        const totalPages = Math.ceil(applications.length / applicationsPerPage);
         return (
             <section>
                 <div className="container" style={{ "marginTop": "60px" }}>
                     <div>
-                        <BallPulseLoading loading={!this.state.applications.length} />
+                        <BallPulseLoading loading={!applications.length} />
                         <Card>
                             <div className="card-body">
                                 <Table responsive className="table table-hover mv-lg">
                                     <thead>
                                         <tr>
-                                            <th onClick={() => this.sortByVisibility()}><span className="text-left">Visibility<span
-                                                className={`pull-right ${this.sortingIcon("visibility")}`} /></span></th>
-                                            <th onClick={() => this.sortByName()}><span className="text-left">Application Name<span
-                                                className={`pull-right ${this.sortingIcon("name")}`} /></span></th>
-                                            <th onClick={() => this.sortByVersion()}><span
-                                                className="text-left">Version<span
-                                                    className={`pull-right ${this.sortingIcon("version")}`} /></span></th>
+                                            <th onClick={() => this.sortByNumber("visibility")}><span className="text-left">Visibility<span
+                                                className={`pull-right ${getSortingIcon(this.state.lastSorting, "visibility")}`} /></span></th>
+                                            <th onClick={() => this.sortByString("name")}><span className="text-left">Application Name<span
+                                                className={`pull-right ${getSortingIcon(this.state.lastSorting, "name")}`} /></span></th>
+                                            <th onClick={() => this.sortByString("version")}>
+                                                <span className="text-left">Version
+                                                    <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "version")}`} />
+                                                </span>
+                                            </th>
                                             <th />
                                         </tr>
                                     </thead>
-                                    <ApplicationsList applications={this.retrieveCurrentApplications()} />
+                                    <ApplicationsList applications={currentlyShownApplications} />
                                 </Table>
                             </div>
                         </Card>
                         <PaginationButtons
-                            toPage={this.toPage}
-                            currentPage={this.state.currentPage}
+                            toPage={(page) => dispatch(toPage(page))}
+                            currentPage={currentApplicationsPage}
                             totalPages={totalPages}
                         />
                         <EntriesPerPageSelector
-                            entriesPerPage={this.state.applicationsPerPage}
-                            handlePageSizeSelection={this.handlePageSizeSelection}
+                            entriesPerPage={applicationsPerPage}
+                            handlePageSizeSelection={(size) => dispatch(updateApplicationsPerPage(size))}
                             totalPages={totalPages}
                         >
                             Applications per page
@@ -188,15 +129,17 @@ const SingleApplication = ({ app }) => (
     </tr>
 );
 
-const PrivateIcon = ({ isPrivate }) => {
-    if (isPrivate) {
-        return (
-            <td title="The app is private and can only be seen by the creator and people it was shared with">
-                <em className="ion-locked" /></td>
-        )
-    } else {
-        return (<td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>)
-    }
-};
+const PrivateIcon = ({ isPrivate }) =>
+    isPrivate ? (
+        <td title="The app is private and can only be seen by the creator and people it was shared with">
+            <em className="ion-locked" />
+        </td>
+        ) : (
+            <td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>
+        );
 
-export default Applications
+const mapStateToProps = (state) => {
+    return { applications, loading, applicationsPerPage, currentApplicationsPage } = state.applications;
+}
+
+export default connect(mapStateToProps)(Applications);

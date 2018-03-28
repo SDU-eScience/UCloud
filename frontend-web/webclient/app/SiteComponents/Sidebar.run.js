@@ -54,8 +54,7 @@ export default sidebarNav = () => {
 // find the a element in click context
 // doesn't check deeply, assuming two levels only
 const getItemElement = (event) => {
-    let element = event.target,
-        parent = element.parentNode;
+    let element = event.target, parent = element.parentNode;
     if (element.tagName.toLowerCase() === "a") return element;
     if (parent.tagName.toLowerCase() === "a") return parent;
     if (parent.parentNode.tagName.toLowerCase() === "a") return parent.parentNode;

@@ -1,4 +1,3 @@
-import {Cloud} from "../authentication/SDUCloudObject"
 import {tusConfig} from "./Configurations";
 import Uppy from "uppy";
 
@@ -40,7 +39,7 @@ export const SensitivityLevelMap = {
     "SENSITIVE": 2,
 };
 
-const initializeUppy = (restrictions) => 
+const initializeUppy = (restrictions, cloud) => 
     Uppy.Core({
         autoProceed: false,
         debug: false,
@@ -49,22 +48,30 @@ const initializeUppy = (restrictions) =>
             sensitive: false,
         },
         onBeforeUpload: () => {
-            return Cloud.receiveAccessTokenOrRefreshIt().then((data) => {
+            return cloud.receiveAccessTokenOrRefreshIt().then((data) => {
                 tusConfig.headers["Authorization"] = `Bearer ${data}`;
             });
         }
     }).use(Uppy.Tus, tusConfig);
 
-export const initObject = {
+export const initObject = (cloud) => ({
+    dashboard: {
+        favoriteFiles: [],
+        recentFiles: [],
+        recentAnalyses: [],
+        activity: [],
+        favoriteLoading: false,
+        recentLoading: false,
+        analysesLoading: false,
+        activityLoading: false,
+    },
     files: {
         files: [],
-        filesShown: 10,
         filesPerPage: 10,
         currentFilesPage: 0,
         loading: false,
         path: "",
         filesInfoPath: "",
-        filesInfoFile: null,
         projects: []
     },
     uppy: {
@@ -76,5 +83,11 @@ export const initObject = {
     status: {
         status: DefaultStatus,
         title: ""
+    },
+    applications: {
+        applications: [],
+        loading: false,
+        applicationsPerPage: 10,
+        currentApplicationsPage: 0
     }
-};
+});

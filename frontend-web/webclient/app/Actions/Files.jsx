@@ -1,12 +1,12 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
 import {
-  RECEIVE_FILES,
-  UPDATE_FILES_PER_PAGE,
-  UPDATE_FILES,
-  SET_LOADING,
-  UPDATE_PATH,
-  TO_PAGE,
-  UPDATE_FILES_INFO_PATH
+    RECEIVE_FILES,
+    UPDATE_FILES_PER_PAGE,
+    UPDATE_FILES,
+    SET_LOADING,
+    UPDATE_PATH,
+    TO_PAGE,
+    UPDATE_FILES_INFO_PATH
 } from "../Reducers/Files";
 import { getParentPath } from "../UtilityFunctions";
 
@@ -15,17 +15,17 @@ import { getParentPath } from "../UtilityFunctions";
 * and implicitely sets @filesLoading to false in the reducer when the files are fetched.
 */
 export const fetchFiles = (path, sorting, sortAscending) =>
-  Cloud.get(`files?path=${path}`).then(({ response }) => {
-    response.forEach(file => file.isChecked = false);
-    if (sorting) {
-      response = sorting(response, sortAscending);
-    }
-    return receiveFiles(response);
-  });
+    Cloud.get(`files?path=${path}`).then(({ response }) => {
+        response.forEach(file => file.isChecked = false);
+        if (sorting) {
+            response = sorting(response, sortAscending);
+        }
+        return receiveFiles(response);
+    });
 
 export const toPage = (pageNumber) => ({
-  type: TO_PAGE,
-  pageNumber: pageNumber
+    type: TO_PAGE,
+    pageNumber: pageNumber
 });
 
 /*
@@ -33,46 +33,32 @@ export const toPage = (pageNumber) => ({
 * Intended for use when sorting the files, checking or favoriting, for instance.
 */
 export const updateFiles = (files) => {
-  return {
-    type: UPDATE_FILES,
-    files
-  }
+    return {
+        type: UPDATE_FILES,
+        files
+    }
 };
 
 export const setLoading = (loading) => ({
-  type: SET_LOADING,
-  loading
+    type: SET_LOADING,
+    loading
 });
 
 export const updatePath = (newPath) => ({
-  type: UPDATE_PATH,
-  path: newPath
+    type: UPDATE_PATH,
+    path: newPath
 });
 
 export const updateFilesPerPage = (filesPerPage, files) => {
-  files.forEach(file => file.isChecked = false);
-  return {
-    type: UPDATE_FILES_PER_PAGE,
-    filesPerPage,
-    files
-  }
+    files.forEach(file => file.isChecked = false);
+    return {
+        type: UPDATE_FILES_PER_PAGE,
+        filesPerPage,
+        files
+    }
 };
 
-const receiveFiles = (files, path) => ({
-  type: RECEIVE_FILES,
-  files,
-  path
+const receiveFiles = (files) => ({
+    type: RECEIVE_FILES,
+    files,
 });
-
-const updateFilesInfo = (filesInfoPath) =>
-  Cloud.get(`files?path=${path}`).then(({ response }) => {
-    response.files.forEach(it => it.isChecked = false);
-    return ({
-      type: updateFilesInfoPath,
-      path: getParentPath(filesInfoPath),
-      filesInfoPath
-    });
-  });
-
-
-

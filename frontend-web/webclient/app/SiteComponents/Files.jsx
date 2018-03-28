@@ -1,17 +1,15 @@
 import React from "react";
 import PropTypes from "prop-types";
-import {connect} from "react-redux";
-import {BallPulseLoading} from "./LoadingIcon/LoadingIcon";
-import {Cloud} from "../../authentication/SDUCloudObject";
-import {Link} from "react-router-dom";
-import {Button, Table, Dropdown, MenuItem, Glyphicon} from "react-bootstrap";
-import {PaginationButtons, EntriesPerPageSelector} from "./Pagination";
-import {BreadCrumbs} from "./Breadcrumbs";
+import { connect } from "react-redux";
+import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
+import { Cloud } from "../../authentication/SDUCloudObject";
+import { Link } from "react-router-dom";
+import { Button, Table, Dropdown, MenuItem, Glyphicon } from "react-bootstrap";
+import { PaginationButtons, EntriesPerPageSelector } from "./Pagination";
+import { BreadCrumbs } from "./Breadcrumbs";
 import {
     sortFilesByTypeAndName,
     createFolder,
-    sortFilesByModified,
-    sortFilesByFavorite,
     sortFilesByOwner,
     sortFilesBySensitivity,
     shareFile,
@@ -23,18 +21,20 @@ import {
     sendToAbacus,
     downloadFile,
     toLowerCaseAndCapitalize,
+    getSortingIcon,
+    sortByNumber,
+    sortByString
 } from "../UtilityFunctions";
 import Uppy from "uppy";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
 import { updatePageTitle } from "../Actions/Status";
 import { changeUppyFilesOpen } from "../Actions/UppyActions";
-import { initializeUppy } from "../DefaultObjects";
 
 class Files extends React.Component {
-    constructor(props, context) {
+    constructor(props) {
         super(props);
         const urlPath = props.match.params[0];
-        const {dispatch, history} = props;
+        const { dispatch, history } = props;
         if (urlPath) {
             dispatch(updatePath(urlPath));
         } else {
@@ -48,21 +48,12 @@ class Files extends React.Component {
                 asc: true,
             },
         };
-        this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
-        this.getSortingIcon = this.getSortingIcon.bind(this);
-    }
-
-    getSortingIcon(name) {
-        if (this.state.lastSorting.name === name) {
-            return this.state.lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
-        }
-        return "";
     }
 
     selectOrDeselectAllFiles(checked) {
-        const {currentFilesPage, filesPerPage, files, dispatch} = this.props;
+        const { currentFilesPage, filesPerPage, files, dispatch } = this.props;
         files.forEach(file => file.isChecked = false);
         if (checked) {
             files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
@@ -71,14 +62,8 @@ class Files extends React.Component {
         dispatch(updateFiles(files));
     }
 
-    addOrRemoveFile(checked, newFile) {
-        const {files, currentPage, filesPerPage, dispatch} = this.props;
-        files.find(file => file.path.path === newFile.path.path).isChecked = checked;
-        dispatch(updateFiles(files));
-    }
-
     sortFilesBy(fileSorting, sortingFunction) {
-        const {files, dispatch, filesPerPage} = this.props;
+        const { files, dispatch, filesPerPage } = this.props;
         const asc = (this.state.lastSorting.name === fileSorting) ? !this.state.lastSorting.asc : true;
         const sortedFiles = sortingFunction(files, asc);
         if (sortedFiles.length > filesPerPage) {
@@ -86,96 +71,102 @@ class Files extends React.Component {
         }
         dispatch(updateFiles(sortedFiles));
         this.setState(() => ({
-            lastSorting: {name: fileSorting, asc: asc}
+            lastSorting: { name: fileSorting, asc: asc }
         }));
     }
 
     componentWillReceiveProps(nextProps) {
-        const {dispatch, path} = this.props;
+        const { dispatch, path } = this.props;
         let newPath = nextProps.match.params[0];
         if (!newPath) {
             this.props.history.push(`/files/${Cloud.homeFolder}`);
             return
         }
-        if (path !== newPath && !nextProps.loading) {
+        if (path !== newPath) {
             dispatch(updatePath(newPath));
             dispatch(setLoading(true));
             dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
+        } else {
+            dispatch(setLoading(false));
         }
     }
 
     render() {
-        const {dispatch, files, filesPerPage, currentFilesPage, path, loading, history} = this.props;
+        const { dispatch, files, filesPerPage, currentFilesPage, path, loading, history } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage);
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
+        const checkFile = (checked, newFile) => {
+            files.find(file => file.path.path === newFile.path.path).isChecked = checked;
+            dispatch(updateFiles(files));
+        }
         return (
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
-                        <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)}/>
+                        <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)} />
                         <FilesTable
                             files={shownFiles}
                             loading={loading}
                             masterCheckbox={masterCheckboxChecked}
-                            sortingIcon={this.getSortingIcon}
-                            addOrRemoveFile={this.addOrRemoveFile}
+                            sortingIcon={(name) => getSortingIcon(this.state.lastSorting, name)}
+                            addOrRemoveFile={(checked, newFile) => checkFile(checked, newFile)}
                             sortFiles={this.sortFilesBy}
                             favoriteFile={(filePath) => dispatch(updateFiles(favorite(files, filePath, Cloud)))}
                             selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}
                         />
-                        <BallPulseLoading loading={loading}/>
+                        <BallPulseLoading loading={loading} />
                         <PaginationButtons
                             currentPage={currentFilesPage}
                             totalPages={totalPages}
                             toPage={pageNumber => dispatch(toPage(pageNumber))}
                         />
-                        <EntriesPerPageSelector 
+                        <EntriesPerPageSelector
                             entriesPerPage={filesPerPage}
                             totalPages={totalPages}
                             handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}
                         >
-                        Files per page
+                            Files per page
                         </EntriesPerPageSelector>
                     </div>
-                    <ContextBar 
+                    <ContextBar
                         selectedFiles={shownFiles.filter(file => file.isChecked)}
                         currentPath={path}
                         getFavorites={this.getFavorites}
-                        onClick={open => dispatch(changeUppyFilesOpen(open))}
+                        onClick={() => dispatch(changeUppyFilesOpen(true))}
                     />
                 </div>
             </section>)
     } // TODO: Remove dashboard modal from this and move it to root.
 }
 
-const ContextBar = (props) => (
+const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles }) => (
     <div className="col-lg-2 visible-lg">
         <div>
             <div className="center-block text-center">
-                <Button className="btn btn-link btn-lg" onClick={() => props.getFavorites()}><i
-                    className="icon ion-star"/></Button>
+                <Button className="btn btn-link btn-lg" onClick={() => getFavorites()}><i
+                    className="icon ion-star" /></Button>
                 <Link to={`/files/${Cloud.homeFolder}`}><Button className="btn btn-link btn-lg"><i
-                    className="ion-ios-home"/></Button></Link>
+                    className="ion-ios-home" /></Button></Link>
             </div>
-            <hr/>
+            <hr />
             <button className="btn btn-primary btn-block"
-                    onClick={() => props.onClick(true)}>
-                <span className="ion-android-upload pull-left"/> Upload Files
+                onClick={() => onClick()}>
+                <span className="ion-android-upload pull-left" /> Upload Files
             </button>
-            <br/>
+            <br />
             <button className="btn btn-default btn-block"
-                    onClick={() => createFolder(props.currentPath)}>
-                <span className="ion-folder pull-left"/> New folder
+                onClick={() => createFolder(currentPath)}>
+                <span className="ion-folder pull-left" /> New folder
             </button>
-            <br/>
-            <hr/>
-            <FileOptions selectedFiles={props.selectedFiles}/>
+            <br />
+            <hr />
+            <FileOptions selectedFiles={selectedFiles} />
         </div>
     </div>
 );
 
-const FileOptions = ({selectedFiles, ...props}) => {
+const FileOptions = ({ selectedFiles }) => {
     if (!selectedFiles.length) {
         return null;
     }
@@ -197,36 +188,37 @@ const FileOptions = ({selectedFiles, ...props}) => {
             <h3>{fileText}</h3>
             <p>
                 <Link disabled={selectedFiles.length !== 1} className="btn btn-primary ripple btn-block"
-                      to={`/fileInfo/${selectedFiles[0].path.path}/`}><span
-                    className="ion-ios-settings-strong pull-left"/>Properties</Link>
+                    to={`/fileInfo/${selectedFiles[0].path.path}/`}>
+                    <span className="ion-ios-settings-strong pull-left" />Properties
+                </Link>
             </p>
             <p>
                 <Button type="button" className="btn btn-default ripple btn-block"
-                        disabled={selectedFiles.length > 1}
-                        onClick={() => shareFile(selectedFiles[0].path, Cloud)}><span
-                    className="ion-share pull-left"/> Share
+                    disabled={selectedFiles.length > 1}
+                    onClick={() => shareFile(selectedFiles[0].path, Cloud)}><span
+                        className="ion-share pull-left" /> Share
                 </Button>
             </p>
             <p>
                 <Button disabled={downloadDisabled} className="btn btn-default ripple btn-block"
-                        onClick={() => downloadFile(selectedFiles[0].path.path, Cloud)}>
-                    <span className="ion-ios-download pull-left"/>
+                    onClick={() => downloadFile(selectedFiles[0].path.path, Cloud)}>
+                    <span className="ion-ios-download pull-left" />
                     Download
                 </Button>
             </p>
             <p>
                 <Button type="button" className="btn btn-default btn-block ripple"
-                        onClick={() => renameFile(selectedFiles[0].path)}
-                        disabled={rights.rightsLevel < 3 || selectedFiles.length !== 1}>
-                    <span className="ion-ios-compose pull-left"/>
+                    onClick={() => renameFile(selectedFiles[0].path)}
+                    disabled={rights.rightsLevel < 3 || selectedFiles.length !== 1}>
+                    <span className="ion-ios-compose pull-left" />
                     Rename
                 </Button>
             </p>
             <p>
                 <Button className="btn btn-danger btn-block ripple"
-                        disabled={rights.rightsLevel < 3 || selectedFiles.length > 1}
-                        onClick={() => showFileDeletionPrompt(selectedFiles[0].path)}>
-                    <em className="ion-ios-trash pull-left"/>
+                    disabled={rights.rightsLevel < 3 || selectedFiles.length > 1}
+                    onClick={() => showFileDeletionPrompt(selectedFiles[0].path)}>
+                    <em className="ion-ios-trash pull-left" />
                     Delete
                 </Button>
             </p>
@@ -258,7 +250,7 @@ export const FilesTable = (props) => {
                     type="checkbox"
                     onChange={e => props.selectOrDeselectAllFiles(e.target.checked)}
                 />
-                <em className="bg-info"/>
+                <em className="bg-info" />
             </label>
         </th>
     ) : null;
@@ -273,46 +265,46 @@ export const FilesTable = (props) => {
             <div className="card-body">
                 <Table responsive className="table table-hover mv-lg">
                     <thead>
-                    <tr>
-                        {masterCheckbox}
+                        <tr>
+                            {masterCheckbox}
 
-                        <th onClick={() => sortingFunction("typeAndName", sortFilesByTypeAndName)}>
-                            <span className="text-left">
-                                Filename
-                                <span className={"pull-right " + sortingIconFunction("typeAndName")}/>
-                            </span>
-                        </th>
-
-                        {hasFavoriteButton ? (
-                            <th onClick={() => sortingFunction("favorite", sortFilesByFavorite)}>
-                                <span>
-                                    <em className="ion-star"/>
-                                    <span className={"pull-right " + sortingIconFunction("favorite")}/>
+                            <th onClick={() => sortingFunction("typeAndName", sortFilesByTypeAndName)}>
+                                <span className="text-left">
+                                    Filename
+                                <span className={"pull-right " + sortingIconFunction("typeAndName")} />
                                 </span>
                             </th>
-                        ) : null}
 
-                        <th onClick={() => sortingFunction("modifiedAt", sortFilesByModified)}>
-                            <span className="text-left">
-                                Last Modified
-                                <span className={"pull-right " + sortingIconFunction("modifiedAt")}/>
-                            </span>
-                        </th>
+                            {hasFavoriteButton ? (
+                                <th onClick={() => sortingFunction("favorite", sortFilesByFavorite)}>
+                                    <span>
+                                        <em className="ion-star" />
+                                        <span className={"pull-right " + sortingIconFunction("favorite")} />
+                                    </span>
+                                </th>
+                            ) : null}
 
-                        <th onClick={() => sortingFunction("owner", sortFilesByOwner)}>
-                            <span className="text-left">
-                                File Rights
-                                <span className={"pull-right " + sortingIconFunction("owner")}/>
-                            </span>
-                        </th>
+                            <th onClick={() => sortingFunction("modifiedAt", sortFilesByModified)}>
+                                <span className="text-left">
+                                    Last Modified
+                                <span className={"pull-right " + sortingIconFunction("modifiedAt")} />
+                                </span>
+                            </th>
 
-                        <th onClick={() => sortingFunction("sensitivity", sortFilesBySensitivity)}>
-                            <span className="text-left">
-                                Sensitivity Level
-                                <span className={"pull-right " + sortingIconFunction("sensitivity")}/>
-                            </span>
-                        </th>
-                    </tr>
+                            <th onClick={() => sortingFunction("owner", sortFilesByOwner)}>
+                                <span className="text-left">
+                                    File Rights
+                                <span className={"pull-right " + sortingIconFunction("owner")} />
+                                </span>
+                            </th>
+
+                            <th onClick={() => sortingFunction("sensitivity", sortFilesBySensitivity)}>
+                                <span className="text-left">
+                                    Sensitivity Level
+                                <span className={"pull-right " + sortingIconFunction("sensitivity")} />
+                                </span>
+                            </th>
+                        </tr>
                     </thead>
 
                     <FilesList
@@ -340,7 +332,7 @@ const fileTypeToConstructor = (type) => {
     }
 };
 
-const FilesList = ({files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInlineButtons}) => {
+const FilesList = ({ files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInlineButtons }) => {
     let filesList = files.map((file, index) => {
         let Component = fileTypeToConstructor(file.type);
         return (<Component
@@ -357,31 +349,31 @@ const FilesList = ({files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInli
     return <tbody>{filesList}</tbody>;
 };
 
-const File = ({file, favoriteFile, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons}) => (
+const File = ({ file, favoriteFile, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons }) => (
     <tr className="row-settings clickable-row">
         {(hasCheckbox) ? (
             <td className="select-cell">
                 <label className="mda-checkbox">
                     <input name="select" className="select-box" checked={file.isChecked}
-                           type="checkbox" onChange={(e) => addOrRemoveFile(e.target.checked, file)}/>
-                    <em className="bg-info"/>
+                        type="checkbox" onChange={(e) => addOrRemoveFile(e.target.checked, file)} />
+                    <em className="bg-info" />
                 </label>
             </td>
         ) : null}
 
-        <FileType type={file.type} path={file.path}/>
-        {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile}/> : null}
+        <FileType type={file.type} path={file.path} />
+        {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile} /> : null}
         <td>{new Date(file.modifiedAt).toLocaleString()}</td>
         <td>{owner}</td>
         <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
         <td>
-            <MobileButtons file={file} forceInlineButtons={forceInlineButtons}/>
+            <MobileButtons file={file} forceInlineButtons={forceInlineButtons} />
         </td>
     </tr>
 );
 
-const Directory = ({file, favoriteFile, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons}) => (
-    <tr className="row-settings clickable-row" style={{cursor: "pointer"}}>
+const Directory = ({ file, favoriteFile, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons }) => (
+    <tr className="row-settings clickable-row" style={{ cursor: "pointer" }}>
         {(hasCheckbox) ? (
             <td className="select-cell">
                 <label className="mda-checkbox">
@@ -392,50 +384,50 @@ const Directory = ({file, favoriteFile, addOrRemoveFile, owner, hasCheckbox, for
                         type="checkbox"
                         onChange={(e) => addOrRemoveFile(e.target.checked, file)}
                     />
-                    <em className="bg-info"/>
+                    <em className="bg-info" />
                 </label>
             </td>
         ) : null}
-        <FileType type={file.type} path={file.path}/>
-        {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile}/> : null}
+        <FileType type={file.type} path={file.path} />
+        {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile} /> : null}
         <td>{new Date(file.modifiedAt).toLocaleString()}</td>
         <td>{owner}</td>
         <td>{toLowerCaseAndCapitalize(file.sensitivityLevel)}</td>
-        <td><MobileButtons file={file} forceInlineButtons={forceInlineButtons}/></td>
+        <td><MobileButtons file={file} forceInlineButtons={forceInlineButtons} /></td>
     </tr>
 );
 
-const FileType = ({type, path}) =>
+const FileType = ({ type, path }) =>
     type === "FILE" ?
-        (<td><span className="ion-android-document"/> {path.name}</td>) :
-        (<td><Link to={`/files/${path.path}`}><span className="ion-android-folder"/> {path.name}</Link></td>);
+        (<td><span className="ion-android-document" /> {path.name}</td>) :
+        (<td><Link to={`/files/${path.path}`}><span className="ion-android-folder" /> {path.name}</Link></td>);
 
-const Favorited = ({file, favoriteFile}) =>
+const Favorited = ({ file, favoriteFile }) =>
     file.favorited ?
-        (<td><a onClick={() => favoriteFile(file.path.path)} className="ion-star"/></td>) :
-        (<td><a className="ion-ios-star-outline" onClick={() => favoriteFile(file.path.path)}/></td>);
+        (<td><a onClick={() => favoriteFile(file.path.path)} className="ion-star" /></td>) :
+        (<td><a className="ion-ios-star-outline" onClick={() => favoriteFile(file.path.path)} /></td>);
 
-const MobileButtons = ({file, forceInlineButtons}) =>(
+const MobileButtons = ({ file, forceInlineButtons }) => (
     <span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
         <Dropdown pullRight id="dropdownforfile">
-            <Dropdown.Toggle/>
+            <Dropdown.Toggle />
             <Dropdown.Menu>
                 <MenuItem onClick={() => sendToAbacus()}> Send to Abacus 2.0</MenuItem>
                 <MenuItem onClick={() => shareFile(file.path, Cloud)}>
-                    <em className="ion-share"/> Share file
+                    <em className="ion-share" /> Share file
                 </MenuItem>
                 <MenuItem onClick={() => downloadFile(file.path.path, Cloud)}>
-                    <em className="ion-ios-download"/>  Download file
+                    <em className="ion-ios-download" />  Download file
                 </MenuItem>
-                <MenuItem onClick={() => renameFile(file.path)}> 
-                    <em className="ion-ios-compose"/> Rename file
+                <MenuItem onClick={() => renameFile(file.path)}>
+                    <em className="ion-ios-compose" /> Rename file
                 </MenuItem>
                 <MenuItem onClick={() => showFileDeletionPrompt(file.path)}>
-                    <em className="ion-ios-trash"/> Delete file
+                    <em className="ion-ios-trash" /> Delete file
                 </MenuItem>
                 <li>
                     <Link to={`/fileInfo/${file.path.path}/`}>
-                        <em className="ion-ios-settings-strong"/> Properties
+                        <em className="ion-ios-settings-strong" /> Properties
                     </Link>
                 </li>
             </Dropdown.Menu>

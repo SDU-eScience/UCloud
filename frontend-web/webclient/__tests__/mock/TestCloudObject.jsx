@@ -2,7 +2,7 @@
 import SDUCloud from "../../authentication/lib";
 
 // Storage Mock
-function storageMock() {
+const storageMock = () => {
     let storage = {};
 
     return {
@@ -28,7 +28,7 @@ function storageMock() {
 export default function initializeTestCloudObject() {
     window.localStorage = storageMock();
     // Note: Test user access token. Missing refresh token, so any backend contact will result in redirection to login.
-    let accessToken = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
+    const accessToken = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
         "lzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJ0ZXN0IiwiZXhwIjozNjE1NDkxMDkzLCJpYXQiOjE1MTU0ODkyO" +
         "TMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsImF1ZCI6WyJhcGkiLCJpcm9kcyJdfQ.gfLvmBWET-WpwtWLdrN9SL0tD" +
         "-0vrHrriWWDxnQljB8";
@@ -40,5 +40,3 @@ export default function initializeTestCloudObject() {
 test("Error silencer", () => {
     expect(1).toBe(1);
 });
-
-export { storageMock }

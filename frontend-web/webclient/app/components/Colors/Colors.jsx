@@ -1,10 +1,10 @@
-import materialColors from 'material-colors';
-import APP_COLORS from './ColorsConstant.js';
+import materialColors from "material-colors";
+import APP_COLORS from "./ColorsConstant";
 
 import './Colors.scss';
 
-(function(global) {
-    'use strict';
+((global) => {
+    "use strict";
 
     global.Colors = new ColorsHandler();
 
