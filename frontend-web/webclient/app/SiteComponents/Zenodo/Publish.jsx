@@ -6,43 +6,26 @@ import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
 import { LoadingButton } from "../LoadingIcon/LoadingIcon";
 import PromiseKeeper from "../../PromiseKeeper";
 import { updatePageTitle } from "../../Actions/Status";
+import { fetchPublications } from "../../Actions/Zenodo";
+import { connect } from "react-redux";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            promises: new PromiseKeeper(),
             files: [""],
             name: "",
             requestSent: false,
-            connected: false,
         };
         this.handleFileSelection = this.handleFileSelection.bind(this);
         this.submit = this.submit.bind(this);
         this.removeFile = this.removeFile.bind(this);
         this.updateName = this.updateName.bind(this);
-        //this.props.dispatch(updatePageTitle("Zenodo Publication"));
-    }
-
-    componentWillMount() {
-        this.setState(() => ({
-            loading: true,
-        }));
-        this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((res) => {
-            this.setState(() => ({
-                connected: res.response.connected,
-                loading: false,
-            }));
-        }).catch((failure) => {
-            this.setState(() => ({
-                connected: false,
-                loading: false
-            }));
-        });
-    }
-
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
+        const { dispatch, connected } = props;
+        dispatch(updatePageTitle("Zenodo Publication"));
+        if (!connected) {
+            dispatch(fetchPublications())
+        }
     }
 
     submit(e) {
@@ -89,7 +72,7 @@ class ZenodoPublish extends React.Component {
 
     render() {
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
-        if (!this.state.connected && !this.state.loading) {
+        if (!this.props.connected && !this.props.loading) {
             return (<NotConnectedToZenodo />);
         }
         return (
@@ -142,10 +125,15 @@ const FileSelections = ({ files, handleFileSelection, removeFile }) => (
     <fieldset>
         {files.map((file, index) =>
             <ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group">
-                <FileSelector path={file} uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
-                    returnObject={{ index: index }} allowUpload={false} remove={files.length > 1 ? () => removeFile(index) : false} />
+                <FileSelector
+                    path={file}
+                    uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
+                    allowUpload={false}
+                    remove={files.length > 1 ? () => removeFile(index) : false}
+                />
             </ListGroupItem>)}
     </fieldset>
 );
 
-export default ZenodoPublish;
+const mapStateToProps = (state) => ({ connected, loading } = state.zenodo);
+export default connect(mapStateToProps)(ZenodoPublish);
