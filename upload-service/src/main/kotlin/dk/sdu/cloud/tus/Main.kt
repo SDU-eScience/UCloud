@@ -61,8 +61,6 @@ fun main(args: Array<String>) {
         password = configuration.database.password
     )
 
-    val shouldBench = args.contains("--bench")
-
-    val server = Server(configuration, kafka, serviceRegistry, serverProvider, cloud, shouldBench)
+    val server = Server(configuration, kafka, serviceRegistry, serverProvider, cloud, args)
     server.start()
 }
