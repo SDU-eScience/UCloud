@@ -1,45 +1,45 @@
 import React from "react";
-import {Button} from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import "../../../node_modules/loaders.css/loaders.css";
 import "./colors.scss";
 
-export const PacmanLoading = ({loading}) =>
+export const PacmanLoading = ({ loading }) =>
     !loading ? null :
         (<div className="row loader-primary">
             <div className="loader-demo">
                 <div className="loader-inner pacman">
-                    <div/>
-                    <div/>
-                    <div/>
-                    <div/>
-                    <div/>
+                    <div />
+                    <div />
+                    <div />
+                    <div />
+                    <div />
                 </div>
             </div>
         </div>);
 
-export const BallPulseLoading = (props) =>
-    !props.loading ? null :
+export const BallPulseLoading = ({ loading }) =>
+    !loading ? null :
         (<div className="row loader-primary">
             <div className="loader-demo">
                 <div className="loader-inner ball-pulse">
-                    <div/>
-                    <div/>
-                    <div/>
+                    <div />
+                    <div />
+                    <div />
                 </div>
             </div>
         </div>);
 
-export const Spinner = ({loading, color}) => (loading) ?
+export const Spinner = ({ loading, color }) => (loading) ?
     <i className={"loader-inner ball-pulse " + color}>
-        <div/>
-        <div/>
-        <div/>
+        <div />
+        <div />
+        <div />
     </i> : null;
 
-export const SmallSpinner = ({loading, color}) => (loading) ?
+export const SmallSpinner = ({ loading, color }) => (loading) ?
     <i className={"ball-clip-rotate-multiple " + color}>
-        <div/>
-        <div/>
+        <div />
+        <div />
     </i> : null;
 
 export const LoadingButton = (props) => (
@@ -49,6 +49,6 @@ export const LoadingButton = (props) => (
         className={props.style}
         disabled={props.disabled}
     >
-        {props.loading ? <Spinner loading/> : props.buttonContent}
+        {props.loading ? <Spinner loading /> : props.buttonContent}
     </Button>
 );

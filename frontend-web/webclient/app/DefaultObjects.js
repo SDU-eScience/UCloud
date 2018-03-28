@@ -89,5 +89,10 @@ export const initObject = (cloud) => ({
         loading: false,
         applicationsPerPage: 10,
         currentApplicationsPage: 0
+    },
+    zenodo: {
+        loading: false,
+        connected: false,
+        publications: []
     }
 });

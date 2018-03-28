@@ -137,7 +137,7 @@ class Files extends React.Component {
                     />
                 </div>
             </section>)
-    } // TODO: Remove dashboard modal from this and move it to root.
+    }
 }
 
 const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles }) => (

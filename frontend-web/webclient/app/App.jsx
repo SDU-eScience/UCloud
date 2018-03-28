@@ -21,6 +21,7 @@ import uppyReducers from "./Reducers/UppyReducers";
 import status from "./Reducers/Status";
 import applications from "./Reducers/Applications";
 import dashboard from "./Reducers/Dashboard";
+import zenodo from "./Reducers/Zenodo";
 import { initObject } from "./DefaultObjects";
 
 window.onload = () => {
@@ -38,7 +39,7 @@ const addPromiseSupportToDispatch = (store) => {
     };
 };
 
-const rootReducer = combineReducers({files, dashboard, applications, uppy: uppyReducers, status});
+const rootReducer = combineReducers({ files, dashboard, applications, uppy: uppyReducers, status, zenodo });
 
 const configureStore = () => {
     let store = createStore(rootReducer, initObject(Cloud));
@@ -51,7 +52,7 @@ let store = configureStore();
 ReactDOM.render(
     <Provider store={store}>
         <BrowserRouter basename="app">
-            <Core/>
+            <Core />
         </BrowserRouter>
     </Provider>,
     document.getElementById("app")

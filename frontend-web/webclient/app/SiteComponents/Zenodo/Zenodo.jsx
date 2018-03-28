@@ -1,60 +1,40 @@
 import React from "react";
-import {Button, Table, ButtonToolbar} from "react-bootstrap";
-import {Cloud} from "../../../authentication/SDUCloudObject"
-import {Link} from "react-router-dom";
-import {Card} from "../Cards";
-import {toLowerCaseAndCapitalize} from "../../UtilityFunctions";
-import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
-import {NotConnectedToZenodo} from "../../ZenodoPublishingUtilities";
+import { Button, Table, ButtonToolbar } from "react-bootstrap";
+import { Cloud } from "../../../authentication/SDUCloudObject"
+import { Link } from "react-router-dom";
+import { Card } from "../Cards";
+import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
 import PromiseKeeper from "../../PromiseKeeper";
 import { updatePageTitle } from "../../Actions/Status";
+import { fetchPublications, setLoading } from "../../Actions/Zenodo";
+import { connect } from "react-redux";
+
 
 class ZenodoHome extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            promises: new PromiseKeeper(),
-            publications: {},
-            connected: false,
-            loading: false,
             sorting: {
                 lastSorting: "lastUpdate",
                 asc: true,
             }
         };
-        //this.props.dispatch(updatePageTitle("Zenodo Overview"));
-    }
-
-    componentWillMount() {
-        this.setState(() => ({
-            loading: true,
-        }));
-        this.state.promises.makeCancelable(Cloud.get("/zenodo/publications")).promise.then((res) => {
-            this.setState(() => ({
-                connected: res.response.connected,
-                publications: res.response.inProgress,
-                loading: false,
-            }));
-        }).catch(failure => {
-            this.setState(() => ({
-                connected: false,
-                loading: false,
-            }))
-        });
-    }
-
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
+        const { dispatch } = props;
+        dispatch(updatePageTitle("Zenodo Overview"));
+        dispatch(setLoading(true));
+        dispatch(fetchPublications());
     }
 
     render() {
-        if (!this.state.connected && !this.state.loading) {
-            return (<NotConnectedToZenodo/>);
+        if (!this.props.connected && !this.props.loading) {
+            return (<NotConnectedToZenodo />);
         } else {
             return (
                 <div className="container">
-                    <h4>Upload progress<small className="pull-right">Connected to Zenodo</small></h4>   
-                    <PublishStatus publications={this.state.publications} loading={this.state.loading}/>
+                    <h4>Upload progress<small className="pull-right">Connected to Zenodo</small></h4>
+                    <PublishStatus publications={this.props.publications} loading={this.props.loading} />
                 </div>
             );
         }
@@ -64,7 +44,7 @@ class ZenodoHome extends React.Component {
 const PublishStatus = (props) => {
     let body = null;
     if (props.loading) {
-        return (<BallPulseLoading loading={props.loading}/>
+        return (<BallPulseLoading loading={props.loading} />
         );
     }
     if (!props.publications.length) {
@@ -78,16 +58,16 @@ const PublishStatus = (props) => {
             <div>
                 <Table responsive>
                     <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Status</th>
-                        <th/>
-                        <th>Info</th>
-                        <th>Last update</th>
-                    </tr>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th />
+                            <th>Info</th>
+                            <th>Last update</th>
+                        </tr>
                     </thead>
-                    <PublicationList publications={props.publications}/>
+                    <PublicationList publications={props.publications} />
                 </Table>
             </div>)
     }
@@ -134,9 +114,10 @@ const PublicationList = (props) => {
     });
     return (
         <tbody>
-        {publicationList}
+            {publicationList}
         </tbody>
     );
 };
 
-export default ZenodoHome;
+const mapStateToProps = (state) => ({ connected, loading, publications } = state.zenodo);
+export default connect(mapStateToProps)(ZenodoHome);
