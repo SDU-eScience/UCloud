@@ -48,22 +48,22 @@ class Dashboard extends React.Component {
 }
 
 
-const DashboardFavoriteFiles = (props) => {
-    const noFavorites = props.files.length || props.isLoading ? '' : <h3 className="text-center">
+const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
+    const noFavorites = files.length || isLoading ? '' : <h3 className="text-center">
         <small>No favorites found.</small>
     </h3>;
-    const filesList = props.files.map((file) => {
+    const filesList = files.map((file) => {
         if (file.type === "DIRECTORY") {
             return (
                 <tr key={file.path.path}>
                     <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
-                    <td onClick={() => props.favorite(file.path.path)}><em className="ion-star text-center" /></td>
+                    <td onClick={() => favorite(file.path.path)}><em className="ion-star text-center" /></td>
                 </tr>)
         } else {
             return (
                 <tr key={file.path.path}>
                     <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                    <td onClick={() => props.favorite(file.path.path)} className="text-center"><em
+                    <td onClick={() => favorite(file.path.path)} className="text-center"><em
                         className="ion-star" /></td>
                 </tr>)
         }
@@ -76,7 +76,7 @@ const DashboardFavoriteFiles = (props) => {
                 <h5 className="card-heading pb0">
                     Favorite files
                 </h5>
-                <BallPulseLoading loading={props.isLoading} />
+                <BallPulseLoading loading={isLoading} />
                 {noFavorites}
                 <Table responsive className="table table-hover mv-lg">
                     <thead>
@@ -93,11 +93,10 @@ const DashboardFavoriteFiles = (props) => {
         </div>)
 };
 
-const DashboardRecentFiles = (props) => {
-    const noRecents = props.files.length || props.isLoading ? '' : <h3 className="text-center">
+const DashboardRecentFiles = ({ files, isLoading }) => {
+    const noRecents = files.length || isLoading ? '' : <h3 className="text-center">
         <small>No recent files found</small>
     </h3>;
-    const files = props.files;
     let yesterday = (new Date).getTime() - 1000 * 60 * 60 * 24;
     const filesList = files.map((file) => {
         let modified = new Date(file.modifiedAt);
@@ -123,7 +122,7 @@ const DashboardRecentFiles = (props) => {
                 <h5 className="card-heading pb0">
                     Recently used files
                 </h5>
-                <BallPulseLoading loading={props.isLoading} />
+                <BallPulseLoading loading={isLoading} />
                 {noRecents}
                 <Table responsive className="table table-hover mv-lg">
                     <thead>
@@ -172,7 +171,7 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
     </div>
 );
 
-const DashboardRecentActivity = (props) => (
+const DashboardRecentActivity = ({ activity, isLoading }) => (
     <div className="col-md-6 col-lg-4 align-self-center">
         <div className="card">
             <h5 className="card-heading pb0">
@@ -205,7 +204,7 @@ const mapStateToProps = (state) => {
         recentLoading,
         analysesLoading,
         activityLoading,
-        favoriteFilesLength: favoriteFiles.length
+        favoriteFilesLength: favoriteFiles.length // Hack to ensure rerendering
     };
 }
 

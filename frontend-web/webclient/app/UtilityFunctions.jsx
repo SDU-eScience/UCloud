@@ -25,21 +25,15 @@ export const WebSocketSupport = () =>
             </small>
         </h3>) : null;
 
-export const sortFilesByFavorite = (files, asc) => {
-    let order = asc ? 1 : -1;
-    files.sort((a, b) => {
-        return (a.favorited - b.favorited) * order
-    });
-    return files;
-};
+export const sortByNumber = (list, name, asc) => {
+    list.sort((a, b) => (a[name] - b[name]) * asc);
+    return list;
+}
 
-export const sortFilesByModified = (files, asc) => {
-    let order = asc ? 1 : -1;
-    files.sort((a, b) => {
-        return (a.modifiedAt - b.modifiedAt) * order;
-    });
-    return files;
-};
+export const sortByString = (list, name, asc) => {
+    list.sort((a, b) => (a[name].localeCompare(b[name])) * asc);
+    return list;
+}
 
 export const sortFilesByTypeAndName = (files, asc) => {
     let order = asc ? 1 : -1;

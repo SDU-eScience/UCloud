@@ -62,16 +62,3 @@ const receiveFiles = (files) => ({
     type: RECEIVE_FILES,
     files,
 });
-
-const updateFilesInfo = (filesInfoPath) =>
-    Cloud.get(`files?path=${path}`).then(({ response }) => {
-        response.files.forEach(it => it.isChecked = false);
-        return ({
-            type: updateFilesInfoPath,
-            path: getParentPath(filesInfoPath),
-            filesInfoPath
-        });
-    });
-
-
-

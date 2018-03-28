@@ -10,8 +10,6 @@ import { BreadCrumbs } from "./Breadcrumbs";
 import {
     sortFilesByTypeAndName,
     createFolder,
-    sortFilesByModified,
-    sortFilesByFavorite,
     sortFilesByOwner,
     sortFilesBySensitivity,
     shareFile,
@@ -23,16 +21,17 @@ import {
     sendToAbacus,
     downloadFile,
     toLowerCaseAndCapitalize,
-    getSortingIcon
+    getSortingIcon,
+    sortByNumber,
+    sortByString
 } from "../UtilityFunctions";
 import Uppy from "uppy";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
 import { updatePageTitle } from "../Actions/Status";
 import { changeUppyFilesOpen } from "../Actions/UppyActions";
-import { initializeUppy } from "../DefaultObjects";
 
 class Files extends React.Component {
-    constructor(props, context) {
+    constructor(props) {
         super(props);
         const urlPath = props.match.params[0];
         const { dispatch, history } = props;
@@ -49,7 +48,6 @@ class Files extends React.Component {
                 asc: true,
             },
         };
-        this.addOrRemoveFile = this.addOrRemoveFile.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
     }
@@ -61,12 +59,6 @@ class Files extends React.Component {
             files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
                 .forEach(file => file.isChecked = true);
         }
-        dispatch(updateFiles(files));
-    }
-
-    addOrRemoveFile(checked, newFile) {
-        const { files, currentPage, filesPerPage, dispatch } = this.props;
-        files.find(file => file.path.path === newFile.path.path).isChecked = checked;
         dispatch(updateFiles(files));
     }
 
@@ -90,10 +82,12 @@ class Files extends React.Component {
             this.props.history.push(`/files/${Cloud.homeFolder}`);
             return
         }
-        if (path !== newPath && !nextProps.loading) {
+        if (path !== newPath) {
             dispatch(updatePath(newPath));
             dispatch(setLoading(true));
             dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
+        } else {
+            dispatch(setLoading(false));
         }
     }
 
@@ -102,6 +96,10 @@ class Files extends React.Component {
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage);
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
+        const checkFile = (checked, newFile) => {
+            files.find(file => file.path.path === newFile.path.path).isChecked = checked;
+            dispatch(updateFiles(files));
+        }
         return (
             <section>
                 <div className="container-fluid">
@@ -112,7 +110,7 @@ class Files extends React.Component {
                             loading={loading}
                             masterCheckbox={masterCheckboxChecked}
                             sortingIcon={(name) => getSortingIcon(this.state.lastSorting, name)}
-                            addOrRemoveFile={this.addOrRemoveFile}
+                            addOrRemoveFile={(checked, newFile) => checkFile(checked, newFile)}
                             sortFiles={this.sortFilesBy}
                             favoriteFile={(filePath) => dispatch(updateFiles(favorite(files, filePath, Cloud)))}
                             selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}
@@ -190,8 +188,9 @@ const FileOptions = ({ selectedFiles }) => {
             <h3>{fileText}</h3>
             <p>
                 <Link disabled={selectedFiles.length !== 1} className="btn btn-primary ripple btn-block"
-                    to={`/fileInfo/${selectedFiles[0].path.path}/`}><span
-                        className="ion-ios-settings-strong pull-left" />Properties</Link>
+                    to={`/fileInfo/${selectedFiles[0].path.path}/`}>
+                    <span className="ion-ios-settings-strong pull-left" />Properties
+                </Link>
             </p>
             <p>
                 <Button type="button" className="btn btn-default ripple btn-block"
