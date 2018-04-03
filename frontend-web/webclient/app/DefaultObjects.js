@@ -75,9 +75,9 @@ export const initObject = (cloud) => ({
         projects: []
     },
     uppy: {
-        uppyFiles: initializeUppy({maxNumberOfFiles: false}),
+        uppyFiles: initializeUppy({maxNumberOfFiles: false}, cloud),
         uppyFilesOpen: false,
-        uppyRunApp: initializeUppy({ maxNumberOfFiles: 1}),
+        uppyRunApp: initializeUppy({ maxNumberOfFiles: 1}, cloud),
         uppyRunAppOpen: false
     },
     status: {
