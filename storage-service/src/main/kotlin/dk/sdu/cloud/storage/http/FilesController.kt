@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.http
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.principalRole
@@ -12,8 +13,6 @@ import dk.sdu.cloud.storage.Ok
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.ext.irods.ICAT
-import dk.sdu.cloud.storage.ext.irods.ICATAccessEntry
 import dk.sdu.cloud.storage.model.MetadataEntry
 import dk.sdu.cloud.storage.model.StoragePath
 import dk.sdu.cloud.storage.services.ICATService
@@ -22,7 +21,6 @@ import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
-import java.sql.SQLException
 
 class FilesController(
     private val storageService: StorageConnectionFactory,
@@ -85,7 +83,7 @@ class FilesController(
                     return@implement try {
                         connection.metadata.updateMetadata(
                             path,
-                            listOf(MetadataEntry(FAVORITE_KEY, "true")),
+                            listOf(MetadataEntry(favoriteKey(principal), "true")),
                             emptyList()
                         )
                         ok(Unit)
@@ -116,13 +114,14 @@ class FilesController(
                         return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
                     }
 
+                    val favKey = favoriteKey(principal)
                     return@implement try {
                         connection.metadata.updateMetadata(
                             path,
                             emptyList(),
                             listOf(
-                                MetadataEntry(FAVORITE_KEY, "true"),
-                                MetadataEntry(FAVORITE_KEY, "false")
+                                MetadataEntry(favKey, "true"),
+                                MetadataEntry(favKey, "false")
                             )
                         )
 
@@ -179,11 +178,15 @@ class FilesController(
         }
     }
 
+    private fun favoriteKey(who: DecodedJWT): String {
+        return FAVORITE_KEY_PREFIX + "_" + who.subject
+    }
+
     private fun StorageConnection.parsePath(pathFromRequest: String): StoragePath =
         paths.parseAbsolute(pathFromRequest, isMissingZone = true)
 
     companion object {
         private val log = LoggerFactory.getLogger(FilesController::class.java)
-        private const val FAVORITE_KEY = "favorited"
+        private const val FAVORITE_KEY_PREFIX = "favorited"
     }
 }

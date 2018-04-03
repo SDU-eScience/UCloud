@@ -478,6 +478,13 @@ class UserGroupsWrapper(private val delegate: UserGroupAO) : UserGroupAO by dele
     }
 }
 
+interface CollectionsAO {
+    fun findMetadataValues(absolutePath: String): List<MetaDataAndDomainData>
+    fun addBulkAVUMetadata(absolutePath: String, dataToAdd: List<AvuData>): List<BulkAVUOperationResponse>
+    fun deleteBulkAVUMetadata(absolutePath: String, dataToDelete: List<AvuData>): List<BulkAVUOperationResponse>
+    fun deleteAllAVU(absolutePath: String)
+}
+
 interface StorageDataObjectAO {
     /*
     fun findByCollectionNameAndDataName(var1: String, var2: String): DataObject
@@ -544,6 +551,30 @@ interface StorageDataObjectAO {
 
     fun findMetadataValuesForDataObject(file: IRODSFile): Result<List<MetaDataAndDomainData>>
     fun findMetadataValuesForDataObject(absolutePath: String): Result<List<MetaDataAndDomainData>>
+}
+
+class CollectionsWrapper(private val delegate: CollectionAO) : CollectionsAO {
+    override fun findMetadataValues(absolutePath: String): List<MetaDataAndDomainData> {
+        return remapException { delegate.findMetadataValuesForCollection(absolutePath) }
+    }
+
+    override fun addBulkAVUMetadata(
+        absolutePath: String,
+        dataToAdd: List<AvuData>
+    ): List<BulkAVUOperationResponse> {
+        return remapException { delegate.addBulkAVUMetadataToCollection(absolutePath, dataToAdd) }
+    }
+
+    override fun deleteBulkAVUMetadata(
+        absolutePath: String,
+        dataToDelete: List<AvuData>
+    ): List<BulkAVUOperationResponse> {
+        return remapException { delegate.deleteBulkAVUMetadataFromCollection(absolutePath, dataToDelete) }
+    }
+
+    override fun deleteAllAVU(absolutePath: String) {
+        return remapException { delegate.deleteAllAVUMetadata(absolutePath) }
+    }
 }
 
 class DataObjectsWrapper(private val delegate: DataObjectAO) : StorageDataObjectAO {

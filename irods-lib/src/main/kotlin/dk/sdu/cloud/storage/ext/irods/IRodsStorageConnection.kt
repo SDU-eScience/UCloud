@@ -23,9 +23,9 @@ class IRodsStorageConnection(private val services: AccountServices) : StorageCon
 
     override val paths: PathOperations = IRodsPathOperations(services)
     override val files: FileOperations = IRodsFileOperations(services)
-    override val metadata: MetadataOperations = IRodsMetadataOperations(services)
     override val accessControl: AccessControlOperations = IRodsAccessControlOperations(services)
-    override val fileQuery: FileQueryOperations = IRodsFileQueryOperations(paths, services)
+    override val fileQuery: FileQueryOperations = IRodsFileQueryOperations(connectedUser, paths, services)
+    override val metadata: MetadataOperations = IRodsMetadataOperations(services, fileQuery)
     override val users: UserOperations = IRodsUserOperations(services)
     override val groups: GroupOperations = IRodsGroupOperations(services)
 

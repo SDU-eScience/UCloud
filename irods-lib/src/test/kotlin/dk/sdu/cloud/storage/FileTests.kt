@@ -143,15 +143,15 @@ abstract class AbstractFileTests {
         assertTrue(userStorageConnection.accessControl.getMyPermissionAt(path) is Error)
 
         adminStorageConnection.accessControl.updateACL(
-                path,
-                listOf(AccessEntry(userStorageConnection.connectedUser, AccessRight.READ))
+            path,
+            listOf(AccessEntry(userStorageConnection.connectedUser, AccessRight.READ))
         )
 
         assertEquals(AccessRight.READ, userStorageConnection.accessControl.getMyPermissionAt(path).capture())
 
         adminStorageConnection.accessControl.updateACL(
-                path,
-                listOf(AccessEntry(userStorageConnection.connectedUser, AccessRight.NONE))
+            path,
+            listOf(AccessEntry(userStorageConnection.connectedUser, AccessRight.NONE))
         )
         assertTrue(userStorageConnection.accessControl.getMyPermissionAt(path) is Error)
     }

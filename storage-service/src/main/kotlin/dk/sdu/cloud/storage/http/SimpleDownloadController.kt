@@ -127,6 +127,21 @@ class SimpleDownloadController(
                 }
             }
 
+            // Determine file list (Prune by modified [iRODS, for now], then prune by checksum [Ceph])
+            // Will contain:
+            //   - missingCloud: list of files missing in cloud, but present in local
+            //   - missingLocal: list of files missing in local, but present in cloud
+            //   - needsUpdateInCloud: list of files that can be updated from local to cloud (no conflict)
+            //   - needsUpdateInLocal: list of files that can be updated from cloud to local (no conflict)
+            //   - conflicting: list of files that can be updated but there are conflicting versions between
+            //     cloud and local. This will happen, if since the last sync, both the cloud and local versions have
+            //     changed but they do not have the same checksum.
+            //   - syncCompletedAt: timestamp, to avoid clock-skew between client and server
+
+
+            // Bulk download based on file list
+
+            /*
             get("tar-test") {
                 call.respondDirectWrite(contentType = ContentType.Application.GZip) {
                     val tarStream = TarOutputStream(GZIPOutputStream(toOutputStream()))
@@ -154,6 +169,7 @@ class SimpleDownloadController(
                     }
                 }
             }
+            */
         }
     }
 

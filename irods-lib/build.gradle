@@ -57,6 +57,10 @@ dependencies {
     // Logging
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.7'
 
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
+
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.0"
     compile group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
 }
