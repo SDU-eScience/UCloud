@@ -15,7 +15,20 @@ interface IReadChannel : Closeable {
     suspend fun read(dst: ByteArray, offset: Int): Int
 }
 
-class UploadService(
+/**
+ * Provides raw upload of files. This includes disassembly of a file into blocks. Notifications are provided
+ * whenever a new block has been uploaded.
+ *
+ * _No ACL checks are provided._
+ *
+ * @param objectId The object ID to use as a base for all objects created
+ * @param offset The current offset into the file, measured in bytes
+ * @param length The length of the entire file, measured in bytes
+ * @param readChannel The channel to read new bytes from. This data stream will be written into the file
+ * starting at [offset].
+ * @param store The object store to write raw objects to.
+ */
+class FileUpload(
     private val objectId: String,
     var offset: Long,
     private val length: Long,
@@ -215,7 +228,7 @@ class UploadService(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(UploadService::class.java)
+        private val log = LoggerFactory.getLogger(FileUpload::class.java)
         const val BLOCK_SIZE = 1024 * 4096
     }
 }

@@ -1,9 +1,9 @@
 package dk.sdu.cloud.tus
 
-import dk.sdu.cloud.tus.services.DownloadService
+import dk.sdu.cloud.tus.services.ObjectDownloadService
 import dk.sdu.cloud.tus.services.NotFoundObjectStoreException
 import dk.sdu.cloud.tus.services.ObjectStore
-import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
+import dk.sdu.cloud.tus.services.FileUpload.Companion.BLOCK_SIZE
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.experimental.async
@@ -62,7 +62,7 @@ class DownloadTest {
             bytesToRead
         }
 
-        val downloadService = DownloadService(store)
+        val downloadService = ObjectDownloadService(store)
         for ((fileName, fileSize) in files) {
             val channel = ByteChannel(true)
             runBlocking {

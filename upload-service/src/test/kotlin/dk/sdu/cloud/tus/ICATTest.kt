@@ -61,4 +61,14 @@ class ICATTest {
         val result = controller.findAvailableIRodsFileName(connection, 42, "2Lenna.png")
         assertEquals("2Lenna(1).png", result)
     }
+
+    @Test
+    fun testDuplicateNameWithDifferentExtensions() {
+        val connection = mockk<ICATConnection>(relaxed = true)
+        val controller = TusController(mockk(), mockk(), mockk(), mockk(), mockk())
+        every { connection.findIRodsFileNamesLike(any(), any()) } returns listOf("foo.png")
+
+        val result = controller.findAvailableIRodsFileName(connection, 42, "foo.txt")
+        assertEquals("foo.txt", result)
+    }
 }
