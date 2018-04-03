@@ -1,16 +1,17 @@
 export default class PromiseKeeper {
+    promises: Array<CancelablePromise>
     constructor() {
         this.promises = [];
     }
 
-    _cleanup() {
+    _cleanup(): void {
         this.promises = this.promises.filter(it => !it.isComplete);
     }
 
-    makeCancelable(promise) {
+    makeCancelable(promise: Promise<any>): CancelablePromise {
         let hasCanceled_ = false;
-        let cancelablePromise = {};
-        cancelablePromise.promise = new Promise((resolve, reject) => {
+        let cancelablePromise = new CancelablePromise();
+        cancelablePromise.promise = new Promise((resolve: any, reject: any) => {
                 promise.then(
                     val => {
                         cancelablePromise.isComplete = true;
@@ -34,10 +35,18 @@ export default class PromiseKeeper {
      *  Cancels all promises stored in the promise keeper.
      *  The held promises are cleared from the keeper as they are cancelled and no longer have any function
      */
-    cancelPromises() {
+    cancelPromises(): void {
         this.promises.forEach((it) => {
             it.cancel();
         });
         this.promises = [];
     }
+}
+
+class CancelablePromise {
+    isComplete: boolean
+    promise: Promise<any>
+    cancel: VoidFunction
+    hasCanceled_: boolean
+    constructor(){}
 }

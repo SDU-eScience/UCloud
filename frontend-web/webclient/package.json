@@ -12,6 +12,8 @@
     "postinstall": "modernizr -c modernizr-config.json -d app/modernizr.js"
   },
   "dependencies": {
+    "@types/react": "^16.3.2",
+    "@types/react-dom": "^16.0.4",
     "animate.css": "3.6.1",
     "bootstrap": "3.3.7",
     "font-awesome": "4.7.0",
