@@ -59,14 +59,13 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
             return (
                 <tr key={file.path.path}>
                     <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
-                    <td onClick={() => favorite(file.path.path)}><em className="ion-star text-center" /></td>
+                    <td onClick={() => favorite(file.path.path)} className="text-center"><em className="ion-star" /></td>
                 </tr>)
         } else {
             return (
                 <tr key={file.path.path}>
                     <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                    <td onClick={() => favorite(file.path.path)} className="text-center"><em
-                        className="ion-star" /></td>
+                    <td onClick={() => favorite(file.path.path)} className="text-center"><em className="ion-star" /></td>
                 </tr>)
         }
     }
