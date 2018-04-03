@@ -21,9 +21,9 @@ import java.util.*
 object TusDescriptions : RESTDescriptions(TusServiceDescription) {
     val baseContext = "/api/tus"
 
-    val create = callDescription<CreationCommand, Unit, Unit>(
+    val create = callDescription<UploadCreationCommand, Unit, Unit>(
         additionalRequestConfiguration = { req ->
-            addHeader(TusHeaders.Resumable, TusConfiguration.Version)
+            addHeader(TusHeaders.Resumable, TUS_VERSION)
             addHeader(TusHeaders.UploadLength, req.length)
 
             val metadata = HashMap<String, String>().apply {
@@ -127,4 +127,5 @@ object TusDescriptions : RESTDescriptions(TusServiceDescription) {
     }
 
     private val log = LoggerFactory.getLogger(TusDescriptions::class.java)
+    public const val TUS_VERSION = "1.0.0"
 }

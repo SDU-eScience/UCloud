@@ -1,18 +1,11 @@
 package dk.sdu.cloud.tus.services
 
-import com.ceph.rados.IoCTX
-import com.ceph.rados.exceptions.RadosNotFoundException
 import dk.sdu.cloud.tus.services.RadosStorage.Companion.BLOCK_SIZE
 import io.ktor.cio.use
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import kotlin.math.min
 
-sealed class ObjectStoreException(message: String, val statusCode: HttpStatusCode) : Exception(message) {
-    data class NotFound(val name: String) : ObjectStoreException("Not found: $name", HttpStatusCode.NotFound)
-}
-
-class DownloadService(private val ioCtx: IoCTX) {
+class DownloadService(private val store: ObjectStore) {
     suspend fun download(
         oid: String,
         outputChannel: ByteWriteChannel,
@@ -32,10 +25,10 @@ class DownloadService(private val ioCtx: IoCTX) {
                 val resolvedOid = if (currentOidIndex == 0) oid else "$oid-$currentOidIndex"
                 val currentObjectOffset = currentOffset % BLOCK_SIZE
                 val read = try {
-                    ioCtx.aRead(resolvedOid, buffer, currentObjectOffset)
-                } catch (ex: RadosNotFoundException) {
+                    store.read(resolvedOid, buffer, currentObjectOffset)
+                } catch (ex: NotFoundObjectStoreException) {
                     if (currentOidIndex == 0) {
-                        throw ObjectStoreException.NotFound(oid)
+                        throw NotFoundObjectStoreException(oid)
                     } else {
                         break
                     }

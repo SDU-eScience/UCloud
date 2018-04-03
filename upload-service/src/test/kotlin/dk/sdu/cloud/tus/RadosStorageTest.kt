@@ -1,10 +1,11 @@
 package dk.sdu.cloud.tus
 
-import com.ceph.rados.IoCTX
-import dk.sdu.cloud.tus.services.*
+import dk.sdu.cloud.tus.services.IReadChannel
+import dk.sdu.cloud.tus.services.ObjectStore
+import dk.sdu.cloud.tus.services.RadosStorage
+import dk.sdu.cloud.tus.services.RadosUpload
 import io.mockk.coEvery
 import io.mockk.mockk
-import io.mockk.staticMockk
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.runBlocking
 import org.hamcrest.CoreMatchers.hasItem
@@ -15,7 +16,6 @@ import org.junit.Test
 import org.slf4j.LoggerFactory
 
 // TODO Tests are currently copy pasted with minor (non-parameter) changes between them
-// TODO I suspect that the mock in certain cases are causing NPEs
 class RadosStorageTest {
     class ByteArrayReadChannel(private val byteArray: ByteArray) : IReadChannel {
         private var pointer = 0
@@ -55,9 +55,9 @@ class RadosStorageTest {
     }
 
     class CappedAndDelayedByteArrayReadChannel(
-            private val byteArray: ByteArray,
-            val chunkSize: Int,
-            val delayPerChunk: Long
+        private val byteArray: ByteArray,
+        val chunkSize: Int,
+        val delayPerChunk: Long
     ) : IReadChannel {
         private var pointer = 0
 
@@ -85,27 +85,25 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+        coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-            val upload = RadosUpload("small-oid", 0, byteArray.size.toLong(), readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
+        val upload = RadosUpload("small-oid", 0, byteArray.size.toLong(), readChannel, store)
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
 
-            assertEquals(1, buffers.size)
+        assertEquals(1, buffers.size)
 
-            val buffer = buffers.first()
-            val ourData = buffer.slice(0 until byteArray.size).toList()
-            val padding = buffer.slice(byteArray.size until buffer.size).toList()
-            val expectedPadding = List(padding.size) { 0.toByte() }
+        val buffer = buffers.first()
+        val ourData = buffer.slice(0 until byteArray.size).toList()
+        val padding = buffer.slice(byteArray.size until buffer.size).toList()
+        val expectedPadding = List(padding.size) { 0.toByte() }
 
-            assertEquals(byteArray.toList(), ourData)
-            assertEquals(expectedPadding, padding)
-            assertEquals(listOf("small-oid"), oids)
-            assertEquals(listOf(0.toLong()), verified)
-        }
+        assertEquals(byteArray.toList(), ourData)
+        assertEquals(expectedPadding, padding)
+        assertEquals(listOf("small-oid"), oids)
+        assertEquals(listOf(0.toLong()), verified)
     }
 
     @Test
@@ -119,26 +117,24 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+        coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-            val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
+        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
 
-            assertEquals(numBlocks, buffers.size)
+        assertEquals(numBlocks, buffers.size)
 
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
 
-            val expectedOids = (0 until numBlocks).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
+        val expectedOids = (0 until numBlocks).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
 
-            assertThat(verified, hasItem(numBlocks - 1.toLong()))
-        }
+        assertThat(verified, hasItem(numBlocks - 1.toLong()))
     }
 
     @Test
@@ -152,26 +148,24 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+        coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-            val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
+        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
 
-            assertEquals(numBlocks + 1, buffers.size)
+        assertEquals(numBlocks + 1, buffers.size)
 
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
 
-            val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
+        val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
 
-            assertThat(verified, hasItem(numBlocks.toLong()))
-        }
+        assertThat(verified, hasItem(numBlocks.toLong()))
     }
 
     @Test
@@ -185,26 +179,24 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+        coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-            val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
+        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
 
-            assertEquals(numBlocks, buffers.size)
+        assertEquals(numBlocks, buffers.size)
 
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
 
-            val expectedOids = (0 until numBlocks).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
+        val expectedOids = (0 until numBlocks).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
 
-            assertThat(verified, hasItem(numBlocks - 1.toLong()))
-        }
+        assertThat(verified, hasItem(numBlocks - 1.toLong()))
     }
 
     @Test
@@ -218,26 +210,24 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+        coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-            val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
+        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
 
-            assertEquals(numBlocks + 1, buffers.size)
+        assertEquals(numBlocks + 1, buffers.size)
 
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
 
-            val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
+        val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
 
-            assertThat(verified, hasItem(numBlocks.toLong()))
-        }
+        assertThat(verified, hasItem(numBlocks.toLong()))
     }
 
     @Test
@@ -251,29 +241,27 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } coAnswers {
-                delay(100)
-                Unit
-            }
-
-            val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
-
-            assertEquals(numBlocks + 1, buffers.size)
-
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
-
-            val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
-
-            assertThat(verified, hasItem(numBlocks.toLong()))
+        coEvery { store.write(capture(oids), capture(buffers), any()) } coAnswers {
+            delay(100)
+            Unit
         }
+
+        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
+
+        assertEquals(numBlocks + 1, buffers.size)
+
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
+
+        val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
+
+        assertThat(verified, hasItem(numBlocks.toLong()))
     }
 
     @Test
@@ -288,29 +276,27 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } coAnswers {
-                delay(500) // 8M/s. This is likely to be a lot faster
-                Unit
-            }
-
-            val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
-
-            assertEquals(numBlocks + 1, buffers.size)
-
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
-
-            val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
-
-            assertThat(verified, hasItem(numBlocks.toLong()))
+        coEvery { store.write(capture(oids), capture(buffers), any()) } coAnswers {
+            delay(500) // 8M/s. This is likely to be a lot faster
+            Unit
         }
+
+        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
+
+        assertEquals(numBlocks + 1, buffers.size)
+
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
+
+        val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
+
+        assertThat(verified, hasItem(numBlocks.toLong()))
     }
 
     @Test
@@ -324,29 +310,29 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+        coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-            // we add the offset to make read channel work
-            val offset = RadosStorage.BLOCK_SIZE / 2.toLong()
-            val upload = RadosUpload(objectId, offset, byteArray.size.toLong() + offset,
-                    readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
+        // we add the offset to make read channel work
+        val offset = RadosStorage.BLOCK_SIZE / 2.toLong()
+        val upload = RadosUpload(
+            objectId, offset, byteArray.size.toLong() + offset,
+            readChannel, store
+        )
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
 
-            assertEquals(numBlocks + 1, buffers.size)
+        assertEquals(numBlocks + 1, buffers.size)
 
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
 
-            val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
+        val expectedOids = (0 until numBlocks + 1).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
 
-            assertThat(verified, hasItem(numBlocks.toLong()))
-        }
+        assertThat(verified, hasItem(numBlocks.toLong()))
     }
 
     @Test
@@ -360,28 +346,28 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+        coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-            val upload = RadosUpload(objectId, RadosStorage.BLOCK_SIZE * 4.toLong(), byteArray.size.toLong(),
-                    readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
+        val upload = RadosUpload(
+            objectId, RadosStorage.BLOCK_SIZE * 4.toLong(), byteArray.size.toLong(),
+            readChannel, store
+        )
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
 
-            assertEquals(numBlocks, buffers.size) // We don't expect any buffers for already allocated
+        assertEquals(numBlocks, buffers.size) // We don't expect any buffers for already allocated
 
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
 
-            // We expect to start at block 4
-            val expectedOids = (4 until numBlocks + 4).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
+        // We expect to start at block 4
+        val expectedOids = (4 until numBlocks + 4).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
 
-            assertThat(verified, hasItem(numBlocks + 3.toLong()))
-        }
+        assertThat(verified, hasItem(numBlocks + 3.toLong()))
     }
 
     @Test
@@ -395,25 +381,23 @@ class RadosStorageTest {
         val oids = arrayListOf<String>()
         val buffers = arrayListOf<ByteArray>()
         val verified = arrayListOf<Long>()
-        val ctx: IoCTX = mockk(relaxed = true)
+        val store: ObjectStore = mockk(relaxed = true)
 
-        staticMockk(CephExtensionsFullJvmName).use {
-            coEvery { ctx.aWrite(capture(oids), capture(buffers), any(), any()) } returns Unit
+        coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-            val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, ctx)
-            upload.onProgress = { verified += it }
-            runBlocking { upload.upload() }
+        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        upload.onProgress = { verified += it }
+        runBlocking { upload.upload() }
 
-            assertEquals(numBlocks, buffers.size)
+        assertEquals(numBlocks, buffers.size)
 
-            val actualSum = buffers.map { it.sum() }.sum()
-            assertEquals(checksum, actualSum)
+        val actualSum = buffers.map { it.sum() }.sum()
+        assertEquals(checksum, actualSum)
 
-            val expectedOids = (0 until numBlocks).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
-            val actualOids = oids.sorted()
-            assertEquals(expectedOids, actualOids)
+        val expectedOids = (0 until numBlocks).map { if (it == 0) objectId else "$objectId-$it" }.sorted()
+        val actualOids = oids.sorted()
+        assertEquals(expectedOids, actualOids)
 
-            assertThat(verified, hasItem(numBlocks - 1.toLong()))
-        }
+        assertThat(verified, hasItem(numBlocks - 1.toLong()))
     }
 }

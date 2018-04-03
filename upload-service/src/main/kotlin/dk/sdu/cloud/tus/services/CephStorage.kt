@@ -1,16 +1,10 @@
 package dk.sdu.cloud.tus.services
 
-import com.ceph.rados.Completion
-import com.ceph.rados.IoCTX
-import com.ceph.rados.Rados
 import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.selects.select
 import org.slf4j.LoggerFactory
 import java.io.Closeable
-import java.io.File
-import java.util.concurrent.ThreadLocalRandom
-import kotlin.coroutines.experimental.suspendCoroutine
 
 interface IReadChannel : Closeable {
     /**
@@ -21,106 +15,12 @@ interface IReadChannel : Closeable {
     suspend fun read(dst: ByteArray, offset: Int): Int
 }
 
-class RadosStorage(clientName: String, configurationFile: File, pool: String) {
-    private val cluster: Rados = Rados("ceph", clientName, 0)
-    val ioCtx: IoCTX
-
-    init {
-        if (!configurationFile.exists()) {
-            throw IllegalStateException(
-                "Could not find configuration file. Expected it to be found " +
-                        "at ${configurationFile.absolutePath}"
-            )
-        }
-
-        log.info("Reading Rados configuration")
-        cluster.confReadFile(configurationFile)
-        log.info("Connecting to cluster")
-        cluster.connect()
-        log.info("Connected!")
-
-        ioCtx = cluster.ioCtxCreate(pool)
-    }
-
-    fun runAllBenchmarks() {
-        Benchmark.apply {
-            this.ioCtx = this@RadosStorage.ioCtx
-            try {
-                runWriteBenchmarks()
-                runReadBenchmarks()
-                runWriteXAttrBenchmarks()
-                runReadXAttrBenchmarks()
-            } finally {
-                cleanup()
-            }
-        }
-    }
-
-    object Benchmark {
-        lateinit var ioCtx: IoCTX
-
-        const val BENCH_OID_PREFIX = "fsbench"
-        const val NUMBER_OF_FILES = 1000
-        const val FILE_SIZE = 4096
-        const val XATTR_SIZE = 1000
-        const val XATTR_NAME = "fsbench"
-
-        fun runWriteBenchmarks() {
-            val data = String(CharArray(FILE_SIZE) { ThreadLocalRandom.current().nextInt(256).toChar() })
-
-            val start = System.nanoTime()
-            repeat(NUMBER_OF_FILES) { i ->
-                ioCtx.write("$BENCH_OID_PREFIX-$i", data)
-            }
-            val end = System.nanoTime()
-            log.info("Write benchmark took ${end - start} ns")
-        }
-
-        fun runReadBenchmarks() {
-            val buffer = ByteArray(FILE_SIZE)
-            val start = System.nanoTime()
-            repeat(NUMBER_OF_FILES) { i ->
-                ioCtx.read("$BENCH_OID_PREFIX-$i", FILE_SIZE, 0L, buffer)
-            }
-            val end = System.nanoTime()
-            log.info("Read benchmark took ${end - start} ns")
-        }
-
-        fun runWriteXAttrBenchmarks() {
-            val data = String(CharArray(XATTR_SIZE) { ThreadLocalRandom.current().nextInt(256).toChar() })
-
-            val start = System.nanoTime()
-            repeat(NUMBER_OF_FILES) { i ->
-                ioCtx.setExtendedAttribute("$BENCH_OID_PREFIX-$i", XATTR_NAME, data)
-            }
-            val end = System.nanoTime()
-            log.info("XAttr write benchmark took ${end - start} ns")
-        }
-
-        fun runReadXAttrBenchmarks() {
-            val start = System.nanoTime()
-            repeat(NUMBER_OF_FILES) { i ->
-                ioCtx.getExtendedAttribute("$BENCH_OID_PREFIX-$i", XATTR_NAME)
-            }
-            val end = System.nanoTime()
-            log.info("XAttr read benchmark took ${end - start} ns")
-        }
-
-        fun cleanup() {
-            log.info("Cleaning up...")
-            repeat(NUMBER_OF_FILES) { i ->
-                ioCtx.remove("$BENCH_OID_PREFIX-$i")
-            }
-            log.info("Done.")
-        }
-    }
-
+class RadosStorage(private val store: ObjectStore) {
     fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): RadosUpload =
-        RadosUpload(objectId, offset, length, readChannel, ioCtx)
+        RadosUpload(objectId, offset, length, readChannel, store)
 
     companion object {
         const val BLOCK_SIZE = 1024 * 4096
-        private val log = LoggerFactory.getLogger(RadosStorage::class.java)
     }
 }
 
@@ -129,7 +29,7 @@ class RadosUpload(
     var offset: Long,
     private val length: Long,
     private val readChannel: IReadChannel,
-    private val ioCtx: IoCTX
+    private val store: ObjectStore
 ) {
     private var started = false
     var onProgress: ((Long) -> Unit)? = null
@@ -274,7 +174,7 @@ class RadosUpload(
             if (internalPtr != 0 && (internalPtr == maxSize || offset == length)) {
                 log.debug("[$freeIndex] Writing to oid: $oid")
                 jobs[freeIndex] = launch {
-                    ioCtx.aWrite(oid, resizedBuffer, objectOffset = objectOffset, awaitSafe = false)
+                    store.write(oid, resizedBuffer, offset = objectOffset)
                     log.debug("[$freeIndex] Finished writing $oid")
                     val callback = onProgress
                     if (callback != null) {

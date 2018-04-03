@@ -38,15 +38,14 @@ class Server(
         val instance = TusServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
-        val rados = RadosStorage("client.irods", File("ceph.conf"), "irods")
-        val ioCtx = rados.ioCtx
-        val downloadService = DownloadService(ioCtx)
-        val checksumService = ChecksumService(downloadService, ioCtx)
+        val cephStore = CephStore("client.irods", File("ceph.conf"), "irods")
+        val downloadService = DownloadService(cephStore)
+        val checksumService = ChecksumService(downloadService, cephStore)
         val transferState = TransferStateService()
         val icat = ICAT(configuration.database)
         val tus = TusController(
             config = configuration.database,
-            rados = rados,
+            store = cephStore,
             transferState = transferState,
             icat = icat,
             checksumService = checksumService
@@ -54,12 +53,6 @@ class Server(
         log.info("Core services constructed!")
 
         // Scripts
-        if (args.contains("--bench")) {
-            log.info("Running benchmarks instead of server!")
-            rados.runAllBenchmarks()
-            return
-        }
-
         val checksumIdx = args.indexOfFirst { it == "--checksum" }
         if (checksumIdx != -1) {
             val objectId = args[checksumIdx + 1]

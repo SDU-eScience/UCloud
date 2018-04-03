@@ -1,7 +1,7 @@
 package dk.sdu.cloud.tus.services
 
-import dk.sdu.cloud.tus.api.TransferState
-import dk.sdu.cloud.tus.api.TransferSummary
+import dk.sdu.cloud.tus.api.UploadState
+import dk.sdu.cloud.tus.api.UploadSummary
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
@@ -13,7 +13,7 @@ class TransferStateService {
         id: String,
         authenticatedPrincipal: String? = null,
         allowRetries: Boolean = true
-    ): TransferSummary? {
+    ): UploadSummary? {
         return withRetries(allowRetries) {
             transaction {
                 (UploadDescriptions innerJoin UploadProgress)
@@ -36,7 +36,7 @@ class TransferStateService {
                 val savedAs = it[UploadDescriptions.savedAs]
                 val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
 
-                TransferSummary(it[UploadDescriptions.id], sizeInBytes, offset, savedAs)
+                UploadSummary(it[UploadDescriptions.id], sizeInBytes, offset, savedAs)
             }
         }
     }
@@ -45,7 +45,7 @@ class TransferStateService {
         id: String,
         authenticatedPrincipal: String? = null,
         allowRetries: Boolean = true
-    ): TransferState? {
+    ): UploadState? {
         return withRetries(allowRetries) {
             transaction {
                 (UploadDescriptions innerJoin UploadProgress)
@@ -64,7 +64,7 @@ class TransferStateService {
                 val chunksVerified = it[UploadProgress.numChunksVerified]
                 val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
 
-                TransferState(
+                UploadState(
                     id = it[UploadDescriptions.id],
                     length = sizeInBytes,
                     offset = offset,
