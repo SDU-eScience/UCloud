@@ -13,7 +13,6 @@ class AccountServices(private val fs: IRODSFileSystem, val account: IRODSAccount
     val environment by lazy { factory.getEnvironmentalInfoAO(account) }
     val zones by lazy { factory.getZoneAO(account) }
     val resources by lazy { factory.getResourceAO(account) }
-    val collections by lazy { factory.getCollectionAO(account) }
     val ruleProcessings by lazy { factory.getRuleProcessingAO(account) }
     val remoteCommandExecution by lazy { factory.getRemoteExecutionOfCommandsAO(account) }
     val bulkFileOperations by lazy { factory.getBulkFileOperationsAO(account) }
@@ -36,6 +35,7 @@ class AccountServices(private val fs: IRODSFileSystem, val account: IRODSAccount
     val fileSystem by lazy { FileSystemWrapper(factory.getIRODSFileSystemAO(account)) }
     val userGroups by lazy { UserGroupsWrapper(factory.getUserGroupAO(account)) }
     val dataObjects by lazy { DataObjectsWrapper(factory.getDataObjectAO(account)) }
+    val collections by lazy { CollectionsWrapper(factory.getCollectionAO(account)) }
     val collectionsAndObjectSearch by lazy {
         CollectionsAndObjectSearchWrapper(factory.getCollectionAndDataObjectListAndSearchAO(account))
     }

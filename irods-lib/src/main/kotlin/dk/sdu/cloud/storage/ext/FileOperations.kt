@@ -235,4 +235,16 @@ interface FileQueryOperations {
         val capture = statBulk(path).capture() ?: return Result.lastError()
         return Ok(capture.firstOrNull() != null)
     }
+
+    fun treeAt(path: StoragePath, modifiedAfter: Long? = null): List<InternalFile>
 }
+
+data class InternalFile(
+    val fileName: String,
+    val parent: String,
+    val isDirectory: Boolean,
+    val modifiedAt: Long,
+    val accessRight: AccessRight,
+    val physicalPath: String? = null
+)
+

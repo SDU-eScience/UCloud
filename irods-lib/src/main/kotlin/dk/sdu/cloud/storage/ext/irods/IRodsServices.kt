@@ -13,10 +13,8 @@ import org.irods.jargon.core.pub.domain.ObjStat
 import org.irods.jargon.core.pub.domain.UserFilePermission
 import org.irods.jargon.core.pub.domain.UserGroup
 import org.irods.jargon.core.pub.io.IRODSFile
-import org.irods.jargon.core.query.IRODSGenQueryBuilder
-import org.irods.jargon.core.query.MetaDataAndDomainData
-import org.irods.jargon.core.query.QueryConditionOperators
-import org.irods.jargon.core.query.RodsGenQueryEnum
+import org.irods.jargon.core.query.*
+import org.irods.jargon.core.query.CollectionAndDataObjectListingEntry.ObjectType.COLLECTION
 import org.irods.jargon.core.query.RodsGenQueryEnum.*
 import org.irods.jargon.core.transfer.TransferStatus
 import org.irods.jargon.core.transfer.TransferStatusCallbackListener
@@ -207,30 +205,59 @@ class IRodsFileOperations(
 }
 
 class IRodsMetadataOperations(
-    override val services: AccountServices
+    override val services: AccountServices,
+    private val fileQueryOperations: FileQueryOperations
 ) : MetadataOperations, IRodsOperationService {
     override fun updateMetadata(
         path: StoragePath, newOrUpdatesAttributes: Metadata,
         attributesToDeleteIfExists: Metadata
     ) {
         val absolutePath = path.toIRodsAbsolute()
-        if (newOrUpdatesAttributes.isNotEmpty()) {
-            services.dataObjects.addBulkAVUMetadataToDataObject(
-                absolutePath,
-                newOrUpdatesAttributes.map { it.toIRods() }.toMutableList()
-            )
-        }
+        val stat = fileQueryOperations.stat(path).capture() ?: throw NotFoundException("file", absolutePath)
 
-        if (attributesToDeleteIfExists.isNotEmpty()) {
-            services.dataObjects.deleteBulkAVUMetadataFromDataObject(
-                absolutePath,
-                attributesToDeleteIfExists.map { it.toIRods() }.toMutableList()
-            )
+        when (stat.fileType) {
+        // TODO Code paths slightly different since we haven't removed all Results yet.
+            FileType.FILE -> {
+                if (newOrUpdatesAttributes.isNotEmpty()) {
+                    services.dataObjects.addBulkAVUMetadataToDataObject(
+                        absolutePath,
+                        newOrUpdatesAttributes.map { it.toIRods() }.toMutableList()
+                    ).orThrow()
+                }
+
+                if (attributesToDeleteIfExists.isNotEmpty()) {
+                    services.dataObjects.deleteBulkAVUMetadataFromDataObject(
+                        absolutePath,
+                        attributesToDeleteIfExists.map { it.toIRods() }.toMutableList()
+                    ).orThrow()
+                }
+            }
+
+            FileType.DIRECTORY -> {
+                if (newOrUpdatesAttributes.isNotEmpty()) {
+                    services.collections.addBulkAVUMetadata(
+                        absolutePath,
+                        newOrUpdatesAttributes.map { it.toIRods() }.toMutableList()
+                    )
+                }
+
+                if (attributesToDeleteIfExists.isNotEmpty()) {
+                    services.collections.deleteBulkAVUMetadata(
+                        absolutePath,
+                        attributesToDeleteIfExists.map { it.toIRods() }.toMutableList()
+                    )
+                }
+            }
         }
     }
 
     override fun removeAllMetadata(path: StoragePath) {
-        services.dataObjects.deleteAllAVUForDataObject(path.toIRodsAbsolute())
+        val absolutePath = path.toIRodsAbsolute()
+        val stat = fileQueryOperations.stat(path).capture() ?: throw NotFoundException("file", absolutePath)
+        when (stat.fileType) {
+            FileType.FILE -> services.dataObjects.deleteAllAVUForDataObject(absolutePath).orThrow()
+            FileType.DIRECTORY -> services.collections.deleteAllAVU(absolutePath)
+        }
     }
 }
 
@@ -301,18 +328,128 @@ inline fun <T> doTime(name: String, log: Logger = LoggerFactory.getLogger("Timer
 }
 
 class IRodsFileQueryOperations(
+    val connectedUser: User,
     val paths: PathOperations,
     override val services: AccountServices
 ) : FileQueryOperations, IRodsOperationService {
+    private fun IRODSGenQueryBuilder.select(vararg columns: RodsGenQueryEnum) {
+        columns.forEach { addSelectAsGenQueryValue(it) }
+    }
+
+    private fun IRODSGenQueryBuilder.where(column: RodsGenQueryEnum, op: QueryConditionOperators, value: Long) {
+        addConditionAsGenQueryField(column, op, value)
+    }
+
+    private fun IRODSGenQueryBuilder.where(column: RodsGenQueryEnum, op: QueryConditionOperators, value: Int) {
+        addConditionAsGenQueryField(column, op, value)
+    }
+
+    private fun IRODSGenQueryBuilder.where(column: RodsGenQueryEnum, op: QueryConditionOperators, value: String) {
+        addConditionAsGenQueryField(column, op, value)
+    }
+
+    private inline operator fun <reified T> IRODSQueryResultRow.get(column: RodsGenQueryEnum): T {
+        when (T::class.java) {
+            Date::class.java -> {
+                return this.getColumnAsDateOrNull(column.getName())!! as T
+            }
+
+            Int::class.java, java.lang.Integer::class.java -> {
+                return this.getColumn(column.getName()).toInt() as T
+            }
+
+            Long::class.java, java.lang.Long::class.java -> {
+                return this.getColumn(column.getName()).toLong() as T
+            }
+
+            String::class.java -> {
+                return this.getColumn(column.getName()) as T
+            }
+
+            else -> {
+                throw IllegalArgumentException("Invalid return type: ${T::class.java}")
+            }
+        }
+    }
+
+    private fun irodsQuery(
+        desiredResults: Int = 1024 * 256,
+        body: IRODSGenQueryBuilder.() -> Unit
+    ): IRODSQueryResultSet {
+        return IRODSGenQueryBuilder(true, null).apply(body).exportIRODSQueryFromBuilder(desiredResults).let {
+            services.queryExecutor.executeIRODSQueryWithPaging(it, 0)
+        }
+    }
+
+    private fun mapAccessRight(value: Int) = when (value) {
+        1050 -> AccessRight.READ
+        1200 -> AccessRight.OWN
+        1120 -> AccessRight.READ_WRITE
+        else -> AccessRight.NONE
+    }
+
+    override fun treeAt(path: StoragePath, modifiedAfter: Long?): List<InternalFile> {
+        val directories = irodsQuery {
+            select(
+                COL_COLL_PARENT_NAME,
+                COL_COLL_NAME,
+                COL_COLL_MODIFY_TIME,
+
+                COL_USER_NAME,
+                COL_COLL_ACCESS_USER_ID,
+                COL_COLL_ACCESS_TYPE
+            )
+
+            where(COL_COLL_PARENT_NAME, QueryConditionOperators.LIKE, "${path.toIRodsAbsolute()}%")
+            if (modifiedAfter != null) {
+                where(COL_COLL_MODIFY_TIME, QueryConditionOperators.GREATER_THAN, "0${modifiedAfter / 1000L}")
+            }
+        }.results.mapNotNull { it ->
+            val parent: String = it[COL_COLL_PARENT_NAME]
+            val name: String = it[COL_COLL_NAME]
+            val modifiedAt: Date = it[COL_COLL_MODIFY_TIME]
+            val username: String = it[COL_USER_NAME]
+            val accessType: Int = it[COL_COLL_ACCESS_TYPE]
+
+            if (username != connectedUser.displayName) return@mapNotNull null
+
+            InternalFile(name, parent, true, modifiedAt.time, mapAccessRight(accessType))
+        }.distinctBy { Pair(it.parent, it.fileName) }
+
+        val files = irodsQuery {
+            select(
+                COL_COLL_NAME,
+                COL_DATA_NAME,
+                COL_D_MODIFY_TIME,
+                COL_D_DATA_PATH,
+
+                COL_USER_NAME,
+                COL_DATA_ACCESS_USER_ID,
+                COL_DATA_ACCESS_TYPE
+            )
+
+            where(COL_COLL_NAME, QueryConditionOperators.LIKE, "${path.toIRodsAbsolute()}%")
+            if (modifiedAfter != null) {
+                where(COL_D_MODIFY_TIME, QueryConditionOperators.GREATER_THAN, "0${modifiedAfter / 1000L}")
+            }
+        }.results.mapNotNull { it ->
+            val parent: String = it[COL_COLL_NAME]
+            val name: String = it[COL_DATA_NAME]
+            val modifiedAt: Date = it[COL_D_MODIFY_TIME]
+            val physicalPath: String = it[COL_D_DATA_PATH]
+            val username: String = it[COL_USER_NAME]
+            val accessType: Int = it[COL_DATA_ACCESS_TYPE]
+
+            if (username != connectedUser.displayName) return@mapNotNull null
+
+            InternalFile(name, parent, false, modifiedAt.time, mapAccessRight(accessType), physicalPath)
+        }.distinctBy { Pair(it.parent, it.fileName) }
+
+        return directories + files
+    }
+
     override fun listAt(path: StoragePath): Result<List<StorageFile>> {
         val effectiveAbsolutePath = path.toIRodsAbsolute()
-
-        fun mapAccessRight(value: Int) = when (value) {
-            1050 -> AccessRight.READ
-            1200 -> AccessRight.OWN
-            1120 -> AccessRight.READ_WRITE
-            else -> AccessRight.NONE
-        }
 
         val mappedResults = HashMap<String, StorageFile>()
 
@@ -369,8 +506,9 @@ class IRodsFileQueryOperations(
         }
 
         run {
+            // Retrieve all files
             val query = IRODSGenQueryBuilder(true, null).apply {
-                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_COLL_NAME)
+                addSelectAsGenQueryValue(COL_COLL_NAME)
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_DATA_NAME)
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_D_CREATE_TIME)
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_D_MODIFY_TIME)
@@ -383,7 +521,7 @@ class IRodsFileQueryOperations(
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_USER_ZONE)
 
                 addConditionAsGenQueryField(
-                    RodsGenQueryEnum.COL_COLL_NAME, QueryConditionOperators.EQUAL,
+                    COL_COLL_NAME, QueryConditionOperators.EQUAL,
                     effectiveAbsolutePath
                 )
             }.exportIRODSQueryFromBuilder(1024 * 32)
@@ -425,36 +563,51 @@ class IRodsFileQueryOperations(
             }
         }
 
-        run {
-            val query = IRODSGenQueryBuilder(true, null).apply {
-                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_COLL_NAME)
-                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_DATA_NAME)
+        fun queryMetaAndUpdateRows(type: FileType) {
+            log.debug("queryMetaAndUpdateRows(type = $type)")
+            val isCollectionQuery = type == FileType.DIRECTORY
+            assert(isCollectionQuery || type == FileType.FILE)
 
-                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_META_DATA_ATTR_NAME)
-                addSelectAsGenQueryValue(RodsGenQueryEnum.COL_META_DATA_ATTR_VALUE)
+            val metaNameColl = if (isCollectionQuery) COL_META_COLL_ATTR_NAME else COL_META_DATA_ATTR_NAME
+            val metaValueColl = if (isCollectionQuery) COL_META_COLL_ATTR_VALUE else COL_META_DATA_ATTR_VALUE
+            val results = irodsQuery {
+                val queryColumns =
+                    if (isCollectionQuery) arrayOf(
+                        COL_COLL_NAME
+                    )
+                    else arrayOf(
+                        COL_COLL_NAME,
+                        COL_DATA_NAME
+                    )
 
-                addConditionAsGenQueryField(
-                    RodsGenQueryEnum.COL_COLL_NAME, QueryConditionOperators.EQUAL,
-                    effectiveAbsolutePath
-                )
-            }.exportIRODSQueryFromBuilder(1024 * 32)
-            val result = doTime("data query2") {
-                try {
-                    services.queryExecutor.executeIRODSQueryWithPaging(query, 0)
-                } catch (ex: JargonException) {
-                    return remapExceptionToResult(ex)
+                select(*queryColumns)
+                select(metaNameColl, metaValueColl)
+
+                if (isCollectionQuery) {
+                    where(COL_COLL_PARENT_NAME, QueryConditionOperators.EQUAL, effectiveAbsolutePath)
+                } else {
+                    where(COL_COLL_NAME, QueryConditionOperators.EQUAL, effectiveAbsolutePath)
                 }
-            }
+            }.results
 
-            result.results.forEach {
-                val collectionName = it.getColumn(COL_COLL_NAME.getName())
-                val dataName = it.getColumn(COL_DATA_NAME.getName())
-                val pathToEntry = "$collectionName/$dataName"
+            log.debug("Retrieved ${results.size} results")
+
+            results.forEach {
+                val pathToEntry = if (isCollectionQuery) {
+                    it[COL_COLL_NAME]
+                } else {
+                    val collectionName: String = it[COL_COLL_NAME]
+                    val dataName: String = it[COL_DATA_NAME]
+
+                    "$collectionName/$dataName"
+                }
 
                 var row = mappedResults[pathToEntry] ?: return@forEach
 
-                val name = it.getColumn(COL_META_DATA_ATTR_NAME.getName())
-                val value = it.getColumn(COL_META_DATA_ATTR_VALUE.getName())
+                val name: String = it[metaNameColl]
+                val value: String = it[metaValueColl]
+
+                log.debug("Processing: $name, $value, $pathToEntry")
 
                 when (name) {
                     "sensitivity" -> {
@@ -464,9 +617,10 @@ class IRodsFileQueryOperations(
                             SensitivityLevel.CONFIDENTIAL
                         }
                         row = row.copy(sensitivityLevel = level)
+                        log.debug("New sensitivity: $row")
                     }
 
-                    "favorited" -> {
+                    "favorited_${services.account.userName}" -> {
                         val parsedValue = when (value) {
                             "true" -> true
                             "false" -> false
@@ -475,6 +629,7 @@ class IRodsFileQueryOperations(
 
                         if (parsedValue != null) {
                             row = row.copy(favorited = parsedValue)
+                            log.debug("New favorited: $row")
                         }
                     }
                 }
@@ -482,6 +637,9 @@ class IRodsFileQueryOperations(
                 mappedResults[pathToEntry] = row
             }
         }
+
+        queryMetaAndUpdateRows(FileType.DIRECTORY)
+        queryMetaAndUpdateRows(FileType.FILE)
 
         if (mappedResults.isEmpty()) {
             val exists = exists(path).capture() ?: return Result.lastError()
@@ -515,8 +673,13 @@ class IRodsFileQueryOperations(
             this.modifiedAt.time,
             "${this.ownerName}#${this.ownerZone}",
             this.objSize,
-            this.checksum
+            this.checksum,
+            if (objectType == COLLECTION) FileType.DIRECTORY else FileType.FILE
         )
+
+    companion object {
+        private val log = LoggerFactory.getLogger(IRodsFileQueryOperations::class.java)
+    }
 }
 
 class IRodsUserOperations(override val services: AccountServices) : UserOperations, IRodsOperationService {

@@ -1,7 +1,5 @@
 package dk.sdu.cloud.storage
 
-import dk.sdu.cloud.storage.ext.NotFoundException
-import dk.sdu.cloud.storage.ext.PermissionException
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.model.UserType

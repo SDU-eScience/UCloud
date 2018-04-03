@@ -68,7 +68,8 @@ data class FileStat(
     val modifiedAtUnixMs: Long,
     val ownerName: String,
     val sizeInBytes: Long,
-    val systemDefinedChecksum: String
+    val systemDefinedChecksum: String,
+    val fileType: FileType
 )
 
 enum class ArchiveType {
