@@ -8,11 +8,13 @@ import dk.sdu.cloud.service.KafkaHttpRouteLogger
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.ext.irods.ICAT
 import dk.sdu.cloud.storage.ext.irods.ICATAccessEntry
+import dk.sdu.cloud.storage.ext.irods.ICATConnection
 import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.TusExtensions
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.services.*
+import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -42,13 +44,10 @@ import java.util.*
 class TusController(
     private val config: ICatDatabaseConfig,
     private val store: ObjectStore,
-    private val transferState: TransferStateService,
+    private val tusState: TusStateService,
     private val checksumService: ChecksumService,
     private val icat: ICAT
 ) {
-    private fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): RadosUpload =
-        RadosUpload(objectId, offset, length, readChannel, store)
-
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
             val serverConfiguration = InternalConfig(
@@ -90,7 +89,7 @@ class TusController(
                             if (call.isPrivileged) null
                             else call.request.validatedPrincipal.subject
 
-                        val summary = transferState.retrieveSummary(id, ownerParamForState)
+                        val summary = tusState.retrieveSummary(id, ownerParamForState)
                                 ?: return@handle call.respond(HttpStatusCode.NotFound)
 
                         // Disable cache
@@ -115,7 +114,7 @@ class TusController(
                     handle {
                         logEntry(log, parameterIncludeFilter = { it == "id" })
                         if (call.request.header("X-HTTP-Method-Override").equals("PATCH", ignoreCase = true)) {
-                            upload(transferState)
+                            upload(tusState)
                         } else {
                             call.respond(HttpStatusCode.MethodNotAllowed)
                         }
@@ -129,7 +128,7 @@ class TusController(
 
                     handle {
                         logEntry(log, parameterIncludeFilter = { it == "id" })
-                        upload(transferState)
+                        upload(tusState)
                     }
                 }
             }
@@ -251,7 +250,7 @@ class TusController(
             return principalRole == Role.SERVICE || principalRole == Role.ADMIN
         }
 
-    private suspend fun PipelineContext<Unit, ApplicationCall>.upload(transferStateService: TransferStateService) {
+    private suspend fun PipelineContext<Unit, ApplicationCall>.upload(tusStateService: TusStateService) {
         log.debug("Handling incoming upload request")
         // Check and retrieve transfer state
         val id = call.parameters["id"] ?: return run {
@@ -260,7 +259,7 @@ class TusController(
         }
 
         val ownerParamForState = if (call.isPrivileged) null else call.request.validatedPrincipal.subject
-        val initialState = transferState.retrieveState(id, ownerParamForState) ?: return run {
+        val initialState = tusState.retrieveState(id, ownerParamForState) ?: return run {
             log.debug("Missing upload state for transfer with id: $id")
             call.respond(HttpStatusCode.NotFound)
         }
@@ -338,10 +337,10 @@ class TusController(
         val task = createUpload(id, wrappedChannel, claimedOffset, initialState.length)
         task.onProgress = { chunk ->
             val oneIndexedChunk = chunk + 1
-            val numberOfChunks = Math.ceil(initialState.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+            val numberOfChunks = Math.ceil(initialState.length / BLOCK_SIZE.toDouble()).toLong()
 
             if (oneIndexedChunk == numberOfChunks) {
-                val state = transferStateService.retrieveState(id)!!
+                val state = tusStateService.retrieveState(id)!!
                 val irodsUser = state.user
                 val irodsZone = state.zone
 
@@ -363,7 +362,7 @@ class TusController(
 
                     val (_, entry) = userHasWriteAccess(irodsUser, irodsZone, irodsCollection)
                     if (entry != null) {
-                        val availableName = findAvailableIRodsFileName(entry.objectId, irodsFileName)
+                        val availableName = findAvailableIRodsFileName(this, entry.objectId, irodsFileName)
                         val objectId = registerDataObject(
                             entry.objectId,
                             state.id,
@@ -400,11 +399,11 @@ class TusController(
                     runBlocking { checksumJob.join() }
                     log.info("Checksum and file size attached successfully to file!")
                 }
+            }
 
-                transaction {
-                    UploadProgress.update({ UploadProgress.id eq id }) {
-                        it[numChunksVerified] = oneIndexedChunk
-                    }
+            transaction {
+                UploadProgress.update({ UploadProgress.id eq id }) {
+                    it[numChunksVerified] = oneIndexedChunk
                 }
             }
         }
@@ -469,6 +468,43 @@ class TusController(
     private fun ApplicationResponse.tusFileLocation(savedAs: String?) {
         if (savedAs != null) header("File-Location", savedAs)
     }
+
+    private val duplicateNamingRegex = Regex("""\((\d+)\)""")
+    fun findAvailableIRodsFileName(connection: ICATConnection, collectionId: Long, desiredIRodsName: String): String {
+        val desiredWithoutExtension = desiredIRodsName.substringBefore('.')
+        val extension = '.' + desiredIRodsName.substringAfter('.', missingDelimiterValue = "")
+        val names = connection.findIRodsFileNamesLike(collectionId, desiredIRodsName)
+
+        return if (names.isEmpty()) {
+            desiredIRodsName
+        } else {
+            val namesMappedAsIndices = names.mapNotNull {
+                val nameWithoutExtension = it.substringBefore('.')
+                val nameWithoutPrefix = nameWithoutExtension.substringAfter(desiredWithoutExtension)
+
+                if (nameWithoutPrefix.isEmpty()) {
+                    0 // We have an exact match on the file name
+                } else {
+                    val match = duplicateNamingRegex.matchEntire(nameWithoutPrefix)
+                    if (match == null) {
+                        null // The file name doesn't match at all, i.e., the file doesn't collide with our desired name
+                    } else {
+                        match.groupValues.getOrNull(1)?.toIntOrNull()
+                    }
+                }
+            }
+
+            if (namesMappedAsIndices.isEmpty()) {
+                desiredIRodsName
+            } else {
+                val currentMax = namesMappedAsIndices.max() ?: 0
+                "$desiredWithoutExtension(${currentMax + 1})$extension"
+            }
+        }
+    }
+
+    private fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): UploadService =
+        UploadService(objectId, offset, length, readChannel, store)
 
     companion object {
         private val log = LoggerFactory.getLogger(TusController::class.java)

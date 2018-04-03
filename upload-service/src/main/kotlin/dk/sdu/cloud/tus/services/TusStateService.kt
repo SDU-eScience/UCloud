@@ -2,13 +2,14 @@ package dk.sdu.cloud.tus.services
 
 import dk.sdu.cloud.tus.api.UploadState
 import dk.sdu.cloud.tus.api.UploadSummary
+import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 
-class TransferStateService {
+class TusStateService {
     fun retrieveSummary(
         id: String,
         authenticatedPrincipal: String? = null,
@@ -31,10 +32,10 @@ class TransferStateService {
                     .toList()
             }.singleOrNull()?.let {
                 val sizeInBytes = it[UploadDescriptions.sizeInBytes]
-                val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+                val numChunks = Math.ceil(sizeInBytes / BLOCK_SIZE.toDouble()).toLong()
                 val chunksVerified = it[UploadProgress.numChunksVerified]
                 val savedAs = it[UploadDescriptions.savedAs]
-                val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
+                val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * BLOCK_SIZE
 
                 UploadSummary(it[UploadDescriptions.id], sizeInBytes, offset, savedAs)
             }
@@ -60,9 +61,9 @@ class TransferStateService {
                     .toList()
             }.singleOrNull()?.let {
                 val sizeInBytes = it[UploadDescriptions.sizeInBytes]
-                val numChunks = Math.ceil(sizeInBytes / RadosStorage.BLOCK_SIZE.toDouble()).toLong()
+                val numChunks = Math.ceil(sizeInBytes / BLOCK_SIZE.toDouble()).toLong()
                 val chunksVerified = it[UploadProgress.numChunksVerified]
-                val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * RadosStorage.BLOCK_SIZE
+                val offset = if (numChunks == chunksVerified) sizeInBytes else chunksVerified * BLOCK_SIZE
 
                 UploadState(
                     id = it[UploadDescriptions.id],
@@ -96,7 +97,7 @@ class TransferStateService {
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(TransferStateService::class.java)
+        private val log = LoggerFactory.getLogger(TusStateService::class.java)
     }
 }
 

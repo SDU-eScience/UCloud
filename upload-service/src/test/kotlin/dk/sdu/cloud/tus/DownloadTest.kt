@@ -3,7 +3,7 @@ package dk.sdu.cloud.tus
 import dk.sdu.cloud.tus.services.DownloadService
 import dk.sdu.cloud.tus.services.NotFoundObjectStoreException
 import dk.sdu.cloud.tus.services.ObjectStore
-import dk.sdu.cloud.tus.services.RadosStorage
+import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.experimental.async
@@ -23,21 +23,21 @@ class DownloadTest {
         val files = mapOf(
             "single" to 1,
             "small" to 1000,
-            "exact" to RadosStorage.BLOCK_SIZE,
-            "multiple" to RadosStorage.BLOCK_SIZE * 2,
-            "multiple-with-offset" to RadosStorage.BLOCK_SIZE * 2 + RadosStorage.BLOCK_SIZE / 2,
-            "one-past-offset" to RadosStorage.BLOCK_SIZE + 1,
-            "large" to RadosStorage.BLOCK_SIZE * 20 + 1337
+            "exact" to BLOCK_SIZE,
+            "multiple" to BLOCK_SIZE * 2,
+            "multiple-with-offset" to BLOCK_SIZE * 2 + BLOCK_SIZE / 2,
+            "one-past-offset" to BLOCK_SIZE + 1,
+            "large" to BLOCK_SIZE * 20 + 1337
         )
 
         val objectSizes = files.flatMap { (fileName, fileSize) ->
-            val numBlocks = (fileSize / RadosStorage.BLOCK_SIZE) + 1
+            val numBlocks = (fileSize / BLOCK_SIZE) + 1
 
             (0 until numBlocks).mapNotNull {
                 val name = if (it == 0) fileName else "$fileName-$it"
                 val actualSize = min(
-                    fileSize - RadosStorage.BLOCK_SIZE * it, // Remaining
-                    RadosStorage.BLOCK_SIZE // One block
+                    fileSize - BLOCK_SIZE * it, // Remaining
+                    BLOCK_SIZE // One block
                 )
 
                 if (actualSize > 0) name to actualSize else null

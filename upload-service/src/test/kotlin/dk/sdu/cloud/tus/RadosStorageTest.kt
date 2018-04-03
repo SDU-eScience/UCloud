@@ -2,8 +2,8 @@ package dk.sdu.cloud.tus
 
 import dk.sdu.cloud.tus.services.IReadChannel
 import dk.sdu.cloud.tus.services.ObjectStore
-import dk.sdu.cloud.tus.services.RadosStorage
-import dk.sdu.cloud.tus.services.RadosUpload
+import dk.sdu.cloud.tus.services.UploadService
+import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.experimental.delay
@@ -89,7 +89,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = RadosUpload("small-oid", 0, byteArray.size.toLong(), readChannel, store)
+        val upload = UploadService("small-oid", 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -109,7 +109,7 @@ class RadosStorageTest {
     @Test
     fun testUploadWithMediumFileOnBlockBoundary() {
         val numBlocks = 32
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = ByteArrayReadChannel(byteArray)
         val objectId = "medium-oid"
@@ -121,7 +121,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -140,7 +140,7 @@ class RadosStorageTest {
     @Test
     fun testUploadWithMediumFileNotOnBlockBoundary() {
         val numBlocks = 16
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks + RadosStorage.BLOCK_SIZE / 2) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks + BLOCK_SIZE / 2) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = ByteArrayReadChannel(byteArray)
         val objectId = "medium-oid"
@@ -152,7 +152,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -171,7 +171,7 @@ class RadosStorageTest {
     @Test
     fun testUploadWithLargeFile() {
         val numBlocks = 128 // 512M
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = ByteArrayReadChannel(byteArray)
         val objectId = "medium-oid"
@@ -183,7 +183,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -202,7 +202,7 @@ class RadosStorageTest {
     @Test
     fun testMediumSlowReadFastWrite() {
         val numBlocks = 64
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks + RadosStorage.BLOCK_SIZE / 2) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks + BLOCK_SIZE / 2) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = DelayedByteArrayReadChannel(byteArray, 100)
         val objectId = "medium-oid"
@@ -214,7 +214,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -233,7 +233,7 @@ class RadosStorageTest {
     @Test
     fun testFastReadSlowWrite() {
         val numBlocks = 64
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks + RadosStorage.BLOCK_SIZE / 2) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks + BLOCK_SIZE / 2) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = ByteArrayReadChannel(byteArray)
         val objectId = "medium-oid"
@@ -248,7 +248,7 @@ class RadosStorageTest {
             Unit
         }
 
-        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -268,7 +268,7 @@ class RadosStorageTest {
     @Ignore
     fun testRealisticSlowReadAndWrite() {
         val numBlocks = 64
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks + RadosStorage.BLOCK_SIZE / 2) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks + BLOCK_SIZE / 2) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = DelayedByteArrayReadChannel(byteArray, 1000) // 1MB/s. Likely to be slower
         val objectId = "medium-oid"
@@ -283,7 +283,7 @@ class RadosStorageTest {
             Unit
         }
 
-        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -302,7 +302,7 @@ class RadosStorageTest {
     @Test
     fun testUploadAtNonBlockOffset() {
         val numBlocks = 32
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = ByteArrayReadChannel(byteArray)
         val objectId = "medium-oid"
@@ -315,8 +315,8 @@ class RadosStorageTest {
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
         // we add the offset to make read channel work
-        val offset = RadosStorage.BLOCK_SIZE / 2.toLong()
-        val upload = RadosUpload(
+        val offset = BLOCK_SIZE / 2.toLong()
+        val upload = UploadService(
             objectId, offset, byteArray.size.toLong() + offset,
             readChannel, store
         )
@@ -338,7 +338,7 @@ class RadosStorageTest {
     @Test
     fun testUploadAtBlockBoundary() {
         val numBlocks = 32
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = ByteArrayReadChannel(byteArray)
         val objectId = "medium-oid"
@@ -350,8 +350,8 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = RadosUpload(
-            objectId, RadosStorage.BLOCK_SIZE * 4.toLong(), byteArray.size.toLong(),
+        val upload = UploadService(
+            objectId, BLOCK_SIZE * 4.toLong(), byteArray.size.toLong(),
             readChannel, store
         )
         upload.onProgress = { verified += it }
@@ -373,7 +373,7 @@ class RadosStorageTest {
     @Test
     fun testUploadWithSmallChunkSizeAndNoDelay() {
         val numBlocks = 1
-        val byteArray = ByteArray(RadosStorage.BLOCK_SIZE * numBlocks) { it.toByte() }
+        val byteArray = ByteArray(BLOCK_SIZE * numBlocks) { it.toByte() }
         val checksum = byteArray.sum()
         val readChannel = CappedAndDelayedByteArrayReadChannel(byteArray, chunkSize = 1024, delayPerChunk = 0)
         val objectId = "medium-oid"
@@ -385,7 +385,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = RadosUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 

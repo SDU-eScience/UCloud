@@ -41,12 +41,12 @@ class Server(
         val cephStore = CephStore("client.irods", File("ceph.conf"), "irods")
         val downloadService = DownloadService(cephStore)
         val checksumService = ChecksumService(downloadService, cephStore)
-        val transferState = TransferStateService()
+        val transferState = TusStateService()
         val icat = ICAT(configuration.database)
         val tus = TusController(
             config = configuration.database,
             store = cephStore,
-            transferState = transferState,
+            tusState = transferState,
             icat = icat,
             checksumService = checksumService
         )
@@ -91,7 +91,7 @@ class Server(
                 objectIds.map { oid ->
                     launch {
                         val checksum = checksumService.getChecksum(oid)
-                        val fileSize = checksumService.getFilesize(oid)
+                        val fileSize = checksumService.getFileSize(oid)
                         log.info("$oid: $fileSize $checksum")
                     }
                 }.forEach { it.join() }

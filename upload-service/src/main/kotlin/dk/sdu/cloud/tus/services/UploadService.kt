@@ -15,16 +15,7 @@ interface IReadChannel : Closeable {
     suspend fun read(dst: ByteArray, offset: Int): Int
 }
 
-class RadosStorage(private val store: ObjectStore) {
-    fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): RadosUpload =
-        RadosUpload(objectId, offset, length, readChannel, store)
-
-    companion object {
-        const val BLOCK_SIZE = 1024 * 4096
-    }
-}
-
-class RadosUpload(
+class UploadService(
     private val objectId: String,
     var offset: Long,
     private val length: Long,
@@ -40,7 +31,7 @@ class RadosUpload(
         log.info("Starting upload... objectID: $objectId, offset: $offset, length: $length")
 
         // idx points to the current block index - this is based off our initial offset
-        var idx = (offset / RadosStorage.BLOCK_SIZE).toInt()
+        var idx = (offset / BLOCK_SIZE).toInt()
         log.debug("Start index is: $idx")
 
         // flag to indicate if we have more data
@@ -56,13 +47,13 @@ class RadosUpload(
         // Pre-allocate for performance and to avoid potential leaks
         // We can have at most 32 instances, but we will not allocate more than we actually need.
         val maxInstances = Math.min(
-            Math.ceil(length / RadosStorage.BLOCK_SIZE.toDouble()).toInt(),
+            Math.ceil(length / BLOCK_SIZE.toDouble()).toInt(),
             32 // 128MB
         )
         var currentNumInstances = 1 // Must be 1 initially. Can't be changed without additional changes to code.
         val preAllocatedBlocks = Array<ByteArray?>(maxInstances) { null }
         (0 until currentNumInstances).forEach {
-            preAllocatedBlocks[it] = ByteArray(RadosStorage.BLOCK_SIZE)
+            preAllocatedBlocks[it] = ByteArray(BLOCK_SIZE)
         }
         log.debug("Pre-allocating $maxInstances blocks")
 
@@ -71,8 +62,8 @@ class RadosUpload(
         while (hasMoreData) {
             // Start by calculating object offset and maximum object size.
             // This will usually just be at offset 0 and max size, but the first and last object can be different
-            val objectOffset = offset % RadosStorage.BLOCK_SIZE
-            val maxSize = (RadosStorage.BLOCK_SIZE - objectOffset).toInt()
+            val objectOffset = offset % BLOCK_SIZE
+            val maxSize = (BLOCK_SIZE - objectOffset).toInt()
 
             log.debug("Starting at $objectOffset with size $maxSize")
 
@@ -110,7 +101,7 @@ class RadosUpload(
 
                     // Initialize new blocks
                     (oldNumInstances until currentNumInstances).forEach {
-                        preAllocatedBlocks[it] = ByteArray(RadosStorage.BLOCK_SIZE)
+                        preAllocatedBlocks[it] = ByteArray(BLOCK_SIZE)
                     }
 
                     log.debug("Now using $currentNumInstances instances")
@@ -131,7 +122,7 @@ class RadosUpload(
             // Start reading data into the free buffer
             // We have potential resizing here if we start at non block boundary
             val buffer =
-                if (maxSize == RadosStorage.BLOCK_SIZE) preAllocatedBlocks[freeIndex]!!
+                if (maxSize == BLOCK_SIZE) preAllocatedBlocks[freeIndex]!!
                 else ByteArray(maxSize)
 
             // internalPtr should be used to where in the buffer it should place the data.
@@ -154,7 +145,7 @@ class RadosUpload(
             // this! The allocations made here are not cheap! There is a reason that buffers are being pre-allocated.
             //
             //
-            val resizedBuffer = if (internalPtr == RadosStorage.BLOCK_SIZE) {
+            val resizedBuffer = if (internalPtr == BLOCK_SIZE) {
                 log.debug("Buffer does not need resizing")
                 buffer
             } else {
@@ -224,7 +215,7 @@ class RadosUpload(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(RadosUpload::class.java)
+        private val log = LoggerFactory.getLogger(UploadService::class.java)
+        const val BLOCK_SIZE = 1024 * 4096
     }
 }
-

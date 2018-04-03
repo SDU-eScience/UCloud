@@ -14,6 +14,34 @@ import java.io.InputStream
 import java.net.URL
 import java.util.*
 
+data class UploadSummary(
+    val id: String,
+    val length: Long,
+    val offset: Long,
+    val savedAs: String?
+)
+
+data class UploadState(
+    val id: String,
+
+    val length: Long,
+    val offset: Long,
+
+    val user: String,
+    val zone: String,
+
+    val targetCollection: String,
+    val targetName: String
+)
+
+data class UploadCreationCommand(
+    val fileName: String?,
+    val sensitive: Boolean,
+    val owner: String?,
+    val location: String?,
+    val length: Long
+)
+
 /**
  * Describes the endpoints exposed by TUS. For most use-cases the recommended way to interact with this service is
  * through a TUS-client.

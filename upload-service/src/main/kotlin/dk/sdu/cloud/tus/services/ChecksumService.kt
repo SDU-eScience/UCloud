@@ -1,6 +1,5 @@
 package dk.sdu.cloud.tus.services
 
-import com.ceph.rados.exceptions.RadosNotFoundException
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.io.ByteChannel
 import kotlinx.coroutines.experimental.launch
@@ -66,15 +65,15 @@ class ChecksumService(
             val checksumType = store.getAttribute(oid, CHECKSUM_TYPE_KEY) ?: throw NotFoundObjectStoreException(oid)
 
             return FileChecksum(checksumType, checksum)
-        } catch (ex: RadosNotFoundException) {
+        } catch (ex: NotFoundObjectStoreException) {
             throw NotFoundObjectStoreException(oid)
         }
     }
 
-    suspend fun getFilesize(oid: String): Long {
+    suspend fun getFileSize(oid: String): Long {
         try {
             return store.getAttribute(oid, FILESIZE_KEY)?.toLong() ?: throw NotFoundObjectStoreException(oid)
-        } catch (ex: RadosNotFoundException) {
+        } catch (ex: NotFoundObjectStoreException) {
             throw NotFoundObjectStoreException(oid)
         } catch (ex: NumberFormatException) {
             store.removeAttribute(oid, FILESIZE_KEY)

@@ -53,4 +53,4 @@ fun TusUploader.start(bytesUploadedCallback: ((Long) -> Unit)? = null) {
     log.debug("Exit!")
 }
 
-private val log = LoggerFactory.getLogger("dk.sdu.cloud.tus.api.internal.TusServiceHelpersKt")
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.tus.api.TusServiceHelpersKt")

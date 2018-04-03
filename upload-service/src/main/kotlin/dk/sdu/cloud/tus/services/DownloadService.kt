@@ -1,6 +1,6 @@
 package dk.sdu.cloud.tus.services
 
-import dk.sdu.cloud.tus.services.RadosStorage.Companion.BLOCK_SIZE
+import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
 import io.ktor.cio.use
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import kotlin.math.min
