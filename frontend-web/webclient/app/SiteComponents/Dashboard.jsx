@@ -13,13 +13,15 @@ import { connect } from "react-redux";
 class Dashboard extends React.Component {
     constructor(props) {
         super(props);
-        const { dispatch } = this.props;
-        dispatch(updatePageTitle("Dashboard"));
-        dispatch(setAllLoading(true));
-        dispatch(fetchFavorites());
-        dispatch(fetchRecentFiles());
-        dispatch(fetchRecentAnalyses());
-        //dispatch(fetchRecentActivity());
+        const { dispatch, favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
+        if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
+            dispatch(updatePageTitle("Dashboard"));
+            dispatch(setAllLoading(true));
+            dispatch(fetchFavorites());
+            dispatch(fetchRecentFiles());
+            dispatch(fetchRecentAnalyses());
+            //dispatch(fetchRecentActivity());
+        }
     }
 
 

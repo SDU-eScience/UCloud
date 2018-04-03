@@ -298,4 +298,21 @@ export const getSortingIcon = (lastSorting, name) => {
     return "";
 }
 
+export const createRange = (count) => {
+    let range = [];
+    for (let i = 0; i < count; i++) {
+        range.push(i);
+    }
+    return range;
+}
+
+export const createRangeInclusive = (count) => {
+    let range = [];
+    for (let i = 0; i <= count; i++) {
+        range.push(i);
+    }
+    return range;
+}
+
+
 export const shortUUID = (uuid) => uuid.substring(0, 8).toUpperCase();

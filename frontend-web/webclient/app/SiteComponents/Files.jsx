@@ -71,7 +71,7 @@ class Files extends React.Component {
         }
         dispatch(updateFiles(sortedFiles));
         this.setState(() => ({
-            lastSorting: { name: fileSorting, asc: asc }
+            lastSorting: { name: fileSorting, asc }
         }));
     }
 
@@ -137,7 +137,7 @@ class Files extends React.Component {
                     />
                 </div>
             </section>)
-    } // TODO: Remove dashboard modal from this and move it to root.
+    }
 }
 
 const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles }) => (
@@ -170,7 +170,7 @@ const FileOptions = ({ selectedFiles }) => {
     if (!selectedFiles.length) {
         return null;
     }
-    let rights = getCurrentRights(selectedFiles, Cloud);
+    const rights = getCurrentRights(selectedFiles, Cloud);
     let fileText = "";
     if (selectedFiles.length > 1) {
         fileText = `${selectedFiles.length} files selected.`;
