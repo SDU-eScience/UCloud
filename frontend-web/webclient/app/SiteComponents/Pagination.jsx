@@ -1,11 +1,10 @@
 import React from "react";
-import {Pager} from "react-bootstrap";
+import { Pager } from "react-bootstrap";
+import { createRangeInclusive } from "../UtilityFunctions";
+
 
 export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
-    if (totalPages < 2) {
-        return null;
-    }
-    let pagination = [...Array(totalPages).keys()].map(i =>
+    const pagination = createRangeInclusive(totalPages).map(i =>
         <Pager.Item href="#" onClick={() => toPage(i)} disabled={i === currentPage} key={i}>
             {i + 1}
         </Pager.Item>);
@@ -15,16 +14,15 @@ export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
                 {"<"}
             </Pager.Item>
             {pagination}
-            <Pager.Item disabled={currentPage === totalPages - 1} onClick={() => toPage(currentPage + 1)}>
+            <Pager.Item disabled={currentPage === totalPages} onClick={() => toPage(currentPage + 1)}>
                 {">"}
             </Pager.Item>
         </Pager>);
 };
 
-
-export const EntriesPerPageSelector = ({entriesPerPage, handlePageSizeSelection, totalPages, children}) => (
+export const EntriesPerPageSelector = ({ entriesPerPage, handlePageSizeSelection, totalPages, children }) => (
     <span>
-        <select value={entriesPerPage} onChange={e => handlePageSizeSelection(parseInt(e.target.value))}>
+        <select value={entriesPerPage} onChange={(e) => handlePageSizeSelection(parseInt(e.target.value))}>
             <option value="10">10</option>
             <option value="25">25</option>
             <option value="50">50</option>

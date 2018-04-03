@@ -3,7 +3,7 @@ import { SET_LOADING, RECEIVE_ANALYSES, SET_PAGE_SIZE } from "../Reducers/Analys
 
 export const fetchAnalyses = (analysesPerPage, currentPage) =>
     Cloud.get(`/hpc/jobs/?itemsPerPage=${analysesPerPage}&page=${currentPage}`)
-         .then(({response}) => receiveAnalyses(response))
+        .then(({ response }) => receiveAnalyses(response));
 
 const receiveAnalyses = ({ items, itemsPerPage, pageNumber, pagesInTotal }) => ({
     type: RECEIVE_ANALYSES,

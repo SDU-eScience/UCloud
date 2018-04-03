@@ -71,7 +71,7 @@ class Files extends React.Component {
         }
         dispatch(updateFiles(sortedFiles));
         this.setState(() => ({
-            lastSorting: { name: fileSorting, asc: asc }
+            lastSorting: { name: fileSorting, asc }
         }));
     }
 
@@ -170,7 +170,7 @@ const FileOptions = ({ selectedFiles }) => {
     if (!selectedFiles.length) {
         return null;
     }
-    let rights = getCurrentRights(selectedFiles, Cloud);
+    const rights = getCurrentRights(selectedFiles, Cloud);
     let fileText = "";
     if (selectedFiles.length > 1) {
         fileText = `${selectedFiles.length} files selected.`;
