@@ -3,13 +3,11 @@ import {BallPulseLoading} from '../LoadingIcon/LoadingIcon'
 import {NotificationIcon, WebSocketSupport} from '../../UtilityFunctions'
 import {Table} from 'react-bootstrap';
 import {Cloud} from "../../../authentication/SDUCloudObject";
-import PromiseKeeper from "../../PromiseKeeper";
 
 class Notifications extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            promises: new PromiseKeeper(),
             recent: [],
             remaining: [],
             loading: true,

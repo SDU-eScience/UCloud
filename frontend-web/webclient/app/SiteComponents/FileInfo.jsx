@@ -8,7 +8,6 @@ import { SensitivityLevel, RightsNameMap } from "../DefaultObjects"
 import { ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup } from "react-bootstrap";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
-import PromiseKeeper from "../PromiseKeeper";
 import { connect } from "react-redux";
 import { updatePageTitle } from "../Actions/Status";
 

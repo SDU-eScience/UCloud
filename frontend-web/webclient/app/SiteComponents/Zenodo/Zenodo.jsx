@@ -6,7 +6,6 @@ import { Card } from "../Cards";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
-import PromiseKeeper from "../../PromiseKeeper";
 import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications, setLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";

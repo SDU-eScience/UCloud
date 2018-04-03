@@ -4,7 +4,6 @@ import FileSelector from "../FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
 import { LoadingButton } from "../LoadingIcon/LoadingIcon";
-import PromiseKeeper from "../../PromiseKeeper";
 import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications } from "../../Actions/Zenodo";
 import { connect } from "react-redux";

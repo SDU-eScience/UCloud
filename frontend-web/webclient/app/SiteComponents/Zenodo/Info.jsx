@@ -19,7 +19,7 @@ class ZenodoInfo extends React.Component {
     }
 
     componentWillMount() {
-        this.setState(() => ({loading: true,}));
+        this.setState(() => ({loading: true}));
         this.state.promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`)).promise.then((res) => {
             this.setState(() => ({
                 publication: res.response.publication,

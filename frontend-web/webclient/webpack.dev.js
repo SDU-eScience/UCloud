@@ -6,7 +6,7 @@ var commonConfig = require('./webpack.config.js');
 var path = require('path');
 
 module.exports = webpackMerge(commonConfig, {
-    devtool: '#source-map',
+    devtool: "inline-source-map",
 
     entry: {
         vendor: './app/Vendor.jsx',

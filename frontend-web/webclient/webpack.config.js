@@ -17,11 +17,16 @@ module.exports = {
     resolve: {
         //root: path.join(__dirname, ''),
         modules: ["node_modules"],
-        extensions: ['.js', '.jsx', ".json"]
+        extensions: ['.js', '.jsx', ".json", ".ts", ".tsx"]
     },
 
     module: {
         rules: [
+            {
+                test: /\.tsx?$/,
+                use: "ts-loader",
+                exclude: /node_modules/
+            },
             {
                 test: /jquery\.flot\.resize\.js$/,
                 use: 'imports-loader?this=>window'
@@ -58,14 +63,13 @@ module.exports = {
                     "style-loader",
                     "css-loader",
                     "sass-loader",
-                ]//?outputStyle=expanded']
+                ]
             },
             {
                 test: /\.json/,
                 loader: "json-loader"
             },
         ]
-        // , noParse: [/\.min\.js/]
     },
 
     plugins: [
