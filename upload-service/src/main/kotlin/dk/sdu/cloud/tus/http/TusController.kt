@@ -14,7 +14,7 @@ import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.TusExtensions
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.tus.services.*
-import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
+import dk.sdu.cloud.tus.services.FileUpload.Companion.BLOCK_SIZE
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -471,16 +471,29 @@ class TusController(
 
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
     fun findAvailableIRodsFileName(connection: ICATConnection, collectionId: Long, desiredIRodsName: String): String {
-        val desiredWithoutExtension = desiredIRodsName.substringBefore('.')
-        val extension = '.' + desiredIRodsName.substringAfter('.', missingDelimiterValue = "")
+        fun findFileNameNoExtension(fileName: String): String {
+            return fileName.substringBefore('.')
+        }
+
+        fun findExtension(fileName: String): String {
+            if (!fileName.contains(".")) return ""
+            return '.' + fileName.substringAfter('.', missingDelimiterValue = "")
+        }
+
+        val desiredWithoutExtension = findFileNameNoExtension(desiredIRodsName)
+        val extension = findExtension(desiredIRodsName)
+
         val names = connection.findIRodsFileNamesLike(collectionId, desiredIRodsName)
 
         return if (names.isEmpty()) {
             desiredIRodsName
         } else {
             val namesMappedAsIndices = names.mapNotNull {
-                val nameWithoutExtension = it.substringBefore('.')
+                val nameWithoutExtension = findFileNameNoExtension(it)
                 val nameWithoutPrefix = nameWithoutExtension.substringAfter(desiredWithoutExtension)
+                val myExtension = findExtension(it)
+
+                if (extension != myExtension) return@mapNotNull null
 
                 if (nameWithoutPrefix.isEmpty()) {
                     0 // We have an exact match on the file name
@@ -503,8 +516,8 @@ class TusController(
         }
     }
 
-    private fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): UploadService =
-        UploadService(objectId, offset, length, readChannel, store)
+    private fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): FileUpload =
+        FileUpload(objectId, offset, length, readChannel, store)
 
     companion object {
         private val log = LoggerFactory.getLogger(TusController::class.java)

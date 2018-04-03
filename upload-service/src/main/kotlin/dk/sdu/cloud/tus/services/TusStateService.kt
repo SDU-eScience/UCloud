@@ -2,7 +2,7 @@ package dk.sdu.cloud.tus.services
 
 import dk.sdu.cloud.tus.api.UploadState
 import dk.sdu.cloud.tus.api.UploadSummary
-import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
+import dk.sdu.cloud.tus.services.FileUpload.Companion.BLOCK_SIZE
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select

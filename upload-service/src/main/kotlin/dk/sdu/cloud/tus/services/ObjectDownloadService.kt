@@ -1,11 +1,16 @@
 package dk.sdu.cloud.tus.services
 
-import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
+import dk.sdu.cloud.tus.services.FileUpload.Companion.BLOCK_SIZE
 import io.ktor.cio.use
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import kotlin.math.min
 
-class DownloadService(private val store: ObjectStore) {
+/**
+ * Provides raw download of objects from an object store. This includes assembly of the blocked file.
+ *
+ * _No ACL checks are provided._
+ */
+class ObjectDownloadService(private val store: ObjectStore) {
     suspend fun download(
         oid: String,
         outputChannel: ByteWriteChannel,

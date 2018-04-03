@@ -2,8 +2,8 @@ package dk.sdu.cloud.tus
 
 import dk.sdu.cloud.tus.services.IReadChannel
 import dk.sdu.cloud.tus.services.ObjectStore
-import dk.sdu.cloud.tus.services.UploadService
-import dk.sdu.cloud.tus.services.UploadService.Companion.BLOCK_SIZE
+import dk.sdu.cloud.tus.services.FileUpload
+import dk.sdu.cloud.tus.services.FileUpload.Companion.BLOCK_SIZE
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.experimental.delay
@@ -89,7 +89,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = UploadService("small-oid", 0, byteArray.size.toLong(), readChannel, store)
+        val upload = FileUpload("small-oid", 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -121,7 +121,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = FileUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -152,7 +152,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = FileUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -183,7 +183,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = FileUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -214,7 +214,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = FileUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -248,7 +248,7 @@ class RadosStorageTest {
             Unit
         }
 
-        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = FileUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -283,7 +283,7 @@ class RadosStorageTest {
             Unit
         }
 
-        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = FileUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 
@@ -316,7 +316,7 @@ class RadosStorageTest {
 
         // we add the offset to make read channel work
         val offset = BLOCK_SIZE / 2.toLong()
-        val upload = UploadService(
+        val upload = FileUpload(
             objectId, offset, byteArray.size.toLong() + offset,
             readChannel, store
         )
@@ -350,7 +350,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = UploadService(
+        val upload = FileUpload(
             objectId, BLOCK_SIZE * 4.toLong(), byteArray.size.toLong(),
             readChannel, store
         )
@@ -385,7 +385,7 @@ class RadosStorageTest {
 
         coEvery { store.write(capture(oids), capture(buffers), any()) } returns Unit
 
-        val upload = UploadService(objectId, 0, byteArray.size.toLong(), readChannel, store)
+        val upload = FileUpload(objectId, 0, byteArray.size.toLong(), readChannel, store)
         upload.onProgress = { verified += it }
         runBlocking { upload.upload() }
 

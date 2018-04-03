@@ -39,7 +39,7 @@ class Server(
 
         log.info("Creating core services")
         val cephStore = CephStore("client.irods", File("ceph.conf"), "irods")
-        val downloadService = DownloadService(cephStore)
+        val downloadService = ObjectDownloadService(cephStore)
         val checksumService = ChecksumService(downloadService, cephStore)
         val transferState = TusStateService()
         val icat = ICAT(configuration.database)

@@ -7,7 +7,7 @@ import java.math.BigInteger
 import java.security.MessageDigest
 
 class ChecksumService(
-    private val downloadService: DownloadService,
+    private val downloadService: ObjectDownloadService,
     private val store: ObjectStore
 ) {
     suspend fun computeChecksumAndFileSize(
