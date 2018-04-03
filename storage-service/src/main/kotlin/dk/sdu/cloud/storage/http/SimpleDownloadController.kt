@@ -11,7 +11,6 @@ import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import io.ktor.application.ApplicationCall
-import io.ktor.application.call
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -20,18 +19,9 @@ import io.ktor.http.defaultForFilePath
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.routing.Route
-import io.ktor.routing.get
 import io.ktor.routing.route
-import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
-import kotlinx.coroutines.experimental.io.jvm.javaio.toOutputStream
-import org.kamranzafar.jtar.TarEntry
-import org.kamranzafar.jtar.TarHeader
-import org.kamranzafar.jtar.TarOutputStream
 import org.slf4j.LoggerFactory
-import java.util.*
-import java.util.concurrent.TimeUnit
-import java.util.zip.GZIPOutputStream
 
 class SimpleDownloadController(
     private val cloud: AuthenticatedCloud,

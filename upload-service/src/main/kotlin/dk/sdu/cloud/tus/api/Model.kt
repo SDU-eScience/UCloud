@@ -1,13 +1,13 @@
 package dk.sdu.cloud.tus.api
 
-data class TransferSummary(
+data class UploadSummary(
     val id: String,
     val length: Long,
     val offset: Long,
     val savedAs: String?
 )
 
-data class TransferState(
+data class UploadState(
     val id: String,
 
     val length: Long,
@@ -20,7 +20,7 @@ data class TransferState(
     val targetName: String
 )
 
-data class CreationCommand(
+data class UploadCreationCommand(
     val fileName: String?,
     val sensitive: Boolean,
     val owner: String?,

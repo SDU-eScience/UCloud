@@ -41,11 +41,14 @@ import java.util.*
 
 class TusController(
     private val config: ICatDatabaseConfig,
-    private val rados: RadosStorage,
+    private val store: ObjectStore,
     private val transferState: TransferStateService,
     private val checksumService: ChecksumService,
     private val icat: ICAT
 ) {
+    private fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): RadosUpload =
+        RadosUpload(objectId, offset, length, readChannel, store)
+
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
             val serverConfiguration = InternalConfig(
@@ -332,7 +335,7 @@ class TusController(
             }
         }
 
-        val task = rados.createUpload(id, wrappedChannel, claimedOffset, initialState.length)
+        val task = createUpload(id, wrappedChannel, claimedOffset, initialState.length)
         task.onProgress = { chunk ->
             val oneIndexedChunk = chunk + 1
             val numberOfChunks = Math.ceil(initialState.length / RadosStorage.BLOCK_SIZE.toDouble()).toLong()

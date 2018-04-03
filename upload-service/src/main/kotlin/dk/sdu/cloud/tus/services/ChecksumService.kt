@@ -1,6 +1,5 @@
 package dk.sdu.cloud.tus.services
 
-import com.ceph.rados.IoCTX
 import com.ceph.rados.exceptions.RadosNotFoundException
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.io.ByteChannel
@@ -10,7 +9,7 @@ import java.security.MessageDigest
 
 class ChecksumService(
     private val downloadService: DownloadService,
-    private val ioCtx: IoCTX
+    private val store: ObjectStore
 ) {
     suspend fun computeChecksumAndFileSize(
         oid: String,
@@ -48,33 +47,37 @@ class ChecksumService(
         attachFilesizeToObject(oid, fileSize)
     }
 
-    fun attachChecksumToObject(oid: String, checksum: ByteArray, algorithm: String = DEFAULT_CHECKSUM_ALGORITHM) {
-        ioCtx.setExtendedAttribute(oid, CHECKSUM_KEY, checksum.toHexString())
-        ioCtx.setExtendedAttribute(oid, CHECKSUM_TYPE_KEY, algorithm)
+    suspend fun attachChecksumToObject(
+        oid: String,
+        checksum: ByteArray,
+        algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
+    ) {
+        store.setAttribute(oid, CHECKSUM_KEY, checksum.toHexString())
+        store.setAttribute(oid, CHECKSUM_TYPE_KEY, algorithm)
     }
 
-    fun attachFilesizeToObject(oid: String, fileSize: Long) {
-        ioCtx.setExtendedAttribute(oid, FILESIZE_KEY, fileSize.toString())
+    suspend fun attachFilesizeToObject(oid: String, fileSize: Long) {
+        store.setAttribute(oid, FILESIZE_KEY, fileSize.toString())
     }
 
-    fun getChecksum(oid: String): FileChecksum {
+    suspend fun getChecksum(oid: String): FileChecksum {
         try {
-            val checksum = ioCtx.getExtendedAttribute(oid, CHECKSUM_KEY)
-            val checksumType = ioCtx.getExtendedAttribute(oid, CHECKSUM_TYPE_KEY)
+            val checksum = store.getAttribute(oid, CHECKSUM_KEY) ?: throw NotFoundObjectStoreException(oid)
+            val checksumType = store.getAttribute(oid, CHECKSUM_TYPE_KEY) ?: throw NotFoundObjectStoreException(oid)
 
             return FileChecksum(checksumType, checksum)
         } catch (ex: RadosNotFoundException) {
-            throw ObjectStoreException.NotFound(oid)
+            throw NotFoundObjectStoreException(oid)
         }
     }
 
-    fun getFilesize(oid: String): Long {
+    suspend fun getFilesize(oid: String): Long {
         try {
-            return ioCtx.getExtendedAttribute(oid, FILESIZE_KEY).toLong()
+            return store.getAttribute(oid, FILESIZE_KEY)?.toLong() ?: throw NotFoundObjectStoreException(oid)
         } catch (ex: RadosNotFoundException) {
-            throw ObjectStoreException.NotFound(oid)
+            throw NotFoundObjectStoreException(oid)
         } catch (ex: NumberFormatException) {
-            ioCtx.removeExtendedAttribute(oid, FILESIZE_KEY)
+            store.removeAttribute(oid, FILESIZE_KEY)
             throw ex
         }
     }

@@ -1,9 +1,8 @@
-package dk.sdu.cloud.tus.api.internal
+package dk.sdu.cloud.tus.api
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.tus.api.TusDescriptions
 import io.tus.java.client.TusUploader
 import org.slf4j.LoggerFactory
 import java.io.InputStream

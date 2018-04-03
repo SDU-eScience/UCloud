@@ -30,13 +30,13 @@ object TusHeaders {
      * The value MUST be the version of the protocol used by the Client or the Server.
      *
      * If the the version specified by the Client is not supported by the Server, it MUST respond with the 412
-     * Precondition Failed status and MUST include the Tus-Version header into the response. In addition, the
+     * Precondition Failed status and MUST include the Tus-TUS_VERSION header into the response. In addition, the
      * Server MUST NOT process the request.
      */
     const val Resumable = "Tus-Resumable"
 
     /**
-     * The Tus-Version response header MUST be a comma-separated list of protocol versions supported by the Server.
+     * The Tus-TUS_VERSION response header MUST be a comma-separated list of protocol versions supported by the Server.
      * The list MUST be sorted by Server’s preference where the first one is the most preferred one.
      */
     const val Version = "Tus-Version"
