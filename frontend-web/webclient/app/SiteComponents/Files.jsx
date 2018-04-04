@@ -65,7 +65,7 @@ class Files extends React.Component {
     sortFilesBy(name, type) {
         const { files, dispatch, filesPerPage } = this.props;
         let sortedFiles = [];
-        const asc = (this.state.lastSorting.name === name) ? !this.state.lastSorting.asc : true;
+        const asc  = (this.state.lastSorting.name === name) ? !this.state.lastSorting.asc : true;
         switch (type) {
             case "number": {
                 sortedFiles = sortByNumber(files, name, asc);
@@ -77,7 +77,11 @@ class Files extends React.Component {
             }
             case "typeAndName": {
                 sortedFiles = sortFilesByTypeAndName(files, asc);
+                break;
             }
+            case "sensitivityLevel":
+                sortedFiles = sortFilesBySensitivity(files, asc);
+                break;
             default: {
                 sortedFiles = files;
                 break;
@@ -201,18 +205,20 @@ const FileOptions = ({ selectedFiles }) => {
     if (!selectedFiles.length) {
         return null;
     }
-    const rights = getCurrentRights(selectedFiles, Cloud);
-    let fileText = "";
-    if (selectedFiles.length > 1) {
-        fileText = `${selectedFiles.length} files selected.`;
-    } else {
-        let filename = selectedFiles[0].path.name;
-        if (filename.length > 10) {
-            fileText = filename.slice(0, 17) + "...";
+    const toFileText = (files) => {
+        if (selectedFiles.length > 1) {
+            return `${selectedFiles.length} files selected.`;
         } else {
-            fileText = filename;
+            let filename = selectedFiles[0].path.name;
+            if (filename.length > 10) {
+                return filename.slice(0, 17) + "...";
+            } else {
+                return filename;
+            }
         }
-    }
+    };
+    const fileText = toFileText(selectedFiles);
+    const rights = getCurrentRights(selectedFiles, Cloud);
     const downloadDisabled = (selectedFiles.length > 1 || selectedFiles[0].sensitivityLevel === "SENSITIVE");
     return (
         <div>
@@ -307,10 +313,10 @@ export const FilesTable = (props) => {
                             </th>
 
                             {hasFavoriteButton ? (
-                                <th onClick={() => sortingFunction("favorite", "number")}>
+                                <th onClick={() => sortingFunction("favorited", "number")}>
                                     <span>
                                         <em className="ion-star" />
-                                        <span className={"pull-right " + sortingIconFunction("favorite")} />
+                                        <span className={"pull-right " + sortingIconFunction("favorited")} />
                                     </span>
                                 </th>
                             ) : null}
@@ -322,17 +328,17 @@ export const FilesTable = (props) => {
                                 </span>
                             </th>
 
-                            <th onClick={() => sortingFunction("owner", "string")}>
+                            <th onClick={() => null /*sortingFunction("owner", "string")*/}>
                                 <span className="text-left">
                                     File Rights
                                 <span className={"pull-right " + sortingIconFunction("owner")} />
                                 </span>
                             </th>
 
-                            <th onClick={() => sortingFunction("sensitivityLevel", "string")}>
+                            <th onClick={() => sortingFunction("sensitivityLevel", "sensitivityLevel")}>
                                 <span className="text-left">
                                     Sensitivity Level
-                                <span className={"pull-right " + sortingIconFunction("sensitivity")} />
+                                <span className={"pull-right " + sortingIconFunction("sensitivityLevel")} />
                                 </span>
                             </th>
                         </tr>

@@ -30,12 +30,12 @@ export const WebSocketSupport = () =>
 
 
 export function sortByNumber<T>(list: T[], name: string, asc: boolean): T[] {
-    list.sort((a: any, b: any) => ((a[name] as number) - (b[name] as number)) * (asc ? 1 : 0));
+    list.sort((a: any, b: any) => (Number(a[name]) - (Number(b[name]))) * (asc ? -1 : 1));
     return list;
 }
 
 export function sortByString<T>(list: T[], name: string, asc: boolean): T[] {
-    list.sort((a: any, b: any) => ((a[name] as string).localeCompare(b[name] as string)) * (asc ? 1 : 0));
+    list.sort((a: any, b: any) => ((a[name] as string).localeCompare(b[name] as string)) * (asc ? 1 : -1));
     return list;
 }
 

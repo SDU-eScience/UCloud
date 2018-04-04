@@ -37,6 +37,6 @@ const Header = ({ title }) => (
     </header>
 );
 
-const mapStateToProps = (state) => ({ title: state.status.title })
+const mapStateToProps = (state) => ({ title } = state.status);
 
 export default connect(mapStateToProps)(Header);
