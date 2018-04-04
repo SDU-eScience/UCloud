@@ -61,12 +61,12 @@ class Applications extends React.Component {
     render() {
         const { applications, loading, applicationsPerPage, currentApplicationsPage, dispatch } = this.props;
         const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
-        const totalPages = Math.ceil(applications.length / applicationsPerPage);
+        const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage) - 1, 0);
         return (
             <section>
                 <div className="container" style={{ "marginTop": "60px" }}>
                     <div>
-                        <BallPulseLoading loading={!applications.length} />
+                        <BallPulseLoading loading={loading} />
                         <Card>
                             <div className="card-body">
                                 <Table responsive className="table table-hover mv-lg">
@@ -89,6 +89,7 @@ class Applications extends React.Component {
                             </div>
                         </Card>
                         <PaginationButtons
+                            loading={loading}
                             toPage={(page) => dispatch(toPage(page))}
                             currentPage={currentApplicationsPage}
                             totalPages={totalPages}
@@ -134,9 +135,9 @@ const PrivateIcon = ({ isPrivate }) =>
         <td title="The app is private and can only be seen by the creator and people it was shared with">
             <em className="ion-locked" />
         </td>
-        ) : (
-            <td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>
-        );
+    ) : (
+        <td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>
+    );
 
 const mapStateToProps = (state) => {
     return { applications, loading, applicationsPerPage, currentApplicationsPage } = state.applications;
