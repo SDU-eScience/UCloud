@@ -1,6 +1,7 @@
-import React from "react";
+import * as React from "react";
 
-export default SectionContainerCard = ({children}) => (
+interface SCCProps { children: React.ReactChildren }
+const SectionContainerCard = ({children}:SCCProps) => (
     <section>
         <div className="container-fluid">
             <div className="card">
@@ -11,3 +12,5 @@ export default SectionContainerCard = ({children}) => (
         </div>
     </section>
 );
+
+export default SectionContainerCard;
