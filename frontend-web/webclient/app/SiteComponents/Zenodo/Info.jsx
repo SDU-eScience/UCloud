@@ -5,6 +5,7 @@ import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
 import { updatePageTitle } from "../../Actions/Status";
+import { connect } from "react-redux";
 
 class ZenodoInfo extends React.Component {
     constructor(props) {
@@ -15,7 +16,7 @@ class ZenodoInfo extends React.Component {
             publicationID: window.decodeURIComponent(props.match.params.jobID),
             publication: null,
         };
-        //this.props.dispatch(updatePageTitle("Zenodo Publication Info"));
+        this.props.dispatch(updatePageTitle("Zenodo Publication Info"));
     }
 
     componentWillMount() {
@@ -104,4 +105,4 @@ const getStatusBarColor = (status) => {
     }
 };
 
-export default ZenodoInfo;
+export default connect()(ZenodoInfo);
