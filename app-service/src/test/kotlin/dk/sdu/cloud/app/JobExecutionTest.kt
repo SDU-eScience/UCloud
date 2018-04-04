@@ -7,6 +7,8 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.*
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.OneTimeAccessToken
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTResponse
@@ -584,11 +586,7 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val writerSlot = slot<OutputStream>()
         val fileName = "file.txt"
-        every { files.get(match { it.name == fileName }, capture(writerSlot)) } answers {
-            writerSlot.captured.write(fileName.toByteArray())
-        }
 
         val inlineSBatchJob = "job"
         val workingDirectory = "/scratch/sduescience/p/files"
@@ -611,11 +609,8 @@ class JobExecutionTest {
             inlineSBatchJob
         )
 
-        val (fileNameSlot, fileContents) = withMockedAuthentication {
-            withMockScopes(sftpScope()) {
-                every { sshConnection.mkdir(any(), any()) } returns 0
-                withMockedSCPUpload { service.handleAppEvent(event) }
-            }
+        val (fileNameSlot, fileContents) = withJobPrepMock {
+            service.handleAppEvent(event)
         }
 
         assertTrue(emitSlot.isNotEmpty())
@@ -648,10 +643,7 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val writerSlot = slot<OutputStream>()
         val fileName = "file.txt"
-        every { files.get(match { it.name == fileName }, capture(writerSlot)) } throws StorageException("Bad failure")
-
         val inlineSBatchJob = "job"
         val workingDirectory = "/scratch/sduescience/p/files"
         val event = AppEvent.Validated(
@@ -673,16 +665,49 @@ class JobExecutionTest {
             inlineSBatchJob
         )
 
-        withMockedAuthentication {
-            withMockScopes(sftpScope()) {
-                every { sshConnection.mkdir(any(), any()) } returns 0
-                withMockedSCPUpload { service.handleAppEvent(event) }
-            }
+        withJobPrepMock(downloadFailure = true) {
+            service.handleAppEvent(event)
         }
 
         assertTrue(emitSlot.isNotEmpty())
         val outputEvent = emitSlot.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
+    }
+
+    fun withJobPrepMock(
+        sshFailure: Boolean = false,
+        scpFailure: Boolean = false,
+        downloadFailure: Boolean = false,
+        body: () -> Unit
+    ): Pair<List<String>, List<ByteArray>>  {
+        return withMockedAuthentication {
+            withMockScopes(objectMockk(AuthDescriptions), sftpScope(), objectMockk(FileDescriptions)) {
+                every { sshConnection.mkdir(any(), any()) } returns 0
+
+                coEvery {
+                    FileDescriptions.download.call(any(), any())
+                } answers {
+                    if (downloadFailure) RESTResponse.Err(mockk(relaxed = true))
+                    else {
+                        val command = call.invocation.args.find { it is DownloadByURI } as DownloadByURI
+                        val response: Response = mockk(relaxed = true)
+                        every { response.responseBodyAsStream } answers {
+                            ByteArrayInputStream(command.path.substringAfterLast('/').toByteArray())
+                        }
+
+                        RESTResponse.Ok(response, Unit)
+                    }
+                }
+
+                coEvery {
+                    AuthDescriptions.requestOneTimeTokenWithAudience.call(any(), any())
+                } returns RESTResponse.Ok(mockk(), OneTimeAccessToken(dummyToken.token, ""))
+
+                return@withMockScopes withMockedSCPUpload(sshFailure = sshFailure, commandFailure = scpFailure) {
+                    body()
+                }
+            }
+        }
     }
 
     @Test
@@ -721,11 +746,8 @@ class JobExecutionTest {
             inlineSBatchJob
         )
 
-        withMockedAuthentication {
-            withMockScopes(sftpScope()) {
-                every { sshConnection.mkdir(any(), any()) } returns 0
-                withMockedSCPUpload(commandFailure = true) { service.handleAppEvent(event) }
-            }
+        withJobPrepMock(scpFailure = true) {
+            service.handleAppEvent(event)
         }
 
         assertTrue(emitSlot.isNotEmpty())
@@ -768,11 +790,8 @@ class JobExecutionTest {
             inlineSBatchJob
         )
 
-        withMockedAuthentication {
-            withMockScopes(sftpScope()) {
-                every { sshConnection.mkdir(any(), any()) } returns 0
-                withMockedSCPUpload(sshFailure = true) { service.handleAppEvent(event) }
-            }
+        withJobPrepMock(sshFailure = true) {
+            service.handleAppEvent(event)
         }
 
         assertTrue(emitSlot.isNotEmpty())
@@ -784,6 +803,8 @@ class JobExecutionTest {
         objectMockk(TokenValidation).use {
             every { TokenValidation.validate(dummyToken.token) } returns dummyToken
             every { TokenValidation.validateOrNull(dummyToken.token) } returns dummyToken
+            every { TokenValidation.validate(dummyToken.token, any()) } returns dummyToken
+            every { TokenValidation.validateOrNull(dummyToken.token, any()) } returns dummyToken
             return body()
         }
     }
@@ -792,8 +813,7 @@ class JobExecutionTest {
         commandFailure: Boolean = false,
         sshFailure: Boolean = false,
         body: () -> Unit
-    ):
-            Pair<List<String>, List<ByteArray>> {
+    ): Pair<List<String>, List<ByteArray>> {
         val names = ArrayList<String>()
         val writers = ArrayList<ByteArray>()
 

@@ -5,18 +5,18 @@ import com.jcraft.jsch.JSchException
 import dk.sdu.cloud.app.StorageConfiguration
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ssh.*
+import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.auth.api.RequestOneTimeToken
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.CloudContext
+import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.service.MappedEventProducer
-import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.service.withCausedBy
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.ext.StorageException
 import dk.sdu.cloud.storage.model.FileStat
 import dk.sdu.cloud.storage.model.StoragePath
 import io.ktor.http.HttpStatusCode
@@ -133,47 +133,49 @@ class JobExecutionService(
 
     fun handleAppEvent(event: AppEvent) {
         try {
-            val cloud = __cloudDoNotUseDirectly.withCausedBy(event.systemId)
-            val tokenRefresher = __cloudDoNotUseDirectly.tokenRefresher
+            runBlocking {
+                val cloud = __cloudDoNotUseDirectly.withCausedBy(event.systemId)
+                val tokenRefresher = __cloudDoNotUseDirectly.tokenRefresher
 
-            // First we update DB state depending on the event
-            // TODO Test updateJobBySystemId
-            val nextState: AppState? = when (event) {
-                is AppEvent.Validated -> AppState.VALIDATED
-                is AppEvent.ScheduledAtSlurm -> AppState.SCHEDULED
-                is AppEvent.Completed -> if (event.successful) AppState.SUCCESS else AppState.FAILURE
-                else -> null
-            }
-
-            val message: String? = when (event) {
-                is AppEvent.Completed -> event.message
-                else -> null
-            }
-
-            if (nextState != null) dao.transaction { updateJobBySystemId(event.systemId, nextState, message) }
-
-            // Then we handle the event (and potentially emit new events)
-            val eventToEmit: AppEvent? = when (event) {
-                is AppEvent.Validated -> prepareJob(event)
-
-                is AppEvent.Prepared -> scheduleJob(event)
-
-                is AppEvent.ScheduledAtSlurm -> handleScheduledEvent(event)
-
-                is AppEvent.CompletedInSlurm ->
-                    if (event.success) shipResults(event, cloud, tokenRefresher)
-                    else goToCleanupState(event, "Failure in Slurm or non-zero exit code")
-
-                is AppEvent.ExecutionCompleted -> cleanUp(event)
-
-                is AppEvent.Completed -> {
-                    // Do nothing
-                    null
+                // First we update DB state depending on the event
+                // TODO Test updateJobBySystemId
+                val nextState: AppState? = when (event) {
+                    is AppEvent.Validated -> AppState.VALIDATED
+                    is AppEvent.ScheduledAtSlurm -> AppState.SCHEDULED
+                    is AppEvent.Completed -> if (event.successful) AppState.SUCCESS else AppState.FAILURE
+                    else -> null
                 }
-            }
 
-            if (eventToEmit != null) {
-                runBlocking { producer.emit(eventToEmit) }
+                val message: String? = when (event) {
+                    is AppEvent.Completed -> event.message
+                    else -> null
+                }
+
+                if (nextState != null) dao.transaction { updateJobBySystemId(event.systemId, nextState, message) }
+
+                // Then we handle the event (and potentially emit new events)
+                val eventToEmit: AppEvent? = when (event) {
+                    is AppEvent.Validated -> prepareJob(event, cloud.parent)
+
+                    is AppEvent.Prepared -> scheduleJob(event)
+
+                    is AppEvent.ScheduledAtSlurm -> handleScheduledEvent(event)
+
+                    is AppEvent.CompletedInSlurm ->
+                        if (event.success) shipResults(event, cloud, tokenRefresher)
+                        else goToCleanupState(event, "Failure in Slurm or non-zero exit code")
+
+                    is AppEvent.ExecutionCompleted -> cleanUp(event)
+
+                    is AppEvent.Completed -> {
+                        // Do nothing
+                        null
+                    }
+                }
+
+                if (eventToEmit != null) {
+                    producer.emit(eventToEmit)
+                }
             }
         } catch (ex: Exception) {
             when (ex) {
@@ -324,49 +326,60 @@ class JobExecutionService(
      *
      * It is the responsibility of the caller to ensure that cleanup is performed in the event of a failure.
      */
-    private fun prepareJob(event: AppEvent.Validated): AppEvent.Prepared {
+    private suspend fun prepareJob(event: AppEvent.Validated, cloud: CloudContext): AppEvent.Prepared {
         log.debug("prepareJob(event = $event)")
         val principal = TokenValidation.validateOrNull(event.jwt) ?: throw JobNotAllowedException()
+        val userCloud = JWTAuthenticatedCloud(cloud, event.jwt).withCausedBy(event.systemId)
         sshConnectionPool.use {
-            useIRods(principal) { storage ->
-                mkdir(event.workingDirectory, true)
-                    .takeIf { it != 0 }
-                    ?.let {
-                        throw JobInternalException("Could not create ${event.workingDirectory}. Returned state: $it")
-                    }
-
-                event.files.forEach { upload ->
-                    log.debug("Uploading file: $upload")
-
-                    val uploadStatus = try {
-                        scpUpload(
-                            upload.stat.sizeInBytes,
-                            upload.destinationFileName,
-                            upload.destinationPath,
-                            "0600"
-                        ) {
-                            // TODO Replace with download endpoint
-                            try {
-                                storage.files.get(upload.sourcePath, it)
-                            } catch (ex: StorageException) {
-                                throw ex
-                            }
-                        }
-                    } catch (ex: StorageException) {
-                        // TODO Don't treat all errors like this
-                        log.warn("Caught error during upload:")
-                        log.warn(ex.stackTraceToString())
-                        throw JobInternalException("Internal error")
-                    }
-
-                    if (uploadStatus != 0) {
-                        log.warn("Caught error during upload:")
-                        log.warn("SCP Upload returned $uploadStatus")
-                        throw JobInternalException("Internal error")
-                    }
-
-                    log.debug("$upload successfully completed")
+            mkdir(event.workingDirectory, true)
+                .takeIf { it != 0 }
+                ?.let {
+                    throw JobInternalException("Could not create ${event.workingDirectory}. Returned state: $it")
                 }
+
+            event.files.forEach { upload ->
+                log.debug("Uploading file: $upload")
+
+                val token =
+                    (AuthDescriptions.requestOneTimeTokenWithAudience.call(
+                        RequestOneTimeToken("$DOWNLOAD_FILE_SCOPE,irods"), userCloud
+                    ) as? RESTResponse.Ok)?.result?.accessToken ?: run {
+                        log.warn("Unable to request a new one time token for download!")
+                        throw JobInternalException("Unable to upload output files to SDU Cloud")
+                    }
+
+                val fileDownload = (FileDescriptions.download.call(
+                    DownloadByURI(upload.sourcePath.path, token),
+                    userCloud
+                ) as? RESTResponse.Ok)?.response?.responseBodyAsStream ?: run {
+                    log.warn("Unable to download file: ${upload.sourcePath.path}")
+                    throw JobInternalException("Unable to upload output files to SDU Cloud")
+                }
+
+                val uploadStatus = try {
+                    scpUpload(
+                        upload.stat.sizeInBytes,
+                        upload.destinationFileName,
+                        upload.destinationPath,
+                        "0600"
+                    ) {
+                        // Internal transfer, so we use a large buffer to avoid iRODS overhead
+                        fileDownload.transferTo(it, 1024 * 4096)
+                    }
+                } catch (ex: Exception) {
+                    // TODO Don't treat all errors like this
+                    log.warn("Caught error during upload:")
+                    log.warn(ex.stackTraceToString())
+                    throw JobInternalException("Internal error")
+                }
+
+                if (uploadStatus != 0) {
+                    log.warn("Caught error during upload:")
+                    log.warn("SCP Upload returned $uploadStatus")
+                    throw JobInternalException("Internal error")
+                }
+
+                log.debug("$upload successfully completed")
             }
 
             log.debug("Uploading SBatch job")
