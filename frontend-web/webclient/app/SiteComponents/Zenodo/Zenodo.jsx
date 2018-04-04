@@ -7,7 +7,7 @@ import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
 import { updatePageTitle } from "../../Actions/Status";
-import { fetchPublications, setLoading } from "../../Actions/Zenodo";
+import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
 
 
@@ -22,7 +22,7 @@ class ZenodoHome extends React.Component {
         };
         const { dispatch } = props;
         dispatch(updatePageTitle("Zenodo Overview"));
-        dispatch(setLoading(true));
+        dispatch(setZenodoLoading(true));
         dispatch(fetchPublications());
     }
 
