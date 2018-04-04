@@ -51,12 +51,19 @@ class FilesController(
                     try {
                         ok(connection.fileQuery.listAt(path))
                     } catch (ex: StorageException) {
-                        val code = when (ex) {
-                            is StorageException.NotFound -> HttpStatusCode.NotFound
-                            is IllegalArgumentException -> HttpStatusCode.BadRequest
-                            else -> HttpStatusCode.InternalServerError
+                        when (ex) {
+                            is StorageException.NotFound -> {
+                                error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
+                            }
+
+                            is IllegalArgumentException -> {
+                                error(CommonErrorMessage(ex.message ?: "Unknown"), HttpStatusCode.BadRequest)
+                            }
+
+                            else -> {
+                                error(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
+                            }
                         }
-                        error(CommonErrorMessage(ex.message ?: "Unknown"), code)
                     }
                 }
             }
@@ -166,12 +173,9 @@ class FilesController(
                             return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
                         }
 
-                        // TODO Happy path in exception handler
-                        try {
-                            it.fileQuery.stat(path)
-
+                        if (it.fileQuery.exists(path)) {
                             error(CommonErrorMessage("File already exists!"), HttpStatusCode.Conflict)
-                        } catch (ex: StorageException) {
+                        } else {
                             try {
                                 it.files.createDirectory(path, false)
                                 ok(Unit)

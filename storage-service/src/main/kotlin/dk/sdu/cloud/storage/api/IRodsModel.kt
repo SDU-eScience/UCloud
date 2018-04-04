@@ -50,10 +50,11 @@ data class StorageFile(
     val path: StoragePath,
     val createdAt: Long,
     val modifiedAt: Long,
-    val size: Int,
-    val acl: List<AccessEntry>,
-    val favorited: Boolean,
-    val sensitivityLevel: SensitivityLevel
+    val ownerName: String,
+    val size: Long,
+    val acl: List<AccessEntry>? = null,
+    val favorited: Boolean? = null,
+    val sensitivityLevel: SensitivityLevel? = null
 )
 
 enum class SensitivityLevel {
@@ -62,12 +63,3 @@ enum class SensitivityLevel {
     SENSITIVE
 }
 
-data class FileStat(
-    val path: StoragePath,
-    val createdAtUnixMs: Long,
-    val modifiedAtUnixMs: Long,
-    val ownerName: String,
-    val sizeInBytes: Long,
-    val systemDefinedChecksum: String,
-    val fileType: FileType
-)

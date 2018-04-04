@@ -196,7 +196,7 @@ class IRodsMetadataOperations(
         val absolutePath = path.toIRodsAbsolute()
         val stat = fileQueryOperations.stat(path)
 
-        when (stat.fileType) {
+        when (stat.type) {
             FileType.FILE -> {
                 if (newOrUpdatesAttributes.isNotEmpty()) {
                     services.dataObjects.addBulkAVUMetadataToDataObject(
@@ -234,7 +234,7 @@ class IRodsMetadataOperations(
     override fun removeAllMetadata(path: StoragePath) {
         val absolutePath = path.toIRodsAbsolute()
         val stat = fileQueryOperations.stat(path)
-        when (stat.fileType) {
+        when (stat.type) {
             FileType.FILE -> services.dataObjects.deleteAllAVUForDataObject(absolutePath)
             FileType.DIRECTORY -> services.collections.deleteAllAVUMetadata(absolutePath)
         }
@@ -432,6 +432,8 @@ class IRodsFileQueryOperations(
                 addSelectAsGenQueryValue(COL_COLL_MODIFY_TIME)
                 addSelectAsGenQueryValue(COL_COLL_ID)
 
+                addSelectAsGenQueryValue(COL_COLL_OWNER_NAME)
+
                 addSelectAsGenQueryValue(COL_COLL_ACCESS_TYPE)
                 addSelectAsGenQueryValue(COL_COLL_ACCESS_USER_NAME)
                 addSelectAsGenQueryValue(COL_COLL_ACCESS_USER_ZONE)
@@ -450,6 +452,7 @@ class IRodsFileQueryOperations(
                     paths.parseAbsolute(pathToEntry),
                     it.getColumnAsDateOrNull(COL_COLL_CREATE_TIME.getName())?.time ?: 0,
                     it.getColumnAsDateOrNull(COL_COLL_MODIFY_TIME.getName())?.time ?: 0,
+                    it[COL_COLL_OWNER_NAME],
                     0,
                     arrayListOf(),
                     false,
@@ -484,6 +487,7 @@ class IRodsFileQueryOperations(
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_DATA_ACCESS_TYPE)
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_USER_TYPE)
                 addSelectAsGenQueryValue(RodsGenQueryEnum.COL_USER_ZONE)
+                addSelectAsGenQueryValue(COL_D_OWNER_NAME)
 
                 addConditionAsGenQueryField(
                     COL_COLL_NAME, QueryConditionOperators.EQUAL,
@@ -504,7 +508,8 @@ class IRodsFileQueryOperations(
                     paths.parseAbsolute(pathToEntry),
                     it.getColumnAsDateOrNull(COL_D_CREATE_TIME.getName())?.time ?: 0,
                     it.getColumnAsDateOrNull(COL_D_MODIFY_TIME.getName())?.time ?: 0,
-                    it.getColumnAsIntOrZero(COL_DATA_SIZE.getName()),
+                    it[COL_D_OWNER_NAME],
+                    it.getColumnAsLongOrZero(COL_DATA_SIZE.getName()),
                     arrayListOf(),
                     false,
                     SensitivityLevel.CONFIDENTIAL
@@ -603,13 +608,13 @@ class IRodsFileQueryOperations(
         queryMetaAndUpdateRows(FileType.FILE)
 
         if (mappedResults.isEmpty()) {
-            val exists = exists(path)
-            return if (!exists) throw StorageException.NotFound("file", path.path) else emptyList()
+            // TODO This will not fill ACL, sensitivity and favorite fields
+            return listOf(stat(path))
         }
         return mappedResults.values.toList()
     }
 
-    override fun statBulk(vararg paths: StoragePath): List<FileStat?> {
+    override fun statBulk(vararg paths: StoragePath): List<StorageFile?> {
         return paths.map { path ->
             try {
                 services.fileSystem.getObjStat(path.toIRodsAbsolute()).toStorage()
@@ -621,15 +626,14 @@ class IRodsFileQueryOperations(
         }
     }
 
-    private fun ObjStat.toStorage(): FileStat =
-        FileStat(
+    private fun ObjStat.toStorage(): StorageFile =
+        StorageFile(
+            if (objectType == COLLECTION) FileType.DIRECTORY else FileType.FILE,
             paths.parseAbsolute(this.absolutePath),
             this.createdAt.time,
             this.modifiedAt.time,
             "${this.ownerName}#${this.ownerZone}",
-            this.objSize,
-            this.checksum,
-            if (objectType == COLLECTION) FileType.DIRECTORY else FileType.FILE
+            this.objSize
         )
 
     companion object {

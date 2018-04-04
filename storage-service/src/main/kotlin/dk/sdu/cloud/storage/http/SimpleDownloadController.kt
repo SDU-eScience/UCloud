@@ -65,7 +65,7 @@ class SimpleDownloadController(
                     val contentType = ContentType.defaultForFilePath(stat.path.path)
                     call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${stat.path.name}\"")
 
-                    call.respondDirectWrite(stat.sizeInBytes, contentType, HttpStatusCode.OK) {
+                    call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
                         // The Jargon API will close the stream if it is transferred between threads.
                         // So we have to read from it in a blocking way. This is why we have to push it into
                         // respondDirectWrite and not do the opening before that
