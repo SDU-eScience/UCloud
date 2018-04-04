@@ -29,7 +29,7 @@ const Header = ({ title }) => (
                         <sup className="badge bg-danger"/>
                     </Dropdown.Toggle>
                     <Dropdown.Menu className="md-dropdown-menu">
-                        <MenuItem onClick={() => {Cloud.logout()}}><em className="ion-log-out icon-fw"/>Logout</MenuItem>
+                        <MenuItem onClick={() => Cloud.logout()}><em className="ion-log-out icon-fw"/>Logout</MenuItem>
                     </Dropdown.Menu>
                 </Dropdown>
             </ul>

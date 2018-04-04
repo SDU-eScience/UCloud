@@ -43,15 +43,15 @@ class ZenodoPublish extends React.Component {
         const files = this.state.files;
         files.splice(index, 1);
         this.setState(() => ({
-            files,
+            files
         }));
     }
 
-    handleFileSelection(file, index) {
+    handleFileSelection(path, index) {
         const files = this.state.files.slice();
-        files[index] = file.path.path;
+        files[index] = path;
         this.setState(() => ({
-            files,
+            files
         }));
     }
 
@@ -123,14 +123,14 @@ const CardAndBody = ({ children }) => (
 const FileSelections = ({ files, handleFileSelection, removeFile }) => (
     <fieldset>
         {files.map((file, index) =>
-            <ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group">
+            (<ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group">
                 <FileSelector
                     path={file}
                     uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
                     allowUpload={false}
                     remove={files.length > 1 ? () => removeFile(index) : false}
                 />
-            </ListGroupItem>)}
+            </ListGroupItem>))}
     </fieldset>
 );
 

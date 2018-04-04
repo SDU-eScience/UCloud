@@ -87,7 +87,7 @@ class FileSelector extends React.Component {
     }
 
     setSelectedFile(file) {
-        let fileCopy = { path: file.path.slice() };
+        let fileCopy = file.path.path;
         this.setState(() => ({
             modalShown: false,
         }));
@@ -114,6 +114,7 @@ class FileSelector extends React.Component {
             uppy.once("upload-success", this.uppyOnUploadSuccess);
         };
 
+        const path = this.props.path ? this.props.path : "";
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={this.props.remove} />) : null;
         return (
@@ -127,7 +128,7 @@ class FileSelector extends React.Component {
                     </span>
                     <input className="form-control readonly" required={this.props.isRequired} type="text"
                         placeholder={"No file selected"}
-                        value={this.props.path} />
+                        value={path} />
                     {uploadButton}
                     {removeButton}
                 </div>
