@@ -1,5 +1,5 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { RECEIVE_PUBLICATIONS, SET_LOADING } from "../Reducers/Zenodo";
+import { RECEIVE_PUBLICATIONS, SET_ZENODO_LOADING } from "../Reducers/Zenodo";
 
 export const fetchPublications = () =>
     Cloud.get("/zenodo/publications").then(({ response }) => {
@@ -14,7 +14,7 @@ const receivePublications = (publications, connected) => ({
     connected
 })
 
-export const setLoading = (loading) => ({
-    type: SET_LOADING,
+export const setZenodoLoading = (loading) => ({
+    type: SET_ZENODO_LOADING,
     loading
 });

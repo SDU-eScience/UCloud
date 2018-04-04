@@ -3,9 +3,9 @@ import {
     RECEIVE_FILES,
     UPDATE_FILES_PER_PAGE,
     UPDATE_FILES,
-    SET_LOADING,
+    SET_FILES_LOADING,
     UPDATE_PATH,
-    TO_PAGE,
+    TO_FILES_PAGE,
     UPDATE_FILES_INFO_PATH
 } from "../Reducers/Files";
 import { getParentPath } from "../UtilityFunctions";
@@ -24,7 +24,7 @@ export const fetchFiles = (path, sorting, sortAscending) =>
     });
 
 export const toPage = (pageNumber) => ({
-    type: TO_PAGE,
+    type: TO_FILES_PAGE,
     pageNumber: pageNumber
 });
 
@@ -40,7 +40,7 @@ export const updateFiles = (files) => {
 };
 
 export const setLoading = (loading) => ({
-    type: SET_LOADING,
+    type: SET_FILES_LOADING,
     loading
 });
 

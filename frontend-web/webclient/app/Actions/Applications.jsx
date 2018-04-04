@@ -1,5 +1,5 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { RECEIVE_APPLICATIONS, SET_LOADING, UPDATE_APPLICATIONS_PER_PAGE, UPDATE_APPLICATIONS } from "../Reducers/Applications";
+import { RECEIVE_APPLICATIONS, SET_APPLICATIONS_LOADING, TO_APPLICATIONS_PAGE, UPDATE_APPLICATIONS_PER_PAGE, UPDATE_APPLICATIONS } from "../Reducers/Applications";
 
 const receiveApplications = (applications) => ({
     type: RECEIVE_APPLICATIONS,
@@ -15,12 +15,12 @@ export const fetchApplications = () =>
     });
 
 export const setLoading = (loading) => ({
-    type: SET_LOADING,
+    type: SET_APPLICATIONS_LOADING,
     loading
 });
 
 export const toPage = (pageNumber) => ({
-    type: TO_PAGE,
+    type: TO_APPLICATIONS_PAGE,
     pageNumber
 });
 

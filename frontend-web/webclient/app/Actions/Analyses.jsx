@@ -1,5 +1,5 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { SET_LOADING, RECEIVE_ANALYSES, SET_PAGE_SIZE } from "../Reducers/Analyses";
+import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_PAGE_SIZE } from "../Reducers/Analyses";
 
 export const fetchAnalyses = (analysesPerPage, currentPage) =>
     Cloud.get(`/hpc/jobs/?itemsPerPage=${analysesPerPage}&page=${currentPage}`)
@@ -14,11 +14,11 @@ const receiveAnalyses = ({ items, itemsPerPage, pageNumber, pagesInTotal }) => (
 })
 
 export const setPageSize = (pageSize) => ({
-    type: SET_PAGE_SIZE,
+    type: SET_ANALYSES_PAGE_SIZE,
     pageSize
 });
 
 export const setLoading = (loading) => ({
-    type: SET_LOADING,
+    type: SET_ANALYSES_LOADING,
     loading
 });

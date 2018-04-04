@@ -2,9 +2,9 @@ export const RECEIVE_FILES = "RECEIVE_FILES";
 export const SET_FAVORITE = "SET_FAVORITE";
 export const UPDATE_FILES_PER_PAGE = "UPDATE_FILES_PER_PAGE";
 export const UPDATE_FILES = "UPDATE_FILES";
-export const SET_LOADING = "SET_LOADING";
+export const SET_FILES_LOADING = "SET_FILES_LOADING";
 export const UPDATE_PATH = "UPDATE_PATH";
-export const TO_PAGE = "TO_PAGE";
+export const TO_FILES_PAGE = "TO_FILES_PAGE";
 export const UPDATE_FILES_INFO_PATH = "UPDATE_FILES_INFO_PATH";
 
 const files = (state = [], action) => {
@@ -18,13 +18,13 @@ const files = (state = [], action) => {
         case UPDATE_FILES: {
             return { ...state, files: action.files };
         }
-        case SET_LOADING: {
+        case SET_FILES_LOADING: {
             return { ...state, loading: action.loading };
         }
         case UPDATE_PATH: {
             return { ...state, path: action.path };
         }
-        case TO_PAGE: {
+        case TO_FILES_PAGE: {
             return { ...state, currentFilesPage: action.pageNumber };
         }
         default: {
