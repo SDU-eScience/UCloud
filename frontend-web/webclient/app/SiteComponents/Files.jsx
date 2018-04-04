@@ -62,16 +62,33 @@ class Files extends React.Component {
         dispatch(updateFiles(files));
     }
 
-    sortFilesBy(fileSorting, sortingFunction) {
+    sortFilesBy(name, type) {
         const { files, dispatch, filesPerPage } = this.props;
-        const asc = (this.state.lastSorting.name === fileSorting) ? !this.state.lastSorting.asc : true;
-        const sortedFiles = sortingFunction(files, asc);
+        let sortedFiles = [];
+        const asc = (this.state.lastSorting.name === name) ? !this.state.lastSorting.asc : true;
+        switch (type) {
+            case "number": {
+                sortedFiles = sortByNumber(files, name, asc);
+                break;
+            }
+            case "string": {
+                sortedFiles = sortByString(files, name, asc);
+                break;
+            }
+            case "typeAndName": {
+                sortedFiles = sortFilesByTypeAndName(files, asc);
+            }
+            default: {
+                sortedFiles = files;
+                break;
+            }
+        }
         if (sortedFiles.length > filesPerPage) {
             sortedFiles.forEach((file) => file.isChecked = false);
         }
         dispatch(updateFiles(sortedFiles));
         this.setState(() => ({
-            lastSorting: { name: fileSorting, asc }
+            lastSorting: { name, asc }
         }));
     }
 
@@ -100,11 +117,13 @@ class Files extends React.Component {
             files.find(file => file.path.path === newFile.path.path).isChecked = checked;
             dispatch(updateFiles(files));
         }
+        const openUppy = () => dispatch(changeUppyFilesOpen(true));
         return (
             <section>
                 <div className="container-fluid">
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)} />
+                        <ContextButtons onClick={openUppy} createFolder={createFolder} isHidden={true} />
                         <FilesTable
                             files={shownFiles}
                             loading={loading}
@@ -133,7 +152,7 @@ class Files extends React.Component {
                         selectedFiles={shownFiles.filter(file => file.isChecked)}
                         currentPath={path}
                         getFavorites={this.getFavorites}
-                        onClick={() => dispatch(changeUppyFilesOpen(true))}
+                        onClick={() => openUppy()}
                     />
                 </div>
             </section>)
@@ -144,27 +163,39 @@ const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles }) => (
     <div className="col-lg-2 visible-lg">
         <div>
             <div className="center-block text-center">
-                <Button className="btn btn-link btn-lg" onClick={() => getFavorites()}><i
-                    className="icon ion-star" /></Button>
-                <Link to={`/files/${Cloud.homeFolder}`}><Button className="btn btn-link btn-lg"><i
-                    className="ion-ios-home" /></Button></Link>
+                <Button className="btn btn-link btn-lg" onClick={() => getFavorites()}>
+                    <i className="icon ion-star" />
+                </Button>
+                <Link to={`/files/${Cloud.homeFolder}`}>
+                    <Button className="btn btn-link btn-lg">
+                        <i className="ion-ios-home" />
+                    </Button>
+                </Link>
             </div>
             <hr />
-            <button className="btn btn-primary btn-block"
-                onClick={() => onClick()}>
-                <span className="ion-android-upload pull-left" /> Upload Files
-            </button>
-            <br />
-            <button className="btn btn-default btn-block"
-                onClick={() => createFolder(currentPath)}>
-                <span className="ion-folder pull-left" /> New folder
-            </button>
+            <ContextButtons onClick={onClick} createFolder={createFolder} isHidden={false} />
             <br />
             <hr />
             <FileOptions selectedFiles={selectedFiles} />
         </div>
     </div>
 );
+
+const ContextButtons = ({ upload, createFolder, isHidden }) => (
+    <span className={isHidden ? "hidden-lg" : ""}>
+        <button className="btn btn-primary btn-block"
+            onClick={() => upload()}>
+            <span className="ion-android-upload pull-left" /> Upload Files
+        </button>
+        {isHidden ? null : (<br />)}
+        <button className="btn btn-default btn-block"
+            onClick={() => createFolder(currentPath)}>
+            <span className="ion-folder pull-left" /> New folder
+        </button>
+        {isHidden ? (<br />) : null }
+    </span>
+)
+
 
 const FileOptions = ({ selectedFiles }) => {
     if (!selectedFiles.length) {
@@ -268,7 +299,7 @@ export const FilesTable = (props) => {
                         <tr>
                             {masterCheckbox}
 
-                            <th onClick={() => sortingFunction("typeAndName", sortFilesByTypeAndName)}>
+                            <th onClick={() => sortingFunction("typeAndName", "typeAndName")}>
                                 <span className="text-left">
                                     Filename
                                 <span className={"pull-right " + sortingIconFunction("typeAndName")} />
@@ -276,7 +307,7 @@ export const FilesTable = (props) => {
                             </th>
 
                             {hasFavoriteButton ? (
-                                <th onClick={() => sortingFunction("favorite", sortFilesByFavorite)}>
+                                <th onClick={() => sortingFunction("favorite", "number")}>
                                     <span>
                                         <em className="ion-star" />
                                         <span className={"pull-right " + sortingIconFunction("favorite")} />
@@ -284,21 +315,21 @@ export const FilesTable = (props) => {
                                 </th>
                             ) : null}
 
-                            <th onClick={() => sortingFunction("modifiedAt", sortFilesByModified)}>
+                            <th onClick={() => sortingFunction("modifiedAt", "number")}>
                                 <span className="text-left">
                                     Last Modified
                                 <span className={"pull-right " + sortingIconFunction("modifiedAt")} />
                                 </span>
                             </th>
 
-                            <th onClick={() => sortingFunction("owner", sortFilesByOwner)}>
+                            <th onClick={() => sortingFunction("owner", "string")}>
                                 <span className="text-left">
                                     File Rights
                                 <span className={"pull-right " + sortingIconFunction("owner")} />
                                 </span>
                             </th>
 
-                            <th onClick={() => sortingFunction("sensitivity", sortFilesBySensitivity)}>
+                            <th onClick={() => sortingFunction("sensitivityLevel", "string")}>
                                 <span className="text-left">
                                     Sensitivity Level
                                 <span className={"pull-right " + sortingIconFunction("sensitivity")} />
