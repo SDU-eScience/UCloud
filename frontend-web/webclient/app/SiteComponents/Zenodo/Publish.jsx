@@ -123,7 +123,7 @@ const CardAndBody = ({ children }) => (
 const FileSelections = ({ files, handleFileSelection, removeFile }) => (
     <fieldset>
         {files.map((file, index) =>
-            (<ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group">
+            (<ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group" style={{ padding: "0px" }}>
                 <FileSelector
                     path={file}
                     uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
