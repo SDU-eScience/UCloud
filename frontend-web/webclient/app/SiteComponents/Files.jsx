@@ -127,7 +127,7 @@ class Files extends React.Component {
                 <div className="container-fluid">
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)} />
-                        <ContextButtons upload={openUppy} createFolder={createFolder} isHidden={true} />
+                        <ContextButtons upload={openUppy} createFolder={() => createFolder(path)} isHidden={true} />
                         <FilesTable
                             files={shownFiles}
                             loading={loading}
@@ -177,7 +177,7 @@ const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles }) => (
                 </Link>
             </div>
             <hr />
-            <ContextButtons upload={onClick} createFolder={createFolder} isHidden={false} />
+            <ContextButtons upload={onClick} createFolder={() => createFolder(currentPath)} isHidden={false} />
             <br />
             <hr />
             <FileOptions selectedFiles={selectedFiles} />
@@ -193,7 +193,7 @@ const ContextButtons = ({ upload, createFolder, isHidden }) => (
         </button>
         {isHidden ? null : (<br />)}
         <button className="btn btn-default btn-block"
-            onClick={() => createFolder(currentPath)}>
+            onClick={() => createFolder()}>
             <span className="ion-folder pull-left" /> New folder
         </button>
         {isHidden ? (<br />) : null }
