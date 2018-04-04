@@ -5,7 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import java.io.File
 import kotlin.math.min
 
-class FileBasedStore(private val baseDirectory: File) : ObjectStore {
+class FileBasedObjectStore(private val baseDirectory: File) : ObjectStore {
     private val mapper = jacksonObjectMapper()
 
     init {

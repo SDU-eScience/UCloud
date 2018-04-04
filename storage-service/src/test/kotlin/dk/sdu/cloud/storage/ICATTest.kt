@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage
 
-import dk.sdu.cloud.storage.ext.irods.ICATConnection
 import dk.sdu.cloud.storage.http.TusController
+import dk.sdu.cloud.storage.services.ext.irods.ICATConnection
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals

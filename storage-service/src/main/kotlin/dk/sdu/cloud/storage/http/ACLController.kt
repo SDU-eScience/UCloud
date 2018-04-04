@@ -5,13 +5,13 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.Result
 import dk.sdu.cloud.storage.api.ACLDescriptions
+import dk.sdu.cloud.storage.api.AccessEntry
+import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.TemporaryRight
-import dk.sdu.cloud.storage.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.ext.irods.IRodsUser
-import dk.sdu.cloud.storage.model.AccessEntry
-import dk.sdu.cloud.storage.model.AccessRight
+import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.services.ext.StorageException
+import dk.sdu.cloud.storage.services.ext.irods.IRodsUser
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
@@ -27,7 +27,9 @@ class ACLController(private val storageService: StorageConnectionFactory) {
 
                 val principal = call.request.validatedPrincipal
                 val connection =
-                    storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
+                    try {
+                        storageService.createForAccount(principal.subject, principal.token)
+                    } catch (ex: StorageException) {
                         error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
                         return@implement
                     }
@@ -45,10 +47,11 @@ class ACLController(private val storageService: StorageConnectionFactory) {
                     }
 
                     val accessEntry = AccessEntry(entity, irodsPermission)
-                    connection.accessControl.updateACL(path, listOf(accessEntry), false).capture() ?: run {
-                        val error = Result.lastError<Unit>()
-                        log.info("Caught an error while updating ACL: ${error.message}")
-                        error(CommonErrorMessage(error.message), HttpStatusCode.BadRequest)
+                    try {
+                        connection.accessControl.updateACL(path, listOf(accessEntry), false)
+                    } catch (ex: StorageException) {
+                        log.info("Caught an error while updating ACL: ${ex.message}")
+                        error(CommonErrorMessage(ex.message ?: "Unknown error"), HttpStatusCode.BadRequest)
                         return@implement
                     }
                 }
@@ -60,21 +63,23 @@ class ACLController(private val storageService: StorageConnectionFactory) {
                 logEntry(log, req)
 
                 val principal = call.request.validatedPrincipal
-                val connection =
-                    storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
-                        error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
-                        return@implement
-                    }
+                val connection = try {
+                    storageService.createForAccount(principal.subject, principal.token)
+                } catch (ex: StorageException) {
+                    error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                    return@implement
+                }
 
                 connection.use {
                     val path = connection.paths.parseAbsolute(req.onFile, true)
                     val entity = IRodsUser.fromUsernameAndZone(req.entity, connection.connectedUser.zone)
                     log.debug("Removing permissions $req")
                     val accessEntry = AccessEntry(entity, AccessRight.NONE)
-                    connection.accessControl.updateACL(path, listOf(accessEntry), false).capture() ?: run {
-                        val error = Result.lastError<Unit>()
-                        log.info("Caught an error while updating ACL: ${error.message}")
-                        error(CommonErrorMessage(error.message), HttpStatusCode.BadRequest)
+                    try {
+                        connection.accessControl.updateACL(path, listOf(accessEntry), false)
+                    } catch (ex: StorageException) {
+                        log.info("Caught an error while updating ACL: ${ex.message}")
+                        error(CommonErrorMessage(ex.message ?: "Unknown error"), HttpStatusCode.BadRequest)
                         return@implement
                     }
                 }

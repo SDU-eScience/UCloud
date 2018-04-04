@@ -9,7 +9,8 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.services.ext.StorageException
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
@@ -40,11 +41,12 @@ class SimpleDownloadController(
                                 HttpStatusCode.Unauthorized
                             )
 
-                val connection = storageConnectionFactory.createForAccount(principal.subject, principal.token).capture()
-                        ?: return@implement error(
-                            CommonErrorMessage("Internal Server Error"),
-                            HttpStatusCode.InternalServerError
-                        )
+                val connection = try {
+                    storageConnectionFactory.createForAccount(principal.subject, principal.token)
+                } catch (ex: StorageException) {
+                    error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
+                    return@implement
+                }
 
                 connection.use {
                     val path = try {
@@ -53,10 +55,12 @@ class SimpleDownloadController(
                         return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
                     }
 
-                    val stat = connection.fileQuery.stat(path).capture() ?: return@implement error(
-                        CommonErrorMessage("Not found"),
-                        HttpStatusCode.NotFound
-                    )
+                    val stat = try {
+                        connection.fileQuery.stat(path)
+                    } catch (ex: StorageException) {
+                        error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
+                        return@implement
+                    }
 
                     val contentType = ContentType.defaultForFilePath(stat.path.path)
                     call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${stat.path.name}\"")

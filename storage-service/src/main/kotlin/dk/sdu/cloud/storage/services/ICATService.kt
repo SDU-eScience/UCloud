@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.ext.irods.ICAT
-import dk.sdu.cloud.storage.ext.irods.ICATAccessEntry
+import dk.sdu.cloud.storage.services.ext.irods.ICAT
+import dk.sdu.cloud.storage.services.ext.irods.ICATAccessEntry
 import org.slf4j.LoggerFactory
 import java.sql.SQLException
 

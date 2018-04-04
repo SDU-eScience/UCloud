@@ -6,15 +6,15 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.KafkaHttpRouteLogger
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.ext.irods.ICAT
-import dk.sdu.cloud.storage.ext.irods.ICATAccessEntry
-import dk.sdu.cloud.storage.ext.irods.ICATConnection
-import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
 import dk.sdu.cloud.storage.api.TusDescriptions
 import dk.sdu.cloud.storage.api.TusExtensions
 import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.services.FileUpload.Companion.BLOCK_SIZE
+import dk.sdu.cloud.storage.services.ext.irods.ICAT
+import dk.sdu.cloud.storage.services.ext.irods.ICATAccessEntry
+import dk.sdu.cloud.storage.services.ext.irods.ICATConnection
+import dk.sdu.cloud.storage.services.ext.irods.ICATDatabaseConfig
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -42,7 +42,7 @@ import java.nio.ByteBuffer
 import java.util.*
 
 class TusController(
-    private val config: ICatDatabaseConfig,
+    private val config: ICATDatabaseConfig,
     private val store: ObjectStore,
     private val tusState: TusStateService,
     private val checksumService: ChecksumService,

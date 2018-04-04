@@ -37,10 +37,12 @@ enum class TemporaryRight {
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY)
+    property = KafkaRequest.TYPE_PROPERTY
+)
 @JsonSubTypes(
     JsonSubTypes.Type(value = PermissionCommand.Grant::class, name = "grant"),
-    JsonSubTypes.Type(value = PermissionCommand.Revoke::class, name = "revoke"))
+    JsonSubTypes.Type(value = PermissionCommand.Revoke::class, name = "revoke")
+)
 sealed class PermissionCommand {
     abstract val onFile: String
     abstract val entity: String

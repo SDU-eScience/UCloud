@@ -6,9 +6,9 @@ import com.orbitz.consul.Consul
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
-import dk.sdu.cloud.storage.ext.irods.ICatDatabaseConfig
-import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
-import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
+import dk.sdu.cloud.storage.services.ext.irods.ICATDatabaseConfig
+import dk.sdu.cloud.storage.services.ext.irods.IRodsConnectionInformation
+import dk.sdu.cloud.storage.services.ext.irods.IRodsStorageConnectionFactory
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import org.irods.jargon.core.connection.AuthScheme
@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
 
 data class Configuration(
     val storage: StorageConfiguration,
-    val icat: ICatDatabaseConfig,
+    val icat: ICATDatabaseConfig,
     private val connection: RawConnectionConfig,
     val appDatabaseUrl: String, // TODO This should be fixed
     val refreshToken: String,
@@ -50,7 +50,8 @@ fun main(args: Array<String>) {
     val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
 
     log.info("Connecting to Service Registry")
-    val serviceRegistry = ServiceRegistry(StorageServiceDescription.instance(configuration.connConfig),
+    val serviceRegistry = ServiceRegistry(
+        StorageServiceDescription.instance(configuration.connConfig),
         Consul.builder()
             .withHostAndPort(HostAndPort.fromHost(configuration.consulHostname).withDefaultPort(8500))
             .build()

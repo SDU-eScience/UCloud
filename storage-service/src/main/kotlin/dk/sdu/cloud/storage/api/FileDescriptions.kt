@@ -6,7 +6,6 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
-import dk.sdu.cloud.storage.model.StorageFile
 import io.netty.handler.codec.http.HttpMethod
 
 data class FindByPath(val path: String)
@@ -83,6 +82,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 }
 
 const val DOWNLOAD_FILE_SCOPE = "downloadFile"
+
 data class DownloadByURI(val path: String, val token: String)
 
 @JsonTypeInfo(

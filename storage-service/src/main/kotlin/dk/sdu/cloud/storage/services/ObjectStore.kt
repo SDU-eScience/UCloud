@@ -15,6 +15,7 @@ interface ObjectStore {
 
     // Attributes
     suspend fun getAttribute(oid: String, name: String): String?
+
     suspend fun setAttribute(oid: String, name: String, value: String)
     suspend fun removeAttribute(oid: String, name: String)
     suspend fun listAttributes(oid: String): Map<String, String>?

@@ -6,14 +6,14 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.api.TusHeaders
-import dk.sdu.cloud.storage.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.ext.irods.ICAT
 import dk.sdu.cloud.storage.http.ACLController
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
 import dk.sdu.cloud.storage.http.TusController
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.services.ext.irods.ICAT
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpHeaders
@@ -49,7 +49,7 @@ class Server(
         val icatService = ICATService(icat, configuration.icat.defaultZone)
 
         val store =
-            if (args.contains("--file-store")) FileBasedStore(File("store"))
+            if (args.contains("--file-store")) FileBasedObjectStore(File("store"))
             else CephStore("client.irods", File("ceph.conf"), "irods")
 
         val downloadService = ObjectDownloadService(store)
@@ -191,7 +191,6 @@ class Server(
         httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
         kStreams.close(30, TimeUnit.SECONDS)
     }
-
 
     companion object {
         private val log = LoggerFactory.getLogger(Server::class.java)

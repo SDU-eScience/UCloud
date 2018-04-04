@@ -8,14 +8,14 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.Error
-import dk.sdu.cloud.storage.Ok
 import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.ext.StorageConnection
-import dk.sdu.cloud.storage.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.model.MetadataEntry
-import dk.sdu.cloud.storage.model.StoragePath
+import dk.sdu.cloud.storage.api.MetadataEntry
+import dk.sdu.cloud.storage.api.StoragePath
 import dk.sdu.cloud.storage.services.ICATService
+import dk.sdu.cloud.storage.services.ext.NotFoundException
+import dk.sdu.cloud.storage.services.ext.StorageConnection
+import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
+import dk.sdu.cloud.storage.services.ext.StorageException
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
 import io.ktor.routing.Route
@@ -34,7 +34,9 @@ class FilesController(
 
                 val principal = call.request.validatedPrincipal
                 val connection =
-                    storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
+                    try {
+                        storageService.createForAccount(principal.subject, principal.token)
+                    } catch (ex: StorageException) {
                         call.respond(HttpStatusCode.Unauthorized)
                         return@implement
                     }
@@ -47,17 +49,15 @@ class FilesController(
                         return@implement
                     }
 
-                    val listAt = connection.fileQuery.listAt(path)
-                    when (listAt) {
-                        is Ok -> ok(listAt.result)
-                        is Error -> {
-                            val code = when (listAt.errorCode) {
-                                1 -> HttpStatusCode.NotFound
-                                4 -> HttpStatusCode.BadRequest
-                                else -> HttpStatusCode.InternalServerError
-                            }
-                            error(CommonErrorMessage(listAt.message), code)
+                    try {
+                        ok(connection.fileQuery.listAt(path))
+                    } catch (ex: StorageException) {
+                        val code = when (ex) {
+                            is NotFoundException -> HttpStatusCode.NotFound
+                            is IllegalArgumentException -> HttpStatusCode.BadRequest
+                            else -> HttpStatusCode.InternalServerError
                         }
+                        error(CommonErrorMessage(ex.message ?: "Unknown"), code)
                     }
                 }
             }
@@ -68,7 +68,9 @@ class FilesController(
 
                 val principal = call.request.validatedPrincipal
                 val connection =
-                    storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
+                    try {
+                        storageService.createForAccount(principal.subject, principal.token)
+                    } catch (ex: StorageException) {
                         error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
                         return@implement
                     }
@@ -102,7 +104,9 @@ class FilesController(
 
                 val principal = call.request.validatedPrincipal
                 val connection =
-                    storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
+                    try {
+                        storageService.createForAccount(principal.subject, principal.token)
+                    } catch (ex: StorageException) {
                         error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
                         return@implement
                     }
@@ -149,7 +153,9 @@ class FilesController(
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
                     val principal = call.request.validatedPrincipal
                     val connection =
-                        storageService.createForAccount(principal.subject, principal.token).capture() ?: run {
+                        try {
+                            storageService.createForAccount(principal.subject, principal.token)
+                        } catch (ex: StorageException) {
                             error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
                             return@implement
                         }
@@ -161,16 +167,18 @@ class FilesController(
                             return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
                         }
 
-                        val exists = it.fileQuery.stat(path)
-                        if (exists !is Ok) {
+                        // TODO Happy path in exception handler
+                        try {
+                            it.fileQuery.stat(path)
+
+                            error(CommonErrorMessage("File already exists!"), HttpStatusCode.Conflict)
+                        } catch (ex: StorageException) {
                             try {
                                 it.files.createDirectory(path, false)
                                 ok(Unit)
                             } catch (ex: Exception) {
                                 error(CommonErrorMessage("Could not create directory"), HttpStatusCode.BadRequest)
                             }
-                        } else {
-                            error(CommonErrorMessage("File already exists!"), HttpStatusCode.Conflict)
                         }
                     }
                 }
