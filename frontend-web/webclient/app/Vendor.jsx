@@ -14,6 +14,6 @@
 
     import "uppy/src/scss/uppy.scss";
     import "./SiteComponents/Common/Common";
-    import "./components/Colors/Colors"
+    import "./SiteComponents/Colors/Colors"
     import "./SiteComponents/Common/Utils.scss";
-    import "./components/Bootstrap/Bootstrap";
+    import "./SiteComponents/Bootstrap/Bootstrap";
