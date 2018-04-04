@@ -18,7 +18,7 @@
     "bootstrap": "3.3.7",
     "font-awesome": "4.7.0",
     "ionicons": "2.0.1",
-    "jsonwebtoken": "^8.1.0",
+    "jsonwebtoken": "^8.2.0",
     "loaders.css": "0.1.2",
     "material-colors": "1.2.5",
     "modernizr": "3.6.0",
