@@ -123,7 +123,7 @@ class Files extends React.Component {
                 <div className="container-fluid">
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)} />
-                        <ContextButtons onClick={openUppy} createFolder={createFolder} isHidden={true} />
+                        <ContextButtons upload={openUppy} createFolder={createFolder} isHidden={true} />
                         <FilesTable
                             files={shownFiles}
                             loading={loading}
@@ -173,7 +173,7 @@ const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles }) => (
                 </Link>
             </div>
             <hr />
-            <ContextButtons onClick={onClick} createFolder={createFolder} isHidden={false} />
+            <ContextButtons upload={onClick} createFolder={createFolder} isHidden={false} />
             <br />
             <hr />
             <FileOptions selectedFiles={selectedFiles} />
