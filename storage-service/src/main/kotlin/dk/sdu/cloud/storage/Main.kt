@@ -13,12 +13,14 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import org.irods.jargon.core.connection.AuthScheme
 import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
+import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 
 data class Configuration(
     val storage: StorageConfiguration,
     val icat: ICatDatabaseConfig,
     private val connection: RawConnectionConfig,
+    val appDatabaseUrl: String, // TODO This should be fixed
     val refreshToken: String,
     val consulHostname: String = "localhost"
 ) : ServerConfiguration {
@@ -75,6 +77,13 @@ fun main(args: Array<String>) {
     val cloud = RefreshingJWTAuthenticatedCloud(
         defaultServiceClient(args, serviceRegistry),
         configuration.refreshToken
+    )
+
+    Database.connect(
+        url = configuration.appDatabaseUrl,
+        driver = "org.postgresql.Driver",
+        user = configuration.icat.user,
+        password = configuration.icat.password
     )
 
     val serverProvider: HttpServerProvider = { block ->
