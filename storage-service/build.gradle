@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.0-SNAPSHOT'
+version '0.2.0-SNAPSHOT'
 
 buildscript {
     ext.kotlin_version = '1.2.31'
@@ -24,6 +24,7 @@ repositories {
     mavenCentral()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+    maven { url "https://dl.bintray.com/kotlin/exposed" }
     maven { url "https://dl.bintray.com/tus/maven" }
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
@@ -57,14 +58,6 @@ dependencies {
     // ------------
 
     // ------------
-    // Ceph uploads
-    // ------------
-    compile 'io.tus.java.client:tus-java-client:0.3.1'
-    compile group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
-
-    // ------------
-
-    // ------------
     // Logging
     // ------------
     compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
@@ -89,6 +82,21 @@ dependencies {
     // Bulk download test
     // ------------
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
+
+    // ------------
+    // Ceph
+    // ------------
+    compile files("libs/rados-0.4.0-SNAPSHOT.jar")
+    compile group: 'net.java.dev.jna', name: 'jna', version: '4.5.0'
+    compile 'io.tus.java.client:tus-java-client:0.3.1'
+    compile 'org.jetbrains.exposed:exposed:0.9.1'
+    compile group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
+
+    // ------------
+    // Testing
+    // ------------
+    testCompile "junit:junit:4.12"
+    testCompile "io.mockk:mockk:1.6.3"
 }
 
 kotlin {
@@ -110,6 +118,16 @@ publishing {
             groupId(project.group)
             artifactId(project.name.replace("-service", "") + "-api")
             artifact apiJar
+
+            pom.withXml {
+                def dependenciesNode = asNode().appendNode('dependencies')
+
+                // TODO THIS SHOULD NOT BE HARDCODED
+                def tusDepNode = dependenciesNode.appendNode("dependency")
+                tusDepNode.appendNode("groupId", "io.tus.java.client")
+                tusDepNode.appendNode("artifactId", "tus-java-client")
+                tusDepNode.appendNode("version", "0.3.1")
+            }
         }
     }
 

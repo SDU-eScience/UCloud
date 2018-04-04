@@ -55,7 +55,7 @@ class SBatchGeneratorTest {
         assertThat(lines, hasItem(containsString("#SBATCH --ntasks-per-node 1")))
         assertThat(lines, hasItem(containsString("#SBATCH --time 01:00:00")))
 
-        assertThat(lines, hasItem(containsString("module add singularity")))
+        assertThat(lines, hasItem(containsString("module add \"singularity\"")))
     }
 
     @Test
@@ -117,7 +117,7 @@ class SBatchGeneratorTest {
 
         val srunLine = jobLines.find { it.startsWith("srun singularity") }
         assertThat(
-            srunLine, endsWith(
+            srunLine, containsString(
                 """
             --greeting "test" "files/afile.txt"
         """.trimIndent()
@@ -187,7 +187,7 @@ class SBatchGeneratorTest {
 
         val srunLine = jobLines.find { it.startsWith("srun singularity") }
         assertThat(
-            srunLine, endsWith(
+            srunLine, containsString(
                 """
             --greeting "test" --greeting "yes" "files/afile.txt"
         """.trimIndent()

@@ -13,17 +13,12 @@ import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.withCausedBy
-import dk.sdu.cloud.storage.api.CreateDirectoryRequest
-import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.ext.StorageConnection
 import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.ext.StorageException
 import dk.sdu.cloud.storage.model.FileStat
 import dk.sdu.cloud.storage.model.StoragePath
-import dk.sdu.cloud.tus.api.CreationCommand
-import dk.sdu.cloud.tus.api.TusDescriptions
-import dk.sdu.cloud.tus.api.internal.start
-import dk.sdu.cloud.tus.api.internal.uploader
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
@@ -529,7 +524,7 @@ class JobExecutionService(
                 log.debug("Downloading file from $fileToTransferFromHPC")
 
                 val upload = runBlocking {
-                    val payload = CreationCommand(
+                    val payload = UploadCreationCommand(
                         fileName = fileToTransferFromHPC.substringAfterLast('/'),
                         owner = owner,
                         location = outputDirectory,

@@ -81,5 +81,5 @@ fun main(args: Array<String>) {
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
-    Server(configuration, storageService, kafka, serverProvider, serviceRegistry, cloud).start()
+    Server(configuration, storageService, kafka, serverProvider, serviceRegistry, cloud, args).start()
 }

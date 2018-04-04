@@ -14,14 +14,11 @@ import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.storage.Error
 import dk.sdu.cloud.storage.Ok
-import dk.sdu.cloud.storage.api.CreateDirectoryRequest
-import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.ext.*
 import dk.sdu.cloud.storage.model.FileStat
+import dk.sdu.cloud.storage.model.FileType
 import dk.sdu.cloud.storage.model.StoragePath
-import dk.sdu.cloud.tus.api.CreationCommand
-import dk.sdu.cloud.tus.api.TusDescriptions
-import dk.sdu.cloud.tus.api.internal.start
 import io.mockk.*
 import io.mockk.impl.annotations.RelaxedMockK
 import io.tus.java.client.TusUploader
@@ -151,7 +148,8 @@ class JobExecutionTest {
             System.currentTimeMillis(),
             dummyTokenSubject,
             10L,
-            "foo"
+            "foo",
+            FileType.FILE
         )
     }
 
@@ -163,16 +161,16 @@ class JobExecutionTest {
         ToolDAO.inMemoryDB[tool.info.name] = listOf(tool)
     }
 
-    private fun withMockScopes(vararg scopes: MockKUnmockKScope, body: () -> Unit) {
+    private fun <T> withMockScopes(vararg scopes: MockKUnmockKScope, body: () -> T): T {
         scopes.forEach { it.mock() }
         try {
-            body()
+            return body()
         } finally {
             scopes.reversed().forEach { it.unmock() }
         }
     }
 
-    private fun tusHelperScope() = staticMockk("dk.sdu.cloud.tus.api.internal.TusServiceHelpersKt")
+    private fun tusHelperScope() = staticMockk("dk.sdu.cloud.storage.api.TusServiceHelpersKt")
     private fun scpScope() = staticMockk("dk.sdu.cloud.app.services.ssh.SCPKt")
     private fun sftpScope() = staticMockk("dk.sdu.cloud.app.services.ssh.SFTPKt")
     private fun zipScope() = staticMockk("dk.sdu.cloud.app.services.ssh.ZIPKt")
@@ -327,7 +325,8 @@ class JobExecutionTest {
                     System.currentTimeMillis(),
                     dummyTokenSubject,
                     10L,
-                    ""
+                    "",
+                    FileType.FILE
                 )
             )
         }
@@ -403,7 +402,8 @@ class JobExecutionTest {
                         System.currentTimeMillis(),
                         dummyTokenSubject,
                         10L,
-                        ""
+                        "",
+                        FileType.FILE
                     )
                 )
             }
@@ -458,7 +458,8 @@ class JobExecutionTest {
                         System.currentTimeMillis(),
                         dummyTokenSubject,
                         10L,
-                        ""
+                        "",
+                        FileType.FILE
                     )
                 )
             }
@@ -557,7 +558,10 @@ class JobExecutionTest {
 
         val (fileNameSlot, fileContents) = withMockedAuthentication {
             withMockedSCPUpload {
-                service.handleAppEvent(event)
+                withMockScopes(sftpScope()) {
+                    every { sshConnection.mkdir(any(), any()) } returns 0
+                    service.handleAppEvent(event)
+                }
             }
         }
 
@@ -608,7 +612,10 @@ class JobExecutionTest {
         )
 
         val (fileNameSlot, fileContents) = withMockedAuthentication {
-            withMockedSCPUpload { service.handleAppEvent(event) }
+            withMockScopes(sftpScope()) {
+                every { sshConnection.mkdir(any(), any()) } returns 0
+                withMockedSCPUpload { service.handleAppEvent(event) }
+            }
         }
 
         assertTrue(emitSlot.isNotEmpty())
@@ -667,7 +674,10 @@ class JobExecutionTest {
         )
 
         withMockedAuthentication {
-            withMockedSCPUpload { service.handleAppEvent(event) }
+            withMockScopes(sftpScope()) {
+                every { sshConnection.mkdir(any(), any()) } returns 0
+                withMockedSCPUpload { service.handleAppEvent(event) }
+            }
         }
 
         assertTrue(emitSlot.isNotEmpty())
@@ -712,7 +722,10 @@ class JobExecutionTest {
         )
 
         withMockedAuthentication {
-            withMockedSCPUpload(commandFailure = true) { service.handleAppEvent(event) }
+            withMockScopes(sftpScope()) {
+                every { sshConnection.mkdir(any(), any()) } returns 0
+                withMockedSCPUpload(commandFailure = true) { service.handleAppEvent(event) }
+            }
         }
 
         assertTrue(emitSlot.isNotEmpty())
@@ -756,7 +769,10 @@ class JobExecutionTest {
         )
 
         withMockedAuthentication {
-            withMockedSCPUpload(sshFailure = true) { service.handleAppEvent(event) }
+            withMockScopes(sftpScope()) {
+                every { sshConnection.mkdir(any(), any()) } returns 0
+                withMockedSCPUpload(sshFailure = true) { service.handleAppEvent(event) }
+            }
         }
 
         assertTrue(emitSlot.isNotEmpty())
@@ -1220,10 +1236,10 @@ class JobExecutionTest {
         return directoryCall
     }
 
-    private fun mockTusUploadCreationAndGetCommands(commandFailure: Boolean = false): List<CreationCommand> {
+    private fun mockTusUploadCreationAndGetCommands(commandFailure: Boolean = false): List<UploadCreationCommand> {
         // Upload creation
-        val commands = ArrayList<CreationCommand>()
-        val createMock = mockk<RESTCallDescription<CreationCommand, Unit, Unit>>()
+        val commands = ArrayList<UploadCreationCommand>()
+        val createMock = mockk<RESTCallDescription<UploadCreationCommand, Unit, Unit>>()
         every { TusDescriptions.create } returns createMock
 
         if (!commandFailure) {
