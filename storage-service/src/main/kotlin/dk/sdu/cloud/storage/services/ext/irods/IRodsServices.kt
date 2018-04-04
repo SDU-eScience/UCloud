@@ -28,7 +28,7 @@ import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
-class IRodsPathOperations(override val services: AccountServices) : PathOperations, IRodsOperationService {
+class IRodsPathOperations(override val services: IRodsAccountServices) : PathOperations, IRodsOperationService {
     override val localRoot: StoragePath = StoragePath("/", services.connectionInformation.zone)
     override val homeDirectory: StoragePath = StoragePath("/home/${services.account.userName}", services.account.zone)
 
@@ -45,7 +45,7 @@ class IRodsPathOperations(override val services: AccountServices) : PathOperatio
 }
 
 class IRodsFileOperations(
-    override val services: AccountServices
+    override val services: IRodsAccountServices
 ) : FileOperations, IRodsOperationService {
     override val usesTrashCan: Boolean = true
 
@@ -186,7 +186,7 @@ class IRodsFileOperations(
 }
 
 class IRodsMetadataOperations(
-    override val services: AccountServices,
+    override val services: IRodsAccountServices,
     private val fileQueryOperations: FileQueryOperations
 ) : MetadataOperations, IRodsOperationService {
     override fun updateMetadata(
@@ -242,10 +242,10 @@ class IRodsMetadataOperations(
 }
 
 class IRodsAccessControlOperations(
-    override val services: AccountServices
+    override val services: IRodsAccountServices
 ) : AccessControlOperations,
     IRodsOperationService {
-    override fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean): Unit {
+    override fun updateACL(path: StoragePath, rights: AccessControlList, recursive: Boolean) {
         val localZone = services.account.zone
 
         for (it in rights) {
@@ -299,7 +299,7 @@ inline fun <T> doTime(name: String, log: Logger = LoggerFactory.getLogger("Timer
 class IRodsFileQueryOperations(
     val connectedUser: User,
     val paths: PathOperations,
-    override val services: AccountServices
+    override val services: IRodsAccountServices
 ) : FileQueryOperations, IRodsOperationService {
     private fun IRODSGenQueryBuilder.select(vararg columns: RodsGenQueryEnum) {
         columns.forEach { addSelectAsGenQueryValue(it) }
@@ -604,7 +604,7 @@ class IRodsFileQueryOperations(
 
         if (mappedResults.isEmpty()) {
             val exists = exists(path)
-            return if (!exists) throw NotFoundException("file", path.path) else emptyList()
+            return if (!exists) throw StorageException.NotFound("file", path.path) else emptyList()
         }
         return mappedResults.values.toList()
     }
@@ -637,14 +637,14 @@ class IRodsFileQueryOperations(
     }
 }
 
-class IRodsUserOperations(override val services: AccountServices) : UserOperations, IRodsOperationService {
+class IRodsUserOperations(override val services: IRodsAccountServices) : UserOperations, IRodsOperationService {
     override fun modifyMyPassword(currentPassword: String, newPassword: String) {
         services.users.changeAUserPasswordByThatUser(services.account.userName, currentPassword, newPassword)
     }
 }
 
-class IRodsGroupOperations(override val services: AccountServices) : GroupOperations, IRodsOperationService {
-    override fun createGroup(name: String): Unit {
+class IRodsGroupOperations(override val services: IRodsAccountServices) : GroupOperations, IRodsOperationService {
+    override fun createGroup(name: String) {
         if (name.isEmpty()) throw IllegalArgumentException("name cannot be empty")
 
         val userGroup = UserGroup().apply {
@@ -655,11 +655,11 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
         try {
             services.userGroups.addUserGroup(userGroup)
         } catch (_: DuplicateDataException) {
-            throw DuplicateException("Group '$name' already exists!")
+            throw StorageException.Duplicate("Group '$name' already exists!")
         }
     }
 
-    override fun deleteGroup(name: String, force: Boolean): Unit {
+    override fun deleteGroup(name: String, force: Boolean) {
         if (name.isEmpty()) throw IllegalArgumentException("name is empty")
 
         val userGroup = services.userGroups.findByName(name)
@@ -669,32 +669,32 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
             if (!force && groupMembers.isNotEmpty()) {
                 throw IllegalArgumentException("Cannot remove non-empty group without force flag")
             }
-        } catch (_: NotFoundException) {
+        } catch (_: StorageException.NotFound) {
             return
         }
         services.userGroups.removeUserGroup(userGroup)
     }
 
-    override fun addUserToGroup(groupName: String, username: String): Unit {
+    override fun addUserToGroup(groupName: String, username: String) {
         val user = IRodsUser.parse(services, username)
         try {
             services.userGroups.addUserToGroup(groupName, user.displayName, user.zone)
-        } catch (_: DuplicateException) {
+        } catch (_: StorageException.Duplicate) {
             // Ignored
         }
     }
 
-    override fun removeUserFromGroup(groupName: String, username: String): Unit {
+    override fun removeUserFromGroup(groupName: String, username: String) {
         val user = IRodsUser.parse(services, username)
         if (services.userGroups.findByName(groupName) == null) {
-            throw NotFoundException("group", groupName)
+            throw StorageException.NotFound("group", groupName)
         }
         services.userGroups.removeUserFromGroup(groupName, user.displayName, user.zone)
     }
 
     override fun listGroupMembers(groupName: String): List<User> {
         if (services.userGroups.findByName(groupName) == null) {
-            throw NotFoundException("group", groupName)
+            throw StorageException.NotFound("group", groupName)
         }
         return (services.userGroups.listUserGroupMembers(groupName).map { it.toStorage() })
     }
@@ -702,8 +702,8 @@ class IRodsGroupOperations(override val services: AccountServices) : GroupOperat
 
 private typealias JargonUser = org.irods.jargon.core.pub.domain.User
 
-class IRodsUserAdminOperations(override val services: AccountServices) : UserAdminOperations, IRodsOperationService {
-    override fun createUser(username: String, password: String?, type: UserType): Unit {
+class IRodsUserAdminOperations(override val services: IRodsAccountServices) : UserAdminOperations, IRodsOperationService {
+    override fun createUser(username: String, password: String?, type: UserType) {
         val user = JargonUser().apply {
             name = username
             userType = type.toIRods()
@@ -713,7 +713,7 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
         if (password != null) modifyPassword(user, password)
     }
 
-    override fun deleteUser(username: String): Unit {
+    override fun deleteUser(username: String) {
         try {
             services.users.deleteUser(username)
         } catch (_: DataNotFoundException) {
@@ -721,12 +721,12 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
         }
     }
 
-    override fun modifyPassword(username: String, newPassword: String): Unit {
+    override fun modifyPassword(username: String, newPassword: String) {
         val user = services.users.findByName(username)
         return modifyPassword(user, newPassword)
     }
 
-    private fun modifyPassword(user: JargonUser, newPassword: String): Unit {
+    private fun modifyPassword(user: JargonUser, newPassword: String) {
         services.users.changeAUserPasswordByAnAdmin(user.nameWithZone, newPassword)
     }
 
@@ -735,7 +735,7 @@ class IRodsUserAdminOperations(override val services: AccountServices) : UserAdm
 }
 
 interface IRodsOperationService {
-    val services: AccountServices
+    val services: IRodsAccountServices
 
     fun FilePermissionEnum.toStorage(): AccessRight = when (this) {
         FilePermissionEnum.OWN -> AccessRight.OWN

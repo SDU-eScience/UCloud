@@ -12,7 +12,6 @@ import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.MetadataEntry
 import dk.sdu.cloud.storage.api.StoragePath
 import dk.sdu.cloud.storage.services.ICATService
-import dk.sdu.cloud.storage.services.ext.NotFoundException
 import dk.sdu.cloud.storage.services.ext.StorageConnection
 import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.services.ext.StorageException
@@ -53,7 +52,7 @@ class FilesController(
                         ok(connection.fileQuery.listAt(path))
                     } catch (ex: StorageException) {
                         val code = when (ex) {
-                            is NotFoundException -> HttpStatusCode.NotFound
+                            is StorageException.NotFound -> HttpStatusCode.NotFound
                             is IllegalArgumentException -> HttpStatusCode.BadRequest
                             else -> HttpStatusCode.InternalServerError
                         }

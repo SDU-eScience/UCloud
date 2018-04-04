@@ -1,8 +1,6 @@
 package dk.sdu.cloud.storage.services.ext.irods
 
-import dk.sdu.cloud.storage.services.ext.DuplicateException
-import dk.sdu.cloud.storage.services.ext.NotFoundException
-import dk.sdu.cloud.storage.services.ext.PermissionException
+import dk.sdu.cloud.storage.services.ext.StorageException
 import org.irods.jargon.core.exception.*
 import java.io.FileNotFoundException
 import java.lang.reflect.InvocationHandler
@@ -33,19 +31,19 @@ inline fun <reified T> createIRodsProxy(delegate: T): T {
 fun remapException(exception: Throwable): Exception {
     when (exception) {
         is FileNotFoundException, is org.irods.jargon.core.exception.FileNotFoundException -> {
-            return NotFoundException("object", "Unknown", exception.message ?: "Unknown")
+            return StorageException.NotFound("object", "Unknown", exception.message ?: "Unknown")
         }
         is InvalidGroupException -> {
-            return NotFoundException("usergroup", "Unknown", exception.message ?: "Unknown")
+            return StorageException.NotFound("usergroup", "Unknown", exception.message ?: "Unknown")
         }
         is DuplicateDataException -> {
-            return DuplicateException("Cannot create new entry - Entry already exists. Cause: ${exception.message}")
+            return StorageException.Duplicate("Cannot create new entry - Entry already exists. Cause: ${exception.message}")
         }
         is CatNoAccessException -> {
-            return PermissionException("Not allowed. Cause: ${exception.message}")
+            return StorageException.BadPermissions("Not allowed. Cause: ${exception.message}")
         }
         is DataNotFoundException -> {
-            return NotFoundException("Unknown", "Unknown", exception.message ?: "Unknown")
+            return StorageException.NotFound("Unknown", "Unknown", exception.message ?: "Unknown")
         }
 
         // Needs to be just before the else branch since this is the super type of all Jargon exceptions

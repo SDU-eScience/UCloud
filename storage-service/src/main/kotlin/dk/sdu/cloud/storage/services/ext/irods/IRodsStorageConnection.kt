@@ -8,7 +8,7 @@ import org.irods.jargon.core.exception.AuthenticationException
 import org.irods.jargon.core.protovalues.UserTypeEnum
 import org.irods.jargon.core.pub.IRODSFileSystem
 
-class IRodsStorageConnection(private val services: AccountServices) : StorageConnection {
+class IRodsStorageConnection(private val services: IRodsAccountServices) : StorageConnection {
     override val connectedUser: User = with(services.account) { IRodsUser.fromUsernameAndZone(userName, zone) }
     val accountType: UserTypeEnum
 
@@ -63,9 +63,9 @@ class IRodsStorageConnectionFactory(private val connectionInformation: IRodsConn
 
                 val fs = IRODSFileSystem.instance()
                 fs.irodsSession.x509TrustManager = SDUCloudTrustManager.trustManager
-                IRodsStorageConnection(AccountServices(fs, account, connectionInformation))
+                IRodsStorageConnection(IRodsAccountServices(fs, account, connectionInformation))
             } catch (ex: AuthenticationException) {
-                throw dk.sdu.cloud.storage.services.ext.AuthenticationException(ex.message ?: "")
+                throw StorageException.BadAuthentication(ex.message ?: "")
             }
         }
         /*

@@ -1,13 +1,11 @@
 package dk.sdu.cloud.storage.services.ext.irods
 
-import org.irods.jargon.core.connection.AuthScheme
-import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.irods.jargon.core.connection.IRODSAccount
 import org.irods.jargon.core.connection.SettableJargonProperties
 import org.irods.jargon.core.pub.IRODSFileSystem
 import org.slf4j.LoggerFactory
 
-class AccountServices(
+class IRodsAccountServices(
     private val fs: IRODSFileSystem,
     val account: IRODSAccount,
     val connectionInformation: IRodsConnectionInformation
@@ -59,12 +57,7 @@ class AccountServices(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(AccountServices::class.java)
+        private val log = LoggerFactory.getLogger(IRodsAccountServices::class.java)
     }
 }
-
-class IRodsConnectionInformation(
-    val host: String, val port: Int, val zone: String, val storageResource: String, val authScheme: AuthScheme,
-    val sslNegotiationPolicy: ClientServerNegotiationPolicy.SslNegotiationPolicy
-)
 

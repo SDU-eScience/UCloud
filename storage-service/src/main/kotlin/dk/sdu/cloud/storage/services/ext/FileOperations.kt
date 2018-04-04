@@ -163,7 +163,7 @@ interface FileQueryOperations {
      */
     fun stat(path: StoragePath): FileStat {
         val capture = statBulk(path)
-        val stat = capture.firstOrNull() ?: throw NotFoundException("file", path.path)
+        val stat = capture.firstOrNull() ?: throw StorageException.NotFound("file", path.path)
         return stat
     }
 
