@@ -2,7 +2,7 @@ group 'dk.sdu.cloud'
 version '0.2.0'
 
 buildscript {
-    ext.kotlin_version = '1.2.21'
+    ext.kotlin_version = '1.2.31'
     ext.ktor_version = '0.9.1'
 
     repositories {
@@ -83,8 +83,7 @@ dependencies {
     // ------------
     compile 'com.google.guava:guava:23.4-jre'
 
-    compile 'dk.sdu.cloud:client-core:0.1.0-SNAPSHOT'
-    compile 'dk.sdu.cloud:service-common:0.6.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.7.0-SNAPSHOT'
     compile "dk.sdu.cloud:storage-api:0.2.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
 
