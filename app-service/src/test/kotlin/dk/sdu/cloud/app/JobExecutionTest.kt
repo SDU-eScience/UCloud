@@ -14,16 +14,11 @@ import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.storage.Error
-import dk.sdu.cloud.storage.Ok
 import dk.sdu.cloud.storage.api.*
-import dk.sdu.cloud.storage.ext.*
-import dk.sdu.cloud.storage.model.FileStat
-import dk.sdu.cloud.storage.model.FileType
-import dk.sdu.cloud.storage.model.StoragePath
 import io.mockk.*
 import io.mockk.impl.annotations.RelaxedMockK
 import io.tus.java.client.TusUploader
+import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.Response
 import org.junit.Assert.*
 import org.junit.Before
@@ -36,21 +31,14 @@ import java.net.URI
 import java.util.*
 
 class JobExecutionTest {
-    val irodsConfiguration: StorageConfiguration = StorageConfiguration("irods", 1247, "tempZone")
-    val sshUser = "nobody"
-    val sBatchGenerator = SBatchGenerator()
+    private val sshUser = "nobody"
+    private val sBatchGenerator = SBatchGenerator()
 
     @RelaxedMockK
     lateinit var cloud: RefreshingJWTAuthenticatedCloud
 
     @RelaxedMockK
     lateinit var producer: MappedEventProducer<String, AppEvent>
-
-    @RelaxedMockK
-    lateinit var irods: StorageConnectionFactory
-
-    @RelaxedMockK
-    lateinit var irodsConnection: StorageConnection
 
     @RelaxedMockK
     lateinit var jobsDao: JobsDAO
@@ -63,15 +51,6 @@ class JobExecutionTest {
 
     @RelaxedMockK
     lateinit var sshConnection: SSHConnection
-
-    @RelaxedMockK
-    lateinit var fileQuery: FileQueryOperations
-
-    @RelaxedMockK
-    lateinit var files: FileOperations
-
-    @RelaxedMockK
-    lateinit var paths: PathOperations
 
     lateinit var service: JobExecutionService
 
@@ -143,15 +122,14 @@ class JobExecutionTest {
         )
     }
 
-    private fun irodsStat(name: String): FileStat {
-        return FileStat(
+    private fun irodsStat(name: String): StorageFile {
+        return StorageFile(
+            FileType.FILE,
             StoragePath(name),
             System.currentTimeMillis(),
             System.currentTimeMillis(),
             dummyTokenSubject,
-            10L,
-            "foo",
-            FileType.FILE
+            10L
         )
     }
 
@@ -196,17 +174,9 @@ class JobExecutionTest {
             Pair(0, sshConnection)
         }
 
-        every { irods.createForAccount(any(), any()) } answers { Ok(irodsConnection) }
-        every { irodsConnection.fileQuery } returns fileQuery
-        every { irodsConnection.files } returns files
-        every { irodsConnection.paths } returns paths
-        every { paths.parseAbsolute(any(), any()) } answers { StoragePath(call.invocation.args.first() as String) }
-
         service = JobExecutionService(
             cloud,
             producer,
-            irods,
-            irodsConfiguration,
             sBatchGenerator,
             jobsDao,
             slurmPollAgent,
@@ -223,7 +193,8 @@ class JobExecutionTest {
 
     @Test
     fun testValidationOfSimpleJob() {
-        val result = service.startJob(AppRequest.Start(noParamsApplication.info, emptyMap()), dummyToken)
+        val result =
+            runBlocking { service.startJob(AppRequest.Start(noParamsApplication.info, emptyMap()), dummyToken, cloud) }
         verifyJobStarted(result, noParamsApplication)
     }
 
@@ -236,7 +207,7 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val result = service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken)
+        val result = runBlocking { service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken, cloud) }
         verifyJobStarted(result, application)
     }
 
@@ -250,7 +221,7 @@ class JobExecutionTest {
 
         createTemporaryApplication(application)
 
-        val result = service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken)
+        val result = runBlocking { service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken, cloud) }
         verifyJobStarted(result, application)
     }
 
@@ -263,7 +234,7 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val result = service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken)
+        val result = runBlocking { service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken, cloud) }
         verifyJobStarted(result, application)
     }
 
@@ -279,16 +250,19 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val result = service.startJob(
-            AppRequest.Start(
-                application.info,
-                mapOf(
-                    "arg" to "foo",
-                    "arg2" to "bar"
-                )
-            ),
-            dummyToken
-        )
+        val result = runBlocking {
+            service.startJob(
+                AppRequest.Start(
+                    application.info,
+                    mapOf(
+                        "arg" to "foo",
+                        "arg2" to "bar"
+                    )
+                ),
+                dummyToken,
+                cloud
+            )
+        }
         verifyJobStarted(result, application)
     }
 
@@ -304,202 +278,238 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val result = service.startJob(
-            AppRequest.Start(
-                application.info,
-                mapOf(
-                    "arg" to "foo"
-                )
-            ),
-            dummyToken
-        )
+        val result = runBlocking {
+            service.startJob(
+                AppRequest.Start(
+                    application.info,
+                    mapOf(
+                        "arg" to "foo"
+                    )
+                ),
+                dummyToken,
+                cloud
+            )
+        }
         verifyJobStarted(result, application)
     }
 
     @Test
     fun testFileInputValid() {
-        val path = "/home/foo/Uploads/1.txt"
-        every { fileQuery.stat(match { it.path == path }) } answers {
-            Ok(
-                FileStat(
-                    call.invocation.args.first() as StoragePath,
-                    System.currentTimeMillis(),
-                    System.currentTimeMillis(),
-                    dummyTokenSubject,
-                    10L,
-                    "",
-                    FileType.FILE
+        withMockScopes(objectMockk(FileDescriptions)) {
+            val path = "/home/foo/Uploads/1.txt"
+            coEvery {
+                FileDescriptions.stat.call(match { it.path == path }, cloud)
+            } answers {
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    StorageFile(
+                        FileType.FILE,
+                        StoragePath((call.invocation.args.first() as FindByPath).path),
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis(),
+                        dummyTokenSubject,
+                        10L
+                    )
+                )
+            }
+
+            val application = app(
+                "files",
+                invocation = listOf(VariableInvocationParameter(listOf("myFile"))),
+                parameters = listOf(
+                    ApplicationParameter.InputFile("myFile", false)
                 )
             )
+            createTemporaryApplication(application)
+
+            val result = runBlocking {
+                service.startJob(
+                    AppRequest.Start(
+                        application.info,
+                        mapOf(
+                            "myFile" to mapOf("source" to path, "destination" to "1.txt")
+                        )
+                    ),
+                    dummyToken,
+                    cloud
+                )
+            }
+
+            verifyJobStarted(result, application)
+            val captured = emitSlot.first() as AppEvent.Validated
+            val workDir = URI(captured.workingDirectory)
+
+            assertEquals(1, captured.files.size)
+
+            val file = captured.files.first()
+            assertEquals(10L, file.stat.size)
+            assertEquals(path, file.sourcePath)
+            assertEquals(workDir.resolve("1.txt").path, file.destinationPath)
+            assertEquals("1.txt", file.destinationFileName)
         }
-
-        val application = app(
-            "files",
-            invocation = listOf(VariableInvocationParameter(listOf("myFile"))),
-            parameters = listOf(
-                ApplicationParameter.InputFile("myFile", false)
-            )
-        )
-        createTemporaryApplication(application)
-
-        val result = service.startJob(
-            AppRequest.Start(
-                application.info,
-                mapOf(
-                    "myFile" to mapOf("source" to path, "destination" to "1.txt")
-                )
-            ),
-            dummyToken
-        )
-
-        verifyJobStarted(result, application)
-        val captured = emitSlot.first() as AppEvent.Validated
-        val workDir = URI(captured.workingDirectory)
-
-        assertEquals(1, captured.files.size)
-
-        val file = captured.files.first()
-        assertEquals(10L, file.stat.sizeInBytes)
-        assertEquals(path, file.sourcePath.path)
-        assertEquals(workDir.resolve("1.txt").path, file.destinationPath)
-        assertEquals("1.txt", file.destinationFileName)
     }
 
     @Test(expected = JobValidationException::class)
     fun testFileInputValidationWithMissingFile() {
-        val path = "/home/foo/Uploads/1.txt"
-        every { fileQuery.stat(match { it.path == path }) } answers {
-            Error.notFound()
-        }
-
-        val application = app(
-            "files",
-            invocation = listOf(VariableInvocationParameter(listOf("myFile"))),
-            parameters = listOf(
-                ApplicationParameter.InputFile("myFile", false)
-            )
-        )
-        createTemporaryApplication(application)
-
-        service.startJob(
-            AppRequest.Start(
-                application.info,
-                mapOf(
-                    "myFile" to mapOf("source" to path, "destination" to "1.txt")
+        withMockScopes(objectMockk(FileDescriptions)) {
+            val path = "/home/foo/Uploads/1.txt"
+            coEvery {
+                FileDescriptions.stat.call(match { it.path == path }, cloud)
+            } answers {
+                val response: Response = mockk(relaxed = true)
+                every { response.statusCode } returns 404
+                RESTResponse.Err(
+                    response,
+                    CommonErrorMessage("Not found")
                 )
-            ),
-            dummyToken
-        )
+            }
+
+            val application = app(
+                "files",
+                invocation = listOf(VariableInvocationParameter(listOf("myFile"))),
+                parameters = listOf(
+                    ApplicationParameter.InputFile("myFile", false)
+                )
+            )
+            createTemporaryApplication(application)
+
+            runBlocking {
+                service.startJob(
+                    AppRequest.Start(
+                        application.info,
+                        mapOf(
+                            "myFile" to mapOf("source" to path, "destination" to "1.txt")
+                        )
+                    ),
+                    dummyToken,
+                    cloud
+                )
+            }
+        }
     }
 
     @Test
     fun testValidFileInputValidationWithMultipleFiles() {
-        val paths = listOf("/home/foo/Uploads/1.txt", "/home/foo/foo.png")
-        paths.forEach { path ->
-            every { fileQuery.stat(match { it.path == path }) } answers {
-                Ok(
-                    FileStat(
-                        call.invocation.args.first() as StoragePath,
-                        System.currentTimeMillis(),
-                        System.currentTimeMillis(),
-                        dummyTokenSubject,
-                        10L,
-                        "",
-                        FileType.FILE
+        withMockScopes(objectMockk(FileDescriptions)) {
+            val paths = listOf("/home/foo/Uploads/1.txt", "/home/foo/foo.png")
+            paths.forEach { path ->
+                coEvery {
+                    FileDescriptions.stat.call(match { it.path == path }, cloud)
+                } answers {
+                    RESTResponse.Ok(
+                        mockk(relaxed = true),
+                        StorageFile(
+                            FileType.FILE,
+                            StoragePath((call.invocation.args.first() as FindByPath).path),
+                            System.currentTimeMillis(),
+                            System.currentTimeMillis(),
+                            dummyTokenSubject,
+                            10L
+                        )
                     )
+                }
+            }
+
+            val application = app(
+                "files",
+                invocation = listOf(VariableInvocationParameter(listOf("myFile"))),
+                parameters = listOf(
+                    ApplicationParameter.InputFile("myFile", false),
+                    ApplicationParameter.InputFile("myFile2", false)
+                )
+            )
+            createTemporaryApplication(application)
+
+            val result = runBlocking {
+                service.startJob(
+                    AppRequest.Start(
+                        application.info,
+                        mapOf(
+                            "myFile" to mapOf("source" to paths[0], "destination" to "1.txt"),
+                            "myFile2" to mapOf("source" to paths[1], "destination" to "foo.png")
+                        )
+                    ),
+                    dummyToken,
+                    cloud
                 )
             }
-        }
 
-        val application = app(
-            "files",
-            invocation = listOf(VariableInvocationParameter(listOf("myFile"))),
-            parameters = listOf(
-                ApplicationParameter.InputFile("myFile", false),
-                ApplicationParameter.InputFile("myFile2", false)
-            )
-        )
-        createTemporaryApplication(application)
+            verifyJobStarted(result, application)
+            val captured = emitSlot.first() as AppEvent.Validated
+            val workDir = URI(captured.workingDirectory)
 
-        val result = service.startJob(
-            AppRequest.Start(
-                application.info,
-                mapOf(
-                    "myFile" to mapOf("source" to paths[0], "destination" to "1.txt"),
-                    "myFile2" to mapOf("source" to paths[1], "destination" to "foo.png")
-                )
-            ),
-            dummyToken
-        )
+            assertEquals(paths.size, captured.files.size)
 
-        verifyJobStarted(result, application)
-        val captured = emitSlot.first() as AppEvent.Validated
-        val workDir = URI(captured.workingDirectory)
-
-        assertEquals(paths.size, captured.files.size)
-
-        paths.forEachIndexed { idx, path ->
-            val file = captured.files[idx]
-            val name = path.substringAfterLast('/')
-            assertEquals(10L, file.stat.sizeInBytes)
-            assertEquals(path, file.sourcePath.path)
-            assertEquals(workDir.resolve(name).path, file.destinationPath)
-            assertEquals(name, file.destinationFileName)
+            paths.forEachIndexed { idx, path ->
+                val file = captured.files[idx]
+                val name = path.substringAfterLast('/')
+                assertEquals(10L, file.stat.size)
+                assertEquals(path, file.sourcePath)
+                assertEquals(workDir.resolve(name).path, file.destinationPath)
+                assertEquals(name, file.destinationFileName)
+            }
         }
     }
 
     @Test(expected = JobValidationException::class)
     fun testInvalidFileInputValidationWithMultipleFiles() {
-        val paths = listOf("/home/foo/Uploads/1.txt", "/home/foo/foo.png")
-        paths.forEach { path ->
-            every { fileQuery.stat(match { it.path == path }) } answers {
-                Ok(
-                    FileStat(
-                        call.invocation.args.first() as StoragePath,
-                        System.currentTimeMillis(),
-                        System.currentTimeMillis(),
-                        dummyTokenSubject,
-                        10L,
-                        "",
-                        FileType.FILE
+        withMockScopes(objectMockk(FileDescriptions)) {
+            val paths = listOf("/home/foo/Uploads/1.txt", "/home/foo/foo.png")
+            paths.forEach { path ->
+                coEvery {
+                    FileDescriptions.stat.call(match { it.path == path }, cloud)
+                } answers {
+                    RESTResponse.Ok(
+                        mockk(relaxed = true),
+                        StorageFile(
+                            FileType.FILE,
+                            StoragePath((call.invocation.args.first() as FindByPath).path),
+                            System.currentTimeMillis(),
+                            System.currentTimeMillis(),
+                            dummyTokenSubject,
+                            10L
+                        )
                     )
+                }
+            }
+
+            val application = app(
+                "files",
+                invocation = listOf(VariableInvocationParameter(listOf("myFile"))),
+                parameters = listOf(
+                    ApplicationParameter.InputFile("myFile", false),
+                    ApplicationParameter.InputFile("myFile2", false)
+                )
+            )
+            createTemporaryApplication(application)
+
+            val result = runBlocking {
+                service.startJob(
+                    AppRequest.Start(
+                        application.info,
+                        mapOf(
+                            "myFile" to mapOf("source" to paths[0], "destination" to "1.txt")
+                        )
+                    ),
+                    dummyToken,
+                    cloud
                 )
             }
-        }
 
-        val application = app(
-            "files",
-            invocation = listOf(VariableInvocationParameter(listOf("myFile"))),
-            parameters = listOf(
-                ApplicationParameter.InputFile("myFile", false),
-                ApplicationParameter.InputFile("myFile2", false)
-            )
-        )
-        createTemporaryApplication(application)
+            verifyJobStarted(result, application)
+            val captured = emitSlot.first() as AppEvent.Validated
+            val workDir = URI(captured.workingDirectory)
 
-        val result = service.startJob(
-            AppRequest.Start(
-                application.info,
-                mapOf(
-                    "myFile" to mapOf("source" to paths[0], "destination" to "1.txt")
-                )
-            ),
-            dummyToken
-        )
+            assertEquals(paths.size, captured.files.size)
 
-        verifyJobStarted(result, application)
-        val captured = emitSlot.first() as AppEvent.Validated
-        val workDir = URI(captured.workingDirectory)
-
-        assertEquals(paths.size, captured.files.size)
-
-        paths.forEachIndexed { idx, path ->
-            val file = captured.files[idx]
-            val name = path.substringAfterLast('/')
-            assertEquals(10L, file.stat.sizeInBytes)
-            assertEquals(path, file.sourcePath.path)
-            assertEquals(workDir.resolve(name).path, file.destinationPath)
-            assertEquals(name, file.destinationFileName)
+            paths.forEachIndexed { idx, path ->
+                val file = captured.files[idx]
+                val name = path.substringAfterLast('/')
+                assertEquals(10L, file.stat.size)
+                assertEquals(path, file.sourcePath)
+                assertEquals(workDir.resolve(name).path, file.destinationPath)
+                assertEquals(name, file.destinationFileName)
+            }
         }
     }
 
@@ -603,7 +613,7 @@ class JobExecutionTest {
                     irodsStat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
-                    StoragePath(fileName)
+                    fileName
                 )
             ),
             inlineSBatchJob
@@ -659,7 +669,7 @@ class JobExecutionTest {
                     irodsStat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
-                    StoragePath(fileName)
+                    fileName
                 )
             ),
             inlineSBatchJob
@@ -679,7 +689,7 @@ class JobExecutionTest {
         scpFailure: Boolean = false,
         downloadFailure: Boolean = false,
         body: () -> Unit
-    ): Pair<List<String>, List<ByteArray>>  {
+    ): Pair<List<String>, List<ByteArray>> {
         return withMockedAuthentication {
             withMockScopes(objectMockk(AuthDescriptions), sftpScope(), objectMockk(FileDescriptions)) {
                 every { sshConnection.mkdir(any(), any()) } returns 0
@@ -719,12 +729,7 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val writerSlot = slot<OutputStream>()
         val fileName = "file.txt"
-        every { files.get(match { it.name == fileName }, capture(writerSlot)) } answers {
-            writerSlot.captured.write(fileName.toByteArray())
-        }
-
         val inlineSBatchJob = "job"
         val workingDirectory = "/scratch/sduescience/p/files"
         val event = AppEvent.Validated(
@@ -740,7 +745,7 @@ class JobExecutionTest {
                     irodsStat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
-                    StoragePath(fileName)
+                    fileName
                 )
             ),
             inlineSBatchJob
@@ -764,11 +769,7 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val writerSlot = slot<OutputStream>()
         val fileName = "file.txt"
-        every { files.get(match { it.name == fileName }, capture(writerSlot)) } answers {
-            writerSlot.captured.write(fileName.toByteArray())
-        }
 
         val inlineSBatchJob = "job"
         val event = AppEvent.Validated(
@@ -784,7 +785,7 @@ class JobExecutionTest {
                     irodsStat(fileName),
                     fileName,
                     "$workingDirectory$fileName",
-                    StoragePath(fileName)
+                    fileName
                 )
             ),
             inlineSBatchJob

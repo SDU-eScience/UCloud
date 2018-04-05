@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import com.jcraft.jsch.JSchException
-import dk.sdu.cloud.app.StorageConfiguration
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ssh.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
@@ -15,10 +14,6 @@ import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.*
-import dk.sdu.cloud.storage.ext.StorageConnection
-import dk.sdu.cloud.storage.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.model.FileStat
-import dk.sdu.cloud.storage.model.StoragePath
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
@@ -29,8 +24,6 @@ import java.util.*
 class JobExecutionService(
     cloud: RefreshingJWTAuthenticatedCloud,
     private val producer: MappedEventProducer<String, AppEvent>,
-    private val irods: StorageConnectionFactory,
-    private val irodsConfig: StorageConfiguration, // TODO This shouldn't be needed
     private val sBatchGenerator: SBatchGenerator,
     private val dao: JobsDAO,
     private val slurmPollAgent: SlurmPollAgent,
@@ -226,8 +219,8 @@ class JobExecutionService(
         }
     }
 
-    fun startJob(req: AppRequest.Start, principal: DecodedJWT): String {
-        val validatedJob = validateJob(req, principal)
+    suspend fun startJob(req: AppRequest.Start, principal: DecodedJWT, cloud: AuthenticatedCloud): String {
+        val validatedJob = validateJob(req, principal, cloud)
         dao.transaction {
             createJob(
                 validatedJob.systemId,
@@ -239,7 +232,11 @@ class JobExecutionService(
         return validatedJob.systemId
     }
 
-    private fun validateJob(req: AppRequest.Start, principal: DecodedJWT): AppEvent.Validated {
+    private suspend fun validateJob(
+        req: AppRequest.Start,
+        principal: DecodedJWT,
+        cloud: AuthenticatedCloud
+    ): AppEvent.Validated {
         val uuid = UUID.randomUUID().toString()
 
         val app = with(req.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?: run {
@@ -252,43 +249,51 @@ class JobExecutionService(
             throw JobInternalException("Internal error")
         }
 
-        useIRods(principal) { connection ->
-            // Must end in '/'. Otherwise resolve will do the wrong thing
-            val homeDir = URI(PROJECT_DIRECTORY)
-            val jobDir = homeDir.resolve("$uuid/")
-            val workDir = jobDir.resolve("$PROJECT_FILES_DIRECTORY_NAME/")
+        // Must end in '/'. Otherwise resolve will do the wrong thing
+        val homeDir = URI(PROJECT_DIRECTORY)
+        val jobDir = homeDir.resolve("$uuid/")
+        val workDir = jobDir.resolve("$PROJECT_FILES_DIRECTORY_NAME/")
 
-            val files = validateAndCollectInputFiles(app, req.parameters, connection, workDir)
+        val files = validateAndCollectInputFiles(app, req.parameters, workDir, cloud)
 
-            val job = try {
-                sBatchGenerator.generate(app, req, workDir.path)
-            } catch (ex: IllegalArgumentException) {
-                throw JobValidationException(ex.message ?: "Bad request")
-            } catch (ex: Exception) {
-                log.warn("Unable to generate slurm job:")
-                log.warn(ex.stackTraceToString())
-                throw ex
-            }
+        val job = try {
+            sBatchGenerator.generate(app, req, workDir.path)
+        } catch (ex: IllegalArgumentException) {
+            throw JobValidationException(ex.message ?: "Bad request")
+        } catch (ex: Exception) {
+            log.warn("Unable to generate slurm job:")
+            log.warn(ex.stackTraceToString())
+            throw ex
+        }
 
-            return AppEvent.Validated(
-                uuid,
-                System.currentTimeMillis(),
-                principal.token,
-                principal.subject,
-                ApplicationWithOptionalDependencies(app, tool),
-                jobDir.path,
-                workDir.path,
-                files,
-                job
-            )
+        return AppEvent.Validated(
+            uuid,
+            System.currentTimeMillis(),
+            principal.token,
+            principal.subject,
+            ApplicationWithOptionalDependencies(app, tool),
+            jobDir.path,
+            workDir.path,
+            files,
+            job
+        )
+    }
+
+    private inline fun <T, E> RESTResponse<T, E>.orThrowOnError(
+        onError: (RESTResponse.Err<T, E>) -> Nothing
+    ): RESTResponse.Ok<T, E> {
+        return when (this) {
+            is RESTResponse.Ok -> this
+            is RESTResponse.Err -> onError(this)
+            else -> throw IllegalStateException()
         }
     }
 
-    private fun validateAndCollectInputFiles(
+    private suspend fun validateAndCollectInputFiles(
         app: ApplicationDescription,
         applicationParameters: Map<String, Any>,
-        storage: StorageConnection,
-        workDir: URI
+        workDir: URI,
+        cloud: AuthenticatedCloud
     ): List<ValidatedFileForUpload> {
         val result = ArrayList<ValidatedFileForUpload>()
 
@@ -300,10 +305,16 @@ class JobExecutionService(
             } catch (ex: IllegalArgumentException) {
                 throw JobValidationException(ex.message ?: DEFAULT_ERROR_MESSAGE)
             } ?: continue
-            val sourcePath = storage.paths.parseAbsolute(transferDescription.source, true)
+            val sourcePath = transferDescription.source
+            val stat = FileDescriptions.stat.call(FindByPath(sourcePath), cloud)
+                .orThrowOnError {
+                    throw JobValidationException("Missing file in storage: $sourcePath. Are you sure it exists?")
+                }
+                .result
+                .takeIf { it.type == FileType.FILE } ?: throw JobValidationException("Directories not supported")
 
-            val stat = storage.fileQuery.stat(sourcePath).capture()
-                    ?: throw JobValidationException("Missing file in storage: ${sourcePath.path}. Are you sure it exists?")
+//            val stat = storage.fileQuery.stat(sourcePath).capture()
+//                    ?: throw JobValidationException("Missing file in storage: ${sourcePath.path}. Are you sure it exists?")
 
             // Resolve relative path against working directory. Ensure that file is still inside of
             // the working directory.
@@ -328,7 +339,7 @@ class JobExecutionService(
      */
     private suspend fun prepareJob(event: AppEvent.Validated, cloud: CloudContext): AppEvent.Prepared {
         log.debug("prepareJob(event = $event)")
-        val principal = TokenValidation.validateOrNull(event.jwt) ?: throw JobNotAllowedException()
+        TokenValidation.validateOrNull(event.jwt) ?: throw JobNotAllowedException()
         val userCloud = JWTAuthenticatedCloud(cloud, event.jwt).withCausedBy(event.systemId)
         sshConnectionPool.use {
             mkdir(event.workingDirectory, true)
@@ -349,21 +360,21 @@ class JobExecutionService(
                     }
 
                 val fileDownload = (FileDescriptions.download.call(
-                    DownloadByURI(upload.sourcePath.path, token),
+                    DownloadByURI(upload.sourcePath, token),
                     userCloud
                 ) as? RESTResponse.Ok)?.response?.responseBodyAsStream ?: run {
-                    log.warn("Unable to download file: ${upload.sourcePath.path}")
+                    log.warn("Unable to download file: ${upload.sourcePath}")
                     throw JobInternalException("Unable to upload output files to SDU Cloud")
                 }
 
                 val uploadStatus = try {
                     scpUpload(
-                        upload.stat.sizeInBytes,
+                        upload.stat.size,
                         upload.destinationFileName,
                         upload.destinationPath,
                         "0600"
                     ) {
-                        // Internal transfer, so we use a large buffer to avoid iRODS overhead
+                        // Internal transfer, so we use a large buffer
                         fileDownload.transferTo(it, 1024 * 4096)
                     }
                 } catch (ex: Exception) {
@@ -458,13 +469,12 @@ class JobExecutionService(
     ): AppEvent.ExecutionCompleted {
         val jobId = event.systemId
         val owner = event.owner
-        val outputDirectoryWithoutZone = "/home/$owner/Jobs/$jobId"
-        val outputDirectory = "/${irodsConfig.zone}$outputDirectoryWithoutZone"
+        val outputDirectory = "/home/$owner/Jobs/$jobId"
         sshConnectionPool.use {
             log.debug("Creating directory...")
             val directoryCreation = runBlocking {
                 FileDescriptions.createDirectory.call(
-                    CreateDirectoryRequest(outputDirectoryWithoutZone, owner),
+                    CreateDirectoryRequest(outputDirectory, owner),
                     cloud
                 )
             }
@@ -622,22 +632,6 @@ class JobExecutionService(
         )
     }
 
-    private inline fun <T> useIRods(principal: DecodedJWT, body: (StorageConnection) -> T): T {
-        val connection = try {
-            irods.createForAccount(
-                principal.subject!!,
-                principal.token
-            ).orThrow()
-        } catch (ex: Exception) {
-            log.warn("Unable to create connection to iRODS")
-            log.warn(ex.stackTraceToString())
-
-            throw JobInternalException("Could not connect to storage back-end")
-        }
-
-        return connection.use(body)
-    }
-
     companion object {
         private val log = LoggerFactory.getLogger(JobService::class.java)
         private const val DEFAULT_ERROR_MESSAGE = "An error has occurred"
@@ -652,8 +646,8 @@ class JobInternalException(message: String) : JobException(message, HttpStatusCo
 class JobNotFoundException(entity: String) : JobException("Not found: $entity", HttpStatusCode.NotFound)
 class JobNotAllowedException : JobException("Not allowed", HttpStatusCode.Unauthorized)
 data class ValidatedFileForUpload(
-    val stat: FileStat,
+    val stat: StorageFile,
     val destinationFileName: String,
     val destinationPath: String,
-    val sourcePath: StoragePath
+    val sourcePath: String
 )

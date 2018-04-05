@@ -31,7 +31,8 @@ class SBatchGenerator {
 
         when (tool.backend) {
             ToolBackend.SINGULARITY -> requiredModules.add("singularity")
-            else -> {}
+            else -> {
+            }
         }
 
         val modules = requiredModules.joinToString("\n") {

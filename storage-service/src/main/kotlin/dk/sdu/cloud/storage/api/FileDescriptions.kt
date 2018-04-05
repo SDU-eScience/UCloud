@@ -25,6 +25,18 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
+    val stat = callDescription<FindByPath, StorageFile, CommonErrorMessage> {
+        prettyName = "stat"
+        path {
+            using(baseContext)
+            +"stat"
+        }
+
+        params {
+            +boundTo(FindByPath::path)
+        }
+    }
+
     val markAsFavorite = callDescription<FavoriteCommand.Grant, Unit, CommonErrorMessage> {
         prettyName = "filesMarkAsFavorite"
         method = HttpMethod.POST

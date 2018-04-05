@@ -7,12 +7,12 @@ import dk.sdu.cloud.app.services.JobException
 import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.app.services.JobServiceException
 import dk.sdu.cloud.auth.api.validatedPrincipal
-import dk.sdu.cloud.service.*
-import io.ktor.application.call
+import dk.sdu.cloud.service.cloudClient
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import io.ktor.response.respond
 import io.ktor.routing.Route
-import io.ktor.routing.get
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
@@ -41,8 +41,7 @@ class JobController(
             implement(HPCJobDescriptions.start) { req ->
                 logEntry(log, req)
                 try {
-                    val uuid = jobService.startJob(call.request.validatedPrincipal, req)
-                    println("Job has started now, right?")
+                    val uuid = jobService.startJob(call.request.validatedPrincipal, req, call.cloudClient)
                     ok(JobStartedResponse(uuid))
                 } catch (ex: JobException) {
                     if (ex.statusCode.value in 500..599) log.warn(ex.stackTraceToString())

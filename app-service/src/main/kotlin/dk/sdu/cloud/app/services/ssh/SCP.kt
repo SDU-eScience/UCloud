@@ -50,14 +50,16 @@ fun SSHConnection.scpUpload(
     fileLength: Long, fileName: String, fileDestination: String, filePermissions: String,
     fileWriter: (OutputStream) -> Unit
 ): Int {
-    log.debug("scpUpload(fileLength=$fileLength, fileName=$fileName, fileDestination=$fileDestination, " +
-            "filePermissions=$filePermissions, fileWriter=$fileWriter)")
+    log.debug(
+        "scpUpload(fileLength=$fileLength, fileName=$fileName, fileDestination=$fileDestination, " +
+                "filePermissions=$filePermissions, fileWriter=$fileWriter)"
+    )
     val execChannel = openExecChannel()
 
     val ins = execChannel.inputStream
     val outs = execChannel.outputStream
 
-    val scpCommand= "scp -t ${BashEscaper.safeBashArgument(fileDestination)}"
+    val scpCommand = "scp -t ${BashEscaper.safeBashArgument(fileDestination)}"
     log.debug("Setting command: $scpCommand")
     execChannel.setCommand(scpCommand)
     execChannel.connect()

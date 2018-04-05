@@ -56,11 +56,6 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
 
     // ------------
-    // iRODS
-    // ------------
-    compile "dk.sdu.cloud:cloud-storage:0.6.0-SNAPSHOT"
-
-    // ------------
     // Logging
     // ------------
     compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'

@@ -4,14 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.app.api.AppServiceDescription
 import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.ext.irods.IRodsConnectionInformation
-import dk.sdu.cloud.storage.ext.irods.IRodsStorageConnectionFactory
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import org.irods.jargon.core.connection.AuthScheme
-import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 
@@ -64,17 +59,6 @@ fun main(args: Array<String>) {
     )
     log.info("Connected to database")
 
-    val irodsConnectionFactory = IRodsStorageConnectionFactory(
-        IRodsConnectionInformation(
-            host = configuration.storage.host,
-            zone = configuration.storage.zone,
-            port = configuration.storage.port,
-            storageResource = "radosRandomResc",
-            sslNegotiationPolicy = ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REQUIRE,
-            authScheme = AuthScheme.PAM
-        )
-    )
-
     val cloud = RefreshingJWTAuthenticatedCloud(
         defaultServiceClient(args, serviceRegistry),
         configuration.refreshToken
@@ -83,7 +67,7 @@ fun main(args: Array<String>) {
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
-    val server = Server(kafka, serviceRegistry, cloud, configuration, serverProvider, irodsConnectionFactory)
+    val server = Server(kafka, serviceRegistry, cloud, configuration, serverProvider)
     server.start()
 }
 

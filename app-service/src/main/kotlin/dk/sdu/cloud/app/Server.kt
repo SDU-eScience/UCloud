@@ -9,10 +9,8 @@ import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.ext.StorageConnectionFactory
 import io.ktor.application.install
 import io.ktor.routing.route
 import io.ktor.routing.routing
@@ -29,8 +27,7 @@ class Server(
     private val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: HPCConfig,
-    private val ktor: HttpServerProvider,
-    private val storageConnectionFactory: StorageConnectionFactory
+    private val ktor: HttpServerProvider
 ) {
     private var initialized = false
 
@@ -56,8 +53,6 @@ class Server(
         val jobExecutionService = JobExecutionService(
             cloud,
             kafka.producer.forStream(HPCStreams.appEvents),
-            storageConnectionFactory,
-            config.storage,
             sbatchGenerator,
             jobDao,
             slurmPollAgent,

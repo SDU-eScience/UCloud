@@ -4,6 +4,7 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.services.ssh.linesInRange
+import dk.sdu.cloud.client.AuthenticatedCloud
 import io.ktor.http.HttpStatusCode
 import java.io.File
 import kotlin.math.min
@@ -78,8 +79,8 @@ class JobService(
         }
     }
 
-    fun startJob(who: DecodedJWT, req: AppRequest.Start): String {
-        return jobExecutionService.startJob(req, who)
+    suspend fun startJob(who: DecodedJWT, req: AppRequest.Start, cloud: AuthenticatedCloud): String {
+        return jobExecutionService.startJob(req, who, cloud)
     }
 }
 

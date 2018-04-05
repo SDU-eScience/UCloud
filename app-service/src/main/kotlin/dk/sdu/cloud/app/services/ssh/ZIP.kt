@@ -11,7 +11,7 @@ fun SSHConnection.createZipFileOfDirectory(outputPath: String, inputDirectoryPat
                 BashEscaper.safeBashArgument(inputDirectoryPath)
     )
 
-    if (status != 0)  {
+    if (status != 0) {
         log.warn("Unable to create ZIP file: outputPath=$outputPath, inputDirectoryPath=$inputDirectoryPath")
         log.warn("Status: $status, Output: $output")
     }

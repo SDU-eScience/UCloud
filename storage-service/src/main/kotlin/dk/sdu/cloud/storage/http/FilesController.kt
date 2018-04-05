@@ -6,8 +6,10 @@ import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.MetadataEntry
 import dk.sdu.cloud.storage.api.StoragePath
@@ -16,7 +18,6 @@ import dk.sdu.cloud.storage.services.ext.StorageConnection
 import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
 import dk.sdu.cloud.storage.services.ext.StorageException
 import io.ktor.http.HttpStatusCode
-import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
@@ -25,46 +26,65 @@ class FilesController(
     private val storageService: StorageConnectionFactory,
     private val icatService: ICATService
 ) {
+    private suspend fun RESTHandler<*, *, CommonErrorMessage>.error(message: String, statusCode: HttpStatusCode) {
+        error(CommonErrorMessage(message), statusCode)
+    }
+
+    private suspend inline fun RESTHandler<*, *, CommonErrorMessage>.withIRodsConnection(
+        body: (StorageConnection) -> Unit
+    ) {
+        if (!protect()) return
+
+        val principal = call.request.validatedPrincipal
+        return try {
+            storageService.createForAccount(principal.subject, principal.token).use { body(it) }
+        } catch (ex: StorageException) {
+            when (ex) {
+                is StorageException.BadAuthentication -> error("Unauthorized", HttpStatusCode.Unauthorized)
+                is StorageException.Duplicate -> error("Item already exists", HttpStatusCode.Conflict)
+                is StorageException.BadPermissions -> error("Not allowed", HttpStatusCode.Forbidden)
+                is StorageException.NotFound -> error("Not found", HttpStatusCode.NotFound)
+                is StorageException.NotEmpty -> error("Item is not empty", HttpStatusCode.Forbidden)
+
+                is StorageException.BadConnection -> {
+                    log.warn("Unable to connect to iRODS backend")
+                    log.warn(ex.stackTraceToString())
+
+                    error("Internal Server Error", HttpStatusCode.InternalServerError)
+                }
+            }
+        }
+    }
+
+    private suspend fun RESTHandler<*, *, CommonErrorMessage>.parsePath(
+        connection: StorageConnection,
+        path: String
+    ): StoragePath? {
+        return try {
+            connection.parsePath(path)
+        } catch (ex: IllegalArgumentException) {
+            error(CommonErrorMessage("Illegal path"), HttpStatusCode.BadRequest)
+            return null
+        }
+    }
+
     fun configure(routing: Route) = with(routing) {
         route("files") {
             implement(FileDescriptions.listAtPath) { request ->
                 logEntry(log, request)
-                if (!protect()) return@implement
 
-                val principal = call.request.validatedPrincipal
-                val connection =
-                    try {
-                        storageService.createForAccount(principal.subject, principal.token)
-                    } catch (ex: StorageException) {
-                        call.respond(HttpStatusCode.Unauthorized)
-                        return@implement
-                    }
+                withIRodsConnection { connection ->
+                    val path = parsePath(connection, request.path) ?: return@implement
+                    ok(connection.fileQuery.listAt(path))
+                }
+            }
 
-                connection.use {
-                    val path = try {
-                        connection.parsePath(request.path)
-                    } catch (ex: IllegalArgumentException) {
-                        error(CommonErrorMessage("Illegal path"), HttpStatusCode.BadRequest)
-                        return@implement
-                    }
+            implement(FileDescriptions.stat) { request ->
+                logEntry(log, request)
 
-                    try {
-                        ok(connection.fileQuery.listAt(path))
-                    } catch (ex: StorageException) {
-                        when (ex) {
-                            is StorageException.NotFound -> {
-                                error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-                            }
-
-                            is IllegalArgumentException -> {
-                                error(CommonErrorMessage(ex.message ?: "Unknown"), HttpStatusCode.BadRequest)
-                            }
-
-                            else -> {
-                                error(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
-                            }
-                        }
-                    }
+                withIRodsConnection { connection ->
+                    val path = parsePath(connection, request.path) ?: return@implement
+                    ok(connection.fileQuery.stat(path))
                 }
             }
 
@@ -72,26 +92,13 @@ class FilesController(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                val principal = call.request.validatedPrincipal
-                val connection =
-                    try {
-                        storageService.createForAccount(principal.subject, principal.token)
-                    } catch (ex: StorageException) {
-                        error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
-                        return@implement
-                    }
-
-                connection.use {
-                    val path = try {
-                        connection.paths.parseAbsolute(req.path, true)
-                    } catch (ex: Exception) {
-                        return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
-                    }
+                withIRodsConnection { connection ->
+                    val path = parsePath(connection, req.path) ?: return@implement
 
                     return@implement try {
                         connection.metadata.updateMetadata(
                             path,
-                            listOf(MetadataEntry(favoriteKey(principal), "true")),
+                            listOf(MetadataEntry(favoriteKey(call.request.validatedPrincipal), "true")),
                             emptyList()
                         )
                         ok(Unit)
@@ -108,23 +115,11 @@ class FilesController(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                val principal = call.request.validatedPrincipal
-                val connection =
-                    try {
-                        storageService.createForAccount(principal.subject, principal.token)
-                    } catch (ex: StorageException) {
-                        error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
-                        return@implement
-                    }
 
-                connection.use {
-                    val path = try {
-                        connection.paths.parseAbsolute(req.path, true)
-                    } catch (ex: Exception) {
-                        return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
-                    }
+                withIRodsConnection { connection ->
+                    val path = parsePath(connection, req.path) ?: return@implement
 
-                    val favKey = favoriteKey(principal)
+                    val favKey = favoriteKey(call.request.validatedPrincipal)
                     return@implement try {
                         connection.metadata.updateMetadata(
                             path,
@@ -157,27 +152,14 @@ class FilesController(
                     else error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                 } else {
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
-                    val principal = call.request.validatedPrincipal
-                    val connection =
-                        try {
-                            storageService.createForAccount(principal.subject, principal.token)
-                        } catch (ex: StorageException) {
-                            error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
-                            return@implement
-                        }
+                    withIRodsConnection { connection ->
+                        val path = parsePath(connection, req.path) ?: return@implement
 
-                    connection.use {
-                        val path = try {
-                            connection.paths.parseAbsolute(req.path, true)
-                        } catch (ex: Exception) {
-                            return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
-                        }
-
-                        if (it.fileQuery.exists(path)) {
+                        if (connection.fileQuery.exists(path)) {
                             error(CommonErrorMessage("File already exists!"), HttpStatusCode.Conflict)
                         } else {
                             try {
-                                it.files.createDirectory(path, false)
+                                connection.files.createDirectory(path, false)
                                 ok(Unit)
                             } catch (ex: Exception) {
                                 error(CommonErrorMessage("Could not create directory"), HttpStatusCode.BadRequest)
