@@ -10,7 +10,7 @@ export const UPDATE_FILES_INFO_PATH = "UPDATE_FILES_INFO_PATH";
 const files = (state = [], action) => {
     switch (action.type) {
         case RECEIVE_FILES: {
-            return { ...state, files: action.files, loading: false };
+            return { ...state, files: action.files, loading: false, currentFilesPage: 0 };
         }
         case UPDATE_FILES_PER_PAGE: {
             return { ...state, files: action.files, filesPerPage: action.filesPerPage, currentFilesPage: 0 };
