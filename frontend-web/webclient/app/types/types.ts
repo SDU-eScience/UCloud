@@ -30,3 +30,30 @@ export interface Path {
     uri: string
     name: string
 }
+
+export interface Analyses {
+    jobId:string
+    owner:string
+    state:string
+    status:string
+    appName:string
+    appVersion:string
+    createdAt:number
+    modifiedAt:number
+}
+
+export interface Application {
+    tool: {
+        name:string
+        version:string
+    }
+    info: {
+        name:string
+        version:string
+    }
+    prettyName:string
+    authors:string[]
+    createdAt:number
+    modifiedAt:number
+    description:string
+}
