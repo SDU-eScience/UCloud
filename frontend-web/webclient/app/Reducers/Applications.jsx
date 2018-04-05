@@ -16,7 +16,7 @@ const applications = (state = [], action) => {
             return { ...state, currentApplicationsPage: action.pageNumber };
         }
         case UPDATE_APPLICATIONS_PER_PAGE: {
-            return { ...state, applicationsPerPage: action.applicationsPerPage };
+            return { ...state, applicationsPerPage: action.applicationsPerPage, currentApplicationsPage: 0 };
         }
         case UPDATE_APPLICATIONS: {
             return { ...state, applications: action.applications };

@@ -61,7 +61,7 @@ class Applications extends React.Component {
     render() {
         const { applications, loading, applicationsPerPage, currentApplicationsPage, dispatch } = this.props;
         const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
-        const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage) - 1, 0);
+        const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage), 0);
         return (
             <section>
                 <div className="container" style={{ "marginTop": "60px" }}>
