@@ -121,6 +121,11 @@ class Files extends React.Component {
             files.find(file => file.path.path === newFile.path.path).isChecked = checked;
             dispatch(updateFiles(files));
         }
+        const goToPage = (pageNumber) => {
+            files.forEach(f => f.isChecked = false);
+            dispatch(updateFiles(files));
+            dispatch(toPage(pageNumber));
+        }
         const openUppy = () => dispatch(changeUppyFilesOpen(true));
         return (
             <section>
@@ -142,7 +147,7 @@ class Files extends React.Component {
                         <PaginationButtons
                             currentPage={currentFilesPage}
                             totalPages={totalPages}
-                            toPage={pageNumber => dispatch(toPage(pageNumber))}
+                            toPage={(pageNumber) => goToPage(pageNumber)}
                         />
                         <EntriesPerPageSelector
                             entriesPerPage={filesPerPage}
@@ -156,7 +161,7 @@ class Files extends React.Component {
                         selectedFiles={shownFiles.filter(file => file.isChecked)}
                         currentPath={path}
                         getFavorites={this.getFavorites}
-                        onClick={() => openUppy()}
+                        onClick={openUppy}
                     />
                 </div>
             </section>)
