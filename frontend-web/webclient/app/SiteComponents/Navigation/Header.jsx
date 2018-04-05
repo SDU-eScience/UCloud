@@ -1,10 +1,10 @@
 import React from "react";
 import {Dropdown, MenuItem} from "react-bootstrap";
-import { Cloud } from "../../authentication/SDUCloudObject"
+import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import './Header.scss';
 import './HeaderMenuLinks.scss';
-import StatusBar from "../SiteComponents/StatusBar";
+import StatusBar from "./StatusBar";
 
 
 const Header = ({ title }) => (

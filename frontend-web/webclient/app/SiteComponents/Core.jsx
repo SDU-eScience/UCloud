@@ -5,18 +5,16 @@ import {Switch, Route} from "react-router-dom";
 import PropTypes from "prop-types";
 import Files from "./Files";
 import FileInfo from "./FileInfo";
-import Workflows from "./Applications/Workflows";
 import Dashboard from "./Dashboard";
-import Status from "./StatusPage";
+import Status from "./Navigation/StatusPage";
 import Applications from "./Applications/Applications";
 import RunApp from "./Applications/RunApp";
 import Analyses from "./Applications/Analyses";
 import DetailedResult from "./Applications/DetailedResult";
 import Notifications from "./Activity/Notifications";
-import Header from "./Header";
-import Sidebar from "../SiteComponents/Sidebar";
+import Header from "./Navigation/Header";
+import Sidebar from "../SiteComponents/Navigation/Sidebar";
 import UserAuditing from "./Admin/UserAuditing";
-import GenerateWorkflow from "./GenerateWorkflow";
 import ZenodoPublish from "./Zenodo/Publish";
 import ZenodoHome from "./Zenodo/Zenodo";
 import ZenodoInfo from "./Zenodo/Info";
@@ -39,8 +37,6 @@ const Core = () => (
                 <Route exact path="/status" component={Status}/>
                 <Route exact path="/applications" component={Applications}/>
                 <Route exact path="/applications/:appName/:appVersion" component={RunApp}/>
-                <Route exact path="/workflows" component={Workflows}/>
-                <Route exact path="/generateworkflow" component={GenerateWorkflow}/>
                 <Route exact path="/analyses" component={Analyses}/>
                 <Route exact path="/analyses/:jobId" component={DetailedResult}/>
                 <Route exact path="/audit/user/:id" component={UserAuditing}/>

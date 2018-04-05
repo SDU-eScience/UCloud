@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { Button } from "react-bootstrap";
-import { updatePageTitle } from '../Actions/Status';
+import { updatePageTitle } from "../../Actions/Status";
 import { connect } from "react-redux";
 
 const StatusBar = ({ status, dispatch }) => {
@@ -15,12 +15,12 @@ const StatusBar = ({ status, dispatch }) => {
 const statusToButton = (status) => {
     switch (status.level) {
         case "NO ISSUES":
-            return 'bg-green-500';
+            return "bg-green-500";
         case "MAINTENANCE":
         case "UPCOMING MAINTENANCE":
-            return 'bg-yellow-500';
+            return "bg-yellow-500";
         case "ERROR":
-            return 'bg-red-500';
+            return "bg-red-500";
     }
 }
 

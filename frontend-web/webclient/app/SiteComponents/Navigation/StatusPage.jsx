@@ -1,6 +1,6 @@
 import React from "react";
 import { connect } from "react-redux";
-import { updatePageTitle } from "../Actions/Status";
+import { updatePageTitle } from "../../Actions/Status";
 
 const Status = ({ status, dispatch }) => {
     dispatch(updatePageTitle("System Status"));

@@ -7,8 +7,8 @@ import { Glyphicon } from "react-bootstrap";
 
 import SidebarRun from "./Sidebar.run";
 
-import { Cloud } from "../../authentication/SDUCloudObject"
-import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
+import { Cloud } from "../../../authentication/SDUCloudObject"
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 
 class Sidebar extends React.Component {
 
