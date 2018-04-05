@@ -1,11 +1,11 @@
 import React from "react";
-import {Cloud} from "../authentication/SDUCloudObject";
+import { Cloud } from "../authentication/SDUCloudObject";
 import SectionContainerCard from "./SiteComponents/SectionContainerCard";
-import {Button} from "react-bootstrap";
+import { Button } from "react-bootstrap";
 
 const ZenodoRedirect = () =>
     Cloud.post(`/zenodo/request?returnTo=${window.location.href}`).then(({response}) => {
-        const redirectTo = data.response.redirectTo;
+        const redirectTo = response.redirectTo;
         if (redirectTo) window.location.href = redirectTo;
     });
 

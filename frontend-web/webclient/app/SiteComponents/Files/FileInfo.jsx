@@ -1,15 +1,15 @@
 import React from "react";
-import { Cloud } from "../../authentication/SDUCloudObject";
-import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString } from "../UtilityFunctions";
-import { fetchFiles, updatePath, updateFiles, setLoading } from "../Actions/Files";
-import SectionContainerCard from "./SectionContainerCard";
-import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
-import { SensitivityLevel, RightsNameMap } from "../DefaultObjects"
+import { Cloud } from "../../../authentication/SDUCloudObject";
+import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString } from "../../UtilityFunctions";
+import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
+import SectionContainerCard from "../SectionContainerCard";
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { SensitivityLevel, RightsNameMap } from "../../DefaultObjects"
 import { ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup } from "react-bootstrap";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { updatePageTitle } from "../Actions/Status";
+import { updatePageTitle } from "../../Actions/Status";
 
 
 const FileInfo = ({ dispatch, files, loading, ...props }) => {

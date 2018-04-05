@@ -1,6 +1,6 @@
 import React from "react";
 import { Jumbotron, InputGroup, FormGroup } from "react-bootstrap";
-import FileSelector from "../FileSelector";
+import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";

@@ -5,7 +5,7 @@ import {Cloud} from "../../../authentication/SDUCloudObject";
 import {shortUUID} from "../../UtilityFunctions";
 import {Glyphicon, ListGroup, ListGroupItem, OverlayTrigger, Tooltip} from "react-bootstrap";
 import {Link} from "react-router-dom";
-import {FilesTable} from "../Files";
+import {FilesTable} from "../Files/Files";
 import "./wizard.scss";
 
 class DetailedResult extends React.Component {

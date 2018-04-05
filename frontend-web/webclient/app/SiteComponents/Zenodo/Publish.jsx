@@ -1,6 +1,6 @@
 import React from "react";
 import { Button, FormGroup, ButtonToolbar, ListGroup, ListGroupItem } from "react-bootstrap";
-import FileSelector from "../FileSelector";
+import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
 import { LoadingButton } from "../LoadingIcon/LoadingIcon";
@@ -47,9 +47,9 @@ class ZenodoPublish extends React.Component {
         }));
     }
 
-    handleFileSelection(path, index) {
+    handleFileSelection(file, index) {
         const files = this.state.files.slice();
-        files[index] = path;
+        files[index] = file.path.path;
         this.setState(() => ({
             files
         }));

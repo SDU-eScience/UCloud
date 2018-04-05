@@ -1,14 +1,14 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { BallPulseLoading } from './LoadingIcon/LoadingIcon';
-import { Modal, Button, Table } from 'react-bootstrap';
-import { Cloud } from "../../authentication/SDUCloudObject";
-import { BreadCrumbs } from "./Breadcrumbs"
-import { sortFilesByTypeAndName, createFolder } from "../UtilityFunctions";
-import PromiseKeeper from "../PromiseKeeper";
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { Modal, Button, Table } from "react-bootstrap";
+import { Cloud } from "../../../authentication/SDUCloudObject";
+import { BreadCrumbs } from "../Breadcrumbs"
+import { sortFilesByTypeAndName, createFolder } from "../../UtilityFunctions";
+import PromiseKeeper from "../../PromiseKeeper";
 import { DashboardModal } from "uppy/lib/react";
 import { dispatch } from "redux";
-import { changeUppyRunAppOpen } from "../Actions/UppyActions";
+import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
 
 class FileSelector extends React.Component {
     constructor(props, context) {
@@ -87,7 +87,7 @@ class FileSelector extends React.Component {
     }
 
     setSelectedFile(file) {
-        let fileCopy = file.path.path;
+        let fileCopy = { path: file.path };
         this.setState(() => ({
             modalShown: false,
         }));

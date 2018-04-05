@@ -1,12 +1,12 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { BallPulseLoading } from "./LoadingIcon/LoadingIcon";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import { Button, Table, Dropdown, MenuItem, Glyphicon } from "react-bootstrap";
-import { PaginationButtons, EntriesPerPageSelector } from "./Pagination";
-import { BreadCrumbs } from "./Breadcrumbs";
+import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
+import { BreadCrumbs } from "../Breadcrumbs";
 import {
     sortFilesByTypeAndName,
     createFolder,
@@ -24,11 +24,11 @@ import {
     getSortingIcon,
     sortByNumber,
     sortByString
-} from "../UtilityFunctions";
+} from "../../UtilityFunctions";
 import Uppy from "uppy";
-import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../Actions/Files";
-import { updatePageTitle } from "../Actions/Status";
-import { changeUppyFilesOpen } from "../Actions/UppyActions";
+import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../../Actions/Files";
+import { updatePageTitle } from "../../Actions/Status";
+import { changeUppyFilesOpen } from "../../Actions/UppyActions";
 
 class Files extends React.Component {
     constructor(props) {
@@ -164,7 +164,7 @@ class Files extends React.Component {
                         onClick={openUppy}
                     />
                 </div>
-            </section>)
+            </section>);
     }
 }
 
@@ -203,7 +203,7 @@ const ContextButtons = ({ upload, createFolder, isHidden }) => (
         </button>
         {isHidden ? (<br />) : null }
     </span>
-)
+);
 
 
 const FileOptions = ({ selectedFiles }) => {
@@ -265,7 +265,7 @@ const FileOptions = ({ selectedFiles }) => {
                 </Button>
             </p>
         </div>
-    )
+    );
 };
 
 
@@ -359,7 +359,7 @@ export const FilesTable = (props) => {
                     />
                 </Table>
             </div>
-        </div>)
+        </div>);
 };
 
 const fileTypeToConstructor = (type) => {
@@ -388,7 +388,7 @@ const FilesList = ({ files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInl
         />)
     });
 
-    return <tbody>{filesList}</tbody>;
+    return (<tbody>{filesList}</tbody>);
 };
 
 const File = ({ file, favoriteFile, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons }) => (
