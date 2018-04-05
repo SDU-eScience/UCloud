@@ -1,10 +1,11 @@
 import React from "react";
 import { Pager } from "react-bootstrap";
-import { createRangeInclusive } from "../UtilityFunctions";
+import { createRange } from "../UtilityFunctions";
 
 
 export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
-    const pagination = createRangeInclusive(totalPages).map(i =>
+    if (totalPages === 0) { return null; }
+    const pagination = createRange(totalPages).map(i =>
         <Pager.Item href="#" onClick={() => toPage(i)} disabled={i === currentPage} key={i}>
             {i + 1}
         </Pager.Item>);
@@ -14,7 +15,7 @@ export const PaginationButtons = ({ totalPages, toPage, currentPage }) => {
                 {"<"}
             </Pager.Item>
             {pagination}
-            <Pager.Item disabled={currentPage === totalPages} onClick={() => toPage(currentPage + 1)}>
+            <Pager.Item disabled={currentPage + 1 === totalPages} onClick={() => toPage(currentPage + 1)}>
                 {">"}
             </Pager.Item>
         </Pager>);
