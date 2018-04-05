@@ -107,8 +107,6 @@ class Files extends React.Component {
             dispatch(updatePath(newPath));
             dispatch(setLoading(true));
             dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
-        } else {
-            dispatch(setLoading(false));
         }
     }
 
