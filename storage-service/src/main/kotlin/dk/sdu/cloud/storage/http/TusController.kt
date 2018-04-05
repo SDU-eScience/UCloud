@@ -186,7 +186,7 @@ class TusController(
                     }
 
                     val owner = metadata["owner"]?.takeIf { isPrivileged } ?: principal.subject
-                    val location = metadata["location"]?.takeIf { isPrivileged }
+                    val location = metadata["location"]?.takeIf { isPrivileged }?.let { "/${config.defaultZone}$it" }
                             ?: "/${config.defaultZone}/home/${principal.subject}/Uploads"
 
                     val canWrite = icat.useConnection {
@@ -357,7 +357,7 @@ class TusController(
                     autoCommit = false
                     log.debug("Registration of object...")
 
-                    val resource = findResourceByNameAndZone("child_01", "tempZone") ?: return@useConnection
+                    val resource = findResourceByNameAndZone("child_01", config.defaultZone) ?: return@useConnection
                     log.debug("Using resource $resource. $irodsUser, $irodsZone, $irodsCollection")
 
                     val (_, entry) = userHasWriteAccess(irodsUser, irodsZone, irodsCollection)
@@ -387,7 +387,7 @@ class TusController(
                         transaction {
                             UploadDescriptions.update({ UploadDescriptions.id eq state.id }) {
                                 it[UploadDescriptions.savedAs] =
-                                        "${irodsCollection.removePrefix("/tempZone").removeSuffix("/")}/$availableName"
+                                        "${irodsCollection.removePrefix("/${config.defaultZone}").removeSuffix("/")}/$availableName"
                             }
                         }
 
