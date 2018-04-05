@@ -12,7 +12,7 @@ import { connect } from "react-redux";
 import { updatePageTitle } from "../Actions/Status";
 
 
-const FileInfo = ({ dispatch, files, loading, ...props}) => {
+const FileInfo = ({ dispatch, files, loading, ...props }) => {
     dispatch(updatePageTitle("File Info"));
     let file;
     const path = props.match.params[0];
@@ -28,8 +28,8 @@ const FileInfo = ({ dispatch, files, loading, ...props}) => {
 
     if (!file) { return (<BallPulseLoading loading={true} />) }
 
-    const retrieveFilesCallback = () => { 
-        dispatch(setLoading(true)); 
+    const retrieveFilesCallback = () => {
+        dispatch(setLoading(true));
         dispatch(fetchFiles(props.filesPath));
     }
 
@@ -44,7 +44,7 @@ const FileInfo = ({ dispatch, files, loading, ...props}) => {
                         className="btn btn-primary"
                     >
                         Share file
-                        </Button>);
+                    </Button>);
             }
         }
     }
@@ -142,15 +142,15 @@ const FileView = (props) => {
     );
 }
 
-const FileSharing = (props) => {
-    if (!props.file) {
+const FileSharing = ({ file, updateSharing, revokeRights }) => {
+    if (!file) {
         return null;
     }
-    const currentRights = props.file.acl.find(acl => acl.entity.displayName === Cloud.username);
+    const currentRights = file.acl.find(acl => acl.entity.displayName === Cloud.username);
     if (!currentRights || currentRights.right !== "OWN") {
         return null;
     }
-    const sharedWith = props.file.acl.filter(acl => acl.entity.displayName !== Cloud.username);
+    const sharedWith = file.acl.filter(acl => acl.entity.displayName !== Cloud.username);
     if (!sharedWith.length) {
         return (
             <h3 className="text-center">
@@ -165,9 +165,9 @@ const FileSharing = (props) => {
                         <span
                             className="text-left"><b>{acl.entity.displayName}</b> has <b>{RightsNameMap[acl.right]}</b> access.</span>
                         <ButtonGroup bsSize="xsmall" className="pull-right">
-                            <Button onClick={() => props.updateSharing(acl)}
+                            <Button onClick={() => updateSharing(acl)}
                                 className="btn btn-primary">Change</Button>
-                            <Button onClick={() => props.revokeRights(acl)}
+                            <Button onClick={() => revokeRights(acl)}
                                 className="btn btn-danger">Revoke</Button>
                         </ButtonGroup>
                     </ListGroupItem>))}
