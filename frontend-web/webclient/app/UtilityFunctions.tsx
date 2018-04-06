@@ -63,7 +63,7 @@ export const sortFilesByOwner = (files: File[], asc: boolean) => { // FIXME Shou
 
 export const sortFilesBySensitivity = (files: File[], asc: boolean) => {
     let order = asc ? 1 : -1;
-    files.sort((a: File, b: File) => {
+    files.sort((a, b) => {
         return SensitivityLevelMap[a.sensitivityLevel] - SensitivityLevelMap[b.sensitivityLevel] * order;
     });
     return files;

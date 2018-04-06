@@ -20,7 +20,7 @@ import ZenodoHome from "./Zenodo/Zenodo";
 import ZenodoInfo from "./Zenodo/Info";
 import {connect} from "react-redux";
 import {changeUppyOpen} from "../Actions/UppyActions";
-import UppyWrapper from "./UppyWrapper"
+import UppyWrapper from "./UppyWrapper";
 
 const NotFound = () => (<div className="container-fluid"><h1>Not found.</h1></div>);
 
@@ -49,8 +49,8 @@ const Core = () => (
             <footer>
                 <span>{new Date().getFullYear()} - SDUCloud.</span>
             </footer>
-            <UppyWrapper/>
         </div>
+        <UppyWrapper/>
     </div>
 );
 

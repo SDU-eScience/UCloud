@@ -68,8 +68,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
                     <td onClick={() => favorite(file.path.path)} className="text-center"><em className="ion-star" /></td>
                 </tr>)
         }
-    }
-    );
+    });
 
     return (
         <div className="col-md-6 col-lg-4 align-self-center">
