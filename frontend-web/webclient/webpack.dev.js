@@ -9,7 +9,7 @@ module.exports = webpackMerge(commonConfig, {
     devtool: "inline-source-map",
 
     entry: {
-        vendor: './app/Vendor.jsx',
+        vendor: './app/Vendor.tsx',
         app: './app/App.jsx'
     },
 

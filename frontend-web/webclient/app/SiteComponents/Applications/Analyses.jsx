@@ -92,9 +92,11 @@ const AnalysesList = ({ analyses }) => {
     if (!analyses && !analyses[0].name) {
         return null;
     }
+    console.log(analyses.filter(analyses => analyses.status === "COMPLETE"));
     const analysesList = analyses.map((analysis, index) => {
         const jobIdField = analysis.status === "COMPLETE" ?
             (<Link to={`/files/${Cloud.jobFolder}/${analysis.jobId}`}>{analysis.jobId}</Link>) : analysis.jobId;
+        console.log(jobIdField);
         return (
             <tr key={index} className="gradeA row-settings">
                 <td>
@@ -112,8 +114,7 @@ const AnalysesList = ({ analyses }) => {
                 <td>{formatDate(analysis.createdAt)}</td>
                 <td>{formatDate(analysis.modifiedAt)}</td>
             </tr>)
-    }
-    );
+    });
     return (
         <tbody>
             {analysesList}

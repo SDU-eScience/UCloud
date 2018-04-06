@@ -10,7 +10,7 @@ const baseHref = "/app";
 module.exports = {
 
     entry: {
-        vendor: './app/Vendor.jsx',
+        vendor: './app/Vendor.tsx',
         app: './app/App.jsx'
     },
 

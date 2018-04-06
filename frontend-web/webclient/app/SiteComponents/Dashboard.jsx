@@ -161,7 +161,7 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
                 <tbody>
                     {analyses.map((analysis, index) =>
                         <tr key={index}>
-                            <td>{analysis.appName}</td>
+                            <td><Link to={`/analyses/${analysis.jobId}`}>{analysis.appName}</Link></td>
                             <td>{toLowerCaseAndCapitalize(analysis.state)}</td>
                         </tr>
                     )}

@@ -1,5 +1,5 @@
 import {tusConfig} from "./Configurations";
-import * as Uppy from "uppy/lib";
+import * as Uppy from "uppy";
 import { File, Analysis, Application, Status } from "./types/types"
 import SDUCloud from "../authentication/lib";
 
