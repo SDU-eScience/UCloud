@@ -1,12 +1,12 @@
 import {tusConfig} from "./Configurations";
-import * as Uppy from "uppy";
-import { File, Analysis, Application } from "./types/types"
+import * as Uppy from "uppy/lib";
+import { File, Analysis, Application, Status } from "./types/types"
 import SDUCloud from "../authentication/lib";
 
-export enum DefaultStatus {
-    title = "No Issues",
-    level = "NO ISSUES",
-    body = "The system is running as intended.",
+export const DefaultStatus:Status = {
+    title: "No Issues",
+    level: "NO ISSUES",
+    body: "The system is running as intended."
 };
 
 export const RightsMap:any = {

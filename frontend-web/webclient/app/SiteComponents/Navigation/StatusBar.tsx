@@ -1,17 +1,18 @@
-import React from "react";
-import PropTypes from "prop-types";
+import * as React from "react";
 import { Link } from "react-router-dom";
-import { Button } from "react-bootstrap";
+import { Button } from "react-bootstrap/lib";
 import { updatePageTitle } from "../../Actions/Status";
 import { connect } from "react-redux";
+import { Status } from "../../types/types";
 
-const StatusBar = (props) => (
+interface StatusBarProps { status: Status }
+const StatusBar = ({ status }: StatusBarProps) => (
     <Link to={"/status"}>
-        <Button className={`btn btn-info center-text ${statusToButton(props.status)}`} title={props.status.body}>{props.status.title}</Button>
+        <Button className={`btn btn-info center-text ${statusToButton(status)}`} title={status.body}>{status.title}</Button>
     </Link>
 );
 
-const statusToButton = (status) => {
+const statusToButton = (status: Status) => {
     switch (status.level) {
         case "NO ISSUES":
             return "bg-green-500";
@@ -23,9 +24,5 @@ const statusToButton = (status) => {
     }
 }
 
-StatusBar.propTypes = {
-    status: PropTypes.object.isRequired
-}
-
-const mapStateToProps = (state) => ({ status: state.status.status });
+const mapStateToProps = (state: any) => ({ status: state.status.status });
 export default connect(mapStateToProps)(StatusBar);

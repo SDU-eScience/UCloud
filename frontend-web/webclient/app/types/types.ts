@@ -57,3 +57,9 @@ export interface Application {
     modifiedAt:number
     description:string
 }
+
+export interface Status { 
+    title: string 
+    level: string
+    body: string
+}
