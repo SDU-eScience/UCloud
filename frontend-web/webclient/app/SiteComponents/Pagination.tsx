@@ -22,7 +22,7 @@ export const PaginationButtons = ({ totalPages, toPage, currentPage }:Pagination
         </Pager>);
 };
 
-interface EntriesPerPageSelector { entriesPerPage: number, handlePageSizeSelection: Function, totalPages: number, children: React.ReactChild }
+interface EntriesPerPageSelector { entriesPerPage: number, handlePageSizeSelection: Function, totalPages: number, children: React.ReactNode }
 export const EntriesPerPageSelector = ({ entriesPerPage, handlePageSizeSelection, totalPages, children }:EntriesPerPageSelector) => (
     <span>
         <select value={entriesPerPage} onChange={(e) => handlePageSizeSelection(parseInt(e.target.value))}>

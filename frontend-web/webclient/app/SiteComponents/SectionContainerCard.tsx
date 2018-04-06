@@ -1,6 +1,6 @@
 import * as React from "react";
 
-interface SCCProps { children: React.ReactChildren }
+interface SCCProps { children: React.ReactNode }
 export const SectionContainerCard = ({children}:SCCProps) => (
     <section>
         <div className="container-fluid">

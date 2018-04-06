@@ -1,7 +1,7 @@
-import React from "react";
+import * as React from "react";
 import { Cloud } from "../authentication/SDUCloudObject";
-import SectionContainerCard from "./SiteComponents/SectionContainerCard";
-import { Button } from "react-bootstrap";
+import {SectionContainerCard} from "./SiteComponents/SectionContainerCard";
+import { Button } from "react-bootstrap/lib";
 
 const ZenodoRedirect = () =>
     Cloud.post(`/zenodo/request?returnTo=${window.location.href}`).then(({response}) => {
@@ -9,7 +9,7 @@ const ZenodoRedirect = () =>
         if (redirectTo) window.location.href = redirectTo;
     });
 
-export const NotConnectedToZenodo = () => (
+export const NotConnectedToZenodo = ():React.ReactNode => (
     <SectionContainerCard>
         <h1>You are not connected to Zenodo</h1>
         <Button onClick={() => ZenodoRedirect()}>Connect to Zenodo</Button>
