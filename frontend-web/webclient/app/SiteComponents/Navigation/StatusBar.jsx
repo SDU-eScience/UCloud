@@ -5,12 +5,11 @@ import { Button } from "react-bootstrap";
 import { updatePageTitle } from "../../Actions/Status";
 import { connect } from "react-redux";
 
-const StatusBar = ({ status, dispatch }) => {
-    return (
-        <Link to={"/status"}>
-            <Button className={"btn btn-info center-text " + statusToButton(status)} title={status.body}>{status.title}</Button>
-        </Link>);
-}
+const StatusBar = (props) => (
+    <Link to={"/status"}>
+        <Button className={`btn btn-info center-text ${statusToButton(props.status)}`} title={props.status.body}>{props.status.title}</Button>
+    </Link>
+);
 
 const statusToButton = (status) => {
     switch (status.level) {
@@ -29,5 +28,4 @@ StatusBar.propTypes = {
 }
 
 const mapStateToProps = (state) => ({ status: state.status.status });
-
 export default connect(mapStateToProps)(StatusBar);
