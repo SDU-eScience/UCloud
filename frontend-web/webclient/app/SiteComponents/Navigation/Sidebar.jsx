@@ -1,7 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import "./Sidebar.scss";
 import { Glyphicon } from "react-bootstrap";
 import SidebarRun from "./Sidebar.run";
 import { Cloud } from "../../../authentication/SDUCloudObject"
