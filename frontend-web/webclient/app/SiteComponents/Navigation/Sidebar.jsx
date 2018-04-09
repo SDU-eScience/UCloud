@@ -18,7 +18,7 @@ class Sidebar extends React.Component {
 
     render() {
         const { loading, options } = this.props;
-        if (options.length) { 
+        if (options.length) {
             SidebarRun();
         }
         return (
@@ -67,13 +67,19 @@ const SingleSidebarOption = ({ option }) => (
     </li>
 );
 
+const iconStyle = {
+    color: "#448aff",
+    marginRight: "5px",
+    fontSize: "16px"
+};
+
 const SidebarOption = ({ option }) => {
     if (option.icon || option.href === "#") {
         const arrowRight = option.href === "#" ? <span className="pull-right nav-caret"><em className="ion-ios-arrow-right" /></span> : null;
         return (
             <Link to={option.href}>
                 <span className="nav-icon" />
-                <i style={{ color: "#448aff", marginRight: "5px", fontSize: "16px" }} className={option.icon} /> {option.name}
+                <i style={iconStyle} className={option.icon} /> {option.name}
                 {arrowRight}
             </Link>
         );
@@ -84,10 +90,6 @@ const SidebarOption = ({ option }) => {
             </Link>
         );
     }
-};
-
-Sidebar.contextTypes = {
-    router: PropTypes.object,
 };
 
 const mapStateToProps = (state) => ({ options, loading } = state.sidebar);

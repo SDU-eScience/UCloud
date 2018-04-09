@@ -32,13 +32,13 @@ const addPromiseSupportToDispatch = (store) => {
 
 const rootReducer = combineReducers({ files, dashboard, analyses, applications, uppy: uppyReducers, status, zenodo, sidebar });
 
-const configureStore = () => {
-    let store = createStore(rootReducer, initObject(Cloud));
+const configureStore = (initialObject) => {
+    let store = createStore(rootReducer, initialObject);
     store.dispatch = addPromiseSupportToDispatch(store);
     return store;
 };
 
-let store = configureStore();
+let store = configureStore(initObject(Cloud));
 
 ReactDOM.render(
     <Provider store={store}>

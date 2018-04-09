@@ -1,10 +1,10 @@
 import * as React from "react";
 import "react-bootstrap";
-import {BreadcrumbItem, Breadcrumb} from "react-bootstrap/lib";
+import { BreadcrumbItem, Breadcrumb } from "react-bootstrap/lib";
 
 
-interface Breadcrumbs { currentPath:string, navigate:any}
-export const BreadCrumbs = ({ currentPath, navigate }:Breadcrumbs) => {
+interface Breadcrumbs { currentPath: string, navigate: (path: string) => void }
+export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
     if (!currentPath) {
         return null;
     }
@@ -22,8 +22,8 @@ export const BreadCrumbs = ({ currentPath, navigate }:Breadcrumbs) => {
 
 }
 
-export function buildBreadCrumbs(path:string) {
-    const paths:string[] = path.split("/").filter((path: string) => path);
+export function buildBreadCrumbs(path: string) {
+    const paths: string[] = path.split("/").filter((path: string) => path);
     let pathsMapping = [];
     for (let i = 0; i < paths.length; i++) {
         let actualPath = "/";
