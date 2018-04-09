@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Col from "react-bootstrap/lib/Col";
 
-interface Card { xs: number, sm: number, children: React.ReactNode }
+interface Card { xs?: number, sm?: number, children: React.ReactNode }
 export const Card = ({ xs, sm, children }: Card) => (
     <Col sm={sm} xs={xs}>
         <div className="card">

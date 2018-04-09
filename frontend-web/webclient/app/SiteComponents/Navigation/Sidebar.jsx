@@ -3,27 +3,24 @@ import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { Glyphicon } from "react-bootstrap";
 import SidebarRun from "./Sidebar.run";
-import { Cloud } from "../../../authentication/SDUCloudObject"
+import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { connect } from "react-redux";
+import { fetchSidebarOptions, setSidebarLoading } from "../../Actions/Sidebar";
 
 class Sidebar extends React.Component {
-
     constructor(props) {
         super(props);
-        this.state = {
-            options: [],
-        }
-        this.retrieveUserOptions();
-    }
-
-    retrieveUserOptions() {
-        Cloud.get("/../mock-api/mock_sidebar_options.json").then(({ response }) => {
-            this.setState({ options: response });
-            SidebarRun();
-        });
+        const { dispatch } = this.props;
+        dispatch(setSidebarLoading(true));
+        dispatch(fetchSidebarOptions());
     }
 
     render() {
+        const { loading, options } = this.props;
+        if (options.length) { 
+            SidebarRun();
+        }
         return (
             <aside className="sidebar-container">
                 <div className="sidebar-header">
@@ -39,7 +36,7 @@ class Sidebar extends React.Component {
                         <div className="mt">Welcome, {Cloud.userInfo.firstNames}</div>
                     </div>
                     <nav className="sidebar-nav">
-                        <SidebarOptions options={this.state.options} />
+                        <SidebarOptions options={options} loading={loading} />
                     </nav>
                 </div>
             </aside>
@@ -47,8 +44,8 @@ class Sidebar extends React.Component {
     }
 }
 
-const SidebarOptions = ({ options }) =>
-    !options.length ?
+const SidebarOptions = ({ options, loading }) =>
+    loading ?
         (<BallPulseLoading loading={true} />) :
         (<ul>
             {options.map((option, index) =>
@@ -93,4 +90,5 @@ Sidebar.contextTypes = {
     router: PropTypes.object,
 };
 
-export default Sidebar;
+const mapStateToProps = (state) => ({ options, loading } = state.sidebar);
+export default connect(mapStateToProps)(Sidebar);

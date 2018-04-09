@@ -110,5 +110,9 @@ export const initObject = (cloud: SDUCloud) => ({
         loading: false,
         connected: false,
         publications: [] as any[]
+    },
+    sidebar: {
+        loading: false,
+        options: [] as any[]
     }
 });

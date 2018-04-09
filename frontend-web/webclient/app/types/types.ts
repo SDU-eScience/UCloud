@@ -22,24 +22,21 @@ export interface Entity {
 }
 
 export interface Analysis {
-
+    name: string
+    status: string
+    state: string
+    jobId: string
+    appName: string
+    appVersion: string
+    createdAt: number
+    modifiedAt: number
+    owner: string
 }
 
 export interface Path {
     path: string
     uri: string
     name: string
-}
-
-export interface Analyses {
-    jobId:string
-    owner:string
-    state:string
-    status:string
-    appName:string
-    appVersion:string
-    createdAt:number
-    modifiedAt:number
 }
 
 export interface Application {
