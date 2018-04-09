@@ -8,7 +8,7 @@ const analyses = (state = [], action) => {
             return { ...state, analyses: action.analyses, analysesPerPage: action.analysesPerPage, pageNumber: action.pageNumber, totalPages: action.totalPages, loading: false };
         }
         case SET_ANALYSES_LOADING: {
-            return  { ...state, loading: action.loading };
+            return { ...state, loading: action.loading };
         }
         case SET_ANALYSES_PAGE_SIZE: {
             return { ...state, analysesPerPage: action.analysesPerPage };

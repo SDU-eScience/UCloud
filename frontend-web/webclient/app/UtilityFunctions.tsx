@@ -53,21 +53,13 @@ export const sortFilesByTypeAndName = (files: File[], asc: boolean) => {
     return files;
 };
 
-export const sortFilesByOwner = (files: File[], asc: boolean) => { // FIXME Should sort based on the value inside the acl (OWN, READ, READ/WRITE)
-    let order = asc ? 1 : -1;
-    files.sort((a, b) => {
-        return (a.acl.length - b.acl.length) * order;
-    });
-    return files;
-}
-
 export const sortFilesBySensitivity = (files: File[], asc: boolean) => {
     let order = asc ? 1 : -1;
     files.sort((a, b) => {
         return SensitivityLevelMap[a.sensitivityLevel] - SensitivityLevelMap[b.sensitivityLevel] * order;
     });
     return files;
-}
+};
 
 export const favorite = (files: File[], path: string, cloud: Cloud) => {
     let file = files.find((file: File) => file.path.path === path);
@@ -78,7 +70,7 @@ export const favorite = (files: File[], path: string, cloud: Cloud) => {
         cloud.delete(`/files/favorite?path=${file.path.path}`);
     }
     return files;
-}
+};
 
 export const getOwnerFromAcls = (acls: Acl[], cloud: Cloud) => {
     const userName: string = cloud.username;
@@ -87,7 +79,7 @@ export const getOwnerFromAcls = (acls: Acl[], cloud: Cloud) => {
         return "None"
     }
     return result.right;
-}
+};
 
 export const updateSharingOfFile = (filePath: Path, user: string, currentRights: string, cloud: Cloud, callback: Function) => {
     swal({
@@ -118,7 +110,7 @@ export const updateSharingOfFile = (filePath: Path, user: string, currentRights:
             swal("Success!", `The file has been shared with ${user}`, "success").then(() => callback ? callback() : null);
         });
     });
-}
+};
 
 export const shareFile = (filePath: Path, cloud: Cloud, callback: Function) => {
     swal({

@@ -10,7 +10,6 @@ import { BreadCrumbs } from "../Breadcrumbs";
 import {
     sortFilesByTypeAndName,
     createFolder,
-    sortFilesByOwner,
     sortFilesBySensitivity,
     shareFile,
     favorite,
