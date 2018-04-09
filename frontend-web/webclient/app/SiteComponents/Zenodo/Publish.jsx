@@ -72,6 +72,7 @@ class ZenodoPublish extends React.Component {
 
     render() {
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
+        const { name } = this.state;
         if (this.props.loading) {
             return (<BallPulseLoading loading={true}/>)
         } else if (!this.props.connected) {
@@ -86,7 +87,8 @@ class ZenodoPublish extends React.Component {
                             <FileSelections
                                 handleFileSelection={this.handleFileSelection}
                                 files={this.state.files}
-                                newFile={this.newFile} removeFile={this.removeFile}
+                                newFile={this.newFile}
+                                removeFile={this.removeFile}
                             />
                             <fieldset>
                                 <div className="form-group">
@@ -102,8 +104,8 @@ class ZenodoPublish extends React.Component {
                             </fieldset>
                             <ButtonToolbar>
                                 <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
-                                <LoadingButton bsStyle={"primary"} disabled={!filesSelected}
-                                    disabled={this.state.requestSent}
+                                <LoadingButton bsStyle={"primary"}
+                                    disabled={this.state.requestSent || !filesSelected || !name}
                                     loading={this.state.requestSent}
                                     style={"pull-right"} buttonContent={"Upload files for publishing"}
                                     handler={this.submit} />
