@@ -8,7 +8,7 @@ import { Table } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { connect } from "react-redux";
-import { setLoading, fetchAnalyses, setPageSize } from "../../Actions/Analyses";
+import { setLoading, fetchAnalyses } from "../../Actions/Analyses";
 
 class Analyses extends React.Component {
     constructor(props) {
@@ -41,7 +41,7 @@ class Analyses extends React.Component {
 
     render() {
         const { dispatch, analysesPerPage } = this.props;
-        const noAnalysis = this.props.analyses.length ? '' : <h3 className="text-center">
+        const noAnalysis = this.props.analyses.length ? "" : <h3 className="text-center">
             <small>No analyses found.</small>
         </h3>;
 

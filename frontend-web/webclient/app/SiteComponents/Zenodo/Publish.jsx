@@ -1,11 +1,11 @@
 import React from "react";
-import { Button, FormGroup, ButtonToolbar, ListGroup, ListGroupItem } from "react-bootstrap";
+import { Button, ButtonToolbar, ListGroupItem } from "react-bootstrap";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
-import { LoadingButton } from "../LoadingIcon/LoadingIcon";
+import {BallPulseLoading, LoadingButton} from "../LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "../../Actions/Status";
-import { fetchPublications } from "../../Actions/Zenodo";
+import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
 
 class ZenodoPublish extends React.Component {
@@ -23,7 +23,8 @@ class ZenodoPublish extends React.Component {
         const { dispatch, connected } = props;
         dispatch(updatePageTitle("Zenodo Publication"));
         if (!connected) {
-            dispatch(fetchPublications())
+            dispatch(setZenodoLoading(true));
+            dispatch(fetchPublications());
         }
     }
 
@@ -71,7 +72,9 @@ class ZenodoPublish extends React.Component {
 
     render() {
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
-        if (!this.props.connected && !this.props.loading) {
+        if (this.props.loading) {
+            return (<BallPulseLoading loading={true}/>)
+        } else if (!this.props.connected) {
             return (<NotConnectedToZenodo />);
         }
         return (

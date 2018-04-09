@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as swal from "sweetalert2";
-import { RightsMap, RightsNameMap, SensitivityLevelMap, AnalysesStatusMap } from "./DefaultObjects";
+import { RightsMap, RightsNameMap, SensitivityLevelMap } from "./DefaultObjects";
 import { File, Path, Acl } from "./types/types";
 import Cloud from "../authentication/lib";
 
@@ -244,9 +244,7 @@ export const downloadFile = (path: string, cloud: Cloud) =>
     });
 
 export const fileSizeToString = (bytes: number): string => {
-    if (!bytes) {
-        return "";
-    }
+    if (!bytes) { return ""; }
     if (bytes < 1000) {
         return `${bytes} B`;
     } else if (bytes < 1000 ** 2) {
@@ -285,7 +283,7 @@ export const getSortingIcon = (lastSorting: LastSorting, name: string): string =
         return lastSorting.asc ? "ion-chevron-down" : "ion-chevron-up";
     }
     return "";
-}
+};
 
 export const createRange = (count: number): number[] => {
     let range = [];
@@ -293,7 +291,7 @@ export const createRange = (count: number): number[] => {
         range.push(i);
     }
     return range;
-}
+};
 
 export const createRangeInclusive = (count: number): number[] => {
     let range = [];
@@ -301,7 +299,7 @@ export const createRangeInclusive = (count: number): number[] => {
         range.push(i);
     }
     return range;
-}
+};
 
 
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
