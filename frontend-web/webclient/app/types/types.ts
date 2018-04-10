@@ -1,5 +1,3 @@
-import { Children } from "../../node_modules/@types/react/index";
-
 export interface File {
     type: string
     path: Path
@@ -9,6 +7,7 @@ export interface File {
     acl: Array<Acl>
     favorited: boolean
     sensitivityLevel: string
+    isChecked?: boolean
 }
 
 export interface Acl {
