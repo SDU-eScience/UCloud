@@ -1,3 +1,5 @@
+import { Children } from "../../node_modules/@types/react/index";
+
 export interface File {
     type: string
     path: Path
@@ -59,4 +61,19 @@ export interface Status {
     title: string 
     level: string
     body: string
+}
+
+export interface SidebarOption {
+    name: string
+    icon: string
+    href: string
+    children?: SidebarOption
+}
+
+export interface Publication {
+    id: number
+    name: string
+    zenodoAction: string
+    createdAt: number
+    modifiedAt: number   
 }

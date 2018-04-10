@@ -1,19 +1,19 @@
-import {tusConfig} from "./Configurations";
+import { tusConfig } from "./Configurations";
 import * as Uppy from "uppy";
-import { File, Analysis, Application, Status } from "./types/types"
+import { File, Analysis, Application, Status, Publication, SidebarOption, } from "./types/types"
 import SDUCloud from "../authentication/lib";
 
-export const DefaultStatus:Status = {
+export const DefaultStatus: Status = {
     title: "No Issues",
     level: "NO ISSUES",
     body: "The system is running as intended."
 };
 
-export const RightsMap:any = {
-    NONE: 0,
-    READ: 1,
-    READ_WRITE: 2,
-    OWN: 3
+export const RightsMap: { [s: string]: number } = {
+    "NONE": 0,
+    "READ": 1,
+    "READ_WRITE": 2,
+    "OWN": 3
 };
 
 export enum AnalysesStatusMap {
@@ -22,7 +22,7 @@ export enum AnalysesStatusMap {
     "COMPLETED"
 };
 
-export const RightsNameMap:any = {
+export const RightsNameMap: { [s: string]: string } = {
     "NONE": "None",
     "READ": "Read",
     "READ_WRITE": "Read/Write",
@@ -35,7 +35,7 @@ export enum SensitivityLevel {
     "SENSITIVE" = "Sensitive"
 };
 
-export const SensitivityLevelMap:any = {
+export const SensitivityLevelMap: { [s: string]: number } = {
     "OPEN_ACCESS": 0,
     "CONFIDENTIAL": 1,
     "SENSITIVE": 2
@@ -48,7 +48,7 @@ interface UppyRestriction {
     allowedFileTypes: boolean | number
 }
 
-const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) => 
+const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>
     Uppy.Core({
         autoProceed: false,
         debug: false,
@@ -84,9 +84,9 @@ export const initObject = (cloud: SDUCloud) => ({
         projects: [] as any[]
     },
     uppy: {
-        uppyFiles: initializeUppy({maxNumberOfFiles: false} as UppyRestriction, cloud),
+        uppyFiles: initializeUppy({ maxNumberOfFiles: false } as UppyRestriction, cloud),
         uppyFilesOpen: false,
-        uppyRunApp: initializeUppy({ maxNumberOfFiles: 1} as UppyRestriction, cloud),
+        uppyRunApp: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
         uppyRunAppOpen: false
     },
     status: {
@@ -109,10 +109,11 @@ export const initObject = (cloud: SDUCloud) => ({
     zenodo: {
         loading: false,
         connected: false,
-        publications: [] as any[]
+        publications: [] as Publication[]
     },
     sidebar: {
         loading: false,
-        options: [] as any[]
+        options: [] as SidebarOption[]
     }
 });
+
