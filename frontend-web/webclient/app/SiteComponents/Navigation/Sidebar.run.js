@@ -30,7 +30,7 @@ export default sidebarNav = () => {
     // Close sidebar when click on backdrop
     document.querySelector(".sidebar-layout-obfuscator").onclick = (e) => {
         e.preventDefault();
-        layoutContainer.classList.remove('sidebar-visible');
+        layoutContainer.classList.remove("sidebar-visible");
         // restore icon
         document.querySelector("#sidebar-toggler").parentNode.classList.remove("active");
     };

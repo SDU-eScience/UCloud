@@ -77,8 +77,11 @@ export const getOwnerFromAcls = (acls: Acl[], cloud: Cloud) => {
     const result: Acl = acls.find((acl: Acl) => acl.entity.displayName === userName);
     if (!result) {
         return "None"
+    } else if (acls.length > 1) {
+        return `${acls.length} members`;
+    } else {
+        return "You";
     }
-    return result.right;
 };
 
 export const updateSharingOfFile = (filePath: Path, user: string, currentRights: string, cloud: Cloud, callback: Function) => {
@@ -300,6 +303,49 @@ export const createRangeInclusive = (count: number): number[] => {
     }
     return range;
 };
+
+export const getTypeFromFile = (filename: string): string => {
+    const splitPath = filename.split(".");
+    const extension = splitPath[splitPath.length - 1].toLowerCase();
+    switch (extension) {
+        case "kt":
+        case "js":
+        case "jsx":
+        case "ts":
+        case "tsx":
+        case "java":
+        case "py":
+        case "tex":
+        case "r":
+        case "c":
+        case "cc":
+        case "c++":
+        case "h++":
+        case "cpp":
+        case "h":
+        case "hh":
+        case "hpp":
+        case "html":
+        case "sql":
+            return "ion-code";
+        case "png":
+        case "gif":
+        case "tiff":
+            return "ion-image";
+        case "txt":
+        case "pdf":
+        case "xml":
+        case "json":
+        case "csv":
+        case "yml":
+            return "ion-document";
+        case "wav":
+        case "mp3":
+            return "noise";    
+        default:
+            return "";
+    }
+}
 
 
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
