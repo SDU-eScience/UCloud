@@ -17,3 +17,4 @@ import "./SiteComponents/Common/Utils.scss";
 import "./SiteComponents/Bootstrap/Bootstrap";
 import "./SiteComponents/Cards.scss";
 import "./SiteComponents/Navigation/Sidebar.scss";
+import "./SiteComponents/Files/Files.scss";
