@@ -9,14 +9,13 @@ import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.MetadataEntry
 import dk.sdu.cloud.storage.api.StoragePath
 import dk.sdu.cloud.storage.services.ICATService
 import dk.sdu.cloud.storage.services.ext.StorageConnection
 import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.services.ext.StorageException
+import dk.sdu.cloud.storage.services.withIRodsConnection
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
@@ -26,36 +25,6 @@ class FilesController(
     private val storageService: StorageConnectionFactory,
     private val icatService: ICATService
 ) {
-    private suspend fun RESTHandler<*, *, CommonErrorMessage>.error(message: String, statusCode: HttpStatusCode) {
-        error(CommonErrorMessage(message), statusCode)
-    }
-
-    private suspend inline fun RESTHandler<*, *, CommonErrorMessage>.withIRodsConnection(
-        body: (StorageConnection) -> Unit
-    ) {
-        if (!protect()) return
-
-        val principal = call.request.validatedPrincipal
-        return try {
-            storageService.createForAccount(principal.subject, principal.token).use { body(it) }
-        } catch (ex: StorageException) {
-            when (ex) {
-                is StorageException.BadAuthentication -> error("Unauthorized", HttpStatusCode.Unauthorized)
-                is StorageException.Duplicate -> error("Item already exists", HttpStatusCode.Conflict)
-                is StorageException.BadPermissions -> error("Not allowed", HttpStatusCode.Forbidden)
-                is StorageException.NotFound -> error("Not found", HttpStatusCode.NotFound)
-                is StorageException.NotEmpty -> error("Item is not empty", HttpStatusCode.Forbidden)
-
-                is StorageException.BadConnection -> {
-                    log.warn("Unable to connect to iRODS backend")
-                    log.warn(ex.stackTraceToString())
-
-                    error("Internal Server Error", HttpStatusCode.InternalServerError)
-                }
-            }
-        }
-    }
-
     private suspend fun RESTHandler<*, *, CommonErrorMessage>.parsePath(
         connection: StorageConnection,
         path: String
@@ -73,7 +42,7 @@ class FilesController(
             implement(FileDescriptions.listAtPath) { request ->
                 logEntry(log, request)
 
-                withIRodsConnection { connection ->
+                withIRodsConnection(storageService) { connection ->
                     val path = parsePath(connection, request.path) ?: return@implement
                     ok(connection.fileQuery.listAt(path))
                 }
@@ -82,7 +51,7 @@ class FilesController(
             implement(FileDescriptions.stat) { request ->
                 logEntry(log, request)
 
-                withIRodsConnection { connection ->
+                withIRodsConnection(storageService) { connection ->
                     val path = parsePath(connection, request.path) ?: return@implement
                     ok(connection.fileQuery.stat(path))
                 }
@@ -92,7 +61,7 @@ class FilesController(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                withIRodsConnection { connection ->
+                withIRodsConnection(storageService) { connection ->
                     val path = parsePath(connection, req.path) ?: return@implement
 
                     return@implement try {
@@ -116,7 +85,7 @@ class FilesController(
                 if (!protect()) return@implement
 
 
-                withIRodsConnection { connection ->
+                withIRodsConnection(storageService) { connection ->
                     val path = parsePath(connection, req.path) ?: return@implement
 
                     val favKey = favoriteKey(call.request.validatedPrincipal)
@@ -152,7 +121,7 @@ class FilesController(
                     else error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                 } else {
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
-                    withIRodsConnection { connection ->
+                    withIRodsConnection(storageService) { connection ->
                         val path = parsePath(connection, req.path) ?: return@implement
 
                         if (connection.fileQuery.exists(path)) {
