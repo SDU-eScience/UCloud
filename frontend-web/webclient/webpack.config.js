@@ -50,7 +50,7 @@ module.exports = {
             }, {
                 test: /\.css$/,
                 include: path.join(process.cwd(), '/app'),
-                use: "raw"
+                use: "raw-loader"
             }, {
                 test: /\.woff|\.woff2|\.svg|.eot|\.ttf/,
                 use: 'url-loader?prefix=font/&limit=10000'
