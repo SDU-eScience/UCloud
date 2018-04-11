@@ -1,0 +1,13 @@
+@import "../Common/Variables";
+@import "../Common/Mixins";
+
+
+@media (min-width: 699px) {
+    .fileData {
+        visibility: hidden;
+    }
+}
+
+tr:hover .fileData {
+    visibility: visible;
+}
