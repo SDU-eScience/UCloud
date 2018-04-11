@@ -608,8 +608,8 @@ class IRodsFileQueryOperations(
         queryMetaAndUpdateRows(FileType.FILE)
 
         if (mappedResults.isEmpty()) {
-            // TODO This will not fill ACL, sensitivity and favorite fields
-            return listOf(stat(path))
+            if (!exists(path)) throw StorageException.NotFound("file", path.path)
+            return emptyList()
         }
         return mappedResults.values.toList()
     }
