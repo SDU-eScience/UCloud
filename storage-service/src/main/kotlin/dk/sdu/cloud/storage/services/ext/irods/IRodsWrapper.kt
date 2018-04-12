@@ -4,6 +4,7 @@ import dk.sdu.cloud.storage.services.ext.StorageException
 import org.irods.jargon.core.exception.*
 import java.io.FileNotFoundException
 import java.lang.reflect.InvocationHandler
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 
 inline fun <T> remapException(call: () -> T): T {
@@ -47,7 +48,7 @@ fun remapException(exception: Throwable): Exception {
         }
 
         // Needs to be just before the else branch since this is the super type of all Jargon exceptions
-        is JargonException -> {
+        is JargonException, is InvocationTargetException -> {
             val cause = exception.cause as? Exception
             return if (cause != null) {
                 remapException(cause)
