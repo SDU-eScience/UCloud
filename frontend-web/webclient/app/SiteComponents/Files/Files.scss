@@ -2,12 +2,16 @@
 @import "../Common/Mixins";
 
 
-@media (min-width: 699px) {
+@media (min-width: 1025px) {
     .fileData {
         visibility: hidden;
     }
 }
 
 tr:hover .fileData {
+    visibility: visible;
+}
+
+th:hover .fileData {
     visibility: visible;
 }

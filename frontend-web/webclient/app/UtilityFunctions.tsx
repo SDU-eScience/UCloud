@@ -347,5 +347,7 @@ export const getTypeFromFile = (filename: string): string => {
     }
 }
 
+export const inRange = (status: number, min: number, max: number):boolean => status >= min && status <= max;
+export const inSuccessRange = (status: number):boolean => inRange(status, 200, 299);
 
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();

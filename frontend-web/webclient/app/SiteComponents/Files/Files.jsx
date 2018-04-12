@@ -4,12 +4,11 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Button, Table, Dropdown, MenuItem, Glyphicon } from "react-bootstrap";
+import { Button, Table, Dropdown, MenuItem, Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import {
     sortFilesByTypeAndName,
-    createFolder,
     sortFilesBySensitivity,
     shareFile,
     favorite,
@@ -22,7 +21,8 @@ import {
     getSortingIcon,
     sortByNumber,
     sortByString,
-    getTypeFromFile
+    getTypeFromFile,
+    inSuccessRange
 } from "../../UtilityFunctions";
 import Uppy from "uppy";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../../Actions/Files";
@@ -46,19 +46,63 @@ class Files extends React.Component {
             lastSorting: {
                 name: "typeAndName",
                 asc: true
+            },
+            creatingNewFolder: false,
+            creatingFolderName: "",
+            editingFolderName: false,
+            editFolder: {
+                index: -1,
+                name: ""
             }
         };
         this.updateSearchText = this.updateSearchText.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
+        this.updateCreateFolderName = this.updateCreateFolderName.bind(this);
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+    }
+
+    resetFolderObject() {
+        return ({
+            creatingFolderName: "",
+            creatingNewFolder: false,
+            editingFolderName: false,
+            editFolder: {
+                index: -1,
+                name: ""
+            }
+        })
+    }
+
+    handleKeyDown(value, from) {
+        const ESC = 27, ENTER = 13;
+        if (value === ESC) {
+            this.setState(() => (this.resetFolderObject()));
+        } else if (value === ENTER) {
+            if (from === "new") {
+                const name = this.state.creatingFolderName;
+                const { path } = this.props;
+                const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
+                name ? Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
+                    if (inSuccessRange(request.status)) {
+                        // TODO Push mock folder
+                        this.setState(() => this.resetFolderObject());
+                        this.props.dispatch(setLoading(true));
+                        this.props.dispatch(fetchFiles(this.props.path, sortFilesByTypeAndName, true));
+                    }
+                }).catch((failure) => {
+                    console.error(failure)
+                }) : null;
+            } else if (from === "rename") {
+
+            }
+        }
     }
 
     updateSearchText(e) {
         e.preventDefault();
         const value = e.target.value;
-        this.setState(() => ({
-            searchText: value
-        }));
+        this.setState(() => ({ searchText: value }));
         const files = this.props.files;
         files.forEach(file => file.isChecked = false);
         this.props.dispatch(updateFiles(files));
@@ -108,14 +152,36 @@ class Files extends React.Component {
         }));
     }
 
+    createFolder() {
+        this.setState(() => ({ creatingNewFolder: true }));
+    }
+
+    updateCreateFolderName(creatingFolderName) {
+        this.setState(() => ({ creatingFolderName }))
+    }
+
+    updateEditFolderName(name) {
+        let editFolder = { ...this.state.editFolder };
+        editFolder.name = name;
+        this.setState(() => ({ editFolder }));
+    }
+
+    editFolder(index) {
+        this.setState(() => ({
+            editingFolderName: true,
+            editFolder: {
+                index,
+                name: ""
+            }
+        }));
+    }
+
     componentWillReceiveProps(nextProps) {
         const { dispatch, path } = this.props;
         let newPath = nextProps.match.params[0];
         if (!newPath) {
             this.props.history.push(`/files/${Cloud.homeFolder}`);
-            return
-        }
-        if (path !== newPath) {
+        } else if (path !== newPath) {
             dispatch(updatePath(newPath));
             dispatch(setLoading(true));
             dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
@@ -123,11 +189,14 @@ class Files extends React.Component {
     }
 
     render() {
-        const { dispatch, files, filesPerPage, currentFilesPage, path, loading, history } = this.props;
+        // PROPS
+        const { dispatch, files, filesPerPage, currentFilesPage, path, loading, history, currentPath } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => f.path.name.toLowerCase().includes(this.state.searchText.toLowerCase()));
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
+
+        // Lambdas
         const checkFile = (checked, newFile) => {
             files.find(file => file.path.path === newFile.path.path).isChecked = checked;
             dispatch(updateFiles(files));
@@ -138,12 +207,17 @@ class Files extends React.Component {
             dispatch(toPage(pageNumber));
         }
         const openUppy = () => dispatch(changeUppyFilesOpen(true));
+
         return (
             <section>
                 <div className="col-lg-10">
                     <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)} />
-                    <ContextButtons upload={openUppy} createFolder={() => createFolder(path)} mobileOnly={true} />
+                    <ContextButtons upload={openUppy} createFolder={() => this.createFolder(currentPath)} mobileOnly={true} />
                     <FilesTable
+                        handleKeyDown={this.handleKeyDown}
+                        creatingNewFolder={this.state.creatingNewFolder}
+                        creatingFolderName={this.state.creatingFolderName}
+                        updateCreateFolderName={this.updateCreateFolderName}
                         files={shownFiles}
                         loading={loading}
                         masterCheckbox={masterCheckboxChecked}
@@ -166,11 +240,12 @@ class Files extends React.Component {
                         handlePageSizeSelection={(newSize) => dispatch(updateFilesPerPage(newSize, files))}
                     >
                         Files per page
-                        </EntriesPerPageSelector>
+                    </EntriesPerPageSelector>
                 </div>
                 <ContextBar
                     selectedFiles={shownFiles.filter(file => file.isChecked)}
                     currentPath={path}
+                    createFolder={() => this.createFolder(currentPath)}
                     getFavorites={this.getFavorites}
                     onClick={openUppy}
                     searchText={this.state.searchText}
@@ -195,10 +270,10 @@ const SearchBar = ({ searchText, updateText }) => (
     </div>
 );
 
-const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchText, updateText }) => (
+const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchText, updateText, createFolder }) => (
     <div className="col-lg-2 visible-lg">
         <SearchBar searchText={searchText} updateText={updateText} />
-        <ContextButtons upload={onClick} createFolder={() => createFolder(currentPath)} mobileOnly={false} />
+        <ContextButtons upload={onClick} createFolder={createFolder} mobileOnly={false} />
         <br />
         <FileOptions selectedFiles={selectedFiles} />
     </div>
@@ -228,7 +303,7 @@ const FileOptions = ({ selectedFiles }) => {
         if (selectedFiles.length > 1) {
             return `${selectedFiles.length} files selected.`;
         } else {
-            let filename = selectedFiles[0].path.name;
+            const filename = selectedFiles[0].path.name;
             if (filename.length > 10) {
                 return filename.slice(0, 17) + "...";
             } else {
@@ -286,18 +361,21 @@ const FileOptions = ({ selectedFiles }) => {
 export const FilesTable = (props) => {
     if (props.loading) {
         return null;
-    } else if (!props.files.length) {
-        return (
-            <div className="card">
-                <h3 className="text-center">
-                    <small>There are no files in current folder</small>
-                </h3>
-            </div>);
     }
+    const noFiles = (!props.files.length && !props.creatingNewFolder) ?
+        <tr>
+            <td>
+                <div className="card" align="center">
+                    <h3 className="text-center">
+                        <small>There are no files in current folder</small>
+                    </h3>
+                </div>
+            </td>
+        </tr> : null;
 
     let hasCheckbox = (!!props.selectOrDeselectAllFiles);
     let masterCheckbox = (hasCheckbox) ? (
-        <span style={{ margin: "15px" }}>
+        <span className="fileData" style={{ margin: "15px" }}>
             <input
                 name="select"
                 className="select-box"
@@ -316,7 +394,8 @@ export const FilesTable = (props) => {
     return (
         <Table responsive className="table table-hover mv-lg">
             <thead>
-                <tr>
+                {noFiles}
+                {!noFiles ? (<tr>
                     <th>
                         <span className="text-left">
                             {masterCheckbox}
@@ -338,10 +417,14 @@ export const FilesTable = (props) => {
                                 <span className={"pull-right " + sortingIconFunction("owner")} />
                         </span>
                     </th>
-                </tr>
+                </tr>) : null}
             </thead>
 
             <FilesList
+                creatingNewFolder={props.creatingNewFolder}
+                creatingFolderName={props.creatingFolderName}
+                updateCreateFolderName={props.updateCreateFolderName}
+                handleKeyDown={props.handleKeyDown}
                 hasCheckbox={hasCheckbox}
                 files={props.files}
                 favoriteFile={props.favoriteFile}
@@ -353,19 +436,57 @@ export const FilesTable = (props) => {
     );
 };
 
-const FilesList = ({ files, addOrRemoveFile, favoriteFile, hasCheckbox, forceInlineButtons }) => (
-    <tbody>{files.map((file, index) =>
+const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handleKeyDown }) => (
+    !creatingNewFolder ? null : (
+        <tr>
+            <td>
+                <FormGroup>
+                    <div className="form-inline">
+                        <InputGroup>
+                            <i
+                                className="ion-android-folder"
+                                style={{ fontSize: "32px", paddingRight: "8px", paddingLeft: "43px", verticalAlign: "middle", color: "#448aff" }}
+                            />
+                        </InputGroup>
+                        <InputGroup>
+                            <input
+                                onKeyDown={(e) => handleKeyDown(e.keyCode, "new")}
+                                className="form-control"
+                                type="text"
+                                placeholder="Folder name..."
+                                value={creatingFolderName ? creatingFolderName : ""}
+                                onChange={(e) => updateText(e.target.value)}
+                            />
+                        </InputGroup></div>
+                </FormGroup>
+            </td><td></td><td></td><td></td>
+        </tr>
+    )
+);
+
+const FilesList = (props) => {
+    const filesList = props.files.map((file, index) =>
         (<File
             key={index}
             file={file}
-            addOrRemoveFile={addOrRemoveFile}
-            favoriteFile={favoriteFile}
-            hasCheckbox={hasCheckbox}
-            forceInlineButtons={forceInlineButtons}
+            addOrRemoveFile={props.addOrRemoveFile}
+            favoriteFile={props.favoriteFile}
+            hasCheckbox={props.hasCheckbox}
+            forceInlineButtons={props.forceInlineButtons}
             owner={getOwnerFromAcls(file.acl, Cloud)}
             style={file.type === "DIRECTORY" ? ({ cursor: "pointer" }) : {}}
         />)
-    )}</tbody>);
+    );
+    return (<tbody>
+        <CreateFolder
+            creatingNewFolder={props.creatingNewFolder}
+            creatingFolderName={props.creatingFolderName}
+            updateText={props.updateCreateFolderName}
+            handleKeyDown={props.handleKeyDown}
+        />
+        {filesList}
+    </tbody>);
+}
 
 const File = ({ file, favoriteFile, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, style }) => (
     <tr className="row-settings clickable-row fileRow" style={style}>
@@ -433,7 +554,7 @@ const MobileButtons = ({ file, forceInlineButtons }) => (
                 </MenuItem>
                 <li>
                     <Link to={`/fileInfo/${file.path.path}/`}>
-                        <em className="ion-ios-settings-strong" /> Properties
+                        Properties
                     </Link>
                 </li>
             </Dropdown.Menu>
@@ -457,8 +578,8 @@ Files.propTypes = {
 const mapStateToProps = (state) => {
     const { files, filesPerPage, currentFilesPage, loading, path } = state.files;
     const { uppyFiles, uppyFilesOpen } = state.uppy;
-    const favFilesCount = files.filter(file => file.favorited).length; // Hack to ensure changes to favorites are rendered.
-    const checkedFilesCount = files.filter(file => file.isChecked).length; // Hack to ensure changes to file checkings are rendered.
+    const favFilesCount = files.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
+    const checkedFilesCount = files.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
         files, filesPerPage, currentFilesPage, loading, path, uppy: uppyFiles, uppyOpen: uppyFilesOpen, favFilesCount, checkedFilesCount
     }

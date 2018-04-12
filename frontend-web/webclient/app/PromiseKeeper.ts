@@ -16,7 +16,7 @@ export default class PromiseKeeper {
                     val => {
                         cancelablePromise.isComplete = true;
                         this._cleanup();
-                        if (hasCanceled_) reject({isCanceled: true}); else resolve(val);
+                        hasCanceled_ ? reject({isCanceled: true}) : resolve(val);
                     },
                     error => {
                         cancelablePromise.isComplete = true;
