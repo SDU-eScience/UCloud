@@ -1,52 +1,8 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.principalRole
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.auth.api.validatedPrincipal
-import dk.sdu.cloud.service.KafkaHttpRouteLogger
-import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.TusDescriptions
-import dk.sdu.cloud.storage.api.TusExtensions
-import dk.sdu.cloud.storage.api.TusHeaders
-import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.services.FileUpload.Companion.BLOCK_SIZE
-import dk.sdu.cloud.storage.services.ext.irods.ICAT
-import dk.sdu.cloud.storage.services.ext.irods.ICATAccessEntry
-import dk.sdu.cloud.storage.services.ext.irods.ICATConnection
-import dk.sdu.cloud.storage.services.ext.irods.ICATDatabaseConfig
-import io.ktor.application.ApplicationCall
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.application.install
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
-import io.ktor.pipeline.PipelineContext
-import io.ktor.request.header
-import io.ktor.request.receiveChannel
-import io.ktor.response.ApplicationResponse
-import io.ktor.response.header
-import io.ktor.response.respond
-import io.ktor.response.respondText
-import io.ktor.routing.Route
-import io.ktor.routing.method
-import io.ktor.routing.route
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.runBlocking
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
-import org.slf4j.LoggerFactory
-import java.nio.ByteBuffer
-import java.util.*
-
+/*
 class TusController(
-    private val config: ICATDatabaseConfig,
-    private val store: ObjectStore,
     private val tusState: TusStateService,
-    private val checksumService: ChecksumService,
-    private val icat: ICAT
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
@@ -56,8 +12,7 @@ class TusController(
                 supportedVersions = listOf(SimpleSemanticVersion(1, 0, 0)), maxSizeInBytes = null
             )
 
-            // Intercept unsupported TUS client version
-            intercept(ApplicationCallPipeline.Infrastructure) {
+            // Intercept unsupported TUS client version intercept(ApplicationCallPipeline.Infrastructure) {
                 val version = call.request.headers[TusHeaders.Resumable]
                 if (version != null) {
                     val parsedVersion = SimpleSemanticVersion.parse(version)
@@ -523,3 +478,4 @@ class TusController(
         private val log = LoggerFactory.getLogger(TusController::class.java)
     }
 }
+*/

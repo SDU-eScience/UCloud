@@ -9,11 +9,8 @@ import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.http.ACLController
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
-import dk.sdu.cloud.storage.http.TusController
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.services.ext.irods.ICAT
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpHeaders
@@ -21,17 +18,13 @@ import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 class Server(
     private val configuration: Configuration,
-    private val storageService: StorageConnectionFactory,
     private val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val serviceRegistry: ServiceRegistry,
@@ -45,79 +38,17 @@ class Server(
         val instance = StorageServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
-        val icat = ICAT(configuration.icat)
-        val icatService = ICATService(icat, configuration.icat.defaultZone)
 
-        val store =
-            if (args.contains("--file-store")) FileBasedObjectStore(File("store"))
-            else CephStore("client.irods", File("ceph.conf"), "irods")
 
-        val downloadService = ObjectDownloadService(store)
-        val checksumService = ChecksumService(downloadService, store)
         val transferState = TusStateService()
-        val tus = TusController(
-            config = configuration.icat,
-            store = store,
-            tusState = transferState,
-            icat = icat,
-            checksumService = checksumService
-        )
         log.info("Core services constructed!")
-
-        // Scripts
-        val checksumIdx = args.indexOfFirst { it == "--checksum" }
-        if (checksumIdx != -1) {
-            val objectId = args[checksumIdx + 1]
-            val (checksum, fileSize) = runBlocking {
-                checksumService.computeChecksumAndFileSize(objectId)
-            }
-
-            log.info("Checksum: ${checksum.toHexString()}")
-            log.info("File size: $fileSize")
-            return
-        }
-
-        val checksumFileIdx = args.indexOfFirst { it == "--checksum-file" }
-        if (checksumFileIdx != -1) {
-            val file = File(args[checksumFileIdx + 1])
-            val objectIds = file.readLines()
-            runBlocking {
-                objectIds.map { oid ->
-                    launch {
-                        val (checksum, fileSize) = checksumService.computeChecksumAndFileSize(oid)
-                        checksumService.attachChecksumToObject(oid, checksum)
-                        checksumService.attachFilesizeToObject(oid, fileSize)
-
-                        log.info("$oid: $fileSize ${checksum.toHexString()}")
-                    }
-                }.forEach { it.join() }
-            }
-            return
-        }
-
-        val readChecksums = args.indexOfFirst { it == "--read-checksum-file" }
-        if (readChecksums != -1) {
-            val file = File(args[readChecksums + 1])
-            val objectIds = file.readLines()
-            runBlocking {
-                objectIds.map { oid ->
-                    launch {
-                        val checksum = checksumService.getChecksum(oid)
-                        val fileSize = checksumService.getFileSize(oid)
-                        log.info("$oid: $fileSize $checksum")
-                    }
-                }.forEach { it.join() }
-            }
-            return
-        }
-        // End of scripts
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), storageService, cloud, icatService).init()
+            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), cloud).init()
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {
@@ -161,14 +92,16 @@ class Server(
             }
 
             routing {
+                /*
                 route("api/tus") {
                     tus.registerTusEndpoint(this, "/api/tus")
                 }
+                */
 
                 route("api") {
-                    FilesController(storageService, icatService).configure(this)
-                    SimpleDownloadController(cloud, storageService).configure(this)
-                    ACLController(storageService).configure(this)
+                    FilesController().configure(this)
+                    SimpleDownloadController(cloud).configure(this)
+                    ACLController().configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")

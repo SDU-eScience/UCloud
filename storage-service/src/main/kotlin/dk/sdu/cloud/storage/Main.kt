@@ -6,20 +6,16 @@ import com.orbitz.consul.Consul
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
-import dk.sdu.cloud.storage.services.ext.irods.ICATDatabaseConfig
-import dk.sdu.cloud.storage.services.ext.irods.IRodsConnectionInformation
-import dk.sdu.cloud.storage.services.ext.irods.IRodsStorageConnectionFactory
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import org.irods.jargon.core.connection.AuthScheme
-import org.irods.jargon.core.connection.ClientServerNegotiationPolicy
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 
 data class Configuration(
     val storage: StorageConfiguration,
-    val icat: ICATDatabaseConfig,
     private val connection: RawConnectionConfig,
+    val appDatabaseUser: String,
+    val appDatabasePassword: String,
     val appDatabaseUrl: String, // TODO This should be fixed
     val refreshToken: String,
     val consulHostname: String = "localhost"
@@ -58,23 +54,6 @@ fun main(args: Array<String>) {
     )
     log.info("Connected to Service Registry")
 
-    val storageService = with(configuration.storage) {
-        IRodsStorageConnectionFactory(
-            IRodsConnectionInformation(
-                host = host,
-                port = port,
-                zone = zone,
-                storageResource = resource,
-                authScheme = if (authScheme != null) AuthScheme.valueOf(authScheme) else AuthScheme.STANDARD,
-                sslNegotiationPolicy =
-                if (sslPolicy != null)
-                    ClientServerNegotiationPolicy.SslNegotiationPolicy.valueOf(sslPolicy)
-                else
-                    ClientServerNegotiationPolicy.SslNegotiationPolicy.CS_NEG_REFUSE
-            )
-        )
-    }
-
     val cloud = RefreshingJWTAuthenticatedCloud(
         defaultServiceClient(args, serviceRegistry),
         configuration.refreshToken
@@ -83,13 +62,13 @@ fun main(args: Array<String>) {
     Database.connect(
         url = configuration.appDatabaseUrl,
         driver = "org.postgresql.Driver",
-        user = configuration.icat.user,
-        password = configuration.icat.password
+        user = configuration.appDatabaseUser,
+        password = configuration.appDatabasePassword
     )
 
     val serverProvider: HttpServerProvider = { block ->
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
-    Server(configuration, storageService, kafka, serverProvider, serviceRegistry, cloud, args).start()
+    Server(configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
 }

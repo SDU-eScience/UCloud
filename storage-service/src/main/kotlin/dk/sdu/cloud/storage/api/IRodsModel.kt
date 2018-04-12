@@ -47,7 +47,7 @@ enum class FileType {
 
 data class StorageFile(
     val type: FileType,
-    val path: StoragePath,
+    val path: String,
     val createdAt: Long,
     val modifiedAt: Long,
     val ownerName: String,

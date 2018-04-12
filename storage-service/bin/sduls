@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+. utils.sh
+
+USER=$1
+REQUEST=$2
+
+if $(unix_user_is_cloud ${USER}) ; then
+    sudo -u "$USER" ls -1Al --time-style=full-iso "$REQUEST"
+else
+    exit 1
+fi

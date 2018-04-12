@@ -6,18 +6,12 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.services.ext.StorageConnectionFactory
-import dk.sdu.cloud.storage.services.ext.StorageException
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.defaultForFilePath
-import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.route
@@ -25,8 +19,7 @@ import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import org.slf4j.LoggerFactory
 
 class SimpleDownloadController(
-    private val cloud: AuthenticatedCloud,
-    private val storageConnectionFactory: StorageConnectionFactory
+    private val cloud: AuthenticatedCloud
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
@@ -41,6 +34,8 @@ class SimpleDownloadController(
                                 HttpStatusCode.Unauthorized
                             )
 
+                error(CommonErrorMessage("Not yet implemented"), HttpStatusCode.InternalServerError)
+                /*
                 val connection = try {
                     storageConnectionFactory.createForAccount(principal.subject, principal.token)
                 } catch (ex: StorageException) {
@@ -119,6 +114,7 @@ class SimpleDownloadController(
                         }
                     }
                 }
+                */
             }
 
             // Determine file list (Prune by modified [iRODS, for now], then prune by checksum [Ceph])
