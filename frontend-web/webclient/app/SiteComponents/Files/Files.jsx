@@ -60,10 +60,11 @@ class Files extends React.Component {
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.updateCreateFolderName = this.updateCreateFolderName.bind(this);
         this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.resetFolderObject = this.resetFolderObject.bind(this);
     }
 
     resetFolderObject() {
-        return ({
+        this.setState(() => ({
             creatingFolderName: "",
             creatingNewFolder: false,
             editingFolderName: false,
@@ -71,13 +72,13 @@ class Files extends React.Component {
                 index: -1,
                 name: ""
             }
-        })
+        }));
     }
 
     handleKeyDown(value, from) {
         const ESC = 27, ENTER = 13;
         if (value === ESC) {
-            this.setState(() => (this.resetFolderObject()));
+            this.resetFolderObject();
         } else if (value === ENTER) {
             if (from === "new") {
                 const name = this.state.creatingFolderName;
@@ -86,13 +87,13 @@ class Files extends React.Component {
                 name ? Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                     if (inSuccessRange(request.status)) {
                         // TODO Push mock folder
-                        this.setState(() => this.resetFolderObject());
+                        this.resetFolderObject();
                         this.props.dispatch(setLoading(true));
                         this.props.dispatch(fetchFiles(this.props.path, sortFilesByTypeAndName, true));
                     }
                 }).catch((failure) => {
-                    console.error(failure)
-                }) : null;
+                    this.resetFolderObject()
+                }) : this.resetFolderObject();
             } else if (from === "rename") {
 
             }
@@ -185,6 +186,7 @@ class Files extends React.Component {
             dispatch(updatePath(newPath));
             dispatch(setLoading(true));
             dispatch(fetchFiles(newPath, sortFilesByTypeAndName, true));
+            this.resetFolderObject();
         }
     }
 
@@ -205,6 +207,7 @@ class Files extends React.Component {
             files.forEach(f => f.isChecked = false);
             dispatch(updateFiles(files));
             dispatch(toPage(pageNumber));
+            this.resetFolderObject();
         }
         const openUppy = () => dispatch(changeUppyFilesOpen(true));
 
