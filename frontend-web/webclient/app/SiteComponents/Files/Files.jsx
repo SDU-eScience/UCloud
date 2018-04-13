@@ -49,7 +49,6 @@ class Files extends React.Component {
             },
             creatingNewFolder: false,
             creatingFolderName: "",
-            editingFolderName: false,
             editFolder: {
                 index: -1,
                 name: ""
@@ -61,13 +60,14 @@ class Files extends React.Component {
         this.updateCreateFolderName = this.updateCreateFolderName.bind(this);
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.resetFolderObject = this.resetFolderObject.bind(this);
+        this.updateEditFileName = this.updateEditFileName.bind(this);
+        this.startEditFile = this.startEditFile.bind(this);
     }
 
     resetFolderObject() {
         this.setState(() => ({
             creatingFolderName: "",
             creatingNewFolder: false,
-            editingFolderName: false,
             editFolder: {
                 index: -1,
                 name: ""
@@ -75,14 +75,14 @@ class Files extends React.Component {
         }));
     }
 
-    handleKeyDown(value, from) {
+    handleKeyDown(value, isNew) {
         const ESC = 27, ENTER = 13;
         if (value === ESC) {
             this.resetFolderObject();
         } else if (value === ENTER) {
-            if (from === "new") {
+            const { path } = this.props;
+            if (isNew) {
                 const name = this.state.creatingFolderName;
-                const { path } = this.props;
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
                 name ? Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                     if (inSuccessRange(request.status)) {
@@ -94,8 +94,10 @@ class Files extends React.Component {
                 }).catch((failure) => {
                     this.resetFolderObject()
                 }) : this.resetFolderObject();
-            } else if (from === "rename") {
-
+            } else {
+                const name = this.state.editFolder.name;
+                const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
+                name ? console.log("SUBMIT HERE, TODO. SORRY.") : this.resetFolderObject();
             }
         }
     }
@@ -161,18 +163,19 @@ class Files extends React.Component {
         this.setState(() => ({ creatingFolderName }))
     }
 
-    updateEditFolderName(name) {
+    updateEditFileName(e) {
+        e.preventDefault();
         let editFolder = { ...this.state.editFolder };
-        editFolder.name = name;
+        editFolder.name = e.target.value;
         this.setState(() => ({ editFolder }));
     }
 
-    editFolder(index) {
+    startEditFile(index, path) {
         this.setState(() => ({
-            editingFolderName: true,
             editFolder: {
-                index,
-                name: ""
+                fullPath: path.path,
+                name: path.name,
+                index
             }
         }));
     }
@@ -220,6 +223,9 @@ class Files extends React.Component {
                         handleKeyDown={this.handleKeyDown}
                         creatingNewFolder={this.state.creatingNewFolder}
                         creatingFolderName={this.state.creatingFolderName}
+                        editFolder={this.state.editFolder}
+                        renameFile={this.startEditFile}
+                        updateEditFileName={this.updateEditFileName}
                         updateCreateFolderName={this.updateCreateFolderName}
                         files={shownFiles}
                         loading={loading}
@@ -427,6 +433,9 @@ export const FilesTable = (props) => {
                 creatingNewFolder={props.creatingNewFolder}
                 creatingFolderName={props.creatingFolderName}
                 updateCreateFolderName={props.updateCreateFolderName}
+                updateEditFileName={props.updateEditFileName}
+                editFolder={props.editFolder}
+                renameFile={props.renameFile}
                 handleKeyDown={props.handleKeyDown}
                 hasCheckbox={hasCheckbox}
                 files={props.files}
@@ -453,7 +462,7 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                         </InputGroup>
                         <InputGroup>
                             <input
-                                onKeyDown={(e) => handleKeyDown(e.keyCode, "new")}
+                                onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
                                 className="form-control"
                                 type="text"
                                 placeholder="Folder name..."
@@ -471,7 +480,14 @@ const FilesList = (props) => {
     const filesList = props.files.map((file, index) =>
         (<File
             key={index}
+            index={index}
             file={file}
+            handleKeyDown={props.handleKeyDown}
+            beingRenamed={props.editFolder ? index === props.editFolder.index : undefined}
+            updateName={props.updateEditFileName}
+            renameName={props.editFolder ? props.editFolder.name : undefined}
+            renameFile={props.renameFile}
+            updateEditFileName={props.updateEditFileName}
             addOrRemoveFile={props.addOrRemoveFile}
             favoriteFile={props.favoriteFile}
             hasCheckbox={props.hasCheckbox}
@@ -491,23 +507,28 @@ const FilesList = (props) => {
     </tbody>);
 }
 
-const File = ({ file, favoriteFile, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, style }) => (
+const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, style, ...props }) => (
     <tr className="row-settings clickable-row fileRow" style={style}>
         <td>
             {(hasCheckbox) ? (
                 <FileCheckbox className="fileData"
                     isChecked={file.isChecked}
                     onChange={(e) => addOrRemoveFile(e.target.checked, file)}
+                    beingRenamed={beingRenamed}
                 />
             ) : null}
-            <FileType type={file.type} path={file.path} />
+            <FileType type={file.type} path={file.path} updateEditFileName={props.updateEditFileName} handleKeyDown={props.handleKeyDown} beingRenamed={beingRenamed} renameName={props.renameName} update={props.updateName} />
             {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile} /> : null}
         </td>
         <td>{new Date(file.modifiedAt).toLocaleString()}</td>
         <td>{owner}</td>
         <td>
             <Button className="fileData" onClick={() => shareFile(file.path, Cloud)}>Share</Button>
-            <MobileButtons file={file} forceInlineButtons={forceInlineButtons} />
+            <MobileButtons
+                file={file}
+                forceInlineButtons={forceInlineButtons}
+                rename={props.renameFile ? (path) => props.renameFile(props.index, path) : undefined}
+            />
         </td>
     </tr>
 );
@@ -525,21 +546,42 @@ const FileCheckbox = ({ isChecked, onChange }) => (
     </span>
 );
 
-const FileType = ({ type, path }) =>
-    type === "FILE" ?
-        (<React.Fragment>
+const FileType = ({ type, path, beingRenamed, update, ...props }) => {
+    const fileName = (<FileName updateEditFileName={props.updateEditFileName} name={path.name} beingRenamed={beingRenamed} handleKeyDown={props.handleKeyDown} renameName={props.renameName} update={update} />);
+    if (type === "FILE") {
+        return (<React.Fragment>
             <i className={getTypeFromFile(path.name)} style={{ fontSize: "32px", paddingRight: "11px", verticalAlign: "middle" }} />
-            <span>{path.name}</span>
-        </React.Fragment>) :
-        (<Link to={`/files/${path.path}`}><i className="ion-android-folder" style={{ fontSize: "32px", paddingRight: "8px", verticalAlign: "middle" }} /> {path.name}</Link>);
+            <span>{fileName}</span>
+        </React.Fragment>)
+    } else {
+        const folderIcon = (
+            <i
+                className="ion-android-folder"
+                style={{ fontSize: "32px", paddingRight: "8px", verticalAlign: "middle", color: "#448aff" }}
+            />);
+        return beingRenamed ?
+            (<React.Fragment>
+                {folderIcon}
+                <span>{fileName}</span>
+            </React.Fragment>) :
+            (<Link to={`/files/${path.path}`}>{folderIcon}
+                {fileName}
+            </Link>);
+    }
+}
 
+const FileName = ({ name, beingRenamed, renameName, updateEditFileName, handleKeyDown }) => {
+    return beingRenamed ?
+        <input value={renameName} onChange={(name) => updateEditFileName(name)} onKeyDown={(e) => handleKeyDown(e.keyCode, false)} /> :
+        <span>{name}</span>
+};
 const Favorited = ({ file, favoriteFile }) =>
     file.favorited ?
         (<a onClick={() => favoriteFile(file.path.path)} className="ion-star" style={{ margin: "10px" }} />) :
         (<a className="ion-ios-star-outline fileData" onClick={() => favoriteFile(file.path.path)} style={{ margin: "10px" }} />);
 
-const MobileButtons = ({ file, forceInlineButtons }) => (
-    <span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
+const MobileButtons = ({ file, forceInlineButtons, rename }) => {
+    return (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
         <Dropdown pullRight id="dropdownforfile">
             <Dropdown.Toggle />
             <Dropdown.Menu>
@@ -549,9 +591,9 @@ const MobileButtons = ({ file, forceInlineButtons }) => (
                 <MenuItem onClick={() => downloadFile(file.path.path, Cloud)}>
                     Download file
                 </MenuItem>
-                <MenuItem onClick={() => renameFile(file.path)}>
+                {rename ? <MenuItem onClick={() => rename(file.path)}>
                     Rename file
-                </MenuItem>
+                </MenuItem> : null}
                 <MenuItem onClick={() => showFileDeletionPrompt(file.path)}>
                     Delete file
                 </MenuItem>
@@ -563,8 +605,8 @@ const MobileButtons = ({ file, forceInlineButtons }) => (
             </Dropdown.Menu>
         </Dropdown>
     </span>
-);
-
+    );
+}
 
 Files.propTypes = {
     files: PropTypes.array.isRequired,
