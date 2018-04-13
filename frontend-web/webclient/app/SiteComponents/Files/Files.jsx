@@ -469,6 +469,8 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                                 value={creatingFolderName ? creatingFolderName : ""}
                                 onChange={(e) => updateText(e.target.value)}
                             />
+                            <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
+                            <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
                         </InputGroup></div>
                 </FormGroup>
             </td><td></td><td></td><td></td>
