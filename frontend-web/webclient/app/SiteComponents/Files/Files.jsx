@@ -24,6 +24,7 @@ import {
     getTypeFromFile,
     inSuccessRange
 } from "../../UtilityFunctions";
+import { KeyCode } from "../../DefaultObjects";
 import Uppy from "uppy";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../../Actions/Files";
 import { updatePageTitle } from "../../Actions/Status";
@@ -76,10 +77,9 @@ class Files extends React.Component {
     }
 
     handleKeyDown(value, isNew) {
-        const ESC = 27, ENTER = 13;
-        if (value === ESC) {
+        if (value === KeyCode.ESC) {
             this.resetFolderObject();
-        } else if (value === ENTER) {
+        } else if (value === KeyCode.ENTER) {
             const { path } = this.props;
             if (isNew) {
                 const name = this.state.creatingFolderName;
@@ -572,7 +572,7 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
 
 const FileName = ({ name, beingRenamed, renameName, updateEditFileName, handleKeyDown }) => {
     return beingRenamed ?
-        <input value={renameName} onChange={(name) => updateEditFileName(name)} onKeyDown={(e) => handleKeyDown(e.keyCode, false)} /> :
+        <input value={renameName} onChange={(e) => updateEditFileName(e)} onKeyDown={(e) => handleKeyDown(e.keyCode, false)} /> :
         <span>{name}</span>
 };
 const Favorited = ({ file, favoriteFile }) =>

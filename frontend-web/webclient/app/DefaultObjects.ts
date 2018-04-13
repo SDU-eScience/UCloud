@@ -9,6 +9,11 @@ export const DefaultStatus: Status = {
     body: "The system is running as intended."
 };
 
+export enum KeyCode {
+    ENTER = 13,
+    ESC = 27
+}
+
 export const RightsMap: { [s: string]: number } = {
     "NONE": 0,
     "READ": 1,
