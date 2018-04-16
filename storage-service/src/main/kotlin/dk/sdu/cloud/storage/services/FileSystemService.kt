@@ -4,12 +4,13 @@ import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.util.BashEscaper
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.OutputStream
 
 class FileSystemService(
     private val cloudToCephFsDao: CloudToCephFsDao,
     private val isDevelopment: Boolean = false
 ) {
-    fun ls(user: String, path: String): List<StorageFile> {
+    fun ls(user: String, path: String, includeImplicit: Boolean = false): List<StorageFile> {
         val root = File(fsRoot).normalize().absolutePath
         val absolutePath = File(root, path).normalize().absolutePath
 
@@ -32,11 +33,145 @@ class FileSystemService(
             log.info(process.errorStream.reader().readText())
             throw IllegalStateException()
         } else {
-            return parseDirListingOutput(cloudPath, process.inputStream.bufferedReader().readText())
+            return parseDirListingOutput(cloudPath, process.inputStream.bufferedReader().readText(), includeImplicit)
         }
     }
 
-    fun parseDirListingOutput(where: File, output: String): List<StorageFile> {
+    // TODO This is a bit lazy
+    fun stat(user: String, path: String): StorageFile? {
+        return try {
+            val targetPath = File(path).normalize()
+            val parentPath = targetPath.parentFile.absolutePath
+
+            ls(user, parentPath, true).find { it.path == targetPath.absolutePath }
+        } catch (ex: Exception) {
+            null
+        }
+    }
+
+    fun mkdir(user: String, path: String) {
+        val root = File(fsRoot).normalize().absolutePath
+        val absolutePath = File(root, path).normalize().absolutePath
+
+        if (!absolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+
+        val process = ProcessBuilder().apply {
+            val prefix = asUser(user)
+            val command = listOf("mkdir", "-p", absolutePath)
+            command(prefix + command)
+        }.start()
+
+        val status = process.waitFor()
+
+        if (status != 0) {
+            log.info("mkdir failed $user, $path")
+            log.info(process.errorStream.reader().readText())
+            throw IllegalStateException()
+        }
+    }
+
+    fun rmdir(user: String, path: String) {
+        val root = File(fsRoot).normalize().absolutePath
+        val absolutePath = File(root, path).normalize().absolutePath
+
+        if (!absolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+
+        val process = ProcessBuilder().apply {
+            val prefix = asUser(user)
+            val command = listOf("rm", "-rf", absolutePath)
+            command(prefix + command)
+        }.start()
+
+        val status = process.waitFor()
+
+        if (status != 0) {
+            log.info("rmdir failed $user, $path")
+            log.info(process.errorStream.reader().readText())
+            throw IllegalStateException()
+        }
+    }
+
+    fun move(user: String, path: String, newPath: String) {
+        val root = File(fsRoot).normalize().absolutePath
+        val absolutePath = File(root, path).normalize().absolutePath
+        val newAbsolutePath = File(root, newPath).normalize().absolutePath
+
+        if (!absolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+        if (!newAbsolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+        val process = ProcessBuilder().apply {
+            val prefix = asUser(user)
+            val command = listOf("mv", absolutePath, newAbsolutePath)
+            command(prefix + command)
+        }.start()
+
+        val status = process.waitFor()
+
+        if (status != 0) {
+            log.info("mv failed $user, $path")
+            log.info(process.errorStream.reader().readText())
+            throw IllegalStateException()
+        }
+    }
+
+    fun copy(user: String, path: String, newPath: String) {
+        val root = File(fsRoot).normalize().absolutePath
+        val absolutePath = File(root, path).normalize().absolutePath
+        val newAbsolutePath = File(root, newPath).normalize().absolutePath
+
+        if (!absolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+        if (!newAbsolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+        val process = ProcessBuilder().apply {
+            val prefix = asUser(user)
+            val command = listOf("cp", absolutePath, newAbsolutePath)
+            command(prefix + command)
+        }.start()
+
+        val status = process.waitFor()
+
+        if (status != 0) {
+            log.info("cp failed $user, $path")
+            log.info(process.errorStream.reader().readText())
+            throw IllegalStateException()
+        }
+    }
+
+    fun read(user: String, path: String): Process {
+        val root = File(fsRoot).normalize().absolutePath
+        val absolutePath = File(root, path).normalize().absolutePath
+
+        if (!absolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+
+        val process = ProcessBuilder().apply {
+            val prefix = asUser(user)
+            val command = listOf("cat", absolutePath)
+            command(prefix + command)
+        }.start()
+
+        return process
+    }
+
+    fun write(user: String, path: String, writer: OutputStream.() -> Unit) {
+        val root = File(fsRoot).normalize().absolutePath
+        val absolutePath = File(root, path).normalize().absolutePath
+
+        if (!absolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+
+        val process = ProcessBuilder().apply {
+            val prefix = asUser(user)
+            val command = listOf("bash", "-c", "cat > ${BashEscaper.safeBashArgument(absolutePath)}")
+            command(prefix + command)
+        }.start()
+
+        process.outputStream.writer()
+        process.outputStream.close()
+        if (process.waitFor() != 0) {
+            log.info("write failed $user, $path")
+            log.info(process.errorStream.reader().readText())
+            throw IllegalStateException()
+        }
+    }
+
+    fun parseDirListingOutput(where: File, output: String, includeImplicit: Boolean = false): List<StorageFile> {
         /*
         Example output:
 
@@ -97,7 +232,9 @@ class FileSystemService(
             }
 
             val sensitivity = SensitivityLevel.valueOf(readToken())
-            val filePath = File(where, line.substring(cursor)).normalize().absolutePath
+            val fileName = line.substring(cursor)
+            if (!includeImplicit && (fileName == "." || fileName == "..")) return@mapNotNull null
+            val filePath = File(where, fileName).normalize().absolutePath
 
             // Don't attempt to return details about the parent of mount
             if (filePath == "/..") return@mapNotNull null
@@ -118,9 +255,10 @@ class FileSystemService(
 
     private val fsRoot = if (isDevelopment) "./fs/" else "/mnt/cephfs/"
 
-    private fun asUser(user: String): List<String> =
-        if (!isDevelopment) listOf("sudo", "-u", BashEscaper.safeBashArgument(user))
-        else emptyList()
+    private fun asUser(cloudUser: String): List<String> {
+        val user = cloudToCephFsDao.findUnixUser(cloudUser) ?: throw IllegalStateException("Could not find user")
+        return if (!isDevelopment) listOf("sudo", "-u", user) else emptyList()
+    }
 
     companion object {
         private val log = LoggerFactory.getLogger(FileSystemService::class.java)
@@ -133,6 +271,8 @@ class FileSystemService(
 }
 
 fun main(args: Array<String>) {
-    val service = FileSystemService(CloudToCephFsDao(), true)
-    service.ls("me", ".").forEach { println(it) }
+    val root = File("./fs").normalize().absolutePath
+    val myPath = File(root, "/dir").normalize().absolutePath
+    println(myPath)
+
 }

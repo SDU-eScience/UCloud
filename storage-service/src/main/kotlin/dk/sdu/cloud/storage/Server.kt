@@ -9,6 +9,7 @@ import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.http.ACLController
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
+import dk.sdu.cloud.storage.http.TusController
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*
 import io.ktor.application.install
@@ -92,15 +93,14 @@ class Server(
             }
 
             routing {
-                /*
                 route("api/tus") {
+                    val tus = TusController(transferState, fs)
                     tus.registerTusEndpoint(this, "/api/tus")
                 }
-                */
 
                 route("api") {
                     FilesController(fs).configure(this)
-                    SimpleDownloadController(cloud).configure(this)
+                    SimpleDownloadController(cloud, fs).configure(this)
                     ACLController().configure(this)
                 }
             }

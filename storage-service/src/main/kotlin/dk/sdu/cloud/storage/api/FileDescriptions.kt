@@ -14,6 +14,11 @@ data class CreateDirectoryRequest(
     val owner: String?
 )
 
+data class DeleteFileRequest(val path: String)
+
+data class MoveRequest(val path: String, val newPath: String)
+data class CopyRequest(val path: String, val newPath: String)
+
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
 
@@ -79,6 +84,19 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
+    val deleteFile = callDescription<DeleteFileRequest, Unit, CommonErrorMessage> {
+        prettyName = "deleteFile"
+        method = HttpMethod.DELETE
+
+        path {
+            using(baseContext)
+        }
+
+        body {
+            bindEntireRequestFromBody()
+        }
+    }
+
     val download = callDescription<DownloadByURI, Unit, CommonErrorMessage> {
         prettyName = "filesDownload"
         path {
@@ -89,6 +107,34 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         params {
             +boundTo(DownloadByURI::path)
             +boundTo(DownloadByURI::token)
+        }
+    }
+
+    val move = callDescription<MoveRequest, Unit, CommonErrorMessage> {
+        prettyName = "move"
+        method = HttpMethod.POST
+        path {
+            using(baseContext)
+            +"move"
+        }
+
+        params {
+            +boundTo(MoveRequest::path)
+            +boundTo(MoveRequest::newPath)
+        }
+    }
+
+    val copy = callDescription<MoveRequest, Unit, CommonErrorMessage> {
+        prettyName = "copy"
+        method = HttpMethod.POST
+        path {
+            using(baseContext)
+            +"move"
+        }
+
+        params {
+            +boundTo(MoveRequest::path)
+            +boundTo(MoveRequest::newPath)
         }
     }
 }

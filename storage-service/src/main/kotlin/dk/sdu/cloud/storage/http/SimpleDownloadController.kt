@@ -8,10 +8,15 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.services.FileSystemService
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.defaultForFilePath
+import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.route
@@ -19,7 +24,8 @@ import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import org.slf4j.LoggerFactory
 
 class SimpleDownloadController(
-    private val cloud: AuthenticatedCloud
+    private val cloud: AuthenticatedCloud,
+    private val fs: FileSystemService
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
@@ -34,87 +40,64 @@ class SimpleDownloadController(
                                 HttpStatusCode.Unauthorized
                             )
 
-                error(CommonErrorMessage("Not yet implemented"), HttpStatusCode.InternalServerError)
-                /*
-                val connection = try {
-                    storageConnectionFactory.createForAccount(principal.subject, principal.token)
-                } catch (ex: StorageException) {
-                    error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
-                    return@implement
+                val stat = fs.stat(principal.subject, request.path) ?: return@implement run {
+                    error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
                 }
 
-                connection.use {
-                    val path = try {
-                        connection.paths.parseAbsolute(request.path, true)
-                    } catch (ex: IllegalArgumentException) {
-                        return@implement error(CommonErrorMessage("Bad input path"), HttpStatusCode.BadRequest)
-                    }
+                if (stat.type != FileType.FILE) return@implement error(
+                    CommonErrorMessage("Not a file"),
+                    HttpStatusCode.BadRequest
+                )
 
-                    val stat = try {
-                        connection.fileQuery.stat(path)
-                    } catch (ex: StorageException) {
-                        error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-                        return@implement
-                    }
+                val contentType = ContentType.defaultForFilePath(stat.path)
+                call.response.header(
+                    HttpHeaders.ContentDisposition,
+                    "attachment; filename=\"${stat.path.substringAfterLast('/')}\""
+                )
 
-                    val contentType = ContentType.defaultForFilePath(stat.path.path)
-                    call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"${stat.path.name}\"")
+                call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
+                    val process = fs.read(principal.subject, request.path)
+                    val stream = process.inputStream
 
-                    call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
-                        // The Jargon API will close the stream if it is transferred between threads.
-                        // So we have to read from it in a blocking way. This is why we have to push it into
-                        // respondDirectWrite and not do the opening before that
-                        val stream = try {
-                            connection.files.get(path)
-                        } catch (ex: Exception) {
-                            log.warn("Caught exception while downloading file from iRODS: $it")
-                            log.warn(ex.stackTraceToString())
-                            // Hopefully this won't happen. Because it is way too late to change anything in the
-                            // response
-                            throw IllegalStateException(ex)
-                        }
+                    stream.use {
+                        var readSum = 0L
+                        var writeSum = 0L
+                        var iterations = 0
+                        var bytes = 0
 
-                        stream.use {
-                            var readSum = 0L
-                            var writeSum = 0L
-                            var iterations = 0
-                            var bytes = 0
-
-                            val buffer = ByteArray(1024 * 1024)
-                            var hasMoreData = true
-                            while (hasMoreData) {
-                                var ptr = 0
-                                val startRead = System.nanoTime()
-                                while (ptr < buffer.size && hasMoreData) {
-                                    val read = it.read(buffer, ptr, buffer.size - ptr)
-                                    if (read <= 0) {
-                                        hasMoreData = false
-                                        break
-                                    }
-                                    ptr += read
-                                    bytes += read
+                        val buffer = ByteArray(1024 * 1024)
+                        var hasMoreData = true
+                        while (hasMoreData) {
+                            var ptr = 0
+                            val startRead = System.nanoTime()
+                            while (ptr < buffer.size && hasMoreData) {
+                                val read = it.read(buffer, ptr, buffer.size - ptr)
+                                if (read <= 0) {
+                                    hasMoreData = false
+                                    break
                                 }
-                                val startWrite = System.nanoTime()
-                                readSum += startWrite - startRead
-                                writeFully(buffer, 0, ptr)
-                                writeSum += System.nanoTime() - startWrite
+                                ptr += read
+                                bytes += read
+                            }
+                            val startWrite = System.nanoTime()
+                            readSum += startWrite - startRead
+                            writeFully(buffer, 0, ptr)
+                            writeSum += System.nanoTime() - startWrite
 
-                                iterations++
-                                if (iterations % 100 == 0) {
-                                    var rStr = (readSum / iterations).toString()
-                                    var wStr = (writeSum / iterations).toString()
+                            iterations++
+                            if (iterations % 100 == 0) {
+                                var rStr = (readSum / iterations).toString()
+                                var wStr = (writeSum / iterations).toString()
 
-                                    if (rStr.length > wStr.length) wStr = wStr.padStart(rStr.length, ' ')
-                                    if (wStr.length > rStr.length) rStr = rStr.padStart(rStr.length, ' ')
+                                if (rStr.length > wStr.length) wStr = wStr.padStart(rStr.length, ' ')
+                                if (wStr.length > rStr.length) rStr = rStr.padStart(rStr.length, ' ')
 
-                                    log.debug("Avg. read time:  $rStr")
-                                    log.debug("Avg. write time: $wStr")
-                                }
+                                log.debug("Avg. read time:  $rStr")
+                                log.debug("Avg. write time: $wStr")
                             }
                         }
                     }
                 }
-                */
             }
 
             // Determine file list (Prune by modified [iRODS, for now], then prune by checksum [Ceph])

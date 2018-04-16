@@ -1,8 +1,43 @@
 package dk.sdu.cloud.storage.http
 
-/*
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.principalRole
+import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.service.KafkaHttpRouteLogger
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.storage.api.TusDescriptions
+import dk.sdu.cloud.storage.api.TusExtensions
+import dk.sdu.cloud.storage.api.TusHeaders
+import dk.sdu.cloud.storage.services.*
+import io.ktor.application.ApplicationCall
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.pipeline.PipelineContext
+import io.ktor.request.header
+import io.ktor.request.receiveChannel
+import io.ktor.response.ApplicationResponse
+import io.ktor.response.header
+import io.ktor.response.respond
+import io.ktor.response.respondText
+import io.ktor.routing.Route
+import io.ktor.routing.method
+import io.ktor.routing.route
+import kotlinx.coroutines.experimental.runBlocking
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
+import org.slf4j.LoggerFactory
+import java.lang.Math.ceil
+import java.util.*
+
 class TusController(
     private val tusState: TusStateService,
+    private val fs: FileSystemService
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
@@ -12,7 +47,8 @@ class TusController(
                 supportedVersions = listOf(SimpleSemanticVersion(1, 0, 0)), maxSizeInBytes = null
             )
 
-            // Intercept unsupported TUS client version intercept(ApplicationCallPipeline.Infrastructure) {
+            // Intercept unsupported TUS client version
+            intercept(ApplicationCallPipeline.Infrastructure) {
                 val version = call.request.headers[TusHeaders.Resumable]
                 if (version != null) {
                     val parsedVersion = SimpleSemanticVersion.parse(version)
@@ -141,18 +177,10 @@ class TusController(
                     }
 
                     val owner = metadata["owner"]?.takeIf { isPrivileged } ?: principal.subject
-                    val location = metadata["location"]?.takeIf { isPrivileged }?.let { "/${config.defaultZone}$it" }
-                            ?: "/${config.defaultZone}/home/${principal.subject}/Uploads"
+                    val location = metadata["location"]?.takeIf { isPrivileged }?.let { it }
+                            ?: "/home/${principal.subject}/Uploads"
 
-                    val canWrite = icat.useConnection {
-                        userHasWriteAccess(owner, config.defaultZone, location).first
-                    }
-
-                    if (!canWrite) {
-                        log.debug("User ($owner) is not authorized to create file at this location ($location)")
-                        call.respond(HttpStatusCode.Unauthorized)
-                        return@handle
-                    }
+                    // TODO We should check if we are allowed to write?
 
                     val id = UUID.randomUUID().toString()
                     val fileName = metadata["filename"] ?: metadata["name"] ?: id
@@ -162,7 +190,7 @@ class TusController(
                             it[UploadDescriptions.id] = id
                             it[UploadDescriptions.sizeInBytes] = length
                             it[UploadDescriptions.owner] = owner
-                            it[UploadDescriptions.zone] = config.defaultZone
+                            it[UploadDescriptions.zone] = "" // TODO Remove this
                             it[UploadDescriptions.targetCollection] = location
                             it[UploadDescriptions.targetName] = fileName
                             it[UploadDescriptions.doChecksum] = false
@@ -244,129 +272,35 @@ class TusController(
         log.info("Starting upload for: $initialState")
         // Start reading some contents
         val channel = call.receiveChannel()
-        val internalBuffer = ByteBuffer.allocate(1024 * 32)
-        val wrappedChannel = object : IReadChannel {
-            var shouldRead = true
+        val internalBuffer = ByteArray(1024 * 32)
+        var wrote = 0L
+        fs.write(initialState.user, initialState.targetCollection + "/" + initialState.targetName) {
+            runBlocking {
+                var read = 0
+                while (read != -1) {
+                    read = channel.readAvailable(internalBuffer)
 
-            override suspend fun read(dst: ByteArray, offset: Int): Int {
-                val maxSize = dst.size - offset
-                assert(maxSize > 0)
-
-                if (shouldRead) {
-                    val read = channel.readAvailable(internalBuffer)
                     if (read != -1) {
-                        internalBuffer.flip()
-                        return if (maxSize > read) {
-                            internalBuffer.get(dst, offset, read)
-                            internalBuffer.clear()
-                            read
-                        } else {
-                            internalBuffer.get(dst, offset, maxSize)
-
-                            // We need to deposit the remainder of our internal buffer
-                            // So we don't clear and set the state to shouldRead = false
-                            shouldRead = false
-                            maxSize
-                        }
-                    } else {
-                        // Input channel has no more data
-                        return -1
+                        write(internalBuffer, 0, read)
+                        wrote += read
                     }
-                } else {
-                    val depositSize = Math.min(internalBuffer.remaining(), maxSize)
-                    internalBuffer.get(dst, offset, depositSize)
-
-                    if (!internalBuffer.hasRemaining()) {
-                        // We have deposited what we had left in the buffer. Go back to reading state
-                        internalBuffer.clear()
-                        shouldRead = true
-                    }
-                    return depositSize
-                }
-            }
-
-            override fun close() {
-            }
-        }
-
-        val task = createUpload(id, wrappedChannel, claimedOffset, initialState.length)
-        task.onProgress = { chunk ->
-            val oneIndexedChunk = chunk + 1
-            val numberOfChunks = Math.ceil(initialState.length / BLOCK_SIZE.toDouble()).toLong()
-
-            if (oneIndexedChunk == numberOfChunks) {
-                val state = tusStateService.retrieveState(id)!!
-                val irodsUser = state.user
-                val irodsZone = state.zone
-
-                val irodsCollection = state.targetCollection
-                val irodsFileName = state.targetName
-
-                // Finalize upload
-                log.debug("Upload ${state.id} has been completed!")
-                icat.useConnection {
-                    val checksumJob = launch {
-                        checksumService.computeAndAttachChecksumAndFileSize(id)
-                    }
-
-                    autoCommit = false
-                    log.debug("Registration of object...")
-
-                    val resource = findResourceByNameAndZone("child_01", config.defaultZone) ?: return@useConnection
-                    log.debug("Using resource $resource. $irodsUser, $irodsZone, $irodsCollection")
-
-                    val (_, entry) = userHasWriteAccess(irodsUser, irodsZone, irodsCollection)
-                    if (entry != null) {
-                        val availableName = findAvailableIRodsFileName(this, entry.objectId, irodsFileName)
-                        val objectId = registerDataObject(
-                            entry.objectId,
-                            state.id,
-                            state.length,
-                            availableName,
-                            irodsUser,
-                            irodsZone,
-                            resource
-                        ) ?: return@useConnection run {
-                            log.warn("Was unable to register data object! Issue in $id")
-                            rollback()
-                        }
-
-                        log.debug("Auto-generated ID is $objectId")
-                        val now = System.currentTimeMillis()
-
-                        registerAccessEntry(ICATAccessEntry(objectId, entry.userId, 1200, now, now))
-                        commit()
-
-                        // Cannot do this in a single update, since we have multiple DBs and APIs. We should
-                        // really agree on a single one......
-                        transaction {
-                            UploadDescriptions.update({ UploadDescriptions.id eq state.id }) {
-                                it[UploadDescriptions.savedAs] =
-                                        "${irodsCollection.removePrefix("/${config.defaultZone}").removeSuffix("/")}/$availableName"
-                            }
-                        }
-
-                        log.info("Object has been registered: $id")
-                    } else {
-                        log.info("User does not have permission to upload file to target resource!")
-                    }
-
-                    runBlocking { checksumJob.join() }
-                    log.info("Checksum and file size attached successfully to file!")
-                }
-            }
-
-            transaction {
-                UploadProgress.update({ UploadProgress.id eq id }) {
-                    it[numChunksVerified] = oneIndexedChunk
                 }
             }
         }
-        task.upload()
 
-        log.info("Upload complete! Offset is: ${task.offset}. ${initialState.length}")
+        // TODO Make resumable
+        val offset = if (wrote == initialState.length) initialState.length else 0L
+        val block = if (wrote == initialState.length) ceil(initialState.length / BLOCK_SIZE.toDouble()).toLong() else 0
 
-        call.response.tusOffset(task.offset)
+        transaction {
+            UploadProgress.update({ UploadProgress.id eq id }) {
+                it[numChunksVerified] = block
+            }
+        }
+
+        log.info("Upload complete! Offset is: $offset. ${initialState.length}")
+
+        call.response.tusOffset(offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))
         call.respond(HttpStatusCode.NoContent)
     }
@@ -424,58 +358,7 @@ class TusController(
         if (savedAs != null) header("File-Location", savedAs)
     }
 
-    private val duplicateNamingRegex = Regex("""\((\d+)\)""")
-    fun findAvailableIRodsFileName(connection: ICATConnection, collectionId: Long, desiredIRodsName: String): String {
-        fun findFileNameNoExtension(fileName: String): String {
-            return fileName.substringBefore('.')
-        }
-
-        fun findExtension(fileName: String): String {
-            if (!fileName.contains(".")) return ""
-            return '.' + fileName.substringAfter('.', missingDelimiterValue = "")
-        }
-
-        val desiredWithoutExtension = findFileNameNoExtension(desiredIRodsName)
-        val extension = findExtension(desiredIRodsName)
-
-        val names = connection.findIRodsFileNamesLike(collectionId, desiredIRodsName)
-
-        return if (names.isEmpty()) {
-            desiredIRodsName
-        } else {
-            val namesMappedAsIndices = names.mapNotNull {
-                val nameWithoutExtension = findFileNameNoExtension(it)
-                val nameWithoutPrefix = nameWithoutExtension.substringAfter(desiredWithoutExtension)
-                val myExtension = findExtension(it)
-
-                if (extension != myExtension) return@mapNotNull null
-
-                if (nameWithoutPrefix.isEmpty()) {
-                    0 // We have an exact match on the file name
-                } else {
-                    val match = duplicateNamingRegex.matchEntire(nameWithoutPrefix)
-                    if (match == null) {
-                        null // The file name doesn't match at all, i.e., the file doesn't collide with our desired name
-                    } else {
-                        match.groupValues.getOrNull(1)?.toIntOrNull()
-                    }
-                }
-            }
-
-            if (namesMappedAsIndices.isEmpty()) {
-                desiredIRodsName
-            } else {
-                val currentMax = namesMappedAsIndices.max() ?: 0
-                "$desiredWithoutExtension(${currentMax + 1})$extension"
-            }
-        }
-    }
-
-    private fun createUpload(objectId: String, readChannel: IReadChannel, offset: Long, length: Long): FileUpload =
-        FileUpload(objectId, offset, length, readChannel, store)
-
     companion object {
         private val log = LoggerFactory.getLogger(TusController::class.java)
     }
 }
-*/

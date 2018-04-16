@@ -18,7 +18,7 @@ class UserProcessor(
     private fun handleEvent(event: UserEvent) {
         when (event) {
             is UserEvent.Created -> {
-                log.info("Creating a matching user in iRODS: $event")
+                log.info("Creating a matching user: $event")
                 TODO()
             }
 

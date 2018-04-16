@@ -20,6 +20,7 @@ class FilesController(private val fs: FileSystemService) {
         route("files") {
             implement(FileDescriptions.listAtPath) { request ->
                 logEntry(log, request)
+                if (!protect()) return@implement
                 val principal = call.request.validatedPrincipal
 
                 try {
@@ -32,8 +33,15 @@ class FilesController(private val fs: FileSystemService) {
 
             implement(FileDescriptions.stat) { request ->
                 logEntry(log, request)
+                if (!protect()) return@implement
+                val principal = call.request.validatedPrincipal
 
-                TODO()
+                try {
+                    ok(fs.stat(principal.subject, request.path)!!)
+                } catch (ex: Exception) {
+                    log.warn(ex.stackTraceToString())
+                    error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
+                }
             }
 
             implement(FileDescriptions.markAsFavorite) { req ->
@@ -55,11 +63,62 @@ class FilesController(private val fs: FileSystemService) {
 
                 if (call.request.principalRole in setOf(Role.ADMIN, Role.SERVICE) && req.owner != null) {
                     log.debug("Authenticated as a privileged account. Using direct strategy")
-
-                    TODO()
+                    try {
+                        fs.mkdir(req.owner, req.path)
+                        ok(Unit)
+                    } catch (ex: Exception) {
+                        log.warn(ex.stackTraceToString())
+                        error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
+                    }
                 } else {
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
-                    TODO()
+
+                    try {
+                        fs.mkdir(call.request.validatedPrincipal.subject, req.path)
+                        ok(Unit)
+                    } catch (ex: Exception) {
+                        log.warn(ex.stackTraceToString())
+                        error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
+                    }
+                }
+            }
+
+            implement(FileDescriptions.deleteFile) { req ->
+                logEntry(log, req)
+                if (!protect()) return@implement
+
+                try {
+                    fs.rmdir(call.request.validatedPrincipal.subject, req.path)
+                    ok(Unit)
+                } catch (ex: Exception) {
+                    log.warn(ex.stackTraceToString())
+                    error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
+                }
+            }
+
+            implement(FileDescriptions.move) { req ->
+                logEntry(log, req)
+                if (!protect()) return@implement
+
+                try {
+                    fs.move(call.request.validatedPrincipal.subject, req.path, req.newPath)
+                    ok(Unit)
+                } catch (ex: Exception) {
+                    log.warn(ex.stackTraceToString())
+                    error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
+                }
+            }
+
+            implement(FileDescriptions.copy) { req ->
+                logEntry(log, req)
+                if (!protect()) return@implement
+
+                try {
+                    fs.copy(call.request.validatedPrincipal.subject, req.path, req.newPath)
+                    ok(Unit)
+                } catch (ex: Exception) {
+                    log.warn(ex.stackTraceToString())
+                    error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
                 }
             }
         }

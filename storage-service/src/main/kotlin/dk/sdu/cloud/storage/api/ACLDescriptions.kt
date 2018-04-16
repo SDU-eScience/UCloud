@@ -12,28 +12,20 @@ object ACLDescriptions : RESTDescriptions(StorageServiceDescription) {
     private const val baseContext = "/api/acl"
 
     val grantRights = callDescription<PermissionCommand.Grant, Unit, CommonErrorMessage> {
-        prettyName = "aclGrantRights"
+        prettyName = "grantRights"
         path { using(baseContext) }
         method = HttpMethod.PUT
         body { bindEntireRequestFromBody() }
     }
 
     val revokeRights = callDescription<PermissionCommand.Revoke, Unit, CommonErrorMessage> {
-        prettyName = "aclRevokeRights"
+        prettyName = "revokeRights"
         path { using(baseContext) }
         method = HttpMethod.DELETE
         body { bindEntireRequestFromBody() }
     }
 }
 
-// TODO Temporary
-enum class TemporaryRight {
-    READ,
-    READ_WRITE,
-    OWN
-}
-
-// TODO Temporary
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
@@ -50,7 +42,7 @@ sealed class PermissionCommand {
     data class Grant(
         override val entity: String,
         override val onFile: String,
-        val rights: TemporaryRight
+        val rights: AccessRight
     ) : PermissionCommand()
 
     data class Revoke(

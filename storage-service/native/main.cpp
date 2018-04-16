@@ -79,9 +79,6 @@ int main() {
         if (gr == nullptr) group_name = const_cast<char *>("nobody");
         else group_name = gr->gr_name;
 
-        if (strcmp(".", ep->d_name) == 0) continue;
-        if (strcmp("..", ep->d_name) == 0) continue;
-
         std::cout << file_type << ',' << unix_mode << ',' << user->pw_name << ',' << group_name << ','
                   << stat_buffer.st_size << ',' << stat_buffer.st_ctime << ','
                   << stat_buffer.st_mtime << ',' << stat_buffer.st_atime << ',';
