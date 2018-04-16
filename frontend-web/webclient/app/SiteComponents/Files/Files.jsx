@@ -592,7 +592,20 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
 
 const FileName = ({ name, beingRenamed, renameName, updateEditFileName, handleKeyDown }) => {
     return beingRenamed ?
-        <input value={renameName} onChange={(e) => updateEditFileName(e)} onKeyDown={(e) => handleKeyDown(e.keyCode, false)} /> :
+        <FormGroup>
+            <span className="form-inline">
+                <InputGroup>
+                    <input
+                        value={renameName}
+                        onChange={(e) => updateEditFileName(e)}
+                        className="form-control"
+                        onKeyDown={(e) => handleKeyDown(e.keyCode, false)}
+                    />
+                    <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
+                    <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
+                </InputGroup>
+            </span>
+        </FormGroup> :
         <span>{name}</span>
 };
 const Favorited = ({ file, favoriteFile }) =>
