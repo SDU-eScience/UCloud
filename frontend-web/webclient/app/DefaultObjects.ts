@@ -18,7 +18,7 @@ export const RightsMap: { [s: string]: number } = {
     "NONE": 0,
     "READ": 1,
     "READ_WRITE": 2,
-    "OWN": 3
+    "EXECUTE": 3
 };
 
 export enum AnalysesStatusMap {
@@ -31,7 +31,7 @@ export const RightsNameMap: { [s: string]: string } = {
     "NONE": "None",
     "READ": "Read",
     "READ_WRITE": "Read/Write",
-    "OWN": "Own"
+    "EXECUTE": "Execute"
 };
 
 export enum SensitivityLevel {
@@ -68,6 +68,21 @@ const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>
         }
     }).use(Uppy.Tus, tusConfig);
 
+
+const getFilesSortingColumnOrDefault = (index: number): string => {
+    const sortingColumn = window.localStorage.getItem(`filesSorting${index}`);
+    if (!sortingColumn) {
+        if (index === 0) {
+            window.localStorage.setItem("filesSorting0", "lastModified");
+            return "lastModified";
+        } else if (index === 1) {
+            window.localStorage.setItem("filesSorting1", "acl");
+            return "acl";
+        }
+    }
+    return sortingColumn;
+};
+
 export const initObject = (cloud: SDUCloud) => ({
     dashboard: {
         favoriteFiles: [] as File[],
@@ -86,7 +101,8 @@ export const initObject = (cloud: SDUCloud) => ({
         loading: false,
         path: "",
         filesInfoPath: "",
-        projects: [] as any[]
+        projects: [] as any[],
+        sortingColumns: [ getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1) ]
     },
     uppy: {
         uppyFiles: initializeUppy({ maxNumberOfFiles: false } as UppyRestriction, cloud),
