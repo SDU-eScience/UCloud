@@ -27,6 +27,10 @@ data class Configuration(
     override fun configure() {
         connection.configure(StorageServiceDescription, 42000)
     }
+
+    override fun toString(): String {
+        return "Configuration(storage=$storage, connection=$connection, refreshToken='$refreshToken', consulHostname='$consulHostname')"
+    }
 }
 
 data class StorageConfiguration(

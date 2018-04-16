@@ -289,8 +289,13 @@ class TusController(
         }
 
         // TODO Make resumable
-        val offset = if (wrote == initialState.length) initialState.length else 0L
-        val block = if (wrote == initialState.length) ceil(initialState.length / BLOCK_SIZE.toDouble()).toLong() else 0
+        val offset = when {
+            initialState.offset == initialState.length -> initialState.offset
+            wrote == initialState.length -> initialState.length
+            else -> 0L
+        }
+
+        val block = if (offset == initialState.length) ceil(initialState.length / BLOCK_SIZE.toDouble()).toLong() else 0
 
         transaction {
             UploadProgress.update({ UploadProgress.id eq id }) {
@@ -298,7 +303,7 @@ class TusController(
             }
         }
 
-        log.info("Upload complete! Offset is: $offset. ${initialState.length}")
+        log.info("Upload complete! Offset is: $offset $wrote. ${initialState.length}")
 
         call.response.tusOffset(offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))

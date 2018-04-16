@@ -8,7 +8,6 @@ internal object BashEscaper {
     // are not accessible.
     private val bashEscaper =
         Escapers.builder().apply {
-            addEscape('\'', "'\"'\"'")
             addEscape('\"', "\\\"")
             addEscape('`', "\\`")
             addEscape('$', "\\$")

@@ -129,7 +129,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         method = HttpMethod.POST
         path {
             using(baseContext)
-            +"move"
+            +"copy"
         }
 
         params {
