@@ -38,7 +38,7 @@ class Server(
         val instance = StorageServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
-
+        val fs = FileSystemService(CloudToCephFsDao(), args.contains("--dev"))
 
         val transferState = TusStateService()
         log.info("Core services constructed!")
@@ -99,7 +99,7 @@ class Server(
                 */
 
                 route("api") {
-                    FilesController().configure(this)
+                    FilesController(fs).configure(this)
                     SimpleDownloadController(cloud).configure(this)
                     ACLController().configure(this)
                 }

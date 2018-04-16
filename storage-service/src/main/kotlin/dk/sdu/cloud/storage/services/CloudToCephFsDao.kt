@@ -10,9 +10,11 @@ class CloudToCephFsDao {
 
     init {
         addUser("jonas@hinchely.dk", "c_jonas_hinchely_dk")
+        addUser("dthrane", "dthrane")
+        addUser("root", "root")
     }
 
-    fun findCloudUser(unixUser: String): String? = cloudToUser[unixUser]
+    fun findCloudUser(unixUser: String): String? = userToCloud[unixUser]
 
-    fun findUnixUser(cloudUser: String): String? = userToCloud[cloudUser]
+    fun findUnixUser(cloudUser: String): String? = cloudToUser[cloudUser]
 }

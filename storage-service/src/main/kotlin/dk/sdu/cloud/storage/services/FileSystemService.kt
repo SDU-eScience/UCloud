@@ -1,27 +1,27 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.StorageFile
+import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.util.BashEscaper
 import org.slf4j.LoggerFactory
-import java.time.OffsetDateTime
-
+import java.io.File
 
 class FileSystemService(
     private val cloudToCephFsDao: CloudToCephFsDao,
     private val isDevelopment: Boolean = false
 ) {
     fun ls(user: String, path: String): List<StorageFile> {
-        /*
         val root = File(fsRoot).normalize().absolutePath
         val absolutePath = File(root, path).normalize().absolutePath
 
         if (!absolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
 
+        val cloudPath = File("/" + absolutePath.substringAfter(root).removePrefix("/"))
+
         val process = ProcessBuilder().apply {
             val prefix = asUser(user)
-            val command = listOf("ls", "-1Al", "--time-style=\"+%Y-%m-%dT%H:%M:%S%:z\"", BashEscaper.safeBashArgument(absolutePath))
+            val command = if (isDevelopment) listOf(File("./bin/osx/dirlisting").absolutePath) else listOf("dirlisting")
 
+            directory(File(absolutePath))
             command(prefix + command)
         }.start()
 
@@ -31,58 +31,87 @@ class FileSystemService(
             log.info("ls failed $user, $path")
             log.info(process.errorStream.reader().readText())
             throw IllegalStateException()
+        } else {
+            return parseDirListingOutput(cloudPath, process.inputStream.bufferedReader().readText())
         }
+    }
+
+    fun parseDirListingOutput(where: File, output: String): List<StorageFile> {
+        /*
+        Example output:
+
+        D,509,root,root,4096,1523862649,1523862649,1523862650,3,user1,14,user2,2,user3,6,CONFIDENTIAL,.
+        D,493,root,root,4096,1523862224,1523862224,1523862237,0,CONFIDENTIAL,..
+        F,420,root,root,0,1523862649,1523862649,1523862649,0,CONFIDENTIAL,qwe
         */
 
-        //val files = process.inputStream.reader().readLines().drop(1)
-        val files = """
-            -rw-r--r--. 1 root    root    0 2018-04-11T14:16:47+02:00 annoying file
-            drwxr-xr-x. 2 root    root    6 2018-04-11T14:19:19+02:00 f
-            -rw-r--r--. 1 dthrane wheel 173 2018-04-11T12:59:17+02:00 README.md
-            -rw-r--r--. 1 root    root    0 2018-04-11T14:25:41+02:00 really annoying   file
-            -rwxr-xr-x. 1 dthrane wheel 172 2018-04-11T12:59:17+02:00 sduls
-            -rwxr-xr-x. 1 dthrane wheel 139 2018-04-11T12:39:37+02:00 sduls.sh
-            -rw-r--r--. 1 root    root   88 2018-04-11T14:27:09+02:00 test.txt
-            -rwxr-xr-x. 1 dthrane wheel 157 2018-04-11T12:59:17+02:00 utils.sh
-        """.trimIndent().split("\n")
-
-        return files.mapNotNull { line ->
-            val chars = line.toCharArray()
+        return output.lines().mapNotNull { line ->
+            if (line.isBlank()) return@mapNotNull null
 
             var cursor = 0
+            val chars = line.toCharArray()
             fun readToken(): String {
                 val builder = StringBuilder()
-                var hasFoundSpace = false
                 while (cursor < chars.size) {
-                    val next = chars[cursor++]
-                    if (next != ' ') {
-                        if (hasFoundSpace) {
-                            cursor--
-                            break
-                        }
-                        builder.append(next)
-                    } else {
-                        hasFoundSpace = true
-                    }
+                    val c = chars[cursor++]
+                    if (c == ',') break
+                    builder.append(c)
                 }
                 return builder.toString()
             }
 
-            val isDirectory = readToken().startsWith('d')
-            readToken() // discard ?
-            val owner = readToken()
-            readToken() // discard group
-            val fileSize = readToken().toLongOrNull() ?: return@mapNotNull null
-            val parsedDate = OffsetDateTime.parse(readToken())
-            val name = line.substring(cursor)
+            val dirTypeToken = readToken()
+            val dirType = when (dirTypeToken) {
+                "D" -> FileType.DIRECTORY
+                "F" -> FileType.FILE
+                "L" -> FileType.LINK
+                else -> throw IllegalStateException("Unexpected dir type: $dirTypeToken")
+            }
+
+            val unixPermissions = readToken().toInt()
+
+            val user = cloudToCephFsDao.findCloudUser(readToken()) ?: return@mapNotNull null
+            val group = readToken() // TODO translate
+
+            val size = readToken().toLong()
+            val createdAt = readToken().toLong()
+            val modifiedAt = readToken().toLong()
+            val accessedAt = readToken().toLong()
+
+            val aclEntries = readToken().toInt()
+            val entries = (0 until aclEntries).map {
+                val aclEntity = readToken()
+                val mode = readToken().toInt()
+
+                val isGroup = (mode and SHARED_WITH_UTYPE) != 0
+                val hasRead = (mode and SHARED_WITH_READ) != 0
+                val hasWrite = (mode and SHARED_WITH_WRITE) != 0
+                val hasExecute = (mode and SHARED_WITH_EXECUTE) != 0
+
+                val rights = mutableSetOf<AccessRight>()
+                if (hasRead) rights += AccessRight.READ
+                if (hasWrite) rights += AccessRight.WRITE
+                if (hasExecute) rights += AccessRight.EXECUTE
+
+                AccessEntry(aclEntity, isGroup, rights)
+            }
+
+            val sensitivity = SensitivityLevel.valueOf(readToken())
+            val filePath = File(where, line.substring(cursor)).normalize().absolutePath
+
+            // Don't attempt to return details about the parent of mount
+            if (filePath == "/..") return@mapNotNull null
 
             StorageFile(
-                if (isDirectory) FileType.DIRECTORY else FileType.FILE,
-                name,
-                0L,
-                parsedDate.toEpochSecond() * 1000L,
-                owner,
-                fileSize
+                type = dirType,
+                path = filePath,
+                createdAt = createdAt * 1000L,
+                modifiedAt = modifiedAt * 1000L,
+                ownerName = user,
+                size = size,
+                acl = entries,
+                favorited = false,
+                sensitivityLevel = sensitivity
             )
         }
     }
@@ -95,6 +124,11 @@ class FileSystemService(
 
     companion object {
         private val log = LoggerFactory.getLogger(FileSystemService::class.java)
+
+        private const val SHARED_WITH_UTYPE = 1
+        private const val SHARED_WITH_READ = 2
+        private const val SHARED_WITH_WRITE = 4
+        private const val SHARED_WITH_EXECUTE = 8
     }
 }
 

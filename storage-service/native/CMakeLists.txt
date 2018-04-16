@@ -3,5 +3,14 @@ project(native)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(native main.cpp libacl.cpp libacl.h)
-target_link_libraries(native acl)
+add_executable(dirlisting main.cpp libacl.cpp libacl.h)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(MACOSX TRUE)
+else ()
+    set(MAXOSX FALSE)
+endif ()
+
+if (NOT MACOSX)
+    target_link_libraries(dirlisting acl)
+endif ()

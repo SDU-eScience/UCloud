@@ -1,22 +1,33 @@
 package dk.sdu.cloud.storage.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.storage.services.FileSystemService
+import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
-class FilesController {
+class FilesController(private val fs: FileSystemService) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
             implement(FileDescriptions.listAtPath) { request ->
                 logEntry(log, request)
+                val principal = call.request.validatedPrincipal
 
-                TODO()
+                try {
+                    ok(fs.ls(principal.subject, request.path))
+                } catch (ex: Exception) {
+                    log.warn(ex.stackTraceToString())
+                    error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
+                }
             }
 
             implement(FileDescriptions.stat) { request ->
