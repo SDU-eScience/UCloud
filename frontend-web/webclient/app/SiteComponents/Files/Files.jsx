@@ -156,6 +156,7 @@ class Files extends React.Component {
     }
 
     createFolder() {
+        this.resetFolderObject();
         this.setState(() => ({ creatingNewFolder: true }));
     }
 
@@ -171,6 +172,7 @@ class Files extends React.Component {
     }
 
     startEditFile(index, path) {
+        this.resetFolderObject();
         this.setState(() => ({
             editFolder: {
                 fullPath: path.path,
@@ -519,7 +521,15 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
                     beingRenamed={beingRenamed}
                 />
             ) : null}
-            <FileType type={file.type} path={file.path} updateEditFileName={props.updateEditFileName} handleKeyDown={props.handleKeyDown} beingRenamed={beingRenamed} renameName={props.renameName} update={props.updateName} />
+            <FileType
+                type={file.type}
+                path={file.path}
+                updateEditFileName={props.updateEditFileName}
+                handleKeyDown={props.handleKeyDown}
+                beingRenamed={beingRenamed}
+                renameName={props.renameName}
+                update={props.updateName}
+            />
             {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile} /> : null}
         </td>
         <td>{new Date(file.modifiedAt).toLocaleString()}</td>
@@ -549,7 +559,15 @@ const FileCheckbox = ({ isChecked, onChange }) => (
 );
 
 const FileType = ({ type, path, beingRenamed, update, ...props }) => {
-    const fileName = (<FileName updateEditFileName={props.updateEditFileName} name={path.name} beingRenamed={beingRenamed} handleKeyDown={props.handleKeyDown} renameName={props.renameName} update={update} />);
+    const fileName = (
+        <FileName
+            updateEditFileName={props.updateEditFileName}
+            name={path.name}
+            beingRenamed={beingRenamed}
+            handleKeyDown={props.handleKeyDown}
+            renameName={props.renameName}
+            update={update}
+        />);
     if (type === "FILE") {
         return (<React.Fragment>
             <i className={getTypeFromFile(path.name)} style={{ fontSize: "32px", paddingRight: "11px", verticalAlign: "middle" }} />
