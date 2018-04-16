@@ -1,8 +1,9 @@
 export interface File {
     type: string
-    path: Path
+    path: string
     createdAt: number
     modifiedAt: number
+    ownerName: string
     size: number
     acl: Array<Acl>
     favorited: boolean
@@ -32,12 +33,6 @@ export interface Analysis {
     createdAt: number
     modifiedAt: number
     owner: string
-}
-
-export interface Path {
-    path: string
-    uri: string
-    name: string
 }
 
 export interface Application {

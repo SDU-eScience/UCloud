@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as swal from "sweetalert2";
 import { RightsMap, RightsNameMap, SensitivityLevelMap } from "./DefaultObjects";
-import { File, Path, Acl } from "./types/types";
+import { File, Acl } from "./types/types";
 import Cloud from "../authentication/lib";
 
 interface Type { type: string }
@@ -47,7 +47,7 @@ export const sortFilesByTypeAndName = (files: File[], asc: boolean) => {
         else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
             return 1 * order;
         else {
-            return a.path.name.localeCompare(b.path.name) * order;
+            return getFilenameFromPath(a.path).localeCompare(getFilenameFromPath(b.path)) * order;
         }
     });
     return files;
@@ -62,12 +62,12 @@ export const sortFilesBySensitivity = (files: File[], asc: boolean) => {
 };
 
 export const favorite = (files: File[], path: string, cloud: Cloud) => {
-    let file = files.find((file: File) => file.path.path === path);
+    let file = files.find((file: File) => file.path === path);
     file.favorited = !file.favorited;
     if (file.favorited) {
-        cloud.post(`/files/favorite?path=${file.path.path}`);
+        cloud.post(`/files/favorite?path=${file.path}`);
     } else {
-        cloud.delete(`/files/favorite?path=${file.path.path}`);
+        cloud.delete(`/files/favorite?path=${file.path}`);
     }
     return files;
 };
@@ -84,10 +84,10 @@ export const getOwnerFromAcls = (acls: Acl[], cloud: Cloud) => {
     }
 };
 
-export const updateSharingOfFile = (filePath: Path, user: string, currentRights: string, cloud: Cloud, callback: Function) => {
+export const updateSharingOfFile = (filePath: string, user: string, currentRights: string, cloud: Cloud, callback: () => any) => {
     swal({
         title: "Please specify access level",
-        text: `The file ${filePath.name} is to be shared with ${user}.`,
+        text: `The file ${getFilenameFromPath(filePath)} is to be shared with ${user}.`,
         input: "select",
         showCancelButton: true,
         showCloseButton: true,
@@ -105,7 +105,7 @@ export const updateSharingOfFile = (filePath: Path, user: string, currentRights:
         }
         const body = {
             entity: user,
-            onFile: filePath.path,
+            onFile: filePath,
             rights: type.value,
             type: "grant",
         };
@@ -115,10 +115,10 @@ export const updateSharingOfFile = (filePath: Path, user: string, currentRights:
     });
 };
 
-export const shareFile = (filePath: Path, cloud: Cloud, callback: Function) => {
+export const shareFile = (filePath: string, cloud: Cloud, callback: Function) => {
     swal({
         title: "Share file",
-        text: `Enter a username to share ${filePath.name} with.`,
+        text: `Enter a username to share ${getFilenameFromPath(filePath)} with.`,
         input: "text",
         confirmButtonText: "Next",
         showCancelButton: true,
@@ -132,7 +132,7 @@ export const shareFile = (filePath: Path, cloud: Cloud, callback: Function) => {
         }
         swal({
             title: "Please specify access level",
-            text: `The file ${filePath.name} is to be shared with ${input.value}.`,
+            text: `The file ${getFilenameFromPath(filePath)} is to be shared with ${input.value}.`,
             input: "select",
             showCancelButton: true,
             showCloseButton: true,
@@ -147,7 +147,7 @@ export const shareFile = (filePath: Path, cloud: Cloud, callback: Function) => {
             }
             const body = {
                 entity: input.value,
-                onFile: filePath.path,
+                onFile: filePath,
                 rights: type.value,
                 type: "grant",
             };
@@ -159,7 +159,9 @@ export const shareFile = (filePath: Path, cloud: Cloud, callback: Function) => {
     );
 }
 
-export const revokeSharing = (filePath: Path, person: string, rightsLevel: string, cloud: Cloud) =>
+export const revokeSharing = (filePath: string, person: string, rightsLevel: string, cloud: Cloud) =>
+    console.warn("Revoking of sharing must be rewritten");
+    /*
     swal({
         title: "Revoke access",
         text: `Revoke ${rightsLevel} access for ${person}`,
@@ -176,29 +178,12 @@ export const revokeSharing = (filePath: Path, person: string, rightsLevel: strin
         return cloud.delete("/acl", body);//.then(response => {
 
         //});
-    });
+    });*/
 
-export const createFolder = (currentPath: string) => {
-    swal({
-        title: "Create folder",
-        text: `The folder will be created in:\n${currentPath}`,
-        confirmButtonText: "Create folder",
-        input: "text",
-        showCancelButton: true,
-        showCloseButton: true,
-    }).then((result: any) => {
-        if (result.dismiss) {
-            return;
-        } else {
-            swal(`Not yet implemented: ${result.value}`);
-        }
-    })
-}
-
-export const renameFile = (filePath: Path) =>
+export const renameFile = (filePath: string) =>
     swal({
         title: "Rename file",
-        text: `The file ${filePath.name} will be renamed`,
+        text: `The file ${getFilenameFromPath(filePath)} will be renamed`,
         confirmButtonText: "Rename",
         input: "text",
         showCancelButton: true,
@@ -209,10 +194,10 @@ export const renameFile = (filePath: Path) =>
         }
     });
 
-export const showFileDeletionPrompt = (filePath: Path) =>
+export const showFileDeletionPrompt = (filePath: string, cloud: Cloud) =>
     swal({
         title: "Delete file",
-        text: `Delete file ${filePath.name}`,
+        text: `Delete file ${getFilenameFromPath(filePath)}`,
         confirmButtonText: "Delete file",
         type: "warning",
         showCancelButton: true,
@@ -221,7 +206,7 @@ export const showFileDeletionPrompt = (filePath: Path) =>
         if (result.dismiss) {
             return;
         } else {
-            // DELETE FILE
+            cloud.delete(`/files?path=${filePath}`).then(r => console.log(r));
         }
     });
 
@@ -237,6 +222,10 @@ export const getParentPath = (path: string): string => {
     }
     return parentPath;
 };
+
+export const getFilenameFromPath = (path: string): string => 
+    !path ? "" : path.split("/").pop();
+
 
 export const downloadFile = (path: string, cloud: Cloud) =>
     cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) => {
@@ -341,13 +330,13 @@ export const getTypeFromFile = (filename: string): string => {
             return "ion-document";
         case "wav":
         case "mp3":
-            return "noise";    
+            return "noise";
         default:
             return "";
     }
 }
 
-export const inRange = (status: number, min: number, max: number):boolean => status >= min && status <= max;
-export const inSuccessRange = (status: number):boolean => inRange(status, 200, 299);
+export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
+export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
 
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();

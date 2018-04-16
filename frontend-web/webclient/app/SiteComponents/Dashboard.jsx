@@ -4,7 +4,7 @@ import { NotificationIcon, getParentPath } from "./../UtilityFunctions";
 import { Table, Row } from "react-bootstrap"
 import { Link } from "react-router-dom";
 import { Cloud } from "../../authentication/SDUCloudObject"
-import { sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize } from "../UtilityFunctions";
+import { sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize, getFilenameFromPath } from "../UtilityFunctions";
 import PromiseKeeper from "../PromiseKeeper";
 import { updatePageTitle } from "../Actions/Status";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../Actions/Dashboard";
@@ -15,7 +15,7 @@ class Dashboard extends React.Component {
         super(props);
         const { dispatch, favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
-            dispatch(updatePageTitle("Dashboard"));
+            dispatch(updatePageTitle(this.constructor.name));
             dispatch(setAllLoading(true));
             dispatch(fetchFavorites());
             dispatch(fetchRecentFiles());
@@ -103,14 +103,14 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
         let timeString = modified >= yesterday ? modified.toLocaleTimeString() : modified.toLocaleDateString();
         if (file.type === "DIRECTORY") {
             return (
-                <tr key={file.path.path}>
-                    <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
+                <tr key={file.path}>
+                    <td><Link to={`files/${file.path}`}>{getFilenameFromPath(file.path)}</Link></td>
                     <td>{timeString}</td>
                 </tr>)
         } else {
             return (
-                <tr key={file.path.path}>
-                    <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
+                <tr key={file.path}>
+                    <td><Link to={`files/${getParentPath(file.path.path)}`}>{getFilenameFromPath(file.path)}</Link></td>
                     <td>{timeString}</td>
                 </tr>)
         }

@@ -22,7 +22,8 @@ import {
     sortByNumber,
     sortByString,
     getTypeFromFile,
-    inSuccessRange
+    inSuccessRange,
+    getFilenameFromPath
 } from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
 import Uppy from "uppy";
@@ -91,16 +92,32 @@ class Files extends React.Component {
                         this.props.dispatch(setLoading(true));
                         this.props.dispatch(fetchFiles(this.props.path, sortFilesByTypeAndName, true));
                     }
-                }).catch((failure) => {
+                }).catch((failure) =>
                     this.resetFolderObject()
-                }) : this.resetFolderObject();
+                ) : this.resetFolderObject();
             } else {
                 const name = this.state.editFolder.name;
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
-                name ? console.log("SUBMIT HERE, TODO. SORRY.") : this.resetFolderObject();
+                const originalFilename = this.props.files[this.state.editFolder.index].path.path;
+                name ? Cloud.post("/files/move", { path: originalFilename, newPath: directoryPath })
+                    .then(({ request }) => {
+                        if (inSuccessRange(request.status)) {
+                            // TODO Overwrite filename;
+                            this.resetFolderObject();
+                            this.props.dispatch(setLoading(true));
+                            this.props.dispatch(fetchFiles(this.props.path, sortFilesByTypeAndName, true));
+                        }
+                    }).catch((failure) =>
+                        this.resetFolderObject()
+                    ) : this.resetFolderObject();
             }
         }
     }
+
+
+    /*
+     *  POST /api/files/copy?path=$path&newPath=$newPath`: Copies a file with `$path` to `$newPath`
+     */
 
     updateSearchText(e) {
         e.preventDefault();
@@ -175,8 +192,8 @@ class Files extends React.Component {
         this.resetFolderObject();
         this.setState(() => ({
             editFolder: {
-                fullPath: path.path,
-                name: path.name,
+                fullPath: path,
+                name: getFilenameFromPath(path),
                 index
             }
         }));
@@ -200,12 +217,12 @@ class Files extends React.Component {
         const { dispatch, files, filesPerPage, currentFilesPage, path, loading, history, currentPath } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
-            .filter(f => f.path.name.toLowerCase().includes(this.state.searchText.toLowerCase()));
+            .filter(f => getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
 
         // Lambdas
         const checkFile = (checked, newFile) => {
-            files.find(file => file.path.path === newFile.path.path).isChecked = checked;
+            files.find(file => file.path === newFile.path).isChecked = checked;
             dispatch(updateFiles(files));
         }
         const goToPage = (pageNumber) => {
@@ -314,7 +331,7 @@ const FileOptions = ({ selectedFiles }) => {
         if (selectedFiles.length > 1) {
             return `${selectedFiles.length} files selected.`;
         } else {
-            const filename = selectedFiles[0].path.name;
+            const filename = getFilenameFromPath(selectedFiles[0].path);
             if (filename.length > 10) {
                 return filename.slice(0, 17) + "...";
             } else {
@@ -330,7 +347,7 @@ const FileOptions = ({ selectedFiles }) => {
             <h3>{fileText}</h3>
             <p>
                 <Link disabled={selectedFiles.length !== 1} className="btn btn-primary ripple btn-block"
-                    to={`/fileInfo/${selectedFiles[0].path.path}/`}>
+                    to={`/fileInfo/${selectedFiles[0].path}/`}>
                     <span className="ion-ios-settings-strong pull-left" />Properties
                 </Link>
             </p>
@@ -343,7 +360,7 @@ const FileOptions = ({ selectedFiles }) => {
             </p>
             <p>
                 <Button disabled={downloadDisabled} className="btn btn-default ripple btn-block"
-                    onClick={() => downloadFile(selectedFiles[0].path.path, Cloud)}>
+                    onClick={() => downloadFile(selectedFiles[0].path, Cloud)}>
                     <span className="ion-ios-download pull-left" />
                     Download
                 </Button>
@@ -359,7 +376,7 @@ const FileOptions = ({ selectedFiles }) => {
             <p>
                 <Button className="btn btn-danger btn-block ripple"
                     disabled={rights.rightsLevel < 3 || selectedFiles.length > 1}
-                    onClick={() => showFileDeletionPrompt(selectedFiles[0].path)}>
+                    onClick={() => showFileDeletionPrompt(selectedFiles[0].path, cloud)}>
                     <em className="ion-ios-trash pull-left" />
                     Delete
                 </Button>
@@ -562,7 +579,7 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
     const fileName = (
         <FileName
             updateEditFileName={props.updateEditFileName}
-            name={path.name}
+            name={getFilenameFromPath(path)}
             beingRenamed={beingRenamed}
             handleKeyDown={props.handleKeyDown}
             renameName={props.renameName}
@@ -570,7 +587,7 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
         />);
     if (type === "FILE") {
         return (<React.Fragment>
-            <i className={getTypeFromFile(path.name)} style={{ fontSize: "32px", paddingRight: "11px", verticalAlign: "middle" }} />
+            <i className={getTypeFromFile(getFilenameFromPath(name))} style={{ fontSize: "32px", paddingRight: "11px", verticalAlign: "middle" }} />
             <span>{fileName}</span>
         </React.Fragment>)
     } else {
@@ -584,7 +601,7 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
                 {folderIcon}
                 <span>{fileName}</span>
             </React.Fragment>) :
-            (<Link to={`/files/${path.path}`}>{folderIcon}
+            (<Link to={`/files/${path}`}>{folderIcon}
                 {fileName}
             </Link>);
     }
@@ -610,8 +627,8 @@ const FileName = ({ name, beingRenamed, renameName, updateEditFileName, handleKe
 };
 const Favorited = ({ file, favoriteFile }) =>
     file.favorited ?
-        (<a onClick={() => favoriteFile(file.path.path)} className="ion-star" style={{ margin: "10px" }} />) :
-        (<a className="ion-ios-star-outline fileData" onClick={() => favoriteFile(file.path.path)} style={{ margin: "10px" }} />);
+        (<a onClick={() => favoriteFile(file.path)} className="ion-star" style={{ margin: "10px" }} />) :
+        (<a className="ion-ios-star-outline fileData" onClick={() => favoriteFile(file.path)} style={{ margin: "10px" }} />);
 
 const MobileButtons = ({ file, forceInlineButtons, rename }) => {
     return (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
@@ -621,17 +638,20 @@ const MobileButtons = ({ file, forceInlineButtons, rename }) => {
                 <MenuItem onClick={() => shareFile(file.path, Cloud)}>
                     Share file
                 </MenuItem>
-                <MenuItem onClick={() => downloadFile(file.path.path, Cloud)}>
+                <MenuItem onClick={() => downloadFile(file.path, Cloud)}>
                     Download file
                 </MenuItem>
                 {rename ? <MenuItem onClick={() => rename(file.path)}>
                     Rename file
                 </MenuItem> : null}
-                <MenuItem onClick={() => showFileDeletionPrompt(file.path)}>
+                <MenuItem onClick={() => copy(file.path)}>
+                    Copy file
+                </MenuItem>
+                <MenuItem onClick={() => showFileDeletionPrompt(file.path, Cloud)}>
                     Delete file
                 </MenuItem>
                 <li>
-                    <Link to={`/fileInfo/${file.path.path}/`}>
+                    <Link to={`/fileInfo/${file.path}/`}>
                         Properties
                     </Link>
                 </li>
