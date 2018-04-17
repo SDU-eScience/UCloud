@@ -92,7 +92,7 @@ class RunApp extends React.Component {
             type: "start",
             //comment: this.state.comment.slice(),
         };
-        Cloud.post("/hpc/jobs", job).then(req => {
+        Cloud.post("/hpc/jobs", job).then((req) => {
             if (req.request.status === 200) {
                 this.props.history.push(`/analyses/${req.response.jobId}`);
             } else {

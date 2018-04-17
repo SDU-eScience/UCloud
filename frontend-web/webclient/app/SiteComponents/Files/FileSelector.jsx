@@ -4,7 +4,7 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Modal, Button, Table } from "react-bootstrap";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
-import { sortFilesByTypeAndName, createFolder, getFilenameFromPath, getTypeFromFile } from "../../UtilityFunctions";
+import { sortFilesByTypeAndName, createFolder, getFilenameFromPath, getTypeFromFile, getParentPath } from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
 import { DashboardModal } from "uppy/lib/react";
 import { dispatch } from "redux";
@@ -16,7 +16,7 @@ class FileSelector extends React.Component {
         this.state = {
             promises: new PromiseKeeper(),
             returnObject: props.returnObject,
-            currentPath: `/home/${Cloud.username}`,
+            currentPath: `${Cloud.homeFolder}`,
             loading: false,
             files: [],
             modalShown: false,
@@ -48,12 +48,9 @@ class FileSelector extends React.Component {
             if (lastSlash === -1) throw "Could not parse name of path: " + path;
             let name = path.substring(lastSlash + 1);
             let fileObject = {
-                path: {
                     path: path,
                     name: name,
-                }
             };
-
             this.props.uploadCallback(fileObject);
         });
     };
@@ -113,7 +110,6 @@ class FileSelector extends React.Component {
             uppy.reset();
             uppy.once("upload-success", this.uppyOnUploadSuccess);
         };
-
         const path = this.props.path ? this.props.path : "";
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={this.props.remove} />) : null;
@@ -136,7 +132,7 @@ class FileSelector extends React.Component {
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
                     </Modal.Header>
-                    <BreadCrumbs path={this.state.currentPath} getFiles={this.getFiles} />
+                    <BreadCrumbs currentPath={this.state.currentPath} navigate={this.getFiles} />
                     <BallPulseLoading loading={this.state.loading} />
                     <FileSelectorBody loading={this.state.loading} onClick={this.setSelectedFile}
                         files={this.state.files} getFiles={this.getFiles}
