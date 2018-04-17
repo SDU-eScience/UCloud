@@ -82,15 +82,12 @@ module.exports = {
             from: 'img',
             to: 'img',
             context: path.join(__dirname, 'app')
-        }, /*{ // TODO: Find usage
-            from: 'server',
-            to: 'server',
-            context: path.join(__dirname, 'app')
-        }, */{
+        },{
             from: 'fonts',
             to: 'fonts',
             context: path.join(__dirname, 'app')
         }]),
+
         // https://github.com/moment/moment/issues/2979#issuecomment-189899510
         new webpack.ContextReplacementPlugin(/\.\/locale$/, 'empty-module', false, /js$/),
         new webpack.DefinePlugin({
