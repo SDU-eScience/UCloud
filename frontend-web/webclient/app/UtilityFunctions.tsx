@@ -294,8 +294,7 @@ export const createRangeInclusive = (count: number): number[] => {
 };
 
 export const getTypeFromFile = (filename: string): string => {
-    const splitPath = filename.split(".");
-    const extension = splitPath[splitPath.length - 1].toLowerCase();
+    const extension = filename.split(".").pop();
     switch (extension) {
         case "kt":
         case "js":
@@ -320,6 +319,8 @@ export const getTypeFromFile = (filename: string): string => {
         case "png":
         case "gif":
         case "tiff":
+        case "eps":
+        case "ppm":
             return "ion-image";
         case "txt":
         case "pdf":
@@ -330,8 +331,9 @@ export const getTypeFromFile = (filename: string): string => {
             return "ion-document";
         case "wav":
         case "mp3":
-            return "noise";
+            return "ion-android-volume-up";
         default:
+            console.warn(`Unhandled extension "${extension}"`)
             return "";
     }
 }

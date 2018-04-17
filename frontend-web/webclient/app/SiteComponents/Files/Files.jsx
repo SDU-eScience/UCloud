@@ -578,7 +578,7 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
         />);
     if (type === "FILE") {
         return (<React.Fragment>
-            <i className={getTypeFromFile(getFilenameFromPath(name))} style={{ fontSize: "32px", paddingRight: "11px", verticalAlign: "middle" }} />
+            <i className={getTypeFromFile(getFilenameFromPath(path))} style={{ fontSize: "32px", paddingRight: "11px", verticalAlign: "middle" }} />
             <span>{fileName}</span>
         </React.Fragment>)
     } else {
