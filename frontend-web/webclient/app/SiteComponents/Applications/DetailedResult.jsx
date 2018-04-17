@@ -7,6 +7,8 @@ import {Glyphicon, ListGroup, ListGroupItem, OverlayTrigger, Tooltip} from "reac
 import {Link} from "react-router-dom";
 import {FilesTable} from "../Files/Files";
 import "./wizard.scss";
+import { connect } from "react-redux";
+import { updatePageTitle } from "../../Actions/Status";
 
 class DetailedResult extends React.Component {
     constructor(props) {
@@ -25,7 +27,7 @@ class DetailedResult extends React.Component {
             stderrOldTop: -1,
             promises: new PromiseKeeper()
         };
-        // this.props.dispatch(updatePageTitle(`Results for Job: ${shortUUID(this.jobId)}`));
+        this.props.dispatch(updatePageTitle(`Results for Job: ${shortUUID(this.jobId)}`));
     }
 
     get jobId() {
@@ -317,4 +319,4 @@ const ProgressTrackerItem = (props) => (
     </li>
 );
 
-export default DetailedResult;
+export default connect()(DetailedResult);

@@ -15,7 +15,7 @@ class Dashboard extends React.Component {
         super(props);
         const { dispatch, favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
-            dispatch(updatePageTitle(this.constructor.name));
+            dispatch(updatePageTitle("Dashboard"));
             dispatch(setAllLoading(true));
             dispatch(fetchFavorites());
             dispatch(fetchRecentFiles());

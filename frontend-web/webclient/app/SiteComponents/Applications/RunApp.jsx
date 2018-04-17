@@ -38,12 +38,12 @@ class RunApp extends React.Component {
             jobSubmitted: false
         };
         this.props.uppy.run();
-
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
         this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
         this.onCommentChange = this.onCommentChange.bind(this);
         this.onJobSchedulingParamsChange = this.onJobSchedulingParamsChange.bind(this);
+        this.props.dispatch(updatePageTitle("Run App"));
     };
 
     componentDidMount() {

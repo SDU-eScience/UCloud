@@ -23,7 +23,7 @@ class Notifications extends React.Component {
             remainingShown: 10,
         };
         this.getNotifications();
-        this.props.dispatch(updateTitle(this.constructor.name));
+        this.props.dispatch(updateTitle("Notifications"));
     }
 
     getNotifications() {

@@ -16,7 +16,7 @@ class Analyses extends React.Component {
         this.state = {
             reloadIntervalId: -1
         };
-        this.props.dispatch(updatePageTitle(this.constructor.name));
+        this.props.dispatch(updatePageTitle("Analyses"));
     }
 
     componentWillMount() {

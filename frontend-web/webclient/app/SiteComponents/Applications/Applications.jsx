@@ -21,7 +21,7 @@ class Applications extends React.Component {
         this.sortByString = this.sortByString.bind(this);
         this.sortByNumber = this.sortByNumber.bind(this);
         const { dispatch } = this.props;
-        dispatch(updatePageTitle(this.constructor.name));
+        dispatch(updatePageTitle("Applications"));
         dispatch(setLoading(true));
         dispatch(fetchApplications());
     }

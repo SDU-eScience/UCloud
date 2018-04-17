@@ -42,7 +42,7 @@ class Files extends React.Component {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
         this.props.uppy.run();
-        dispatch(updatePageTitle(this.constructor.name));
+        dispatch(updatePageTitle("Files"));
         this.state = {
             searchText: "",
             lastSorting: {
