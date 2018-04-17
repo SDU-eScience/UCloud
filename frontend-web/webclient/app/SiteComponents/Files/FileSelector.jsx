@@ -4,7 +4,7 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Modal, Button, Table } from "react-bootstrap";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
-import { sortFilesByTypeAndName, createFolder } from "../../UtilityFunctions";
+import { sortFilesByTypeAndName, createFolder, getFilenameFromPath, getTypeFromFile } from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
 import { DashboardModal } from "uppy/lib/react";
 import { dispatch } from "redux";
@@ -182,21 +182,21 @@ const FileList = ({ files, getFiles, onClick }) =>
     !files.length ? null :
         (<tbody>
             {files.map((file, index) => {
-                if (file.type === "DIRECTORY") {
-                    return (
-                        <tr key={index} className="row-settings clickable-row" style={{ cursor: "pointer" }}>
-                            <td onClick={() => getFiles(file.path.path)}>
-                                <a><i className="ion-android-folder" /> {file.path.name}</a>
-                            </td>
-                        </tr>
-                    );
-                } else {
+                if (file.type === "FILE") {
                     return (
                         <tr key={index} className="gradeA row-settings" style={{ cursor: "pointer" }}>
                             <td onClick={() => onClick(file)}><span
-                                className="ion-android-document" /> {file.path.name}
+                                className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
                             </td>
                         </tr>)
+                } else {
+                    return (
+                        <tr key={index} className="row-settings clickable-row" style={{ cursor: "pointer" }}>
+                            <td onClick={() => getFiles(file.path)}>
+                                <a><i className="ion-android-folder" /> {getFilenameFromPath(file.path)}</a>
+                            </td>
+                        </tr>
+                    );
                 }
             })}
         </tbody>);

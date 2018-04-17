@@ -8,6 +8,7 @@ import { BallPulseLoading, LoadingButton } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
+import { getFilenameFromPath } from "../../UtilityFunctions";
 import { initializeUppy } from "../../DefaultObjects";
 import { updateUppy } from "../../Actions/UppyActions";
 import { updatePageTitle } from "../../Actions/Status";
@@ -41,7 +42,6 @@ class RunApp extends React.Component {
         this.props.uppy.run();
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputChange = this.handleInputChange.bind(this);
-        this.handleFileSelectorChange = this.handleFileSelectorChange.bind(this);
         this.onCommentChange = this.onCommentChange.bind(this);
         this.onJobSchedulingParamsChange = this.onJobSchedulingParamsChange.bind(this);
         this.props.dispatch(updatePageTitle("Run App"));
@@ -113,19 +113,6 @@ class RunApp extends React.Component {
         });
     }
 
-    handleFileSelectorChange(file, returnObject) {
-        this.setState(() => {
-            let result = {
-                parameterValues: { ...this.state.parameterValues },
-            };
-            result.parameterValues[returnObject.parameter.name] = {
-                source: file.path.path,
-                destination: file.path.name // TODO Should allow for custom name at destination
-            };
-            return result;
-        });
-    }
-
     onCommentChange(comment) {
         this.setState(() => ({
             comment: comment,
@@ -159,7 +146,7 @@ class RunApp extends React.Component {
     render() {
         return (
             <section>
-                <div className="container" style={{marginTop: "60px"}}>
+                <div className="container" style={{ marginTop: "60px" }}>
                     <div className="card">
                         <div className="card-body">
                             <BallPulseLoading loading={this.state.loading} />
@@ -214,12 +201,11 @@ const Parameters = (props) => {
         return null
     }
 
-    let i = 0;
-    let parametersList = props.parameters.map(parameter => {
+    let parametersList = props.parameters.map((parameter, index) => {
         let value = props.values[parameter.name];
         return (
             <Parameter
-                key={i++}
+                key={index}
                 parameter={parameter}
                 onChange={props.onChange}
                 value={value}
@@ -240,9 +226,9 @@ const Parameters = (props) => {
                 tool={props.tool}
             />
             <LoadingButton bsStyle={"primary"} disabled={props.jobSubmitted}
-                                               loading={props.jobSubmitted}
-                                               style={""} buttonContent={"Submit"}
-                                               handler={props.handleSubmit}/>
+                loading={props.jobSubmitted}
+                style={""} buttonContent={"Submit"}
+                handler={props.handleSubmit} />
         </form>
     )
 };
@@ -353,8 +339,8 @@ const Parameter = (props) => {
 const InputFileParameter = (props) => {
     const internalOnChange = (file) => {
         props.onChange(props.parameter.name, {
-            source: file.path.path,
-            destination: file.path.name // TODO Should allow for custom name at destination
+            source: file.path,
+            destination: getFilenameFromPath(file.path) // TODO Should allow for custom name at destination
         });
     };
     const path = props.value ? props.value.source : "";
@@ -520,7 +506,7 @@ const OptionalText = (props) => {
 };
 
 const mapStateToProps = (state) => {
-    const { uppyRunApp,uppyRunAppOpen } = state.uppy; 
+    const { uppyRunApp, uppyRunAppOpen } = state.uppy;
     return { uppy: uppyRunApp, uppyOpen: uppyRunAppOpen };
 }
 

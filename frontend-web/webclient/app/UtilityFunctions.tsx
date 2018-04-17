@@ -315,6 +315,10 @@ export const getTypeFromFile = (filename: string): string => {
         case "hpp":
         case "html":
         case "sql":
+        case "sh":
+        case "iol":
+        case "ol":
+        case "jar":
             return "ion-code";
         case "png":
         case "gif":
