@@ -194,7 +194,7 @@ export const renameFile = (filePath: string) =>
         }
     });
 
-export const showFileDeletionPrompt = (filePath: string, cloud: Cloud) =>
+export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
     swal({
         title: "Delete file",
         text: `Delete file ${getFilenameFromPath(filePath)}`,
@@ -206,7 +206,7 @@ export const showFileDeletionPrompt = (filePath: string, cloud: Cloud) =>
         if (result.dismiss) {
             return;
         } else {
-            cloud.delete(`/files?path=${filePath}`).then(r => console.log(r));
+            cloud.delete("/files", { path: filePath}).then(() => callback ? callback() : null);
         }
     });
 
