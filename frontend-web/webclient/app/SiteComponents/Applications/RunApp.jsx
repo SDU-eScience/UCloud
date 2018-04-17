@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
 import { initializeUppy } from "../../DefaultObjects";
 import { updateUppy } from "../../Actions/UppyActions";
+import { updatePageTitle } from "../../Actions/Status";
 
 class RunApp extends React.Component {
     constructor(props) {
