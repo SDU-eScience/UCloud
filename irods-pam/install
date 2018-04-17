@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -e
-pip install python-jose
-sudo cp check_jwt /usr/bin/
-sudo ./build
-sudo echo "auth required pam_jwt_irods.so" > /etc/pam.d/irods

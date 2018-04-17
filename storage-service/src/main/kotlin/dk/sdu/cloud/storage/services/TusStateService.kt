@@ -2,7 +2,6 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.UploadState
 import dk.sdu.cloud.storage.api.UploadSummary
-import dk.sdu.cloud.storage.services.FileUpload.Companion.BLOCK_SIZE
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
@@ -117,3 +116,5 @@ object UploadProgress : Table() {
     val id = reference("id", UploadDescriptions.id)
     val numChunksVerified = long("num_chunks_verified")
 }
+
+const val BLOCK_SIZE = 4096 * 1024
