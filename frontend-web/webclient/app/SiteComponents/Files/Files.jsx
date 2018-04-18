@@ -216,61 +216,63 @@ class Files extends React.Component {
             this.resetFolderObject();
         };
         const selectedFiles = shownFiles.filter(file => file.isChecked);
-        const rename = () => { 
+        const rename = () => {
             const firstSelectedFile = selectedFiles[0];
             this.startEditFile(files.findIndex((f) => f.path === firstSelectedFile.path), firstSelectedFile.path);
         }
         const refetchFilesWithCurrentPath = () => fetchFiles(path, sortFilesByTypeAndName, this.state.lastSorting.asc);
         return (
-            <section>
-                <div className="col-lg-10">
-                    <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)} />
-                    <ContextButtons upload={openUppy} createFolder={() => this.createFolder(currentPath)} mobileOnly={true} />
-                    <FilesTable
-                        handleKeyDown={this.handleKeyDown}
-                        creatingNewFolder={this.state.creatingNewFolder}
-                        creatingFolderName={this.state.creatingFolderName}
-                        editFolder={this.state.editFolder}
-                        renameFile={this.startEditFile}
-                        updateEditFileName={this.updateEditFileName}
-                        updateCreateFolderName={this.updateCreateFolderName}
-                        files={shownFiles}
-                        loading={loading}
-                        masterCheckbox={masterCheckboxChecked}
-                        sortingIcon={(name) => getSortingIcon(this.state.lastSorting, name)}
-                        addOrRemoveFile={(checked, newFile) => checkFile(checked, files, newFile)}
-                        sortFiles={this.sortFilesBy}
-                        favoriteFile={(filePath) => updateFiles(favorite(files, filePath, Cloud))}
-                        selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}
-                        forceInlineButtons={true}
-                        refetch={refetchFilesWithCurrentPath}
-                    />
-                    <BallPulseLoading loading={loading} />
-                    <PaginationButtons
-                        currentPage={currentFilesPage}
-                        totalPages={totalPages}
-                        toPage={(pageNumber) => goTo(pageNumber, files)}
-                    />
-                    <EntriesPerPageSelector
-                        entriesPerPage={filesPerPage}
-                        totalPages={totalPages}
-                        handlePageSizeSelection={(newSize) => updateFilesPerPage(newSize, files)}
-                    >
-                        Files per page
+            <React.StrictMode>
+                <section>
+                    <div className="col-lg-10">
+                        <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)} />
+                        <ContextButtons upload={openUppy} createFolder={() => this.createFolder(currentPath)} mobileOnly={true} />
+                        <FilesTable
+                            handleKeyDown={this.handleKeyDown}
+                            creatingNewFolder={this.state.creatingNewFolder}
+                            creatingFolderName={this.state.creatingFolderName}
+                            editFolder={this.state.editFolder}
+                            renameFile={this.startEditFile}
+                            updateEditFileName={this.updateEditFileName}
+                            updateCreateFolderName={this.updateCreateFolderName}
+                            files={shownFiles}
+                            loading={loading}
+                            masterCheckbox={masterCheckboxChecked}
+                            sortingIcon={(name) => getSortingIcon(this.state.lastSorting, name)}
+                            addOrRemoveFile={(checked, newFile) => checkFile(checked, files, newFile)}
+                            sortFiles={this.sortFilesBy}
+                            favoriteFile={(filePath) => updateFiles(favorite(files, filePath, Cloud))}
+                            selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}
+                            forceInlineButtons={true}
+                            refetch={refetchFilesWithCurrentPath}
+                        />
+                        <BallPulseLoading loading={loading} />
+                        <PaginationButtons
+                            currentPage={currentFilesPage}
+                            totalPages={totalPages}
+                            toPage={(pageNumber) => goTo(pageNumber, files)}
+                        />
+                        <EntriesPerPageSelector
+                            entriesPerPage={filesPerPage}
+                            totalPages={totalPages}
+                            handlePageSizeSelection={(newSize) => updateFilesPerPage(newSize, files)}
+                        >
+                            Files per page
                     </EntriesPerPageSelector>
-                </div>
-                <ContextBar
-                    selectedFiles={selectedFiles}
-                    currentPath={path}
-                    createFolder={() => this.createFolder(currentPath)}
-                    getFavorites={this.getFavorites}
-                    onClick={openUppy}
-                    searchText={this.state.searchText}
-                    updateText={this.updateSearchText}
-                    refetch={refetchFilesWithCurrentPath}
-                    rename={rename}
-                />
-            </section>);
+                    </div>
+                    <ContextBar
+                        selectedFiles={selectedFiles}
+                        currentPath={path}
+                        createFolder={() => this.createFolder(currentPath)}
+                        getFavorites={this.getFavorites}
+                        onClick={openUppy}
+                        searchText={this.state.searchText}
+                        updateText={this.updateSearchText}
+                        refetch={refetchFilesWithCurrentPath}
+                        rename={rename}
+                    />
+                </section>
+            </React.StrictMode>);
     }
 }
 

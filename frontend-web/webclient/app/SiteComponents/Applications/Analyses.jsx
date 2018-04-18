@@ -41,49 +41,51 @@ class Analyses extends React.Component {
 
     render() {
         const { dispatch, analysesPerPage } = this.props;
-        const noAnalysis = this.props.analyses.length ? "" : <h3 className="text-center">
+        const noAnalysis = this.props.analyses.length ? "" : (<h3 className="text-center">
             <small>No analyses found.</small>
-        </h3>;
+        </h3>);
 
         return (
-            <section>
-                <div className="container" style={{ marginTop: "60px" }}>
-                    <div>
-                        <BallPulseLoading loading={this.props.loading} />
-                        <Card>
-                            <WebSocketSupport />
-                            {noAnalysis}
-                            <div className="card-body">
-                                <Table responsive className="table table-hover mv-lg">
-                                    <thead>
-                                        <tr>
-                                            <th>App Name</th>
-                                            <th>Job Id</th>
-                                            <th>State</th>
-                                            <th>Status</th>
-                                            <th>Started at</th>
-                                            <th>Last updated at</th>
-                                        </tr>
-                                    </thead>
-                                    <AnalysesList analyses={this.props.analyses} />
-                                </Table>
-                            </div>
-                        </Card>
-                        <PaginationButtons
-                            totalPages={this.props.totalPages}
-                            currentPage={this.props.pageNumber}
-                            toPage={(pageNumber) => dispatch(fetchAnalyses(analysesPerPage, pageNumber))}
-                        />
-                        <EntriesPerPageSelector
-                            entriesPerPage={this.props.analysesPerPage}
-                            handlePageSizeSelection={(pageSize) => dispatch(fetchAnalyses(pageSize, 0))}
-                            totalPages={this.props.totalPages}
-                        >
-                            Analyses per page
+            <React.StrictMode>
+                <section>
+                    <div className="container" style={{ marginTop: "60px" }}>
+                        <div>
+                            <BallPulseLoading loading={this.props.loading} />
+                            <Card>
+                                <WebSocketSupport />
+                                {noAnalysis}
+                                <div className="card-body">
+                                    <Table responsive className="table table-hover mv-lg">
+                                        <thead>
+                                            <tr>
+                                                <th>App Name</th>
+                                                <th>Job Id</th>
+                                                <th>State</th>
+                                                <th>Status</th>
+                                                <th>Started at</th>
+                                                <th>Last updated at</th>
+                                            </tr>
+                                        </thead>
+                                        <AnalysesList analyses={this.props.analyses} />
+                                    </Table>
+                                </div>
+                            </Card>
+                            <PaginationButtons
+                                totalPages={this.props.totalPages}
+                                currentPage={this.props.pageNumber}
+                                toPage={(pageNumber) => dispatch(fetchAnalyses(analysesPerPage, pageNumber))}
+                            />
+                            <EntriesPerPageSelector
+                                entriesPerPage={this.props.analysesPerPage}
+                                handlePageSizeSelection={(pageSize) => dispatch(fetchAnalyses(pageSize, 0))}
+                                totalPages={this.props.totalPages}
+                            >
+                                Analyses per page
                         </EntriesPerPageSelector>
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </React.StrictMode>
         )
     }
 }
