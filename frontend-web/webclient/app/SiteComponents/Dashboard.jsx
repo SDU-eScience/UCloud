@@ -54,18 +54,18 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
     const noFavorites = files.length || isLoading ? '' : <h3 className="text-center">
         <small>No favorites found.</small>
     </h3>;
-    const filesList = files.map((file) => {
+    const filesList = files.map((file, i) => {
         if (file.type === "DIRECTORY") {
             return (
-                <tr key={file.path.path}>
-                    <td><Link to={`files/${file.path.path}`}>{file.path.name}</Link></td>
-                    <td onClick={() => favorite(file.path.path)} className="text-center"><em className="ion-star" /></td>
+                <tr key={i}>
+                    <td><Link to={`files/${file.path}`}>{getFilenameFromPath(file.path)}</Link></td>
+                    <td onClick={() => favorite(file.path)} className="text-center"><em className="ion-star" /></td>
                 </tr>)
         } else {
             return (
-                <tr key={file.path.path}>
-                    <td><Link to={`files/${getParentPath(file.path.path)}`}>{file.path.name}</Link></td>
-                    <td onClick={() => favorite(file.path.path)} className="text-center"><em className="ion-star" /></td>
+                <tr key={i}>
+                    <td><Link to={`files/${getParentPath(file.path)}`}>{getFilenameFromPath(file.path)}</Link></td>
+                    <td onClick={() => favorite(file.path)} className="text-center"><em className="ion-star" /></td>
                 </tr>)
         }
     });
@@ -110,7 +110,7 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
         } else {
             return (
                 <tr key={file.path}>
-                    <td><Link to={`files/${getParentPath(file.path.path)}`}>{getFilenameFromPath(file.path)}</Link></td>
+                    <td><Link to={`files/${getParentPath(file.path)}`}>{getFilenameFromPath(file.path)}</Link></td>
                     <td>{timeString}</td>
                 </tr>)
         }
