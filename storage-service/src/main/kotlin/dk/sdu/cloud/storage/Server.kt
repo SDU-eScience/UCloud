@@ -39,7 +39,7 @@ class Server(
         val instance = StorageServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
-        val fs = FileSystemService(CloudToCephFsDao(), args.contains("--dev"))
+        val fs: FileSystemService = CephFSFileSystemService(CloudToCephFsDao(), args.contains("--dev"))
 
         val transferState = TusStateService()
         log.info("Core services constructed!")

@@ -4,14 +4,14 @@ import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
 import dk.sdu.cloud.storage.services.CloudToCephFsDao
-import dk.sdu.cloud.storage.services.FileSystemService
+import dk.sdu.cloud.storage.services.CephFSFileSystemService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
 class FileSystemServiceTest {
-    private val service = FileSystemService(CloudToCephFsDao(), true)
+    private val service = CephFSFileSystemService(CloudToCephFsDao(), true)
 
     @Test
     fun testOutputParsing() {
@@ -33,7 +33,7 @@ class FileSystemServiceTest {
             assertEquals(4096, firstFile.size)
             assertEquals(1523862649000, firstFile.createdAt)
             assertEquals(1523862649000, firstFile.modifiedAt)
-            val firstAcl = firstFile.acl!!
+            val firstAcl = firstFile.acl
             assertEquals(3, firstAcl.size)
 
             assertEquals("user1", firstAcl[0].entity)
@@ -62,7 +62,7 @@ class FileSystemServiceTest {
             assertEquals(4096, file.size)
             assertEquals(1523862224000, file.createdAt)
             assertEquals(1523862224000, file.modifiedAt)
-            val acl = file.acl!!
+            val acl = file.acl
             assertEquals(0, acl.size)
 
             assertEquals(SensitivityLevel.CONFIDENTIAL, file.sensitivityLevel)
@@ -76,7 +76,7 @@ class FileSystemServiceTest {
             assertEquals(0, file.size)
             assertEquals(1523862649000, file.createdAt)
             assertEquals(1523862649000, file.modifiedAt)
-            val acl = file.acl!!
+            val acl = file.acl
             assertEquals(0, acl.size)
 
             assertEquals(SensitivityLevel.CONFIDENTIAL, file.sensitivityLevel)

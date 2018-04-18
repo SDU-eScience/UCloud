@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.services.CephFSFileSystemService
 import dk.sdu.cloud.storage.services.FileSystemService
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
@@ -56,8 +57,7 @@ class SimpleDownloadController(
                 )
 
                 call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
-                    val process = fs.read(principal.subject, request.path)
-                    val stream = process.inputStream
+                    val stream = fs.read(principal.subject, request.path)
 
                     stream.use {
                         var readSum = 0L
