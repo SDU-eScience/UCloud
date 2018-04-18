@@ -5,6 +5,10 @@ import dk.sdu.cloud.storage.util.BashEscaper
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.OutputStream
+import java.lang.Math.abs
+import java.util.*
+
+data class FavoritedFile(val type: FileType, val from: String, val to: String, val inode: Long)
 
 class FileSystemService(
     private val cloudToCephFsDao: CloudToCephFsDao,
@@ -27,15 +31,23 @@ class FileSystemService(
         }.start()
     }
 
-    fun ls(user: String, path: String, includeImplicit: Boolean = false): List<StorageFile> {
-        val root = File(fsRoot).normalize().absolutePath
-        val absolutePath = File(root, path).normalize().absolutePath
+    private val dirListingExecutable: String
+        get() = if (isDevelopment) File("./bin/osx/dirlisting").absolutePath else "dirlisting"
 
-        if (!absolutePath.startsWith(root)) throw IllegalArgumentException("File is not in root")
+    fun ls(
+        user: String,
+        path: String,
+        includeImplicit: Boolean = false,
+        includeFavorites: Boolean = true
+    ): List<StorageFile> {
+        val absolutePath = File(fsRoot, path).normalize().absolutePath
 
-        val cloudPath = File("/" + absolutePath.substringAfter(root).removePrefix("/"))
+        if (!absolutePath.startsWith(fsRoot)) throw IllegalArgumentException("File is not in root")
 
-        val command = if (isDevelopment) listOf(File("./bin/osx/dirlisting").absolutePath) else listOf("dirlisting")
+        val cloudPath = File("/" + absolutePath.substringAfter(fsRoot).removePrefix("/"))
+
+        val command = mutableListOf(dirListingExecutable)
+        if (includeFavorites) command += listOf("--fav", translateAndCheckFile(favoritesDirectory(user), true))
         val process = runAsUser(user, command, absolutePath)
 
         val status = process.waitFor()
@@ -45,17 +57,39 @@ class FileSystemService(
             log.info(process.errorStream.reader().readText())
             throw IllegalStateException()
         } else {
-            return parseDirListingOutput(cloudPath, process.inputStream.bufferedReader().readText(), includeImplicit)
+            return parseDirListingOutput(
+                cloudPath,
+                process.inputStream.bufferedReader().readText(),
+                includeImplicit,
+                includeFavorites
+            ).second
         }
+    }
+
+    fun favorites(
+        user: String
+    ): List<FavoritedFile> {
+        val command = mutableListOf(
+            dirListingExecutable,
+            "--fav",
+            translateAndCheckFile(favoritesDirectory(user), true),
+            "--just-fav"
+        )
+
+        val process = runAsUser(user, command)
+        return parseDirListingOutput(
+            File(translateAndCheckFile(homeDirectory(user))),
+            process.inputStream.bufferedReader().readText(),
+            false,
+            true
+        ).first
     }
 
     // TODO This is a bit lazy
     fun stat(user: String, path: String): StorageFile? {
         return try {
-            val targetPath = File(path).normalize()
-            val parentPath = targetPath.parentFile.absolutePath
-
-            ls(user, parentPath, true).find { it.path == targetPath.absolutePath }
+            val results = ls(user, path.removeSuffix("/").substringBeforeLast('/'), true, false)
+            results.find { it.path == path }
         } catch (ex: Exception) {
             null
         }
@@ -156,7 +190,12 @@ class FileSystemService(
         }
     }
 
-    fun parseDirListingOutput(where: File, output: String, includeImplicit: Boolean = false): List<StorageFile> {
+    fun parseDirListingOutput(
+        where: File,
+        output: String,
+        includeImplicit: Boolean = false,
+        parseFavorites: Boolean = false
+    ): Pair<List<FavoritedFile>, List<StorageFile>> {
         /*
         Example output:
 
@@ -165,7 +204,41 @@ class FileSystemService(
         F,420,root,root,0,1523862649,1523862649,1523862649,0,CONFIDENTIAL,qwe
         */
 
-        return output.lines().mapNotNull { line ->
+        fun parseDirType(token: String): FileType = when (token) {
+            "D" -> FileType.DIRECTORY
+            "F" -> FileType.FILE
+            "L" -> FileType.LINK
+            else -> throw IllegalStateException("Bad type from favorites section: $token, $output")
+        }
+
+        val rawLines = output.lines()
+        val (favoriteLines, outputLines) = if (parseFavorites) {
+            val linesToTake = rawLines.first().toInt()
+            log.info("Taking $linesToTake")
+
+            Pair(rawLines.take(linesToTake * 4 + 1).drop(1), rawLines.drop(linesToTake * 4 + 1))
+        } else {
+            Pair(emptyList(), rawLines)
+        }
+
+        val favorites = if (parseFavorites) {
+            if (favoriteLines.size % 4 != 0) {
+                throw IllegalStateException("Bad output from favorites section: $output")
+            }
+
+            (0 until favoriteLines.size).step(4).map { i ->
+                val type = parseDirType(favoriteLines[i])
+                val from = favoriteLines[i + 1]
+                val to = favoriteLines[i + 2]
+                val inode = favoriteLines[i + 3].toLong()
+
+                FavoritedFile(type, from, to, inode)
+            }
+        } else {
+            emptyList()
+        }
+
+        val files = outputLines.mapNotNull { line ->
             if (line.isBlank()) return@mapNotNull null
 
             var cursor = 0
@@ -181,12 +254,7 @@ class FileSystemService(
             }
 
             val dirTypeToken = readToken()
-            val dirType = when (dirTypeToken) {
-                "D" -> FileType.DIRECTORY
-                "F" -> FileType.FILE
-                "L" -> FileType.LINK
-                else -> throw IllegalStateException("Unexpected dir type: $dirTypeToken")
-            }
+            val dirType = parseDirType(dirTypeToken)
 
             val unixPermissions = readToken().toInt()
 
@@ -197,6 +265,9 @@ class FileSystemService(
             val createdAt = readToken().toLong()
             val modifiedAt = readToken().toLong()
             val accessedAt = readToken().toLong()
+
+            val inode = readToken().toLong()
+            val isFavorited = favorites.any { it.inode == inode }
 
             val aclEntries = readToken().toInt()
             val entries = (0 until aclEntries).map {
@@ -232,13 +303,81 @@ class FileSystemService(
                 ownerName = user,
                 size = size,
                 acl = entries,
-                favorited = false,
-                sensitivityLevel = sensitivity
+                favorited = isFavorited,
+                sensitivityLevel = sensitivity,
+                inode = inode
             )
+        }
+
+        return Pair(favorites, files)
+    }
+
+    fun createSoftSymbolicLink(user: String, linkFile: String, pointsTo: String) {
+        val absLinkPath = translateAndCheckFile(linkFile)
+        val absPointsToPath = translateAndCheckFile(pointsTo)
+
+        // We only need to check target, the rest will be enforced. Ideally we wouldn't do this as two forks,
+        // but can work for prototypes. TODO Performance
+        if (stat(user, pointsTo) == null) {
+            throw IllegalArgumentException("Cannot point to target")
+        }
+
+        val process = runAsUser(user, listOf("ln", "-s", absPointsToPath, absLinkPath))
+        val status = process.waitFor()
+        if (status != 0) {
+            log.info("ln failed $user, $absLinkPath $absPointsToPath")
+            log.info(process.errorStream.reader().readText())
+            throw IllegalStateException()
         }
     }
 
-    private val fsRoot = if (isDevelopment) "./fs/" else "/mnt/cephfs/"
+    fun createFavorite(user: String, fileToFavorite: String) {
+        // TODO Hack, but highly unlikely that we will have duplicates in practice.
+        // TODO Create favorites folder if it does not exist yet
+        val suffix = abs(random.nextInt()).toString(16)
+        val targetLocation = joinPath(favoritesDirectory(user), fileToFavorite.fileName() + ".$suffix")
+
+        createSoftSymbolicLink(user, targetLocation, fileToFavorite)
+    }
+
+    fun removeFavorite(user: String, favoriteFileToRemove: String) {
+        val stat = stat(user, favoriteFileToRemove) ?: throw IllegalStateException()
+        val allFavorites = favorites(user)
+        val toRemove = allFavorites.filter { it.inode == stat.inode }
+        if (toRemove.isEmpty()) return
+        val command = listOf("rm") + toRemove.map { it.from }
+        val process = runAsUser(user, command)
+        val status = process.waitFor()
+        if (status != 0) {
+            log.info("rm failed $user")
+            log.info(process.errorStream.reader().readText())
+            throw IllegalStateException()
+        }
+    }
+
+    private fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
+        return components.joinToString("/") + (if (isDirectory) "/" else "")
+    }
+
+    private fun homeDirectory(user: String): String {
+        return "/home/$user/"
+    }
+
+    private fun favoritesDirectory(user: String): String {
+        return joinPath(homeDirectory(user), "Favorites", isDirectory = true)
+    }
+
+    private fun String.fileName(): String = File(this).name
+
+    private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
+        return File(fsRoot, internalPath)
+            .normalize()
+            .absolutePath
+            .takeIf { it.startsWith(fsRoot) }?.let { it + (if (isDirectory) "/" else "") }
+                ?: throw IllegalArgumentException("path is not in root ($internalPath)")
+    }
+
+    private val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
 
     private fun asUser(cloudUser: String): List<String> {
         val user = cloudToCephFsDao.findUnixUser(cloudUser) ?: throw IllegalStateException("Could not find user")
@@ -247,6 +386,7 @@ class FileSystemService(
 
     companion object {
         private val log = LoggerFactory.getLogger(FileSystemService::class.java)
+        private val random = Random()
 
         private const val SHARED_WITH_UTYPE = 1
         private const val SHARED_WITH_READ = 2

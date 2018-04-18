@@ -1,5 +1,7 @@
 package dk.sdu.cloud.storage.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+
 enum class AccessRight {
     READ,
     WRITE,
@@ -25,9 +27,10 @@ data class StorageFile(
     val modifiedAt: Long,
     val ownerName: String,
     val size: Long,
-    val acl: List<AccessEntry>? = null,
-    val favorited: Boolean? = null,
-    val sensitivityLevel: SensitivityLevel? = null
+    val acl: List<AccessEntry>,
+    val favorited: Boolean,
+    val sensitivityLevel: SensitivityLevel,
+    @get:JsonIgnore val inode: Long = 0
 )
 
 enum class SensitivityLevel {

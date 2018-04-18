@@ -8,6 +8,7 @@
 #include <grp.h>
 #include <sys/xattr.h>
 #include <cassert>
+#include <sstream>
 
 #ifdef __linux__
 #include <acl/libacl.h>
@@ -31,19 +32,134 @@ static int one(const struct dirent *unused) {
     return 1;
 }
 
-#define fatal(f) { fprintf(stderr, "Fatal error! errno %d. Cause: %s", errno, f); exit(1); }
+#define fatal(f) { fprintf(stderr, "Fatal error! errno %d. Cause: %s\n", errno, f); exit(1); }
 
 typedef struct {
     char *name;
     uint8_t mode;
 } shared_with_t;
 
+typedef struct {
+    char path_from[PATH_MAX];
+    char path_to[PATH_MAX];
+    char type;
+    uint64_t ino;
+} link_t;
+
 #define SHARED_WITH_UTYPE 1
 #define SHARED_WITH_READ 2
 #define SHARED_WITH_WRITE 4
 #define SHARED_WITH_EXECUTE 8
 
-int main() {
+bool resolve_link(
+        const dirent *ep,
+        struct stat *s,
+        const char *parent_path,
+        char *path_buffer,
+        link_t *output
+) {
+    bool success = false;
+
+    if (ep->d_type != DT_LNK) return false;
+    if (strcmp(ep->d_name, ".") == 0) return false;
+    if (strcmp(ep->d_name, "..") == 0) return false;
+    if (strlen(ep->d_name) + strlen(parent_path) > PATH_MAX - 1) fatal("Path too long");
+
+    // Construct full path
+    strncpy(path_buffer, parent_path, PATH_MAX - 1);
+    strcat(path_buffer, ep->d_name);
+
+    // Resolve link
+    auto path_to = realpath(path_buffer, nullptr);
+    if (path_to == nullptr || stat(path_to, s) != 0) {
+        // TODO This should be handled by deleting the link
+        goto cleanup;
+    }
+
+    // Print link details
+    char type;
+    if (S_ISDIR(s->st_mode)) {
+        type = 'D';
+    } else if (S_ISREG(s->st_mode)) {
+        type = 'F';
+    } else {
+        fatal("Unexpected file type!");
+    }
+
+    for (int j = 0; path_buffer[j] != '\0'; j++) {
+        if (path_buffer[j] == '\n') goto cleanup;
+    }
+
+    for (int j = 0; path_to[j] != '\0'; j++) {
+        if (path_to[j] == '\n') goto cleanup;
+    }
+
+    output->type = type;
+    strcpy(output->path_from, path_buffer);
+    strcpy(output->path_to, path_to);
+    output->ino = s->st_ino;
+
+    success = true;
+
+    cleanup:
+    free(path_to);
+
+    return success;
+}
+
+void find_favorites(const char *favorites_path) {
+    struct dirent **entries;
+    auto num_entries = scandir(favorites_path, &entries, one, alphasort);
+    struct stat s{};
+
+    int valid_entries = 0;
+    std::stringstream output;
+    char full_path[PATH_MAX];
+    link_t l{};
+
+    for (int i = 0; i < num_entries; i++) {
+        auto ep = entries[i];
+        memset(&l, 0, sizeof(link_t));
+        if (!resolve_link(ep, &s, favorites_path, full_path, &l)) continue;
+
+        valid_entries++;
+        output << l.type << std::endl << l.path_from << std::endl << l.path_to << std::endl << l.ino << std::endl;
+    }
+
+    std::cout << valid_entries << std::endl;
+    std::cout << output.str();
+}
+
+char *find_favorites_path(int argc, char **argv) {
+    int fav_idx = -1;
+    for (int i = 0; i < argc; i++) {
+        char *current = argv[i];
+        if (strcmp(current, "--fav") == 0) {
+            fav_idx = i;
+            break;
+        }
+    }
+
+    if (fav_idx == -1) return nullptr;
+    if (fav_idx + 1 < argc) {
+        return argv[fav_idx + 1];
+    } else {
+        // Missing path
+        return nullptr;
+    }
+}
+
+bool should_skip_listing(int argc, char **argv) {
+    for (int i = 0; i < argc; i++) {
+        char *current = argv[i];
+        if (strcmp(current, "--just-fav") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int main(int argc, char **argv) {
     struct dirent **entries;
     struct stat stat_buffer{};
     acl_type_t acl_type = ACL_TYPE_ACCESS;
@@ -52,16 +168,35 @@ int main() {
     acl_permset_t permset;
     char sensitivity_buffer[32];
 
+    char resolve_buffer[PATH_MAX];
+    link_t link{};
+
+    char *favorites_path = find_favorites_path(argc, argv);
+    if (favorites_path != nullptr) {
+        find_favorites(favorites_path);
+    }
+
+    bool skip_listing = should_skip_listing(argc, argv);
+    if (skip_listing) return 0;
+
     auto num_entries = scandir("./", &entries, one, alphasort);
     for (int i = 0; i < num_entries; i++) {
         auto ep = entries[i];
-        std::string file_type;
+        char file_type;
         if (ep->d_type == DT_DIR) {
-            file_type = "D";
+            file_type = 'D';
         } else if (ep->d_type == DT_REG) {
-            file_type = "F";
+            file_type = 'F';
         } else if (ep->d_type == DT_LNK) {
-            file_type = "L";
+            file_type = 'L';
+
+            if (resolve_link(ep, &stat_buffer, "./", resolve_buffer, &link)) {
+                file_type = link.type;
+            } else {
+                fprintf(stderr, "Could not resolve file %s\n", ep->d_name);
+            }
+        } else {
+            fatal("Unknown file type");
         }
 
         stat(ep->d_name, &stat_buffer);
@@ -81,7 +216,8 @@ int main() {
 
         std::cout << file_type << ',' << unix_mode << ',' << user->pw_name << ',' << group_name << ','
                   << stat_buffer.st_size << ',' << stat_buffer.st_ctime << ','
-                  << stat_buffer.st_mtime << ',' << stat_buffer.st_atime << ',';
+                  << stat_buffer.st_mtime << ',' << stat_buffer.st_atime << ','
+                  << stat_buffer.st_ino << ',';
 
         errno = 0;
         auto acl = acl_get_file(ep->d_name, acl_type);
@@ -140,7 +276,7 @@ int main() {
                     shared_with_t shared{};
                     assert(share_name != nullptr);
 
-                    auto dest = (char * )malloc(strlen(share_name));
+                    auto dest = (char *) malloc(strlen(share_name));
                     strcpy(dest, share_name);
 
                     shared.name = dest;
@@ -170,5 +306,6 @@ int main() {
 
         std::cout << sensitivity_result << ',' << ep->d_name << std::endl;
     }
+
     return 0;
 }

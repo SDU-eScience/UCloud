@@ -47,14 +47,26 @@ class FilesController(private val fs: FileSystemService) {
             implement(FileDescriptions.markAsFavorite) { req ->
                 logEntry(log, req)
                 if (!protect()) return@implement
-                TODO()
+                try {
+                    fs.createFavorite(call.request.validatedPrincipal.subject, req.path)
+                    ok(Unit)
+                } catch (ex: Exception) {
+                    log.warn(ex.stackTraceToString())
+                    error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
+                }
             }
 
             implement(FileDescriptions.removeFavorite) { req ->
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                TODO()
+                try {
+                    fs.removeFavorite(call.request.validatedPrincipal.subject, req.path)
+                    ok(Unit)
+                } catch (ex: Exception) {
+                    log.warn(ex.stackTraceToString())
+                    error(CommonErrorMessage("Error"), HttpStatusCode.InternalServerError)
+                }
             }
 
             implement(FileDescriptions.createDirectory) { req ->
