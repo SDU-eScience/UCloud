@@ -97,7 +97,7 @@ class Files extends React.Component {
             } else {
                 const name = this.state.editFolder.name;
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
-                const originalFilename = this.props.files[this.state.editFolder.index].path.path;
+                const originalFilename = this.props.files[this.state.editFolder.index].path;
                 name ? Cloud.post("/files/move", { path: originalFilename, newPath: directoryPath })
                     .then(({ request }) => {
                         if (inSuccessRange(request.status)) {

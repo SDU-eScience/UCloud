@@ -19,7 +19,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
     const parentPath = getParentPath(path);
     if (parentPath === props.filesPath) {
         const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
-        file = files.find(file => file.path.path === filePath);
+        file = files.find(file => file.path === filePath);
     } else {
         dispatch(setLoading(true));
         dispatch(fetchFiles(parentPath));
@@ -51,7 +51,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
     return (
         <SectionContainerCard>
             <FileHeader file={file} />
-            <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path.path, Cloud)))} />
+            <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
             <FileSharing
                 file={file}
                 revokeRights={(acl) => revokeRights(file, acl, () => dispatch(updateFiles(files)))}
@@ -74,7 +74,7 @@ const revokeRights = (file, acl, callback) => {
             return;
         }
         const body = {
-            onFile: file.path.path,
+            onFile: file.path,
             entity: acl.entity.displayName,
             type: "revoke",
         };
@@ -99,44 +99,31 @@ const FileHeader = ({ file }) => {
     let type = file.type === "DIRECTORY" ? "Directory" : "File";
     return (
         <Jumbotron>
-            <h3>{file.path.path}</h3>
+            <h3>{file.path}</h3>
             <h5>
                 <small>{type}</small>
             </h5>
         </Jumbotron>)
 }
 
-const FileView = (props) => {
-    if (!props.file) {
+const FileView = ({file, favorite}) => {
+    if (!file) {
         return null;
-    }
-    const sharedWithCount = props.file.acl.filter(acl => acl.entity.displayName !== Cloud.username).length;
-    const currentRights = props.file.acl.find(acl => acl.entity.displayName === Cloud.username);
-    if (!currentRights) {
-        return (
-            <h3 className="text-center">
-                <small>You do not have rights for this file.</small>
-            </h3>);
     }
     return (
         <div className="container-fluid">
             <ListGroup className="col-sm-4">
-                <ListGroupItem>Created at: {new Date(props.file.createdAt).toLocaleString()}</ListGroupItem>
-                <ListGroupItem>Modified at: {new Date(props.file.createdAt).toLocaleString()}</ListGroupItem>
-                <ListGroupItem>Favorite file: {props.file.favorited ?
-                    <em onClick={() => props.favorite()} className="ion-star" /> :
-                    <em onClick={() => props.favorite()} className="ion-ios-star-outline" />}</ListGroupItem>
+                <ListGroupItem>Created at: {new Date(file.createdAt).toLocaleString()}</ListGroupItem>
+                <ListGroupItem>Modified at: {new Date(file.createdAt).toLocaleString()}</ListGroupItem>
+                <ListGroupItem>Favorite file: {file.favorited ?
+                    <em onClick={() => favorite()} className="ion-star" /> :
+                    <em onClick={() => favorite()} className="ion-ios-star-outline" />}</ListGroupItem>
             </ListGroup>
             <ListGroup className="col-sm-4">
-                <ListGroupItem>Sensitivity: {SensitivityLevel[props.file.sensitivityLevel]}</ListGroupItem>
-                <ListGroupItem>Size: {fileSizeToString(props.file.size)}</ListGroupItem>
+                <ListGroupItem>Sensitivity: {SensitivityLevel[file.sensitivityLevel]}</ListGroupItem>
+                <ListGroupItem>Size: {fileSizeToString(file.size)}</ListGroupItem>
                 <ListGroupItem>Shared
-                    with {sharedWithCount} {sharedWithCount === 1 ? "person" : "people"}.</ListGroupItem>
-            </ListGroup>
-            <ListGroup className="col-sm-4">
-                <ListGroupItem>Type: {currentRights.entity.type}</ListGroupItem>
-                <ListGroupItem>Name: {currentRights.entity.displayName}</ListGroupItem>
-                <ListGroupItem>Rights Level: {RightsNameMap[currentRights.right]}</ListGroupItem>
+                    with {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.</ListGroupItem>
             </ListGroup>
         </div>
     );
