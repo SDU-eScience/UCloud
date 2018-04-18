@@ -347,7 +347,7 @@ const FileOptions = ({ selectedFiles, refetch }) => {
                 </Button>
             </p>
             <p>
-                <Button disabled={downloadDisabled} className="btn btn-default ripple btn-block"
+                <Button disabled={downloadDisabled || selectedFiles[0].type === "DIRECTORY"} className="btn btn-default ripple btn-block"
                     onClick={() => downloadFile(selectedFiles[0].path, Cloud)}>
                     <span className="ion-ios-download pull-left" />
                     Download
@@ -629,9 +629,9 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch }) => {
                 <MenuItem onClick={() => shareFile(file.path, Cloud)}>
                     Share file
                 </MenuItem>
-                <MenuItem onClick={() => downloadFile(file.path, Cloud)}>
+                {file.type === "file" ? <MenuItem onClick={() => downloadFile(file.path, Cloud)}>
                     Download file
-                </MenuItem>
+                </MenuItem> : null}
                 {rename ? <MenuItem onClick={() => rename(file.path)}>
                     Rename file
                 </MenuItem> : null}
