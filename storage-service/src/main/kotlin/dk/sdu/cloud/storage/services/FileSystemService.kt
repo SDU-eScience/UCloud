@@ -50,6 +50,7 @@ class FileSystemService(
         if (includeFavorites) command += listOf("--fav", translateAndCheckFile(favoritesDirectory(user), true))
         val process = runAsUser(user, command, absolutePath)
 
+        val text = process.inputStream.bufferedReader().readText()
         val status = process.waitFor()
 
         if (status != 0) {
@@ -59,7 +60,7 @@ class FileSystemService(
         } else {
             return parseDirListingOutput(
                 cloudPath,
-                process.inputStream.bufferedReader().readText(),
+                text,
                 includeImplicit,
                 includeFavorites
             ).second
