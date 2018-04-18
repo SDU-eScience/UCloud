@@ -40,23 +40,10 @@ repositories {
             password(eScienceCloudPassword)
         }
     }
-
-    // Repositories required for iRODS to work
-    maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
-    maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
-    maven { url "http://download.osgeo.org/webdav/geotools" }
-
 }
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-
-    // ------------
-    // iRODS
-    // ------------
-//    compile "dk.sdu.cloud:cloud-storage:0.6.0-SNAPSHOT"
-    compile group: 'org.irods.jargon', name: 'jargon-core', version: '4.2.0.0-RELEASE'
-    // ------------
 
     // ------------
     // Logging
