@@ -466,7 +466,7 @@ const GenericNumberParameter = (props) => {
 };
 
 const IntegerParameter = (props) => {
-    let childProps = Object.assign({}, props);
+    let childProps = { ...props };
     childProps.parseValue = (it) => parseInt(it);
     return <GenericNumberParameter {...childProps} />;
 };

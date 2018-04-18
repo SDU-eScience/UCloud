@@ -195,7 +195,6 @@ class Files extends React.Component {
     componentWillReceiveProps(nextProps) {
         const { path, fetchNewFiles } = this.props;
         let newPath = nextProps.match.params[0];
-        if (newPath !== path) {console.log(path);console.log(newPath);}
         if (!newPath) {
             this.props.history.push(`/files/${Cloud.homeFolder}`);
         } else if (path !== newPath) {
@@ -211,14 +210,17 @@ class Files extends React.Component {
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
-
         // Lambdas
         const goTo = (pageNumber, files) => {
             this.props.goToPage(pageNumber, files);
             this.resetFolderObject();
         };
+        const selectedFiles = shownFiles.filter(file => file.isChecked);
+        const rename = () => { 
+            const firstSelectedFile = selectedFiles[0];
+            this.startEditFile(files.findIndex((f) => f.path === firstSelectedFile.path), firstSelectedFile.path);
+        }
         const refetchFilesWithCurrentPath = () => fetchFiles(path, sortFilesByTypeAndName, this.state.lastSorting.asc);
-
         return (
             <section>
                 <div className="col-lg-10">
@@ -258,7 +260,7 @@ class Files extends React.Component {
                     </EntriesPerPageSelector>
                 </div>
                 <ContextBar
-                    selectedFiles={shownFiles.filter(file => file.isChecked)}
+                    selectedFiles={selectedFiles}
                     currentPath={path}
                     createFolder={() => this.createFolder(currentPath)}
                     getFavorites={this.getFavorites}
@@ -266,6 +268,7 @@ class Files extends React.Component {
                     searchText={this.state.searchText}
                     updateText={this.updateSearchText}
                     refetch={refetchFilesWithCurrentPath}
+                    rename={rename}
                 />
             </section>);
     }
@@ -286,12 +289,12 @@ const SearchBar = ({ searchText, updateText }) => (
     </div>
 );
 
-const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchText, updateText, createFolder, refetch }) => (
+const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchText, updateText, createFolder, refetch, ...props }) => (
     <div className="col-lg-2 visible-lg">
         <SearchBar searchText={searchText} updateText={updateText} />
         <ContextButtons upload={onClick} createFolder={createFolder} mobileOnly={false} />
         <br />
-        <FileOptions selectedFiles={selectedFiles} refetch={refetch} />
+        <FileOptions selectedFiles={selectedFiles} refetch={refetch} rename={props.rename} />
     </div>
 );
 
@@ -311,7 +314,7 @@ const ContextButtons = ({ upload, createFolder, mobileOnly }) => (
 );
 
 
-const FileOptions = ({ selectedFiles, refetch }) => {
+const FileOptions = ({ selectedFiles, refetch, rename }) => {
     if (!selectedFiles.length) {
         return null;
     }
@@ -355,7 +358,7 @@ const FileOptions = ({ selectedFiles, refetch }) => {
             </p>
             <p>
                 <Button type="button" className="btn btn-default btn-block ripple"
-                    onClick={() => renameFile(selectedFiles[0].path)}
+                    onClick={() => rename()}
                     disabled={rights.rightsLevel < 3 || selectedFiles.length !== 1}>
                     <span className="ion-ios-compose pull-left" />
                     Rename
@@ -648,8 +651,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch }) => {
                 </li>
             </Dropdown.Menu>
         </Dropdown>
-    </span>
-    );
+    </span>);
 }
 
 Files.propTypes = {
@@ -675,12 +677,12 @@ const mapStateToProps = (state, arg2) => {
 };
 
 const mapDispatchToProps = (dispatch) => ({
-    fetchNewFiles(path) {
+    fetchNewFiles: (path) => {
         dispatch(updatePath(path));
         dispatch(setLoading(true));
         dispatch(fetchFiles(path, sortFilesByTypeAndName, true))
     },
-    refetchFiles: (path) => 
+    refetchFiles: (path) =>
         dispatch(fetchFiles(path)),
     updatePath: (path) => dispatch(updatePath(path)),
     setPageTitle: () => dispatch(updatePageTitle("Files")),
@@ -693,9 +695,9 @@ const mapDispatchToProps = (dispatch) => ({
         dispatch(updateFiles(files));
         dispatch(toPage(pageNumber));
     },
-    updateFiles: (files) => 
+    updateFiles: (files) =>
         dispatch(updateFiles(files)),
-    updateFilesPerPage: (newSize, files) => 
+    updateFilesPerPage: (newSize, files) =>
         dispatch(updateFilesPerPage(newSize, files)),
     openUppy: () => dispatch(changeUppyFilesOpen(true))
 });
