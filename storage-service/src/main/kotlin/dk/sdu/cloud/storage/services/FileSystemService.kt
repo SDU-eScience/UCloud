@@ -78,12 +78,17 @@ class FileSystemService(
         )
 
         val process = runAsUser(user, command)
-        return parseDirListingOutput(
-            File(translateAndCheckFile(homeDirectory(user))),
-            process.inputStream.bufferedReader().readText(),
-            false,
-            true
-        ).first
+        val output = process.inputStream.bufferedReader().readText()
+        if (process.waitFor() != 0) {
+            return parseDirListingOutput(
+                File(translateAndCheckFile(homeDirectory(user))),
+                output,
+                false,
+                true
+            ).first
+        } else {
+            throw IllegalStateException()
+        }
     }
 
     // TODO This is a bit lazy
