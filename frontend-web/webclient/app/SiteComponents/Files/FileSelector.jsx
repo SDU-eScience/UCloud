@@ -48,8 +48,8 @@ class FileSelector extends React.Component {
             if (lastSlash === -1) throw "Could not parse name of path: " + path;
             let name = path.substring(lastSlash + 1);
             let fileObject = {
-                    path: path,
-                    name: name,
+                path: path,
+                name: name,
             };
             this.props.uploadCallback(fileObject);
         });
@@ -134,9 +134,13 @@ class FileSelector extends React.Component {
                     </Modal.Header>
                     <BreadCrumbs currentPath={this.state.currentPath} navigate={this.getFiles} />
                     <BallPulseLoading loading={this.state.loading} />
-                    <FileSelectorBody loading={this.state.loading} onClick={this.setSelectedFile}
-                        files={this.state.files} getFiles={this.getFiles}
-                        currentPath={this.state.currentPath} />
+                    <FileSelectorBody
+                        loading={this.state.loading}
+                        onClick={this.setSelectedFile}
+                        files={this.state.files}
+                        getFiles={this.getFiles}
+                        currentPath={this.state.currentPath}
+                    />
                 </Modal>
             </div>)
     }
@@ -153,6 +157,7 @@ const FileSelectorBody = (props) => {
             </h4>
         );
     }
+    console.log(props.currentPath);
     return (
         <Modal.Body>
             <div className="pre-scrollable">
@@ -162,7 +167,10 @@ const FileSelectorBody = (props) => {
                             <th>Filename</th>
                         </tr>
                     </thead>
-                    <FileList files={props.files} onClick={props.onClick} getFiles={props.getFiles} />
+                    <tbody>
+                        <ReturnFolder currentPath={removeTrailingSlash(props.currentPath)} getFiles={props.getFiles} />
+                        <FileList files={props.files} onClick={props.onClick} getFiles={props.getFiles} />
+                    </tbody>
                 </Table>
             </div>
             <Button className="btn btn-info" onClick={() => createFolder(props.currentPath)}>
@@ -171,34 +179,41 @@ const FileSelectorBody = (props) => {
         </Modal.Body>)
 };
 
+const ReturnFolder = ({ currentPath, getFiles }) =>
+    !(currentPath !== Cloud.homeFolder) || !(currentPath !== "/home") ? null : (
+        <tr className="row-settings clickable-row" style={{ cursor: "pointer" }}>
+            <td onClick={() => getFiles(getParentPath(currentPath))}>
+                <a><i className="ion-android-folder" /> ..</a>
+            </td>
+        </tr>);
+
 const UploadButton = (props) => (<span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>);
 const RemoveButton = (props) => (<span className="input-group-addon btn btn" onClick={() => props.onClick()}>✗</span>)
 
-const FileList = ({ files, getFiles, onClick }) =>
-    !files.length ? null :
-        (<tbody>
-            {files.map((file, index) => {
-                if (file.type === "FILE") {
-                    return (
-                        <tr key={index} className="gradeA row-settings" style={{ cursor: "pointer" }}>
-                            <td onClick={() => onClick(file)}><span
-                                className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
-                            </td>
-                        </tr>)
-                } else {
-                    return (
-                        <tr key={index} className="row-settings clickable-row" style={{ cursor: "pointer" }}>
-                            <td onClick={() => getFiles(file.path)}>
-                                <a><i className="ion-android-folder" /> {getFilenameFromPath(file.path)}</a>
-                            </td>
-                        </tr>
-                    );
-                }
-            })}
-        </tbody>);
+const FileList = ({ files, getFiles, onClick }) => {
+    return !files.length ? null :
+        (<React.Fragment>
+            {files.map((file, index) =>
+                file.type === "FILE" ?
+                    (<tr key={index} className="gradeA row-settings" style={{ cursor: "pointer" }}>
+                        <td onClick={() => onClick(file)}><span
+                            className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
+                        </td>
+                    </tr>)
+                    : (<tr key={index} className="row-settings clickable-row" style={{ cursor: "pointer" }}>
+                        <td onClick={() => getFiles(file.path)}>
+                            <a><i className="ion-android-folder" /> {getFilenameFromPath(file.path)}</a>
+                        </td>
+                    </tr>)
+            )}
+        </React.Fragment>);
+}
 
 FileSelector.contextTypes = {
     store: PropTypes.object.isRequired,
 };
+
+const removeTrailingSlash = (path) =>
+    path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 
 export default FileSelector;
