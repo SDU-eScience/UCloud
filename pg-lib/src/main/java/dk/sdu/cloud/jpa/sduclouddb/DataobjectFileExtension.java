@@ -7,7 +7,6 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -16,12 +15,10 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
@@ -66,8 +63,6 @@ public class DataobjectFileExtension implements Serializable {
     private String mimetype;
     @Column(name = "fileextensiondesc")
     private String fileextensiondesc;
-    @OneToMany(mappedBy = "dataobjectfileextensionrefid")
-    private List<Dataobject> dataobjectList;
 
     public DataobjectFileExtension() {
     }
@@ -144,15 +139,6 @@ public class DataobjectFileExtension implements Serializable {
 
     public void setFileextensiondesc(String fileextensiondesc) {
         this.fileextensiondesc = fileextensiondesc;
-    }
-
-    @XmlTransient
-    public List<Dataobject> getDataobjectList() {
-        return dataobjectList;
-    }
-
-    public void setDataobjectList(List<Dataobject> dataobjectList) {
-        this.dataobjectList = dataobjectList;
     }
 
     @Override

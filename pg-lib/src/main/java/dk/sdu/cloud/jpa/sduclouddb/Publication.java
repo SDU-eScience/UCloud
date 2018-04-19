@@ -68,10 +68,6 @@ public class Publication implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
     @OneToMany(mappedBy = "publicationrefid")
-    private List<Dataobject> dataobjectList;
-    @OneToMany(mappedBy = "publicationrefid")
-    private List<PublicationDataobjectRelation> publicationDataobjectRelationList;
-    @OneToMany(mappedBy = "publicationrefid")
     private List<ProjectPublicationRelation> projectPublicationRelationList;
 
     public Publication() {
@@ -149,24 +145,6 @@ public class Publication implements Serializable {
 
     public void setCreatedTs(Date createdTs) {
         this.createdTs = createdTs;
-    }
-
-    @XmlTransient
-    public List<Dataobject> getDataobjectList() {
-        return dataobjectList;
-    }
-
-    public void setDataobjectList(List<Dataobject> dataobjectList) {
-        this.dataobjectList = dataobjectList;
-    }
-
-    @XmlTransient
-    public List<PublicationDataobjectRelation> getPublicationDataobjectRelationList() {
-        return publicationDataobjectRelationList;
-    }
-
-    public void setPublicationDataobjectRelationList(List<PublicationDataobjectRelation> publicationDataobjectRelationList) {
-        this.publicationDataobjectRelationList = publicationDataobjectRelationList;
     }
 
     @XmlTransient

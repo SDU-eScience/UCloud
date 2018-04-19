@@ -71,9 +71,6 @@ public class DataTransferHeader implements Serializable {
     @JoinColumn(name = "data_transfer_type_refid", referencedColumnName = "id")
     @ManyToOne
     private DataTransferType dataTransferTypeRefid;
-    @JoinColumn(name = "dataobjectcollectionrefid", referencedColumnName = "id")
-    @ManyToOne
-    private DataobjectDirectory dataobjectcollectionrefid;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne
     private Person personrefid;
@@ -163,14 +160,6 @@ public class DataTransferHeader implements Serializable {
 
     public void setDataTransferTypeRefid(DataTransferType dataTransferTypeRefid) {
         this.dataTransferTypeRefid = dataTransferTypeRefid;
-    }
-
-    public DataobjectDirectory getDataobjectcollectionrefid() {
-        return dataobjectcollectionrefid;
-    }
-
-    public void setDataobjectcollectionrefid(DataobjectDirectory dataobjectcollectionrefid) {
-        this.dataobjectcollectionrefid = dataobjectcollectionrefid;
     }
 
     public Person getPersonrefid() {

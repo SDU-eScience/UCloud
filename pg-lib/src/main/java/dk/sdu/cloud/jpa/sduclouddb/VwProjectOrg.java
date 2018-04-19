@@ -42,9 +42,8 @@ import javax.xml.bind.annotation.XmlRootElement;
     , @NamedQuery(name = "VwProjectOrg.findByOrgfullname", query = "SELECT v FROM VwProjectOrg v WHERE v.orgfullname = :orgfullname")
     , @NamedQuery(name = "VwProjectOrg.findByOrgshortname", query = "SELECT v FROM VwProjectOrg v WHERE v.orgshortname = :orgshortname")})
 public class VwProjectOrg implements Serializable {
-
-    private static final long serialVersionUID = 1L;
     @Id
+    private static final long serialVersionUID = 1L;
     @Column(name = "recid")
     private BigInteger recid;
     @Column(name = "projectrefid")

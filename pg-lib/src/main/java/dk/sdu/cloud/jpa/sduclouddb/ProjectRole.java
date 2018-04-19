@@ -63,8 +63,6 @@ public class ProjectRole implements Serializable {
     private Date createdTs;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "projectrolerefid")
     private List<ProjectPersonRelation> projectPersonRelationList;
-    @OneToMany(mappedBy = "projectrolerefid")
-    private List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList;
 
     public ProjectRole() {
     }
@@ -134,15 +132,6 @@ public class ProjectRole implements Serializable {
 
     public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
         this.projectPersonRelationList = projectPersonRelationList;
-    }
-
-    @XmlTransient
-    public List<DataobjectDirectoryProjectrolePermissionset> getDataobjectDirectoryProjectrolePermissionsetList() {
-        return dataobjectDirectoryProjectrolePermissionsetList;
-    }
-
-    public void setDataobjectDirectoryProjectrolePermissionsetList(List<DataobjectDirectoryProjectrolePermissionset> dataobjectDirectoryProjectrolePermissionsetList) {
-        this.dataobjectDirectoryProjectrolePermissionsetList = dataobjectDirectoryProjectrolePermissionsetList;
     }
 
     @Override

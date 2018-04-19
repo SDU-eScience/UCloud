@@ -115,7 +115,7 @@ public class Person implements Serializable {
     @OneToMany(mappedBy = "personrefid")
     private List<App> appList;
     @OneToMany(mappedBy = "personrefid")
-    private List<PersonDataobjectAcl> personDataobjectAclList;
+    private List<Uploadtransaction> uploadtransactionList;
     @JoinColumn(name = "orgrefid", referencedColumnName = "id")
     @ManyToOne
     private Org orgrefid;
@@ -124,8 +124,6 @@ public class Person implements Serializable {
     private PersonJwtHistory personjwthistoryrefid;
     @OneToMany(mappedBy = "personrefid")
     private List<DataTransferHeader> dataTransferHeaderList;
-    @OneToMany(mappedBy = "personrefid")
-    private List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList;
 
     public Person() {
     }
@@ -350,12 +348,12 @@ public class Person implements Serializable {
     }
 
     @XmlTransient
-    public List<PersonDataobjectAcl> getPersonDataobjectAclList() {
-        return personDataobjectAclList;
+    public List<Uploadtransaction> getUploadtransactionList() {
+        return uploadtransactionList;
     }
 
-    public void setPersonDataobjectAclList(List<PersonDataobjectAcl> personDataobjectAclList) {
-        this.personDataobjectAclList = personDataobjectAclList;
+    public void setUploadtransactionList(List<Uploadtransaction> uploadtransactionList) {
+        this.uploadtransactionList = uploadtransactionList;
     }
 
     public Org getOrgrefid() {
@@ -381,15 +379,6 @@ public class Person implements Serializable {
 
     public void setDataTransferHeaderList(List<DataTransferHeader> dataTransferHeaderList) {
         this.dataTransferHeaderList = dataTransferHeaderList;
-    }
-
-    @XmlTransient
-    public List<PersonDataobjectSpecialShareRelation> getPersonDataobjectSpecialShareRelationList() {
-        return personDataobjectSpecialShareRelationList;
-    }
-
-    public void setPersonDataobjectSpecialShareRelationList(List<PersonDataobjectSpecialShareRelation> personDataobjectSpecialShareRelationList) {
-        this.personDataobjectSpecialShareRelationList = personDataobjectSpecialShareRelationList;
     }
 
     @Override

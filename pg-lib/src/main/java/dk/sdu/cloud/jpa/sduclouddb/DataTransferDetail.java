@@ -32,6 +32,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 @NamedQueries({
     @NamedQuery(name = "DataTransferDetail.findAll", query = "SELECT d FROM DataTransferDetail d")
     , @NamedQuery(name = "DataTransferDetail.findById", query = "SELECT d FROM DataTransferDetail d WHERE d.id = :id")
+    , @NamedQuery(name = "DataTransferDetail.findByDataobjectrefid", query = "SELECT d FROM DataTransferDetail d WHERE d.dataobjectrefid = :dataobjectrefid")
     , @NamedQuery(name = "DataTransferDetail.findByPartbytes", query = "SELECT d FROM DataTransferDetail d WHERE d.partbytes = :partbytes")
     , @NamedQuery(name = "DataTransferDetail.findByPartprogress", query = "SELECT d FROM DataTransferDetail d WHERE d.partprogress = :partprogress")
     , @NamedQuery(name = "DataTransferDetail.findByActive", query = "SELECT d FROM DataTransferDetail d WHERE d.active = :active")
@@ -46,6 +47,8 @@ public class DataTransferDetail implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
+    @Column(name = "dataobjectrefid")
+    private String dataobjectrefid;
     @Column(name = "partbytes")
     private Integer partbytes;
     @Column(name = "partprogress")
@@ -65,9 +68,6 @@ public class DataTransferDetail implements Serializable {
     @JoinColumn(name = "data_transfer_header_refid", referencedColumnName = "id")
     @ManyToOne
     private DataTransferHeader dataTransferHeaderRefid;
-    @JoinColumn(name = "dataobjectrefid", referencedColumnName = "id")
-    @ManyToOne
-    private Dataobject dataobjectrefid;
 
     public DataTransferDetail() {
     }
@@ -88,6 +88,14 @@ public class DataTransferDetail implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getDataobjectrefid() {
+        return dataobjectrefid;
+    }
+
+    public void setDataobjectrefid(String dataobjectrefid) {
+        this.dataobjectrefid = dataobjectrefid;
     }
 
     public Integer getPartbytes() {
@@ -144,14 +152,6 @@ public class DataTransferDetail implements Serializable {
 
     public void setDataTransferHeaderRefid(DataTransferHeader dataTransferHeaderRefid) {
         this.dataTransferHeaderRefid = dataTransferHeaderRefid;
-    }
-
-    public Dataobject getDataobjectrefid() {
-        return dataobjectrefid;
-    }
-
-    public void setDataobjectrefid(Dataobject dataobjectrefid) {
-        this.dataobjectrefid = dataobjectrefid;
     }
 
     @Override

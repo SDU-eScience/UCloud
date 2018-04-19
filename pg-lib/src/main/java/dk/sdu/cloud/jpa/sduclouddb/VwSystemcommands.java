@@ -33,9 +33,8 @@ import javax.xml.bind.annotation.XmlRootElement;
     , @NamedQuery(name = "VwSystemcommands.findByKafkatopicname", query = "SELECT v FROM VwSystemcommands v WHERE v.kafkatopicname = :kafkatopicname")
     , @NamedQuery(name = "VwSystemcommands.findByJwt", query = "SELECT v FROM VwSystemcommands v WHERE v.jwt = :jwt")})
 public class VwSystemcommands implements Serializable {
-
-    private static final long serialVersionUID = 1L;
     @Id
+    private static final long serialVersionUID = 1L;
     @Column(name = "recid")
     private BigInteger recid;
     @Column(name = "subsystemid")

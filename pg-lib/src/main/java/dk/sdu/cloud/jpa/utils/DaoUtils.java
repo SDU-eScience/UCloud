@@ -53,11 +53,6 @@ public class DaoUtils {
         return null;
     }
 
-    public String admin_create_new_Share()
-    {
-        return null;
-    }
-
     public String admin_modify_Person()
     {
         return null;
@@ -68,9 +63,5 @@ public class DaoUtils {
         return null;
     }
 
-    public String admin_modify_Share()
-    {
-        return null;
-    }
 
 }
