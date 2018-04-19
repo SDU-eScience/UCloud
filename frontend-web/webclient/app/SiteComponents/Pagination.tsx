@@ -37,14 +37,15 @@ const createPaginationButtons = (totalPages: number, currentPage: number, toPage
     if (totalPages > MAX_PAGES) {
         // Create buttons based on current page. Remove those already being generated in the following code.
         let currentPages = [currentPage - 1, currentPage, currentPage + 1].filter((i) => i >= 3 && i < totalPages - 3);
-        // Case one: Overlaps with initial three button. Append Ellipses (-1)
-        // Case two: Overlaps with final three buttons. Prepend Ellipses
-        // Case three: Overlaps with neither. Prepend and Append Ellipses
+        
         if (currentPage <= 4) {
+            // Case one: Overlaps with initial three button. Append Ellipses (-1)
             currentPages = [...currentPages, -1];
         } else if (currentPage >= totalPages - 5) {
+            // Case two: Overlaps with final three buttons. Prepend Ellipses
             currentPages = [-1, ...currentPages];
         } else {
+            // Case three: Overlaps with neither. Prepend and Append Ellipses
             currentPages = [-1, ...currentPages, -1]
         }
         const final = [totalPages - 3, totalPages - 2, totalPages - 1];

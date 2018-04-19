@@ -52,9 +52,9 @@ class Dashboard extends React.Component {
 
 
 const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
-    const noFavorites = files.length || isLoading ? '' : <h3 className="text-center">
+    const noFavorites = files.length || isLoading ? '' : (<h3 className="text-center">
         <small>No favorites found.</small>
-    </h3>;
+    </h3>);
     const filesList = files.map((file, i) => {
         if (file.type === "DIRECTORY") {
             return (

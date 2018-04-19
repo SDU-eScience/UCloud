@@ -205,7 +205,7 @@ class Files extends React.Component {
 
     render() {
         // PROPS
-        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, fetchFiles, openUppy, checkFile, updateFilesPerPage } = this.props;
+        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, fetchFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
