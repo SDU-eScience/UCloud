@@ -28,6 +28,13 @@ export const WebSocketSupport = () =>
             </small>
         </h3>) : null;
 
+export const isInvalidPathName = (path: string, filePaths: string[]): string => {
+    const disallowedName = ["..", ".", "/"].some((it) => it === path);
+    if (disallowedName) return "Folder name cannot be '.', '..' or '/'";
+    const existingName = filePaths.some((it) => it === path);
+    if (existingName) return "File with that name already exists";
+    return "";
+}
 
 export function sortByNumber<T>(list: T[], name: string, asc: boolean): T[] {
     list.sort((a: any, b: any) => (Number(a[name]) - (Number(b[name]))) * (asc ? -1 : 1));
@@ -161,24 +168,24 @@ export const shareFile = (filePath: string, cloud: Cloud, callback: Function) =>
 
 export const revokeSharing = (filePath: string, person: string, rightsLevel: string, cloud: Cloud) =>
     console.warn("Revoking of sharing must be rewritten");
-    /*
-    swal({
-        title: "Revoke access",
-        text: `Revoke ${rightsLevel} access for ${person}`,
-    }).then((input: any) => {
-        if (input.dismiss) {
-            return;
-        }
-        const body = {
-            onFile: filePath,
-            entity: person,
-            type: "revoke",
-        };
+/*
+swal({
+    title: "Revoke access",
+    text: `Revoke ${rightsLevel} access for ${person}`,
+}).then((input: any) => {
+    if (input.dismiss) {
+        return;
+    }
+    const body = {
+        onFile: filePath,
+        entity: person,
+        type: "revoke",
+    };
 
-        return cloud.delete("/acl", body);//.then(response => {
+    return cloud.delete("/acl", body);//.then(response => {
 
-        //});
-    });*/
+    //});
+});*/
 
 export const renameFile = (filePath: string) =>
     swal({
@@ -206,7 +213,7 @@ export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback:
         if (result.dismiss) {
             return;
         } else {
-            cloud.delete("/files", { path: filePath}).then(() => callback ? callback() : null);
+            cloud.delete("/files", { path: filePath }).then(() => callback ? callback() : null);
         }
     });
 
@@ -223,7 +230,7 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-export const getFilenameFromPath = (path: string): string => 
+export const getFilenameFromPath = (path: string): string =>
     !path ? "" : path.split("/").pop();
 
 

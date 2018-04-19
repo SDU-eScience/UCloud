@@ -11,7 +11,12 @@ export const DefaultStatus: Status = {
 
 export enum KeyCode {
     ENTER = 13,
-    ESC = 27
+    ESC = 27,
+    UP = 38,
+    DOWN = 40,
+    LEFT = 37,
+    RIGHT = 39,
+    A = 65
 }
 
 export const RightsMap: { [s: string]: number } = {

@@ -23,7 +23,8 @@ import {
     sortByString,
     getTypeFromFile,
     inSuccessRange,
-    getFilenameFromPath
+    getFilenameFromPath,
+    isInvalidPathName
 } from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
 import Uppy from "uppy";
@@ -35,9 +36,9 @@ class Files extends React.Component {
     constructor(props) {
         super(props);
         const urlPath = props.match.params[0];
-        const { history, updatePath, setPageTitle } = props;
+        const { history, updatePath, setPageTitle, fetchNewFiles } = props;
         if (urlPath) {
-            updatePath(urlPath);
+            fetchNewFiles(urlPath);
         } else {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
@@ -81,23 +82,26 @@ class Files extends React.Component {
         if (value === KeyCode.ESC) {
             this.resetFolderObject();
         } else if (value === KeyCode.ENTER) {
-            const { path, refetchFiles } = this.props;
+            const { path, refetchFiles, files } = this.props;
+            const fileNames = files.map((it) => getFilenameFromPath(it.path))
             if (isNew) {
                 const name = this.state.creatingFolderName;
+                if (isInvalidPathName(name, fileNames)) { return }
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
                 name ? Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                     if (inSuccessRange(request.status)) {
                         // TODO Push mock folder
                         this.resetFolderObject();
-                        refetchFiles(this.props.path);
+                        refetchFiles(path);
                     }
                 }).catch((failure) =>
                     this.resetFolderObject() // TODO Handle failure
                 ) : this.resetFolderObject();
             } else {
                 const name = this.state.editFolder.name;
+                if (isInvalidPathName(name, fileNames)) { return }
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
-                const originalFilename = this.props.files[this.state.editFolder.index].path;
+                const originalFilename = files[this.state.editFolder.index].path;
                 name ? Cloud.post("/files/move", { path: originalFilename, newPath: directoryPath })
                     .then(({ request }) => {
                         if (inSuccessRange(request.status)) {
@@ -192,20 +196,9 @@ class Files extends React.Component {
         }));
     }
 
-    componentWillReceiveProps(nextProps) {
-        const { path, fetchNewFiles } = this.props;
-        let newPath = nextProps.match.params[0];
-        if (!newPath) {
-            this.props.history.push(`/files/${Cloud.homeFolder}`);
-        } else if (path !== newPath) {
-            fetchNewFiles(newPath);
-            this.resetFolderObject();
-        }
-    }
-
     render() {
         // PROPS
-        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, fetchFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
+        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
@@ -221,11 +214,15 @@ class Files extends React.Component {
             this.startEditFile(files.findIndex((f) => f.path === firstSelectedFile.path), firstSelectedFile.path);
         }
         const refetchFilesWithCurrentPath = () => fetchFiles(path, sortFilesByTypeAndName, this.state.lastSorting.asc);
+        const navigate = (path) => {
+            fetchNewFiles(path)
+            history.push(`/files/${path}`);
+        };
         return (
             <React.StrictMode>
                 <section>
                     <div className="col-lg-10">
-                        <BreadCrumbs currentPath={path} navigate={(newPath) => history.push(`/files/${newPath}`)} />
+                        <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
                         <ContextButtons upload={openUppy} createFolder={() => this.createFolder(currentPath)} mobileOnly={true} />
                         <FilesTable
                             handleKeyDown={this.handleKeyDown}
@@ -245,6 +242,7 @@ class Files extends React.Component {
                             selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}
                             forceInlineButtons={true}
                             refetch={refetchFilesWithCurrentPath}
+                            fetchFiles={fetchNewFiles}
                         />
                         <BallPulseLoading loading={loading} />
                         <PaginationButtons
@@ -443,6 +441,7 @@ export const FilesTable = (props) => {
 
             <FilesList
                 refetch={props.refetch}
+                fetchFiles={props.fetchFiles}
                 creatingNewFolder={props.creatingNewFolder}
                 creatingFolderName={props.creatingFolderName}
                 updateCreateFolderName={props.updateCreateFolderName}
@@ -509,6 +508,7 @@ const FilesList = (props) => {
             forceInlineButtons={props.forceInlineButtons}
             owner={getOwnerFromAcls(file.acl, Cloud)}
             refetch={props.refetch}
+            fetchFiles={props.fetchFiles}
             style={file.type === "DIRECTORY" ? ({ cursor: "pointer" }) : {}}
         />)
     );
@@ -541,6 +541,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
                 beingRenamed={beingRenamed}
                 renameName={props.renameName}
                 update={props.updateName}
+                fetchFiles={props.fetchFiles}
             />
             {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile} /> : null}
         </td>
@@ -597,7 +598,7 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
                 {folderIcon}
                 <span>{fileName}</span>
             </React.Fragment>) :
-            (<Link to={`/files/${path}`}>{folderIcon}
+            (<Link to={`/files/${path}`} onClick={() => props.fetchFiles(path)}>{folderIcon}
                 {fileName}
             </Link>);
     }
@@ -634,7 +635,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch }) => {
                 <MenuItem onClick={() => shareFile(file.path, Cloud)}>
                     Share file
                 </MenuItem>
-                {file.type === "file" ? <MenuItem onClick={() => downloadFile(file.path, Cloud)}>
+                {file.type === "FILE" ? <MenuItem onClick={() => downloadFile(file.path, Cloud)}>
                     Download file
                 </MenuItem> : null}
                 {rename ? <MenuItem onClick={() => rename(file.path)}>
