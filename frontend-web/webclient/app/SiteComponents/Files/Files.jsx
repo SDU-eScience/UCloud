@@ -40,6 +40,7 @@ class Files extends React.Component {
         if (urlPath) {
             fetchNewFiles(urlPath);
         } else {
+            fetchNewFiles(Cloud.homeFolder);
             history.push(`/files/${Cloud.homeFolder}/`);
         }
         setPageTitle();
@@ -415,10 +416,10 @@ export const FilesTable = (props) => {
             <thead>
                 {noFiles}
                 {!noFiles ? (<tr>
-                    <th>
+                    <th onClick={() => sortingFunction("typeAndName", "typeAndName")}>
                         <span className="text-left">
                             {masterCheckbox}
-                            <span onClick={() => sortingFunction("typeAndName", "typeAndName")}>Filename</span>
+                            <span>Filename</span>
                             <span className={"pull-right " + sortingIconFunction("typeAndName")} />
                         </span>
                     </th>
