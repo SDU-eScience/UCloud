@@ -1,14 +1,15 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
-import { Modal, Button, Table } from "react-bootstrap";
+import { Modal, Button, Table, FormGroup, InputGroup } from "react-bootstrap";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
-import { sortFilesByTypeAndName, createFolder, getFilenameFromPath, getTypeFromFile, getParentPath } from "../../UtilityFunctions";
+import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange} from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
 import { DashboardModal } from "uppy/lib/react";
 import { dispatch } from "redux";
 import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
+import { KeyCode } from "../../DefaultObjects";
 
 class FileSelector extends React.Component {
     constructor(props, context) {
@@ -23,14 +24,52 @@ class FileSelector extends React.Component {
             breadcrumbs: [],
             onFileSelectionChange: props.onFileSelectionChange,
             uppyOnUploadSuccess: null,
+            creatingFolderName: null
         };
 
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
-        this.getFiles = this.getFiles.bind(this);
+        this.fetchFiles = this.fetchFiles.bind(this);
         this.setSelectedFile = this.setSelectedFile.bind(this);
         this.onUppyClose = this.onUppyClose.bind(this);
         this.uppyOnUploadSuccess = this.uppyOnUploadSuccess.bind(this);
+        this.startCreateNewFolder = this.startCreateNewFolder.bind(this);
+        this.updateCreateFolderName = this.updateCreateFolderName.bind(this);
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+    }
+
+    startCreateNewFolder() {
+        if (this.state.creatingFolderName == null) {
+            this.setState(() => ({ creatingFolderName: "" }));
+        } else {
+            this.handleKeyDown(KeyCode.ENTER);
+        }
+    }
+
+    resetCreateFolder() {
+        this.setState(() => ({ creatingFolderName: null }));
+    }
+
+    handleKeyDown(value) {
+        if (value === KeyCode.ESC) {
+            this.resetCreateFolder();
+        } else if (value === KeyCode.ENTER) {
+            const { currentPath, files } = this.state;
+            const fileNames = files.map((it) => getFilenameFromPath(it.path))
+            const name = this.state.creatingFolderName;
+            if (isInvalidPathName(name, fileNames)) { return }
+            const directoryPath = `${currentPath.endsWith("/") ? currentPath + name : currentPath + "/" + name}`;
+            name ? Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
+                if (inSuccessRange(request.status)) {
+                    // TODO Push mock folder
+                    this.resetCreateFolder();
+                    this.fetchFiles(currentPath);
+                }
+            }).catch((failure) => {
+                console.log(`failure: ${failure}`)
+                this.resetCreateFolder() // TODO Handle failure
+            }) : this.resetCreateFolder();
+        }
     }
 
     uppyOnUploadSuccess(file, resp, uploadURL) {
@@ -55,7 +94,6 @@ class FileSelector extends React.Component {
         });
     };
 
-
     openModal() {
         this.setState(() => ({
             modalShown: true
@@ -69,7 +107,7 @@ class FileSelector extends React.Component {
     }
 
     componentDidMount() {
-        this.getFiles(`/home/${Cloud.username}`);
+        this.fetchFiles(`/home/${Cloud.username}`);
     }
 
     componentWillUnmount() {
@@ -87,17 +125,24 @@ class FileSelector extends React.Component {
         let fileCopy = { path: file.path };
         this.setState(() => ({
             modalShown: false,
+            creatingFolderName: null
         }));
         this.props.uploadCallback(fileCopy);
     }
 
-    getFiles(path) {
-        this.setState(() => ({ loading: true }));
+    updateCreateFolderName(creatingFolderName) {
+        this.setState(() => ({
+            creatingFolderName: creatingFolderName ? creatingFolderName : ""
+        }))
+    }
+
+    fetchFiles(path) {
+        this.setState(() => ({ loading: true, creatingFolderName: null }));
         this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(req => {
             this.setState(() => ({
                 files: sortFilesByTypeAndName(req.response, true),
                 loading: false,
-                currentPath: path,
+                currentPath: path
             }));
         });
     }
@@ -132,14 +177,19 @@ class FileSelector extends React.Component {
                     <Modal.Header closeButton>
                         <Modal.Title>File selector</Modal.Title>
                     </Modal.Header>
-                    <BreadCrumbs currentPath={this.state.currentPath} navigate={this.getFiles} />
+                    <BreadCrumbs currentPath={this.state.currentPath} navigate={this.fetchFiles} />
                     <BallPulseLoading loading={this.state.loading} />
                     <FileSelectorBody
+                        creatingFolderName={this.state.creatingFolderName}
                         loading={this.state.loading}
                         onClick={this.setSelectedFile}
                         files={this.state.files}
-                        getFiles={this.getFiles}
+                        fetchFiles={this.fetchFiles}
                         currentPath={this.state.currentPath}
+                        creatingFolderName={this.state.creatingFolderName}
+                        handleKeyDown={this.handleKeyDown}
+                        updateText={this.updateCreateFolderName}
+                        createFolder={this.startCreateNewFolder}
                     />
                 </Modal>
             </div>)
@@ -157,7 +207,6 @@ const FileSelectorBody = (props) => {
             </h4>
         );
     }
-    console.log(props.currentPath);
     return (
         <Modal.Body>
             <div className="pre-scrollable">
@@ -168,21 +217,57 @@ const FileSelectorBody = (props) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <ReturnFolder currentPath={removeTrailingSlash(props.currentPath)} getFiles={props.getFiles} />
-                        <FileList files={props.files} onClick={props.onClick} getFiles={props.getFiles} />
+                        <CreatingFolder 
+                            creatingFolderName={props.creatingFolderName}
+                            handleKeyDown={props.handleKeyDown} 
+                            updateText={props.updateText}
+                        />
+                        <ReturnFolder currentPath={removeTrailingSlash(props.currentPath)} fetchFiles={props.fetchFiles} />
+                        <FileList files={props.files} onClick={props.onClick} fetchFiles={props.fetchFiles} />
                     </tbody>
                 </Table>
             </div>
-            <Button className="btn btn-info" onClick={() => createFolder(props.currentPath)}>
+            <Button className="btn btn-info" onClick={() => props.createFolder()}>
                 Create new folder
             </Button>
         </Modal.Body>)
 };
 
-const ReturnFolder = ({ currentPath, getFiles }) =>
+const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
+    (creatingFolderName == null) ? null : (
+        <tr>
+            <td>
+                <FormGroup>
+                    <div className="form-inline">
+                        <InputGroup>
+                            <i
+                                className="ion-android-folder"
+                                style={{ paddingRight: "8px", verticalAlign: "middle", color: "#448aff" }}
+                            />
+                        </InputGroup>
+                        <InputGroup>
+                            <input
+                                onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
+                                className="form-control"
+                                type="text"
+                                placeholder="Folder name..."
+                                value={creatingFolderName ? creatingFolderName : ""}
+                                onChange={(e) => updateText(e.target.value)}
+                            />
+                            <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
+                            <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
+                        </InputGroup>
+                    </div>
+                </FormGroup>
+            </td><td></td>
+        </tr>
+    )
+);
+
+const ReturnFolder = ({ currentPath, fetchFiles }) =>
     !(currentPath !== Cloud.homeFolder) || !(currentPath !== "/home") ? null : (
         <tr className="row-settings clickable-row" style={{ cursor: "pointer" }}>
-            <td onClick={() => getFiles(getParentPath(currentPath))}>
+            <td onClick={() => fetchFiles(getParentPath(currentPath))}>
                 <a><i className="ion-android-folder" /> ..</a>
             </td>
         </tr>);
@@ -190,7 +275,7 @@ const ReturnFolder = ({ currentPath, getFiles }) =>
 const UploadButton = (props) => (<span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>);
 const RemoveButton = (props) => (<span className="input-group-addon btn btn" onClick={() => props.onClick()}>✗</span>)
 
-const FileList = ({ files, getFiles, onClick }) => {
+const FileList = ({ files, fetchFiles, onClick }) => {
     return !files.length ? null :
         (<React.Fragment>
             {files.map((file, index) =>
@@ -201,7 +286,7 @@ const FileList = ({ files, getFiles, onClick }) => {
                         </td>
                     </tr>)
                     : (<tr key={index} className="row-settings clickable-row" style={{ cursor: "pointer" }}>
-                        <td onClick={() => getFiles(file.path)}>
+                        <td onClick={() => fetchFiles(file.path)}>
                             <a><i className="ion-android-folder" /> {getFilenameFromPath(file.path)}</a>
                         </td>
                     </tr>)
