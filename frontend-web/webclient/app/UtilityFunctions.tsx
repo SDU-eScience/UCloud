@@ -201,15 +201,42 @@ export const renameFile = (filePath: string) =>
         }
     });
 
+
+const deletionSwal = (filePaths: string[]) =>
+    filePaths.length > 1 ?
+        swal({
+            title: "Delete files",
+            text: `Delete ${filePaths.length} files?`,
+            confirmButtonText: "Delete files",
+            type: "warning",
+            showCancelButton: true,
+            showCloseButton: true,
+        })
+        : swal({
+            title: "Delete file",
+            text: `Delete file ${getFilenameFromPath(filePaths[0])}`,
+            confirmButtonText: "Delete file",
+            type: "warning",
+            showCancelButton: true,
+            showCloseButton: true,
+        });
+
+export const batchDeleteFiles = (filePaths: string[], cloud: Cloud, callback: () => void) => {  
+    deletionSwal(filePaths).then((result: any) => {
+        if (result.dismiss) {
+            return;
+        } else {
+            let i = 0;
+            filePaths.forEach((it) => {
+                cloud.delete("/files", { path: it }).then(() => { ++i === filePaths.length ? callback() : null })
+                .catch(() => i++);
+            });
+        }
+    })
+};
+
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
-    swal({
-        title: "Delete file",
-        text: `Delete file ${getFilenameFromPath(filePath)}`,
-        confirmButtonText: "Delete file",
-        type: "warning",
-        showCancelButton: true,
-        showCloseButton: true,
-    }).then((result: any) => {
+    deletionSwal([filePath]).then((result: any) => {
         if (result.dismiss) {
             return;
         } else {

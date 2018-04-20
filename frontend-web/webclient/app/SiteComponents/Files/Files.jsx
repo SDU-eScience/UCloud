@@ -24,7 +24,8 @@ import {
     getTypeFromFile,
     inSuccessRange,
     getFilenameFromPath,
-    isInvalidPathName
+    isInvalidPathName,
+    batchDeleteFiles
 } from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
 import Uppy from "uppy";
@@ -199,7 +200,7 @@ class Files extends React.Component {
 
     render() {
         // PROPS
-        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
+        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles, fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
@@ -214,7 +215,6 @@ class Files extends React.Component {
             const firstSelectedFile = selectedFiles[0];
             this.startEditFile(files.findIndex((f) => f.path === firstSelectedFile.path), firstSelectedFile.path);
         }
-        const refetchFilesWithCurrentPath = () => fetchFiles(path, sortFilesByTypeAndName, this.state.lastSorting.asc);
         const navigate = (path) => {
             fetchNewFiles(path)
             history.push(`/files/${path}`);
@@ -242,7 +242,7 @@ class Files extends React.Component {
                             favoriteFile={(filePath) => updateFiles(favorite(files, filePath, Cloud))}
                             selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}
                             forceInlineButtons={true}
-                            refetch={refetchFilesWithCurrentPath}
+                            refetch={refetchFiles}
                             fetchFiles={fetchNewFiles}
                         />
                         <BallPulseLoading loading={loading} />
@@ -267,7 +267,7 @@ class Files extends React.Component {
                         onClick={openUppy}
                         searchText={this.state.searchText}
                         updateText={this.updateSearchText}
-                        refetch={refetchFilesWithCurrentPath}
+                        refetch={() => refetchFiles(path)}
                         rename={rename}
                     />
                 </section>
@@ -367,8 +367,8 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
             </p>
             <p>
                 <Button className="btn btn-danger btn-block ripple"
-                    disabled={rights.rightsLevel < 3 || selectedFiles.length > 1}
-                    onClick={() => showFileDeletionPrompt(selectedFiles[0].path, Cloud, refetch)}>
+                    disabled={rights.rightsLevel < 3}
+                    onClick={() => batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, refetch)}>
                     <em className="ion-ios-trash pull-left" />
                     Delete
                 </Button>
@@ -687,7 +687,7 @@ const mapDispatchToProps = (dispatch) => ({
         dispatch(fetchFiles(path, sortFilesByTypeAndName, true))
     },
     refetchFiles: (path) =>
-        dispatch(fetchFiles(path)),
+        dispatch(fetchFiles(path, sortFilesByTypeAndName, true)),
     updatePath: (path) => dispatch(updatePath(path)),
     setPageTitle: () => dispatch(updatePageTitle("Files")),
     checkFile: (checked, files, newFile) => {
