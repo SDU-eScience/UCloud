@@ -5,7 +5,7 @@ apply plugin: 'java'
 apply plugin: "maven-publish"
 apply plugin: "application"
 
-mainClassName = "dk.sdu.cloud.TempHandlers.MoveDataObjectsFromIcat"
+mainClassName = "dk.sdu.cloud.TempHandlers.InitUiMock"
 
 sourceCompatibility = 1.8
 
@@ -13,11 +13,14 @@ repositories {
     mavenCentral()
 }
 
+
+
 dependencies {
     compile group: 'org.eclipse.persistence', name: 'javax.persistence', version: '2.1.0'
     compile group: 'org.eclipse.persistence', name: 'org.eclipse.persistence.jpa', version: '2.5.0'
     compile group: 'org.postgresql', name: 'postgresql', version: '42.2.1'
     compile group: 'com.fasterxml', name: 'jackson-module-json-org', version: '0.9.1'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.0.1'
     testCompile 'io.cucumber:cucumber-java8:2.3.1'
     testCompile 'io.cucumber:cucumber-junit:2.4.0'
     testCompile 'junit:junit:4.12'

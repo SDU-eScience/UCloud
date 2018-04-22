@@ -33,8 +33,7 @@ import javax.xml.bind.annotation.XmlRootElement;
     , @NamedQuery(name = "VwProjectOrg.findByProjectend", query = "SELECT v FROM VwProjectOrg v WHERE v.projectend = :projectend")
     , @NamedQuery(name = "VwProjectOrg.findByActive", query = "SELECT v FROM VwProjectOrg v WHERE v.active = :active")
     , @NamedQuery(name = "VwProjectOrg.findByPersonrefid", query = "SELECT v FROM VwProjectOrg v WHERE v.personrefid = :personrefid")
-    , @NamedQuery(name = "VwProjectOrg.findByPersonfirstname", query = "SELECT v FROM VwProjectOrg v WHERE v.personfirstname = :personfirstname")
-    , @NamedQuery(name = "VwProjectOrg.findByPersonmiddlename", query = "SELECT v FROM VwProjectOrg v WHERE v.personmiddlename = :personmiddlename")
+    , @NamedQuery(name = "VwProjectOrg.findByPersonfirstnames", query = "SELECT v FROM VwProjectOrg v WHERE v.personfirstnames = :personfirstnames")
     , @NamedQuery(name = "VwProjectOrg.findByPersonlastname", query = "SELECT v FROM VwProjectOrg v WHERE v.personlastname = :personlastname")
     , @NamedQuery(name = "VwProjectOrg.findByProjectrolerefid", query = "SELECT v FROM VwProjectOrg v WHERE v.projectrolerefid = :projectrolerefid")
     , @NamedQuery(name = "VwProjectOrg.findByProjectroletext", query = "SELECT v FROM VwProjectOrg v WHERE v.projectroletext = :projectroletext")
@@ -42,7 +41,7 @@ import javax.xml.bind.annotation.XmlRootElement;
     , @NamedQuery(name = "VwProjectOrg.findByOrgfullname", query = "SELECT v FROM VwProjectOrg v WHERE v.orgfullname = :orgfullname")
     , @NamedQuery(name = "VwProjectOrg.findByOrgshortname", query = "SELECT v FROM VwProjectOrg v WHERE v.orgshortname = :orgshortname")})
 public class VwProjectOrg implements Serializable {
-    @Id
+
     private static final long serialVersionUID = 1L;
     @Column(name = "recid")
     private BigInteger recid;
@@ -60,10 +59,8 @@ public class VwProjectOrg implements Serializable {
     private Integer active;
     @Column(name = "personrefid")
     private Integer personrefid;
-    @Column(name = "personfirstname")
-    private String personfirstname;
-    @Column(name = "personmiddlename")
-    private String personmiddlename;
+    @Column(name = "personfirstnames")
+    private String personfirstnames;
     @Column(name = "personlastname")
     private String personlastname;
     @Column(name = "projectrolerefid")
@@ -136,20 +133,12 @@ public class VwProjectOrg implements Serializable {
         this.personrefid = personrefid;
     }
 
-    public String getPersonfirstname() {
-        return personfirstname;
+    public String getPersonfirstnames() {
+        return personfirstnames;
     }
 
-    public void setPersonfirstname(String personfirstname) {
-        this.personfirstname = personfirstname;
-    }
-
-    public String getPersonmiddlename() {
-        return personmiddlename;
-    }
-
-    public void setPersonmiddlename(String personmiddlename) {
-        this.personmiddlename = personmiddlename;
+    public void setPersonfirstnames(String personfirstnames) {
+        this.personfirstnames = personfirstnames;
     }
 
     public String getPersonlastname() {

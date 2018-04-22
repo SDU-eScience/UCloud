@@ -1,6 +1,6 @@
 package dk.sdu.cloud.models.outbound;
 
-import dk.sdu.cloud.models.outbound.sub.DataObjectCollectionOutbound;
+
 import dk.sdu.cloud.models.outbound.sub.ProjectOutbound;
 
 import java.util.List;
@@ -14,7 +14,7 @@ public class InitUi {
     private int noMessages;
     private int noDataObjectCollections;
     private List<ProjectOutbound> projectList;
-    private List<DataObjectCollectionOutbound> dataobjectcollectionList;
+
 
 
     public InitUi()
@@ -76,11 +76,5 @@ public class InitUi {
         this.projectList = projectList;
     }
 
-    public List<DataObjectCollectionOutbound> getDataobjectcollectionList() {
-        return dataobjectcollectionList;
-    }
 
-    public void setDataobjectcollectionList(List<DataObjectCollectionOutbound> dataobjectcollectionList) {
-        this.dataobjectcollectionList = dataobjectcollectionList;
-    }
 }

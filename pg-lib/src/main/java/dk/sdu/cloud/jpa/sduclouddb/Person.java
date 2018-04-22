@@ -21,38 +21,38 @@ import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
-import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
+
 /**
- *
  * @author bjhj
  */
 @Entity
 @Table(name = "person")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Person.findAll", query = "SELECT p FROM Person p")
-    , @NamedQuery(name = "Person.findById", query = "SELECT p FROM Person p WHERE p.id = :id")
-    , @NamedQuery(name = "Person.findByPersontitle", query = "SELECT p FROM Person p WHERE p.persontitle = :persontitle")
-    , @NamedQuery(name = "Person.findByPersonfirstname", query = "SELECT p FROM Person p WHERE p.personfirstname = :personfirstname")
-    , @NamedQuery(name = "Person.findByPersonmiddlename", query = "SELECT p FROM Person p WHERE p.personmiddlename = :personmiddlename")
-    , @NamedQuery(name = "Person.findByPersonlastname", query = "SELECT p FROM Person p WHERE p.personlastname = :personlastname")
-    , @NamedQuery(name = "Person.findByPersonphoneno", query = "SELECT p FROM Person p WHERE p.personphoneno = :personphoneno")
-    , @NamedQuery(name = "Person.findByLogintyperefid", query = "SELECT p FROM Person p WHERE p.logintyperefid = :logintyperefid")
-    , @NamedQuery(name = "Person.findByLatitude", query = "SELECT p FROM Person p WHERE p.latitude = :latitude")
-    , @NamedQuery(name = "Person.findByLongitude", query = "SELECT p FROM Person p WHERE p.longitude = :longitude")
-    , @NamedQuery(name = "Person.findByActive", query = "SELECT p FROM Person p WHERE p.active = :active")
-    , @NamedQuery(name = "Person.findByOrcid", query = "SELECT p FROM Person p WHERE p.orcid = :orcid")
-    , @NamedQuery(name = "Person.findByPersonFullname", query = "SELECT p FROM Person p WHERE p.personFullname = :personFullname")
-    , @NamedQuery(name = "Person.findByMarkedfordelete", query = "SELECT p FROM Person p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "Person.findByModifiedTs", query = "SELECT p FROM Person p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Person.findByCreatedTs", query = "SELECT p FROM Person p WHERE p.createdTs = :createdTs")
-    , @NamedQuery(name = "Person.findByUsername", query = "SELECT p FROM Person p WHERE p.username = :username")})
+        @NamedQuery(name = "Person.findAll", query = "SELECT p FROM Person p")
+        , @NamedQuery(name = "Person.checkExist", query = "SELECT p FROM Person p WHERE p.id = :id")
+        , @NamedQuery(name = "Person.findById", query = "SELECT p FROM Person p WHERE p.id = :id")
+        , @NamedQuery(name = "Person.findByPersontitle", query = "SELECT p FROM Person p WHERE p.persontitle = :persontitle")
+        , @NamedQuery(name = "Person.findByPersonfirstnames", query = "SELECT p FROM Person p WHERE p.personfirstnames = :personfirstnames")
+        , @NamedQuery(name = "Person.findByPersonlastname", query = "SELECT p FROM Person p WHERE p.personlastname = :personlastname")
+        , @NamedQuery(name = "Person.findByPersonphoneno", query = "SELECT p FROM Person p WHERE p.personphoneno = :personphoneno")
+        , @NamedQuery(name = "Person.findByLogintyperefid", query = "SELECT p FROM Person p WHERE p.logintyperefid = :logintyperefid")
+        , @NamedQuery(name = "Person.findByLatitude", query = "SELECT p FROM Person p WHERE p.latitude = :latitude")
+        , @NamedQuery(name = "Person.findByLongitude", query = "SELECT p FROM Person p WHERE p.longitude = :longitude")
+        , @NamedQuery(name = "Person.findByActive", query = "SELECT p FROM Person p WHERE p.active = :active")
+        , @NamedQuery(name = "Person.findByOrcid", query = "SELECT p FROM Person p WHERE p.orcid = :orcid")
+        , @NamedQuery(name = "Person.findByPersonFullname", query = "SELECT p FROM Person p WHERE p.personFullname = :personFullname")
+        , @NamedQuery(name = "Person.findByMarkedfordelete", query = "SELECT p FROM Person p WHERE p.markedfordelete = :markedfordelete")
+        , @NamedQuery(name = "Person.findByModifiedTs", query = "SELECT p FROM Person p WHERE p.modifiedTs = :modifiedTs")
+        , @NamedQuery(name = "Person.findByCreatedTs", query = "SELECT p FROM Person p WHERE p.createdTs = :createdTs")
+        , @NamedQuery(name = "Person.findByUsername", query = "SELECT p FROM Person p WHERE p.username = :username")
+        , @NamedQuery(name = "Person.findByRecordState", query = "SELECT p FROM Person p WHERE p.recordState = :recordState")})
 public class Person implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -63,10 +63,8 @@ public class Person implements Serializable {
     private Integer id;
     @Column(name = "persontitle")
     private String persontitle;
-    @Column(name = "personfirstname")
-    private String personfirstname;
-    @Column(name = "personmiddlename")
-    private String personmiddlename;
+    @Column(name = "personfirstnames")
+    private String personfirstnames;
     @Column(name = "personlastname")
     private String personlastname;
     @Column(name = "personphoneno")
@@ -96,8 +94,9 @@ public class Person implements Serializable {
     private Date createdTs;
     @Column(name = "username")
     private String username;
-    @OneToMany(mappedBy = "personrefid")
-    private List<PersonEmailRelation> personEmailRelationList;
+    @Basic(optional = false)
+    @Column(name = "record_state")
+    private int recordState;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
     private List<ProjectPersonRelation> projectPersonRelationList;
     @OneToMany(mappedBy = "personrefid")
@@ -109,7 +108,7 @@ public class Person implements Serializable {
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
     private List<SystemrolePersonRelation> systemrolePersonRelationList;
     @OneToMany(mappedBy = "personrefid")
-    private List<PersonJwtHistory> personJwtHistoryList;
+    private List<Email> emailList;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
     private List<PersonSystemroleRelation> personSystemroleRelationList;
     @OneToMany(mappedBy = "personrefid")
@@ -119,9 +118,6 @@ public class Person implements Serializable {
     @JoinColumn(name = "orgrefid", referencedColumnName = "id")
     @ManyToOne
     private Org orgrefid;
-    @JoinColumn(name = "personjwthistoryrefid", referencedColumnName = "id")
-    @OneToOne
-    private PersonJwtHistory personjwthistoryrefid;
     @OneToMany(mappedBy = "personrefid")
     private List<DataTransferHeader> dataTransferHeaderList;
 
@@ -132,10 +128,11 @@ public class Person implements Serializable {
         this.id = id;
     }
 
-    public Person(Integer id, Date modifiedTs, Date createdTs) {
+    public Person(Integer id, Date modifiedTs, Date createdTs, int recordState) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
+        this.recordState = recordState;
     }
 
     public Integer getId() {
@@ -154,20 +151,12 @@ public class Person implements Serializable {
         this.persontitle = persontitle;
     }
 
-    public String getPersonfirstname() {
-        return personfirstname;
+    public String getPersonfirstnames() {
+        return personfirstnames;
     }
 
-    public void setPersonfirstname(String personfirstname) {
-        this.personfirstname = personfirstname;
-    }
-
-    public String getPersonmiddlename() {
-        return personmiddlename;
-    }
-
-    public void setPersonmiddlename(String personmiddlename) {
-        this.personmiddlename = personmiddlename;
+    public void setPersonfirstnames(String personfirstnames) {
+        this.personfirstnames = personfirstnames;
     }
 
     public String getPersonlastname() {
@@ -266,13 +255,12 @@ public class Person implements Serializable {
         this.username = username;
     }
 
-    @XmlTransient
-    public List<PersonEmailRelation> getPersonEmailRelationList() {
-        return personEmailRelationList;
+    public int getRecordState() {
+        return recordState;
     }
 
-    public void setPersonEmailRelationList(List<PersonEmailRelation> personEmailRelationList) {
-        this.personEmailRelationList = personEmailRelationList;
+    public void setRecordState(int recordState) {
+        this.recordState = recordState;
     }
 
     @XmlTransient
@@ -321,12 +309,12 @@ public class Person implements Serializable {
     }
 
     @XmlTransient
-    public List<PersonJwtHistory> getPersonJwtHistoryList() {
-        return personJwtHistoryList;
+    public List<Email> getEmailList() {
+        return emailList;
     }
 
-    public void setPersonJwtHistoryList(List<PersonJwtHistory> personJwtHistoryList) {
-        this.personJwtHistoryList = personJwtHistoryList;
+    public void setEmailList(List<Email> emailList) {
+        this.emailList = emailList;
     }
 
     @XmlTransient
@@ -364,14 +352,6 @@ public class Person implements Serializable {
         this.orgrefid = orgrefid;
     }
 
-    public PersonJwtHistory getPersonjwthistoryrefid() {
-        return personjwthistoryrefid;
-    }
-
-    public void setPersonjwthistoryrefid(PersonJwtHistory personjwthistoryrefid) {
-        this.personjwthistoryrefid = personjwthistoryrefid;
-    }
-
     @XmlTransient
     public List<DataTransferHeader> getDataTransferHeaderList() {
         return dataTransferHeaderList;
@@ -405,5 +385,5 @@ public class Person implements Serializable {
     public String toString() {
         return "dk.sdu.cloud.jpa.sduclouddb.Person[ id=" + id + " ]";
     }
-    
+
 }

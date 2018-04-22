@@ -1,4 +1,4 @@
-package test.java.gradle.cucumber;
+package gradle.cucumber;
 
 import cucumber.api.junit.Cucumber;
         import org.junit.runner.RunWith;

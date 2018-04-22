@@ -1,6 +1,6 @@
 package dk.sdu.cloud.TempHandlers;
 
-import dk.sdu.cloud.models.outbound.sub.DataObjectCollectionOutbound;
+
 import dk.sdu.cloud.models.outbound.InitUi;
 import dk.sdu.cloud.models.outbound.sub.InitUiResponse;
 import dk.sdu.cloud.models.outbound.sub.ProjectOutbound;
@@ -22,19 +22,19 @@ public class InitUiMock {
         projectOutboundList.add(new ProjectOutbound(5, "Research case 5: Phylogenetic analysis"));
         projectOutboundList.add(new ProjectOutbound(6, "Research case 6: Data Stream Processing"));
 
-        List<DataObjectCollectionOutbound> dataObjectCollectionOutboundList = new ArrayList<>();
-
-        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(1, "/home/jmhinchely/"));
-        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(2, "/home/research_case_1/"));
-        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(3, "/home/research_case_2/"));
-        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(4, "/home/research_case_3/"));
-        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(5, "/home/research_case_4/"));
-        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(6, "/home/research_case_5/"));
-        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(7, "/home/research_case_6/"));
+//        List<DataObjectCollectionOutbound> dataObjectCollectionOutboundList = new ArrayList<>();
+//
+//        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(1, "/home/jmhinchely/"));
+//        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(2, "/home/research_case_1/"));
+//        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(3, "/home/research_case_2/"));
+//        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(4, "/home/research_case_3/"));
+//        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(5, "/home/research_case_4/"));
+//        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(6, "/home/research_case_5/"));
+//        dataObjectCollectionOutboundList.add(new DataObjectCollectionOutbound(7, "/home/research_case_6/"));
 
         InitUi initUi = new InitUi();
         initUi.setFullName("Jonas Malte Hinchely");
-        initUi.setDataobjectcollectionList(dataObjectCollectionOutboundList);
+        //initUi.setDataobjectcollectionList(dataObjectCollectionOutboundList);
         initUi.setProjectList(projectOutboundList);
         initUi.setDiskSpaceMb(100);
         initUi.setNoMessages(10);

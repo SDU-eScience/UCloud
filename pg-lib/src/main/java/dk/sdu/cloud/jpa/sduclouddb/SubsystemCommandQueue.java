@@ -33,6 +33,7 @@ import javax.xml.bind.annotation.XmlRootElement;
     @NamedQuery(name = "SubsystemCommandQueue.findAll", query = "SELECT s FROM SubsystemCommandQueue s")
     , @NamedQuery(name = "SubsystemCommandQueue.findById", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.id = :id")
     , @NamedQuery(name = "SubsystemCommandQueue.findByPayload", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.payload = :payload")
+    , @NamedQuery(name = "SubsystemCommandQueue.findByPersonjwthistoryrefid", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.personjwthistoryrefid = :personjwthistoryrefid")
     , @NamedQuery(name = "SubsystemCommandQueue.findByMarkedfordelete", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "SubsystemCommandQueue.findByModifiedTs", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.modifiedTs = :modifiedTs")
     , @NamedQuery(name = "SubsystemCommandQueue.findByCreatedTs", query = "SELECT s FROM SubsystemCommandQueue s WHERE s.createdTs = :createdTs")})
@@ -46,6 +47,8 @@ public class SubsystemCommandQueue implements Serializable {
     private Integer id;
     @Column(name = "payload")
     private String payload;
+    @Column(name = "personjwthistoryrefid")
+    private Integer personjwthistoryrefid;
     @Column(name = "markedfordelete")
     private Integer markedfordelete;
     @Basic(optional = false)
@@ -56,9 +59,6 @@ public class SubsystemCommandQueue implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "personjwthistoryrefid", referencedColumnName = "id")
-    @ManyToOne
-    private PersonJwtHistory personjwthistoryrefid;
     @JoinColumn(name = "subsystemcommandrefid", referencedColumnName = "id")
     @ManyToOne
     private SubsystemCommand subsystemcommandrefid;
@@ -95,6 +95,14 @@ public class SubsystemCommandQueue implements Serializable {
         this.payload = payload;
     }
 
+    public Integer getPersonjwthistoryrefid() {
+        return personjwthistoryrefid;
+    }
+
+    public void setPersonjwthistoryrefid(Integer personjwthistoryrefid) {
+        this.personjwthistoryrefid = personjwthistoryrefid;
+    }
+
     public Integer getMarkedfordelete() {
         return markedfordelete;
     }
@@ -117,14 +125,6 @@ public class SubsystemCommandQueue implements Serializable {
 
     public void setCreatedTs(Date createdTs) {
         this.createdTs = createdTs;
-    }
-
-    public PersonJwtHistory getPersonjwthistoryrefid() {
-        return personjwthistoryrefid;
-    }
-
-    public void setPersonjwthistoryrefid(PersonJwtHistory personjwthistoryrefid) {
-        this.personjwthistoryrefid = personjwthistoryrefid;
     }
 
     public SubsystemCommand getSubsystemcommandrefid() {

@@ -7,21 +7,20 @@ package dk.sdu.cloud.jpa.sduclouddb;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
@@ -36,7 +35,8 @@ import javax.xml.bind.annotation.XmlTransient;
     , @NamedQuery(name = "Email.findByEmail", query = "SELECT e FROM Email e WHERE e.email = :email")
     , @NamedQuery(name = "Email.findByMarkedfordelete", query = "SELECT e FROM Email e WHERE e.markedfordelete = :markedfordelete")
     , @NamedQuery(name = "Email.findByModifiedTs", query = "SELECT e FROM Email e WHERE e.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "Email.findByCreatedTs", query = "SELECT e FROM Email e WHERE e.createdTs = :createdTs")})
+    , @NamedQuery(name = "Email.findByCreatedTs", query = "SELECT e FROM Email e WHERE e.createdTs = :createdTs")
+    , @NamedQuery(name = "Email.findByPreferredemail", query = "SELECT e FROM Email e WHERE e.preferredemail = :preferredemail")})
 public class Email implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -57,8 +57,11 @@ public class Email implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @OneToMany(mappedBy = "emailrefid")
-    private List<PersonEmailRelation> personEmailRelationList;
+    @Column(name = "preferredemail")
+    private Integer preferredemail;
+    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @ManyToOne
+    private Person personrefid;
 
     public Email() {
     }
@@ -113,13 +116,20 @@ public class Email implements Serializable {
         this.createdTs = createdTs;
     }
 
-    @XmlTransient
-    public List<PersonEmailRelation> getPersonEmailRelationList() {
-        return personEmailRelationList;
+    public Integer getPreferredemail() {
+        return preferredemail;
     }
 
-    public void setPersonEmailRelationList(List<PersonEmailRelation> personEmailRelationList) {
-        this.personEmailRelationList = personEmailRelationList;
+    public void setPreferredemail(Integer preferredemail) {
+        this.preferredemail = preferredemail;
+    }
+
+    public Person getPersonrefid() {
+        return personrefid;
+    }
+
+    public void setPersonrefid(Person personrefid) {
+        this.personrefid = personrefid;
     }
 
     @Override
