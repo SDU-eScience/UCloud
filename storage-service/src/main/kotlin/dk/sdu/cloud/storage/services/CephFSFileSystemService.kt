@@ -84,7 +84,7 @@ class CephFSFileSystemService(
 
         val (status, stdout, stderr) = runAsUserWithResultAsInMemoryString(user, command)
 
-        if (status != 0) {
+        if (status == 0) {
             return parseDirListingOutput(
                 File(translateAndCheckFile(homeDirectory(user))),
                 stdout,
@@ -178,7 +178,7 @@ class CephFSFileSystemService(
         val absolutePath = translateAndCheckFile(path)
 
         // TODO Permission check
-        val process = runAsUser(user, listOf("bash", "-c", "cat > ${BashEscaper.safeBashArgument(absolutePath)}"))
+        val process = runAsUser(user, listOf("bash", "-c", "cat - > ${BashEscaper.safeBashArgument(absolutePath)}"))
         process.outputStream.writer()
         process.outputStream.close()
         if (process.waitFor() != 0) {
@@ -212,8 +212,6 @@ class CephFSFileSystemService(
         val rawLines = output.lines()
         val (favoriteLines, outputLines) = if (parseFavorites) {
             val linesToTake = rawLines.first().toInt()
-            log.info("Taking $linesToTake")
-
             Pair(rawLines.take(linesToTake * 4 + 1).drop(1), rawLines.drop(linesToTake * 4 + 1))
         } else {
             Pair(emptyList(), rawLines)

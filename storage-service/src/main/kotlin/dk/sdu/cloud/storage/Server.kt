@@ -6,10 +6,7 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.api.TusHeaders
-import dk.sdu.cloud.storage.http.ACLController
-import dk.sdu.cloud.storage.http.FilesController
-import dk.sdu.cloud.storage.http.SimpleDownloadController
-import dk.sdu.cloud.storage.http.TusController
+import dk.sdu.cloud.storage.http.*
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*
 import io.ktor.application.install
@@ -101,6 +98,7 @@ class Server(
                 route("api") {
                     FilesController(fs).configure(this)
                     SimpleDownloadController(cloud, fs).configure(this)
+                    MultiPartUploadController(fs).configure(this)
                     ACLController().configure(this)
                 }
             }
@@ -115,7 +113,7 @@ class Server(
         kStreams.start()
         log.info("Kafka Streams started!")
 
-        serviceRegistry.register(listOf("/api/files", "/api/acl", "/api/tus"))
+        serviceRegistry.register(listOf("/api/files", "/api/acl", "/api/tus", "/api/upload"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

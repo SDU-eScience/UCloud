@@ -43,6 +43,7 @@ data class StorageConfiguration(
 )
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.storage.MainKt")
+
 fun main(args: Array<String>) {
     log.info("Starting storage service")
 
@@ -70,9 +71,12 @@ fun main(args: Array<String>) {
         password = configuration.appDatabasePassword
     )
 
+    val engine = Netty
     val serverProvider: HttpServerProvider = { block ->
-        embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
+        embeddedServer(engine, port = configuration.connConfig.service.port, module = block)
     }
+
+    log.info("Using engine: ${engine.javaClass.simpleName}")
 
     Server(configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
 }

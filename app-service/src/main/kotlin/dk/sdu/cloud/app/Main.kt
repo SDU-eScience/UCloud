@@ -5,10 +5,12 @@ import dk.sdu.cloud.app.api.AppServiceDescription
 import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.storage.api.MultiPartUploadDescriptions
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
+import java.io.File
 
 data class DatabaseConfiguration(
     val url: String,

@@ -269,23 +269,33 @@ class TusController(
             return call.respond(HttpStatusCode.Conflict)
         }
 
-        log.info("Starting upload for: $initialState")
-        // Start reading some contents
-        val channel = call.receiveChannel()
-        val internalBuffer = ByteArray(1024 * 32)
         var wrote = 0L
-        fs.write(initialState.user, initialState.targetCollection + "/" + initialState.targetName) {
-            runBlocking {
-                var read = 0
-                while (read != -1) {
-                    read = channel.readAvailable(internalBuffer)
+        if (claimedOffset != initialState.length) {
+            if (claimedOffset != 0L) {
+                log.info("Not yet implemented (offset != 0)")
+                call.respond(HttpStatusCode.InternalServerError)
+                return
+            }
 
-                    if (read != -1) {
-                        write(internalBuffer, 0, read)
-                        wrote += read
+            log.info("Starting upload for: $initialState")
+            // Start reading some contents
+            val channel = call.receiveChannel()
+            val internalBuffer = ByteArray(1024 * 32)
+            fs.write(initialState.user, initialState.targetCollection + "/" + initialState.targetName) {
+                runBlocking {
+                    var read = 0
+                    while (read != -1) {
+                        read = channel.readAvailable(internalBuffer)
+
+                        if (read != -1) {
+                            write(internalBuffer, 0, read)
+                            wrote += read
+                        }
                     }
                 }
             }
+        } else {
+            log.info("Skipping upload. We are already done")
         }
 
         // TODO Make resumable

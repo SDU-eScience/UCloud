@@ -546,21 +546,6 @@ class JobExecutionService(
 
                 log.debug("Downloading file from $fileToTransferFromHPC")
 
-                val upload = runBlocking {
-                    val payload = UploadCreationCommand(
-                        fileName = fileToTransferFromHPC.substringAfterLast('/'),
-                        owner = owner,
-                        location = outputDirectory,
-                        length = fileToTransferSize,
-                        sensitive = false // TODO Sensitivity
-                    )
-                    log.debug("Upload to create at SDUCloud: $payload")
-                    TusDescriptions.create.call(payload, cloud)
-                } as? RESTResponse.Ok ?: throw IllegalStateException("Upload failed")
-
-                val uploadLocation = upload.response.headers["Location"]!!
-                log.debug("Upload target is: $uploadLocation")
-
                 if (sourceFile.size >= Int.MAX_VALUE) {
                     log.warn("sourceFile.size (${sourceFile.size}) >= Int.MAX_VALUE. Currently not supported")
                     throw JobInternalException("Output file too large")
@@ -568,14 +553,35 @@ class JobExecutionService(
 
                 val transferStatus =
                     try {
-                        scpDownload(fileToTransferFromHPC) {
-                            TusDescriptions.uploader(it, uploadLocation, sourceFile.size.toInt(), cloud, tokenRefresher)
-                                .start {
-                                    log.debug("$jobId: $it/${sourceFile.size} bytes transferred")
+                        scpDownload(fileToTransferFromHPC) { ins ->
+                            MultiPartUploadDescriptions.callUpload(
+                                __cloudDoNotUseDirectly,
+                                outputDirectory.removeSuffix("/") + "/" + fileToTransferFromHPC.substringAfterLast('/'),
+                                owner = event.owner,
+                                writer = { out ->
+                                    // Closing out is not something the HTTP client likes.
+                                    val buffer = ByteArray(1024 * 64)
+                                    var hasMoreData = true
+                                    while (hasMoreData) {
+                                        var ptr = 0
+                                        while (ptr < buffer.size && hasMoreData) {
+                                            val read = ins.read(buffer, ptr, buffer.size - ptr)
+                                            if (read <= 0) {
+                                                hasMoreData = false
+                                                break
+                                            }
+                                            ptr += read
+                                        }
+                                        out.write(buffer, 0, ptr)
+                                    }
+                                    out.flush()
                                 }
+                            )
+
                         }
                     } catch (ex: Exception) {
                         log.warn("Caught exception while uploading file to SDUCloud")
+                        log.warn(ex.stackTraceToString())
                         throw JobInternalException("Upload failed. ${ex.message}")
                     }
 
