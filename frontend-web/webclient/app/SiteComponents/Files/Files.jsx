@@ -29,9 +29,10 @@ import {
 } from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
 import Uppy from "uppy";
-import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage } from "../../Actions/Files";
+import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage, fetchFileselectorFiles, fileSelectorShown, setFileSelectorCallback } from "../../Actions/Files";
 import { updatePageTitle } from "../../Actions/Status";
 import { changeUppyFilesOpen } from "../../Actions/UppyActions";
+import { FileSelectorModal } from "./FileSelector";
 
 class Files extends React.Component {
     constructor(props) {
@@ -200,7 +201,7 @@ class Files extends React.Component {
 
     render() {
         // PROPS
-        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles, fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
+        const { uppy, files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles, fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
@@ -220,7 +221,7 @@ class Files extends React.Component {
             history.push(`/files/${path}`);
         };
         return (
-            <React.StrictMode>
+            <React.Fragment>
                 <section>
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
@@ -242,8 +243,10 @@ class Files extends React.Component {
                             favoriteFile={(filePath) => updateFiles(favorite(files, filePath, Cloud))}
                             selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}
                             forceInlineButtons={true}
-                            refetch={refetchFiles}
+                            refetch={() => refetchFiles(path)}
                             fetchFiles={fetchNewFiles}
+                            showFileSelector={this.props.showFileSelector}
+                            setFileSelectorCallback={this.props.setFileSelectorCallback}
                         />
                         <BallPulseLoading loading={loading} />
                         <PaginationButtons
@@ -271,12 +274,28 @@ class Files extends React.Component {
                         rename={rename}
                     />
                 </section>
-            </React.StrictMode>);
+                <FileSelectorModal
+                    show={this.props.fileSelectorShown}
+                    onHide={() => this.props.showFileSelector(false)}
+                    currentPath={this.props.fileSelectorPath}
+                    fetchFiles={(path) => this.props.fetchSelectorFiles(path)}
+                    loading={this.props.fileSelectorLoading}
+                    onlyAllowFolders
+                    canSelectFolders
+                    files={this.props.fileSelectorFiles}
+                    onClick={this.props.fileSelectorCallback}
+                />
+            </React.Fragment>);
     }
 }
 
+
+const searchbarStyle = {
+    margin: "20px 0 20px 0"
+}
+
 const SearchBar = ({ searchText, updateText }) => (
-    <div className="input-group" style={{ margin: "20px 0 20px" }}>
+    <div className="input-group" style={searchbarStyle}>
         <input
             className="form-control"
             type="text"
@@ -456,6 +475,8 @@ export const FilesTable = (props) => {
                 selectedFiles={props.selectedFiles}
                 addOrRemoveFile={props.addOrRemoveFile}
                 forceInlineButtons={props.forceInlineButtons}
+                showFileSelector={props.showFileSelector}
+                setFileSelectorCallback={props.setFileSelectorCallback}
             />
         </Table>
     );
@@ -511,6 +532,8 @@ const FilesList = (props) => {
             refetch={props.refetch}
             fetchFiles={props.fetchFiles}
             style={file.type === "DIRECTORY" ? ({ cursor: "pointer" }) : {}}
+            showFileSelector={props.showFileSelector}
+            setFileSelectorCallback={props.setFileSelectorCallback}
         />)
     );
     return (<tbody>
@@ -555,6 +578,8 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
                 forceInlineButtons={forceInlineButtons}
                 rename={props.renameFile ? (path) => props.renameFile(props.index, path) : undefined}
                 refetch={props.refetch}
+                showFileSelector={props.showFileSelector}
+                setFileSelectorCallback={props.setFileSelectorCallback}
             />
         </td>
     </tr>
@@ -628,7 +653,17 @@ const Favorited = ({ file, favoriteFile }) =>
         (<a onClick={() => favoriteFile(file.path)} className="ion-star" style={{ margin: "10px" }} />) :
         (<a className="ion-ios-star-outline fileData" onClick={() => favoriteFile(file.path)} style={{ margin: "10px" }} />);
 
-const MobileButtons = ({ file, forceInlineButtons, rename, refetch }) => {
+const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) => {
+    const move = (newPath) => {
+        props.showFileSelector(true);
+        props.setFileSelectorCallback((newPath) => {
+            const currentPath = file.path;
+            const newPathForFile = `${newPath}/${getFilenameFromPath(file.path)}`;
+            Cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => refetch());
+            props.showFileSelector(false);
+            props.setFileSelectorCallback(null);
+        });
+    }
     return (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
         <Dropdown pullRight id="dropdownforfile">
             <Dropdown.Toggle />
@@ -644,6 +679,9 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch }) => {
                 </MenuItem> : null}
                 <MenuItem onClick={() => copy(file.path)}>
                     Copy file
+                </MenuItem>
+                <MenuItem onClick={() => move(file.path)}>
+                    Move file
                 </MenuItem>
                 <MenuItem onClick={() => showFileDeletionPrompt(file.path, Cloud, refetch)}>
                     Delete file
@@ -670,13 +708,14 @@ Files.propTypes = {
     uppyOpen: PropTypes.bool.isRequired,
 }
 
-const mapStateToProps = (state, arg2) => {
-    const { files, filesPerPage, currentFilesPage, loading, path } = state.files;
+const mapStateToProps = (state) => {
+    const { files, filesPerPage, currentFilesPage, loading, path, fileSelectorFiles, fileSelectorPath, fileSelectorShown, fileSelectorCallback } = state.files;
     const { uppyFiles, uppyFilesOpen } = state.uppy;
     const favFilesCount = files.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = files.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
-        files, filesPerPage, currentFilesPage, loading, path, uppy: uppyFiles, uppyOpen: uppyFilesOpen, favFilesCount, checkedFilesCount
+        files, filesPerPage, currentFilesPage, loading, path, uppy: uppyFiles, uppyOpen: uppyFilesOpen, favFilesCount, checkedFilesCount,
+        fileSelectorFiles, fileSelectorPath, fileSelectorShown, fileSelectorCallback
     }
 };
 
@@ -686,9 +725,18 @@ const mapDispatchToProps = (dispatch) => ({
         dispatch(setLoading(true));
         dispatch(fetchFiles(path, sortFilesByTypeAndName, true))
     },
-    refetchFiles: (path) =>
-        dispatch(fetchFiles(path, sortFilesByTypeAndName, true)),
+    refetchFiles: (path) => {
+        dispatch(fetchFiles(path, sortFilesByTypeAndName, true));
+    },
     updatePath: (path) => dispatch(updatePath(path)),
+    fetchSelectorFiles: (path) => {
+        dispatch(fetchFileselectorFiles(path));
+    },
+    showFileSelector: (open) => {
+        dispatch(fileSelectorShown(open));
+    },
+    setFileSelectorCallback: (callback) =>
+        dispatch(setFileSelectorCallback(callback)),
     setPageTitle: () => dispatch(updatePageTitle("Files")),
     checkFile: (checked, files, newFile) => {
         files.find(file => file.path === newFile.path).isChecked = checked;
