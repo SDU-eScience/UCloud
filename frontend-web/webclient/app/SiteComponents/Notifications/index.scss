@@ -1,0 +1,10 @@
+.notification {
+    padding: 5px !important;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 350px !important;
+}
+
+.notification.unread {
+    background-color: #ddd !important;
+}
