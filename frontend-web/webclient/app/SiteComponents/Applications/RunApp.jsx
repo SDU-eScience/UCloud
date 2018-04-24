@@ -347,9 +347,9 @@ const InputFileParameter = (props) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
-                onFileSelectionChange={file => internalOnChange(file)}
+                onFileSelectionChange={(file) => internalOnChange(file)}
                 uppyOpen={props.uppyOpen}
-                uploadCallback={file => internalOnChange(file)}
+                uploadCallback={(file) => internalOnChange(file)}
                 uppy={props.uppy}
                 path={path}
                 isRequired={!props.parameter.optional}

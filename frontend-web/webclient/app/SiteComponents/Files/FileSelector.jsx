@@ -4,7 +4,7 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Modal, Button, Table, FormGroup, InputGroup } from "react-bootstrap";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
-import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange} from "../../UtilityFunctions";
+import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange } from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
 import { DashboardModal } from "uppy/lib/react";
 import { dispatch } from "redux";
@@ -173,28 +173,45 @@ class FileSelector extends React.Component {
                     {uploadButton}
                     {removeButton}
                 </div>
-                <Modal show={this.state.modalShown} onHide={this.closeModal}>
-                    <Modal.Header closeButton>
-                        <Modal.Title>File selector</Modal.Title>
-                    </Modal.Header>
-                    <BreadCrumbs currentPath={this.state.currentPath} navigate={this.fetchFiles} />
-                    <BallPulseLoading loading={this.state.loading} />
-                    <FileSelectorBody
-                        creatingFolderName={this.state.creatingFolderName}
-                        loading={this.state.loading}
-                        onClick={this.setSelectedFile}
-                        files={this.state.files}
-                        fetchFiles={this.fetchFiles}
-                        currentPath={this.state.currentPath}
-                        creatingFolderName={this.state.creatingFolderName}
-                        handleKeyDown={this.handleKeyDown}
-                        updateText={this.updateCreateFolderName}
-                        createFolder={this.startCreateNewFolder}
-                    />
-                </Modal>
+                <FileSelectorModal
+                    show={this.state.modalShown}
+                    onHide={this.closeModal}
+                    currentPath={this.state.currentPath}
+                    navigate={this.fetchFiles}
+                    files={this.state.files}
+                    loading={this.state.loading}
+                    creatingFolderName={this.state.creatingFolderName}
+                    onClick={this.setSelectedFile}
+                    fetchFiles={this.fetchFiles}
+                    handleKeyDown={this.handleKeyDown}
+                    updateText={this.updateCreateFolderName}
+                    createFolder={this.startCreateNewFolder}
+                />
             </div>)
     }
 }
+
+export const FileSelectorModal = (props) =>
+    <Modal show={props.show} onHide={props.onHide}>
+        <Modal.Header closeButton>
+            <Modal.Title>File selector</Modal.Title>
+        </Modal.Header>
+        <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
+        <BallPulseLoading loading={props.loading} />
+        <FileSelectorBody
+            onlyAllowFolders={props.onlyAllowFolders}
+            canSelectFolders={props.canSelectFolders}
+            creatingFolderName={props.creatingFolderName}
+            loading={props.loading}
+            onClick={props.onClick}
+            files={props.files}
+            fetchFiles={props.fetchFiles}
+            currentPath={props.currentPath}
+            handleKeyDown={props.handleKeyDown}
+            updateText={props.updateText}
+            createFolder={props.createFolder}
+        />
+    </Modal>
 
 const FileSelectorBody = (props) => {
     if (props.loading) {
@@ -207,6 +224,7 @@ const FileSelectorBody = (props) => {
             </h4>
         );
     }
+    const files = (!!props.onlyAllowFolders) ? props.files.filter(f => f.type === "DIRECTORY") : props.files;
     return (
         <Modal.Body>
             <div className="pre-scrollable">
@@ -217,13 +235,13 @@ const FileSelectorBody = (props) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <CreatingFolder 
+                        <CreatingFolder
                             creatingFolderName={props.creatingFolderName}
-                            handleKeyDown={props.handleKeyDown} 
+                            handleKeyDown={props.handleKeyDown}
                             updateText={props.updateText}
                         />
                         <ReturnFolder currentPath={removeTrailingSlash(props.currentPath)} fetchFiles={props.fetchFiles} />
-                        <FileList files={props.files} onClick={props.onClick} fetchFiles={props.fetchFiles} />
+                        <FileList files={files} onClick={props.onClick} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
                     </tbody>
                 </Table>
             </div>
@@ -275,7 +293,7 @@ const ReturnFolder = ({ currentPath, fetchFiles }) =>
 const UploadButton = (props) => (<span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>);
 const RemoveButton = (props) => (<span className="input-group-addon btn btn" onClick={() => props.onClick()}>✗</span>)
 
-const FileList = ({ files, fetchFiles, onClick }) => {
+const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) => {
     return !files.length ? null :
         (<React.Fragment>
             {files.map((file, index) =>
@@ -283,12 +301,13 @@ const FileList = ({ files, fetchFiles, onClick }) => {
                     (<tr key={index} className="gradeA row-settings" style={{ cursor: "pointer" }}>
                         <td onClick={() => onClick(file)}><span
                             className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
-                        </td>
+                        </td><td></td>
                     </tr>)
                     : (<tr key={index} className="row-settings clickable-row" style={{ cursor: "pointer" }}>
                         <td onClick={() => fetchFiles(file.path)}>
                             <a><i className="ion-android-folder" /> {getFilenameFromPath(file.path)}</a>
                         </td>
+                        <td>{canSelectFolders ? <Button onClick={onClick(file)} className="pull-right">Select</Button> : null}</td>
                     </tr>)
             )}
         </React.Fragment>);
