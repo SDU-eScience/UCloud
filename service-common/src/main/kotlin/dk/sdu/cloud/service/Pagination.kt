@@ -1,4 +1,4 @@
-package dk.sdu.cloud.app.api
+package dk.sdu.cloud.service
 
 data class Page<out T>(
     val itemsInTotal: Int,
@@ -26,5 +26,5 @@ class NormalizedPaginationRequest(
         else -> 10
     }
 
-    val page = page ?: 0
+    val page = page?.takeIf { it >= 0 } ?: 0
 }

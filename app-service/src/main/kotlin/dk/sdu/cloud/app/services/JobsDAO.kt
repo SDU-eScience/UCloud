@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import org.jetbrains.exposed.sql.*
 import org.joda.time.DateTime
 

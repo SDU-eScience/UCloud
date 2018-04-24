@@ -4,6 +4,8 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
 import io.netty.handler.codec.http.HttpMethod
 
 object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {

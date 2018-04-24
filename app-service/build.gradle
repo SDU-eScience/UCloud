@@ -43,11 +43,6 @@ repositories {
     }
 
     maven { url "https://dl.bintray.com/tus/maven" }
-
-    // Repositories required for iRODS to work
-    maven { url "https://raw.github.com/DICE-UNC/DICE-Maven/master/releases" }
-    maven { url "http://ci-dev.renci.org/nexus/content/repositories/public" }
-    maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "https://dl.bintray.com/kotlin/exposed" }
 }
 
@@ -78,7 +73,7 @@ dependencies {
     // ------------
     compile 'com.google.guava:guava:23.4-jre'
 
-    compile 'dk.sdu.cloud:service-common:0.7.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.8.0-SNAPSHOT'
     compile "dk.sdu.cloud:storage-api:0.3.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
 

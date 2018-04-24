@@ -382,7 +382,6 @@ class CephFSFileSystemService(
         return "/" + substringAfter(fsRoot).removePrefix("/")
     }
 
-
     private fun asUser(cloudUser: String): List<String> {
         val user = cloudToCephFsDao.findUnixUser(cloudUser) ?: throw IllegalStateException("Could not find user")
         return if (!isDevelopment) listOf("sudo", "-u", user) else emptyList()
