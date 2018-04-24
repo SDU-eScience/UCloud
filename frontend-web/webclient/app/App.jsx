@@ -14,6 +14,7 @@ import zenodo from "./Reducers/Zenodo";
 import sidebar from "./Reducers/Sidebar";
 import analyses from "./Reducers/Analyses";
 import { initObject } from "./DefaultObjects";
+import "semantic-ui-css/semantic.min.css"
 
 window.onload = () => {
     Cloud.receiveAccessTokenOrRefreshIt();

@@ -198,7 +198,7 @@ task apiJar(type: Jar) {
 apiJar.dependsOn(generateServiceManifest)
 
 apply plugin: 'application'
-mainClassName = "dk.sdu.cloud.storage.MainKt"
+mainClassName = "dk.sdu.cloud.notification.MainKt"
 
 run {
     if (project.hasProperty("appArgs")) {

@@ -1,8 +1,8 @@
-package dk.cloud.sdu.notification.http
+package dk.sdu.cloud.notification.http
 
-import dk.cloud.sdu.notification.api.FindByNotificationId
-import dk.cloud.sdu.notification.api.NotificationDescriptions
-import dk.cloud.sdu.notification.services.NotificationDAO
+import dk.sdu.cloud.notification.api.FindByNotificationId
+import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.notification.services.NotificationDAO
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.protect

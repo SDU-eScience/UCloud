@@ -1,4 +1,4 @@
-package dk.cloud.sdu.notification.api
+package dk.sdu.cloud.notification.api
 
 import dk.sdu.cloud.FindByStringId
 

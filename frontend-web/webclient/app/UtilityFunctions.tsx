@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as swal from "sweetalert2";
+import swal from "sweetalert2";
 import { RightsMap, RightsNameMap, SensitivityLevelMap } from "./DefaultObjects";
 import { File, Acl } from "./types/types";
 import Cloud from "../authentication/lib";

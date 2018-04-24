@@ -1,4 +1,4 @@
-package dk.cloud.sdu.notification
+package dk.sdu.cloud.notification
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.common.net.HostAndPort

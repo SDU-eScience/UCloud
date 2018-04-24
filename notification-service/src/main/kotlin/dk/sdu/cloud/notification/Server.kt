@@ -1,8 +1,8 @@
-package dk.cloud.sdu.notification
+package dk.sdu.cloud.notification
 
-import dk.cloud.sdu.notification.http.NotificationController
-import dk.cloud.sdu.notification.services.InMemoryNotificationDAO
-import dk.cloud.sdu.notification.services.NotificationDAO
+import dk.sdu.cloud.notification.http.NotificationController
+import dk.sdu.cloud.notification.services.InMemoryNotificationDAO
+import dk.sdu.cloud.notification.services.NotificationDAO
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
@@ -32,7 +32,8 @@ class Server(
         val instance = NotificationServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
-        val notificationDao: NotificationDAO = InMemoryNotificationDAO()
+        val notificationDao: NotificationDAO =
+            InMemoryNotificationDAO()
         log.info("Core services constructed!")
 
         kStreams = run {

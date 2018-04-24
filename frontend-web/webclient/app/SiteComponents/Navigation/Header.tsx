@@ -4,6 +4,7 @@ import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import "./Header.scss";
 import "./HeaderMenuLinks.scss";
+import { Notifications } from "../Notifications/index";
 import StatusBar from "./StatusBar";
 
 interface HeaderProps { title: string }
@@ -19,10 +20,12 @@ const Header = ({ title }: HeaderProps) => (
                 </li>
             </ul>
             <h2 className="header-title">{title}</h2>
+            
             <ul className="pull-right">
                 <li>
                     <StatusBar/>
                 </li>
+                <li><Notifications /></li>
                 <Dropdown id="basic-nav-dropdown" pullRight componentClass="li">
                     <Dropdown.Toggle useAnchor noCaret className="has-badge ripple">
                         <em className="ion-person" />

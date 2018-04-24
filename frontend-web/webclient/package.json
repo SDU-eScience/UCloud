@@ -37,10 +37,14 @@
     "react-router": "4.2.0",
     "react-router-dom": "4.2.2",
     "redux": "4.0.0",
+    "semantic-ui-css": "^2.3.1",
+    "semantic-ui-react": "^0.79.1",
     "sweetalert2": "7.19.1",
-    "uppy": "0.23.3"
+    "uppy": "0.23.3",
+    "moment": "~2.22.1"
   },
   "devDependencies": {
+    "empty-module": "~0.0.2",
     "babel-core": "^6.26.0",
     "babel-jest": "22.4.3",
     "babel-loader": "7.1.4",

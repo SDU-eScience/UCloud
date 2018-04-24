@@ -1,7 +1,7 @@
-package dk.cloud.sdu.notification.services
+package dk.sdu.cloud.notification.services
 
-import dk.cloud.sdu.notification.api.Notification
-import dk.cloud.sdu.notification.api.NotificationId
+import dk.sdu.cloud.notification.api.Notification
+import dk.sdu.cloud.notification.api.NotificationId
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import java.util.*
