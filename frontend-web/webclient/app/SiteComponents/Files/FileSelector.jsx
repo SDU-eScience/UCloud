@@ -22,7 +22,6 @@ class FileSelector extends React.Component {
             files: [],
             modalShown: false,
             breadcrumbs: [],
-            onFileSelectionChange: props.onFileSelectionChange,
             uppyOnUploadSuccess: null,
             creatingFolderName: null
         };
@@ -245,9 +244,9 @@ const FileSelectorBody = (props) => {
                     </tbody>
                 </Table>
             </div>
-            <Button className="btn btn-info" onClick={() => props.createFolder()}>
+            {props.createFolder != null ? <Button className="btn btn-info" onClick={() => props.createFolder()}>
                 Create new folder
-            </Button>
+            </Button> : null}
         </Modal.Body>)
 };
 
@@ -307,7 +306,7 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) => {
                         <td onClick={() => fetchFiles(file.path)}>
                             <a><i className="ion-android-folder" /> {getFilenameFromPath(file.path)}</a>
                         </td>
-                        <td>{canSelectFolders ? <Button onClick={onClick(file)} className="pull-right">Select</Button> : null}</td>
+                        <td>{canSelectFolders ? <Button onClick={() => onClick(file.path)} className="pull-right">Select</Button> : null}</td>
                     </tr>)
             )}
         </React.Fragment>);

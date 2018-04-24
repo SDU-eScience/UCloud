@@ -1,6 +1,6 @@
 import { tusConfig } from "./Configurations";
 import * as Uppy from "uppy";
-import { File, Analysis, Application, Status, Publication, SidebarOption, } from "./types/types"
+import { File, Analysis, Application, Status, Publication, SidebarOption } from "./types/types"
 import SDUCloud from "../authentication/lib";
 
 export const DefaultStatus: Status = {
@@ -97,7 +97,7 @@ export const initObject = (cloud: SDUCloud) => ({
         favoriteLoading: false,
         recentLoading: false,
         analysesLoading: false,
-        activityLoading: false,
+        activityLoading: false
     },
     files: {
         files: [] as File[],
@@ -107,7 +107,12 @@ export const initObject = (cloud: SDUCloud) => ({
         path: "",
         filesInfoPath: "",
         projects: [] as any[],
-        sortingColumns: [ getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1) ]
+        sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
+        fileSelectorLoading: false,
+        fileSelectorShown: false, 
+        fileSelectorFiles: [] as File[],
+        fileSelectorPath: cloud.homeFolder,
+        fileSelectorCallback: Function
     },
     uppy: {
         uppyFiles: initializeUppy({ maxNumberOfFiles: false } as UppyRestriction, cloud),
