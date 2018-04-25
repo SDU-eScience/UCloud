@@ -1,10 +1,18 @@
-.notification {
-    padding: 5px !important;
+.ui.feed > .event.notification {
+    padding: 5px;
     border-radius: 5px;
     cursor: pointer;
-    width: 350px !important;
+    width: 350px;
 }
 
-.notification.unread {
-    background-color: #ddd !important;
+.notification-trigger {
+    cursor: pointer;
+}
+
+.ui.feed > .event.notification.unread {
+    background-color: #ddd;
+}
+
+.ui.feed > .event.notification.unread:hover, .notification.read:hover {
+    background-color: #eee;
 }

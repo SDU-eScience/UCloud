@@ -1,7 +1,7 @@
 import * as React from "react";
 import "react-bootstrap";
 import { Cloud } from "../../../authentication/SDUCloudObject"
-import { Button, Popup, Feed, Icon, Divider, SemanticICONS } from 'semantic-ui-react';
+import { Button, Popup, Feed, Icon, Divider, SemanticICONS, Label } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import "./index.scss";
@@ -79,10 +79,16 @@ class Notifications extends React.Component<any, NotificationState> {
             return <Redirect to={theRedirect} />
         }
 
+        let unreadLength = this.state.items.filter((e) => !e.read).length;
+
         return (
             <div>
                 <Popup
-                    trigger={<Button inverted circular icon='bell' />}
+                    trigger={
+                        <Label color='blue' circular size='large' className='notification-trigger'>
+                            <Icon name='bell' />{unreadLength}
+                        </Label>
+                    }
                     content={<Feed>{entries}</Feed>}
 
                     on='click'

@@ -39,6 +39,9 @@ class Server(
         val fs: FileSystemService = CephFSFileSystemService(CloudToCephFsDao(), args.contains("--dev"))
 
         val transferState = TusStateService()
+
+        val shareDAO: ShareDAO = InMemoryShareDAO()
+        val shareService = ShareService(shareDAO, fs)
         log.info("Core services constructed!")
 
         kStreams = run {
@@ -100,6 +103,7 @@ class Server(
                     SimpleDownloadController(cloud, fs).configure(this)
                     MultiPartUploadController(fs).configure(this)
                     ACLController().configure(this)
+                    ShareController(shareService).configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")
