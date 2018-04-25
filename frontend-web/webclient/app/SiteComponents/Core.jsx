@@ -5,7 +5,7 @@ import {Switch, Route} from "react-router-dom";
 import PropTypes from "prop-types";
 import Files from "./Files/Files";
 import FileInfo from "./Files/FileInfo";
-import Dashboard from "./Dashboard";
+import Dashboard from "./Dashboard/Dashboard";
 import Status from "./Navigation/StatusPage";
 import Applications from "./Applications/Applications";
 import RunApp from "./Applications/RunApp";
