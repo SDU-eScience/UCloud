@@ -27,7 +27,6 @@ import {
     isInvalidPathName,
     batchDeleteFiles
 } from "../../UtilityFunctions";
-import { Card } from "semantic-ui-react";
 import { KeyCode } from "../../DefaultObjects";
 import Uppy from "uppy";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage, fetchFileselectorFiles, fileSelectorShown, setFileSelectorCallback } from "../../Actions/Files";

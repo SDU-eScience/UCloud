@@ -14,14 +14,13 @@ class Dashboard extends React.Component {
     constructor(props) {
         super(props);
         const { dispatch, favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
-        dispatch(updatePageTitle("Dashboard"))
+        this.props.updatePageTitle();
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
-            dispatch(updatePageTitle("Dashboard"));
-            dispatch(setAllLoading(true));
-            dispatch(fetchFavorites());
-            dispatch(fetchRecentFiles());
-            dispatch(fetchRecentAnalyses());
-            //dispatch(fetchRecentActivity());
+            this.props.setAllLoading(true);
+            this.props.fetchFavorites();
+            this.props.fetchRecentFiles();
+            this.props.fetchRecentAnalyses();
+            //this.props.fetchRecentActivity();
         }
     }
 
@@ -30,7 +29,7 @@ class Dashboard extends React.Component {
         const { favoriteFiles, recentFiles, recentAnalyses, activity, dispatch,
             favoriteLoading, recentLoading, analysesLoading, activityLoading } = this.props;
         const favoriteOrUnfavorite = (filePath) =>
-            dispatch(receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited)));
+            this.props.receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited));
         return (
             <React.StrictMode>
                 <section>
@@ -173,6 +172,16 @@ const DashboardRecentActivity = ({ activity, isLoading }) => (
     </Card>
 );
 
+const mapDispatchToProps = (dispatch) => ({
+    updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
+    setAllLoading: (loading) => dispatch(setAllLoading(loading)),
+    fetchFavorites: () => dispatch(fetchFavorites()),
+    fetchRecentFiles: () => dispatch(fetchRecentFiles()),
+    fetchRecentAnalyses: () => dispatch(fetchRecentAnalyses()),
+    fetchRecentActivity: () => dispatch(fetchRecentActivity()),
+    receiveFavorites: (files) => dispatch(receiveFavorites(files))
+});
+
 const mapStateToProps = (state) => {
     const {
         favoriteFiles,
@@ -199,4 +208,4 @@ const mapStateToProps = (state) => {
 
 const toEUTimeString = (timeString) => timeString.split(".").join(":");
 
-export default connect(mapStateToProps)(Dashboard)
+export default connect(mapStateToProps, mapDispatchToProps)(Dashboard)
