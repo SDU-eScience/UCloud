@@ -8,7 +8,7 @@ import { updatePageTitle } from "../../Actions/Status";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../../Actions/Dashboard";
 import { connect } from "react-redux";
 import "./Dashboard.scss";
-import { Card, Table, List, Tab, Container } from "semantic-ui-react";
+import { Card, Table, List, Tab, Container, Icon } from "semantic-ui-react";
 
 class Dashboard extends React.Component {
     constructor(props) {
@@ -59,7 +59,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
     const filesList = files.map((file, i) =>
         (<List.Item key={i} className="itemPadding">
             <List.Content floated="right">
-                <em className="ion-star" onClick={() => favorite(file.path)} />
+                <Icon name="star" onClick={() => favorite(file.path)} />
             </List.Content>
             <ListFileContent path={file.path} type={file.type} />
         </List.Item>)
@@ -144,6 +144,7 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
                         <List.Content floated="right">
                             {toLowerCaseAndCapitalize(analysis.state)}
                         </List.Content>
+                        <List.Icon name={statusToIconName(analysis.state)} color={statusToColor(analysis.state)} />
                         <List.Content>
                             <List.Header>
                                 <Link to={`/analyses/${analysis.jobId}`}>{analysis.appName}</Link>
@@ -155,6 +156,9 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
         </Card.Content>
     </Card>
 );
+
+const statusToIconName = (status) => status === "SUCCESS" ? "check" : "x";
+const statusToColor = (status) => status === "SUCCESS" ? "green" : "red";
 
 const DashboardRecentActivity = ({ activity, isLoading }) => (
     <Card>
