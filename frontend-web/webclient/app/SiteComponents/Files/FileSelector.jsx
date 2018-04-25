@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Modal, Button, Table, FormGroup, InputGroup } from "react-bootstrap";
+//import { Button } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
 import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange } from "../../UtilityFunctions";
@@ -10,6 +11,7 @@ import { DashboardModal } from "uppy/lib/react";
 import { dispatch } from "redux";
 import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
 import { KeyCode } from "../../DefaultObjects";
+import "./Files.scss";
 
 class FileSelector extends React.Component {
     constructor(props, context) {
@@ -161,10 +163,7 @@ class FileSelector extends React.Component {
             <div>
                 <div className="input-group">
                     <span className="input-group-btn">
-                        <Button onClick={this.openModal}
-                            type="button"
-                            className="btn btn-default">Browse files
-                        </Button>
+                        <Button onClick={this.openModal}>Browse files</Button>
                     </span>
                     <input className="form-control readonly" required={this.props.isRequired} type="text"
                         placeholder={"No file selected"}
@@ -257,10 +256,7 @@ const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
                 <FormGroup>
                     <div className="form-inline">
                         <InputGroup>
-                            <i
-                                className="ion-android-folder"
-                                style={{ paddingRight: "8px", verticalAlign: "middle", color: "#448aff" }}
-                            />
+                            <i className="ion-android-folder createFolderPlacement" />
                         </InputGroup>
                         <InputGroup>
                             <input
@@ -270,6 +266,7 @@ const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
                                 placeholder="Folder name..."
                                 value={creatingFolderName ? creatingFolderName : ""}
                                 onChange={(e) => updateText(e.target.value)}
+                                autoFocus
                             />
                             <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
                             <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
@@ -283,7 +280,7 @@ const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
 
 const ReturnFolder = ({ currentPath, fetchFiles }) =>
     !(currentPath !== Cloud.homeFolder) || !(currentPath !== "/home") ? null : (
-        <tr className="row-settings clickable-row" style={{ cursor: "pointer" }}>
+        <tr className="row-settings clickable-row pointer-cursor">
             <td onClick={() => fetchFiles(getParentPath(currentPath))}>
                 <a><i className="ion-android-folder" /> ..</a>
             </td>
@@ -297,12 +294,12 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) => {
         (<React.Fragment>
             {files.map((file, index) =>
                 file.type === "FILE" ?
-                    (<tr key={index} className="gradeA row-settings" style={{ cursor: "pointer" }}>
+                    (<tr key={index} className="gradeA row-settings pointer-cursor">
                         <td onClick={() => onClick(file)}><span
                             className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
                         </td><td></td>
                     </tr>)
-                    : (<tr key={index} className="row-settings clickable-row" style={{ cursor: "pointer" }}>
+                    : (<tr key={index} className="row-settings clickable-row pointer-cursor">
                         <td onClick={() => fetchFiles(file.path)}>
                             <a><i className="ion-android-folder" /> {getFilenameFromPath(file.path)}</a>
                         </td>

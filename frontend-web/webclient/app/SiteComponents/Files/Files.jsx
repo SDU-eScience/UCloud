@@ -178,7 +178,7 @@ class Files extends React.Component {
     }
 
     updateCreateFolderName(creatingFolderName) {
-        this.setState(() => ({ creatingFolderName }))
+        this.setState(() => ({ creatingFolderName }));
     }
 
     updateEditFileName(e) {
@@ -502,6 +502,7 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                                 placeholder="Folder name..."
                                 value={creatingFolderName ? creatingFolderName : ""}
                                 onChange={(e) => updateText(e.target.value)}
+                                autoFocus
                             />
                             <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
                             <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
@@ -531,7 +532,6 @@ const FilesList = (props) => {
             owner={getOwnerFromAcls(file.acl, Cloud)}
             refetch={props.refetch}
             fetchFiles={props.fetchFiles}
-            style={file.type === "DIRECTORY" ? ({ cursor: "pointer" }) : {}}
             showFileSelector={props.showFileSelector}
             setFileSelectorCallback={props.setFileSelectorCallback}
         />)
@@ -547,8 +547,8 @@ const FilesList = (props) => {
     </tbody>);
 }
 
-const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, style, ...props }) => (
-    <tr className="row-settings clickable-row fileRow" style={style}>
+const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, ...props }) => (
+    <tr className="row-settings clickable-row fileRow">
         <td>
             {(hasCheckbox) ? (
                 <FileCheckbox className="fileData"
@@ -586,7 +586,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
 );
 
 const FileCheckbox = ({ isChecked, onChange }) => (
-    <span style={{ margin: "15px" }} className={isChecked ? "" : "fileData"}>
+    <span className={`checkbox-margin ${isChecked ? "" : "fileData"}`}>
         <input
             name="select"
             className="select-box"
