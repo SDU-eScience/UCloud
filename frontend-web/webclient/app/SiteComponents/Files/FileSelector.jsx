@@ -313,7 +313,6 @@ FileSelector.contextTypes = {
     store: PropTypes.object.isRequired,
 };
 
-const removeTrailingSlash = (path) =>
-    path.endsWith("/") ? path.slice(0, path.length - 1) : path;
+const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 
 export default FileSelector;
