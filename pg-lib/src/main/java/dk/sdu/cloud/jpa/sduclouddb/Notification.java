@@ -59,9 +59,9 @@ public class Notification implements Serializable {
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @JoinColumn(name = "principalrefid", referencedColumnName = "id")
     @ManyToOne
-    private Person personrefid;
+    private Principal principalrefid;
 
     public Notification() {
     }
@@ -124,12 +124,12 @@ public class Notification implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Person getPersonrefid() {
-        return personrefid;
+    public Principal getPrincipalrefid() {
+        return principalrefid;
     }
 
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
+    public void setPrincipalrefid(Principal principalrefid) {
+        this.principalrefid = principalrefid;
     }
 
     @Override

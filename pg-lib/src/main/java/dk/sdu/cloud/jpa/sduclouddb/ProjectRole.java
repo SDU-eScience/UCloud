@@ -62,7 +62,7 @@ public class ProjectRole implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "projectrolerefid")
-    private List<ProjectPersonRelation> projectPersonRelationList;
+    private List<ProjectPrincipalRelation> projectPrincipalRelationList;
 
     public ProjectRole() {
     }
@@ -126,12 +126,12 @@ public class ProjectRole implements Serializable {
     }
 
     @XmlTransient
-    public List<ProjectPersonRelation> getProjectPersonRelationList() {
-        return projectPersonRelationList;
+    public List<ProjectPrincipalRelation> getProjectPrincipalRelationList() {
+        return projectPrincipalRelationList;
     }
 
-    public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
-        this.projectPersonRelationList = projectPersonRelationList;
+    public void setProjectPrincipalRelationList(List<ProjectPrincipalRelation> projectPrincipalRelationList) {
+        this.projectPrincipalRelationList = projectPrincipalRelationList;
     }
 
     @Override

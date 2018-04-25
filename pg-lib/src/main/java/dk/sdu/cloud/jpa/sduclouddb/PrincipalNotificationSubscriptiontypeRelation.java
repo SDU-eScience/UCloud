@@ -27,16 +27,16 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "person_notification_subscriptiontype_relation")
+@Table(name = "principal_notification_subscriptiontype_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "PersonNotificationSubscriptiontypeRelation.findAll", query = "SELECT p FROM PersonNotificationSubscriptiontypeRelation p")
-    , @NamedQuery(name = "PersonNotificationSubscriptiontypeRelation.findById", query = "SELECT p FROM PersonNotificationSubscriptiontypeRelation p WHERE p.id = :id")
-    , @NamedQuery(name = "PersonNotificationSubscriptiontypeRelation.findByActive", query = "SELECT p FROM PersonNotificationSubscriptiontypeRelation p WHERE p.active = :active")
-    , @NamedQuery(name = "PersonNotificationSubscriptiontypeRelation.findByMarkedfordelete", query = "SELECT p FROM PersonNotificationSubscriptiontypeRelation p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "PersonNotificationSubscriptiontypeRelation.findByModifiedTs", query = "SELECT p FROM PersonNotificationSubscriptiontypeRelation p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "PersonNotificationSubscriptiontypeRelation.findByCreatedTs", query = "SELECT p FROM PersonNotificationSubscriptiontypeRelation p WHERE p.createdTs = :createdTs")})
-public class PersonNotificationSubscriptiontypeRelation implements Serializable {
+    @NamedQuery(name = "PrincipalNotificationSubscriptiontypeRelation.findAll", query = "SELECT p FROM PrincipalNotificationSubscriptiontypeRelation p")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptiontypeRelation.findById", query = "SELECT p FROM PrincipalNotificationSubscriptiontypeRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptiontypeRelation.findByActive", query = "SELECT p FROM PrincipalNotificationSubscriptiontypeRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptiontypeRelation.findByMarkedfordelete", query = "SELECT p FROM PrincipalNotificationSubscriptiontypeRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptiontypeRelation.findByModifiedTs", query = "SELECT p FROM PrincipalNotificationSubscriptiontypeRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptiontypeRelation.findByCreatedTs", query = "SELECT p FROM PrincipalNotificationSubscriptiontypeRelation p WHERE p.createdTs = :createdTs")})
+public class PrincipalNotificationSubscriptiontypeRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -56,21 +56,21 @@ public class PersonNotificationSubscriptiontypeRelation implements Serializable 
     @Column(name = "created_ts")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @JoinColumn(name = "principalrefid", referencedColumnName = "id")
     @ManyToOne(optional = false)
-    private Person personrefid;
-    @JoinColumn(name = "personnotificationsubscriptiontyperefid", referencedColumnName = "id")
+    private Principal principalrefid;
+    @JoinColumn(name = "principalnotificationsubscriptiontyperefid", referencedColumnName = "id")
     @ManyToOne(optional = false)
-    private PersonNotificationSubscriptionType personnotificationsubscriptiontyperefid;
+    private PrincipalNotificationSubscriptionType principalnotificationsubscriptiontyperefid;
 
-    public PersonNotificationSubscriptiontypeRelation() {
+    public PrincipalNotificationSubscriptiontypeRelation() {
     }
 
-    public PersonNotificationSubscriptiontypeRelation(Integer id) {
+    public PrincipalNotificationSubscriptiontypeRelation(Integer id) {
         this.id = id;
     }
 
-    public PersonNotificationSubscriptiontypeRelation(Integer id, Date modifiedTs, Date createdTs) {
+    public PrincipalNotificationSubscriptiontypeRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -116,20 +116,20 @@ public class PersonNotificationSubscriptiontypeRelation implements Serializable 
         this.createdTs = createdTs;
     }
 
-    public Person getPersonrefid() {
-        return personrefid;
+    public Principal getPrincipalrefid() {
+        return principalrefid;
     }
 
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
+    public void setPrincipalrefid(Principal principalrefid) {
+        this.principalrefid = principalrefid;
     }
 
-    public PersonNotificationSubscriptionType getPersonnotificationsubscriptiontyperefid() {
-        return personnotificationsubscriptiontyperefid;
+    public PrincipalNotificationSubscriptionType getPrincipalnotificationsubscriptiontyperefid() {
+        return principalnotificationsubscriptiontyperefid;
     }
 
-    public void setPersonnotificationsubscriptiontyperefid(PersonNotificationSubscriptionType personnotificationsubscriptiontyperefid) {
-        this.personnotificationsubscriptiontyperefid = personnotificationsubscriptiontyperefid;
+    public void setPrincipalnotificationsubscriptiontyperefid(PrincipalNotificationSubscriptionType principalnotificationsubscriptiontyperefid) {
+        this.principalnotificationsubscriptiontyperefid = principalnotificationsubscriptiontyperefid;
     }
 
     @Override
@@ -142,10 +142,10 @@ public class PersonNotificationSubscriptiontypeRelation implements Serializable 
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof PersonNotificationSubscriptiontypeRelation)) {
+        if (!(object instanceof PrincipalNotificationSubscriptiontypeRelation)) {
             return false;
         }
-        PersonNotificationSubscriptiontypeRelation other = (PersonNotificationSubscriptiontypeRelation) object;
+        PrincipalNotificationSubscriptiontypeRelation other = (PrincipalNotificationSubscriptiontypeRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -154,7 +154,7 @@ public class PersonNotificationSubscriptiontypeRelation implements Serializable 
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.PersonNotificationSubscriptiontypeRelation[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PrincipalNotificationSubscriptiontypeRelation[ id=" + id + " ]";
     }
     
 }

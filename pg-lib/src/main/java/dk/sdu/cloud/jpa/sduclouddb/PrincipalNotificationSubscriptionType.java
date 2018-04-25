@@ -29,18 +29,18 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author bjhj
  */
 @Entity
-@Table(name = "person_notification_subscription_type")
+@Table(name = "principal_notification_subscription_type")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "PersonNotificationSubscriptionType.findAll", query = "SELECT p FROM PersonNotificationSubscriptionType p")
-    , @NamedQuery(name = "PersonNotificationSubscriptionType.findById", query = "SELECT p FROM PersonNotificationSubscriptionType p WHERE p.id = :id")
-    , @NamedQuery(name = "PersonNotificationSubscriptionType.findByPersonnotificationsubscriptiontypename", query = "SELECT p FROM PersonNotificationSubscriptionType p WHERE p.personnotificationsubscriptiontypename = :personnotificationsubscriptiontypename")
-    , @NamedQuery(name = "PersonNotificationSubscriptionType.findByActive", query = "SELECT p FROM PersonNotificationSubscriptionType p WHERE p.active = :active")
-    , @NamedQuery(name = "PersonNotificationSubscriptionType.findByMarkedfordelete", query = "SELECT p FROM PersonNotificationSubscriptionType p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "PersonNotificationSubscriptionType.findByModifiedTs", query = "SELECT p FROM PersonNotificationSubscriptionType p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "PersonNotificationSubscriptionType.findByCreatedTs", query = "SELECT p FROM PersonNotificationSubscriptionType p WHERE p.createdTs = :createdTs")
-    , @NamedQuery(name = "PersonNotificationSubscriptionType.findByNosuppress", query = "SELECT p FROM PersonNotificationSubscriptionType p WHERE p.nosuppress = :nosuppress")})
-public class PersonNotificationSubscriptionType implements Serializable {
+    @NamedQuery(name = "PrincipalNotificationSubscriptionType.findAll", query = "SELECT p FROM PrincipalNotificationSubscriptionType p")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptionType.findById", query = "SELECT p FROM PrincipalNotificationSubscriptionType p WHERE p.id = :id")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptionType.findByPrincipalnotificationsubscriptiontypename", query = "SELECT p FROM PrincipalNotificationSubscriptionType p WHERE p.principalnotificationsubscriptiontypename = :principalnotificationsubscriptiontypename")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptionType.findByActive", query = "SELECT p FROM PrincipalNotificationSubscriptionType p WHERE p.active = :active")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptionType.findByMarkedfordelete", query = "SELECT p FROM PrincipalNotificationSubscriptionType p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptionType.findByModifiedTs", query = "SELECT p FROM PrincipalNotificationSubscriptionType p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptionType.findByCreatedTs", query = "SELECT p FROM PrincipalNotificationSubscriptionType p WHERE p.createdTs = :createdTs")
+    , @NamedQuery(name = "PrincipalNotificationSubscriptionType.findByNosuppress", query = "SELECT p FROM PrincipalNotificationSubscriptionType p WHERE p.nosuppress = :nosuppress")})
+public class PrincipalNotificationSubscriptionType implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -48,8 +48,8 @@ public class PersonNotificationSubscriptionType implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "personnotificationsubscriptiontypename")
-    private String personnotificationsubscriptiontypename;
+    @Column(name = "principalnotificationsubscriptiontypename")
+    private String principalnotificationsubscriptiontypename;
     @Column(name = "active")
     private Integer active;
     @Column(name = "markedfordelete")
@@ -64,17 +64,17 @@ public class PersonNotificationSubscriptionType implements Serializable {
     private Date createdTs;
     @Column(name = "nosuppress")
     private Integer nosuppress;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personnotificationsubscriptiontyperefid")
-    private List<PersonNotificationSubscriptiontypeRelation> personNotificationSubscriptiontypeRelationList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "principalnotificationsubscriptiontyperefid")
+    private List<PrincipalNotificationSubscriptiontypeRelation> principalNotificationSubscriptiontypeRelationList;
 
-    public PersonNotificationSubscriptionType() {
+    public PrincipalNotificationSubscriptionType() {
     }
 
-    public PersonNotificationSubscriptionType(Integer id) {
+    public PrincipalNotificationSubscriptionType(Integer id) {
         this.id = id;
     }
 
-    public PersonNotificationSubscriptionType(Integer id, Date modifiedTs, Date createdTs) {
+    public PrincipalNotificationSubscriptionType(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -88,12 +88,12 @@ public class PersonNotificationSubscriptionType implements Serializable {
         this.id = id;
     }
 
-    public String getPersonnotificationsubscriptiontypename() {
-        return personnotificationsubscriptiontypename;
+    public String getPrincipalnotificationsubscriptiontypename() {
+        return principalnotificationsubscriptiontypename;
     }
 
-    public void setPersonnotificationsubscriptiontypename(String personnotificationsubscriptiontypename) {
-        this.personnotificationsubscriptiontypename = personnotificationsubscriptiontypename;
+    public void setPrincipalnotificationsubscriptiontypename(String principalnotificationsubscriptiontypename) {
+        this.principalnotificationsubscriptiontypename = principalnotificationsubscriptiontypename;
     }
 
     public Integer getActive() {
@@ -137,12 +137,12 @@ public class PersonNotificationSubscriptionType implements Serializable {
     }
 
     @XmlTransient
-    public List<PersonNotificationSubscriptiontypeRelation> getPersonNotificationSubscriptiontypeRelationList() {
-        return personNotificationSubscriptiontypeRelationList;
+    public List<PrincipalNotificationSubscriptiontypeRelation> getPrincipalNotificationSubscriptiontypeRelationList() {
+        return principalNotificationSubscriptiontypeRelationList;
     }
 
-    public void setPersonNotificationSubscriptiontypeRelationList(List<PersonNotificationSubscriptiontypeRelation> personNotificationSubscriptiontypeRelationList) {
-        this.personNotificationSubscriptiontypeRelationList = personNotificationSubscriptiontypeRelationList;
+    public void setPrincipalNotificationSubscriptiontypeRelationList(List<PrincipalNotificationSubscriptiontypeRelation> principalNotificationSubscriptiontypeRelationList) {
+        this.principalNotificationSubscriptiontypeRelationList = principalNotificationSubscriptiontypeRelationList;
     }
 
     @Override
@@ -155,10 +155,10 @@ public class PersonNotificationSubscriptionType implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof PersonNotificationSubscriptionType)) {
+        if (!(object instanceof PrincipalNotificationSubscriptionType)) {
             return false;
         }
-        PersonNotificationSubscriptionType other = (PersonNotificationSubscriptionType) object;
+        PrincipalNotificationSubscriptionType other = (PrincipalNotificationSubscriptionType) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -167,7 +167,7 @@ public class PersonNotificationSubscriptionType implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.PersonNotificationSubscriptionType[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.PrincipalNotificationSubscriptionType[ id=" + id + " ]";
     }
     
 }

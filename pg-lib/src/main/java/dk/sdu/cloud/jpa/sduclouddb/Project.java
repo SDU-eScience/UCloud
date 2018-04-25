@@ -78,7 +78,7 @@ public class Project implements Serializable {
     @Column(name = "visible")
     private Integer visible;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "projectrefid")
-    private List<ProjectPersonRelation> projectPersonRelationList;
+    private List<ProjectPrincipalRelation> projectPrincipalRelationList;
     @JoinColumn(name = "projecttyperefid", referencedColumnName = "id")
     @ManyToOne
     private ProjectType projecttyperefid;
@@ -185,12 +185,12 @@ public class Project implements Serializable {
     }
 
     @XmlTransient
-    public List<ProjectPersonRelation> getProjectPersonRelationList() {
-        return projectPersonRelationList;
+    public List<ProjectPrincipalRelation> getProjectPrincipalRelationList() {
+        return projectPrincipalRelationList;
     }
 
-    public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
-        this.projectPersonRelationList = projectPersonRelationList;
+    public void setProjectPrincipalRelationList(List<ProjectPrincipalRelation> projectPrincipalRelationList) {
+        this.projectPrincipalRelationList = projectPrincipalRelationList;
     }
 
     public ProjectType getProjecttyperefid() {

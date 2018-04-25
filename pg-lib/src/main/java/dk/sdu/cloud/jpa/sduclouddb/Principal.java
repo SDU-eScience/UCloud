@@ -17,6 +17,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
@@ -27,33 +28,33 @@ import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
-
 /**
+ *
  * @author bjhj
  */
 @Entity
-@Table(name = "person")
+@Table(name = "principal")
 @XmlRootElement
 @NamedQueries({
-        @NamedQuery(name = "Person.findAll", query = "SELECT p FROM Person p")
-        , @NamedQuery(name = "Person.checkExist", query = "SELECT p FROM Person p WHERE p.id = :id")
-        , @NamedQuery(name = "Person.findById", query = "SELECT p FROM Person p WHERE p.id = :id")
-        , @NamedQuery(name = "Person.findByPersontitle", query = "SELECT p FROM Person p WHERE p.persontitle = :persontitle")
-        , @NamedQuery(name = "Person.findByPersonfirstnames", query = "SELECT p FROM Person p WHERE p.personfirstnames = :personfirstnames")
-        , @NamedQuery(name = "Person.findByPersonlastname", query = "SELECT p FROM Person p WHERE p.personlastname = :personlastname")
-        , @NamedQuery(name = "Person.findByPersonphoneno", query = "SELECT p FROM Person p WHERE p.personphoneno = :personphoneno")
-        , @NamedQuery(name = "Person.findByLogintyperefid", query = "SELECT p FROM Person p WHERE p.logintyperefid = :logintyperefid")
-        , @NamedQuery(name = "Person.findByLatitude", query = "SELECT p FROM Person p WHERE p.latitude = :latitude")
-        , @NamedQuery(name = "Person.findByLongitude", query = "SELECT p FROM Person p WHERE p.longitude = :longitude")
-        , @NamedQuery(name = "Person.findByActive", query = "SELECT p FROM Person p WHERE p.active = :active")
-        , @NamedQuery(name = "Person.findByOrcid", query = "SELECT p FROM Person p WHERE p.orcid = :orcid")
-        , @NamedQuery(name = "Person.findByPersonFullname", query = "SELECT p FROM Person p WHERE p.personFullname = :personFullname")
-        , @NamedQuery(name = "Person.findByMarkedfordelete", query = "SELECT p FROM Person p WHERE p.markedfordelete = :markedfordelete")
-        , @NamedQuery(name = "Person.findByModifiedTs", query = "SELECT p FROM Person p WHERE p.modifiedTs = :modifiedTs")
-        , @NamedQuery(name = "Person.findByCreatedTs", query = "SELECT p FROM Person p WHERE p.createdTs = :createdTs")
-        , @NamedQuery(name = "Person.findByUsername", query = "SELECT p FROM Person p WHERE p.username = :username")
-        , @NamedQuery(name = "Person.findByRecordState", query = "SELECT p FROM Person p WHERE p.recordState = :recordState")})
-public class Person implements Serializable {
+    @NamedQuery(name = "Principal.findAll", query = "SELECT p FROM Principal p")
+    , @NamedQuery(name = "Principal.findById", query = "SELECT p FROM Principal p WHERE p.id = :id")
+    , @NamedQuery(name = "Principal.findByPrincipaltitle", query = "SELECT p FROM Principal p WHERE p.principaltitle = :principaltitle")
+    , @NamedQuery(name = "Principal.findByPrincipalfirstnames", query = "SELECT p FROM Principal p WHERE p.principalfirstnames = :principalfirstnames")
+    , @NamedQuery(name = "Principal.findByPrincipallastname", query = "SELECT p FROM Principal p WHERE p.principallastname = :principallastname")
+    , @NamedQuery(name = "Principal.findByPrincipalphoneno", query = "SELECT p FROM Principal p WHERE p.principalphoneno = :principalphoneno")
+    , @NamedQuery(name = "Principal.findByLogintyperefid", query = "SELECT p FROM Principal p WHERE p.logintyperefid = :logintyperefid")
+    , @NamedQuery(name = "Principal.findByLatitude", query = "SELECT p FROM Principal p WHERE p.latitude = :latitude")
+    , @NamedQuery(name = "Principal.findByLongitude", query = "SELECT p FROM Principal p WHERE p.longitude = :longitude")
+    , @NamedQuery(name = "Principal.findByActive", query = "SELECT p FROM Principal p WHERE p.active = :active")
+    , @NamedQuery(name = "Principal.findByOrcid", query = "SELECT p FROM Principal p WHERE p.orcid = :orcid")
+    , @NamedQuery(name = "Principal.findByPersonFullname", query = "SELECT p FROM Principal p WHERE p.personFullname = :personFullname")
+    , @NamedQuery(name = "Principal.findByMarkedfordelete", query = "SELECT p FROM Principal p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "Principal.findByModifiedTs", query = "SELECT p FROM Principal p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "Principal.findByCreatedTs", query = "SELECT p FROM Principal p WHERE p.createdTs = :createdTs")
+    , @NamedQuery(name = "Principal.findByUsername", query = "SELECT p FROM Principal p WHERE p.username = :username")
+    , @NamedQuery(name = "Principal.findByRecordState", query = "SELECT p FROM Principal p WHERE p.recordState = :recordState")
+    , @NamedQuery(name = "Principal.findByExtWayfId", query = "SELECT p FROM Principal p WHERE p.extWayfId = :extWayfId")})
+public class Principal implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -61,14 +62,14 @@ public class Person implements Serializable {
     @Basic(optional = false)
     @Column(name = "id")
     private Integer id;
-    @Column(name = "persontitle")
-    private String persontitle;
-    @Column(name = "personfirstnames")
-    private String personfirstnames;
-    @Column(name = "personlastname")
-    private String personlastname;
-    @Column(name = "personphoneno")
-    private String personphoneno;
+    @Column(name = "principaltitle")
+    private String principaltitle;
+    @Column(name = "principalfirstnames")
+    private String principalfirstnames;
+    @Column(name = "principallastname")
+    private String principallastname;
+    @Column(name = "principalphoneno")
+    private String principalphoneno;
     @Column(name = "logintyperefid")
     private Integer logintyperefid;
     // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
@@ -97,38 +98,46 @@ public class Person implements Serializable {
     @Basic(optional = false)
     @Column(name = "record_state")
     private int recordState;
+    @Lob
+    @Column(name = "salt")
+    private byte[] salt;
+    @Lob
+    @Column(name = "hashed_password")
+    private byte[] hashedPassword;
+    @Column(name = "ext_wayf_id")
+    private String extWayfId;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<ProjectPersonRelation> projectPersonRelationList;
-    @OneToMany(mappedBy = "personrefid")
+    private List<ProjectPrincipalRelation> projectPrincipalRelationList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "principalrefid")
+    private List<PrincipalSystemroleRelation> principalSystemroleRelationList;
+    @OneToMany(mappedBy = "principalrefid")
     private List<ProjectEventCalendar> projectEventCalendarList;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<PersonNotificationSubscriptiontypeRelation> personNotificationSubscriptiontypeRelationList;
-    @OneToMany(mappedBy = "personrefid")
-    private List<Notification> notificationList;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<SystemrolePersonRelation> systemrolePersonRelationList;
-    @OneToMany(mappedBy = "personrefid")
-    private List<Email> emailList;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
-    private List<PersonSystemroleRelation> personSystemroleRelationList;
-    @OneToMany(mappedBy = "personrefid")
-    private List<App> appList;
-    @OneToMany(mappedBy = "personrefid")
-    private List<Uploadtransaction> uploadtransactionList;
     @JoinColumn(name = "orgrefid", referencedColumnName = "id")
     @ManyToOne
     private Org orgrefid;
+    @OneToMany(mappedBy = "principalrefid")
+    private List<Notification> notificationList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "personrefid")
+    private List<SystemrolePersonRelation> systemrolePersonRelationList;
+    @OneToMany(mappedBy = "principalrefid")
+    private List<Email> emailList;
+    @OneToMany(mappedBy = "principalrefid")
+    private List<App> appList;
     @OneToMany(mappedBy = "personrefid")
+    private List<Uploadtransaction> uploadtransactionList;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "principalrefid")
+    private List<PrincipalNotificationSubscriptiontypeRelation> principalNotificationSubscriptiontypeRelationList;
+    @OneToMany(mappedBy = "principalrefid")
     private List<DataTransferHeader> dataTransferHeaderList;
 
-    public Person() {
+    public Principal() {
     }
 
-    public Person(Integer id) {
+    public Principal(Integer id) {
         this.id = id;
     }
 
-    public Person(Integer id, Date modifiedTs, Date createdTs, int recordState) {
+    public Principal(Integer id, Date modifiedTs, Date createdTs, int recordState) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -143,36 +152,36 @@ public class Person implements Serializable {
         this.id = id;
     }
 
-    public String getPersontitle() {
-        return persontitle;
+    public String getPrincipaltitle() {
+        return principaltitle;
     }
 
-    public void setPersontitle(String persontitle) {
-        this.persontitle = persontitle;
+    public void setPrincipaltitle(String principaltitle) {
+        this.principaltitle = principaltitle;
     }
 
-    public String getPersonfirstnames() {
-        return personfirstnames;
+    public String getPrincipalfirstnames() {
+        return principalfirstnames;
     }
 
-    public void setPersonfirstnames(String personfirstnames) {
-        this.personfirstnames = personfirstnames;
+    public void setPrincipalfirstnames(String principalfirstnames) {
+        this.principalfirstnames = principalfirstnames;
     }
 
-    public String getPersonlastname() {
-        return personlastname;
+    public String getPrincipallastname() {
+        return principallastname;
     }
 
-    public void setPersonlastname(String personlastname) {
-        this.personlastname = personlastname;
+    public void setPrincipallastname(String principallastname) {
+        this.principallastname = principallastname;
     }
 
-    public String getPersonphoneno() {
-        return personphoneno;
+    public String getPrincipalphoneno() {
+        return principalphoneno;
     }
 
-    public void setPersonphoneno(String personphoneno) {
-        this.personphoneno = personphoneno;
+    public void setPrincipalphoneno(String principalphoneno) {
+        this.principalphoneno = principalphoneno;
     }
 
     public Integer getLogintyperefid() {
@@ -263,13 +272,46 @@ public class Person implements Serializable {
         this.recordState = recordState;
     }
 
-    @XmlTransient
-    public List<ProjectPersonRelation> getProjectPersonRelationList() {
-        return projectPersonRelationList;
+    public byte[] getSalt() {
+        return salt;
     }
 
-    public void setProjectPersonRelationList(List<ProjectPersonRelation> projectPersonRelationList) {
-        this.projectPersonRelationList = projectPersonRelationList;
+    public void setSalt(byte[] salt) {
+        this.salt = salt;
+    }
+
+    public byte[] getHashedPassword() {
+        return hashedPassword;
+    }
+
+    public void setHashedPassword(byte[] hashedPassword) {
+        this.hashedPassword = hashedPassword;
+    }
+
+    public String getExtWayfId() {
+        return extWayfId;
+    }
+
+    public void setExtWayfId(String extWayfId) {
+        this.extWayfId = extWayfId;
+    }
+
+    @XmlTransient
+    public List<ProjectPrincipalRelation> getProjectPrincipalRelationList() {
+        return projectPrincipalRelationList;
+    }
+
+    public void setProjectPrincipalRelationList(List<ProjectPrincipalRelation> projectPrincipalRelationList) {
+        this.projectPrincipalRelationList = projectPrincipalRelationList;
+    }
+
+    @XmlTransient
+    public List<PrincipalSystemroleRelation> getPrincipalSystemroleRelationList() {
+        return principalSystemroleRelationList;
+    }
+
+    public void setPrincipalSystemroleRelationList(List<PrincipalSystemroleRelation> principalSystemroleRelationList) {
+        this.principalSystemroleRelationList = principalSystemroleRelationList;
     }
 
     @XmlTransient
@@ -281,13 +323,12 @@ public class Person implements Serializable {
         this.projectEventCalendarList = projectEventCalendarList;
     }
 
-    @XmlTransient
-    public List<PersonNotificationSubscriptiontypeRelation> getPersonNotificationSubscriptiontypeRelationList() {
-        return personNotificationSubscriptiontypeRelationList;
+    public Org getOrgrefid() {
+        return orgrefid;
     }
 
-    public void setPersonNotificationSubscriptiontypeRelationList(List<PersonNotificationSubscriptiontypeRelation> personNotificationSubscriptiontypeRelationList) {
-        this.personNotificationSubscriptiontypeRelationList = personNotificationSubscriptiontypeRelationList;
+    public void setOrgrefid(Org orgrefid) {
+        this.orgrefid = orgrefid;
     }
 
     @XmlTransient
@@ -318,15 +359,6 @@ public class Person implements Serializable {
     }
 
     @XmlTransient
-    public List<PersonSystemroleRelation> getPersonSystemroleRelationList() {
-        return personSystemroleRelationList;
-    }
-
-    public void setPersonSystemroleRelationList(List<PersonSystemroleRelation> personSystemroleRelationList) {
-        this.personSystemroleRelationList = personSystemroleRelationList;
-    }
-
-    @XmlTransient
     public List<App> getAppList() {
         return appList;
     }
@@ -344,12 +376,13 @@ public class Person implements Serializable {
         this.uploadtransactionList = uploadtransactionList;
     }
 
-    public Org getOrgrefid() {
-        return orgrefid;
+    @XmlTransient
+    public List<PrincipalNotificationSubscriptiontypeRelation> getPrincipalNotificationSubscriptiontypeRelationList() {
+        return principalNotificationSubscriptiontypeRelationList;
     }
 
-    public void setOrgrefid(Org orgrefid) {
-        this.orgrefid = orgrefid;
+    public void setPrincipalNotificationSubscriptiontypeRelationList(List<PrincipalNotificationSubscriptiontypeRelation> principalNotificationSubscriptiontypeRelationList) {
+        this.principalNotificationSubscriptiontypeRelationList = principalNotificationSubscriptiontypeRelationList;
     }
 
     @XmlTransient
@@ -371,10 +404,10 @@ public class Person implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof Person)) {
+        if (!(object instanceof Principal)) {
             return false;
         }
-        Person other = (Person) object;
+        Principal other = (Principal) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -383,7 +416,7 @@ public class Person implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.Person[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.Principal[ id=" + id + " ]";
     }
-
+    
 }

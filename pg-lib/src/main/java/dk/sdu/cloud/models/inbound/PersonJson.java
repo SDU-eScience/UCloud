@@ -1,7 +1,5 @@
 package dk.sdu.cloud.models.inbound;
 
-import dk.sdu.cloud.jpa.sduclouddb.Person;
-
 public class PersonJson {
     private String persontitle;
     private String personfirstname;

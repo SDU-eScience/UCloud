@@ -65,7 +65,7 @@ public class Systemrole implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdTs;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "systemrolerefid")
-    private List<PersonSystemroleRelation> personSystemroleRelationList;
+    private List<PrincipalSystemroleRelation> principalSystemroleRelationList;
 
     public Systemrole() {
     }
@@ -137,12 +137,12 @@ public class Systemrole implements Serializable {
     }
 
     @XmlTransient
-    public List<PersonSystemroleRelation> getPersonSystemroleRelationList() {
-        return personSystemroleRelationList;
+    public List<PrincipalSystemroleRelation> getPrincipalSystemroleRelationList() {
+        return principalSystemroleRelationList;
     }
 
-    public void setPersonSystemroleRelationList(List<PersonSystemroleRelation> personSystemroleRelationList) {
-        this.personSystemroleRelationList = personSystemroleRelationList;
+    public void setPrincipalSystemroleRelationList(List<PrincipalSystemroleRelation> principalSystemroleRelationList) {
+        this.principalSystemroleRelationList = principalSystemroleRelationList;
     }
 
     @Override

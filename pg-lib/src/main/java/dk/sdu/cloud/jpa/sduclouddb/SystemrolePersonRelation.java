@@ -62,7 +62,7 @@ public class SystemrolePersonRelation implements Serializable {
     private Date createdTs;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne(optional = false)
-    private Person personrefid;
+    private Principal personrefid;
 
     public SystemrolePersonRelation() {
     }
@@ -126,11 +126,11 @@ public class SystemrolePersonRelation implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Person getPersonrefid() {
+    public Principal getPersonrefid() {
         return personrefid;
     }
 
-    public void setPersonrefid(Person personrefid) {
+    public void setPersonrefid(Principal personrefid) {
         this.personrefid = personrefid;
     }
 

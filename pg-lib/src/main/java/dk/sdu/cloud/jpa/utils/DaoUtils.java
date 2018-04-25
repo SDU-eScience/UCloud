@@ -1,8 +1,6 @@
 package dk.sdu.cloud.jpa.utils;
 
 
-import dk.sdu.cloud.jpa.sduclouddb.Email;
-import dk.sdu.cloud.jpa.sduclouddb.Person;
 import dk.sdu.cloud.models.inbound.PersonJson;
 
 
@@ -70,101 +68,101 @@ public class DaoUtils {
     }
 
 
-    public boolean createNewPerson(PersonJson personJson)
-    {
-        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
-        EntityManager em = emf.createEntityManager();
+//    public boolean createNewPerson(PersonJson personJson)
+//    {
+//        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
+//        EntityManager em = emf.createEntityManager();
+//
+//
+//        if (!checkPersonExists(personJson.toPersonObj(personJson)))
+//        {
+//
+//        }
+//
+//        em.close();
+//        emf.close();
+//        return true;
+//    }
+
+//    public boolean checkEmailRegistered(String email)
+//    {
+//        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
+//        EntityManager em = emf.createEntityManager();
+//
+//       List<Email> emailList = new ArrayList<>();
+//
+//       boolean rc = false;
+//
+//        Query nq1 = em.createNamedQuery("Email.findByEmail");
+//        nq1.setParameter("email", email);
+//
+//        emailList = nq1.getResultList();
+//
+//        if (!emailList.isEmpty())
+//        {
+//            rc = true;
+//
+//        }
+//
+//        em.close();
+//        emf.close();
+//        return rc;
+//    }
 
 
-        if (!checkPersonExists(personJson.toPersonObj(personJson)))
-        {
+//    public boolean checkPersonExists(Person person)
+//    {
+//        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
+//        EntityManager em = emf.createEntityManager();
+//
+//        List<Person> personList = new ArrayList<>();
+//
+//        boolean rc = false;
+//
+//        Query nq1 = em.createNamedQuery("Person.checkExist");
+//        nq1.setParameter("personfirstnames", person.getPersonfirstnames().toUpperCase());
+//        nq1.setParameter("personlastname", person.getPersonlastname().toUpperCase());
+//
+//
+//        personList = nq1.getResultList();
+//
+//        if (!personList.isEmpty())
+//        {
+//            rc=true;
+//        }
+//
+//        em.close();
+//        emf.close();
+//        return rc;
+//    }
 
-        }
-
-        em.close();
-        emf.close();
-        return true;
-    }
-
-    public boolean checkEmailRegistered(String email)
-    {
-        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
-        EntityManager em = emf.createEntityManager();
-
-       List<Email> emailList = new ArrayList<>();
-
-       boolean rc = false;
-
-        Query nq1 = em.createNamedQuery("Email.findByEmail");
-        nq1.setParameter("email", email);
-
-        emailList = nq1.getResultList();
-
-        if (!emailList.isEmpty())
-        {
-            rc = true;
-
-        }
-
-        em.close();
-        emf.close();
-        return rc;
-    }
-
-
-    public boolean checkPersonExists(Person person)
-    {
-        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
-        EntityManager em = emf.createEntityManager();
-
-        List<Person> personList = new ArrayList<>();
-
-        boolean rc = false;
-
-        Query nq1 = em.createNamedQuery("Person.checkExist");
-        nq1.setParameter("personfirstnames", person.getPersonfirstnames().toUpperCase());
-        nq1.setParameter("personlastname", person.getPersonlastname().toUpperCase());
-
-
-        personList = nq1.getResultList();
-
-        if (!personList.isEmpty())
-        {
-            rc=true;
-        }
-
-        em.close();
-        emf.close();
-        return rc;
-    }
-
-    public boolean createPersonInit(PersonJson personJson)
-    {
-        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
-        EntityManager em = emf.createEntityManager();
-        Person person = personJson.toPersonObj(personJson);
-
-        person.setRecordState(1);
-        person.setActive(0);
-        person.setCreatedTs(new java.sql.Date(System.currentTimeMillis()));
-        person.setMarkedfordelete(0);
-        person.setModifiedTs(person.getCreatedTs());
-
-        try {
-
-            em.getTransaction().begin();
-            em.persist(person);
-            em.getTransaction().commit();
-
-        }
-
-        catch (Exception e)
-        {}
-
-        finally {
-            em.close();
-            emf.close();
-        }
-    return true;
-    }
+//    public boolean createPersonInit(PersonJson personJson)
+//    {
+//        EntityManagerFactory emf = Persistence.createEntityManagerFactory("SduClouddbJpaPU");
+//        EntityManager em = emf.createEntityManager();
+//        Person person = personJson.toPersonObj(personJson);
+//
+//        person.setRecordState(1);
+//        person.setActive(0);
+//        person.setCreatedTs(new java.sql.Date(System.currentTimeMillis()));
+//        person.setMarkedfordelete(0);
+//        person.setModifiedTs(person.getCreatedTs());
+//
+//        try {
+//
+//            em.getTransaction().begin();
+//            em.persist(person);
+//            em.getTransaction().commit();
+//
+//        }
+//
+//        catch (Exception e)
+//        {}
+//
+//        finally {
+//            em.close();
+//            emf.close();
+//        }
+//    return true;
+//    }
 }

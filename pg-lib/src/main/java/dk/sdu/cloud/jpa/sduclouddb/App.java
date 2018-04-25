@@ -72,9 +72,9 @@ public class App implements Serializable {
     private byte[] cwlfile;
     @Column(name = "prepped")
     private Integer prepped;
-    @JoinColumn(name = "personrefid", referencedColumnName = "id")
+    @JoinColumn(name = "principalrefid", referencedColumnName = "id")
     @ManyToOne
-    private Person personrefid;
+    private Principal principalrefid;
 
     public App() {
     }
@@ -169,12 +169,12 @@ public class App implements Serializable {
         this.prepped = prepped;
     }
 
-    public Person getPersonrefid() {
-        return personrefid;
+    public Principal getPrincipalrefid() {
+        return principalrefid;
     }
 
-    public void setPersonrefid(Person personrefid) {
-        this.personrefid = personrefid;
+    public void setPrincipalrefid(Principal principalrefid) {
+        this.principalrefid = principalrefid;
     }
 
     @Override

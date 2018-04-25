@@ -27,16 +27,16 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author bjhj
  */
 @Entity
-@Table(name = "person_systemrole_relation")
+@Table(name = "project_principal_relation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "PersonSystemroleRelation.findAll", query = "SELECT p FROM PersonSystemroleRelation p")
-    , @NamedQuery(name = "PersonSystemroleRelation.findById", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.id = :id")
-    , @NamedQuery(name = "PersonSystemroleRelation.findByActive", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.active = :active")
-    , @NamedQuery(name = "PersonSystemroleRelation.findByMarkedfordelete", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.markedfordelete = :markedfordelete")
-    , @NamedQuery(name = "PersonSystemroleRelation.findByModifiedTs", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.modifiedTs = :modifiedTs")
-    , @NamedQuery(name = "PersonSystemroleRelation.findByCreatedTs", query = "SELECT p FROM PersonSystemroleRelation p WHERE p.createdTs = :createdTs")})
-public class PersonSystemroleRelation implements Serializable {
+    @NamedQuery(name = "ProjectPrincipalRelation.findAll", query = "SELECT p FROM ProjectPrincipalRelation p")
+    , @NamedQuery(name = "ProjectPrincipalRelation.findById", query = "SELECT p FROM ProjectPrincipalRelation p WHERE p.id = :id")
+    , @NamedQuery(name = "ProjectPrincipalRelation.findByActive", query = "SELECT p FROM ProjectPrincipalRelation p WHERE p.active = :active")
+    , @NamedQuery(name = "ProjectPrincipalRelation.findByMarkedfordelete", query = "SELECT p FROM ProjectPrincipalRelation p WHERE p.markedfordelete = :markedfordelete")
+    , @NamedQuery(name = "ProjectPrincipalRelation.findByModifiedTs", query = "SELECT p FROM ProjectPrincipalRelation p WHERE p.modifiedTs = :modifiedTs")
+    , @NamedQuery(name = "ProjectPrincipalRelation.findByCreatedTs", query = "SELECT p FROM ProjectPrincipalRelation p WHERE p.createdTs = :createdTs")})
+public class ProjectPrincipalRelation implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -58,19 +58,22 @@ public class PersonSystemroleRelation implements Serializable {
     private Date createdTs;
     @JoinColumn(name = "personrefid", referencedColumnName = "id")
     @ManyToOne(optional = false)
-    private Person personrefid;
-    @JoinColumn(name = "systemrolerefid", referencedColumnName = "id")
+    private Principal personrefid;
+    @JoinColumn(name = "projectrefid", referencedColumnName = "id")
     @ManyToOne(optional = false)
-    private Systemrole systemrolerefid;
+    private Project projectrefid;
+    @JoinColumn(name = "projectrolerefid", referencedColumnName = "id")
+    @ManyToOne(optional = false)
+    private ProjectRole projectrolerefid;
 
-    public PersonSystemroleRelation() {
+    public ProjectPrincipalRelation() {
     }
 
-    public PersonSystemroleRelation(Integer id) {
+    public ProjectPrincipalRelation(Integer id) {
         this.id = id;
     }
 
-    public PersonSystemroleRelation(Integer id, Date modifiedTs, Date createdTs) {
+    public ProjectPrincipalRelation(Integer id, Date modifiedTs, Date createdTs) {
         this.id = id;
         this.modifiedTs = modifiedTs;
         this.createdTs = createdTs;
@@ -116,20 +119,28 @@ public class PersonSystemroleRelation implements Serializable {
         this.createdTs = createdTs;
     }
 
-    public Person getPersonrefid() {
+    public Principal getPersonrefid() {
         return personrefid;
     }
 
-    public void setPersonrefid(Person personrefid) {
+    public void setPersonrefid(Principal personrefid) {
         this.personrefid = personrefid;
     }
 
-    public Systemrole getSystemrolerefid() {
-        return systemrolerefid;
+    public Project getProjectrefid() {
+        return projectrefid;
     }
 
-    public void setSystemrolerefid(Systemrole systemrolerefid) {
-        this.systemrolerefid = systemrolerefid;
+    public void setProjectrefid(Project projectrefid) {
+        this.projectrefid = projectrefid;
+    }
+
+    public ProjectRole getProjectrolerefid() {
+        return projectrolerefid;
+    }
+
+    public void setProjectrolerefid(ProjectRole projectrolerefid) {
+        this.projectrolerefid = projectrolerefid;
     }
 
     @Override
@@ -142,10 +153,10 @@ public class PersonSystemroleRelation implements Serializable {
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
-        if (!(object instanceof PersonSystemroleRelation)) {
+        if (!(object instanceof ProjectPrincipalRelation)) {
             return false;
         }
-        PersonSystemroleRelation other = (PersonSystemroleRelation) object;
+        ProjectPrincipalRelation other = (ProjectPrincipalRelation) object;
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
@@ -154,7 +165,7 @@ public class PersonSystemroleRelation implements Serializable {
 
     @Override
     public String toString() {
-        return "dk.sdu.cloud.jpa.sduclouddb.PersonSystemroleRelation[ id=" + id + " ]";
+        return "dk.sdu.cloud.jpa.sduclouddb.ProjectPrincipalRelation[ id=" + id + " ]";
     }
     
 }
