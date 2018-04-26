@@ -4,10 +4,12 @@ import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { Table, Button } from "react-bootstrap";
 import { Card } from "../Cards";
+import { Container } from "semantic-ui-react";
 import { getSortingIcon } from "../../UtilityFunctions";
 import { connect } from "react-redux";
 import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
 import { updatePageTitle } from "../../Actions/Status";
+import "../Styling/Shared.scss";
 
 class Applications extends React.Component {
     constructor(props) {
@@ -64,7 +66,7 @@ class Applications extends React.Component {
         const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage), 0);
         return (
             <section>
-                <div className="container" style={{ "marginTop": "60px" }}>
+                <Container className="container-margin">
                     <div>
                         <BallPulseLoading loading={loading} />
                         <Card>
@@ -102,7 +104,7 @@ class Applications extends React.Component {
                             Applications per page
                         </EntriesPerPageSelector>
                     </div>
-                </div>
+                </Container>
             </section>);
     }
 }
@@ -136,8 +138,8 @@ const PrivateIcon = ({ isPrivate }) =>
             <em className="ion-locked" />
         </td>
     ) : (
-        <td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>
-    );
+            <td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>
+        );
 
 const mapStateToProps = (state) => {
     return { applications, loading, applicationsPerPage, currentApplicationsPage } = state.applications;

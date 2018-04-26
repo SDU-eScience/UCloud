@@ -7,6 +7,7 @@ import {Glyphicon, ListGroup, ListGroupItem, OverlayTrigger, Tooltip} from "reac
 import {Link} from "react-router-dom";
 import {FilesTable} from "../Files/Files";
 import "./wizard.scss";
+import "./Applications.scss";
 import { connect } from "react-redux";
 import { updatePageTitle } from "../../Actions/Status";
 
@@ -234,13 +235,13 @@ class DetailedResult extends React.Component {
                         <div className={"row"}>
                             <div className="col-md-6">
                                 <h4>Output</h4>
-                                <pre style={{height: "500px", overflow: "auto"}}
+                                <pre className="stream"
                                      ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></pre>
                             </div>
 
                             <div className="col-md-6">
                                 <h4>Information</h4>
-                                <pre style={{height: "500px", overflow: "auto"}}
+                                <pre className="stream"
                                      ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></pre>
                             </div>
                         </div>

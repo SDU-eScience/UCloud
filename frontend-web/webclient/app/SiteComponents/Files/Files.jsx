@@ -4,7 +4,8 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Button, Table, Dropdown, MenuItem, Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
+import { Table, Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
+import { Dropdown, Button, Icon } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import {
@@ -27,7 +28,6 @@ import {
     isInvalidPathName,
     batchDeleteFiles
 } from "../../UtilityFunctions";
-import { Card } from "semantic-ui-react";
 import { KeyCode } from "../../DefaultObjects";
 import Uppy from "uppy";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage, fetchFileselectorFiles, fileSelectorShown, setFileSelectorCallback } from "../../Actions/Files";
@@ -179,7 +179,7 @@ class Files extends React.Component {
     }
 
     updateCreateFolderName(creatingFolderName) {
-        this.setState(() => ({ creatingFolderName }))
+        this.setState(() => ({ creatingFolderName }));
     }
 
     updateEditFileName(e) {
@@ -290,13 +290,8 @@ class Files extends React.Component {
     }
 }
 
-
-const searchbarStyle = {
-    margin: "20px 0 20px 0"
-}
-
 const SearchBar = ({ searchText, updateText }) => (
-    <div className="input-group" style={searchbarStyle}>
+    <div className="input-group searchbar">
         <input
             className="form-control"
             type="text"
@@ -358,27 +353,29 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
         <div>
             <h3>{fileText}</h3>
             <p>
-                <Link disabled={selectedFiles.length !== 1} className="btn btn-primary ripple btn-block"
+                <Link disabled={selectedFiles.length !== 1}
                     to={`/fileInfo/${selectedFiles[0].path}/`}>
-                    <span className="ion-ios-settings-strong pull-left" />Properties
+                    <Button color="blue" className="ripple btn-block">
+                        <span className="ion-ios-settings-strong pull-left" />Properties
+                    </Button>
                 </Link>
             </p>
             <p>
-                <Button type="button" className="btn btn-default ripple btn-block"
+                <Button className="white btn-block ripple" basic
                     disabled={selectedFiles.length > 1}
-                    onClick={() => shareFile(selectedFiles[0].path, Cloud)}><span
-                        className="ion-share pull-left" /> Share
+                    onClick={() => shareFile(selectedFiles[0].path, Cloud)}>
+                    <span className="ion-share pull-left" /> Share
                 </Button>
             </p>
             <p>
-                <Button disabled={downloadDisabled || selectedFiles[0].type === "DIRECTORY"} className="btn btn-default ripple btn-block"
+                <Button disabled={downloadDisabled || selectedFiles[0].type === "DIRECTORY"} basic className="ripple btn-block"
                     onClick={() => downloadFile(selectedFiles[0].path, Cloud)}>
                     <span className="ion-ios-download pull-left" />
                     Download
                 </Button>
             </p>
             <p>
-                <Button type="button" className="btn btn-default btn-block ripple"
+                <Button className="btn-block ripple" basic
                     onClick={() => rename()}
                     disabled={rights.rightsLevel < 3 || selectedFiles.length !== 1}>
                     <span className="ion-ios-compose pull-left" />
@@ -386,7 +383,7 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
                 </Button>
             </p>
             <p>
-                <Button className="btn btn-danger btn-block ripple"
+                <Button color="red" className="btn-block ripple"
                     disabled={rights.rightsLevel < 3}
                     onClick={() => batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, refetch)}>
                     <em className="ion-ios-trash pull-left" />
@@ -415,8 +412,9 @@ export const FilesTable = (props) => {
 
     let hasCheckbox = (!!props.selectOrDeselectAllFiles);
     let masterCheckbox = (hasCheckbox) ? (
-        <span className={props.masterCheckbox ? "" : "fileData"} style={{ margin: "15px" }}>
+        <span className={`checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}>
             <input
+                onClick={e => e.stopPropagation()}
                 name="select"
                 className="select-box"
                 checked={props.masterCheckbox}
@@ -490,12 +488,9 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                 <FormGroup>
                     <div className="form-inline">
                         <InputGroup>
-                            <i
-                                className="ion-android-folder"
-                                style={{ fontSize: "32px", paddingRight: "8px", paddingLeft: "43px", verticalAlign: "middle", color: "#448aff" }}
-                            />
+                            <Icon name="folder" color="blue" size="big" className="create-folder" />
                         </InputGroup>
-                        <InputGroup>
+                        <InputGroup className="create-folder-input">
                             <input
                                 onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
                                 className="form-control"
@@ -503,6 +498,7 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                                 placeholder="Folder name..."
                                 value={creatingFolderName ? creatingFolderName : ""}
                                 onChange={(e) => updateText(e.target.value)}
+                                autoFocus
                             />
                             <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
                             <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
@@ -532,7 +528,6 @@ const FilesList = (props) => {
             owner={getOwnerFromAcls(file.acl, Cloud)}
             refetch={props.refetch}
             fetchFiles={props.fetchFiles}
-            style={file.type === "DIRECTORY" ? ({ cursor: "pointer" }) : {}}
             showFileSelector={props.showFileSelector}
             setFileSelectorCallback={props.setFileSelectorCallback}
         />)
@@ -548,8 +543,8 @@ const FilesList = (props) => {
     </tbody>);
 }
 
-const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, style, ...props }) => (
-    <tr className="row-settings clickable-row fileRow" style={style}>
+const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, ...props }) => (
+    <tr className="row-settings clickable-row fileRow">
         <td>
             {(hasCheckbox) ? (
                 <FileCheckbox className="fileData"
@@ -573,7 +568,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
         <td>{new Date(file.modifiedAt).toLocaleString()}</td>
         <td>{owner}</td>
         <td>
-            <Button className="fileData" onClick={() => shareFile(file.path, Cloud)}>Share</Button>
+            <Button className="fileData" basic onClick={() => shareFile(file.path, Cloud)}>Share</Button>
             <MobileButtons
                 file={file}
                 forceInlineButtons={forceInlineButtons}
@@ -587,7 +582,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
 );
 
 const FileCheckbox = ({ isChecked, onChange }) => (
-    <span style={{ margin: "15px" }} className={isChecked ? "" : "fileData"}>
+    <span className={`checkbox-margin ${isChecked ? "" : "fileData"}`}>
         <input
             name="select"
             className="select-box"
@@ -611,21 +606,17 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
         />);
     if (type === "FILE") {
         return (<React.Fragment>
-            <i className={getTypeFromFile(getFilenameFromPath(path))} style={{ fontSize: "32px", paddingRight: "11px", verticalAlign: "middle" }} />
+            <Icon name={getTypeFromFile(getFilenameFromPath(path))} size="big" />
             <span>{fileName}</span>
         </React.Fragment>)
     } else {
-        const folderIcon = (
-            <i
-                className="ion-android-folder"
-                style={{ fontSize: "32px", paddingRight: "8px", verticalAlign: "middle", color: "#448aff" }}
-            />);
         return beingRenamed ?
             (<React.Fragment>
-                {folderIcon}
+                <Icon name="folder" size="big" />
                 <span>{fileName}</span>
             </React.Fragment>) :
-            (<Link to={`/files/${path}`} onClick={() => props.fetchFiles(path)}>{folderIcon}
+            (<Link to={`/files/${path}`} onClick={() => props.fetchFiles(path)}>
+                <Icon name="folder" size="big" />
                 {fileName}
             </Link>);
     }
@@ -649,13 +640,14 @@ const FileName = ({ name, beingRenamed, renameName, updateEditFileName, handleKe
         </FormGroup> :
         <span>{name}</span>
 };
+
 const Favorited = ({ file, favoriteFile }) =>
     file.favorited ?
-        (<a onClick={() => favoriteFile(file.path)} className="ion-star" style={{ margin: "10px" }} />) :
-        (<a className="ion-ios-star-outline fileData" onClick={() => favoriteFile(file.path)} style={{ margin: "10px" }} />);
+        (<a onClick={() => favoriteFile(file.path)} className="ion-star favorite-margin" />) :
+        (<a className="ion-ios-star-outline fileData favorite-margin" onClick={() => favoriteFile(file.path)} />);
 
 const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) => {
-    const move = (newPath) => {
+    const move = () => {
         props.showFileSelector(true);
         props.setFileSelectorCallback((newPath) => {
             const currentPath = file.path;
@@ -664,34 +656,44 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
             props.showFileSelector(false);
             props.setFileSelectorCallback(null);
         });
-    }
+    };
+    const copy = () => {
+        props.showFileSelector(true);
+        props.setFileSelectorCallback((newPath) => {
+            const currentPath = file.path;
+            Cloud.get(`/files/stat?path=${newPath}/${getFilenameFromPath(file.path)}`).then(({ response }) => {
+                console.log(response);
+                props.showFileSelector(false);
+                props.setFileSelectorCallback(null);
+            }).catch(f => console.log(f));
+        });
+    };
     return (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
-        <Dropdown pullRight id="dropdownforfile">
-            <Dropdown.Toggle />
+        <Dropdown direction="left" icon="ellipsis horizontal">
             <Dropdown.Menu>
-                <MenuItem onClick={() => shareFile(file.path, Cloud)}>
+                <Dropdown.Item onClick={() => shareFile(file.path, Cloud)}>
                     Share file
-                </MenuItem>
-                {file.type === "FILE" ? <MenuItem onClick={() => downloadFile(file.path, Cloud)}>
+                </Dropdown.Item>
+                {file.type === "FILE" ? <Dropdown.Item onClick={() => downloadFile(file.path, Cloud)}>
                     Download file
-                </MenuItem> : null}
-                {rename ? <MenuItem onClick={() => rename(file.path)}>
+                </Dropdown.Item> : null}
+                {rename ? <Dropdown.Item onClick={() => rename(file.path)}>
                     Rename file
-                </MenuItem> : null}
-                <MenuItem onClick={() => copy(file.path)}>
+                </Dropdown.Item> : null}
+                <Dropdown.Item onClick={() => copy(file.path)}>
                     Copy file
-                </MenuItem>
-                <MenuItem onClick={() => move(file.path)}>
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => move()}>
                     Move file
-                </MenuItem>
-                <MenuItem onClick={() => showFileDeletionPrompt(file.path, Cloud, refetch)}>
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => showFileDeletionPrompt(file.path, Cloud, refetch)}>
                     Delete file
-                </MenuItem>
-                <li>
-                    <Link to={`/fileInfo/${file.path}/`}>
+                </Dropdown.Item>
+                <Dropdown.Item>
+                    <Link to={`/fileInfo/${file.path}/`} className="black-text">
                         Properties
                     </Link>
-                </li>
+                </Dropdown.Item>
             </Dropdown.Menu>
         </Dropdown>
     </span>);

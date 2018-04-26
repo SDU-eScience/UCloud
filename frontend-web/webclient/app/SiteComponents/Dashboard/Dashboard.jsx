@@ -8,20 +8,20 @@ import { updatePageTitle } from "../../Actions/Status";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../../Actions/Dashboard";
 import { connect } from "react-redux";
 import "./Dashboard.scss";
-import { Card, Table, List, Tab, Container } from "semantic-ui-react";
+import "../Styling/Shared.scss";
+import { Card, Table, List, Tab, Container, Icon } from "semantic-ui-react";
 
 class Dashboard extends React.Component {
     constructor(props) {
         super(props);
         const { dispatch, favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
-        dispatch(updatePageTitle("Dashboard"))
+        this.props.updatePageTitle();
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
-            dispatch(updatePageTitle("Dashboard"));
-            dispatch(setAllLoading(true));
-            dispatch(fetchFavorites());
-            dispatch(fetchRecentFiles());
-            dispatch(fetchRecentAnalyses());
-            //dispatch(fetchRecentActivity());
+            this.props.setAllLoading(true);
+            this.props.fetchFavorites();
+            this.props.fetchRecentFiles();
+            this.props.fetchRecentAnalyses();
+            //this.props.fetchRecentActivity();
         }
     }
 
@@ -30,11 +30,11 @@ class Dashboard extends React.Component {
         const { favoriteFiles, recentFiles, recentAnalyses, activity, dispatch,
             favoriteLoading, recentLoading, analysesLoading, activityLoading } = this.props;
         const favoriteOrUnfavorite = (filePath) =>
-            dispatch(receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited)));
+            this.props.receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited));
         return (
             <React.StrictMode>
                 <section>
-                    <Container className="containerMargin">
+                    <Container className="container-margin">
                         <Card.Group>
                             <DashboardFavoriteFiles
                                 files={favoriteFiles}
@@ -59,7 +59,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
     const filesList = files.map((file, i) =>
         (<List.Item key={i} className="itemPadding">
             <List.Content floated="right">
-                <em className="ion-star" onClick={() => favorite(file.path)} />
+                <Icon name="star" onClick={() => favorite(file.path)} />
             </List.Content>
             <ListFileContent path={file.path} type={file.type} />
         </List.Item>)
@@ -144,6 +144,7 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
                         <List.Content floated="right">
                             {toLowerCaseAndCapitalize(analysis.state)}
                         </List.Content>
+                        <List.Icon name={statusToIconName(analysis.state)} color={statusToColor(analysis.state)} />
                         <List.Content>
                             <List.Header>
                                 <Link to={`/analyses/${analysis.jobId}`}>{analysis.appName}</Link>
@@ -155,6 +156,9 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
         </Card.Content>
     </Card>
 );
+
+const statusToIconName = (status) => status === "SUCCESS" ? "check" : "x";
+const statusToColor = (status) => status === "SUCCESS" ? "green" : "red";
 
 const DashboardRecentActivity = ({ activity, isLoading }) => (
     <Card>
@@ -168,6 +172,16 @@ const DashboardRecentActivity = ({ activity, isLoading }) => (
         </Card.Content>
     </Card>
 );
+
+const mapDispatchToProps = (dispatch) => ({
+    updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
+    setAllLoading: (loading) => dispatch(setAllLoading(loading)),
+    fetchFavorites: () => dispatch(fetchFavorites()),
+    fetchRecentFiles: () => dispatch(fetchRecentFiles()),
+    fetchRecentAnalyses: () => dispatch(fetchRecentAnalyses()),
+    fetchRecentActivity: () => dispatch(fetchRecentActivity()),
+    receiveFavorites: (files) => dispatch(receiveFavorites(files))
+});
 
 const mapStateToProps = (state) => {
     const {
@@ -195,4 +209,4 @@ const mapStateToProps = (state) => {
 
 const toEUTimeString = (timeString) => timeString.split(".").join(":");
 
-export default connect(mapStateToProps)(Dashboard)
+export default connect(mapStateToProps, mapDispatchToProps)(Dashboard)

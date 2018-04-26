@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Button } from "react-bootstrap/lib";
+import { Button } from "semantic-ui-react";
 import { updatePageTitle } from "../../Actions/Status";
 import { connect } from "react-redux";
 import { Status } from "../../types/types";
@@ -15,12 +15,12 @@ const StatusBar = ({ status }: StatusBarProps) => (
 const statusToButton = (status: Status) => {
     switch (status.level) {
         case "NO ISSUES":
-            return "bg-green-500";
+            return "green";
         case "MAINTENANCE":
         case "UPCOMING MAINTENANCE":
-            return "bg-yellow-500";
+            return "yellow";
         case "ERROR":
-            return "bg-red-500";
+            return "red";
     }
 }
 
