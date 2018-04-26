@@ -80,3 +80,17 @@ export interface Notification {
     id: string
     isRead: boolean
 }
+
+export interface Page<T> {
+    itemsInTotal: Number,
+    itemsPerPage: Number,
+
+    pageNumber: Number,
+    items: T[]
+}
+
+export enum AccessRight {
+    READ = "READ",
+    WRITE = "WRITE",
+    EXECUTE = "EXECUTE"
+}

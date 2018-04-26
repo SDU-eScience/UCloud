@@ -25,7 +25,7 @@ class ShareController(private val shareService: ShareService) {
             implement(ShareDescriptions.list) {
                 logEntry(log, it)
                 tryWithShareService {
-                    ok(shareService.list(call.user, it.byState, it.pagination))
+                    ok(shareService.list(call.user, it.pagination))
                 }
             }
 
@@ -41,7 +41,7 @@ class ShareController(private val shareService: ShareService) {
                 logEntry(log, it)
 
                 tryWithShareService {
-                    ok(shareService.updateState(call.user, it.id, ShareState.REVOKED))
+                    ok(shareService.deleteShare(call.user, it.id))
                 }
             }
 
@@ -49,7 +49,7 @@ class ShareController(private val shareService: ShareService) {
                 logEntry(log, it)
 
                 tryWithShareService {
-                    ok(shareService.updateState(call.user, it.id, ShareState.REVOKED))
+                    ok(shareService.deleteShare(call.user, it.id))
                 }
             }
 

@@ -52,10 +52,10 @@ export const SensitivityLevelMap: { [s: string]: number } = {
 };
 
 interface UppyRestriction {
-    maxFileSize?: boolean | number
-    maxNumberOfFiles?: boolean | number
-    minNumberOfFiles?: boolean | number
-    allowedFileTypes: boolean | number
+    maxFileSize?: false | number
+    maxNumberOfFiles?: false | number
+    minNumberOfFiles?: false | number
+    allowedFileTypes: false | number
 }
 
 const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>

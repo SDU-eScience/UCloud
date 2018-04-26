@@ -81,7 +81,7 @@ class InMemoryNotificationDAO : NotificationDAO {
         inMemoryDb[user] = (inMemoryDb[user] ?: emptyList()).map {
             if (it.id == id) {
                 found = true
-                it.copy(isRead = true)
+                it.copy(read = true)
             } else {
                 it
             }

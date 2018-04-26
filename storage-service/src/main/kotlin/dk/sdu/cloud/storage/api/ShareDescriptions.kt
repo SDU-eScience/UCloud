@@ -16,16 +16,37 @@ interface WithPagination {
 }
 
 data class ListSharesRequest(
-    val byState: ShareState? = null,
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
 ) : WithPagination
 
+data class CreateShareRequest(
+    val sharedWith: String,
+    val path: String,
+    val rights: Set<AccessRight>
+)
+
+data class SharesByPath(
+    val path: String,
+    val sharedBy: String,
+    val sharedByMe: Boolean,
+    val shares: List<MinimalShare>
+)
+
+data class MinimalShare(
+    val id: ShareId,
+    val sharedWith: String,
+    val rights: Set<AccessRight>,
+    val state: ShareState
+)
+fun Share.minimalize(): MinimalShare =
+    MinimalShare(id ?: throw NullPointerException("id must be != null"), sharedWith, rights, state)
+
 object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
     private const val baseContext = "/api/shares"
 
-    val list = callDescription<ListSharesRequest, Page<Share>, CommonErrorMessage> {
-        prettyName = "list"
+    val list = callDescription<ListSharesRequest, Page<SharesByPath>, CommonErrorMessage> {
+        prettyName = "listShare"
         method = HttpMethod.GET
 
         path {
@@ -33,14 +54,13 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
 
         params {
-            +boundTo(ListSharesRequest::byState)
             +boundTo(ListSharesRequest::itemsPerPage)
             +boundTo(ListSharesRequest::page)
         }
     }
 
-    val create = callDescription<Share, FindByShareId, CommonErrorMessage> {
-        prettyName = "create"
+    val create = callDescription<CreateShareRequest, FindByShareId, CommonErrorMessage> {
+        prettyName = "createShare"
         method = HttpMethod.PUT
 
         path {
@@ -53,7 +73,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val update = callDescription<Share, Unit, CommonErrorMessage> {
-        prettyName = "update"
+        prettyName = "updateShare"
         method = HttpMethod.POST
 
         path {
@@ -66,7 +86,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val revoke = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        prettyName = "revoke"
+        prettyName = "revokeShare"
         method = HttpMethod.POST
 
         path {
@@ -77,7 +97,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val reject = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        prettyName = "reject"
+        prettyName = "rejectShare"
         method = HttpMethod.POST
 
         path {
@@ -88,7 +108,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val accept = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        prettyName = "accept"
+        prettyName = "acceptShare"
         method = HttpMethod.POST
 
         path {
