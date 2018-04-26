@@ -7,6 +7,7 @@ import {BallPulseLoading, LoadingButton} from "../LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
+import "./Zenodo.scss";
 
 class ZenodoPublish extends React.Component {
     constructor(props) {
@@ -129,7 +130,7 @@ const CardAndBody = ({ children }) => (
 const FileSelections = ({ files, handleFileSelection, removeFile }) => (
     <fieldset>
         {files.map((file, index) =>
-            (<ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group" style={{ padding: "0px" }}>
+            (<ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group zero-padding">
                 <FileSelector
                     path={file}
                     uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}

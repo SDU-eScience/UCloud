@@ -5,9 +5,11 @@ import { updatePageTitle } from "../../Actions/Status";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Card } from "../Cards";
 import { Table } from "react-bootstrap";
+import { Container } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { connect } from "react-redux";
+import "../Styling/Shared.scss";
 import { setLoading, fetchAnalyses } from "../../Actions/Analyses";
 
 class Analyses extends React.Component {
@@ -48,7 +50,7 @@ class Analyses extends React.Component {
         return (
             <React.StrictMode>
                 <section>
-                    <div className="container" style={{ marginTop: "60px" }}>
+                    <Container className="container-margin">
                         <div>
                             <BallPulseLoading loading={this.props.loading} />
                             <Card>
@@ -83,7 +85,7 @@ class Analyses extends React.Component {
                                 Analyses per page
                         </EntriesPerPageSelector>
                         </div>
-                    </div>
+                    </Container>
                 </section>
             </React.StrictMode>
         )

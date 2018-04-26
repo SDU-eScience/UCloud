@@ -8,6 +8,7 @@ import { updatePageTitle } from "../../Actions/Status";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../../Actions/Dashboard";
 import { connect } from "react-redux";
 import "./Dashboard.scss";
+import "../Styling/Shared.scss";
 import { Card, Table, List, Tab, Container, Icon } from "semantic-ui-react";
 
 class Dashboard extends React.Component {
@@ -33,7 +34,7 @@ class Dashboard extends React.Component {
         return (
             <React.StrictMode>
                 <section>
-                    <Container className="containerMargin">
+                    <Container className="container-margin">
                         <Card.Group>
                             <DashboardFavoriteFiles
                                 files={favoriteFiles}

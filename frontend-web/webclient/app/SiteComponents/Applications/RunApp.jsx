@@ -1,5 +1,6 @@
 import React from "react";
 import { Jumbotron, InputGroup, FormGroup } from "react-bootstrap";
+import { Container } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -12,6 +13,7 @@ import { getFilenameFromPath } from "../../UtilityFunctions";
 import { initializeUppy } from "../../DefaultObjects";
 import { updateUppy } from "../../Actions/UppyActions";
 import { updatePageTitle } from "../../Actions/Status";
+import "../Styling/Shared.scss";
 
 class RunApp extends React.Component {
     constructor(props) {
@@ -146,7 +148,7 @@ class RunApp extends React.Component {
     render() {
         return (
             <section>
-                <div className="container" style={{ marginTop: "60px" }}>
+                <Container className="container-margin">
                     <div className="card">
                         <div className="card-body">
                             <BallPulseLoading loading={this.state.loading} />
@@ -173,7 +175,7 @@ class RunApp extends React.Component {
                             />
                         </div>
                     </div>
-                </div>
+                </Container>
             </section>)
     }
 }
@@ -264,23 +266,21 @@ const JobSchedulingParams = (props) => {
                     <div className="col-xs-8">
                         <div className="form-inline">
                             <InputGroup>
-                                <input type="number" step="1" min="0" className="form-control" style={{ width: 100 }}
+                                <input type="number" step="1" min="0" className="form-control time-selection" 
                                     placeholder={props.tool.defaultMaxTime.hours}
                                     value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
                                     onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")} />
                                 <span className="input-group-addon">Hours</span>
                             </InputGroup>{" "}
                             <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control" style={{ width: 80 }}
-                                    style={{ width: 150 }}
+                                <input type="number" step="1" min="0" max="59" className="form-control time-selection" 
                                     placeholder={props.tool.defaultMaxTime.minutes}
                                     value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
                                     onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "minutes")} />
                                 <span className="input-group-addon">Minutes</span>
                             </InputGroup>{"  "}
                             <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control" style={{ width: 80 }}
-                                    style={{ width: 150 }}
+                                <input type="number" step="1" min="0" max="59" className="form-control time-selection"
                                     placeholder={props.tool.defaultMaxTime.seconds}
                                     value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
                                     onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "seconds")} />
@@ -302,9 +302,8 @@ const CommentField = (props) => (
             <textarea
                 disabled
                 required
-                style={{ resize: "none" }}
                 placeholder="Add a comment about this job..."
-                className="col-md-4 form-control"
+                className="col-md-4 form-control text-area-no-resize"
                 rows="5"
                 onChange={e => props.onCommentChange(e.target.value)}
             />
