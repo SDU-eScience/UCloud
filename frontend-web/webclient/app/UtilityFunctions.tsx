@@ -328,7 +328,7 @@ export const createRangeInclusive = (count: number): number[] => {
 };
 
 export const getTypeFromFile = (filename: string): string => {
-    const extension = filename.split(".").pop();
+    const extension = getFilenameFromPath(filename).split(".").pop();
     switch (extension) {
         case "kt":
         case "js":
@@ -374,7 +374,7 @@ export const getTypeFromFile = (filename: string): string => {
         case "mp3":
             return "ion-android-volume-up";
         default:
-            if (filename.split(".").length > 1)
+            if (getFilenameFromPath(filename).split(".").length > 1)
                 console.warn(`Unhandled extension "${extension}" for file ${filename}`)
             return "file text outline";
     }
