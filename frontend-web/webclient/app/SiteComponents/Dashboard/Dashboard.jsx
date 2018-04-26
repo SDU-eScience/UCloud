@@ -10,6 +10,7 @@ import { connect } from "react-redux";
 import "./Dashboard.scss";
 import "../Styling/Shared.scss";
 import { Card, Table, List, Tab, Container, Icon } from "semantic-ui-react";
+import moment from "moment";
 
 class Dashboard extends React.Component {
     constructor(props) {
@@ -98,18 +99,14 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
         <small>No recent files found</small>
     </h3>;
     let yesterday = (new Date).getTime() - 1000 * 60 * 60 * 24;
-    const filesList = files.map((file, i) => {
-        let modified = new Date(file.modifiedAt);
-        let timeString = modified >= yesterday ? toEUTimeString(modified.toLocaleTimeString()) : modified.toLocaleDateString();
-        return (
-            <List.Item key={i} className="itemPadding">
-                <List.Content floated="right">
-                    <List.Description>{timeString}</List.Description>
-                </List.Content>
-                <ListFileContent path={file.path} type={file.type} />
-            </List.Item>
-        );
-    });
+    const filesList = files.sort((a, b) => b.modifiedAt - a.modifiedAt).map((file, i) => (
+        <List.Item key={i} className="itemPadding">
+            <List.Content floated="right">
+                <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
+            </List.Content>
+            <ListFileContent path={file.path} type={file.type} />
+        </List.Item>
+    ));
 
     return (
         <Card>
