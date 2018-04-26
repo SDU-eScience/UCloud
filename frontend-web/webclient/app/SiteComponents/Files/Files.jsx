@@ -5,7 +5,7 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import { Table, Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
-import { Dropdown, Button } from "semantic-ui-react";
+import { Dropdown, Button, Icon } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import {
@@ -356,7 +356,7 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
                 <Link disabled={selectedFiles.length !== 1}
                     to={`/fileInfo/${selectedFiles[0].path}/`}>
                     <Button color="blue" className="ripple btn-block">
-                    <span className="ion-ios-settings-strong pull-left" />Properties
+                        <span className="ion-ios-settings-strong pull-left" />Properties
                     </Button>
                 </Link>
             </p>
@@ -488,12 +488,9 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                 <FormGroup>
                     <div className="form-inline">
                         <InputGroup>
-                            <i
-                                className="ion-android-folder"
-                                style={{ fontSize: "32px", paddingRight: "8px", paddingLeft: "43px", verticalAlign: "middle", color: "#448aff" }}
-                            />
+                            <Icon name="folder" color="blue" size="big" className="create-folder" />
                         </InputGroup>
-                        <InputGroup>
+                        <InputGroup className="create-folder-input">
                             <input
                                 onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
                                 className="form-control"
@@ -609,21 +606,17 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
         />);
     if (type === "FILE") {
         return (<React.Fragment>
-            <i className={getTypeFromFile(getFilenameFromPath(path))} style={{ fontSize: "32px", paddingRight: "11px", verticalAlign: "middle" }} />
+            <Icon name={getTypeFromFile(getFilenameFromPath(path))} size="big" />
             <span>{fileName}</span>
         </React.Fragment>)
     } else {
-        const folderIcon = (
-            <i
-                className="ion-android-folder"
-                style={{ fontSize: "32px", paddingRight: "8px", verticalAlign: "middle", color: "#448aff" }}
-            />);
         return beingRenamed ?
             (<React.Fragment>
-                {folderIcon}
+                <Icon name="folder" size="big" />
                 <span>{fileName}</span>
             </React.Fragment>) :
-            (<Link to={`/files/${path}`} onClick={() => props.fetchFiles(path)}>{folderIcon}
+            (<Link to={`/files/${path}`} onClick={() => props.fetchFiles(path)}>
+                <Icon name="folder" size="big" />
                 {fileName}
             </Link>);
     }
@@ -647,10 +640,11 @@ const FileName = ({ name, beingRenamed, renameName, updateEditFileName, handleKe
         </FormGroup> :
         <span>{name}</span>
 };
+
 const Favorited = ({ file, favoriteFile }) =>
     file.favorited ?
-        (<a onClick={() => favoriteFile(file.path)} className="ion-star" style={{ margin: "10px" }} />) :
-        (<a className="ion-ios-star-outline fileData" onClick={() => favoriteFile(file.path)} style={{ margin: "10px" }} />);
+        (<a onClick={() => favoriteFile(file.path)} className="ion-star favorite-margin" />) :
+        (<a className="ion-ios-star-outline fileData favorite-margin" onClick={() => favoriteFile(file.path)} />);
 
 const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) => {
     const move = () => {
@@ -663,8 +657,16 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
             props.setFileSelectorCallback(null);
         });
     };
-    const copy = (newPath) => {
-
+    const copy = () => {
+        props.showFileSelector(true);
+        props.setFileSelectorCallback((newPath) => {
+            const currentPath = file.path;
+            Cloud.get(`/files/stat?path=${newPath}/${getFilenameFromPath(file.path)}`).then(({ response }) => {
+                console.log(response);
+                props.showFileSelector(false);
+                props.setFileSelectorCallback(null);
+            }).catch(f => console.log(f));
+        });
     };
     return (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
         <Dropdown direction="left" icon="ellipsis horizontal">
