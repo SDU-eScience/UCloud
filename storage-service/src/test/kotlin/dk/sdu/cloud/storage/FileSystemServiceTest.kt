@@ -11,7 +11,7 @@ import org.junit.Test
 import java.io.File
 
 class FileSystemServiceTest {
-    private val service = CephFSFileSystemService(CloudToCephFsDao(), true)
+    private val service = CephFSFileSystemService(CloudToCephFsDao(true), true)
 
     @Test
     fun testOutputParsing() {

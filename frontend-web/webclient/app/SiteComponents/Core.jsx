@@ -21,6 +21,7 @@ import ZenodoInfo from "./Zenodo/Info";
 import {connect} from "react-redux";
 import {changeUppyOpen} from "../Actions/UppyActions";
 import UppyWrapper from "./UppyWrapper";
+import * as Share from "./Shares";
 
 const NotFound = () => (<div className="container-fluid"><h1>Not found.</h1></div>);
 
@@ -44,6 +45,7 @@ const Core = () => (
                 <Route exact path="/zenodo/" component={ZenodoHome}/>
                 <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo}/>
                 <Route exact path="/zenodo/publish/" component={ZenodoPublish}/>
+                <Route exact path="/shares" component={Share.List}/>
                 <Route component={NotFound}/>
             </Switch>
             <footer>

@@ -6,6 +6,7 @@ import { Redirect } from "react-router";
 import * as moment from "moment";
 import "./index.scss";
 import { withRouter } from "react-router";
+import { Page } from "../../types/types";
 
 export interface NotificationState {
     currentPage: Number
@@ -97,14 +98,6 @@ class Notifications extends React.Component<any, NotificationState> {
             </div>
         );
     }
-}
-
-interface Page<T> {
-    itemsInTotal: Number,
-    itemsPerPage: Number,
-
-    pageNumber: Number,
-    items: T[]
 }
 
 interface Notification {

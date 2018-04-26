@@ -4,9 +4,7 @@ import dk.sdu.cloud.FindByStringId
 
 enum class ShareState {
     REQUEST_SENT,
-    ACCEPTED,
-    REJECTED,
-    REVOKED
+    ACCEPTED
 }
 
 typealias ShareId = String

@@ -36,7 +36,8 @@ class Server(
         val instance = StorageServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
-        val fs: FileSystemService = CephFSFileSystemService(CloudToCephFsDao(), args.contains("--dev"))
+        val isDevelopment = args.contains("--dev")
+        val fs: FileSystemService = CephFSFileSystemService(CloudToCephFsDao(isDevelopment), isDevelopment)
 
         val transferState = TusStateService()
 
@@ -117,7 +118,7 @@ class Server(
         kStreams.start()
         log.info("Kafka Streams started!")
 
-        serviceRegistry.register(listOf("/api/files", "/api/acl", "/api/tus", "/api/upload"))
+        serviceRegistry.register(listOf("/api/files", "/api/acl", "/api/tus", "/api/upload", "/api/shares"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

@@ -12,5 +12,5 @@ data class Notification(
     val id: NotificationId? = null,
     val meta: Map<String, Any?> = emptyMap(),
     val ts: Long = System.currentTimeMillis(),
-    val isRead: Boolean = false
+    val read: Boolean = false
 )
