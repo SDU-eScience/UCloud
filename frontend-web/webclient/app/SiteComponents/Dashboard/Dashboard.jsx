@@ -60,7 +60,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
     const filesList = files.map((file, i) =>
         (<List.Item key={i} className="itemPadding">
             <List.Content floated="right">
-                <Icon name="star" onClick={() => favorite(file.path)} />
+                <Icon name="star" color="yellow" onClick={() => favorite(file.path)} />
             </List.Content>
             <ListFileContent path={file.path} type={file.type} />
         </List.Item>)

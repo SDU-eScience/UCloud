@@ -4,8 +4,9 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Table, Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
-import { Dropdown, Button, Icon } from "semantic-ui-react";
+import { Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
+import { Table } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Checkbox } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import {
@@ -248,6 +249,7 @@ class Files extends React.Component {
                             fetchFiles={fetchNewFiles}
                             showFileSelector={this.props.showFileSelector}
                             setFileSelectorCallback={this.props.setFileSelectorCallback}
+                            indeterminateCheckbox={indeterminateCheckbox}
                         />
                         <BallPulseLoading loading={loading} />
                         <PaginationButtons
@@ -309,23 +311,17 @@ const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchT
     <div className="col-lg-2 visible-lg">
         <SearchBar searchText={searchText} updateText={updateText} />
         <ContextButtons upload={onClick} createFolder={createFolder} mobileOnly={false} />
-        <br />
+        <br /><br /><br />
         <FileOptions selectedFiles={selectedFiles} refetch={refetch} rename={props.rename} />
     </div>
 );
 
 const ContextButtons = ({ upload, createFolder, mobileOnly }) => (
     <span className={mobileOnly ? "hidden-lg" : ""}>
-        <button className="btn btn-primary btn-block"
-            onClick={() => upload()}>
-            <span className="ion-android-upload pull-left" /> Upload Files
-        </button>
-        {mobileOnly ? null : (<br />)}
-        <button className="btn btn-default btn-block"
-            onClick={() => createFolder()}>
-            <span className="ion-folder pull-left" /> New folder
-        </button>
-        {mobileOnly ? (<br />) : null}
+        <Button color="blue" className="btn-block" onClick={() => upload()}> Upload Files </Button>
+        {mobileOnly ? null : (<React.Fragment><br /><br /></React.Fragment>)}
+        <Button basic className="btn-block" onClick={() => createFolder()}> New folder</Button>
+        {mobileOnly ? (<React.Fragment><br /><br /><br /><br /></React.Fragment>) : null}
     </span>
 );
 
@@ -400,16 +396,15 @@ export const FilesTable = (props) => {
         return null;
     }
     const noFiles = (!props.files.length && !props.creatingNewFolder) ?
-        <tr>
-            <td>
+        <Table.Row>
+            <Table.Cell>
                 <div className="card" align="center">
                     <h3 className="text-center">
                         <small>There are no files in current folder</small>
                     </h3>
                 </div>
-            </td>
-        </tr> : null;
-
+            </Table.Cell>
+        </Table.Row> : null;
     let hasCheckbox = (!!props.selectOrDeselectAllFiles);
     let masterCheckbox = (hasCheckbox) ? (
         <span className={`checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}>
@@ -430,33 +425,34 @@ export const FilesTable = (props) => {
     let sortingIconFunction = (!!props.sortingIcon) ? props.sortingIcon : () => "";
 
     return (
-        <Table responsive className="table table-hover mv-lg">
-            <thead>
+        <Table basic="very">
+            <Table.Header>
                 {noFiles}
-                {!noFiles ? (<tr>
-                    <th onClick={() => sortingFunction("typeAndName", "typeAndName")}>
-                        <span className="text-left">
+                {!noFiles ?
+                    (<Table.Row>
+                        <Table.HeaderCell style={{width: "15px", verticalAlign: "center"}}>
                             {masterCheckbox}
-                            <span>Filename</span>
+                        </Table.HeaderCell>
+                        <Table.HeaderCell onClick={() => sortingFunction("typeAndName", "typeAndName")}>
+                            <span style={{verticalAlign: "center"}}>Filename</span>
                             <span className={"pull-right " + sortingIconFunction("typeAndName")} />
-                        </span>
-                    </th>
-
-                    <th onClick={() => sortingFunction("modifiedAt", "number")}>
-                        <span className="text-left">
-                            Modified
+                        </Table.HeaderCell>
+                        <Table.HeaderCell onClick={() => sortingFunction("modifiedAt", "number")}>
+                            <span>
+                                Modified
                                 <span className={"pull-right " + sortingIconFunction("modifiedAt")} />
-                        </span>
-                    </th>
+                            </span>
+                        </Table.HeaderCell>
 
-                    <th onClick={() => null}>
-                        <span className="text-left">
-                            Members
+                        <Table.HeaderCell onClick={() => null}>
+                            <span>
+                                Members
                                 <span className={"pull-right " + sortingIconFunction("owner")} />
-                        </span>
-                    </th>
-                </tr>) : null}
-            </thead>
+                            </span>
+                        </Table.HeaderCell>
+                        <Table.HeaderCell />
+                    </Table.Row>) : null}
+            </Table.Header>
 
             <FilesList
                 refetch={props.refetch}
@@ -483,8 +479,8 @@ export const FilesTable = (props) => {
 
 const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handleKeyDown }) => (
     !creatingNewFolder ? null : (
-        <tr>
-            <td>
+        <Table.Row>
+            <Table.Cell>
                 <FormGroup>
                     <div className="form-inline">
                         <InputGroup>
@@ -504,8 +500,8 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                             <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
                         </InputGroup></div>
                 </FormGroup>
-            </td><td></td><td></td><td></td>
-        </tr>
+            </Table.Cell><Table.Cell></Table.Cell><Table.Cell></Table.Cell><Table.Cell></Table.Cell>
+        </Table.Row>
     )
 );
 
@@ -532,7 +528,7 @@ const FilesList = (props) => {
             setFileSelectorCallback={props.setFileSelectorCallback}
         />)
     );
-    return (<tbody>
+    return (<Table.Body>
         <CreateFolder
             creatingNewFolder={props.creatingNewFolder}
             creatingFolderName={props.creatingFolderName}
@@ -540,19 +536,23 @@ const FilesList = (props) => {
             handleKeyDown={props.handleKeyDown}
         />
         {filesList}
-    </tbody>);
+    </Table.Body>);
 }
 
 const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, ...props }) => (
-    <tr className="row-settings clickable-row fileRow">
-        <td>
+    <Table.Row className="row-settings clickable-row fileRow">
+        <Table.Cell style={{ width: "15px", verticalAlign: "center" }}>
             {(hasCheckbox) ? (
-                <FileCheckbox className="fileData"
-                    isChecked={file.isChecked}
-                    onChange={(e) => addOrRemoveFile(e.target.checked, file)}
-                    beingRenamed={beingRenamed}
+                <Checkbox
+                    name="select"
+                    className={file.isChecked ? "" : "fileData"}
+                    checked={file.isChecked}
+                    type="checkbox"
+                    onClick={(e, d) => addOrRemoveFile(d.checked, file)}
                 />
             ) : null}
+        </Table.Cell>
+        <Table.Cell>
             <FileType
                 type={file.type}
                 path={file.path}
@@ -564,10 +564,10 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
                 fetchFiles={props.fetchFiles}
             />
             {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile} /> : null}
-        </td>
-        <td>{new Date(file.modifiedAt).toLocaleString()}</td>
-        <td>{owner}</td>
-        <td>
+        </Table.Cell>
+        <Table.Cell>{new Date(file.modifiedAt).toLocaleString()}</Table.Cell>
+        <Table.Cell>{owner}</Table.Cell>
+        <Table.Cell>
             <Button className="fileData" basic onClick={() => shareFile(file.path, Cloud)}>Share</Button>
             <MobileButtons
                 file={file}
@@ -592,6 +592,8 @@ const FileCheckbox = ({ isChecked, onChange }) => (
         />
         <em className="bg-info" />
     </span>
+        </Table.Cell>
+    </Table.Row>
 );
 
 const FileType = ({ type, path, beingRenamed, update, ...props }) => {
