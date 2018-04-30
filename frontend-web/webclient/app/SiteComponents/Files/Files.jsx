@@ -207,7 +207,7 @@ class Files extends React.Component {
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
-        const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length;
+        const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length && shownFiles.length > 0;
         // Lambdas
         const goTo = (pageNumber, files) => {
             this.props.goToPage(pageNumber, files);

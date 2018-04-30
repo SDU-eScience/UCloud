@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Modal, Button, Table, FormGroup, InputGroup } from "react-bootstrap";
-//import { Button } from "semantic-ui-react";
+import { Icon } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
 import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange } from "../../UtilityFunctions";
@@ -239,6 +239,7 @@ const FileSelectorBody = (props) => {
                             updateText={props.updateText}
                         />
                         <ReturnFolder currentPath={removeTrailingSlash(props.currentPath)} fetchFiles={props.fetchFiles} />
+                        <CurrentFolder currentPath={removeTrailingSlash(props.currentPath)} onlyAllowFolders={props.onlyAllowFolders} onClick={props.onClick} />
                         <FileList files={files} onClick={props.onClick} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
                     </tbody>
                 </Table>
@@ -249,12 +250,22 @@ const FileSelectorBody = (props) => {
         </Modal.Body>)
 };
 
+const CurrentFolder = ({ currentPath, onlyAllowFolders, onClick }) =>
+    onlyAllowFolders ?
+        <tr className="row-settings clickable-row pointer-cursor">
+            <td onClick={() => onClick(getParentPath(currentPath))}>
+                <a><i className="ion-android-folder" /> .</a>
+            </td>
+            <td><Button onClick={() => onClick(currentPath)} className="pull-right">Select</Button></td>
+        </tr>
+        : null;
+
 const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
     (creatingFolderName == null) ? null : (
         <tr>
             <td>
                 <FormGroup>
-                    <div className="form-inline">
+                    <div className="form-inline"> 
                         <InputGroup>
                             <i className="ion-android-folder create-folder-placement" />
                         </InputGroup>
@@ -284,10 +295,11 @@ const ReturnFolder = ({ currentPath, fetchFiles }) =>
             <td onClick={() => fetchFiles(getParentPath(currentPath))}>
                 <a><i className="ion-android-folder" /> ..</a>
             </td>
+            <td/>
         </tr>);
 
-const UploadButton = (props) => (<span className="input-group-addon btn btn-info" onClick={() => props.onClick()}>Upload file</span>);
-const RemoveButton = (props) => (<span className="input-group-addon btn btn" onClick={() => props.onClick()}>✗</span>)
+const UploadButton = ({ onClick }) => (<span className="input-group-addon btn btn-info" onClick={() => onClick()}>Upload file</span>);
+const RemoveButton = ({ onClick }) => (<span className="input-group-addon btn btn" onClick={() => onClick()}>✗</span>)
 
 const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) => {
     return !files.length ? null :
@@ -295,7 +307,7 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) => {
             {files.map((file, index) =>
                 file.type === "FILE" ?
                     (<tr key={index} className="gradeA row-settings pointer-cursor">
-                        <td onClick={() => onClick(file)}><span
+                        <td onClick={() => onClick(file)}><Icon
                             className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
                         </td><td></td>
                     </tr>)
@@ -308,10 +320,6 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) => {
             )}
         </React.Fragment>);
 }
-
-FileSelector.contextTypes = {
-    store: PropTypes.object.isRequired,
-};
 
 const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 
