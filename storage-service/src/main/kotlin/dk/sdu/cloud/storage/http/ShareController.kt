@@ -56,10 +56,8 @@ class ShareController(private val shareService: ShareService) {
             implement(ShareDescriptions.update) {
                 logEntry(log, it)
 
-                if (it.id == null) return@implement error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-
                 tryWithShareService {
-                    ok(shareService.update(call.user, it.id, it))
+                    ok(shareService.update(call.user, it.id, it.rights))
                 }
             }
 

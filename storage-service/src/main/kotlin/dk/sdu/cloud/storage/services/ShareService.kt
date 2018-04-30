@@ -135,19 +135,14 @@ class ShareService(
     suspend fun update(
         user: String,
         shareId: ShareId,
-        share: Share
+        newRights: Set<AccessRight>
     ) {
         val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
+        if (existingShare.owner != user) throw ShareException.NotAllowed()
 
-        val newShare = share.copy(
+        val newShare = existingShare.copy(
             modifiedAt = System.currentTimeMillis(),
-            owner = user,
-
-            // We don't allow for all attributes to change
-            id = existingShare.id,
-            sharedWith = existingShare.sharedWith,
-            state = existingShare.state,
-            createdAt = existingShare.createdAt
+            rights = newRights
         )
 
         source.update(user, shareId, newShare)

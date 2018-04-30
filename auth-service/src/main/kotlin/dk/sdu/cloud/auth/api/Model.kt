@@ -21,14 +21,14 @@ enum class Role {
  * @see [Person]
  */
 class PublicPerson(
-        val id: String,
-        val title: String?,
-        val firstNames: String?,
-        val lastName: String?,
-        val phoneNumber: String?,
-        val orcId: String?,
-        val emailAddresses: List<String>,
-        val preferredEmailAddress: String?
+    val id: String,
+    val title: String?,
+    val firstNames: String?,
+    val lastName: String?,
+    val phoneNumber: String?,
+    val orcId: String?,
+    val emailAddresses: List<String>,
+    val preferredEmailAddress: String?
 )
 
 /**
@@ -36,13 +36,15 @@ class PublicPerson(
  * can be both a person or any other type of non-human entity (Usually other services).
  */
 @JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = KafkaRequest.TYPE_PROPERTY)
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY
+)
 @JsonSubTypes(
-        JsonSubTypes.Type(value = Person.ByWAYF::class, name = "wayf"),
-        JsonSubTypes.Type(value = Person.ByPassword::class, name = "password"),
-        JsonSubTypes.Type(value = ServicePrincipal::class, name = "service"))
+    JsonSubTypes.Type(value = Person.ByWAYF::class, name = "wayf"),
+    JsonSubTypes.Type(value = Person.ByPassword::class, name = "password"),
+    JsonSubTypes.Type(value = ServicePrincipal::class, name = "service")
+)
 sealed class Principal {
     /**
      * A unique ID for this principle. It should generally not contain sensitive data as this ID will be used a public
@@ -94,23 +96,23 @@ sealed class Person : Principal() {
      * Represents a [Person] authenticated by WAYF
      */
     data class ByWAYF(
-            /**
-             * Given by WAYF in the property `eduPersonTargetedID`
-             */
-            override val id: String,
-            override val role: Role,
-            override val title: String?,
-            override val firstNames: String,
-            override val lastName: String,
-            override val phoneNumber: String?,
-            override val orcId: String?,
-            override val emailAddresses: List<String>,
-            override val preferredEmailAddress: String?,
+        /**
+         * Given by WAYF in the property `eduPersonTargetedID`
+         */
+        override val id: String,
+        override val role: Role,
+        override val title: String?,
+        override val firstNames: String,
+        override val lastName: String,
+        override val phoneNumber: String?,
+        override val orcId: String?,
+        override val emailAddresses: List<String>,
+        override val preferredEmailAddress: String?,
 
-            /**
-             * Given by WAYF in the property `schacHomeOrganization`
-             */
-            val organizationId: String
+        /**
+         * Given by WAYF in the property `schacHomeOrganization`
+         */
+        val organizationId: String
     ) : Person() {
         init {
             validate()
@@ -123,18 +125,18 @@ sealed class Person : Principal() {
      * Represents a [Person] authenticated by a password
      */
     data class ByPassword(
-            override val id: String,
-            override val role: Role,
-            override val title: String?,
-            override val firstNames: String,
-            override val lastName: String,
-            override val phoneNumber: String?,
-            override val orcId: String?,
-            override val emailAddresses: List<String>,
-            override val preferredEmailAddress: String?,
+        override val id: String,
+        override val role: Role,
+        override val title: String?,
+        override val firstNames: String,
+        override val lastName: String,
+        override val phoneNumber: String?,
+        override val orcId: String?,
+        override val emailAddresses: List<String>,
+        override val preferredEmailAddress: String?,
 
-            val password: ByteArray,
-            val salt: ByteArray
+        val password: ByteArray,
+        val salt: ByteArray
     ) : Person() {
         init {
             validate()
@@ -155,8 +157,8 @@ sealed class Person : Principal() {
  * Represents a service
  */
 data class ServicePrincipal(
-        override val id: String,
-        override val role: Role
+    override val id: String,
+    override val role: Role
 ) : Principal() {
     init {
         validate()

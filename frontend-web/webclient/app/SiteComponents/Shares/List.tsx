@@ -33,7 +33,7 @@ export class List extends React.Component<any, ListState> {
         let { shares, errorMessage } = this.state;
         return (
             <Container>
-                {errorMessage ? <Message color='red'>{errorMessage}</Message> : null}
+                {errorMessage ? <Message color='red' onDismiss={() => this.setState({ errorMessage: null })}>{errorMessage}</Message> : null}
                 <Header>Shared with Me</Header>
                 {this.state.shares.map(it =>
                     <ListEntry
@@ -41,13 +41,16 @@ export class List extends React.Component<any, ListState> {
                         key={it.path}
                         onAccepted={e => this.onEntryAction(e)}
                         onRejected={e => this.onEntryAction(e)}
+                        onRevoked={e => this.onEntryAction(e)}
+                        onShared={e => this.onEntryAction(e)}
+                        onRights={e => this.onEntryAction(e)}
                         onError={it => this.setState({ errorMessage: it })} />
                 )}
             </Container>
         );
     }
 
-    onEntryAction(share: Share) {
+    onEntryAction(e: any) {
         this.reload();
     }
 }
@@ -57,6 +60,9 @@ interface ListEntryProperties {
     onError?: (message: string) => void
     onAccepted?: (share: Share) => void
     onRejected?: (share: Share) => void
+    onRevoked?: (share: Share) => void
+    onRights?: (share: Share) => void
+    onShared?: (shareId: ShareId) => void
 }
 
 interface ListEntryState {
@@ -97,7 +103,10 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         <AccessRightsDisplay size='tiny' floated='right' disabled rights={actualShare.rights} />
                     </Card.Header>
                     <Card.Meta>Shared by {groupedShare.sharedBy}</Card.Meta>
-                    <Card.Description>{message}</Card.Description>
+                    <Card.Description>
+                        {message}
+                        <Button negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" size='mini' onClick={() => this.onRevoke(actualShare)} />
+                    </Card.Description>
                 </Card.Content>
 
                 {!hasBeenShared ?
@@ -116,16 +125,20 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
     renderSharedByMe(): JSX.Element {
         let { groupedShare } = this.props;
+        let { isLoading } = this.state;
+
         let shareComponents: JSX.Element[] = groupedShare.shares.map(e => {
             return (
-                <SemList.Item>
+                <SemList.Item key={e.id}>
                     <SemList.Icon name='user circle' size='large' verticalAlign='top' />
                     <SemList.Content>
                         <SemList.Header>
                             {e.sharedWith}
                         </SemList.Header>
                         <SemList.Description>
-                            <AccessRightsDisplay className='ar-display-padding' size='mini' floated='right' rights={e.rights} />
+                            <AccessRightsDisplay className='ar-display-padding' size='mini' rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
+                            {/* TODO Styling of revoke */}
+                            <Button negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" size='mini' onClick={() => this.onRevoke(e)} />
                         </SemList.Description>
                     </SemList.Content>
                 </SemList.Item>
@@ -146,7 +159,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                                 <SemList.Icon name='add' size='large' verticalAlign='middle' />
                                 <SemList.Content>
                                     <SemList.Header>
-                                        <Button color='green'>
+                                        <Button color='green' disabled={isLoading} loading={isLoading} onClick={() => this.onCreateShare()}>
                                             Share this with another user
                                         </Button>
                                     </SemList.Header>
@@ -163,23 +176,57 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         if (f) f(payload)
     }
 
+    onRightsToggle(share: Share, right: AccessRight) {
+        this.setState({ isLoading: true });
+
+        let filtered = share.rights.filter(e => e != right);
+
+        // Add if missing
+        let hasRight = share.rights.indexOf(right) != -1;
+        if (!hasRight) {
+            filtered.push(right);
+        }
+
+        updateShare(share.id, filtered)
+            .then(it => this.maybeInvoke(it.id, this.props.onRights))
+            .catch(e => this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError))
+            .then(e => this.setState({ isLoading: false }));
+    }
+
+    onCreateShare() {
+        this.setState({ isLoading: true });
+        createShare("user3@test.dk", "/home/jonas@hinchely.dk/Jobs", [AccessRight.READ, AccessRight.WRITE])
+            .then(it => this.maybeInvoke(it.id, this.props.onShared))
+            .catch(e => this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError))
+            .then(e => this.setState({ isLoading: false }));
+    }
+
+    onRevoke(share: Share) {
+        this.setState({ isLoading: true });
+
+        revokeShare(share.id)
+            .then(it => this.maybeInvoke(share, this.props.onRevoked))
+            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
+            .then(e => this.setState({ isLoading: false }));
+    }
+
     onAccept(share: Share) {
         console.log(share);
         this.setState({ isLoading: true });
 
         acceptShare(share.id)
             .then(it => this.maybeInvoke(share, this.props.onAccepted))
-            .catch(e => this.maybeInvoke("An error has occured", this.props.onRejected))
+            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
             .then(e => this.setState({ isLoading: false }));
     }
 
     onReject(share: Share) {
         console.log(share);
-        this.setState({isLoading: true});
+        this.setState({ isLoading: true });
 
         rejectShare(share.id)
             .then(it => this.maybeInvoke(share, this.props.onRejected))
-            .catch(e => this.maybeInvoke("An error has occured", this.props.onRejected))
+            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
             .then(e => this.setState({ isLoading: false }));
     }
 }
@@ -270,13 +317,21 @@ function retrieveShares(byState?: ShareState, page?: Number, itemsPerPage?: Numb
 }
 
 function acceptShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/accept/${shareId}`).then(e => e.reposen);
+    return Cloud.post(`/shares/accept/${shareId}`).then(e => e.response);
 }
 
 function rejectShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/reject/${shareId}`).then(e => e.reposen);
+    return Cloud.post(`/shares/reject/${shareId}`).then(e => e.response);
 }
 
 function revokeShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/revoke/${shareId}`).then(e => e.reposen);
+    return Cloud.post(`/shares/revoke/${shareId}`).then(e => e.response);
+}
+
+function createShare(user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> {
+    return Cloud.put(`/shares/`, { sharedWith: user, path, rights }).then(e => e.response);
+}
+
+function updateShare(id: ShareId, rights: AccessRight[]): Promise<any> {
+    return Cloud.post(`/shares/`, { id, rights }).then(e => e.response);
 }

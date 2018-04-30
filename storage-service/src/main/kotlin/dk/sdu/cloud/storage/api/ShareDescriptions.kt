@@ -39,6 +39,12 @@ data class MinimalShare(
     val rights: Set<AccessRight>,
     val state: ShareState
 )
+
+data class UpdateShareRequest(
+    val id: ShareId,
+    val rights: Set<AccessRight>
+)
+
 fun Share.minimalize(): MinimalShare =
     MinimalShare(id ?: throw NullPointerException("id must be != null"), sharedWith, rights, state)
 
@@ -72,7 +78,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val update = callDescription<Share, Unit, CommonErrorMessage> {
+    val update = callDescription<UpdateShareRequest, Unit, CommonErrorMessage> {
         prettyName = "updateShare"
         method = HttpMethod.POST
 
