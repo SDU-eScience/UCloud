@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.services
+package dk.sdu.cloud.storage.services.cephfs
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue

@@ -3,7 +3,9 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.StorageFile
+import dk.sdu.cloud.storage.services.cephfs.FavoritedFile
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.io.InputStream
@@ -31,6 +33,9 @@ interface FileSystemService {
     fun createFavorite(user: String, fileToFavorite: String)
     fun removeFavorite(user: String, favoriteFileToRemove: String)
     fun retrieveFavorites(user: String): List<FavoritedFile>
+
+    fun grantRights(fromUser: String, toUser: String, path: String, rights: Set<AccessRight>)
+    fun revokeRights(fromUser: String, toUser: String, path: String)
 }
 
 sealed class FileSystemException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {

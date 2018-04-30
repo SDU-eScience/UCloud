@@ -9,7 +9,6 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.services.CephFSFileSystemService
 import dk.sdu.cloud.storage.services.FileSystemService
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent

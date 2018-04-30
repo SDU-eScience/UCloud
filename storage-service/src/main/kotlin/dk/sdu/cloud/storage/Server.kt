@@ -9,6 +9,10 @@ import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.http.*
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.cephfs.CephFSFileSystemService
+import dk.sdu.cloud.storage.services.cephfs.CephFSProcessRunner
+import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
+import dk.sdu.cloud.storage.services.cephfs.FileACLService
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpHeaders
@@ -19,6 +23,7 @@ import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 class Server(
@@ -37,7 +42,20 @@ class Server(
 
         log.info("Creating core services")
         val isDevelopment = args.contains("--dev")
-        val fs: FileSystemService = CephFSFileSystemService(CloudToCephFsDao(isDevelopment), isDevelopment)
+
+        val cloudToCephFsDao = CloudToCephFsDao(isDevelopment)
+        val processRunner = CephFSProcessRunner(cloudToCephFsDao, isDevelopment)
+        val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
+        val fileAclService =
+            FileACLService(cloudToCephFsDao, processRunner, isDevelopment)
+        val fs: FileSystemService =
+            CephFSFileSystemService(
+                cloudToCephFsDao,
+                processRunner,
+                fileAclService,
+                fsRoot,
+                isDevelopment
+            )
 
         val transferState = TusStateService()
 
@@ -103,7 +121,6 @@ class Server(
                     FilesController(fs).configure(this)
                     SimpleDownloadController(cloud, fs).configure(this)
                     MultiPartUploadController(fs).configure(this)
-                    ACLController().configure(this)
                     ShareController(shareService).configure(this)
                 }
             }

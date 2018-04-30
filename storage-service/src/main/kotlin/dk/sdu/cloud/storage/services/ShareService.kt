@@ -18,6 +18,8 @@ sealed class ShareException(override val message: String) : RuntimeException(mes
     class NotFound : ShareException("Not found")
     class NotAllowed : ShareException("Not allowed")
     class DuplicateException : ShareException("Already exists")
+    class PermissionException : ShareException("Not allowed")
+    class BadRequest(val why: String) : ShareException("Bad request: $why")
 }
 
 private val log = LoggerFactory.getLogger(ShareService::class.java)
@@ -37,6 +39,12 @@ suspend fun RESTHandler<*, *, CommonErrorMessage>.handleShareException(ex: Excep
 
                 is ShareException.DuplicateException -> {
                     error(CommonErrorMessage(ex.message), HttpStatusCode.Conflict)
+                }
+                is ShareException.PermissionException -> {
+                    error(CommonErrorMessage(ex.message), HttpStatusCode.Forbidden)
+                }
+                is ShareException.BadRequest -> {
+                    error(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
                 }
             }
         }
@@ -65,7 +73,7 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithShareService(bod
 
 class ShareService(
     private val source: ShareDAO,
-    private val fileSystemService: FileSystemService
+    private val fs: FileSystemService
 ) {
     suspend fun list(
         user: String,
@@ -78,7 +86,7 @@ class ShareService(
         user: String,
         path: String
     ): SharesByPath {
-        val stat = fileSystemService.stat(user, path) ?: throw ShareException.NotFound()
+        val stat = fs.stat(user, path) ?: throw ShareException.NotFound()
         if (stat.ownerName != user) {
             throw ShareException.NotAllowed()
         }
@@ -92,7 +100,7 @@ class ShareService(
         cloud: AuthenticatedCloud
     ): ShareId {
         // Check if user is allowed to share this file
-        val stat = fileSystemService.stat(user, share.path) ?: throw ShareException.NotFound()
+        val stat = fs.stat(user, share.path) ?: throw ShareException.NotFound()
         if (stat.ownerName != user) {
             throw ShareException.NotAllowed()
         }
@@ -174,6 +182,10 @@ class ShareService(
             }
         }
 
+        if (newState == ShareState.ACCEPTED) {
+            fs.grantRights(existingShare.owner, existingShare.sharedWith, existingShare.path, existingShare.rights)
+        }
+
         log.debug("Updating state")
         source.updateState(user, shareId, newState)
 
@@ -184,6 +196,9 @@ class ShareService(
         user: String,
         shareId: ShareId
     ) {
+        val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
+        fs.revokeRights(existingShare.owner, existingShare.sharedWith, existingShare.path)
+
         source.deleteShare(user, shareId)
     }
 

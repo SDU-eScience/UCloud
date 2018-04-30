@@ -1,6 +1,5 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.cloudClient
@@ -12,7 +11,6 @@ import dk.sdu.cloud.storage.api.ShareState
 import dk.sdu.cloud.storage.services.ShareService
 import dk.sdu.cloud.storage.services.tryWithShareService
 import io.ktor.application.ApplicationCall
-import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory

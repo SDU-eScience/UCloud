@@ -3,15 +3,18 @@ package dk.sdu.cloud.storage
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
-import dk.sdu.cloud.storage.services.CloudToCephFsDao
-import dk.sdu.cloud.storage.services.CephFSFileSystemService
+import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
+import dk.sdu.cloud.storage.services.cephfs.CephFSFileSystemService
+import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
 class FileSystemServiceTest {
-    private val service = CephFSFileSystemService(CloudToCephFsDao(true), true)
+    private val service = CephFSFileSystemService(
+        CloudToCephFsDao(true), mockk(), mockk(), "", true
+    )
 
     @Test
     fun testOutputParsing() {
