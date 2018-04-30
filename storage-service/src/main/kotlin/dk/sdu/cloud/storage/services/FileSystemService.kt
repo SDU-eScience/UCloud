@@ -36,6 +36,15 @@ interface FileSystemService {
 
     fun grantRights(fromUser: String, toUser: String, path: String, rights: Set<AccessRight>)
     fun revokeRights(fromUser: String, toUser: String, path: String)
+
+    fun createSoftSymbolicLink(user: String, linkFile: String, pointsTo: String)
+    fun findFreeNameForNewFile(user: String, desiredPath: String): String
+
+    fun homeDirectory(user: String): String
+
+    fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
+        return components.joinToString("/") + (if (isDirectory) "/" else "")
+    }
 }
 
 sealed class FileSystemException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {

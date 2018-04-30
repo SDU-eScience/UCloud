@@ -62,6 +62,10 @@ class Notifications extends React.Component<any, NotificationState> {
                 // TODO Should refactor these URLs somewhere else
                 this.props.history.push(`/analyses/${notification.meta.jobId}`);
                 break;
+            case "SHARE_REQUEST":
+                // TODO This is a bit lazy
+                this.props.history.push("/shares");
+                break;
         }
     }
 
@@ -144,6 +148,7 @@ class NotificationEntry extends React.Component<NotificationEntryProps, any> {
     private resolveEventIcon(eventType: string): SemanticICONS {
         switch (eventType) {
             case "APP_COMPLETE": return "tasks";
+            case "SHARE_REQUEST": return "share";
             default: return "question";
         }
     }

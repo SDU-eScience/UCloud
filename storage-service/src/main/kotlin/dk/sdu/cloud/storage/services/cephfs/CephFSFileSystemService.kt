@@ -297,14 +297,19 @@ class CephFSFileSystemService(
         return Pair(favorites, files)
     }
 
-    fun createSoftSymbolicLink(user: String, linkFile: String, pointsTo: String) {
+    override fun createSoftSymbolicLink(user: String, linkFile: String, pointsTo: String) {
         val absLinkPath = translateAndCheckFile(linkFile)
         val absPointsToPath = translateAndCheckFile(pointsTo)
 
         // We only need to check target, the rest will be enforced. Ideally we wouldn't do this as two forks,
         // but can work for prototypes. TODO Performance
-        if (stat(user, pointsTo) == null) {
-            throw IllegalArgumentException("Cannot point to target")
+
+        // TODO Stat needs to not ls parent dir. Disabled for now
+        // TODO Stat needs to not ls parent dir. Disabled for now
+        // TODO Stat needs to not ls parent dir. Disabled for now
+        // TODO Stat needs to not ls parent dir. Disabled for now
+        if (false && stat(user, pointsTo) == null) {
+            throw IllegalArgumentException("Cannot point to target ($linkFile, $pointsTo)")
         }
 
         val process = processRunner.runAsUser(user, listOf("ln", "-s", absPointsToPath, absLinkPath))
@@ -319,8 +324,8 @@ class CephFSFileSystemService(
     override fun createFavorite(user: String, fileToFavorite: String) {
         // TODO Hack, but highly unlikely that we will have duplicates in practice.
         // TODO Create retrieveFavorites folder if it does not exist yet
-        val suffix = abs(random.nextInt()).toString(16)
-        val targetLocation = joinPath(favoritesDirectory(user), fileToFavorite.fileName() + ".$suffix")
+//        val suffix = abs(random.nextInt()).toString(16)
+        val targetLocation = findFreeNameForNewFile(user, joinPath(favoritesDirectory(user), fileToFavorite.fileName()))
 
         createSoftSymbolicLink(user, targetLocation, fileToFavorite)
     }
@@ -365,11 +370,56 @@ class CephFSFileSystemService(
         fileACLService.removeEntry(fromUser, toUser, mountedPath, defaultList = false, recursive = true)
     }
 
-    private fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
-        return components.joinToString("/") + (if (isDirectory) "/" else "")
+    private val duplicateNamingRegex = Regex("""\((\d+)\)""")
+    override fun findFreeNameForNewFile(user: String, desiredPath: String): String {
+        fun findFileNameNoExtension(fileName: String): String {
+            return fileName.substringBefore('.')
+        }
+
+        fun findExtension(fileName: String): String {
+            if (!fileName.contains(".")) return ""
+            return '.' + fileName.substringAfter('.', missingDelimiterValue = "")
+        }
+
+        val fileName = desiredPath.fileName()
+        val desiredWithoutExtension = findFileNameNoExtension(fileName)
+        val extension = findExtension(fileName)
+
+        val parentPath = desiredPath.substringBeforeLast('/')
+        val names = ls(user, parentPath).map { it.path.fileName() }
+
+        return if (names.isEmpty()) {
+            desiredPath
+        } else {
+            val namesMappedAsIndices = names.mapNotNull {
+                val nameWithoutExtension = findFileNameNoExtension(it)
+                val nameWithoutPrefix = nameWithoutExtension.substringAfter(desiredWithoutExtension)
+                val myExtension = findExtension(it)
+
+                if (extension != myExtension) return@mapNotNull null
+
+                if (nameWithoutPrefix.isEmpty()) {
+                    0 // We have an exact match on the file name
+                } else {
+                    val match = duplicateNamingRegex.matchEntire(nameWithoutPrefix)
+                    if (match == null) {
+                        null // The file name doesn't match at all, i.e., the file doesn't collide with our desired name
+                    } else {
+                        match.groupValues.getOrNull(1)?.toIntOrNull()
+                    }
+                }
+            }
+
+            if (namesMappedAsIndices.isEmpty()) {
+                desiredPath
+            } else {
+                val currentMax = namesMappedAsIndices.max() ?: 0
+                "$parentPath/$desiredWithoutExtension(${currentMax + 1})$extension"
+            }
+        }
     }
 
-    private fun homeDirectory(user: String): String {
+    override fun homeDirectory(user: String): String {
         return "/home/$user/"
     }
 

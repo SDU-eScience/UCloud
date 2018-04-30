@@ -189,6 +189,14 @@ class ShareService(
         // TODO How do we ensure atomicity?
         if (newState == ShareState.ACCEPTED) {
             fs.grantRights(existingShare.owner, existingShare.sharedWith, existingShare.path, existingShare.rights)
+            fs.createSoftSymbolicLink(
+                existingShare.sharedWith,
+                fs.findFreeNameForNewFile(
+                    user,
+                    fs.joinPath(fs.homeDirectory(user), existingShare.path.substringAfterLast('/'))
+                ),
+                existingShare.path
+            )
         }
 
         log.debug("Updating state")
