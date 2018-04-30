@@ -1,11 +1,12 @@
 import * as React from "react";
 import "react-bootstrap";
 import { Cloud } from "../../../authentication/SDUCloudObject"
-import { Message, Header, Card, Image, Button, Popup, Feed, Icon, Divider, SemanticICONS, Label, Container, ButtonGroup } from 'semantic-ui-react';
+import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Image, Button, Popup, Feed, Icon, Divider, SemanticICONS, Label, Container, ButtonGroup } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { AccessRight, Page } from "../../types/types";
 import { getFilenameFromPath } from "../../UtilityFunctions";
+import "./List.scss"
 
 interface ListState {
     shares: SharesByPath[]
@@ -38,10 +39,16 @@ export class List extends React.Component<any, ListState> {
                     <ListEntry
                         groupedShare={it}
                         key={it.path}
+                        onAccepted={e => this.onEntryAction(e)}
+                        onRejected={e => this.onEntryAction(e)}
                         onError={it => this.setState({ errorMessage: it })} />
                 )}
             </Container>
         );
+    }
+
+    onEntryAction(share: Share) {
+        this.reload();
     }
 }
 
@@ -52,9 +59,14 @@ interface ListEntryProperties {
     onRejected?: (share: Share) => void
 }
 
-class ListEntry extends React.Component<ListEntryProperties, any> {
+interface ListEntryState {
+    isLoading: boolean
+}
+
+class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     constructor(props: ListEntryProperties) {
         super(props);
+        this.state = { isLoading: false };
     }
 
     public render() {
@@ -69,6 +81,7 @@ class ListEntry extends React.Component<ListEntryProperties, any> {
 
     renderSharedWithMe(): JSX.Element {
         let { groupedShare } = this.props;
+        let { isLoading } = this.state;
         let actualShare = groupedShare.shares[0]; // TODO Is this always true?
         let hasBeenShared = actualShare.state == ShareState.ACCEPTED;
 
@@ -81,7 +94,7 @@ class ListEntry extends React.Component<ListEntryProperties, any> {
                 <Card.Content>
                     <Card.Header>
                         <Icon name='folder' /> {getFilenameFromPath(groupedShare.path)}
-                        <AccessRightsDisplay rights={actualShare.rights} />
+                        <AccessRightsDisplay size='tiny' floated='right' disabled rights={actualShare.rights} />
                     </Card.Header>
                     <Card.Meta>Shared by {groupedShare.sharedBy}</Card.Meta>
                     <Card.Description>{message}</Card.Description>
@@ -90,9 +103,9 @@ class ListEntry extends React.Component<ListEntryProperties, any> {
                 {!hasBeenShared ?
                     <Card.Content extra>
                         <Button.Group floated='right'>
-                            <Button negative onClick={() => this.onReject(actualShare)}>Reject</Button>
+                            <Button positive loading={isLoading} disabled={isLoading} onClick={() => this.onAccept(actualShare)}>Accept</Button>
                             <Button.Or />
-                            <Button positive onClick={() => this.onAccept(actualShare)}>Accept</Button>
+                            <Button negative loading={isLoading} disabled={isLoading} onClick={() => this.onReject(actualShare)}>Reject</Button>
                         </Button.Group>
                     </Card.Content>
                     : null
@@ -102,21 +115,72 @@ class ListEntry extends React.Component<ListEntryProperties, any> {
     }
 
     renderSharedByMe(): JSX.Element {
-        return <div />;
+        let { groupedShare } = this.props;
+        let shareComponents: JSX.Element[] = groupedShare.shares.map(e => {
+            return (
+                <SemList.Item>
+                    <SemList.Icon name='user circle' size='large' verticalAlign='top' />
+                    <SemList.Content>
+                        <SemList.Header>
+                            {e.sharedWith}
+                        </SemList.Header>
+                        <SemList.Description>
+                            <AccessRightsDisplay className='ar-display-padding' size='mini' floated='right' rights={e.rights} />
+                        </SemList.Description>
+                    </SemList.Content>
+                </SemList.Item>
+            );
+        });
+
+        return (
+            <Card fluid>
+                <Card.Content>
+                    <Card.Header>
+                        <Icon name='folder' /> {getFilenameFromPath(groupedShare.path)}
+                    </Card.Header>
+                    <Card.Meta>Shared with {groupedShare.shares.length} collaborators</Card.Meta>
+                    <Card.Description className='ar-list-padding'>
+                        <SemList relaxed divided>
+                            {shareComponents}
+                            <SemList.Item>
+                                <SemList.Icon name='add' size='large' verticalAlign='middle' />
+                                <SemList.Content>
+                                    <SemList.Header>
+                                        <Button color='green'>
+                                            Share this with another user
+                                        </Button>
+                                    </SemList.Header>
+                                </SemList.Content>
+                            </SemList.Item>
+                        </SemList>
+                    </Card.Description>
+                </Card.Content>
+            </Card>
+        );
+    }
+
+    maybeInvoke<T>(payload: T, f?: (T) => void) {
+        if (f) f(payload)
     }
 
     onAccept(share: Share) {
         console.log(share);
+        this.setState({ isLoading: true });
+
         acceptShare(share.id)
-            .then(it => { }) // TODO Invoke handler
-            .catch(e => this.setState({ errorMessage: "An error has occured" }));
+            .then(it => this.maybeInvoke(share, this.props.onAccepted))
+            .catch(e => this.maybeInvoke("An error has occured", this.props.onRejected))
+            .then(e => this.setState({ isLoading: false }));
     }
 
     onReject(share: Share) {
         console.log(share);
+        this.setState({isLoading: true});
+
         rejectShare(share.id)
-            .then(it => { }) // TODO Invoke handler
-            .catch(e => this.setState({ errorMessage: "An error has occured" }));
+            .then(it => this.maybeInvoke(share, this.props.onRejected))
+            .catch(e => this.maybeInvoke("An error has occured", this.props.onRejected))
+            .then(e => this.setState({ isLoading: false }));
     }
 }
 
@@ -128,11 +192,16 @@ interface AccessRightsDisplayProps {
     write?: boolean
     execute?: boolean
 
+    size?: SemanticSIZES
+    floated?: SemanticFLOATS
+
+    className?: string
+
     onRightsToggle?: (AccessRight) => void
 }
 
 const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
-    let { read, write, execute } = props;
+    let { read, write, execute, floated, size, className } = props;
     if (props.rights != null) {
         read = props.rights.indexOf(AccessRight.READ) != -1;
         write = props.rights.indexOf(AccessRight.WRITE) != -1;
@@ -140,7 +209,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
     }
 
     return (
-        <ButtonGroup labeled icon size='tiny'>
+        <ButtonGroup floated={floated} labeled icon size={size} className={className}>
             <Button
                 disabled={props.disabled}
                 positive={read}
