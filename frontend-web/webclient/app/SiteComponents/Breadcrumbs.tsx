@@ -1,6 +1,17 @@
 import * as React from "react";
 import "react-bootstrap";
-import { BreadcrumbItem, Breadcrumb } from "react-bootstrap/lib";
+import { Breadcrumb } from "semantic-ui-react"
+
+const BreadcrumbExampleStandard = () => (
+    <Breadcrumb>
+        <Breadcrumb.Section link>Home</Breadcrumb.Section>
+        <Breadcrumb.Divider />
+        <Breadcrumb.Section link>Store</Breadcrumb.Section>
+        <Breadcrumb.Divider />
+        <Breadcrumb.Section active>T-Shirt</Breadcrumb.Section>
+    </Breadcrumb>
+)
+
 
 
 interface Breadcrumbs { currentPath: string, navigate: (path: string) => void }
@@ -8,15 +19,23 @@ export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
     if (!currentPath) {
         return null;
     }
-    let pathsMapping = buildBreadCrumbs(currentPath);
-    let breadcrumbs = pathsMapping.map((path, index) => (
-        <BreadcrumbItem key={index} active={pathsMapping.length === index + 1}>
-            <span onClick={() => navigate(`${path.actualPath}`)}>{path.local}</span>
-        </BreadcrumbItem>
+    const pathsMapping = buildBreadCrumbs(currentPath);
+    const activePathsMapping = pathsMapping.pop()
+    const breadcrumbs = pathsMapping.map((path, index) => (
+        <React.Fragment key={index}>
+            <Breadcrumb.Section onClick={() => navigate(`${path.actualPath}`)} link>
+                {path.local}
+            </Breadcrumb.Section>
+            <Breadcrumb.Divider />
+        </React.Fragment>
     ));
+    
     return (
         <Breadcrumb>
             {breadcrumbs}
+            <Breadcrumb.Section active>
+                {activePathsMapping.local}
+            </Breadcrumb.Section>
         </Breadcrumb>
     );
 
