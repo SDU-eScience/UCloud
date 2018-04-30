@@ -19,7 +19,7 @@ sealed class ShareException(override val message: String) : RuntimeException(mes
     class NotAllowed : ShareException("Not allowed")
     class DuplicateException : ShareException("Already exists")
     class PermissionException : ShareException("Not allowed")
-    class BadRequest(val why: String) : ShareException("Bad request: $why")
+    class BadRequest(why: String) : ShareException("Bad request: $why")
 }
 
 private val log = LoggerFactory.getLogger(ShareService::class.java)
@@ -153,6 +153,10 @@ class ShareService(
             rights = newRights
         )
 
+        if (existingShare.state == ShareState.ACCEPTED) {
+            fs.grantRights(existingShare.owner, existingShare.sharedWith, existingShare.path, newRights)
+        }
+
         source.update(user, shareId, newShare)
     }
 
@@ -182,14 +186,13 @@ class ShareService(
             }
         }
 
+        // TODO How do we ensure atomicity?
         if (newState == ShareState.ACCEPTED) {
             fs.grantRights(existingShare.owner, existingShare.sharedWith, existingShare.path, existingShare.rights)
         }
 
         log.debug("Updating state")
         source.updateState(user, shareId, newState)
-
-        // TODO Actually update FS (This might take time, maybe do processing later? How do we ensure atomicity?)
     }
 
     suspend fun deleteShare(
@@ -198,7 +201,6 @@ class ShareService(
     ) {
         val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
         fs.revokeRights(existingShare.owner, existingShare.sharedWith, existingShare.path)
-
         source.deleteShare(user, shareId)
     }
 
