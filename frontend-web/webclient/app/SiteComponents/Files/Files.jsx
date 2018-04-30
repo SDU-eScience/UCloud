@@ -6,7 +6,7 @@ import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import { Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
 import { Table } from "semantic-ui-react";
-import { Dropdown, Button, Icon, Checkbox } from "semantic-ui-react";
+import { Dropdown, Button, Icon } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import {
@@ -249,7 +249,6 @@ class Files extends React.Component {
                             fetchFiles={fetchNewFiles}
                             showFileSelector={this.props.showFileSelector}
                             setFileSelectorCallback={this.props.setFileSelectorCallback}
-                            indeterminateCheckbox={indeterminateCheckbox}
                         />
                         <BallPulseLoading loading={loading} />
                         <PaginationButtons
@@ -407,16 +406,14 @@ export const FilesTable = (props) => {
         </Table.Row> : null;
     let hasCheckbox = (!!props.selectOrDeselectAllFiles);
     let masterCheckbox = (hasCheckbox) ? (
-        <span className={`checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}>
+        <span>
             <input
+                className={`master-checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}
                 onClick={e => e.stopPropagation()}
-                name="select"
-                className="select-box"
                 checked={props.masterCheckbox}
                 type="checkbox"
-                onChange={e => props.selectOrDeselectAllFiles(e.target.checked)}
+                onChange={(e) => props.selectOrDeselectAllFiles(e.target.checked)}
             />
-            <em className="bg-info" />
         </span>
     ) : null;
     let hasFavoriteButton = (!!props.favoriteFile);
@@ -428,13 +425,11 @@ export const FilesTable = (props) => {
         <Table basic="very">
             <Table.Header>
                 {noFiles}
-                {!noFiles ?
-                    (<Table.Row>
-                        <Table.HeaderCell style={{width: "15px", verticalAlign: "center"}}>
+                {!noFiles ? (
+                    <Table.Row>
+                        <Table.HeaderCell style={{ padding: "0"}} onClick={() => sortingFunction("typeAndName", "typeAndName")}>
                             {masterCheckbox}
-                        </Table.HeaderCell>
-                        <Table.HeaderCell onClick={() => sortingFunction("typeAndName", "typeAndName")}>
-                            <span style={{verticalAlign: "center"}}>Filename</span>
+                            Filename
                             <span className={"pull-right " + sortingIconFunction("typeAndName")} />
                         </Table.HeaderCell>
                         <Table.HeaderCell onClick={() => sortingFunction("modifiedAt", "number")}>
@@ -540,19 +535,17 @@ const FilesList = (props) => {
 }
 
 const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, ...props }) => (
-    <Table.Row className="row-settings clickable-row fileRow">
-        <Table.Cell style={{ width: "15px", verticalAlign: "center" }}>
-            {(hasCheckbox) ? (
-                <Checkbox
-                    name="select"
-                    className={file.isChecked ? "" : "fileData"}
-                    checked={file.isChecked}
-                    type="checkbox"
-                    onClick={(e, d) => addOrRemoveFile(d.checked, file)}
-                />
-            ) : null}
-        </Table.Cell>
+    <Table.Row className="fileRow">
         <Table.Cell>
+            {(hasCheckbox) ? (
+                <span className={`checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}>
+                    <input
+                        checked={file.isChecked}
+                        type="checkbox"
+                        onClick={(e) => addOrRemoveFile(e.target.checked, file)}
+                    />
+                </span>
+            ) : null}
             <FileType
                 type={file.type}
                 path={file.path}
@@ -577,21 +570,6 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
                 showFileSelector={props.showFileSelector}
                 setFileSelectorCallback={props.setFileSelectorCallback}
             />
-        </td>
-    </tr>
-);
-
-const FileCheckbox = ({ isChecked, onChange }) => (
-    <span className={`checkbox-margin ${isChecked ? "" : "fileData"}`}>
-        <input
-            name="select"
-            className="select-box"
-            checked={isChecked}
-            type="checkbox"
-            onChange={(e) => onChange(e)}
-        />
-        <em className="bg-info" />
-    </span>
         </Table.Cell>
     </Table.Row>
 );
