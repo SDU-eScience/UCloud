@@ -23,7 +23,7 @@ th:hover .fileData {
     }
 }
 
-.createFolderPlacement {
+.create-folder-placement {
     padding-right: 8px;
     vertical-align: middle;
     color: #448aff;
@@ -31,10 +31,6 @@ th:hover .fileData {
 
 .pointer-cursor {
     cursor: pointer;
-}
-
-.checkbox-margin {
-    margin: 15px;
 }
 
 .checkbox-margin {
@@ -51,7 +47,7 @@ th:hover .fileData {
 
 .favorite-margin {
     margin: 10px;
-}¡
+}
 
 .create-folder {
     padding-right: 8px;
@@ -61,3 +57,11 @@ th:hover .fileData {
 .create-folder-input {
     padding-left: 22px;
 }
+
+.hidden-checkbox:checked {
+    visibility: visible;
+}
+
+/*thead tr th.checkbox-header {
+    padding-left: 0px !important;
+}*/

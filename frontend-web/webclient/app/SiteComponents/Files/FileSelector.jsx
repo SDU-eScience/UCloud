@@ -256,7 +256,7 @@ const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
                 <FormGroup>
                     <div className="form-inline">
                         <InputGroup>
-                            <i className="ion-android-folder createFolderPlacement" />
+                            <i className="ion-android-folder create-folder-placement" />
                         </InputGroup>
                         <InputGroup>
                             <input

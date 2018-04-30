@@ -406,9 +406,9 @@ export const FilesTable = (props) => {
         </Table.Row> : null;
     let hasCheckbox = (!!props.selectOrDeselectAllFiles);
     let masterCheckbox = (hasCheckbox) ? (
-        <span>
+        <span className="checkbox-margin">
             <input
-                className={`master-checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}
+                className={`hidden-checkbox ${props.masterCheckbox ? "" : "fileData"}`}
                 onClick={e => e.stopPropagation()}
                 checked={props.masterCheckbox}
                 type="checkbox"
@@ -422,12 +422,12 @@ export const FilesTable = (props) => {
     let sortingIconFunction = (!!props.sortingIcon) ? props.sortingIcon : () => "";
 
     return (
-        <Table basic="very">
+        <Table basic="very" padded="very">
             <Table.Header>
                 {noFiles}
                 {!noFiles ? (
                     <Table.Row>
-                        <Table.HeaderCell style={{ padding: "0"}} onClick={() => sortingFunction("typeAndName", "typeAndName")}>
+                        <Table.HeaderCell className="checkbox-header" onClick={() => sortingFunction("typeAndName", "typeAndName")}>
                             {masterCheckbox}
                             Filename
                             <span className={"pull-right " + sortingIconFunction("typeAndName")} />
@@ -523,25 +523,27 @@ const FilesList = (props) => {
             setFileSelectorCallback={props.setFileSelectorCallback}
         />)
     );
-    return (<Table.Body>
-        <CreateFolder
-            creatingNewFolder={props.creatingNewFolder}
-            creatingFolderName={props.creatingFolderName}
-            updateText={props.updateCreateFolderName}
-            handleKeyDown={props.handleKeyDown}
-        />
-        {filesList}
-    </Table.Body>);
+    return (
+        <Table.Body>
+            <CreateFolder
+                creatingNewFolder={props.creatingNewFolder}
+                creatingFolderName={props.creatingFolderName}
+                updateText={props.updateCreateFolderName}
+                handleKeyDown={props.handleKeyDown}
+            />
+            {filesList}
+        </Table.Body>);
 }
 
 const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, ...props }) => (
     <Table.Row className="fileRow">
-        <Table.Cell>
+        <Table.Cell style={{ paddingLeft: "18px"}}>
             {(hasCheckbox) ? (
                 <span className={`checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}>
                     <input
                         checked={file.isChecked}
                         type="checkbox"
+                        className="hidden-checkbox"
                         onClick={(e) => addOrRemoveFile(e.target.checked, file)}
                     />
                 </span>
