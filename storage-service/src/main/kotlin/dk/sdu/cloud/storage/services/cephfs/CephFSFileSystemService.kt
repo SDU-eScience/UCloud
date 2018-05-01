@@ -8,8 +8,6 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import java.lang.Math.abs
-import java.util.*
 
 data class FavoritedFile(val type: FileType, val from: String, val to: String, val inode: Long)
 
@@ -17,6 +15,7 @@ class CephFSFileSystemService(
     private val cloudToCephFsDao: CloudToCephFsDao,
     private val processRunner: CephFSProcessRunner,
     private val fileACLService: FileACLService,
+    private val xAttrService: XAttrService,
     private val fsRoot: String,
     private val isDevelopment: Boolean = false
 ) : FileSystemService {
@@ -423,6 +422,19 @@ class CephFSFileSystemService(
         return "/home/$user/"
     }
 
+    override fun listMetadataKeys(user: String, path: String): List<String> {
+        return xAttrService.getAttributeList(user, path).keys.toList()
+    }
+
+    override fun getMetaValue(user: String, path: String, key: String): String {
+        return xAttrService.getAttributeList(user, path)[key]
+                ?: throw FileSystemException.NotFound("path: $path, key: $key")
+    }
+
+    override fun setMetaValue(user: String, path: String, key: String, value: String) {
+        xAttrService.setAttribute(user, path, key, value)
+    }
+
     private fun favoritesDirectory(user: String): String {
         return joinPath(homeDirectory(user), "Favorites", isDirectory = true)
     }
@@ -456,7 +468,6 @@ class CephFSFileSystemService(
 
     companion object {
         private val log = LoggerFactory.getLogger(CephFSFileSystemService::class.java)
-        private val random = Random()
 
         private const val SHARED_WITH_UTYPE = 1
         private const val SHARED_WITH_READ = 2

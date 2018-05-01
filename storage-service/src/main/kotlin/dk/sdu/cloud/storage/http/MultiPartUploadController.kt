@@ -9,7 +9,7 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.storage.api.SensitivityLevel
-import dk.sdu.cloud.storage.services.FileSystemService
+import dk.sdu.cloud.storage.services.UploadService
 import io.ktor.content.PartData
 import io.ktor.content.forEachPart
 import io.ktor.http.HttpStatusCode
@@ -18,7 +18,7 @@ import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
-class MultiPartUploadController(private val fs: FileSystemService) {
+class MultiPartUploadController(private val uploadService: UploadService) {
     fun configure(routing: Route) = with(routing) {
         route("upload") {
             protect()
@@ -68,7 +68,7 @@ class MultiPartUploadController(private val fs: FileSystemService) {
                                             call.request.principalRole.isPrivileged()
                                 )
 
-                                fs.write(owner, location!!) {
+                                uploadService.upload(owner, location!!) {
                                     val out = this
                                     part.streamProvider().use { it.copyTo(out) }
                                 }

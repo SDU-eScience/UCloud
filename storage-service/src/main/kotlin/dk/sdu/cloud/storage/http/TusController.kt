@@ -37,7 +37,7 @@ import java.util.*
 
 class TusController(
     private val tusState: TusStateService,
-    private val fs: FileSystemService
+    private val fs: UploadService
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
@@ -281,7 +281,7 @@ class TusController(
             // Start reading some contents
             val channel = call.request.receiveChannel()
             val internalBuffer = ByteArray(1024 * 32)
-            fs.write(initialState.user, initialState.targetCollection + "/" + initialState.targetName) {
+            fs.upload(initialState.user, initialState.targetCollection + "/" + initialState.targetName) {
                 runBlocking {
                     var read = 0
                     while (read != -1) {

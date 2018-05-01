@@ -62,6 +62,7 @@ class ShareServiceTest {
             dao,
             processRunner,
             fileAclService,
+            mockk(),
             fsRoot.absolutePath,
             true
         )
@@ -112,6 +113,7 @@ class ShareServiceTest {
             dao,
             processRunner,
             fileAclService,
+            mockk(),
             fsRoot.absolutePath,
             true
         )
@@ -138,6 +140,7 @@ class ShareServiceTest {
             dao,
             processRunner,
             fileAclService,
+            mockk(),
             fsRoot.absolutePath,
             true
         )
@@ -161,6 +164,7 @@ class ShareServiceTest {
             dao,
             processRunner,
             fileAclService,
+            mockk(),
             fsRoot.absolutePath,
             true
         )

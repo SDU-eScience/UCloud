@@ -9,10 +9,7 @@ import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.http.*
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.services.cephfs.CephFSFileSystemService
-import dk.sdu.cloud.storage.services.cephfs.CephFSProcessRunner
-import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
-import dk.sdu.cloud.storage.services.cephfs.FileACLService
+import dk.sdu.cloud.storage.services.cephfs.*
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpHeaders
@@ -48,14 +45,19 @@ class Server(
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
         val fileAclService =
             FileACLService(cloudToCephFsDao, processRunner, isDevelopment)
+        val xattrService = XAttrService(processRunner)
         val fs: FileSystemService =
             CephFSFileSystemService(
                 cloudToCephFsDao,
                 processRunner,
                 fileAclService,
+                xattrService,
                 fsRoot,
                 isDevelopment
             )
+
+        val checksumService = ChecksumService(fs)
+        val uploadService = UploadService(fs, checksumService)
 
         val transferState = TusStateService()
 
@@ -113,14 +115,14 @@ class Server(
 
             routing {
                 route("api/tus") {
-                    val tus = TusController(transferState, fs)
+                    val tus = TusController(transferState, uploadService)
                     tus.registerTusEndpoint(this, "/api/tus")
                 }
 
                 route("api") {
                     FilesController(fs).configure(this)
                     SimpleDownloadController(cloud, fs).configure(this)
-                    MultiPartUploadController(fs).configure(this)
+                    MultiPartUploadController(uploadService).configure(this)
                     ShareController(shareService).configure(this)
                 }
             }

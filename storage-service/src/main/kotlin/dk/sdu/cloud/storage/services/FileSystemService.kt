@@ -45,6 +45,10 @@ interface FileSystemService {
     fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
         return components.joinToString("/") + (if (isDirectory) "/" else "")
     }
+
+    fun listMetadataKeys(user: String, path: String): List<String>
+    fun getMetaValue(user: String, path: String, key: String): String
+    fun setMetaValue(user: String, path: String, key: String, value: String)
 }
 
 sealed class FileSystemException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
