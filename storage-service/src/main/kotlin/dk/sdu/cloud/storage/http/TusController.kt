@@ -279,7 +279,7 @@ class TusController(
 
             log.info("Starting upload for: $initialState")
             // Start reading some contents
-            val channel = call.receiveChannel()
+            val channel = call.request.receiveChannel()
             val internalBuffer = ByteArray(1024 * 32)
             fs.write(initialState.user, initialState.targetCollection + "/" + initialState.targetName) {
                 runBlocking {

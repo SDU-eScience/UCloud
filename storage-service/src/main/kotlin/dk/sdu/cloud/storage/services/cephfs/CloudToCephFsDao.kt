@@ -18,6 +18,7 @@ class CloudToCephFsDao(val isDevelopment: Boolean) {
         addUser("jonas@hinchely.dk", "c_jonas_hinchely_dk")
         addUser("user3@test.dk", "c_user3_test_dk")
         addUser("user4@test.dk", "c_user4_test_dk")
+        addUser("pica@sdu.dk", "c_pica_cp3-origins.net")
         addUser("root", "root")
 
         if (isDevelopment) {
