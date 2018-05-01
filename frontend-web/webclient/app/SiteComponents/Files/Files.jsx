@@ -5,8 +5,7 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import { Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
-import { Table } from "semantic-ui-react";
-import { Dropdown, Button, Icon } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import {
@@ -537,7 +536,7 @@ const FilesList = (props) => {
 
 const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, ...props }) => (
     <Table.Row className="fileRow">
-        <Table.Cell style={{ paddingLeft: "18px"}}>
+        <Table.Cell className="table-cell-padding-left">
             {(hasCheckbox) ? (
                 <span className={`checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}>
                     <input
@@ -551,6 +550,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
             <FileType
                 type={file.type}
                 path={file.path}
+                link={file.link}
                 updateEditFileName={props.updateEditFileName}
                 handleKeyDown={props.handleKeyDown}
                 beingRenamed={beingRenamed}
@@ -576,7 +576,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
     </Table.Row>
 );
 
-const FileType = ({ type, path, beingRenamed, update, ...props }) => {
+const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
     const fileName = (
         <FileName
             updateEditFileName={props.updateEditFileName}
@@ -588,7 +588,7 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
         />);
     if (type === "FILE") {
         return (<React.Fragment>
-            <Icon name={getTypeFromFile(getFilenameFromPath(path))} size="big" />
+            <FileIcon name={getTypeFromFile(getFilenameFromPath(path))} size="big" link={link} />
             <span>{fileName}</span>
         </React.Fragment>)
     } else {
@@ -598,11 +598,19 @@ const FileType = ({ type, path, beingRenamed, update, ...props }) => {
                 <span>{fileName}</span>
             </React.Fragment>) :
             (<Link to={`/files/${path}`} onClick={() => props.fetchFiles(path)}>
-                <Icon name="folder" size="big" />
+                <FileIcon name="folder" size="big" link={link} />
                 {fileName}
             </Link>);
     }
 }
+
+const FileIcon = ({ name, size, link }) =>
+    link ?
+        <Icon.Group size={size}>
+            <Icon name={name}/>
+            <Icon corner color="grey" name="share"/>
+        </Icon.Group> :
+        <Icon name={name} size={size} />
 
 const FileName = ({ name, beingRenamed, renameName, updateEditFileName, handleKeyDown }) => {
     return beingRenamed ?

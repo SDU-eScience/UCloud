@@ -9,6 +9,7 @@ export interface File {
     favorited: boolean
     sensitivityLevel: string
     isChecked?: boolean
+    link: boolean
 }
 
 export interface Acl {

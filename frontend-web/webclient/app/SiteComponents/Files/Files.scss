@@ -62,6 +62,6 @@ th:hover .fileData {
     visibility: visible;
 }
 
-/*thead tr th.checkbox-header {
-    padding-left: 0px !important;
-}*/
+table.ui.very.basic.padded.table tbody tr.fileRow td.table-cell-padding-left {
+    padding-left: 18px;
+}
