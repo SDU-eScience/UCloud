@@ -183,17 +183,20 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_entries; i++) {
         auto ep = entries[i];
         char file_type;
+        bool is_link = false;
         if (ep->d_type == DT_DIR) {
             file_type = 'D';
         } else if (ep->d_type == DT_REG) {
             file_type = 'F';
         } else if (ep->d_type == DT_LNK) {
             file_type = 'L';
+            is_link = true;
 
             if (resolve_link(ep, &stat_buffer, "./", resolve_buffer, &link)) {
                 file_type = link.type;
             } else {
                 fprintf(stderr, "Could not resolve file %s\n", ep->d_name);
+                continue;
             }
         } else {
             fatal("Unknown file type");
@@ -214,7 +217,8 @@ int main(int argc, char **argv) {
         if (gr == nullptr) group_name = const_cast<char *>("nobody");
         else group_name = gr->gr_name;
 
-        std::cout << file_type << ',' << unix_mode << ',' << user->pw_name << ',' << group_name << ','
+        std::cout << file_type << ',' << is_link << ',' << unix_mode << ','
+                  << user->pw_name << ',' << group_name << ','
                   << stat_buffer.st_size << ',' << stat_buffer.st_ctime << ','
                   << stat_buffer.st_mtime << ',' << stat_buffer.st_atime << ','
                   << stat_buffer.st_ino << ',';

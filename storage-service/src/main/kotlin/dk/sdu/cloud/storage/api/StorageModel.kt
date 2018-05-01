@@ -30,6 +30,7 @@ data class StorageFile(
     val acl: List<AccessEntry>,
     val favorited: Boolean,
     val sensitivityLevel: SensitivityLevel,
+    val link: Boolean,
     @get:JsonIgnore val inode: Long = 0
 )
 

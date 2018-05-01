@@ -185,9 +185,9 @@ class CephFSFileSystemService(
         /*
         Example output:
 
-        D,509,root,root,4096,1523862649,1523862649,1523862650,3,user1,14,user2,2,user3,6,CONFIDENTIAL,.
-        D,493,root,root,4096,1523862224,1523862224,1523862237,0,CONFIDENTIAL,..
-        F,420,root,root,0,1523862649,1523862649,1523862649,0,CONFIDENTIAL,qwe
+        D,0,509,root,root,4096,1523862649,1523862649,1523862650,3,user1,14,user2,2,user3,6,CONFIDENTIAL,.
+        D,0,493,root,root,4096,1523862224,1523862224,1523862237,0,CONFIDENTIAL,..
+        F,0,420,root,root,0,1523862649,1523862649,1523862649,0,CONFIDENTIAL,qwe
         */
 
         fun parseDirType(token: String): FileType = when (token) {
@@ -239,6 +239,7 @@ class CephFSFileSystemService(
 
             val dirTypeToken = readToken()
             val dirType = parseDirType(dirTypeToken)
+            val isLink = readToken().toInt() != 0
 
             val unixPermissions = readToken().toInt()
 
@@ -281,6 +282,7 @@ class CephFSFileSystemService(
 
             StorageFile(
                 type = dirType,
+                link = isLink,
                 path = filePath,
                 createdAt = createdAt * 1000L,
                 modifiedAt = modifiedAt * 1000L,
