@@ -17,7 +17,7 @@ public class Utils {
 
         String csvFile = "elastic-service/CephFsInputFile/all.csv";
         String line = "";
-        String cvsSplitBy = ";";
+        String cvsSplitBy = ",";
         List<CephFileObject> cephFileObjectList = new ArrayList<>();
 
         BufferedReader br = new BufferedReader(new FileReader(csvFile));
@@ -27,9 +27,11 @@ public class Utils {
             if (lineCount > 0) {
                 String[]   cephFileObjectRec = line.split(cvsSplitBy);
 
-                if ((cephFileObjectRec[0].trim().length() > 0) && (cephFileObjectRec[2].trim().length() > 0)) {
+                if ((cephFileObjectRec[0].trim().length() > 0) && (cephFileObjectRec[1].trim().length() > 0) && (cephFileObjectRec[2].trim().length() > 0) && (cephFileObjectRec[3].trim().length() > 0)) {
                     CephFileObject cephFileObject = new CephFileObject();
-
+                    if (!cephFileObjectRec[3].contains("->")) {
+                        System.err.println(cephFileObjectRec[0] + " " + cephFileObjectRec[1] + " " + cephFileObjectRec[2] + " " + cephFileObjectRec[3].substring(2));
+                    }
 
 
                 }

@@ -1,5 +1,5 @@
 
-package dk.sdu.cloud.datacite;
+package org.datacite.schema;
 
 import javax.xml.bind.annotation.XmlEnum;
 import javax.xml.bind.annotation.XmlEnumValue;

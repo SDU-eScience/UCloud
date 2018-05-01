@@ -4,6 +4,7 @@ public class CephFileObject {
 
     private Integer inodeId;
     private Integer size;
+    private String date;
     private String filePath;
 
     public CephFileObject()
@@ -21,6 +22,14 @@ public class CephFileObject {
 
     public Integer getSize() {
         return size;
+    }
+
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
     }
 
     public void setSize(Integer size) {

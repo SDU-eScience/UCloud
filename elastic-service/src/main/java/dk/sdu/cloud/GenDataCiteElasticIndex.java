@@ -1,8 +1,13 @@
 package dk.sdu.cloud;
 
-public class GenDataCiteElasticIndex {
-    public static void main(String[] args) {
+import java.io.IOException;
 
+public class GenDataCiteElasticIndex {
+    static Utils utils = new Utils();
+
+    public static void main(String[] args) throws IOException {
+
+        utils.readCephFileList();
 
 
     }

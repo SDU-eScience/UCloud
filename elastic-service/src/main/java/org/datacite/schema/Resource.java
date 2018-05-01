@@ -1,5 +1,5 @@
 
-package dk.sdu.cloud.datacite;
+package org.datacite.schema;
 
 import java.io.Serializable;
 import java.math.BigInteger;
