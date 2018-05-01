@@ -59,6 +59,8 @@ class Server(
         val checksumService = ChecksumService(fs)
         val uploadService = UploadService(fs, checksumService)
 
+        val bulkDownloadService = BulkDownloadService(fs)
+
         val transferState = TusStateService()
 
         val shareDAO: ShareDAO = InMemoryShareDAO()
@@ -121,7 +123,7 @@ class Server(
 
                 route("api") {
                     FilesController(fs).configure(this)
-                    SimpleDownloadController(cloud, fs).configure(this)
+                    SimpleDownloadController(cloud, fs, bulkDownloadService).configure(this)
                     MultiPartUploadController(uploadService).configure(this)
                     ShareController(shareService).configure(this)
                 }

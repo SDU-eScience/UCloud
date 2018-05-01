@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.services.cephfs
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.FileSystemException
 import dk.sdu.cloud.storage.services.FileSystemService
+import dk.sdu.cloud.storage.services.ShareException
 import dk.sdu.cloud.storage.util.BashEscaper
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -348,7 +349,7 @@ class CephFSFileSystemService(
 
     override fun grantRights(fromUser: String, toUser: String, path: String, rights: Set<AccessRight>) {
         val parents: List<String> = run {
-            if (path == "/") throw FileSystemException.BadRequest("Cannot grant rights on root")
+            if (path == "/") throw ShareException.BadRequest("Cannot grant rights on root")
             val parents = path.parents()
 
             parents.filter { it != "/" && it != "/home/" }

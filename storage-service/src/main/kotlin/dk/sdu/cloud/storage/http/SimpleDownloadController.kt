@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.validateAndClaim
+import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.implement
@@ -9,6 +10,7 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.services.BulkDownloadService
 import dk.sdu.cloud.storage.services.FileSystemService
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
@@ -21,11 +23,13 @@ import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
+import kotlinx.coroutines.experimental.io.jvm.javaio.toOutputStream
 import org.slf4j.LoggerFactory
 
 class SimpleDownloadController(
     private val cloud: AuthenticatedCloud,
-    private val fs: FileSystemService
+    private val fs: FileSystemService,
+    private val bulkDownloadService: BulkDownloadService
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
@@ -99,49 +103,18 @@ class SimpleDownloadController(
                 }
             }
 
-            // Determine file list (Prune by modified [iRODS, for now], then prune by checksum [Ceph])
-            // Will contain:
-            //   - missingCloud: list of files missing in cloud, but present in local
-            //   - missingLocal: list of files missing in local, but present in cloud
-            //   - needsUpdateInCloud: list of files that can be updated from local to cloud (no conflict)
-            //   - needsUpdateInLocal: list of files that can be updated from cloud to local (no conflict)
-            //   - conflicting: list of files that can be updated but there are conflicting versions between
-            //     cloud and local. This will happen, if since the last sync, both the cloud and local versions have
-            //     changed but they do not have the same checksum.
-            //   - syncCompletedAt: timestamp, to avoid clock-skew between client and server
+            implement(FileDescriptions.bulkDownload) {
+                logEntry(log, it)
 
-
-            // Bulk download based on file list
-
-            /*
-            get("tar-test") {
                 call.respondDirectWrite(contentType = ContentType.Application.GZip) {
-                    val tarStream = TarOutputStream(GZIPOutputStream(toOutputStream()))
-                    val random = Random()
-                    tarStream.use {
-                        val payloadBuffer = ByteArray(1024 * 1024)
-                        repeat(10) { idx ->
-                            tarStream.putNextEntry(
-                                TarEntry(
-                                    TarHeader.createHeader(
-                                        "file-$idx.txt",
-                                        payloadBuffer.size.toLong(),
-                                        System.currentTimeMillis() / 1000L,
-                                        false,
-                                        511 // 0777
-                                    )
-                                )
-                            )
-
-                            payloadBuffer.forEachIndexed { index, _ -> payloadBuffer[index] = random.nextInt().toByte() }
-                            tarStream.write(payloadBuffer)
-
-                            log.info("File $idx has been sent!")
-                        }
-                    }
+                    bulkDownloadService.downloadFiles(
+                        call.request.validatedPrincipal.subject,
+                        it.prefix,
+                        it.files,
+                        toOutputStream()
+                    )
                 }
             }
-            */
         }
     }
 

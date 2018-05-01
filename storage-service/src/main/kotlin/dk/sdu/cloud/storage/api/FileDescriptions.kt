@@ -18,6 +18,7 @@ data class DeleteFileRequest(val path: String)
 
 data class MoveRequest(val path: String, val newPath: String)
 data class CopyRequest(val path: String, val newPath: String)
+data class BulkDownloadRequest(val prefix: String, val files: List<String>)
 
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
@@ -135,6 +136,20 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         params {
             +boundTo(MoveRequest::path)
             +boundTo(MoveRequest::newPath)
+        }
+    }
+
+    val bulkDownload = callDescription<BulkDownloadRequest, Unit, CommonErrorMessage> {
+        prettyName = "filesBulkDownload"
+        method = HttpMethod.POST
+
+        path {
+            using(baseContext)
+            +"bulk"
+        }
+
+        body {
+            bindEntireRequestFromBody()
         }
     }
 }

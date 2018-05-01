@@ -104,7 +104,7 @@ class ShareServiceTest {
 
         val fileAclService = mockk<FileACLService>()
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } throws
-                FileSystemException.PermissionException()
+                ShareException.PermissionException()
 
         val dao = createUsers()
         val fsRoot = createFileSystem()
