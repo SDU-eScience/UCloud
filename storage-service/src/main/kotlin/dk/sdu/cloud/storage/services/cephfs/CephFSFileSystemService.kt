@@ -430,12 +430,12 @@ class CephFSFileSystemService(
     }
 
     override fun getMetaValue(user: String, path: String, key: String): String {
-        return xAttrService.getAttributeList(user, path)[key]
+        return xAttrService.getAttributeList(user, translateAndCheckFile(path))[key]
                 ?: throw FileSystemException.NotFound("path: $path, key: $key")
     }
 
     override fun setMetaValue(user: String, path: String, key: String, value: String) {
-        xAttrService.setAttribute(user, path, key, value)
+        xAttrService.setAttribute(user, translateAndCheckFile(path), key, value)
     }
 
     private fun favoritesDirectory(user: String): String {

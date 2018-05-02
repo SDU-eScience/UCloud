@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory
 class XAttrService(
     private val processRunner: CephFSProcessRunner
 ) {
-    fun getAttributeList(user: String, path: String): Map<String, String> {
-        val command = listOf(getfattrExecutable, "-d", path)
+    fun getAttributeList(user: String, mountedPath: String): Map<String, String> {
+        val command = listOf(getfattrExecutable, "-d", mountedPath)
         val (status, stdout, stderr) = processRunner.runAsUserWithResultAsInMemoryString(user, command)
 
         if (status != 0) {
@@ -30,11 +30,11 @@ class XAttrService(
             .toMap()
     }
 
-    fun setAttribute(user: String, path: String, key: String, value: String) {
+    fun setAttribute(user: String, mountedPath: String, key: String, value: String) {
         if (!safeKeyRegex.matches(key)) throw IllegalArgumentException("invalid key")
         if (!safeValueRegex.matches(key)) throw IllegalArgumentException("invalid value")
 
-        val command = listOf(setfattrExecutable, "-n", "user.$key", "-v", value, path)
+        val command = listOf(setfattrExecutable, "-n", "user.$key", "-v", value, mountedPath)
         val (status, stdout, stderr) = processRunner.runAsUserWithResultAsInMemoryString(user, command)
         if (status != 0) {
             if (stderr.contains("Permission denied")) {
@@ -50,7 +50,7 @@ class XAttrService(
 
     companion object {
         private val log = LoggerFactory.getLogger(XAttrService::class.java)
-        private val safeKeyRegex = Regex("([A-Za-z0-9 ])+")
-        private val safeValueRegex = Regex("([A-Za-z0-9 ])+")
+        private val safeKeyRegex = Regex("([A-Za-z0-9 _])+")
+        private val safeValueRegex = Regex("([A-Za-z0-9 _])+")
     }
 }
