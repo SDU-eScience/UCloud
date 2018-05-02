@@ -1,5 +1,5 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { SET_SIDEBAR_LOADING, RECEIVE_SIDEBAR_OPTIONS } from "../Reducers/Sidebar";
+import { SET_SIDEBAR_LOADING, RECEIVE_SIDEBAR_OPTIONS, SET_SIDEBAR_OPEN } from "../Reducers/Sidebar";
 
 export const fetchSidebarOptions = () => 
     Cloud.get("/../mock-api/mock_sidebar_options.json").then(({ response }) => {
@@ -14,4 +14,9 @@ export const setSidebarLoading = (loading) => ({
 const receiveSidebarOptions = (options) => ({
     type: RECEIVE_SIDEBAR_OPTIONS,
     options
+});
+
+export const setSidebarOpen = (state) => ({
+    type: SET_SIDEBAR_OPEN,
+    state
 });

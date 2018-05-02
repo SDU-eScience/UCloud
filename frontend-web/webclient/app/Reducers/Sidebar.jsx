@@ -1,5 +1,6 @@
 export const SET_SIDEBAR_LOADING = "SET_SIDEBAR_LOADING";
 export const RECEIVE_SIDEBAR_OPTIONS = "RECEIVE_SIDEBAR_OPTIONS";
+export const SET_SIDEBAR_OPEN = "SET_SIDEBAR_OPEN";
 
 const sidebar = (state = [], action) => {
     switch (action.type) {
@@ -7,6 +8,10 @@ const sidebar = (state = [], action) => {
             return { ...state, loading: action.loading }
         case RECEIVE_SIDEBAR_OPTIONS:
             return { ...state, loading: false, options: action.options }
+        case SET_SIDEBAR_OPEN: {
+            window.localStorage.setItem("sidebar-open", action.state);
+            return { ...state, open: action.state }
+        }
         default: {
             return state;
         }

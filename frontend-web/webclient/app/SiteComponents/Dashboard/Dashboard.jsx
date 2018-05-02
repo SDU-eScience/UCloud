@@ -85,11 +85,9 @@ const ListFileContent = ({ path, type }) =>
     <React.Fragment>
         <List.Icon name={type === "FILE" ? "file" : "folder"} />
         <List.Content>
-            <List.Header>
-                <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
-                    {getFilenameFromPath(path)}
-                </Link>
-            </List.Header>
+            <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
+                {getFilenameFromPath(path)}
+            </Link>
         </List.Content>
     </React.Fragment>
 

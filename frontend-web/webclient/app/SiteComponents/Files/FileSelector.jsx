@@ -1,8 +1,8 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
-import { Modal, Button, Table, FormGroup, InputGroup } from "react-bootstrap";
-import { Icon } from "semantic-ui-react";
+import { Modal, FormGroup, InputGroup } from "react-bootstrap";
+import { Icon, Button, List } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
 import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange } from "../../UtilityFunctions";
@@ -12,6 +12,7 @@ import { dispatch } from "redux";
 import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
 import { KeyCode } from "../../DefaultObjects";
 import "./Files.scss";
+import "../Styling/Shared.scss";
 
 class FileSelector extends React.Component {
     constructor(props, context) {
@@ -197,17 +198,7 @@ export const FileSelectorModal = (props) =>
         <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
         <BallPulseLoading loading={props.loading} />
         <FileSelectorBody
-            onlyAllowFolders={props.onlyAllowFolders}
-            canSelectFolders={props.canSelectFolders}
-            creatingFolderName={props.creatingFolderName}
-            loading={props.loading}
-            onClick={props.onClick}
-            files={props.files}
-            fetchFiles={props.fetchFiles}
-            currentPath={props.currentPath}
-            handleKeyDown={props.handleKeyDown}
-            updateText={props.updateText}
-            createFolder={props.createFolder}
+            {...props}
         />
     </Modal>
 
@@ -215,35 +206,29 @@ const FileSelectorBody = (props) => {
     if (props.loading) {
         return null;
     }
-    if (!props.files.length) {
-        return (
-            <h4 className="col-md-offset-1">
-                <small>No files in current folder.</small>
-            </h4>
-        );
-    }
-    const files = (!!props.onlyAllowFolders) ? props.files.filter(f => f.type === "DIRECTORY") : props.files;
+    const files = (!!props.onlyAllowFolders) ?
+        props.files.filter(f => f.type === "DIRECTORY") : props.files;
     return (
         <Modal.Body>
-            <div className="pre-scrollable">
-                <Table className="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Filename</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <CreatingFolder
-                            creatingFolderName={props.creatingFolderName}
-                            handleKeyDown={props.handleKeyDown}
-                            updateText={props.updateText}
-                        />
-                        <ReturnFolder currentPath={removeTrailingSlash(props.currentPath)} fetchFiles={props.fetchFiles} />
-                        <CurrentFolder currentPath={removeTrailingSlash(props.currentPath)} onlyAllowFolders={props.onlyAllowFolders} onClick={props.onClick} />
-                        <FileList files={files} onClick={props.onClick} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
-                    </tbody>
-                </Table>
-            </div>
+            <List divided size={"large"}>
+                <List.Header>
+                    Filename
+                    </List.Header>
+                <CreatingFolder
+                    creatingFolderName={props.creatingFolderName}
+                    handleKeyDown={props.handleKeyDown}
+                    updateText={props.updateText}
+                />
+                <ReturnFolder
+                    currentPath={props.currentPath}
+                    parentPath={removeTrailingSlash(getParentPath(props.currentPath))}
+                    fetchFiles={props.fetchFiles}
+                    onClick={props.onClick}
+                    canSelectFolders={props.canSelectFolders}
+                />
+                <CurrentFolder currentPath={removeTrailingSlash(props.currentPath)} onlyAllowFolders={props.onlyAllowFolders} onClick={props.onClick} />
+                <FileList files={files} onClick={props.onClick} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
+            </List>
             {props.createFolder != null ? <Button className="btn btn-info" onClick={() => props.createFolder()}>
                 Create new folder
             </Button> : null}
@@ -252,74 +237,84 @@ const FileSelectorBody = (props) => {
 
 const CurrentFolder = ({ currentPath, onlyAllowFolders, onClick }) =>
     onlyAllowFolders ?
-        <tr className="row-settings clickable-row pointer-cursor">
-            <td onClick={() => onClick(getParentPath(currentPath))}>
-                <a><i className="ion-android-folder" /> .</a>
-            </td>
-            <td><Button onClick={() => onClick(currentPath)} className="pull-right">Select</Button></td>
-        </tr>
+        <List.Item className="pointer-cursor itemPadding">
+            <List.Content floated="right">
+                <Button onClick={() => onClick(currentPath)}>Select</Button>
+            </List.Content>
+            <List.Icon name="folder" />
+            <List.Content onClick={() => onClick(getParentPath(currentPath))}>
+                {`${getFilenameFromPath(currentPath)} (Current folder)`}
+            </List.Content>
+        </List.Item>
         : null;
 
 const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
     (creatingFolderName == null) ? null : (
-        <tr>
-            <td>
-                <FormGroup>
-                    <div className="form-inline"> 
-                        <InputGroup>
-                            <i className="ion-android-folder create-folder-placement" />
-                        </InputGroup>
-                        <InputGroup>
-                            <input
-                                onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
-                                className="form-control"
-                                type="text"
-                                placeholder="Folder name..."
-                                value={creatingFolderName ? creatingFolderName : ""}
-                                onChange={(e) => updateText(e.target.value)}
-                                autoFocus
-                            />
-                            <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
-                            <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
-                        </InputGroup>
-                    </div>
-                </FormGroup>
-            </td><td></td>
-        </tr>
+        <List.Item className="itemPadding">
+            <FormGroup>
+                <div className="form-inline">
+                    <InputGroup>
+                        <i className="ion-android-folder create-folder-placement" />
+                    </InputGroup>
+                    <InputGroup>
+                        <input
+                            onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
+                            className="form-control"
+                            type="text"
+                            placeholder="Folder name..."
+                            value={creatingFolderName ? creatingFolderName : ""}
+                            onChange={(e) => updateText(e.target.value)}
+                            autoFocus
+                        />
+                        <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
+                        <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
+                    </InputGroup>
+                </div>
+            </FormGroup>
+        </List.Item>
     )
 );
 
-const ReturnFolder = ({ currentPath, fetchFiles }) =>
+const ReturnFolder = ({ currentPath, parentPath, fetchFiles, onClick, canSelectFolders }) =>
     !(currentPath !== Cloud.homeFolder) || !(currentPath !== "/home") ? null : (
-        <tr className="row-settings clickable-row pointer-cursor">
-            <td onClick={() => fetchFiles(getParentPath(currentPath))}>
-                <a><i className="ion-android-folder" /> ..</a>
-            </td>
-            <td/>
-        </tr>);
+        <List.Item className="pointer-cursor itemPadding">
+            {canSelectFolders ? (
+                <List.Content floated="right">
+                    <Button onClick={() => onClick(parentPath)}>Select</Button>
+                </List.Content>) : null}
+
+            <List.Icon name="folder" color="blue" />
+            <List.Content onClick={() => fetchFiles(parentPath)}>
+                ..
+            </List.Content>
+        </List.Item>);
 
 const UploadButton = ({ onClick }) => (<span className="input-group-addon btn btn-info" onClick={() => onClick()}>Upload file</span>);
 const RemoveButton = ({ onClick }) => (<span className="input-group-addon btn btn" onClick={() => onClick()}>✗</span>)
 
-const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) => {
-    return !files.length ? null :
+const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
+    !files.length ? null :
         (<React.Fragment>
             {files.map((file, index) =>
                 file.type === "FILE" ?
-                    (<tr key={index} className="gradeA row-settings pointer-cursor">
-                        <td onClick={() => onClick(file)}><Icon
-                            className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
-                        </td><td></td>
-                    </tr>)
-                    : (<tr key={index} className="row-settings clickable-row pointer-cursor">
-                        <td onClick={() => fetchFiles(file.path)}>
-                            <a><i className="ion-android-folder" /> {getFilenameFromPath(file.path)}</a>
-                        </td>
-                        <td>{canSelectFolders ? <Button onClick={() => onClick(file.path)} className="pull-right">Select</Button> : null}</td>
-                    </tr>)
+                    (<List.Item key={index} className="itemPadding pointer-cursor">
+                        <List.Content onClick={() => onClick(file)}>
+                            <Icon className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
+                        </List.Content>
+                    </List.Item>)
+                    : (<List.Item key={index} className="itemPadding pointer-cursor">
+                        <List.Content floated="right">
+                            {canSelectFolders ?
+                                <Button onClick={() => onClick(file.path)} className="pull-right">Select</Button>
+                                : null}
+                        </List.Content>
+                        <List.Icon name="folder" />
+                        <List.Content onClick={() => fetchFiles(file.path)}>
+                            {getFilenameFromPath(file.path)}
+                        </List.Content>
+                    </List.Item>)
             )}
         </React.Fragment>);
-}
 
 const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 

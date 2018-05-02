@@ -109,7 +109,7 @@ export const initObject = (cloud: SDUCloud) => ({
         projects: [] as any[],
         sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
         fileSelectorLoading: false,
-        fileSelectorShown: false, 
+        fileSelectorShown: false,
         fileSelectorFiles: [] as File[],
         fileSelectorPath: cloud.homeFolder,
         fileSelectorCallback: Function
@@ -143,8 +143,13 @@ export const initObject = (cloud: SDUCloud) => ({
         publications: [] as Publication[]
     },
     sidebar: {
+        open: sidebarOpen(),
         loading: false,
         options: [] as SidebarOption[]
     }
 });
+
+const sidebarOpen = () =>
+    window.localStorage.getItem("sidebar-open") ?
+        window.localStorage.getItem("sidebar-open") === "true" : false || window.innerWidth > 768;
 
