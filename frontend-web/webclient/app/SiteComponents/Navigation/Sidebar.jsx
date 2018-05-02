@@ -1,96 +1,143 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import { Glyphicon } from "react-bootstrap";
-import SidebarRun from "./Sidebar.run";
+import { Menu, Segment, Sidebar, Icon, Accordion, Transition, List } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { connect } from "react-redux";
-import { fetchSidebarOptions, setSidebarLoading } from "../../Actions/Sidebar";
+import { fetchSidebarOptions, setSidebarLoading, setSidebarOpen } from "../../Actions/Sidebar";
+import Avatar from "avataaars";
 
-class Sidebar extends React.Component {
+class SidebarComponent extends React.Component {
     constructor(props) {
         super(props);
-        const { dispatch } = this.props;
+        this.state = {
+            activeIndex: -1
+        };
+        const { dispatch } = props;
         dispatch(setSidebarLoading(true));
         dispatch(fetchSidebarOptions());
+        this.handleClick = this.handleClick.bind(this);
+    }
+
+    handleClick(e, titleProps) {
+        const { index } = titleProps
+        const { activeIndex } = this.state
+        const newIndex = activeIndex === index ? -1 : index
+        this.setState({ activeIndex: newIndex })
     }
 
     render() {
-        const { loading, options } = this.props;
-        if (options.length) {
-            SidebarRun();
-        }
+        const { loading, options, open } = this.props;
+        const { activeIndex } = this.state;
         return (
-            <aside className="sidebar-container">
-                <div className="sidebar-header">
-                    <div className="pull-right pt-lg text-muted hidden"><em className="ion-close-round" /></div>
-                    <a href="/app/dashboard" className="sidebar-header-logo">
-                        <img src="img/logo.png" data-svg-replace="img/logo.svg" alt="Logo" />
-                        <span className="sidebar-header-logo-text">SDUCloud</span>
-                    </a>
-                </div>
-                <div className="sidebar-content">
-                    <div className="sidebar-toolbar text-center">
-                        <a href=""><img src="/img/user/01.jpg" alt="Profile" className="img-circle thumb64" /></a>
-                        <div className="mt">Welcome, {Cloud.userInfo.firstNames}</div>
-                    </div>
-                    <nav className="sidebar-nav">
-                        <SidebarOptions options={options} loading={loading} />
-                    </nav>
-                </div>
-            </aside>
+            <Sidebar as={Menu} animation="overlay" visible={open} vertical>
+                <Menu.Item>
+                    <List>
+                        <List.Item>
+                            <List.Content floated="right">
+                                <Icon.Group size="large" onClick={() => this.props.dispatch(setSidebarOpen(false))}>
+                                    <Icon name="sidebar" />
+                                    <Icon corner size="large" name="triangle left" />
+                                </Icon.Group>
+                            </List.Content>
+                        </List.Item>
+                    </List>
+                    <Avatar
+                        avatarStyle="Circle"
+                        topType="NoHair"
+                        accessoriesType="Blank"
+                        facialHairType="Blank"
+                        clotheType="GraphicShirt"
+                        clotheColor="Blue02"
+                        graphicType="Bear"
+                        eyeType="Default"
+                        eyebrowType="Default"
+                        mouthType="Smile"
+                        skinColor="Light"
+                    />
+                    <div className="user-name">{`Welcome, ${Cloud.userInfo.firstNames}`}</div>
+                </Menu.Item>
+                <Menu.Item>
+                    <Link to={"/dashboard"} className="sidebar-option">
+                        <List>
+                            <List.Item>
+                                <List.Content floated="right">
+                                    <List.Icon name="home" />
+                                </List.Content>
+                                Dashboard
+                            </List.Item>
+                        </List>
+                    </Link>
+                </Menu.Item>
+                <Menu.Item>
+                    <Link to={`/files/${Cloud.homeFolder}`} className="sidebar-option">
+                        <List>
+                            <List.Item>
+                                <List.Content floated="right" >
+                                    <List.Icon name="file" floated="right" />
+                                </List.Content>
+                                Files
+                            </List.Item>
+                        </List>
+                    </Link>
+                </Menu.Item>
+                <Menu.Item>
+                    <Accordion>
+                        <Accordion.Title onClick={this.handleClick} index={0} active={activeIndex === 0}>
+                            Applications
+                            <Icon name="dropdown" />
+                        </Accordion.Title>
+                        {/*<Transition duration={200} visible={activeIndex === 0} animation="fade right">*/}
+                        <Accordion.Content active={activeIndex === 0}>
+                            <List>
+                                <Link to="/applications" className="sidebar-option">
+                                    <List.Item>
+                                        <List.Icon name="shield" />
+                                        Run
+                                    </List.Item>
+                                </Link>
+                                <Link to="/analyses" className="sidebar-option">
+                                    <List.Item>
+                                        <Icon name="tasks" />
+                                        Results
+                                    </List.Item>
+                                </Link>
+                            </List>
+                        </Accordion.Content>
+                        {/*</Transition>*/}
+                    </Accordion>
+                </Menu.Item>
+                <Menu.Item>
+                    <Accordion>
+                        <Accordion.Title onClick={this.handleClick} index={1} active={activeIndex === 1}>
+                            Publishing
+                            <Icon name="dropdown" />
+                        </Accordion.Title>
+                        {/*<Transition duration={200} visible={activeIndex === 0} animation="fade right">*/}
+                        <Accordion.Content active={activeIndex === 1}>
+                            <List>
+                                <Link to="/zenodo" className="sidebar-option">
+                                    <List.Item>
+                                        <List.Icon name="shield" />
+                                        Publications
+                                    </List.Item>
+                                </Link>
+                                <Link to="/zenodo/publish" className="sidebar-option">
+                                    <List.Item>
+                                        <List.Icon name="shield" />
+                                        Publish
+                                    </List.Item>
+                                </Link>
+                            </List>
+                        </Accordion.Content>
+                        {/* </Transition> */}
+                    </Accordion>
+                </Menu.Item>
+            </Sidebar >
         );
     }
 }
 
-const SidebarOptions = ({ options, loading }) =>
-    loading ?
-        (<BallPulseLoading loading={true} />) :
-        (<ul>
-            {options.map((option, index) =>
-                <SingleSidebarOption key={index} option={option} />
-            )}
-        </ul>);
-
-const SingleSidebarOption = ({ option }) => (
-    <li>
-        <SidebarOption option={option} />
-        {option.children ? (
-            <ul>
-                {option.children.map((option, i) =>
-                    <li key={i}>
-                        <SidebarOption option={option} />
-                    </li>)}
-            </ul>) : null
-        }
-    </li>
-);
-
-const iconStyle = {
-    color: "#448aff",
-    marginRight: "5px",
-    fontSize: "16px"
-};
-
-const SidebarOption = ({ option }) => {
-    if (option.icon || option.href === "#") {
-        const arrowRight = option.href === "#" ? <span className="pull-right nav-caret"><em className="ion-ios-arrow-right" /></span> : null;
-        return (
-            <Link to={option.href}>
-                <span className="nav-icon" />
-                <i style={iconStyle} className={option.icon} /> {option.name}
-                {arrowRight}
-            </Link>
-        );
-    } else {
-        return (
-            <Link to={option.href}>
-                {option.name}
-            </Link>
-        );
-    }
-};
-
-const mapStateToProps = (state) => ({ options, loading } = state.sidebar);
-export default connect(mapStateToProps)(Sidebar);
+const mapStateToProps = (state) => ({ options, loading, open } = state.sidebar);
+export default connect(mapStateToProps)(SidebarComponent);
