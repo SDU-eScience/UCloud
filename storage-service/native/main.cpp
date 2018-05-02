@@ -72,7 +72,6 @@ bool resolve_link(
     // Resolve link
     auto path_to = realpath(path_buffer, nullptr);
     if (path_to == nullptr || stat(path_to, s) != 0) {
-        // TODO This should be handled by deleting the link
         goto cleanup;
     }
 

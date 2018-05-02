@@ -18,7 +18,6 @@ class BulkDownloadService(private val fs: FileSystemService) {
                     // Calculate correct path, check if file exists and filter out bad files
                     val absPath = "${prefixPath.removeSuffix("/")}/${path.removePrefix("/")}"
                     val stat = fs.stat(user, absPath) ?: continue
-                    if (stat.type == FileType.LINK) continue
 
                     // Write tar header
                     log.debug("Writing tar header: ($path, $stat)")
