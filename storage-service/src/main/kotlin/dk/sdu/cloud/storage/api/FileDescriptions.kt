@@ -19,6 +19,7 @@ data class DeleteFileRequest(val path: String)
 data class MoveRequest(val path: String, val newPath: String)
 data class CopyRequest(val path: String, val newPath: String)
 data class BulkDownloadRequest(val prefix: String, val files: List<String>)
+data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null)
 
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
@@ -148,9 +149,19 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
             +"bulk"
         }
 
-        body {
-            bindEntireRequestFromBody()
+        body { bindEntireRequestFromBody() }
+    }
+
+    val syncFileList = callDescription<SyncFileListRequest, Unit, CommonErrorMessage> {
+        prettyName = "filesSyncFileList"
+        method = HttpMethod.POST
+
+        path {
+            using(baseContext)
+            +"sync"
         }
+
+        body { bindEntireRequestFromBody() }
     }
 }
 

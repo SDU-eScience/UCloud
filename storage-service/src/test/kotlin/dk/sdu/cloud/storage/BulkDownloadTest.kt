@@ -65,6 +65,7 @@ class BulkDownloadTest {
             CephFSProcessRunner(dao, true),
             mockk(),
             mockk(),
+            mockk(),
             fsRoot.absolutePath,
             true
         )
@@ -96,6 +97,7 @@ class BulkDownloadTest {
         val fs = CephFSFileSystemService(
             dao,
             CephFSProcessRunner(dao, true),
+            mockk(),
             mockk(),
             mockk(),
             fsRoot.absolutePath,

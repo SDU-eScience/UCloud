@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.AccessRight
+import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.services.cephfs.FavoritedFile
 import io.ktor.http.HttpStatusCode
@@ -49,7 +50,31 @@ interface FileSystemService {
     fun listMetadataKeys(user: String, path: String): List<String>
     fun getMetaValue(user: String, path: String, key: String): String
     fun setMetaValue(user: String, path: String, key: String, value: String)
+
+    /**
+     * Retrieves a "sync" list of files starting at [path].
+     *
+     * Given the length of these list items are streamed through the [itemHandler].
+     *
+     * Only file entries that have been modified since [modifiedSince] will be included.
+     */
+    suspend fun syncList(user: String, path: String, modifiedSince: Long = 0, itemHandler: suspend (SyncItem) -> Unit)
 }
+
+data class SyncItem(
+    val type: FileType,
+    val unixMode: Int,
+    val user: String,
+    val group: String,
+    val size: Long,
+    val createdAt: Long,
+    val modifiedAt: Long,
+    val accessedAt: Long,
+    val uniqueId: String,
+    val checksum: String?,
+    val checksumType: String?,
+    val path: String
+)
 
 sealed class FileSystemException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
     data class BadRequest(val why: String) : FileSystemException("Bad exception")

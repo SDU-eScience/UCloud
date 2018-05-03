@@ -46,12 +46,14 @@ class Server(
         val fileAclService =
             FileACLService(cloudToCephFsDao, processRunner, isDevelopment)
         val xattrService = XAttrService(processRunner)
+        val treeService = TreeService(processRunner, isDevelopment)
         val fs: FileSystemService =
             CephFSFileSystemService(
                 cloudToCephFsDao,
                 processRunner,
                 fileAclService,
                 xattrService,
+                treeService,
                 fsRoot,
                 isDevelopment
             )

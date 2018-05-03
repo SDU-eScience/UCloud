@@ -85,15 +85,22 @@ int main(int argc, char **argv) {
                     if (gr == nullptr) group_name = const_cast<char *>("nobody");
                     else group_name = gr->gr_name;
 
-                    memset(&checksum_buffer, 0, 256);
-                    GETXATTR(node->fts_path, "user.checksum", &checksum_buffer, 256);
 
                     std::cout << file_type << ',' << unix_mode << ','
                               << user->pw_name << ',' << group_name << ','
                               << stat_buffer.st_size << ',' << stat_buffer.st_ctime << ','
                               << stat_buffer.st_mtime << ',' << stat_buffer.st_atime << ','
-                              << stat_buffer.st_ino << ',' << checksum_buffer << ','
-                              << node -> fts_path << std::endl;
+                              << stat_buffer.st_ino << ',';
+
+                    memset(&checksum_buffer, 0, 256);
+                    GETXATTR(node->fts_path, "user.checksum", &checksum_buffer, 256);
+                    std::cout << checksum_buffer << ',';
+
+                    memset(&checksum_buffer, 0, 256);
+                    GETXATTR(node->fts_path, "user.checksum_type", &checksum_buffer, 256);
+                    std::cout << checksum_buffer << ',';
+
+                    std::cout << node->fts_path << std::endl;
                     break;
                 }
 
