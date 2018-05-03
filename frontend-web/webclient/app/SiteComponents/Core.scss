@@ -51,7 +51,6 @@ body {
     position: relative;
     height: calc(100% - #{$header-hg});
     // background-color: $main-content-bg;
-    overflow: auto;
     -webkit-overflow-scrolling: touch;
     @media #{$min-desktop} {
         margin-left: $sidebar-wd;
@@ -178,3 +177,5 @@ footer {
         z-index: -1;
     }
 }
+
+

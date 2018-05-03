@@ -31,7 +31,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
     const retrieveFilesCallback = () => {
         dispatch(setLoading(true));
         dispatch(fetchFiles(props.filesPath));
-    }
+    };
 
     let button = (<div />);
     if (file) {
@@ -61,7 +61,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
             {button}
         </SectionContainerCard>
     );
-}
+};
 
 const revokeRights = (file, acl, callback) => {
     swal({
@@ -85,12 +85,12 @@ const revokeRights = (file, acl, callback) => {
             swal("Error", `An error occurred revoking the rights. Please try again later`, "error");
         });
     });
-}
+};
 
 const removeAcl = (file, toRemoveAcl) => {
     let index = file.acl.findIndex(acl => acl.entity.name === toRemoveAcl.entity.name);
     file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1));
-}
+};
 
 const FileHeader = ({ file }) => {
     if (!file) {
@@ -104,7 +104,7 @@ const FileHeader = ({ file }) => {
                 <small>{type}</small>
             </h5>
         </Jumbotron>)
-}
+};
 
 const FileView = ({file, favorite}) => {
     if (!file) {
@@ -127,7 +127,7 @@ const FileView = ({file, favorite}) => {
             </ListGroup>
         </div>
     );
-}
+};
 
 const FileSharing = ({ file, updateSharing, revokeRights }) => {
     if (!file) {
@@ -161,7 +161,7 @@ const FileSharing = ({ file, updateSharing, revokeRights }) => {
             </ListGroup>
         </div>
     );
-}
+};
 
 FileInfo.propTypes = {
     loading: PropTypes.bool.isRequired,
@@ -169,7 +169,7 @@ FileInfo.propTypes = {
     filesPath: PropTypes.string.isRequired,
     favoriteCount: PropTypes.number.isRequired,
     aclCount: PropTypes.number.isRequired
-}
+};
 
 const mapStateToProps = (state) => {
     const { loading, files, path } = state.files;
