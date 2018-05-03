@@ -1,9 +1,7 @@
 import React from "react";
-import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import { Menu, Segment, Sidebar, Icon, Accordion, Transition, List } from "semantic-ui-react";
+import { Menu, Sidebar, Icon, Accordion, Transition, List } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { connect } from "react-redux";
 import { fetchSidebarOptions, setSidebarLoading, setSidebarOpen } from "../../Actions/Sidebar";
 import Avatar from "avataaars";
@@ -21,14 +19,14 @@ class SidebarComponent extends React.Component {
     }
 
     handleClick(e, titleProps) {
-        const { index } = titleProps
-        const { activeIndex } = this.state
-        const newIndex = activeIndex === index ? -1 : index
-        this.setState({ activeIndex: newIndex })
+        const { index } = titleProps;
+        const { activeIndex } = this.state;
+        const newIndex = activeIndex === index ? -1 : index;
+        this.setState({ activeIndex: newIndex });
     }
 
     render() {
-        const { loading, options, open } = this.props;
+        const { open } = this.props;
         const { activeIndex } = this.state;
         return (
             <Sidebar as={Menu} animation="overlay" visible={open} vertical>
