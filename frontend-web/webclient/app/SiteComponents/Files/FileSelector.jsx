@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Modal, FormGroup, InputGroup } from "react-bootstrap";
 import { Icon, Button, List } from "semantic-ui-react";
@@ -7,7 +6,6 @@ import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
 import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange } from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
-import { DashboardModal } from "uppy/lib/react";
 import { dispatch } from "redux";
 import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
 import { KeyCode } from "../../DefaultObjects";
@@ -68,7 +66,7 @@ class FileSelector extends React.Component {
                     this.fetchFiles(currentPath);
                 }
             }).catch((failure) => {
-                console.log(`failure: ${failure}`)
+                console.warn(`failure: ${failure}`);
                 this.resetCreateFolder() // TODO Handle failure
             }) : this.resetCreateFolder();
         }

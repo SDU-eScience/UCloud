@@ -4,32 +4,17 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Glyphicon, FormGroup, InputGroup } from "react-bootstrap";
+import { FormGroup, InputGroup } from "react-bootstrap";
 import { Dropdown, Button, Icon, Table } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import {
-    sortFilesByTypeAndName,
-    sortFilesBySensitivity,
     shareFile,
-    favorite,
-    getOwnerFromAcls,
-    renameFile,
-    showFileDeletionPrompt,
-    getCurrentRights,
-    downloadFile,
-    toLowerCaseAndCapitalize,
-    getSortingIcon,
-    sortByNumber,
-    sortByString,
-    getTypeFromFile,
     inSuccessRange,
-    getFilenameFromPath,
-    isInvalidPathName,
-    batchDeleteFiles
+    getFilenameFromPath
 } from "../../UtilityFunctions";
+import * as uf from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
-import Uppy from "uppy";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage, fetchFileselectorFiles, fileSelectorShown, setFileSelectorCallback } from "../../Actions/Files";
 import { updatePageTitle } from "../../Actions/Status";
 import { changeUppyFilesOpen } from "../../Actions/UppyActions";
@@ -90,25 +75,24 @@ class Files extends React.Component {
             const fileNames = files.map((it) => getFilenameFromPath(it.path))
             if (isNew) {
                 const name = this.state.creatingFolderName;
-                if (isInvalidPathName(name, fileNames)) { return }
+                if (uf.isInvalidPathName(name, fileNames)) { return }
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
                 name ? Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
-                    if (inSuccessRange(request.status)) {
-                        // TODO Push mock folder
+                    if (uf.inSuccessRange(request.status)) {
                         this.resetFolderObject();
                         refetchFiles(path);
                     }
                 }).catch((failure) =>
-                    this.resetFolderObject() // TODO Handle failure
+                    this.resetFolderObject()
                 ) : this.resetFolderObject();
             } else {
                 const name = this.state.editFolder.name;
-                if (isInvalidPathName(name, fileNames)) { return }
+                if (uf.isInvalidPathName(name, fileNames)) { return }
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
                 const originalFilename = files[this.state.editFolder.index].path;
-                name ? Cloud.post("/files/move", { path: originalFilename, newPath: directoryPath })
+                name ? Cloud.post(`/files/move?path=${originalFilename}&newPath=${directoryPath}`)
                     .then(({ request }) => {
-                        if (inSuccessRange(request.status)) {
+                        if (uf.inSuccessRange(request.status)) {
                             // TODO Overwrite filename;
                             this.resetFolderObject();
                             refetchFiles(this.props.path);
@@ -145,19 +129,19 @@ class Files extends React.Component {
         const asc = (this.state.lastSorting.name === name) ? !this.state.lastSorting.asc : true;
         switch (type) {
             case "number": {
-                sortedFiles = sortByNumber(files, name, asc);
+                sortedFiles = uf.sortByNumber(files, name, asc);
                 break;
             }
             case "string": {
-                sortedFiles = sortByString(files, name, asc);
+                sortedFiles = uf.sortByString(files, name, asc);
                 break;
             }
             case "typeAndName": {
-                sortedFiles = sortFilesByTypeAndName(files, asc);
+                sortedFiles = uf.sortFilesByTypeAndName(files, asc);
                 break;
             }
             case "sensitivityLevel":
-                sortedFiles = sortFilesBySensitivity(files, asc);
+                sortedFiles = uf.sortFilesBySensitivity(files, asc);
                 break;
             default: {
                 sortedFiles = files;
@@ -226,7 +210,11 @@ class Files extends React.Component {
                 <section>
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
-                        <ContextButtons upload={openUppy} createFolder={() => this.createFolder(currentPath)} mobileOnly={true} />
+                        <ContextButtons
+                            upload={openUppy}
+                            createFolder={() => this.createFolder(currentPath)}
+                            mobileOnly={true}
+                        />
                         <FilesTable
                             handleKeyDown={this.handleKeyDown}
                             creatingNewFolder={this.state.creatingNewFolder}
@@ -238,30 +226,28 @@ class Files extends React.Component {
                             files={shownFiles}
                             loading={loading}
                             masterCheckbox={masterCheckboxChecked}
-                            sortingIcon={(name) => getSortingIcon(this.state.lastSorting, name)}
+                            sortingIcon={(name) => uf.getSortingIcon(this.state.lastSorting, name)}
                             addOrRemoveFile={(checked, newFile) => checkFile(checked, files, newFile)}
                             sortFiles={this.sortFilesBy}
-                            favoriteFile={(filePath) => updateFiles(favorite(files, filePath, Cloud))}
+                            favoriteFile={(filePath) => updateFiles(uf.favorite(files, filePath, Cloud))}
                             selectOrDeselectAllFiles={this.selectOrDeselectAllFiles}
                             forceInlineButtons={true}
                             refetch={() => refetchFiles(path)}
                             fetchFiles={fetchNewFiles}
                             showFileSelector={this.props.showFileSelector}
                             setFileSelectorCallback={this.props.setFileSelectorCallback}
-                        />
-                        <BallPulseLoading loading={loading} />
-                        <PaginationButtons
                             currentPage={currentFilesPage}
                             totalPages={totalPages}
                             toPage={(pageNumber) => goTo(pageNumber, files)}
                         />
+                        <BallPulseLoading loading={loading} />
                         <EntriesPerPageSelector
                             entriesPerPage={filesPerPage}
                             totalPages={totalPages}
                             handlePageSizeSelection={(newSize) => updateFilesPerPage(newSize, files)}
                         >
                             Files per page
-                    </EntriesPerPageSelector>
+                        </EntriesPerPageSelector>
                     </div>
                     <ContextBar
                         selectedFiles={selectedFiles}
@@ -341,7 +327,7 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
         }
     };
     const fileText = toFileText(selectedFiles);
-    const rights = getCurrentRights(selectedFiles, Cloud);
+    const rights = uf.getCurrentRights(selectedFiles, Cloud);
     const downloadDisabled = (selectedFiles.length > 1 || selectedFiles[0].sensitivityLevel === "SENSITIVE");
     return (
         <div>
@@ -357,20 +343,20 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
             <p>
                 <Button className="white btn-block ripple" basic
                     disabled={selectedFiles.length > 1}
-                    onClick={() => shareFile(selectedFiles[0].path, Cloud)}>
+                    onClick={() => uf.shareFile(selectedFiles[0].path, Cloud)}>
                     <span className="ion-share pull-left" /> Share
                 </Button>
             </p>
             <p>
                 <Button disabled={downloadDisabled || selectedFiles[0].type === "DIRECTORY"} basic className="ripple btn-block"
-                    onClick={() => downloadFile(selectedFiles[0].path, Cloud)}>
+                    onClick={() => uf.downloadFile(selectedFiles[0].path, Cloud)}>
                     <span className="ion-ios-download pull-left" />
                     Download
                 </Button>
             </p>
             <p>
                 <Button className="btn-block ripple" basic
-                    onClick={() => rename()}
+                    onClick={() => uf.rename()}
                     disabled={rights.rightsLevel < 3 || selectedFiles.length !== 1}>
                     <span className="ion-ios-compose pull-left" />
                     Rename
@@ -379,7 +365,7 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
             <p>
                 <Button color="red" className="btn-block ripple"
                     disabled={rights.rightsLevel < 3}
-                    onClick={() => batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, refetch)}>
+                    onClick={() => uf.batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, refetch)}>
                     <em className="ion-ios-trash pull-left" />
                     Delete
                 </Button>
@@ -467,7 +453,19 @@ export const FilesTable = (props) => {
                 showFileSelector={props.showFileSelector}
                 setFileSelectorCallback={props.setFileSelectorCallback}
             />
+            <Table.Footer>
+                <Table.Row>
+                    <Table.Cell colSpan="4" textAlign="center">
+                        <PaginationButtons
+                            currentPage={props.currentPage}
+                            totalPages={props.totalPages}
+                            toPage={props.toPage}
+                        />
+                    </Table.Cell>
+                </Table.Row>
+            </Table.Footer>
         </Table>
+
     );
 };
 
@@ -515,7 +513,7 @@ const FilesList = (props) => {
             favoriteFile={props.favoriteFile}
             hasCheckbox={props.hasCheckbox}
             forceInlineButtons={props.forceInlineButtons}
-            owner={getOwnerFromAcls(file.acl, Cloud)}
+            owner={uf.getOwnerFromAcls(file.acl, Cloud)}
             refetch={props.refetch}
             fetchFiles={props.fetchFiles}
             showFileSelector={props.showFileSelector}
@@ -563,7 +561,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
         <Table.Cell>{new Date(file.modifiedAt).toLocaleString()}</Table.Cell>
         <Table.Cell>{owner}</Table.Cell>
         <Table.Cell>
-            <Button className="fileData" basic onClick={() => shareFile(file.path, Cloud)}>Share</Button>
+            <Button className="fileData" basic onClick={() => uf.shareFile(file.path, Cloud)}>Share</Button>
             <MobileButtons
                 file={file}
                 forceInlineButtons={forceInlineButtons}
@@ -588,7 +586,7 @@ const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
         />);
     if (type === "FILE") {
         return (<React.Fragment>
-            <FileIcon name={getTypeFromFile(getFilenameFromPath(path))} size="big" link={link} />
+            <FileIcon name={uf.getTypeFromFile(getFilenameFromPath(path))} size="big" link={link} />
             <span>{fileName}</span>
         </React.Fragment>)
     } else {
@@ -607,8 +605,8 @@ const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
 const FileIcon = ({ name, size, link }) =>
     link ?
         <Icon.Group size={size}>
-            <Icon name={name}/>
-            <Icon corner color="grey" name="share"/>
+            <Icon name={name} />
+            <Icon corner color="grey" name="share" />
         </Icon.Group> :
         <Icon name={name} size={size} />
 
@@ -664,7 +662,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
                 <Dropdown.Item onClick={() => shareFile(file.path, Cloud)}>
                     Share file
                 </Dropdown.Item>
-                {file.type === "FILE" ? <Dropdown.Item onClick={() => downloadFile(file.path, Cloud)}>
+                {file.type === "FILE" ? <Dropdown.Item onClick={() => uf.downloadFile(file.path, Cloud)}>
                     Download file
                 </Dropdown.Item> : null}
                 {rename ? <Dropdown.Item onClick={() => rename(file.path)}>
@@ -676,7 +674,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
                 <Dropdown.Item onClick={() => move()}>
                     Move file
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => showFileDeletionPrompt(file.path, Cloud, refetch)}>
+                <Dropdown.Item onClick={() => uf.showFileDeletionPrompt(file.path, Cloud, refetch)}>
                     Delete file
                 </Dropdown.Item>
                 <Dropdown.Item>
@@ -716,10 +714,10 @@ const mapDispatchToProps = (dispatch) => ({
     fetchNewFiles: (path) => {
         dispatch(updatePath(path));
         dispatch(setLoading(true));
-        dispatch(fetchFiles(path, sortFilesByTypeAndName, true))
+        dispatch(fetchFiles(path, uf.sortFilesByTypeAndName, true))
     },
     refetchFiles: (path) => {
-        dispatch(fetchFiles(path, sortFilesByTypeAndName, true));
+        dispatch(fetchFiles(path, uf.sortFilesByTypeAndName, true));
     },
     updatePath: (path) => dispatch(updatePath(path)),
     fetchSelectorFiles: (path) => {

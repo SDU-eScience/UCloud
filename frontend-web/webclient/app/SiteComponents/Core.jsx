@@ -26,8 +26,8 @@ const NotFound = () => (<div className="container-fluid"><h1>Not found.</h1></di
 
 const Core = (props) => (
     <div className="layout-container">
-        <Sidebar />
         <Header />
+        <Sidebar />
         <div className="main-container">
             <Switch>
                 <Route path="/files/*" component={Files} />

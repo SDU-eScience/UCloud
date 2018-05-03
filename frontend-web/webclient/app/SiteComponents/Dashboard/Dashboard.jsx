@@ -1,15 +1,15 @@
 import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
-import { NotificationIcon, getParentPath } from "../../UtilityFunctions";
+import { getParentPath } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
-import { sortFilesByTypeAndName, favorite, sortFilesByModified, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
+import { favorite, sortFilesByModified, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
 import { updatePageTitle } from "../../Actions/Status";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../../Actions/Dashboard";
 import { connect } from "react-redux";
 import "./Dashboard.scss";
 import "../Styling/Shared.scss";
-import { Card, Table, List, Tab, Container, Icon } from "semantic-ui-react";
+import { Card, List, Container, Icon } from "semantic-ui-react";
 import moment from "moment";
 
 class Dashboard extends React.Component {
@@ -28,7 +28,7 @@ class Dashboard extends React.Component {
 
 
     render() {
-        const { favoriteFiles, recentFiles, recentAnalyses, activity, dispatch,
+        const { favoriteFiles, recentFiles, recentAnalyses, activity,
             favoriteLoading, recentLoading, analysesLoading, activityLoading } = this.props;
         const favoriteOrUnfavorite = (filePath) =>
             this.props.receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited));
@@ -93,10 +93,9 @@ const ListFileContent = ({ path, type }) =>
 
 
 const DashboardRecentFiles = ({ files, isLoading }) => {
-    const noRecents = files.length || isLoading ? "" : <h3 className="text-center">
+    const noRecents = files.length || isLoading ? "" : (<h3 className="text-center">
         <small>No recent files found</small>
-    </h3>;
-    let yesterday = (new Date).getTime() - 1000 * 60 * 60 * 24;
+    </h3>);
     const filesList = files.sort((a, b) => b.modifiedAt - a.modifiedAt).map((file, i) => (
         <List.Item key={i} className="itemPadding">
             <List.Content floated="right">
@@ -200,8 +199,6 @@ const mapStateToProps = (state) => {
         activityLoading,
         favoriteFilesLength: favoriteFiles.length // Hack to ensure rerendering
     };
-}
-
-const toEUTimeString = (timeString) => timeString.split(".").join(":");
+};
 
 export default connect(mapStateToProps, mapDispatchToProps)(Dashboard)

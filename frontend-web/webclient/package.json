@@ -1,8 +1,8 @@
 {
-  "name": "centric",
+  "name": "sducloud",
   "version": "0.0.0",
-  "description": "Centric - Bootstrap Admin App + ReactJS",
-  "author": "@themicon_co",
+  "description": "SDU Cloud",
+  "author": "eScience Center - SDU",
   "scripts": {
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rm -rf dist/",
