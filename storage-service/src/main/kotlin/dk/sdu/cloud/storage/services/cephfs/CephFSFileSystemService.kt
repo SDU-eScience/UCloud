@@ -4,6 +4,7 @@ import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.FileSystemException
 import dk.sdu.cloud.storage.services.FileSystemService
 import dk.sdu.cloud.storage.services.ShareException
+import dk.sdu.cloud.storage.services.SyncItem
 import dk.sdu.cloud.storage.util.BashEscaper
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -17,6 +18,7 @@ class CephFSFileSystemService(
     private val processRunner: CephFSProcessRunner,
     private val fileACLService: FileACLService,
     private val xAttrService: XAttrService,
+    private val treeService: TreeService,
     private val fsRoot: String,
     private val isDevelopment: Boolean = false
 ) : FileSystemService {
@@ -436,6 +438,24 @@ class CephFSFileSystemService(
 
     override fun setMetaValue(user: String, path: String, key: String, value: String) {
         xAttrService.setAttribute(user, translateAndCheckFile(path), key, value)
+    }
+
+    override suspend fun syncList(
+        user: String,
+        path: String,
+        modifiedSince: Long,
+        itemHandler: suspend (SyncItem) -> Unit
+    ) {
+        treeService.listAt(user, translateAndCheckFile(path), modifiedSince) {
+            itemHandler(
+                it.copy(
+                    user = cloudToCephFsDao.findCloudUser(it.user)
+                            ?: throw FileSystemException.CriticalException("Could not resolve user (${it.user})"),
+                    path = it.path.toCloudPath(),
+                    group = it.group // TODO Should likely translate
+                )
+            )
+        }
     }
 
     private fun favoritesDirectory(user: String): String {

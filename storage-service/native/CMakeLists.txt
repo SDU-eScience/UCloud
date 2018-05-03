@@ -4,7 +4,7 @@ project(native)
 set(CMAKE_CXX_STANDARD 11)
 
 add_executable(dirlisting main.cpp libacl.cpp libacl.h)
-add_executable(tree tree.cpp libacl.cpp libacl.h)
+add_executable(ceph-tree tree.cpp libacl.cpp libacl.h)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)
