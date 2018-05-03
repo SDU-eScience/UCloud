@@ -5,13 +5,6 @@
 @import "./Common/Variables";
 @import "./Common/Mixins";
 
-// Angular
-[ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
-    display: none !important;
-}
-[ng-click], [data-ng-click], .nav, .pagination, .carousel, .panel-title a {
-    cursor: pointer
-}
 
 // Scaffolding
 
@@ -70,7 +63,6 @@ body {
 // Footer
 
 footer {
-
     left: 0;
     right: 0;
     bottom: 0;

@@ -10,7 +10,7 @@ const sidebar = (state = [], action) => {
             return { ...state, loading: false, options: action.options }
         case SET_SIDEBAR_OPEN: {
             window.localStorage.setItem("sidebar-open", action.state);
-            return { ...state, open: action.state }
+            return { ...state, open: !state.open }
         }
         default: {
             return state;

@@ -25,10 +25,9 @@ import * as Share from "./Shares";
 const NotFound = () => (<div className="container-fluid"><h1>Not found.</h1></div>);
 
 const Core = (props) => (
-    <div className="layout-container">
+    <React.Fragment>
         <Header />
-        <Sidebar />
-        <div className="main-container">
+        <Sidebar>
             <Switch>
                 <Route path="/files/*" component={Files} />
                 <Route exact path="/dashboard" component={Dashboard} />
@@ -46,12 +45,12 @@ const Core = (props) => (
                 <Route exact path="/shares" component={Share.List} />
                 <Route component={NotFound} />
             </Switch>
-            <footer>
+        </Sidebar>
+        <UppyWrapper />
+        <footer>
                 <span>{new Date().getFullYear()} - SDUCloud.</span>
             </footer>
-        </div>
-        <UppyWrapper />
-    </div>
+    </React.Fragment>
 );
 
 export default (Core);

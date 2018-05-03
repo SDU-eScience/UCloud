@@ -7,7 +7,7 @@ export const setAllLoading = (loading) => ({
 });
 
 export const fetchFavorites = () =>
-    Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) => {
+    Cloud.get(`/files?path=${Cloud.homeFolder}/Favorites`).then(({ response }) => {
         let actualFavorites = response.filter(file => file.favorited);
         const subsetFavorites = actualFavorites.slice(0, 10);
         return receiveFavorites(subsetFavorites);

@@ -2,18 +2,6 @@ import * as React from "react";
 import "react-bootstrap";
 import { Breadcrumb } from "semantic-ui-react"
 
-const BreadcrumbExampleStandard = () => (
-    <Breadcrumb>
-        <Breadcrumb.Section link>Home</Breadcrumb.Section>
-        <Breadcrumb.Divider />
-        <Breadcrumb.Section link>Store</Breadcrumb.Section>
-        <Breadcrumb.Divider />
-        <Breadcrumb.Section active>T-Shirt</Breadcrumb.Section>
-    </Breadcrumb>
-)
-
-
-
 interface Breadcrumbs { currentPath: string, navigate: (path: string) => void }
 export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
     if (!currentPath) {
@@ -42,7 +30,7 @@ export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
 }
 
 export function buildBreadCrumbs(path: string) {
-    const paths: string[] = path.split("/").filter((path: string) => path);
+    const paths = path.split("/").filter((path: string) => path);
     let pathsMapping = [];
     for (let i = 0; i < paths.length; i++) {
         let actualPath = "/";

@@ -14,19 +14,18 @@ class Header extends React.Component<any, any> {
         super(props);
     }
 
+    sidebarIcon = () => this.props.open ? "triangle left" : "triangle right";
+
     public render() {
         return (
             <Menu color="blue" secondary className="menu-padding">
-                <Menu.Item onClick={() => this.props.dispatch(setSidebarOpen(true))}>
+                <Menu.Item onClick={() => this.props.dispatch(setSidebarOpen())}>
                     <Icon.Group size="large">
-                        <Icon name="sidebar"/>
-                        <Icon corner size="large" name="triangle right"/>
+                        <Icon name="sidebar" />
+                        <Icon corner color="grey" size="large" name={this.sidebarIcon()} />
                     </Icon.Group>
                 </Menu.Item>
                 <Menu.Menu position="right">
-                    <Menu.Item>
-                        <StatusBar />
-                    </Menu.Item>
                     <Menu.Item>
                         <Notifications />
                     </Menu.Item>
@@ -41,5 +40,5 @@ class Header extends React.Component<any, any> {
     }
 }
 
-const mapStateToProps = (state: any) => state.status;
+const mapStateToProps = (state: any) => ({ open: state.sidebar.open });
 export default connect(mapStateToProps)(Header);

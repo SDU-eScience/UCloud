@@ -16,7 +16,6 @@ const receiveSidebarOptions = (options) => ({
     options
 });
 
-export const setSidebarOpen = (state) => ({
-    type: SET_SIDEBAR_OPEN,
-    state
+export const setSidebarOpen = () => ({
+    type: SET_SIDEBAR_OPEN
 });

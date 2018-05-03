@@ -4,27 +4,27 @@ export default class PromiseKeeper {
         this.promises = [];
     }
 
-    _cleanup(): void {
+    _cleanup = (): void => {
         this.promises = this.promises.filter(it => !it.isComplete);
     }
 
-    makeCancelable(promise: Promise<any>): CancelablePromise {
+    makeCancelable = (promise: Promise<any>): CancelablePromise => {
         let hasCanceled_ = false;
         let cancelablePromise = new CancelablePromise();
         cancelablePromise.promise = new Promise((resolve: any, reject: any) => {
-                promise.then(
-                    val => {
-                        cancelablePromise.isComplete = true;
-                        this._cleanup();
-                        hasCanceled_ ? reject({isCanceled: true}) : resolve(val);
-                    },
-                    error => {
-                        cancelablePromise.isComplete = true;
-                        this._cleanup();
-                        hasCanceled_ ? reject({isCanceled: true}) : reject(error)
-                    }
-                );
-            }
+            promise.then(
+                val => {
+                    cancelablePromise.isComplete = true;
+                    this._cleanup();
+                    hasCanceled_ ? reject({ isCanceled: true }) : resolve(val);
+                },
+                error => {
+                    cancelablePromise.isComplete = true;
+                    this._cleanup();
+                    hasCanceled_ ? reject({ isCanceled: true }) : reject(error)
+                }
+            );
+        }
         );
         cancelablePromise.cancel = () => hasCanceled_ = true;
         this.promises.push(cancelablePromise);
@@ -35,7 +35,7 @@ export default class PromiseKeeper {
      *  Cancels all promises stored in the promise keeper.
      *  The held promises are cleared from the keeper as they are cancelled and no longer have any function
      */
-    cancelPromises(): void {
+    cancelPromises = (): void => {
         this.promises.forEach((it) => {
             it.cancel();
         });
@@ -48,5 +48,5 @@ class CancelablePromise {
     promise: Promise<any>
     cancel: VoidFunction
     hasCanceled_: boolean
-    constructor(){}
+    constructor() { }
 }
