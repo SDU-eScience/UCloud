@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "react-bootstrap";
+import { Button } from "semantic-ui-react";
 import "../../../node_modules/loaders.css/loaders.css";
 import "./colors.scss";
 
@@ -44,7 +44,6 @@ export const SmallSpinner = ({ loading, color }) => (loading) ?
 
 export const LoadingButton = (props) => (
     <Button
-        bsStyle={props.bsStyle}
         onClick={e => props.handler(e)}
         className={props.style}
         disabled={props.disabled}

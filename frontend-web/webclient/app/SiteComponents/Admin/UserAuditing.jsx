@@ -1,6 +1,6 @@
-import React from 'react';
+import React from "react";
 import LoadingIcon from "../LoadingIcon/LoadingIcon";
-import {Table, Button} from "react-bootstrap";
+import {Button} from "semantic-ui-react";
 
 class UserAuditing extends React.Component {
     constructor(props) {

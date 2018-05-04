@@ -1,8 +1,10 @@
-import React from 'react';
-import {BallPulseLoading} from '../LoadingIcon/LoadingIcon'
-import {NotificationIcon, WebSocketSupport} from '../../UtilityFunctions'
-import {Table} from 'react-bootstrap';
-import {Cloud} from "../../../authentication/SDUCloudObject";
+import React from "react";
+import { BallPulseLoading } from '../LoadingIcon/LoadingIcon'
+import { NotificationIcon, WebSocketSupport } from '../../UtilityFunctions'
+import { Table } from "semantic-ui-react";
+import { Cloud } from "../../../authentication/SDUCloudObject";
+import { updatePageTitle } from "../../Actions/Status";
+import { connect } from "react-redux";
 
 class Notifications extends React.Component {
     constructor(props) {
@@ -22,31 +24,31 @@ class Notifications extends React.Component {
             recentShown: 10,
             remainingShown: 10,
         };
-        this.getNotifications();
-        this.props.dispatch(updateTitle("Notifications"));
+        //this.getNotifications();
+        this.props.dispatch(updatePageTitle("Notifications"));
     }
 
     getNotifications() {
-        this.setState({loading: true});
+        this.setState({ loading: true });
         let notifications = [];//Cloud.get().then(notifications => {
-            let yesterday = new Date().getTime() - 24 * 60 * 60 * 1000;
-            const recentNotifications = this.state.recent.slice();
-            const remainingNotifications = this.state.remaining.slice();
-            notifications.forEach((it) => {
-                if (it.timestamp > yesterday) {
-                    recentNotifications.push(it);
-                } else {
-                    remainingNotifications.push(it);
-                }
-            });
-            recentNotifications.sort();
-            remainingNotifications.sort();
-            this.setState({
-                loading: false,
-                recent: recentNotifications,
-                remaining: remainingNotifications,
-            });
-            if (this.state.hasWebSocketSupport) this.initWS();
+        let yesterday = new Date().getTime() - 24 * 60 * 60 * 1000;
+        const recentNotifications = this.state.recent.slice();
+        const remainingNotifications = this.state.remaining.slice();
+        notifications.forEach((it) => {
+            if (it.timestamp > yesterday) {
+                recentNotifications.push(it);
+            } else {
+                remainingNotifications.push(it);
+            }
+        });
+        recentNotifications.sort();
+        remainingNotifications.sort();
+        this.setState({
+            loading: false,
+            recent: recentNotifications,
+            remaining: remainingNotifications,
+        });
+        if (this.state.hasWebSocketSupport) this.initWS();
         //});
     }
 
@@ -90,29 +92,29 @@ class Notifications extends React.Component {
         return (
             <section>
                 <div className="container container-md">
-                    <BallPulseLoading loading={this.state.loading}/>
-                    <WebSocketSupport/>
+                    <BallPulseLoading loading={this.state.loading} />
+                    <WebSocketSupport />
                     <p className="ph">Last 24 hours</p>
                     <div className="card">
-                        <Table className="table table-hover table-fixed va-middle">
+                        <Table>
                             <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)}
-                                              notifications={this.state.recent} showCount={this.state.recentShown}/>
+                                notifications={this.state.recent} showCount={this.state.recentShown} />
                         </Table>
                         <ShowButton onClick={() => this.showMore("recent")}
-                                    hasMoreNotifications={this.state.recent.length > this.state.recentShown}/>
+                            hasMoreNotifications={this.state.recent.length > this.state.recentShown} />
                     </div>
                     <p className="ph">Older</p>
                     <div className="card">
-                        <table className="table table-hover table-fixed va-middle">
+                        <Table>
                             <NotificationList onClick={(notification) => this.updateCurrentNotification(notification)}
-                                              notifications={this.state.remaining}
-                                              showCount={this.state.remainingShown}/>
-                        </table>
+                                notifications={this.state.remaining}
+                                showCount={this.state.remainingShown} />
+                        </Table>
                         <ShowButton onClick={() => this.showMore("remaining")}
-                                    hasMoreNotifications={this.state.remaining.length > this.state.remainingShown}/>
+                            hasMoreNotifications={this.state.remaining.length > this.state.remainingShown} />
                     </div>
                 </div>
-                <MessageModal notification={this.state.currentNotification}/>
+                <MessageModal notification={this.state.currentNotification} />
             </section>)
     }
 }
@@ -127,11 +129,11 @@ function NotificationList(props) {
         <tr key={i++} className="msg-display clickable" onClick={() => props.onClick(notification)} data-toggle="modal"
             data-target="#notificationModal">
             <td className="wd-xxs">
-                <NotificationIcon type={notification.type}/>
+                <NotificationIcon type={notification.type} />
             </td>
             <th className="mda-list-item-text mda-2-line">
                 <small>{notification.message}</small>
-                <br/>
+                <br />
                 <small className="text-muted">{new Date(notification.timestamp).toLocaleString()}</small>
             </th>
             <td className="text">{notification.body}</td>
@@ -140,16 +142,16 @@ function NotificationList(props) {
 
     return (
         <tbody>
-        {notificationsList}
+            {notificationsList}
         </tbody>)
 }
 
 function ShowButton(props) {
     if (props.hasMoreNotifications) {
         return (
-            <button onClick={() => props.onClick()} className="btn btn-info ion-ios-arrow-down"/>)
+            <button onClick={() => props.onClick()} className="btn btn-info ion-ios-arrow-down" />)
     } else {
-        return (<div/>)
+        return (<div />)
     }
 }
 
@@ -160,7 +162,7 @@ function MessageModal(props) {
                 <div className="modal-content">
                     <div className="modal-header">
                         <button type="button" className="close" data-dismiss="modal">&times;</button>
-                        <h4 className="modal-title"> {props.notification.message}<br/>
+                        <h4 className="modal-title"> {props.notification.message}<br />
                             <small>{new Date(props.notification.timestamp).toLocaleString()}</small>
                         </h4>
                     </div>
@@ -175,4 +177,4 @@ function MessageModal(props) {
         </div>)
 }
 
-export default Notifications
+export default connect()(Notifications)

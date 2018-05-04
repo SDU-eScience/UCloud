@@ -105,8 +105,8 @@ class ZenodoPublish extends React.Component {
                                 </div>
                             </fieldset>
                             <ButtonToolbar>
-                                <Button bsStyle="success" onClick={() => this.newFile()}>Add additional file</Button>
-                                <LoadingButton bsStyle={"primary"}
+                                <Button onClick={() => this.newFile()}>Add additional file</Button>
+                                <LoadingButton
                                     disabled={this.state.requestSent || !filesSelected || !name}
                                     loading={this.state.requestSent}
                                     style={"pull-right"} buttonContent={"Upload files for publishing"}
