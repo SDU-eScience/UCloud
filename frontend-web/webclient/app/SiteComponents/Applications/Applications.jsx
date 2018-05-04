@@ -98,10 +98,10 @@ class Applications extends React.Component {
                         />
                         <EntriesPerPageSelector
                             entriesPerPage={applicationsPerPage}
-                            handlePageSizeSelection={(size) => dispatch(updateApplicationsPerPage(size))}
+                            onChange={(size) => dispatch(updateApplicationsPerPage(size))}
                             totalPages={totalPages}
                         >
-                            Applications per page
+                            {" Applications per page"}
                         </EntriesPerPageSelector>
                     </div>
                 </Container>

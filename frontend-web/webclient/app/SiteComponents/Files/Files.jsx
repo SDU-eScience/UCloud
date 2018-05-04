@@ -236,18 +236,20 @@ class Files extends React.Component {
                             fetchFiles={fetchNewFiles}
                             showFileSelector={this.props.showFileSelector}
                             setFileSelectorCallback={this.props.setFileSelectorCallback}
-                            currentPage={currentFilesPage}
-                            totalPages={totalPages}
-                            toPage={(pageNumber) => goTo(pageNumber, files)}
-                        />
-                        <BallPulseLoading loading={loading} />
+                        >
+                            <PaginationButtons
+                                currentPage={currentFilesPage}
+                                totalPages={totalPages}
+                                toPage={(pageNumber) => goTo(pageNumber, files)}
+                            />
+                        </FilesTable>
                         <EntriesPerPageSelector
                             entriesPerPage={filesPerPage}
                             totalPages={totalPages}
-                            handlePageSizeSelection={(newSize) => updateFilesPerPage(newSize, files)}
-                        >
-                            Files per page
+                            onChange={(newSize) => updateFilesPerPage(newSize, files)}
+                        >{" Files per page"}
                         </EntriesPerPageSelector>
+                        <BallPulseLoading loading={loading} />
                     </div>
                     <ContextBar
                         selectedFiles={selectedFiles}
@@ -456,11 +458,7 @@ export const FilesTable = (props) => {
             <Table.Footer>
                 <Table.Row>
                     <Table.Cell colSpan="4" textAlign="center">
-                        <PaginationButtons
-                            currentPage={props.currentPage}
-                            totalPages={props.totalPages}
-                            toPage={props.toPage}
-                        />
+                        {props.children}
                     </Table.Cell>
                 </Table.Row>
             </Table.Footer>

@@ -30,7 +30,7 @@ class SidebarComponent extends React.Component {
         const { activeIndex } = this.state;
         return (
             <Sidebar.Pushable as={Segment}>
-                <Sidebar as={Menu} animation="uncover" visible={open} vertical>
+                <Sidebar as={Menu} animation="overlay" visible={open} vertical>
                     <Menu.Item>
                         <Avatar
                             avatarStyle="Circle"

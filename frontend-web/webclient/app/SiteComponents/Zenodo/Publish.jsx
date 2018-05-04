@@ -1,5 +1,6 @@
 import React from "react";
-import { Button, ButtonToolbar, ListGroupItem } from "react-bootstrap";
+import { ButtonToolbar, ListGroupItem } from "react-bootstrap";
+import { Button } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";

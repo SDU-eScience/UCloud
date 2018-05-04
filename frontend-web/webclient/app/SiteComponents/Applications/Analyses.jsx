@@ -79,11 +79,11 @@ class Analyses extends React.Component {
                             />
                             <EntriesPerPageSelector
                                 entriesPerPage={this.props.analysesPerPage}
-                                handlePageSizeSelection={(pageSize) => dispatch(fetchAnalyses(pageSize, 0))}
+                                onChange={(pageSize) => dispatch(fetchAnalyses(pageSize, 0))}
                                 totalPages={this.props.totalPages}
                             >
-                                Analyses per page
-                        </EntriesPerPageSelector>
+                                {" Analyses per page"}
+                            </EntriesPerPageSelector>
                         </div>
                     </Container>
                 </section>
