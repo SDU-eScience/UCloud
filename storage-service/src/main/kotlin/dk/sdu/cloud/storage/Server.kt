@@ -114,6 +114,7 @@ class Server(
 
                 method(HttpMethod.Patch)
                 method(HttpMethod.Options)
+                method(HttpMethod.Delete)
                 allowCredentials = false
             }
 
