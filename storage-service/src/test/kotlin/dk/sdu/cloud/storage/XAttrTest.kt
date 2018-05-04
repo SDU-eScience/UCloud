@@ -26,7 +26,7 @@ class XAttrTest {
             stderr = ""
         )
 
-        val service = XAttrService(runner)
+        val service = XAttrService(runner, true)
         val attributeList = service.getAttributeList("user", "foobar")
         verify {
             runner.runAsUserWithResultAsInMemoryString("user", listOf("getfattr", "-d", "foobar"))

@@ -12,7 +12,7 @@ import java.io.File
 
 class FileSystemServiceTest {
     private val service = CephFSFileSystemService(
-        CloudToCephFsDao(true), mockk(), mockk(), mockk(), "", true
+        CloudToCephFsDao(true), mockk(), mockk(), mockk(), mockk(), "", true
     )
 
     @Test

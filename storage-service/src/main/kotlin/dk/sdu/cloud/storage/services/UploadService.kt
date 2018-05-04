@@ -56,7 +56,7 @@ class UploadService(
                     rejectedFiles += initialTargetPath
                     cappedStream.skipRemaining()
                 } else {
-                    println("Downloading ${entry.name} isDir=${entry.isDirectory} (${entry.size} bytes)")
+                    log.debug("Downloading ${entry.name} isDir=${entry.isDirectory} (${entry.size} bytes)")
 
                     val existing = fs.stat(user, initialTargetPath)
 
