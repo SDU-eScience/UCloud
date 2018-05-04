@@ -7,9 +7,12 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.storage.api.BulkUploadErrorMessage
+import dk.sdu.cloud.storage.api.BulkUploadOverwritePolicy
 import dk.sdu.cloud.storage.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.storage.api.SensitivityLevel
 import dk.sdu.cloud.storage.services.UploadService
+import dk.sdu.cloud.storage.services.tryWithFS
 import io.ktor.content.PartData
 import io.ktor.content.forEachPart
 import io.ktor.http.HttpStatusCode
@@ -33,8 +36,7 @@ class MultiPartUploadController(private val uploadService: UploadService) {
                 var owner: String = call.request.validatedPrincipal.subject
 
                 multipart.forEachPart { part ->
-                    val p = part
-                    log.debug("Received part ${p.name}")
+                    log.debug("Received part ${part.name}")
                     when (part) {
                         is PartData.FormItem -> {
                             when (part.name) {
@@ -79,6 +81,73 @@ class MultiPartUploadController(private val uploadService: UploadService) {
                     }
 
                     part.dispose()
+                }
+            }
+
+            implement(MultiPartUploadDescriptions.bulkUpload) {
+                logEntry(log, it)
+
+                var policy: BulkUploadOverwritePolicy? = null
+                var path: String? = null
+                var format: String? = null
+                var error = false
+
+                val user = call.request.validatedPrincipal.subject
+
+                tryWithFS {
+                    val multipart = call.receiveMultipart()
+                    multipart.forEachPart { part ->
+                        log.debug("Received part ${part.name}")
+
+                        when (part) {
+                            is PartData.FormItem -> {
+                                when (part.name) {
+                                    "policy" -> {
+                                        try {
+                                            policy = BulkUploadOverwritePolicy.valueOf(part.value)
+                                        } catch (ex: Exception) {
+                                            error(
+                                                CommonErrorMessage("Bad request"),
+                                                HttpStatusCode.BadRequest
+                                            )
+
+                                            error = true
+                                        }
+                                    }
+
+                                    "path" -> path = part.value
+
+                                    "format" -> {
+                                        format = part.value
+
+                                        if (format != "tgz") {
+                                            error(
+                                                CommonErrorMessage("Unsupported format '$format'"),
+                                                HttpStatusCode.BadRequest
+                                            )
+
+                                            error = true
+                                        }
+                                    }
+                                }
+                            }
+
+                            is PartData.FileItem -> {
+                                if (part.name == "upload") {
+                                    if (error || path == null || policy == null || format == null) return@forEachPart
+
+                                    @Suppress("NAME_SHADOWING") val path = path!!
+                                    @Suppress("NAME_SHADOWING") val policy = policy!!
+                                    @Suppress("NAME_SHADOWING") val format = format!!
+
+                                    val rejectedFiles =
+                                        uploadService.bulkUpload(user, path, format, policy, part.streamProvider())
+
+                                    ok(BulkUploadErrorMessage("OK", rejectedFiles))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

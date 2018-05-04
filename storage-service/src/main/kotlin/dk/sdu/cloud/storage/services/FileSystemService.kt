@@ -9,6 +9,7 @@ import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.services.cephfs.FavoritedFile
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -44,7 +45,7 @@ interface FileSystemService {
     fun homeDirectory(user: String): String
 
     fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
-        return components.joinToString("/") + (if (isDirectory) "/" else "")
+        return File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path
     }
 
     fun listMetadataKeys(user: String, path: String): List<String>

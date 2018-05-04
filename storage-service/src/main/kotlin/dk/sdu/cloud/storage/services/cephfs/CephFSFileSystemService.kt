@@ -75,10 +75,11 @@ class CephFSFileSystemService(
     }
 
     override fun stat(user: String, path: String): StorageFile? {
+        val normalizedPath = File(path).normalize().path
         return try {
             // TODO This is a bit lazy
             val results = ls(user, path.removeSuffix("/").substringBeforeLast('/'), true, false)
-            results.find { it.path == path }
+            results.find { it.path.removeSuffix("/") == normalizedPath.removeSuffix("/") }
         } catch (ex: Exception) {
             when (ex) {
                 is FileSystemException.NotFound -> return null

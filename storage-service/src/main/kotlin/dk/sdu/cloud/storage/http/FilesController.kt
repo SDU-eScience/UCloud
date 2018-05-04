@@ -113,6 +113,21 @@ class FilesController(private val fs: FileSystemService) {
             }
 
             implement(FileDescriptions.syncFileList) { req ->
+                // Note(Dan): This is not serialized as JSON for a reason.
+                //
+                // We really want to not do pagination here. There is no real reason for it (we want the full list in
+                // the sync client).
+                //
+                // We have also seen problems with the JSON libraries used when we start generating
+                // large JSON payloads. For example the "ls" endpoint has had problems when listing 1K files.
+                //
+                // It is also not unlikely, although I have not checked, that the JSON library would keep the entire
+                // JSON structure in memory until it is shipped. These typically take up significantly more memory
+                // than the JSON payload itself.
+                //
+                // This implementation does nothing to prevent GC when needed. Once a file entry is sent over the wire
+                // it should be eligible for GC.
+
                 logEntry(log, req)
                 if (!protect()) return@implement
 

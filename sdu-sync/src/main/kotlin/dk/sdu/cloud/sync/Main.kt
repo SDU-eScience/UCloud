@@ -125,7 +125,7 @@ fun compareWithLocal(workingDirectory: File, targetDirectory: String, item: Sync
                     "Local modified at ${localFile.lastModified()}"
         )
 
-        // TODO This is probably not reliable. Maybe ask user?
+        // TODO This is probably not reliable (clock-skew). Maybe ask user?
         if (item.modifiedAt < localFile.lastModified()) {
             SyncResult.LocalIsNewest(localPath, item.path)
         } else {

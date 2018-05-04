@@ -13,10 +13,19 @@ import okio.BufferedSink
 import org.slf4j.LoggerFactory
 import java.util.*
 
+data class BulkUploadErrorMessage(val message: String, val rejectedUploads: List<String>)
+
+enum class BulkUploadOverwritePolicy {
+    OVERWRITE,
+    RENAME,
+    REJECT
+}
+
 object MultiPartUploadDescriptions : RESTDescriptions(StorageServiceDescription) {
     private const val baseContext = "/api/upload"
     private val client = OkHttpClient()
 
+    // TODO FIXME Really need that multi-part support
     val upload = callDescription<Unit, Unit, CommonErrorMessage>(
         body = {
             method = HttpMethod.POST
@@ -27,6 +36,17 @@ object MultiPartUploadDescriptions : RESTDescriptions(StorageServiceDescription)
             }
         }
     )
+
+    // TODO FIXME Really need that multi-part support
+    val bulkUpload = callDescription<Unit, BulkUploadErrorMessage, CommonErrorMessage> {
+        prettyName = "bulkUpload"
+        method = HttpMethod.POST
+
+        path {
+            using(baseContext)
+            +"bulk"
+        }
+    }
 
     fun callUpload(
         cloud: RefreshingJWTAuthenticatedCloud,

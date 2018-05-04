@@ -4,7 +4,8 @@ import dk.sdu.cloud.storage.services.FileSystemException
 import org.slf4j.LoggerFactory
 
 class XAttrService(
-    private val processRunner: CephFSProcessRunner
+    private val processRunner: CephFSProcessRunner,
+    private val isDevelopment: Boolean
 ) {
     fun getAttributeList(user: String, mountedPath: String): Map<String, String> {
         val command = listOf(getfattrExecutable, "-d", mountedPath)
@@ -45,8 +46,8 @@ class XAttrService(
         }
     }
 
-    private val getfattrExecutable: String = "getfattr"
-    private val setfattrExecutable: String = "setfattr"
+    private val getfattrExecutable: String = if (isDevelopment) "echo" else "getfattr"
+    private val setfattrExecutable: String = if (isDevelopment) "echo" else "setfattr"
 
     companion object {
         private val log = LoggerFactory.getLogger(XAttrService::class.java)
