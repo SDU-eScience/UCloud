@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { Provider } from "react-redux";
 import { createStore, combineReducers } from "redux";
 import { BrowserRouter } from "react-router-dom";
-import Core from './SiteComponents/Core';
+import Core from "./SiteComponents/Core";
 import { Cloud } from "../authentication/SDUCloudObject";
 import files from "./Reducers/Files";
 import uppyReducers from "./Reducers/UppyReducers";
@@ -24,7 +24,7 @@ window.onload = () => {
 const addPromiseSupportToDispatch = (store) => {
     const rawDispatch = store.dispatch;
     return (action) => {
-        if (typeof action.then === 'function') {
+        if (typeof action.then === "function") {
             return action.then(rawDispatch);
         }
         return rawDispatch(action);

@@ -1,5 +1,5 @@
-import React from 'react';
-import {Spinner} from '../LoadingIcon/LoadingIcon'
+import React from "react";
+import {Spinner} from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {shortUUID} from "../../UtilityFunctions";

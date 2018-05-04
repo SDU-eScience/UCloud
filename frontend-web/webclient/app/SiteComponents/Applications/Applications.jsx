@@ -1,10 +1,8 @@
 import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Link } from "react-router-dom";
-import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
-import { Table, Button } from "react-bootstrap";
-import { Card } from "../Cards";
-import { Container } from "semantic-ui-react";
+import { PaginationButtons, EntriesPerPageSelector, Container, Card } from "../Pagination";
+import { Table, Button } from "semantic-ui-react";
 import { getSortingIcon } from "../../UtilityFunctions";
 import { connect } from "react-redux";
 import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
@@ -65,47 +63,45 @@ class Applications extends React.Component {
         const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
         const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage), 0);
         return (
-            <section>
-                <Container className="container-margin">
-                    <div>
-                        <BallPulseLoading loading={loading} />
-                        <Card>
-                            <div className="card-body">
-                                <Table responsive className="table table-hover mv-lg">
-                                    <thead>
-                                        <tr>
-                                            <th onClick={() => this.sortByNumber("visibility")}><span className="text-left">Visibility<span
-                                                className={`pull-right ${getSortingIcon(this.state.lastSorting, "visibility")}`} /></span></th>
-                                            <th onClick={() => this.sortByString("name")}><span className="text-left">Application Name<span
-                                                className={`pull-right ${getSortingIcon(this.state.lastSorting, "name")}`} /></span></th>
-                                            <th onClick={() => this.sortByString("version")}>
-                                                <span className="text-left">Version
-                                                    <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "version")}`} />
-                                                </span>
-                                            </th>
-                                            <th />
-                                        </tr>
-                                    </thead>
-                                    <ApplicationsList applications={currentlyShownApplications} />
-                                </Table>
-                            </div>
-                        </Card>
-                        <PaginationButtons
-                            loading={loading}
-                            toPage={(page) => dispatch(toPage(page))}
-                            currentPage={currentApplicationsPage}
-                            totalPages={totalPages}
-                        />
-                        <EntriesPerPageSelector
-                            entriesPerPage={applicationsPerPage}
-                            onChange={(size) => dispatch(updateApplicationsPerPage(size))}
-                            totalPages={totalPages}
-                        >
-                            {" Applications per page"}
-                        </EntriesPerPageSelector>
-                    </div>
-                </Container>
-            </section>);
+            <section style={{ padding: "15px 15px 15px 15px"}}>
+                <BallPulseLoading loading={loading} />
+                <Table>
+                    <Table.Header>
+                        <Table.Row>
+                            <Table.HeaderCell onClick={() => this.sortByNumber("visibility")} textAlign="left">
+                                Visibility <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "visibility")}`} />
+                            </Table.HeaderCell>
+                            <Table.HeaderCell onClick={() => this.sortByString("name")} textAlign="left">
+                                Application Name <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "name")}`} />
+                            </Table.HeaderCell>
+                            <Table.HeaderCell onClick={() => this.sortByString("version")} textAlign="left">
+                                Version<span className={`pull-right ${getSortingIcon(this.state.lastSorting, "version")}`} />
+                            </Table.HeaderCell>
+                            <Table.HeaderCell />
+                        </Table.Row>
+                    </Table.Header>
+                    <ApplicationsList applications={currentlyShownApplications} />
+                    <Table.Footer>
+                        <Table.Row>
+                            <Table.Cell>
+                                <PaginationButtons
+                                    loading={loading}
+                                    toPage={(page) => dispatch(toPage(page))}
+                                    currentPage={currentApplicationsPage}
+                                    totalPages={totalPages}
+                                />
+                                <EntriesPerPageSelector
+                                    entriesPerPage={applicationsPerPage}
+                                    onChange={(size) => dispatch(updateApplicationsPerPage(size))}
+                                    totalPages={totalPages}
+                                >
+                                    {" Applications per page"}
+                                </EntriesPerPageSelector>
+                            </Table.Cell>
+                        </Table.Row>
+                    </Table.Footer>
+                </Table>
+            </section >);
     }
 }
 
@@ -114,31 +110,31 @@ const ApplicationsList = ({ applications }) => {
         <SingleApplication key={index} app={app} />
     );
     return (
-        <tbody>
+        <Table.Body>
             {applicationsList}
-        </tbody>)
+        </Table.Body>)
 };
 
 const SingleApplication = ({ app }) => (
-    <tr className="gradeA row-settings">
+    <Table.Row>
         <PrivateIcon isPrivate={app.info.isPrivate} />
-        <td title={app.description}>{app.prettyName}</td>
-        <td title={app.description}>{app.info.version}</td>
-        <th>
+        <Table.Cell title={app.description}>{app.prettyName}</Table.Cell>
+        <Table.Cell title={app.description}>{app.info.version}</Table.Cell>
+        <Table.Cell>
             <Link to={`/applications/${app.info.name}/${app.info.version}/`}>
-                <Button className="btn btn-info">Run</Button>
+                <Button>Run</Button>
             </Link>
-        </th>
-    </tr>
+        </Table.Cell>
+    </Table.Row>
 );
 
 const PrivateIcon = ({ isPrivate }) =>
     isPrivate ? (
-        <td title="The app is private and can only be seen by the creator and people it was shared with">
+        <Table.Cell title="The app is private and can only be seen by the creator and people it was shared with">
             <em className="ion-locked" />
-        </td>
+        </Table.Cell>
     ) : (
-            <td title="The application is openly available for everyone"><em className="ion-unlocked" /></td>
+            <Table.Cell title="The application is openly available for everyone"><em className="ion-unlocked" /></Table.Cell>
         );
 
 const mapStateToProps = (state) => {

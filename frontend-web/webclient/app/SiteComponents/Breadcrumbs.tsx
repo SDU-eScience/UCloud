@@ -37,7 +37,7 @@ export function buildBreadCrumbs(path: string) {
         for (let j = 0; j <= i; j++) {
             actualPath += paths[j] + "/";
         }
-        pathsMapping.push({ actualPath: actualPath, local: paths[i] })
+        pathsMapping.push({ actualPath: actualPath, local: paths[i] });
     }
-    return pathsMapping
+    return pathsMapping;
 }

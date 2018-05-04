@@ -409,7 +409,7 @@ const GenericNumberParameter = (props) => {
     const internalOnChange = (event) => {
         event.preventDefault();
 
-        if (event.target.value === '') {
+        if (event.target.value === "") {
             props.onChange(props.parameter.name, undefined);
         } else {
             let value = props.parseValue(event.target.value);

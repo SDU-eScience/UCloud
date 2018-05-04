@@ -81,7 +81,7 @@ export const favorite = (files: File[], path: string, cloud: Cloud) => {
 
 export const getOwnerFromAcls = (acls: Acl[], cloud: Cloud) => {
     const userName: string = cloud.username;
-    const result: Acl = acls.find((acl: Acl) => acl.entity.displayName === userName);
+    const result = acls.find((acl: Acl) => acl.entity.displayName === userName);
     if (!result) {
         return "None"
     } else if (acls.length > 1) {

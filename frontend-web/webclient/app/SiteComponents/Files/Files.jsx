@@ -8,11 +8,6 @@ import { FormGroup, InputGroup } from "react-bootstrap";
 import { Dropdown, Button, Icon, Table } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
-import {
-    shareFile,
-    inSuccessRange,
-    getFilenameFromPath
-} from "../../UtilityFunctions";
 import * as uf from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
 import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage, fetchFileselectorFiles, fileSelectorShown, setFileSelectorCallback } from "../../Actions/Files";
@@ -72,7 +67,7 @@ class Files extends React.Component {
             this.resetFolderObject();
         } else if (value === KeyCode.ENTER) {
             const { path, refetchFiles, files } = this.props;
-            const fileNames = files.map((it) => getFilenameFromPath(it.path))
+            const fileNames = files.map((it) => uf.getFilenameFromPath(it.path))
             if (isNew) {
                 const name = this.state.creatingFolderName;
                 if (uf.isInvalidPathName(name, fileNames)) { return }
@@ -206,7 +201,7 @@ class Files extends React.Component {
             history.push(`/files/${path}`);
         };
         return (
-            <React.Fragment>
+            <React.StrictMode>
                 <section>
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
@@ -274,7 +269,7 @@ class Files extends React.Component {
                     files={this.props.fileSelectorFiles}
                     onClick={this.props.fileSelectorCallback}
                 />
-            </React.Fragment>);
+            </React.StrictMode>);
     }
 }
 
@@ -425,7 +420,6 @@ export const FilesTable = (props) => {
                                 <span className={"pull-right " + sortingIconFunction("modifiedAt")} />
                             </span>
                         </Table.HeaderCell>
-
                         <Table.HeaderCell onClick={() => null}>
                             <span>
                                 Members
@@ -435,7 +429,6 @@ export const FilesTable = (props) => {
                         <Table.HeaderCell />
                     </Table.Row>) : null}
             </Table.Header>
-
             <FilesList
                 refetch={props.refetch}
                 fetchFiles={props.fetchFiles}
@@ -657,7 +650,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
     return (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
         <Dropdown direction="left" icon="ellipsis horizontal">
             <Dropdown.Menu>
-                <Dropdown.Item onClick={() => shareFile(file.path, Cloud)}>
+                <Dropdown.Item onClick={() => uf.shareFile(file.path, Cloud)}>
                     Share file
                 </Dropdown.Item>
                 {file.type === "FILE" ? <Dropdown.Item onClick={() => uf.downloadFile(file.path, Cloud)}>
