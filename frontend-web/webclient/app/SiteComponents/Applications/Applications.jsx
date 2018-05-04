@@ -2,7 +2,7 @@ import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector, Container, Card } from "../Pagination";
-import { Table, Button } from "semantic-ui-react";
+import { Table, Button, Icon } from "semantic-ui-react";
 import { getSortingIcon } from "../../UtilityFunctions";
 import { connect } from "react-redux";
 import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
@@ -65,16 +65,16 @@ class Applications extends React.Component {
         return (
             <section style={{ padding: "15px 15px 15px 15px"}}>
                 <BallPulseLoading loading={loading} />
-                <Table>
+                <Table basic="very">
                     <Table.Header>
                         <Table.Row>
-                            <Table.HeaderCell onClick={() => this.sortByNumber("visibility")} textAlign="left">
+                            <Table.HeaderCell width={1} onClick={() => this.sortByNumber("visibility")}>
                                 Visibility <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "visibility")}`} />
                             </Table.HeaderCell>
-                            <Table.HeaderCell onClick={() => this.sortByString("name")} textAlign="left">
+                            <Table.HeaderCell onClick={() => this.sortByString("name")}>
                                 Application Name <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "name")}`} />
                             </Table.HeaderCell>
-                            <Table.HeaderCell onClick={() => this.sortByString("version")} textAlign="left">
+                            <Table.HeaderCell onClick={() => this.sortByString("version")}>
                                 Version<span className={`pull-right ${getSortingIcon(this.state.lastSorting, "version")}`} />
                             </Table.HeaderCell>
                             <Table.HeaderCell />
@@ -118,7 +118,7 @@ const ApplicationsList = ({ applications }) => {
 const SingleApplication = ({ app }) => (
     <Table.Row>
         <PrivateIcon isPrivate={app.info.isPrivate} />
-        <Table.Cell title={app.description}>{app.prettyName}</Table.Cell>
+        <Table.Cell  title={app.description}>{app.prettyName}</Table.Cell>
         <Table.Cell title={app.description}>{app.info.version}</Table.Cell>
         <Table.Cell>
             <Link to={`/applications/${app.info.name}/${app.info.version}/`}>
@@ -130,11 +130,11 @@ const SingleApplication = ({ app }) => (
 
 const PrivateIcon = ({ isPrivate }) =>
     isPrivate ? (
-        <Table.Cell title="The app is private and can only be seen by the creator and people it was shared with">
-            <em className="ion-locked" />
+        <Table.Cell textAlign="center" title="The app is private and can only be seen by the creator and people it was shared with">
+            <Icon name="lock" />
         </Table.Cell>
     ) : (
-            <Table.Cell title="The application is openly available for everyone"><em className="ion-unlocked" /></Table.Cell>
+            <Table.Cell textAlign="center" title="The application is openly available for everyone"><Icon name="lock open" /></Table.Cell>
         );
 
 const mapStateToProps = (state) => {
