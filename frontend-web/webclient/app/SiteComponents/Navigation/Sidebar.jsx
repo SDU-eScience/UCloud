@@ -82,7 +82,7 @@ class SidebarComponent extends React.Component {
                                 <List>
                                     <Link to="/applications" className="sidebar-option">
                                         <List.Item>
-                                            <List.Icon name="shield" />
+                                            <List.Icon name="code" />
                                             Run
                                     </List.Item>
                                     </Link>
@@ -108,13 +108,13 @@ class SidebarComponent extends React.Component {
                                 <List>
                                     <Link to="/zenodo" className="sidebar-option">
                                         <List.Item>
-                                            <List.Icon name="shield" />
+                                            <List.Icon name="newspaper" />
                                             Publications
                                     </List.Item>
                                     </Link>
                                     <Link to="/zenodo/publish" className="sidebar-option">
                                         <List.Item>
-                                            <List.Icon name="shield" />
+                                            <List.Icon name="edit" />
                                             Publish
                                     </List.Item>
                                     </Link>
@@ -132,5 +132,5 @@ class SidebarComponent extends React.Component {
     }
 }
 
-const mapStateToProps = (state) => ({ options, loading, open } = state.sidebar);
+const mapStateToProps = ({ sidebar }) => ({ options, loading, open } = sidebar);
 export default connect(mapStateToProps)(SidebarComponent);

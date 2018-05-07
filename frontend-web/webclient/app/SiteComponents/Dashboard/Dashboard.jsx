@@ -19,11 +19,11 @@ class Dashboard extends React.Component {
         this.props.updatePageTitle();
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
             this.props.setAllLoading(true);
-            this.props.fetchFavorites();
-            this.props.fetchRecentFiles();
-            this.props.fetchRecentAnalyses();
-            //this.props.fetchRecentActivity();
         }
+        this.props.fetchFavorites();
+        this.props.fetchRecentFiles();
+        this.props.fetchRecentAnalyses();
+        //this.props.fetchRecentActivity();
     }
 
 

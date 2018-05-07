@@ -552,7 +552,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
         <Table.Cell>{new Date(file.modifiedAt).toLocaleString()}</Table.Cell>
         <Table.Cell>{owner}</Table.Cell>
         <Table.Cell>
-            <Button className="fileData" basic onClick={() => uf.shareFile(file.path, Cloud)}>Share</Button>
+            <Icon className="fileData" name="share alternate" onClick={() => uf.shareFile(file.path, Cloud)}/>
             <MobileButtons
                 file={file}
                 forceInlineButtons={forceInlineButtons}
