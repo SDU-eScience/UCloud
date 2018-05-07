@@ -37,7 +37,6 @@ export const isInvalidPathName = (path: string, filePaths: string[]): string => 
 }
 
 export const isFixedFolder = (filePath, homeFolder) => {
-    console.log(filePath, `${homeFolder}/Favorites`);
     return [
         `${homeFolder}/Favorites`,
         `${homeFolder}/Uploads`,
@@ -336,8 +335,12 @@ export const createRangeInclusive = (count: number): number[] => {
     return range;
 };
 
-export const getTypeFromFile = (filename: string): string => {
-    const extension = getFilenameFromPath(filename).split(".").pop();
+export const getTypeFromFile = (filePath: string): string => {
+    const filename = getFilenameFromPath(filePath);
+    if (!filename.includes(".")) {
+        return "file text outline";
+    }
+    const extension = filename.split(".").pop();
     switch (extension) {
         case "kt":
         case "js":
@@ -383,8 +386,8 @@ export const getTypeFromFile = (filename: string): string => {
         case "mp3":
             return "ion-android-volume-up";
         default:
-            if (getFilenameFromPath(filename).split(".").length > 1)
-                console.warn(`Unhandled extension "${extension}" for file ${filename}`)
+            if (getFilenameFromPath(filePath).split(".").length > 1)
+                console.warn(`Unhandled extension "${filePath}" for file ${filePath}`)
             return "file text outline";
     }
 }

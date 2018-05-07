@@ -4,8 +4,7 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { FormGroup, InputGroup } from "react-bootstrap";
-import { Dropdown, Button, Icon, Table } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Form, Input } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
@@ -300,9 +299,12 @@ const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchT
 
 const ContextButtons = ({ upload, createFolder, mobileOnly }) => (
     <span className={mobileOnly ? "hidden-lg" : ""}>
-        <Button color="blue" className="btn-block" onClick={() => upload()}> Upload Files </Button>
-        {mobileOnly ? null : (<React.Fragment><br /><br /></React.Fragment>)}
-        <Button basic className="btn-block" onClick={() => createFolder()}> New folder</Button>
+        <p>
+            <Button color="blue" fluid onClick={() => upload()}> Upload Files </Button>
+        </p>
+        <p>
+            <Button basic fluid onClick={() => createFolder()}> New folder</Button>
+        </p>
         {mobileOnly ? (<React.Fragment><br /><br /><br /><br /></React.Fragment>) : null}
     </span>
 );
@@ -333,38 +335,37 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
             <p>
                 <Link disabled={selectedFiles.length !== 1}
                     to={`/fileInfo/${selectedFiles[0].path}/`}>
-                    <Button color="blue" className="ripple btn-block">
-                        <span className="ion-ios-settings-strong pull-left" />Properties
+                    <Button color="blue" fluid>
+                        <Icon name="settings" /> Properties
                     </Button>
                 </Link>
             </p>
             <p>
-                <Button className="white btn-block ripple" basic
+                <Button fluid basic
                     disabled={selectedFiles.length > 1}
                     onClick={() => uf.shareFile(selectedFiles[0].path, Cloud)}>
-                    <span className="ion-share pull-left" /> Share
+                    <Icon name="share alternate" /> Share
                 </Button>
             </p>
             <p>
-                <Button disabled={downloadDisabled || selectedFiles[0].type === "DIRECTORY"} basic className="ripple btn-block"
+                <Button disabled={downloadDisabled || selectedFiles[0].type === "DIRECTORY"} basic fluid
                     onClick={() => uf.downloadFile(selectedFiles[0].path, Cloud)}>
-                    <span className="ion-ios-download pull-left" />
-                    Download
+                    <Icon name="download" /> Download
                 </Button>
             </p>
             <p>
-                <Button className="btn-block ripple" basic
+                <Button fluid basic
                     onClick={() => uf.rename()}
                     disabled={rights.rightsLevel < 3 || selectedFiles.length !== 1}>
-                    <span className="ion-ios-compose pull-left" />
+                    <Icon name="edit" />
                     Rename
                 </Button>
             </p>
             <p>
-                <Button color="red" className="btn-block ripple"
+                <Button color="red" fluid
                     disabled={rights.rightsLevel < 3}
                     onClick={() => uf.batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, refetch)}>
-                    <em className="ion-ios-trash pull-left" />
+                    <Icon name="trash" />
                     Delete
                 </Button>
             </p>
@@ -380,11 +381,7 @@ export const FilesTable = (props) => {
     const noFiles = (!props.files.length && !props.creatingNewFolder) ?
         <Table.Row>
             <Table.Cell>
-                <div className="card" align="center">
-                    <h3 className="text-center">
-                        <small>There are no files in current folder</small>
-                    </h3>
-                </div>
+                <Header>There are no files in current folder</Header>
             </Table.Cell>
         </Table.Row> : null;
     let hasCheckbox = (!!props.selectOrDeselectAllFiles);
@@ -465,25 +462,19 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
     !creatingNewFolder ? null : (
         <Table.Row>
             <Table.Cell>
-                <FormGroup>
-                    <div className="form-inline">
-                        <InputGroup>
-                            <Icon name="folder" color="blue" size="big" className="create-folder" />
-                        </InputGroup>
-                        <InputGroup className="create-folder-input">
-                            <input
-                                onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
-                                className="form-control"
-                                type="text"
-                                placeholder="Folder name..."
-                                value={creatingFolderName ? creatingFolderName : ""}
-                                onChange={(e) => updateText(e.target.value)}
-                                autoFocus
-                            />
-                            <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
-                            <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
-                        </InputGroup></div>
-                </FormGroup>
+                <Icon name="folder" color="blue" size="big" className="create-folder" />
+                <Input
+                    className="create-folder-input"
+                    onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
+                    placeholder="Folder name..."
+                    value={creatingFolderName ? creatingFolderName : ""}
+                    onChange={(e) => updateText(e.target.value)}
+                    autoFocus
+                />
+                <Button.Group floated="right">
+                    <Button color="primary" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</Button>
+                    <Button onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</Button>
+                </Button.Group>
             </Table.Cell><Table.Cell></Table.Cell><Table.Cell></Table.Cell><Table.Cell></Table.Cell>
         </Table.Row>
     )
@@ -569,56 +560,53 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
 const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
     const fileName = (
         <FileName
+            type={type}
             updateEditFileName={props.updateEditFileName}
             name={uf.getFilenameFromPath(path)}
             beingRenamed={beingRenamed}
             handleKeyDown={props.handleKeyDown}
             renameName={props.renameName}
             update={update}
+            link={link}
+            size={"big"}
         />);
     if (type === "FILE") {
-        return (<React.Fragment>
-            <FileIcon name={uf.getTypeFromFile(uf.getFilenameFromPath(path))} size="big" link={link} />
-            <span>{fileName}</span>
-        </React.Fragment>)
+        return (<span>{fileName}</span>);
     } else {
         return beingRenamed ?
-            (<React.Fragment>
-                <Icon name="folder" size="big" />
-                <span>{fileName}</span>
-            </React.Fragment>) :
+            (<span>{fileName}</span>) :
             (<Link to={`/files/${path}`} onClick={() => props.fetchFiles(path)}>
-                <FileIcon name="folder" size="big" link={link} />
                 {fileName}
             </Link>);
     }
 }
 
-const FileIcon = ({ name, size, link }) =>
+const FileIcon = ({ name, size, link, color }) =>
     link ?
         <Icon.Group size={size}>
-            <Icon name={name} />
+            <Icon name={name} color={color} />
             <Icon corner color="grey" name="share" />
         </Icon.Group> :
-        <Icon name={name} size={size} />
+        <Icon name={name} size={size} color={color} />
 
-const FileName = ({ name, beingRenamed, renameName, updateEditFileName, handleKeyDown }) => {
+const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, size, link, handleKeyDown }) => {
+    const color = type === "DIRECTORY" ? "blue" : "grey";
+    const icon = (<FileIcon color={color} name={type === "DIRECTORY" ? "folder" : uf.getTypeFromFile(name)} size={size} link={link} className="create-folder" />)
     return beingRenamed ?
-        <FormGroup>
-            <span className="form-inline">
-                <InputGroup>
-                    <input
-                        value={renameName}
-                        onChange={(e) => updateEditFileName(e)}
-                        className="form-control"
-                        onKeyDown={(e) => handleKeyDown(e.keyCode, false)}
-                    />
-                    <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
-                    <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
-                </InputGroup>
-            </span>
-        </FormGroup> :
-        <span>{name}</span>
+        <React.Fragment>
+            {icon}
+            <Input
+                value={renameName}
+                onChange={(e) => updateEditFileName(e)}
+                onKeyDown={(e) => handleKeyDown(e.keyCode, false)}
+                autoFocus
+            />
+            <Button.Group floated="right">
+                <Button color="primary" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</Button>
+                <Button onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</Button>
+            </Button.Group>
+        </React.Fragment> :
+        <span>{icon}{name}</span>
 };
 
 const Favorited = ({ file, favoriteFile }) =>

@@ -3,7 +3,6 @@ import { Menu, Dropdown, Icon } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import "./Header.scss";
-import "./HeaderMenuLinks.scss";
 import Notifications from "../Notifications/index";
 import StatusBar from "./StatusBar";
 import { setSidebarOpen } from "../../Actions/Sidebar";
@@ -40,5 +39,5 @@ class Header extends React.Component<any, any> {
     }
 }
 
-const mapStateToProps = (state: any) => ({ open: state.sidebar.open });
+const mapStateToProps = ({ sidebar }: any) => ({ open: sidebar.open });
 export default connect(mapStateToProps)(Header);
