@@ -184,7 +184,7 @@ class Files extends React.Component {
         const { uppy, files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles, fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
-            .filter(f => getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
+            .filter(f => uf.getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length && shownFiles.length > 0;
         // Lambdas
         const goTo = (pageNumber, files) => {
@@ -569,7 +569,7 @@ const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
     const fileName = (
         <FileName
             updateEditFileName={props.updateEditFileName}
-            name={getFilenameFromPath(path)}
+            name={uf.getFilenameFromPath(path)}
             beingRenamed={beingRenamed}
             handleKeyDown={props.handleKeyDown}
             renameName={props.renameName}
@@ -577,7 +577,7 @@ const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
         />);
     if (type === "FILE") {
         return (<React.Fragment>
-            <FileIcon name={uf.getTypeFromFile(getFilenameFromPath(path))} size="big" link={link} />
+            <FileIcon name={uf.getTypeFromFile(uf.getFilenameFromPath(path))} size="big" link={link} />
             <span>{fileName}</span>
         </React.Fragment>)
     } else {

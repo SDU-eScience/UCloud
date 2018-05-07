@@ -41,7 +41,7 @@
     "redux": "4.0.0",
     "semantic-ui-css": "^2.3.1",
     "semantic-ui-react": "^0.80.0",
-    "sweetalert2": "7.19.2",
+    "sweetalert2": "7.19.3",
     "uppy": "0.23.3"
   },
   "devDependencies": {

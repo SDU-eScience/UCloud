@@ -19,10 +19,6 @@ module.exports = webpackMerge(commonConfig, {
         new webpack.NoEmitOnErrorsPlugin(),
         new ExtractTextPlugin('[name].[hash].css'),
         new UglifyJSPlugin({
-            //uglifyOptions: {
-            //    keep_fnames: true,
-            //    except: ['$super']
-            //}
             uglifyOptions: { 
                 warnings: false,
                 keep_fnames: true
