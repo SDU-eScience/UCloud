@@ -131,5 +131,5 @@ const formatDate = (millis) => {
 
 const pad = (value, length) => (value.toString().length < length) ? pad("0" + value, length) : value;
 
-const mapStateToProps = (state) => ({ loading, analyses, analysesPerPage, pageNumber, totalPages } = state.analyses);
+const mapStateToProps = ({analyses}) => ({ loading, analyses, analysesPerPage, pageNumber, totalPages } = analyses);
 export default connect(mapStateToProps)(Analyses);

@@ -36,6 +36,15 @@ export const isInvalidPathName = (path: string, filePaths: string[]): string => 
     return "";
 }
 
+export const isFixedFolder = (filePath, homeFolder) => {
+    console.log(filePath, `${homeFolder}/Favorites`);
+    return [
+        `${homeFolder}/Favorites`,
+        `${homeFolder}/Uploads`,
+        `${homeFolder}/Trash bin`
+    ].some((it) => it === filePath)
+};
+
 export function sortByNumber<T>(list: T[], name: string, asc: boolean): T[] {
     list.sort((a: any, b: any) => (Number(a[name]) - (Number(b[name]))) * (asc ? -1 : 1));
     return list;
@@ -221,7 +230,7 @@ const deletionSwal = (filePaths: string[]) =>
             showCloseButton: true,
         });
 
-export const batchDeleteFiles = (filePaths: string[], cloud: Cloud, callback: () => void) => {  
+export const batchDeleteFiles = (filePaths: string[], cloud: Cloud, callback: () => void) => {
     deletionSwal(filePaths).then((result: any) => {
         if (result.dismiss) {
             return;
@@ -229,7 +238,7 @@ export const batchDeleteFiles = (filePaths: string[], cloud: Cloud, callback: ()
             let i = 0;
             filePaths.forEach((it) => {
                 cloud.delete("/files", { path: it }).then(() => { ++i === filePaths.length ? callback() : null })
-                .catch(() => i++);
+                    .catch(() => i++);
             });
         }
     })
@@ -382,5 +391,5 @@ export const getTypeFromFile = (filename: string): string => {
 
 export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
-
+export const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();

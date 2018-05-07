@@ -10,7 +10,7 @@ import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
-import { fetchFiles, updateFilesPerPage, updateFiles, setLoading, updatePath, toPage, fetchFileselectorFiles, fileSelectorShown, setFileSelectorCallback } from "../../Actions/Files";
+import * as Actions from "../../Actions/Files";
 import { updatePageTitle } from "../../Actions/Status";
 import { changeUppyFilesOpen } from "../../Actions/UppyActions";
 import { FileSelectorModal } from "./FileSelector";
@@ -173,7 +173,7 @@ class Files extends React.Component {
         this.setState(() => ({
             editFolder: {
                 fullPath: path,
-                name: getFilenameFromPath(path),
+                name: uf.getFilenameFromPath(path),
                 index
             }
         }));
@@ -181,7 +181,8 @@ class Files extends React.Component {
 
     render() {
         // PROPS
-        const { uppy, files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles, fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
+        const { uppy, files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles,
+            fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => uf.getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
@@ -315,7 +316,7 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
         if (selectedFiles.length > 1) {
             return `${selectedFiles.length} files selected.`;
         } else {
-            const filename = getFilenameFromPath(selectedFiles[0].path);
+            const filename = uf.getFilenameFromPath(selectedFiles[0].path);
             if (filename.length > 10) {
                 return filename.slice(0, 17) + "...";
             } else {
@@ -552,7 +553,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
         <Table.Cell>{new Date(file.modifiedAt).toLocaleString()}</Table.Cell>
         <Table.Cell>{owner}</Table.Cell>
         <Table.Cell>
-            <Icon className="fileData" name="share alternate" onClick={() => uf.shareFile(file.path, Cloud)}/>
+            <Icon className="fileData" name="share alternate" onClick={() => uf.shareFile(file.path, Cloud)} />
             <MobileButtons
                 file={file}
                 forceInlineButtons={forceInlineButtons}
@@ -630,7 +631,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
         props.showFileSelector(true);
         props.setFileSelectorCallback((newPath) => {
             const currentPath = file.path;
-            const newPathForFile = `${newPath}/${getFilenameFromPath(file.path)}`;
+            const newPathForFile = `${newPath}/${uf.getFilenameFromPath(file.path)}`;
             Cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => refetch());
             props.showFileSelector(false);
             props.setFileSelectorCallback(null);
@@ -640,7 +641,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
         props.showFileSelector(true);
         props.setFileSelectorCallback((newPath) => {
             const currentPath = file.path;
-            Cloud.get(`/files/stat?path=${newPath}/${getFilenameFromPath(file.path)}`).then(({ response }) => {
+            Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(file.path)}`).then(({ response }) => {
                 console.log(response);
                 props.showFileSelector(false);
                 props.setFileSelectorCallback(null);
@@ -656,18 +657,18 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
                 {file.type === "FILE" ? <Dropdown.Item onClick={() => uf.downloadFile(file.path, Cloud)}>
                     Download file
                 </Dropdown.Item> : null}
-                {rename ? <Dropdown.Item onClick={() => rename(file.path)}>
+                {rename && !uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => rename(file.path)}>
                     Rename file
                 </Dropdown.Item> : null}
                 <Dropdown.Item onClick={() => copy(file.path)}>
                     Copy file
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => move()}>
+                {!uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => move()}>
                     Move file
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => uf.showFileDeletionPrompt(file.path, Cloud, refetch)}>
+                </Dropdown.Item> : null}
+                {!uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => uf.showFileDeletionPrompt(file.path, Cloud, refetch)}>
                     Delete file
-                </Dropdown.Item>
+                </Dropdown.Item> : null}
                 <Dropdown.Item>
                     <Link to={`/fileInfo/${file.path}/`} className="black-text">
                         Properties
@@ -677,6 +678,8 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
         </Dropdown>
     </span>);
 }
+
+
 
 Files.propTypes = {
     files: PropTypes.array.isRequired,
@@ -703,37 +706,37 @@ const mapStateToProps = (state) => {
 
 const mapDispatchToProps = (dispatch) => ({
     fetchNewFiles: (path) => {
-        dispatch(updatePath(path));
-        dispatch(setLoading(true));
-        dispatch(fetchFiles(path, uf.sortFilesByTypeAndName, true))
+        dispatch(Actions.updatePath(path));
+        dispatch(Actions.setLoading(true));
+        dispatch(Actions.fetchFiles(path, uf.sortFilesByTypeAndName, true))
     },
     refetchFiles: (path) => {
-        dispatch(fetchFiles(path, uf.sortFilesByTypeAndName, true));
+        dispatch(Actions.fetchFiles(path, uf.sortFilesByTypeAndName, true));
     },
     updatePath: (path) => dispatch(updatePath(path)),
     fetchSelectorFiles: (path) => {
-        dispatch(fetchFileselectorFiles(path));
+        dispatch(Actions.fetchFileselectorFiles(path));
     },
     showFileSelector: (open) => {
-        dispatch(fileSelectorShown(open));
+        dispatch(Actions.fileSelectorShown(open));
     },
     setFileSelectorCallback: (callback) =>
-        dispatch(setFileSelectorCallback(callback)),
+        dispatch(Actions.setFileSelectorCallback(callback)),
     setPageTitle: () => dispatch(updatePageTitle("Files")),
     checkFile: (checked, files, newFile) => {
         files.find(file => file.path === newFile.path).isChecked = checked;
-        dispatch(updateFiles(files));
+        dispatch(Actions.updateFiles(files));
     },
     goToPage: (pageNumber, files) => {
         files.forEach(f => f.isChecked = false);
-        dispatch(updateFiles(files));
-        dispatch(toPage(pageNumber));
+        dispatch(Actions.updateFiles(files));
+        dispatch(Actions.toPage(pageNumber));
     },
     updateFiles: (files) =>
-        dispatch(updateFiles(files)),
+        dispatch(Actions.updateFiles(files)),
     updateFilesPerPage: (newSize, files) =>
-        dispatch(updateFilesPerPage(newSize, files)),
-    openUppy: () => dispatch(changeUppyFilesOpen(true))
+        dispatch(Actions.updateFilesPerPage(newSize, files)),
+    openUppy: () => dispatch(Actions.changeUppyFilesOpen(true))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);

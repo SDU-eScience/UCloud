@@ -4,7 +4,7 @@ import { Modal, FormGroup, InputGroup } from "react-bootstrap";
 import { Icon, Button, List } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
-import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange } from "../../UtilityFunctions";
+import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
 import { dispatch } from "redux";
 import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
@@ -313,7 +313,5 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
                     </List.Item>)
             )}
         </React.Fragment>);
-
-const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 
 export default FileSelector;

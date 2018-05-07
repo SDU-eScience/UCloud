@@ -137,8 +137,8 @@ const PrivateIcon = ({ isPrivate }) =>
             <Table.Cell textAlign="center" title="The application is openly available for everyone"><Icon name="lock open" /></Table.Cell>
         );
 
-const mapStateToProps = (state) => {
-    return { applications, loading, applicationsPerPage, currentApplicationsPage } = state.applications;
+const mapStateToProps = ({applications}) => {
+    return { applications, loading, applicationsPerPage, currentApplicationsPage } = applications;
 }
 
 export default connect(mapStateToProps)(Applications);
