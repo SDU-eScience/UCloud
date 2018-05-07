@@ -19,7 +19,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.request.receiveMultipart
 import io.ktor.routing.Route
 import io.ktor.routing.route
+import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
+import java.nio.file.Files
 
 class MultiPartUploadController(private val uploadService: UploadService) {
     fun configure(routing: Route) = with(routing) {
@@ -140,10 +142,16 @@ class MultiPartUploadController(private val uploadService: UploadService) {
                                     @Suppress("NAME_SHADOWING") val policy = policy!!
                                     @Suppress("NAME_SHADOWING") val format = format!!
 
-                                    val rejectedFiles =
-                                        uploadService.bulkUpload(user, path, format, policy, part.streamProvider())
+                                    val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
+                                    part.streamProvider().copyTo(outputFile.outputStream())
+                                    launch {
+                                        uploadService.bulkUpload(user, path, format, policy, outputFile.inputStream())
+                                        try {
+                                            outputFile.delete()
+                                        } catch (_: Exception) {}
+                                    }
 
-                                    ok(BulkUploadErrorMessage("OK", rejectedFiles))
+                                    ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
                                 }
                             }
                         }

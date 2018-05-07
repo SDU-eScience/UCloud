@@ -9,13 +9,22 @@ import dk.sdu.cloud.client.setJsonBody
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.runBlocking
+import org.asynchttpclient.request.body.multipart.FilePart
+import org.asynchttpclient.request.body.multipart.StringPart
 import org.kamranzafar.jtar.TarEntry
+import org.kamranzafar.jtar.TarHeader
 import org.kamranzafar.jtar.TarInputStream
+import org.kamranzafar.jtar.TarOutputStream
 import java.io.File
+import java.io.FileOutputStream
+import java.io.PrintStream
 import java.math.BigInteger
+import java.nio.file.Files
 import java.security.MessageDigest
+import java.text.DecimalFormat
 import java.util.*
 import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 import kotlin.system.exitProcess
 
 private val mapper = jacksonObjectMapper().apply {
@@ -25,8 +34,6 @@ private val mapper = jacksonObjectMapper().apply {
 private val printStackTraces = true
 
 data class SyncSettings(val token: String)
-
-const val SDU_SYNCMETA = ".sdu-syncmeta"
 
 sealed class SyncResult {
     abstract val localPath: String
@@ -146,12 +153,6 @@ fun main(args: Array<String>) {
                 throw IllegalStateException("Could not read settings", ignored)
             }
 
-            val meta = try {
-                mapper.readValue<PullMeta>(File(SDU_SYNCMETA))
-            } catch (ignored: Exception) {
-                null
-            }
-
             data class SyncPayload(val path: String, val modifiedSince: Long)
 
             val response = HttpClient.post("https://cloud.sdu.dk/api/files/sync") {
@@ -160,7 +161,7 @@ fun main(args: Array<String>) {
                 setJsonBody(
                     SyncPayload(
                         path = targetDirectory,
-                        modifiedSince = meta?.lastSynchronizedAt ?: 0
+                        modifiedSince = /*meta?.lastSynchronizedAt ?: 0*/0
                     )
                 )
             }
@@ -204,17 +205,111 @@ fun main(args: Array<String>) {
             if (downloadResponse.statusCode !in 200..299) throw IllegalStateException("Bad server response")
 
             TarInputStream(GZIPInputStream(downloadResponse.responseBodyAsStream)).use {
-                var entry: TarEntry? = it.nextEntry
-                while (entry != null) {
-                    println("Downloading ${entry.name} (${entry.size} bytes)")
+                val buffer = ByteArray(8 * 1024)
+                var mutableEntry: TarEntry? = it.nextEntry
+                while (mutableEntry != null) {
+                    val currentEntry = mutableEntry
+                    println("Downloading ${currentEntry.name} (${currentEntry.size} bytes)")
 
-                    val fileOut = File(workingDirectory, entry.name).outputStream()
-                    CappedInputStream(it, entry.size).copyTo(fileOut)
-                    entry = it.nextEntry
+                    val file = File(workingDirectory, currentEntry.name)
+
+                    if (currentEntry.isDirectory) {
+                        file.mkdirs()
+                    } else {
+                        file.parentFile.mkdirs()
+
+                        val fileOut = file.outputStream()
+                        val start = System.currentTimeMillis()
+
+                        val bar = ProgressBar().apply {
+                            current = 0
+                            maximum = currentEntry.size
+                            message = currentEntry.name
+                        }
+
+                        bar.render()
+
+                        CappedInputStream(it, currentEntry.size).use {
+                            var bytes = it.read(buffer)
+                            if (bytes > 0) bar.current += bytes
+                            bar.render()
+                            while (bytes >= 0) {
+                                fileOut.write(buffer, 0, bytes)
+                                bytes = it.read(buffer)
+                                if (bytes > 0) bar.current += bytes
+                                bar.render()
+                            }
+                        }
+                        println(System.currentTimeMillis() - start)
+                        println()
+                    }
+                    mutableEntry = it.nextEntry
                 }
             }
 
-            mapper.writeValue(File(SDU_SYNCMETA), PullMeta(System.currentTimeMillis()))
+            var filesAdded = 0
+            var foundAny = false
+            val uploadFile = Files.createTempFile("upload", ".tar.gz").toFile()
+            TarOutputStream(GZIPOutputStream(FileOutputStream(uploadFile))).use { out ->
+                val isUpToDate = allResults
+                    .filter { it is SyncResult.LocalIsInSync || it is SyncResult.LocalIsOutdated }
+                    .map { it.localPath }
+                    .toSet()
+
+                Files.walk(workingDirectory.toPath())
+                    .filter {
+                        val toFile = it.toFile()
+                        toFile != workingDirectory.normalize() &&
+                                toFile.absolutePath !in isUpToDate
+                    }
+                    .forEach {
+
+                        val file = it.toFile()
+                        val localPath = file.relativeTo(workingDirectory).path
+
+                        if (file.isDirectory) {
+                            out.putNextEntry(
+                                TarEntry(
+                                    TarHeader.createHeader(
+                                        localPath, 0, 0, true, 511
+                                    )
+                                )
+                            )
+                        } else {
+                            foundAny = true
+                            filesAdded++
+
+                            println(localPath)
+                            out.putNextEntry(
+                                TarEntry(
+                                    TarHeader.createHeader(
+                                        localPath, file.length(), 0, false, 511
+                                    )
+                                )
+                            )
+
+                            file.inputStream().copyTo(out)
+                        }
+                    }
+            }
+
+            if (foundAny) {
+                println("Uploading files ($filesAdded files)")
+                val result = HttpClient.post("https://cloud.sdu.dk/api/upload/bulk") {
+                    addHeader("Authorization", "Bearer ${settings.token}")
+                    addBodyPart(StringPart("policy", "OVERWRITE"))
+                    addBodyPart(StringPart("path", targetDirectory))
+                    addBodyPart(StringPart("format", "tgz"))
+                    addBodyPart(FilePart("upload", uploadFile))
+                }
+
+                if (result.statusCode !in 200..399) {
+                    debug(result.statusCode)
+                    debug(result.responseBody)
+                    throw IllegalStateException("Bad server response")
+                }
+            }
+
             exitProcess(0)
         } catch (ex: Exception) {
             if (printStackTraces) {
@@ -248,4 +343,40 @@ fun ByteArray.toHexString(): String {
     }
 }
 
-data class PullMeta(val lastSynchronizedAt: Long)
+class ProgressBar {
+    var current: Long = 0
+    var maximum: Long = 100
+    var message: String = ""
+    var terminalSize = 80
+
+    var stream: PrintStream = System.out
+
+    fun render() {
+        val percentage = current / maximum.toDouble()
+        val format = DecimalFormat("#0.00")
+        val percentageString = format.format(current / maximum.toDouble() * 100)
+        stream.print('\r')
+        when {
+            terminalSize >= 80 -> {
+                val spaces = 40
+                val filledSpaces = (percentage * spaces).toInt()
+                val bar = String(CharArray(spaces) {
+                    when {
+                        it == filledSpaces - 1 && it != spaces - 1 -> '>'
+                        it < filledSpaces -> '='
+                        else -> ' '
+                    }
+                })
+                val message = "[$bar] $percentageString% $message"
+                stream.print(message)
+                if (message.length < terminalSize) {
+                    stream.print(String(CharArray(terminalSize - message.length) { ' ' }))
+                }
+            }
+
+            else -> {
+                stream.print("$percentageString%")
+            }
+        }
+    }
+}

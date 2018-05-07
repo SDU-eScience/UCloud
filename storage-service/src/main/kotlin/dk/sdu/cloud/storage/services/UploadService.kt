@@ -49,6 +49,7 @@ class UploadService(
                 val initialTargetPath = fs.joinPath(path, entry.name)
                 val cappedStream = CappedInputStream(it, entry.size)
                 if (entry.name.contains("PaxHeader/")) {
+                    // This is some meta data stuff in the tarball. We don't want this
                     log.debug("Skipping entry: ${entry.name}")
                     cappedStream.skipRemaining()
                 } else if (rejectedDirectories.any { entry?.name?.startsWith(it) == true }) {
