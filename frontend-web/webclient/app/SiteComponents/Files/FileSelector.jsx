@@ -1,6 +1,7 @@
 import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Modal } from "react-bootstrap";
+import PropTypes from "prop-types";
 import { Icon, Button, List, Input } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
@@ -161,16 +162,20 @@ class FileSelector extends React.Component {
         const removeButton = this.props.remove ? (<RemoveButton onClick={this.props.remove} />) : null;
         return (
             <div>
-                <div className="input-group">
-                    <span className="input-group-btn">
-                        <Button onClick={this.openModal}>Browse files</Button>
-                    </span>
-                    <input className="form-control readonly" required={this.props.isRequired} type="text"
-                        placeholder={"No file selected"}
-                        value={path} />
+
+                <Input
+                    className="readonly"
+                    required={this.props.isRequired}
+                    placeholder={"No file selected"}
+                    value={path}
+                    action
+                >
+                    
+                    <input />
+                    <Button onClick={this.openModal} content="Browse files" />
                     {uploadButton}
                     {removeButton}
-                </div>
+                </Input>
                 <FileSelectorModal
                     show={this.state.modalShown}
                     onHide={this.closeModal}
@@ -255,7 +260,7 @@ const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
     (creatingFolderName == null) ? null : (
         <List.Item className="itemPadding">
             <List.Content>
-                <List.Icon name="folder" color="blue"/>
+                <List.Icon name="folder" color="blue" />
                 <Input
                     onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
                     placeholder="Folder name..."
@@ -286,8 +291,8 @@ const ReturnFolder = ({ currentPath, parentPath, fetchFiles, onClick, canSelectF
             </List.Content>
         </List.Item>);
 
-const UploadButton = ({ onClick }) => (<span className="input-group-addon btn btn-info" onClick={() => onClick()}>Upload file</span>);
-const RemoveButton = ({ onClick }) => (<span className="input-group-addon btn btn" onClick={() => onClick()}>✗</span>)
+const UploadButton = ({ onClick }) => (<Button color="blue" onClick={() => onClick()}>Upload file</Button>);
+const RemoveButton = ({ onClick }) => (<Button color="red" onClick={() => onClick()}>✗</Button>)
 
 const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
     !files.length ? null :
@@ -312,5 +317,9 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
                     </List.Item>)
             )}
         </React.Fragment>);
+
+FileSelector.contextTypes = {
+    store: PropTypes.object
+}
 
 export default FileSelector;

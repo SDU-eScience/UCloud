@@ -236,7 +236,7 @@ const JobSchedulingParams = (props) => {
     // TODO refactor fields, very not DRY compliant
     const { maxTime } = props.jobInfo;
     return (
-        <span>
+        <React.Fragment>
             <fieldset>
                 <div className="form-group">
                     <label className="col-sm-2 control-label">Number of nodes</label>
@@ -288,8 +288,7 @@ const JobSchedulingParams = (props) => {
                 </FormGroup>
             </fieldset>
             <fieldset><CommentField onCommentChange={props.onCommentChange} comment={props.comment} /></fieldset>
-        </span>
-    )
+        </React.Fragment>)
 };
 
 const CommentField = (props) => (
