@@ -204,8 +204,10 @@ const FileSelectorBody = (props) => {
     if (props.loading) {
         return null;
     }
-    const files = (!!props.onlyAllowFolders) ?
-        props.files.filter(f => f.type === "DIRECTORY") : props.files;
+    
+    const files = 
+        ((!!props.onlyAllowFolders) ? props.files.filter(f => f.type === "DIRECTORY") : props.files)
+                 .filter((it) => !props.disallowedPaths.some((d) => d === it.path)) ;
     return (
         <Modal.Body>
             <List divided size={"large"}>
