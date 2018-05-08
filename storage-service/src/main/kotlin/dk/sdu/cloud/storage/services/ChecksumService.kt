@@ -9,11 +9,11 @@ class ChecksumService(
     private val fs: FileSystemService
 ) {
     fun computeChecksum(
-        user: String,
+        ctx: FSUserContext,
         path: String,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ): ByteArray {
-        return fs.read(user, path).use<InputStream, ByteArray> {
+        return fs.read(ctx, path).use<InputStream, ByteArray> {
             var bytesRead = 0L
             val digest = getMessageDigest(algorithm)
             val buffer = ByteArray(4096 * 1024)
@@ -28,33 +28,33 @@ class ChecksumService(
     }
 
     fun computeAndAttachChecksum(
-        user: String,
+        ctx: FSUserContext,
         path: String,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ): FileChecksum {
-        val checksum = computeChecksum(user, path, algorithm)
-        attachChecksumToObject(user, path, checksum, algorithm)
+        val checksum = computeChecksum(ctx, path, algorithm)
+        attachChecksumToObject(ctx, path, checksum, algorithm)
         return FileChecksum(algorithm, checksum.toHexString())
     }
 
     fun attachChecksumToObject(
-        user: String,
+        ctx: FSUserContext,
         path: String,
         checksum: ByteArray,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ) {
-        fs.setMetaValue(user, path, CHECKSUM_KEY, checksum.toHexString())
-        fs.setMetaValue(user, path, CHECKSUM_TYPE_KEY, algorithm)
+        fs.setMetaValue(ctx, path, CHECKSUM_KEY, checksum.toHexString())
+        fs.setMetaValue(ctx, path, CHECKSUM_TYPE_KEY, algorithm)
     }
 
-    fun getChecksum(user: String, path: String): FileChecksum {
+    fun getChecksum(ctx: FSUserContext, path: String): FileChecksum {
         return try {
-            val checksum = fs.getMetaValue(user, path, CHECKSUM_KEY)
-            val type = fs.getMetaValue(user, path, CHECKSUM_TYPE_KEY)
+            val checksum = fs.getMetaValue(ctx, path, CHECKSUM_KEY)
+            val type = fs.getMetaValue(ctx, path, CHECKSUM_TYPE_KEY)
             FileChecksum(type, checksum)
         } catch (ex: FileSystemException.NotFound) {
-            log.info("Checksum did not already exist for $user, $path. Attempting to recompute")
-            return computeAndAttachChecksum(user, path)
+            log.info("Checksum did not already exist for ${ctx.user}, $path. Attempting to recompute")
+            return computeAndAttachChecksum(ctx, path)
         }
     }
 

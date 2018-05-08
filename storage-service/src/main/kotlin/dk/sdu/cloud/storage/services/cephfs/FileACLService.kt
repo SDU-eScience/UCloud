@@ -1,20 +1,20 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.storage.api.AccessRight
+import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.ShareException
 import org.slf4j.LoggerFactory
 import java.util.ArrayList
 
 class FileACLService(
     private val cloudToCephFsDao: CloudToCephFsDao,
-    private val processRunner: ProcessRunnerFactory,
     private val isDevelopment: Boolean
 ) {
     private val setfaclExecutable: String
         get() = if (isDevelopment) "echo" else "setfacl"
 
     fun createEntry(
-        fromUser: String,
+        ctx: FSUserContext,
         toUser: String,
         mountedPath: String,
         rights: Set<AccessRight>,
@@ -46,7 +46,7 @@ class FileACLService(
             add(mountedPath)
         }.toList()
 
-        val result = processRunner(fromUser).runWithResultAsInMemoryString(command)
+        val result = ctx.runWithResultAsInMemoryString(command)
         if (result.status != 0) {
             log.info("createEntry failed with status ${result.status}!")
             log.info("stderr: ${result.stderr}")
@@ -56,7 +56,7 @@ class FileACLService(
     }
 
     fun removeEntry(
-        fromUser: String,
+        ctx: FSUserContext,
         toUser: String,
         mountedPath: String,
         defaultList: Boolean = false,
@@ -76,7 +76,7 @@ class FileACLService(
             add(mountedPath)
         }.toList()
 
-        val result = processRunner(fromUser).runWithResultAsInMemoryString(command)
+        val result = ctx.runWithResultAsInMemoryString(command)
         if (result.status != 0) {
             log.info("removeEntry failed with status ${result.status}!")
             log.info("stderr: ${result.stderr}")

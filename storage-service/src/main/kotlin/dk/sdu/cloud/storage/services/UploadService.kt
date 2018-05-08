@@ -15,10 +15,14 @@ class UploadService(
     private val checksumService: ChecksumService
 ) {
     fun upload(user: String, path: String, writer: OutputStream.() -> Unit) {
+        upload(fs.openContext(user), path, writer)
+    }
+
+    fun upload(ctx: FSUserContext, path: String, writer: OutputStream.() -> Unit) {
         if (path.contains("\n")) throw FileSystemException.BadRequest("Bad filename")
 
-        fs.write(user, path, writer)
-        checksumService.computeAndAttachChecksum(user, path)
+        fs.write(ctx, path, writer)
+        checksumService.computeAndAttachChecksum(ctx, path)
     }
 
     fun bulkUpload(
@@ -29,13 +33,26 @@ class UploadService(
         stream: InputStream
     ): List<String> {
         return when (format) {
-            "tgz" -> bulkUploadTarGz(user, path, policy, stream)
+            "tgz" -> bulkUploadTarGz(fs.openContext(user), path, policy, stream)
+            else -> throw FileSystemException.BadRequest("Unsupported format '$format'")
+        }
+    }
+
+    fun bulkUpload(
+        ctx: FSUserContext,
+        path: String,
+        format: String,
+        policy: BulkUploadOverwritePolicy,
+        stream: InputStream
+    ): List<String> {
+        return when (format) {
+            "tgz" -> bulkUploadTarGz(ctx, path, policy, stream)
             else -> throw FileSystemException.BadRequest("Unsupported format '$format'")
         }
     }
 
     private fun bulkUploadTarGz(
-        user: String,
+        ctx: FSUserContext,
         path: String,
         policy: BulkUploadOverwritePolicy,
         stream: InputStream
@@ -59,7 +76,7 @@ class UploadService(
                 } else {
                     log.debug("Downloading ${entry.name} isDir=${entry.isDirectory} (${entry.size} bytes)")
 
-                    val existing = fs.stat(user, initialTargetPath)
+                    val existing = fs.stat(ctx, initialTargetPath)
 
                     val targetPath: String? = if (existing != null) {
                         val existingIsDirectory = existing.type == FileType.DIRECTORY
@@ -81,7 +98,7 @@ class UploadService(
                                     BulkUploadOverwritePolicy.RENAME -> {
                                         log.debug("Renaming file")
                                         fs.findFreeNameForNewFile(
-                                            user,
+                                            ctx,
                                             initialTargetPath
                                         )
                                     }
@@ -103,9 +120,9 @@ class UploadService(
 
                         try {
                             if (entry.isDirectory) {
-                                fs.mkdir(user, targetPath)
+                                fs.mkdir(ctx, targetPath)
                             } else {
-                                upload(user, targetPath) { cappedStream.copyTo(this) }
+                                upload(ctx, targetPath) { cappedStream.copyTo(this) }
                             }
                         } catch (ex: FileSystemException.PermissionException) {
                             rejectedFiles += initialTargetPath

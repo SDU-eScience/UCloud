@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.storage.api.AccessRight
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.ShareException
 import dk.sdu.cloud.storage.services.cephfs.*
 import io.mockk.Runs
 import io.mockk.every
@@ -69,10 +69,11 @@ class ShareServiceTest {
             true
         )
 
-        service.grantRights("user1", "user2", "/home/user1/PleaseShare", setOf(AccessRight.READ, AccessRight.EXECUTE))
+        val ctx = service.openContext("user1")
+        service.grantRights(ctx, "user2", "/home/user1/PleaseShare", setOf(AccessRight.READ, AccessRight.EXECUTE))
         verify {
             fileAclService.createEntry(
-                "user1",
+                ctx,
                 "user2",
                 File(fsRoot, "home/user1").absolutePath,
                 setOf(AccessRight.EXECUTE),
@@ -81,7 +82,7 @@ class ShareServiceTest {
             )
 
             fileAclService.createEntry(
-                "user1",
+                ctx,
                 "user2",
                 File(fsRoot, "home/user1/PleaseShare").absolutePath,
                 setOf(AccessRight.READ, AccessRight.EXECUTE),
@@ -90,7 +91,7 @@ class ShareServiceTest {
             )
 
             fileAclService.createEntry(
-                "user1",
+                ctx,
                 "user2",
                 File(fsRoot, "home/user1/PleaseShare").absolutePath,
                 setOf(AccessRight.READ, AccessRight.EXECUTE),
@@ -122,7 +123,12 @@ class ShareServiceTest {
             true
         )
 
-        service.grantRights("user1", "user2", "/home/user1/PleaseShare", setOf(AccessRight.READ, AccessRight.EXECUTE))
+        service.grantRights(
+            service.openContext("user1"),
+            "user2",
+            "/home/user1/PleaseShare",
+            setOf(AccessRight.READ, AccessRight.EXECUTE)
+        )
     }
 
     @Test(expected = ShareException.PermissionException::class)
@@ -137,7 +143,7 @@ class ShareServiceTest {
         } returns InMemoryProcessResultAsString(1, "", "")
 
         val dao = createUsers()
-        val fileAclService = FileACLService(dao, processRunnerFactory, true)
+        val fileAclService = FileACLService(dao, true)
         val fsRoot = createFileSystem()
 
         val service = CephFSFileSystemService(
@@ -150,7 +156,12 @@ class ShareServiceTest {
             true
         )
 
-        service.grantRights("user1", "user2", "/home/user1/PleaseShare", setOf(AccessRight.READ, AccessRight.EXECUTE))
+        service.grantRights(
+            service.openContext("user1"),
+            "user2",
+            "/home/user1/PleaseShare",
+            setOf(AccessRight.READ, AccessRight.EXECUTE)
+        )
     }
 
     @Test
@@ -176,12 +187,18 @@ class ShareServiceTest {
             true
         )
 
-        service.grantRights("user1", "user2", "/home/user1/PleaseShare", setOf(AccessRight.READ, AccessRight.EXECUTE))
-        service.revokeRights("user1", "user2", "/home/user1/PleaseShare")
+        val ctx = service.openContext("user1")
+        service.grantRights(
+            ctx,
+            "user2",
+            "/home/user1/PleaseShare",
+            setOf(AccessRight.READ, AccessRight.EXECUTE)
+        )
+        service.revokeRights(ctx, "user2", "/home/user1/PleaseShare")
 
         verify {
             fileAclService.removeEntry(
-                "user1",
+                ctx,
                 "user2",
                 File(fsRoot, "home/user1/PleaseShare").absolutePath,
                 false,
@@ -189,7 +206,7 @@ class ShareServiceTest {
             )
 
             fileAclService.removeEntry(
-                "user1",
+                ctx,
                 "user2",
                 File(fsRoot, "home/user1/PleaseShare").absolutePath,
                 true,

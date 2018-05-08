@@ -7,50 +7,53 @@ import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.services.cephfs.FavoritedFile
+import dk.sdu.cloud.storage.services.cephfs.ProcessRunner
+import dk.sdu.cloud.storage.services.cephfs.ProcessRunnerFactory
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
+typealias FSUserContext = ProcessRunner
 interface FileSystemService {
     fun ls(
-        user: String,
+        ctx: FSUserContext,
         path: String,
         includeImplicit: Boolean = false,
         includeFavorites: Boolean = true
     ): List<StorageFile>
 
-    fun stat(user: String, path: String): StorageFile?
+    fun stat(ctx: FSUserContext, path: String): StorageFile?
 
-    fun mkdir(user: String, path: String)
-    fun rmdir(user: String, path: String)
+    fun mkdir(ctx: FSUserContext, path: String)
+    fun rmdir(ctx: FSUserContext, path: String)
 
-    fun move(user: String, path: String, newPath: String)
-    fun copy(user: String, path: String, newPath: String)
+    fun move(ctx: FSUserContext, path: String, newPath: String)
+    fun copy(ctx: FSUserContext, path: String, newPath: String)
 
-    fun read(user: String, path: String): InputStream
-    fun write(user: String, path: String, writer: OutputStream.() -> Unit)
+    fun read(ctx: FSUserContext, path: String): InputStream
+    fun write(ctx: FSUserContext, path: String, writer: OutputStream.() -> Unit)
 
-    fun createFavorite(user: String, fileToFavorite: String)
-    fun removeFavorite(user: String, favoriteFileToRemove: String)
-    fun retrieveFavorites(user: String): List<FavoritedFile>
+    fun createFavorite(ctx: FSUserContext, fileToFavorite: String)
+    fun removeFavorite(ctx: FSUserContext, favoriteFileToRemove: String)
+    fun retrieveFavorites(ctx: FSUserContext): List<FavoritedFile>
 
-    fun grantRights(fromUser: String, toUser: String, path: String, rights: Set<AccessRight>)
-    fun revokeRights(fromUser: String, toUser: String, path: String)
+    fun grantRights(ctx: FSUserContext, toUser: String, path: String, rights: Set<AccessRight>)
+    fun revokeRights(ctx: FSUserContext, toUser: String, path: String)
 
-    fun createSoftSymbolicLink(user: String, linkFile: String, pointsTo: String)
-    fun findFreeNameForNewFile(user: String, desiredPath: String): String
+    fun createSoftSymbolicLink(ctx: FSUserContext, linkFile: String, pointsTo: String)
+    fun findFreeNameForNewFile(ctx: FSUserContext, desiredPath: String): String
 
-    fun homeDirectory(user: String): String
+    fun homeDirectory(ctx: FSUserContext): String
 
     fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
         return File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path
     }
 
-    fun listMetadataKeys(user: String, path: String): List<String>
-    fun getMetaValue(user: String, path: String, key: String): String
-    fun setMetaValue(user: String, path: String, key: String, value: String)
+    fun listMetadataKeys(ctx: FSUserContext, path: String): List<String>
+    fun getMetaValue(ctx: FSUserContext, path: String, key: String): String
+    fun setMetaValue(ctx: FSUserContext, path: String, key: String, value: String)
 
     /**
      * Retrieves a "sync" list of files starting at [path].
@@ -59,7 +62,9 @@ interface FileSystemService {
      *
      * Only file entries that have been modified since [modifiedSince] will be included.
      */
-    suspend fun syncList(user: String, path: String, modifiedSince: Long = 0, itemHandler: suspend (SyncItem) -> Unit)
+    suspend fun syncList(ctx: FSUserContext, path: String, modifiedSince: Long = 0, itemHandler: suspend (SyncItem) -> Unit)
+
+    fun openContext(user: String): FSUserContext
 }
 
 data class SyncItem(

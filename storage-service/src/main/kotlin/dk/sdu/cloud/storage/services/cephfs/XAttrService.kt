@@ -1,15 +1,15 @@
 package dk.sdu.cloud.storage.services.cephfs
 
+import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.FileSystemException
 import org.slf4j.LoggerFactory
 
 class XAttrService(
-    private val processRunner: ProcessRunnerFactory,
     private val isDevelopment: Boolean
 ) {
-    fun getAttributeList(user: String, mountedPath: String): Map<String, String> {
+    fun getAttributeList(ctx: FSUserContext, mountedPath: String): Map<String, String> {
         val command = listOf(getfattrExecutable, "-d", mountedPath)
-        val (status, stdout, stderr) = processRunner(user).runWithResultAsInMemoryString(command)
+        val (status, stdout, stderr) = ctx.runWithResultAsInMemoryString(command)
 
         if (status != 0) {
             if (stderr.contains("Permission denied")) {
@@ -31,12 +31,12 @@ class XAttrService(
             .toMap()
     }
 
-    fun setAttribute(user: String, mountedPath: String, key: String, value: String) {
+    fun setAttribute(ctx: FSUserContext, mountedPath: String, key: String, value: String) {
         if (!safeKeyRegex.matches(key)) throw IllegalArgumentException("invalid key")
         if (!safeValueRegex.matches(key)) throw IllegalArgumentException("invalid value")
 
         val command = listOf(setfattrExecutable, "-n", "user.$key", "-v", value, mountedPath)
-        val (status, stdout, stderr) = processRunner(user).runWithResultAsInMemoryString(command)
+        val (status, stdout, stderr) = ctx.runWithResultAsInMemoryString(command)
         if (status != 0) {
             if (stderr.contains("Permission denied")) {
                 throw FileSystemException.PermissionException()

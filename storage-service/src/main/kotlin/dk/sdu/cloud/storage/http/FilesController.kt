@@ -28,7 +28,7 @@ class FilesController(private val fs: FileSystemService) {
                 val principal = call.request.validatedPrincipal
 
                 tryWithFS {
-                    ok(fs.ls(principal.subject, request.path))
+                    ok(fs.ls(fs.openContext(principal.subject), request.path))
                 }
             }
 
@@ -39,7 +39,7 @@ class FilesController(private val fs: FileSystemService) {
 
                 tryWithFS {
                     ok(
-                        fs.stat(principal.subject, request.path) ?: throw FileSystemException.NotFound(request.path)
+                        fs.stat(fs.openContext(principal.subject), request.path) ?: throw FileSystemException.NotFound(request.path)
                     )
                 }
             }
@@ -49,7 +49,7 @@ class FilesController(private val fs: FileSystemService) {
                 if (!protect()) return@implement
 
                 tryWithFS {
-                    fs.createFavorite(call.request.validatedPrincipal.subject, req.path)
+                    fs.createFavorite(fs.openContext(call.request.validatedPrincipal.subject), req.path)
                     ok(Unit)
                 }
             }
@@ -59,7 +59,7 @@ class FilesController(private val fs: FileSystemService) {
                 if (!protect()) return@implement
 
                 tryWithFS {
-                    fs.removeFavorite(call.request.validatedPrincipal.subject, req.path)
+                    fs.removeFavorite(fs.openContext(call.request.validatedPrincipal.subject), req.path)
                     ok(Unit)
                 }
             }
@@ -71,14 +71,14 @@ class FilesController(private val fs: FileSystemService) {
                 if (call.request.principalRole in setOf(Role.ADMIN, Role.SERVICE) && req.owner != null) {
                     log.debug("Authenticated as a privileged account. Using direct strategy")
                     tryWithFS {
-                        fs.mkdir(req.owner, req.path)
+                        fs.mkdir(fs.openContext(req.owner), req.path)
                         ok(Unit)
                     }
                 } else {
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
 
                     tryWithFS {
-                        fs.mkdir(call.request.validatedPrincipal.subject, req.path)
+                        fs.mkdir(fs.openContext(call.request.validatedPrincipal.subject), req.path)
                         ok(Unit)
                     }
                 }
@@ -89,7 +89,7 @@ class FilesController(private val fs: FileSystemService) {
                 if (!protect()) return@implement
 
                 tryWithFS {
-                    fs.rmdir(call.request.validatedPrincipal.subject, req.path)
+                    fs.rmdir(fs.openContext(call.request.validatedPrincipal.subject), req.path)
                     ok(Unit)
                 }
             }
@@ -98,7 +98,7 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect()) return@implement
                 tryWithFS {
-                    fs.move(call.request.validatedPrincipal.subject, req.path, req.newPath)
+                    fs.move(fs.openContext(call.request.validatedPrincipal.subject), req.path, req.newPath)
                     ok(Unit)
                 }
             }
@@ -107,7 +107,7 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect()) return@implement
                 tryWithFS {
-                    fs.copy(call.request.validatedPrincipal.subject, req.path, req.newPath)
+                    fs.copy(fs.openContext(call.request.validatedPrincipal.subject), req.path, req.newPath)
                     ok(Unit)
                 }
             }
@@ -138,7 +138,7 @@ class FilesController(private val fs: FileSystemService) {
 
                 tryWithFS {
                     call.respondDirectWrite(status = HttpStatusCode.OK, contentType = ContentType.Text.Plain) {
-                        fs.syncList(call.request.validatedPrincipal.subject, req.path, req.modifiedSince ?: 0) {
+                        fs.syncList(fs.openContext(call.request.validatedPrincipal.subject), req.path, req.modifiedSince ?: 0) {
                             writeStringUtf8(StringBuilder().apply {
                                 appendToken(
                                     when (it.type) {

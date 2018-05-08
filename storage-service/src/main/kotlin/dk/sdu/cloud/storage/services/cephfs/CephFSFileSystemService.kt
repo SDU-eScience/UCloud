@@ -1,10 +1,7 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.storage.api.*
-import dk.sdu.cloud.storage.services.FileSystemException
-import dk.sdu.cloud.storage.services.FileSystemService
-import dk.sdu.cloud.storage.services.ShareException
-import dk.sdu.cloud.storage.services.SyncItem
+import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.BashEscaper
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -22,8 +19,12 @@ class CephFSFileSystemService(
     private val fsRoot: String,
     private val isDevelopment: Boolean = false
 ) : FileSystemService {
+    override fun openContext(user: String): FSUserContext {
+        return processRunner(user)
+    }
+
     override fun ls(
-        user: String,
+        ctx: FSUserContext,
         path: String,
         includeImplicit: Boolean,
         includeFavorites: Boolean
@@ -32,11 +33,11 @@ class CephFSFileSystemService(
         val cloudPath = absolutePath.toCloudPath()
 
         val command = mutableListOf(dirListingExecutable)
-        if (includeFavorites) command += listOf("--fav", translateAndCheckFile(favoritesDirectory(user), true))
-        val (status, stdout, stderr) = processRunner(user).runWithResultAsInMemoryString(command, absolutePath)
+        if (includeFavorites) command += listOf("--fav", translateAndCheckFile(favoritesDirectory(ctx), true))
+        val (status, stdout, stderr) = ctx.runWithResultAsInMemoryString(command, absolutePath)
 
         if (status != 0) {
-            log.info("ls failed $user, $path")
+            log.info("ls failed ${ctx.user}, $path")
             log.info(stderr)
             throw IllegalStateException()
         } else {
@@ -50,20 +51,20 @@ class CephFSFileSystemService(
     }
 
     override fun retrieveFavorites(
-        user: String
+        ctx: FSUserContext
     ): List<FavoritedFile> {
         val command = mutableListOf(
             dirListingExecutable,
             "--fav",
-            translateAndCheckFile(favoritesDirectory(user), true),
+            translateAndCheckFile(favoritesDirectory(ctx), true),
             "--just-fav"
         )
 
-        val (status, stdout, stderr) = processRunner(user).runWithResultAsInMemoryString(command)
+        val (status, stdout, stderr) = ctx.runWithResultAsInMemoryString(command)
 
         if (status == 0) {
             return parseDirListingOutput(
-                File(translateAndCheckFile(homeDirectory(user))),
+                File(translateAndCheckFile(homeDirectory(ctx))),
                 stdout,
                 false,
                 true
@@ -74,11 +75,11 @@ class CephFSFileSystemService(
         }
     }
 
-    override fun stat(user: String, path: String): StorageFile? {
+    override fun stat(ctx: FSUserContext, path: String): StorageFile? {
         val normalizedPath = File(path).normalize().path
         return try {
             // TODO This is a bit lazy
-            val results = ls(user, path.removeSuffix("/").substringBeforeLast('/'), true, false)
+            val results = ls(ctx, path.removeSuffix("/").substringBeforeLast('/'), true, false)
             results.find { it.path.removeSuffix("/") == normalizedPath.removeSuffix("/") }
         } catch (ex: Exception) {
             when (ex) {
@@ -88,9 +89,9 @@ class CephFSFileSystemService(
         }
     }
 
-    override fun mkdir(user: String, path: String) {
+    override fun mkdir(ctx: FSUserContext, path: String) {
         val absolutePath = translateAndCheckFile(path)
-        val (status, _, stderr) = processRunner(user).runWithResultAsInMemoryString(
+        val (status, _, stderr) = ctx.runWithResultAsInMemoryString(
             listOf("mkdir", "-p", absolutePath)
         )
 
@@ -101,47 +102,47 @@ class CephFSFileSystemService(
                     path
                 )
                 else -> {
-                    throw FileSystemException.CriticalException("mkdir failed $user, $path, $stderr")
+                    throw FileSystemException.CriticalException("mkdir failed ${ctx.user}, $path, $stderr")
                 }
             }
         }
     }
 
-    override fun rmdir(user: String, path: String) {
+    override fun rmdir(ctx: FSUserContext, path: String) {
         val absolutePath = translateAndCheckFile(path)
 
-        val (status, _, stderr) = processRunner(user).runWithResultAsInMemoryString(
+        val (status, _, stderr) = ctx.runWithResultAsInMemoryString(
             listOf("rm", "-rf", absolutePath)
         )
         if (status != 0) {
             if (stderr.contains("Permission denied")) throw FileSystemException.PermissionException()
-            else throw FileSystemException.CriticalException("rm failed $status, $user, $path, $stderr")
+            else throw FileSystemException.CriticalException("rm failed $status, ${ctx.user}, $path, $stderr")
         }
     }
 
-    override fun move(user: String, path: String, newPath: String) {
+    override fun move(ctx: FSUserContext, path: String, newPath: String) {
         val absolutePath = translateAndCheckFile(path)
         val newAbsolutePath = translateAndCheckFile(newPath)
 
-        val stat = stat(user, newAbsolutePath)
+        val stat = stat(ctx, newAbsolutePath)
         if (stat != null && stat.type != FileType.DIRECTORY) {
             throw FileSystemException.AlreadyExists(newPath)
         }
 
-        val (status, _, stderr) = processRunner(user).runWithResultAsInMemoryString(
+        val (status, _, stderr) = ctx.runWithResultAsInMemoryString(
             listOf("mv", absolutePath, newAbsolutePath)
         )
         if (status != 0) {
             if (stderr.contains("Permission denied")) throw FileSystemException.PermissionException()
-            else throw FileSystemException.CriticalException("mv failed $status, $user, $path, $stderr")
+            else throw FileSystemException.CriticalException("mv failed $status, ${ctx.user}, $path, $stderr")
         }
     }
 
-    override fun copy(user: String, path: String, newPath: String) {
+    override fun copy(ctx: FSUserContext, path: String, newPath: String) {
         val absolutePath = translateAndCheckFile(path)
         val newAbsolutePath = translateAndCheckFile(newPath)
 
-        val (status, _, stderr) = processRunner(user).runWithResultAsInMemoryString(
+        val (status, _, stderr) = ctx.runWithResultAsInMemoryString(
             listOf("cp", "-r", absolutePath, newAbsolutePath)
         )
         if (status != 0) {
@@ -150,27 +151,27 @@ class CephFSFileSystemService(
                 stderr.contains("Not a directory") -> throw FileSystemException.BadRequest(
                     "Cannot copy to this location"
                 )
-                else -> throw FileSystemException.CriticalException("cp failed $status, $user, $path, $stderr")
+                else -> throw FileSystemException.CriticalException("cp failed $status, ${ctx.user}, $path, $stderr")
             }
         }
     }
 
-    override fun read(user: String, path: String): InputStream {
+    override fun read(ctx: FSUserContext, path: String): InputStream {
         val absolutePath = translateAndCheckFile(path)
         // TODO Permission (sensitivity) check
-        return processRunner(user).run(listOf("cat", absolutePath)).inputStream
+        return ctx.run(listOf("cat", absolutePath)).inputStream
     }
 
-    override fun write(user: String, path: String, writer: OutputStream.() -> Unit) {
+    override fun write(ctx: FSUserContext, path: String, writer: OutputStream.() -> Unit) {
         val absolutePath = translateAndCheckFile(path)
 
         // TODO Permission (sensitivity) check
         val process =
-            processRunner(user).run(listOf("bash", "-c", "cat - > ${BashEscaper.safeBashArgument(absolutePath)}"))
+            ctx.run(listOf("bash", "-c", "cat - > ${BashEscaper.safeBashArgument(absolutePath)}"))
         process.outputStream.writer()
         process.outputStream.close()
         if (process.waitFor() != 0) {
-            log.info("write failed $user, $path")
+            log.info("write failed ${ctx.user}, $path")
             log.info(process.errorStream.reader().readText())
             throw IllegalStateException()
         }
@@ -298,7 +299,7 @@ class CephFSFileSystemService(
         return Pair(favorites, files)
     }
 
-    override fun createSoftSymbolicLink(user: String, linkFile: String, pointsTo: String) {
+    override fun createSoftSymbolicLink(ctx: FSUserContext, linkFile: String, pointsTo: String) {
         val absLinkPath = translateAndCheckFile(linkFile)
         val absPointsToPath = translateAndCheckFile(pointsTo)
 
@@ -309,44 +310,45 @@ class CephFSFileSystemService(
         // TODO Stat needs to not ls parent dir. Disabled for now
         // TODO Stat needs to not ls parent dir. Disabled for now
         // TODO Stat needs to not ls parent dir. Disabled for now
-        if (false && stat(user, pointsTo) == null) {
+        if (false && stat(ctx, pointsTo) == null) {
             throw IllegalArgumentException("Cannot point to target ($linkFile, $pointsTo)")
         }
 
-        val process = processRunner(user).run(listOf("ln", "-s", absPointsToPath, absLinkPath))
+        val process = ctx.run(listOf("ln", "-s", absPointsToPath, absLinkPath))
         val status = process.waitFor()
         if (status != 0) {
-            log.info("ln failed $user, $absLinkPath $absPointsToPath")
+            log.info("ln failed ${ctx.user}, $absLinkPath $absPointsToPath")
             log.info(process.errorStream.reader().readText())
             throw IllegalStateException()
         }
     }
 
-    override fun createFavorite(user: String, fileToFavorite: String) {
+    override fun createFavorite(ctx: FSUserContext, fileToFavorite: String) {
         // TODO Hack, but highly unlikely that we will have duplicates in practice.
         // TODO Create retrieveFavorites folder if it does not exist yet
 //        val suffix = abs(random.nextInt()).toString(16)
-        val targetLocation = findFreeNameForNewFile(user, joinPath(favoritesDirectory(user), fileToFavorite.fileName()))
+        val targetLocation =
+            findFreeNameForNewFile(ctx, joinPath(favoritesDirectory(ctx), fileToFavorite.fileName()))
 
-        createSoftSymbolicLink(user, targetLocation, fileToFavorite)
+        createSoftSymbolicLink(ctx, targetLocation, fileToFavorite)
     }
 
-    override fun removeFavorite(user: String, favoriteFileToRemove: String) {
-        val stat = stat(user, favoriteFileToRemove) ?: throw IllegalStateException()
-        val allFavorites = retrieveFavorites(user)
+    override fun removeFavorite(ctx: FSUserContext, favoriteFileToRemove: String) {
+        val stat = stat(ctx, favoriteFileToRemove) ?: throw IllegalStateException()
+        val allFavorites = retrieveFavorites(ctx)
         val toRemove = allFavorites.filter { it.inode == stat.inode }
         if (toRemove.isEmpty()) return
         val command = listOf("rm") + toRemove.map { it.from }
-        val process = processRunner(user).run(command)
+        val process = ctx.run(command)
         val status = process.waitFor()
         if (status != 0) {
-            log.info("rm failed $user")
+            log.info("rm failed ${ctx.user}")
             log.info(process.errorStream.reader().readText())
             throw IllegalStateException()
         }
     }
 
-    override fun grantRights(fromUser: String, toUser: String, path: String, rights: Set<AccessRight>) {
+    override fun grantRights(ctx: FSUserContext, toUser: String, path: String, rights: Set<AccessRight>) {
         val parents: List<String> = run {
             if (path == "/") throw ShareException.BadRequest("Cannot grant rights on root")
             val parents = path.parents()
@@ -356,23 +358,23 @@ class CephFSFileSystemService(
 
         // Execute rights are required on all parent directories (otherwise we cannot perform the
         // traversal to the share)
-        parents.forEach { fileACLService.createEntry(fromUser, toUser, it, setOf(AccessRight.EXECUTE)) }
+        parents.forEach { fileACLService.createEntry(ctx, toUser, it, setOf(AccessRight.EXECUTE)) }
 
         // Add to both the default and the actual list. This needs to be recursively applied
         val mountedPath = translateAndCheckFile(path)
-        fileACLService.createEntry(fromUser, toUser, mountedPath, rights, defaultList = true, recursive = true)
-        fileACLService.createEntry(fromUser, toUser, mountedPath, rights, defaultList = false, recursive = true)
+        fileACLService.createEntry(ctx, toUser, mountedPath, rights, defaultList = true, recursive = true)
+        fileACLService.createEntry(ctx, toUser, mountedPath, rights, defaultList = false, recursive = true)
     }
 
-    override fun revokeRights(fromUser: String, toUser: String, path: String) {
+    override fun revokeRights(ctx: FSUserContext, toUser: String, path: String) {
         // TODO Need to look up share API to determine if we should delete execute rights on parent dirs
         val mountedPath = translateAndCheckFile(path)
-        fileACLService.removeEntry(fromUser, toUser, mountedPath, defaultList = true, recursive = true)
-        fileACLService.removeEntry(fromUser, toUser, mountedPath, defaultList = false, recursive = true)
+        fileACLService.removeEntry(ctx, toUser, mountedPath, defaultList = true, recursive = true)
+        fileACLService.removeEntry(ctx, toUser, mountedPath, defaultList = false, recursive = true)
     }
 
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
-    override fun findFreeNameForNewFile(user: String, desiredPath: String): String {
+    override fun findFreeNameForNewFile(ctx: FSUserContext, desiredPath: String): String {
         fun findFileNameNoExtension(fileName: String): String {
             return fileName.substringBefore('.')
         }
@@ -387,7 +389,7 @@ class CephFSFileSystemService(
         val extension = findExtension(fileName)
 
         val parentPath = desiredPath.substringBeforeLast('/')
-        val names = ls(user, parentPath).map { it.path.fileName() }
+        val names = ls(ctx, parentPath).map { it.path.fileName() }
 
         return if (names.isEmpty()) {
             desiredPath
@@ -420,30 +422,30 @@ class CephFSFileSystemService(
         }
     }
 
-    override fun homeDirectory(user: String): String {
-        return "/home/$user/"
+    override fun homeDirectory(ctx: FSUserContext): String {
+        return "/home/${ctx.user}/"
     }
 
-    override fun listMetadataKeys(user: String, path: String): List<String> {
-        return xAttrService.getAttributeList(user, path).keys.toList()
+    override fun listMetadataKeys(ctx: FSUserContext, path: String): List<String> {
+        return xAttrService.getAttributeList(ctx, path).keys.toList()
     }
 
-    override fun getMetaValue(user: String, path: String, key: String): String {
-        return xAttrService.getAttributeList(user, translateAndCheckFile(path))[key]
+    override fun getMetaValue(ctx: FSUserContext, path: String, key: String): String {
+        return xAttrService.getAttributeList(ctx, translateAndCheckFile(path))[key]
                 ?: throw FileSystemException.NotFound("path: $path, key: $key")
     }
 
-    override fun setMetaValue(user: String, path: String, key: String, value: String) {
-        xAttrService.setAttribute(user, translateAndCheckFile(path), key, value)
+    override fun setMetaValue(ctx: FSUserContext, path: String, key: String, value: String) {
+        xAttrService.setAttribute(ctx, translateAndCheckFile(path), key, value)
     }
 
     override suspend fun syncList(
-        user: String,
+        ctx: FSUserContext,
         path: String,
         modifiedSince: Long,
         itemHandler: suspend (SyncItem) -> Unit
     ) {
-        treeService.listAt(user, translateAndCheckFile(path), modifiedSince) {
+        treeService.listAt(ctx, translateAndCheckFile(path), modifiedSince) {
             itemHandler(
                 it.copy(
                     user = cloudToCephFsDao.findCloudUser(it.user)
@@ -455,8 +457,8 @@ class CephFSFileSystemService(
         }
     }
 
-    private fun favoritesDirectory(user: String): String {
-        return joinPath(homeDirectory(user), "Favorites", isDirectory = true)
+    private fun favoritesDirectory(ctx: FSUserContext): String {
+        return joinPath(homeDirectory(ctx), "Favorites", isDirectory = true)
     }
 
     private fun String.parents(): List<String> {

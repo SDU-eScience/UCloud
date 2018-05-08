@@ -17,7 +17,8 @@ class BulkDownloadService(private val fs: FileSystemService) {
                 try {
                     // Calculate correct path, check if file exists and filter out bad files
                     val absPath = "${prefixPath.removeSuffix("/")}/${path.removePrefix("/")}"
-                    val stat = fs.stat(user, absPath) ?: continue
+                    val ctx = fs.openContext(user)
+                    val stat = fs.stat(ctx, absPath) ?: continue
 
                     // Write tar header
                     log.debug("Writing tar header: ($path, $stat)")
@@ -34,7 +35,7 @@ class BulkDownloadService(private val fs: FileSystemService) {
                     )
 
                     // Write file contents
-                    fs.read(user, absPath).use { ins -> ins.copyTo(tarStream) }
+                    fs.read(ctx, absPath).use { ins -> ins.copyTo(tarStream) }
                 } catch (ex: FileSystemException) {
                     when (ex) {
                         is FileSystemException.NotFound, is FileSystemException.PermissionException -> {

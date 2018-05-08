@@ -28,8 +28,8 @@ class XAttrTest {
             stderr = ""
         )
 
-        val service = XAttrService(factory, false)
-        val attributeList = service.getAttributeList("user", "foobar")
+        val service = XAttrService(false)
+        val attributeList = service.getAttributeList(runner, "foobar")
         verify {
             runner.runWithResultAsInMemoryString(listOf("getfattr", "-d", "foobar"))
         }

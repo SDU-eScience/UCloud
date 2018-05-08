@@ -1,6 +1,7 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.SyncItem
 import org.slf4j.LoggerFactory
 
@@ -10,7 +11,6 @@ import org.slf4j.LoggerFactory
  * See native/tree.cpp
  */
 class TreeService(
-    private val processRunner: ProcessRunnerFactory,
     private val isDevelopment: Boolean
 ) {
     /**
@@ -21,12 +21,12 @@ class TreeService(
      * the internal (i.e. include the mount point). Users are the internal users, not the cloud users.
      */
     suspend fun listAt(
-        user: String,
+        ctx: FSUserContext,
         mountedPath: String,
         modifiedSince: Long = 0,
         handler: suspend (SyncItem) -> Unit
     ) {
-        val process = processRunner(user).run(listOf(executable, modifiedSince.toString(), mountedPath))
+        val process = ctx.run(listOf(executable, modifiedSince.toString(), mountedPath))
         process.inputStream.bufferedReader().use { reader ->
             var line: String? = reader.readLine()
             while (line != null) {

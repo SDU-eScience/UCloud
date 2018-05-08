@@ -44,7 +44,7 @@ class SimpleDownloadController(
                                 HttpStatusCode.Unauthorized
                             )
 
-                val stat = fs.stat(principal.subject, request.path) ?: return@implement run {
+                val stat = fs.stat(fs.openContext(principal.subject), request.path) ?: return@implement run {
                     error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
                 }
 
@@ -60,7 +60,7 @@ class SimpleDownloadController(
                 )
 
                 call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
-                    val stream = fs.read(principal.subject, request.path)
+                    val stream = fs.read(fs.openContext(principal.subject), request.path)
 
                     stream.use {
                         var readSum = 0L

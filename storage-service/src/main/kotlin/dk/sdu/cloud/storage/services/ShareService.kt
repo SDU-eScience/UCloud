@@ -79,19 +79,33 @@ class ShareService(
         user: String,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath> {
-        return source.list(user, paging)
+        return list(fs.openContext(user), paging)
+    }
+
+    suspend fun list(
+        ctx: FSUserContext,
+        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
+    ): Page<SharesByPath> {
+        return source.list(ctx.user, paging)
     }
 
     suspend fun retrieveShareForPath(
         user: String,
         path: String
     ): SharesByPath {
-        val stat = fs.stat(user, path) ?: throw ShareException.NotFound()
-        if (stat.ownerName != user) {
+        return retrieveShareForPath(fs.openContext(user), path)
+    }
+
+    suspend fun retrieveShareForPath(
+        ctx: FSUserContext,
+        path: String
+    ): SharesByPath {
+        val stat = fs.stat(ctx, path) ?: throw ShareException.NotFound()
+        if (stat.ownerName != ctx.user) {
             throw ShareException.NotAllowed()
         }
 
-        return source.findSharesForPath(user, path)
+        return source.findSharesForPath(ctx.user, path)
     }
 
     suspend fun create(
@@ -99,15 +113,23 @@ class ShareService(
         share: CreateShareRequest,
         cloud: AuthenticatedCloud
     ): ShareId {
+        return create(fs.openContext(user), share, cloud)
+    }
+
+    suspend fun create(
+        ctx: FSUserContext,
+        share: CreateShareRequest,
+        cloud: AuthenticatedCloud
+    ): ShareId {
         // Check if user is allowed to share this file
-        val stat = fs.stat(user, share.path) ?: throw ShareException.NotFound()
-        if (stat.ownerName != user) {
+        val stat = fs.stat(ctx, share.path) ?: throw ShareException.NotFound()
+        if (stat.ownerName != ctx.user) {
             throw ShareException.NotAllowed()
         }
 
         // TODO Need to verify sharedWith exists!
         val rewritten = Share(
-            owner = user,
+            owner = ctx.user,
             createdAt = System.currentTimeMillis(),
             modifiedAt = System.currentTimeMillis(),
             state = ShareState.REQUEST_SENT,
@@ -116,7 +138,7 @@ class ShareService(
             rights = share.rights
         )
 
-        val result = source.create(user, rewritten)
+        val result = source.create(ctx.user, rewritten)
 
         launch {
             NotificationDescriptions.create.call(
@@ -124,7 +146,7 @@ class ShareService(
                     user = share.sharedWith,
                     notification = Notification(
                         type = "SHARE_REQUEST",
-                        message = "$user has shared a file with you",
+                        message = "${ctx.user} has shared a file with you",
 
                         meta = mapOf(
                             "shareId" to result,
@@ -145,8 +167,16 @@ class ShareService(
         shareId: ShareId,
         newRights: Set<AccessRight>
     ) {
-        val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
-        if (existingShare.owner != user) throw ShareException.NotAllowed()
+        return update(fs.openContext(user), shareId, newRights)
+    }
+
+    suspend fun update(
+        ctx: FSUserContext,
+        shareId: ShareId,
+        newRights: Set<AccessRight>
+    ) {
+        val existingShare = source.find(ctx.user, shareId) ?: throw ShareException.NotFound()
+        if (existingShare.owner != ctx.user) throw ShareException.NotAllowed()
 
         val newShare = existingShare.copy(
             modifiedAt = System.currentTimeMillis(),
@@ -154,10 +184,10 @@ class ShareService(
         )
 
         if (existingShare.state == ShareState.ACCEPTED) {
-            fs.grantRights(existingShare.owner, existingShare.sharedWith, existingShare.path, newRights)
+            fs.grantRights(fs.openContext(existingShare.owner), existingShare.sharedWith, existingShare.path, newRights)
         }
 
-        source.update(user, shareId, newShare)
+        source.update(ctx.user, shareId, newShare)
     }
 
     suspend fun updateState(
@@ -165,11 +195,19 @@ class ShareService(
         shareId: ShareId,
         newState: ShareState
     ) {
-        log.debug("Updating state $user $shareId $newState")
-        val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
+        updateState(fs.openContext(user), shareId, newState)
+    }
+
+    suspend fun updateState(
+        ctx: FSUserContext,
+        shareId: ShareId,
+        newState: ShareState
+    ) {
+        log.debug("Updating state ${ctx.user} $shareId $newState")
+        val existingShare = source.find(ctx.user, shareId) ?: throw ShareException.NotFound()
         log.debug("Existing share: $existingShare")
 
-        when (user) {
+        when (ctx.user) {
             existingShare.sharedWith -> when (newState) {
                 ShareState.ACCEPTED -> {
                     // This is okay
@@ -181,26 +219,30 @@ class ShareService(
             existingShare.owner -> throw ShareException.NotAllowed()
 
             else -> {
-                log.warn("ShareDAO returned a result but user is not owner or being sharedWith! $existingShare $user")
+                log.warn("ShareDAO returned a result but user is not owner or being sharedWith! $existingShare ${ctx.user}")
                 throw IllegalStateException()
             }
         }
 
-        // TODO How do we ensure atomicity?
         if (newState == ShareState.ACCEPTED) {
-            fs.grantRights(existingShare.owner, existingShare.sharedWith, existingShare.path, existingShare.rights)
-            fs.createSoftSymbolicLink(
+            fs.grantRights(
+                fs.openContext(existingShare.owner),
                 existingShare.sharedWith,
+                existingShare.path,
+                existingShare.rights
+            )
+            fs.createSoftSymbolicLink(
+                fs.openContext(existingShare.sharedWith),
                 fs.findFreeNameForNewFile(
-                    user,
-                    fs.joinPath(fs.homeDirectory(user), existingShare.path.substringAfterLast('/'))
+                    ctx,
+                    fs.joinPath(fs.homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
                 ),
                 existingShare.path
             )
         }
 
         log.debug("Updating state")
-        source.updateState(user, shareId, newState)
+        source.updateState(ctx.user, shareId, newState)
     }
 
     suspend fun deleteShare(
@@ -208,7 +250,7 @@ class ShareService(
         shareId: ShareId
     ) {
         val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
-        fs.revokeRights(existingShare.owner, existingShare.sharedWith, existingShare.path)
+        fs.revokeRights(fs.openContext(existingShare.owner), existingShare.sharedWith, existingShare.path)
         source.deleteShare(user, shareId)
     }
 
