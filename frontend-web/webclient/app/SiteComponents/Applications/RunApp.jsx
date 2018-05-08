@@ -1,6 +1,6 @@
 import React from "react";
 import { Jumbotron, InputGroup, FormGroup } from "react-bootstrap";
-import { Container } from "semantic-ui-react";
+import { Container, Header, Form, Input } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -149,32 +149,28 @@ class RunApp extends React.Component {
         return (
             <section>
                 <Container className="container-margin">
-                    <div className="card">
-                        <div className="card-body">
-                            <BallPulseLoading loading={this.state.loading} />
+                    <BallPulseLoading loading={this.state.loading} />
 
-                            <ApplicationHeader
-                                name={this.state.displayAppName}
-                                version={this.state.appVersion}
-                                description={this.state.appDescription}
-                                authors={this.state.appAuthor}
-                            />
+                    <ApplicationHeader
+                        name={this.state.displayAppName}
+                        version={this.state.appVersion}
+                        description={this.state.appDescription}
+                        authors={this.state.appAuthor}
+                    />
 
-                            <Parameters
-                                values={this.state.parameterValues}
-                                parameters={this.state.parameters}
-                                handleSubmit={this.handleSubmit}
-                                onChange={this.handleInputChange}
-                                comment={this.state.comment}
-                                onCommentChange={this.onCommentChange}
-                                uppy={this.props.uppy}
-                                jobInfo={this.state.jobInfo}
-                                onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                                tool={this.state.tool}
-                                jobSubmitted={this.state.jobSubmitted}
-                            />
-                        </div>
-                    </div>
+                    <Parameters
+                        values={this.state.parameterValues}
+                        parameters={this.state.parameters}
+                        handleSubmit={this.handleSubmit}
+                        onChange={this.handleInputChange}
+                        comment={this.state.comment}
+                        onCommentChange={this.onCommentChange}
+                        uppy={this.props.uppy}
+                        jobInfo={this.state.jobInfo}
+                        onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
+                        tool={this.state.tool}
+                        jobSubmitted={this.state.jobSubmitted}
+                    />
                 </Container>
             </section>)
     }
@@ -186,15 +182,16 @@ const ApplicationHeader = ({ authors, name, description }) => {
     let authorString = (!!authors) ? authors.join(", ") : "";
 
     return (
-        <Jumbotron>
-            <div className="row">
-                <div className="col-lg-8">
-                    <h1>{name}</h1>
-                    <h4>{pluralize(authors, "Author")}: {authorString}</h4>
-                    <ReactMarkdown source={description} />
-                </div>
-            </div>
-        </Jumbotron>
+        <Header as="h2">
+            <Header.Content>
+                {name}
+                <h4>{pluralize(authors, "Author")}: {authorString}</h4>
+            </Header.Content>
+            <Header.Subheader>
+                <ReactMarkdown source={description} />
+            </Header.Subheader>
+
+        </Header>
     );
 };
 
@@ -220,7 +217,7 @@ const Parameters = (props) => {
     });
 
     return (
-        <form className="form-horizontal">
+        <Form>
             {parametersList}
             <JobSchedulingParams
                 onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
@@ -231,7 +228,7 @@ const Parameters = (props) => {
                 loading={props.jobSubmitted}
                 style={""} buttonContent={"Submit"}
                 handler={props.handleSubmit} />
-        </form>
+        </Form>
     )
 };
 
@@ -266,14 +263,14 @@ const JobSchedulingParams = (props) => {
                     <div className="col-xs-8">
                         <div className="form-inline">
                             <InputGroup>
-                                <input type="number" step="1" min="0" className="form-control time-selection" 
+                                <input type="number" step="1" min="0" className="form-control time-selection"
                                     placeholder={props.tool.defaultMaxTime.hours}
                                     value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
                                     onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")} />
                                 <span className="input-group-addon">Hours</span>
                             </InputGroup>{" "}
                             <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control time-selection" 
+                                <input type="number" step="1" min="0" max="59" className="form-control time-selection"
                                     placeholder={props.tool.defaultMaxTime.minutes}
                                     value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
                                     onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "minutes")} />
@@ -382,8 +379,8 @@ const BooleanParameter = (props) => {
         options.unshift({ value: null, display: "" });
     }
 
-    const internalOnChange = (event) => {
-        let index = parseInt(event.target.value);
+    const internalOnChange = (event, data) => {
+        let index = parseInt(data.value);
         let actualValue = options[index];
         props.onChange(props.parameter.name, actualValue.value);
         event.preventDefault();
@@ -393,14 +390,12 @@ const BooleanParameter = (props) => {
 
     return (
         <GenericParameter parameter={props.parameter}>
-            <select id={props.parameter} onChange={e => internalOnChange(e)} value={selected}>
-                {
+            <Form.Select id={props.parameter} onChange={(e, d) => internalOnChange(e, d)} value={selected}
+                options={
                     options.map((it, idx) =>
-                        <option key={idx} value={idx}>
-                            {it.display}
-                        </option>)
+                        ({ key: idx, text: it.display, value: idx }))
                 }
-            </select>
+            />
         </GenericParameter>
     );
 };
@@ -421,11 +416,14 @@ const GenericNumberParameter = (props) => {
 
     let value = (props.value != null) ? props.value : "";
 
+    const hasLabel = !!props.parameter.unitName;
+
     let baseField = (
-        <input
+        <Input
+            labelPosition='right'
+            label={{ basic: true, content: hasLabel ? props.parameter.unitName : "Number" }}
             placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
             required={!props.parameter.optional} name={props.parameter.name}
-            className="form-control"
             type="number"
             step="any"
             value={value}
@@ -433,19 +431,10 @@ const GenericNumberParameter = (props) => {
             onChange={e => internalOnChange(e)} />
     );
 
-    if (props.parameter.unitName !== null) {
-        baseField = (
-            <InputGroup>
-                {baseField}
-                <span className="input-group-addon">{props.parameter.unitName}</span>
-            </InputGroup>
-        );
-    }
-
     let slider = null;
     if (props.parameter.min !== null && props.parameter.max !== null) {
         slider = (
-            <input
+            <Input
                 min={props.parameter.min}
                 max={props.parameter.max}
                 step={props.parameter.step}
@@ -476,36 +465,22 @@ const FloatingParameter = (props) => {
     return <GenericNumberParameter {...childProps} />;
 };
 
-const GenericParameter = (props) => {
-    return (
-        <fieldset>
-            <div className="form-group">
-                <div className="row">
-                    <label className="col-md-2 control-label" htmlFor={props.parameter.name}>
-                        {props.parameter.prettyName}
-                    </label>
-                    <div className="col-md-8">
-                        {props.children}
-                    </div>
-                </div>
-                <div className="row">
-                    <div className="col-md-2" />
-                    <div className="col-md-8">
-                        <OptionalText optional={props.parameter.optional} />
-                        <ReactMarkdown className="help-block" source={props.parameter.description} />
-                    </div>
-                </div>
-            </div>
-        </fieldset>
-    );
-};
+const GenericParameter = ({ parameter, children }) => (
+    <Form.Field required={!parameter.optional}>
+        <label htmlFor={parameter.name}>
+            {parameter.prettyName}
+        </label>
+        {children}
+        <OptionalText optional={parameter.optional} />
+        <ReactMarkdown className="help-block" source={parameter.description} />
+    </Form.Field >
+);
 
-const OptionalText = (props) => {
-    return props.optional ? (<span className="help-block"><b>Optional</b></span>) : null;
-};
+const OptionalText = ({ optional }) =>
+    optional ? (<span className="help-block"><b>Optional</b></span>) : null;
 
-const mapStateToProps = (state) => {
-    const { uppyRunApp, uppyRunAppOpen } = state.uppy;
+const mapStateToProps = ({ uppy }) => {
+    const { uppyRunApp, uppyRunAppOpen } = uppy;
     return { uppy: uppyRunApp, uppyOpen: uppyRunAppOpen };
 }
 

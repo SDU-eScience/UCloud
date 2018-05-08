@@ -84,7 +84,7 @@ class ZenodoPublish extends React.Component {
                 <Container>
                     <h3>File Selection</h3>
                     <CardAndBody>
-                        <form onSubmit={e => this.submit(e)} className="form-horizontal">
+                        <form onSubmit={e => this.submit(e)}>
                             <FileSelections
                                 handleFileSelection={this.handleFileSelection}
                                 files={this.state.files}

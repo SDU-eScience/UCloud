@@ -1,8 +1,7 @@
 import React from "react";
-import {Jumbotron, Table, ListGroupItem, ListGroup, ProgressBar} from "react-bootstrap";
-import { Container } from "semantic-ui-react";
-import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
-import {Cloud} from "../../../authentication/SDUCloudObject";
+import { Container, Header, List, Table, Progress } from "semantic-ui-react";
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { Cloud } from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
 import { updatePageTitle } from "../../Actions/Status";
 import { connect } from "react-redux";
@@ -20,7 +19,7 @@ class ZenodoInfo extends React.Component {
     }
 
     componentWillMount() {
-        this.setState(() => ({loading: true}));
+        this.setState(() => ({ loading: true }));
         this.state.promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`)).promise.then((res) => {
             this.setState(() => ({
                 publication: res.response.publication,
@@ -36,11 +35,11 @@ class ZenodoInfo extends React.Component {
 
     render() {
         if (this.state.loading) {
-            return (<Container><BallPulseLoading loading={this.state.loading}/></Container>)
+            return (<Container><BallPulseLoading loading={this.state.loading} /></Container>)
         }
         return (
             <Container>
-                <ZenodoPublishingBody publication={this.state.publication} uploads={this.state.uploads}/>
+                <ZenodoPublishingBody publication={this.state.publication} uploads={this.state.uploads} />
             </Container>
         );
     }
@@ -50,45 +49,48 @@ const ZenodoPublishingBody = ({ publication, uploads, isActive }) => {
     let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
     return (
         <div>
-            <Jumbotron>
-                <h3>Publication name: {publication.name}</h3>
-            </Jumbotron>
-            <ListGroup>
-                <ListGroupItem>
-                    <span>
-                        <span>Started:</span>
-                        <span className="pull-right">{new Date(publication.createdAt).toLocaleString()}</span>
-                    </span>
-                </ListGroupItem>
-                <ListGroupItem>
-                    <span>Last update:</span>
-                    <span className="pull-right">{new Date(publication.modifiedAt).toLocaleString()}</span>
-                </ListGroupItem>
-            </ListGroup>
-            <ProgressBar active={publication.status === "UPLOADING"} bsStyle={getStatusBarColor(publication.status)} striped={isActive}
-                         label={`${progressBarValue}%`}
-                         now={progressBarValue}/>
-            <FilesList files={uploads}/>
+            <Header as="h2">
+                Publication name: {publication.name}
+            </Header>
+            <List>
+                <List.Item>
+                    Started:
+                    <List.Content floated="right">
+                        {new Date(publication.createdAt).toLocaleString()}
+                    </List.Content>
+                </List.Item>
+                <List.Item>
+                    Last update:
+                    <List.Content floated="right">
+                        {new Date(publication.modifiedAt).toLocaleString()}
+                    </List.Content>
+                </List.Item>
+            </List>
+            <Progress
+                active={publication.status === "UPLOADING"}
+                label={`${progressBarValue}%`}
+                percent={progressBarValue} />
+            <FilesList files={uploads} />
         </div>)
 };
 
-const FilesList = ({files}) =>
+const FilesList = ({ files }) =>
     files === null ? null :
         (<Table>
-            <thead>
-            <tr>
-                <th>File name</th>
-                <th>Status</th>
-            </tr>
-            </thead>
-            <tbody>
-            {files.map((file, index) =>
-                <tr key={index}>
-                    <td>{file.dataObject}</td>
-                    <td>{file.hasBeenTransmitted ? "✓" : "…"}</td>
-                </tr>
-            )}
-            </tbody>
+            <Table.Header>
+                <Table.Row>
+                    <th>File name</th>
+                    <th>Status</th>
+                </Table.Row>
+            </Table.Header>
+            <Table.Body>
+                {files.map((file, index) =>
+                    <Table.Row key={index}>
+                        <Table.Cell>{file.dataObject}</Table.Cell>
+                        <Table.Cell>{file.hasBeenTransmitted ? "✓" : "…"}</Table.Cell>
+                    </Table.Row>
+                )}
+            </Table.Body>
         </Table>);
 
 const getStatusBarColor = (status) => {
