@@ -1,5 +1,4 @@
 import React from "react";
-import { ButtonToolbar } from "react-bootstrap";
 import { Button, Table } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { Link } from "react-router-dom";

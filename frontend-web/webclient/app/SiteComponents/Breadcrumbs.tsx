@@ -1,6 +1,5 @@
 import * as React from "react";
-import "react-bootstrap";
-import { Breadcrumb } from "semantic-ui-react"
+import { Breadcrumb } from "semantic-ui-react";
 
 interface Breadcrumbs { currentPath: string, navigate: (path: string) => void }
 export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {

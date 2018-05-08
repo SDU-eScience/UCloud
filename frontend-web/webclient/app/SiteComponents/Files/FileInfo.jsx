@@ -1,11 +1,10 @@
 import React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString } from "../../UtilityFunctions";
+import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString, toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../../DefaultObjects"
-import { Container } from "semantic-ui-react";
-import { ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup } from "react-bootstrap";
+import { Container, Segment, Header, List, Button, Card, Icon } from "semantic-ui-react";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
@@ -41,7 +40,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
                 button = (
                     <Button
                         onClick={() => shareFile(file.path, Cloud, retrieveFilesCallback)}
-                        className="btn btn-primary"
+                        color="blue"
                     >
                         Share file
                     </Button>);
@@ -49,8 +48,15 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
         }
     }
     return (
-        <Container>
-            <FileHeader file={file} />
+        <Container className="container-margin">
+            <Header as='h2' icon textAlign='center'>
+                <Header.Content>
+                    {file.path}
+                </Header.Content>
+                <Header.Subheader>
+                    {toLowerCaseAndCapitalize(file.type)}
+                </Header.Subheader>
+            </Header>
             <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
             <FileSharing
                 file={file}
@@ -92,39 +98,64 @@ const removeAcl = (file, toRemoveAcl) => {
     file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1));
 };
 
-const FileHeader = ({ file }) => {
-    if (!file) {
-        return null;
-    }
-    let type = file.type === "DIRECTORY" ? "Directory" : "File";
-    return (
-        <Jumbotron>
-            <h3>{file.path}</h3>
-            <h5>
-                <small>{type}</small>
-            </h5>
-        </Jumbotron>)
-};
-
-const FileView = ({file, favorite}) => {
+const FileView = ({ file, favorite }) => {
     if (!file) {
         return null;
     }
     return (
         <div className="container-fluid">
-            <ListGroup className="col-sm-4">
-                <ListGroupItem>Created at: {new Date(file.createdAt).toLocaleString()}</ListGroupItem>
-                <ListGroupItem>Modified at: {new Date(file.createdAt).toLocaleString()}</ListGroupItem>
-                <ListGroupItem>Favorite file: {file.favorited ?
-                    <em onClick={() => favorite()} className="ion-star" /> :
-                    <em onClick={() => favorite()} className="ion-ios-star-outline" />}</ListGroupItem>
-            </ListGroup>
-            <ListGroup className="col-sm-4">
-                <ListGroupItem>Sensitivity: {SensitivityLevel[file.sensitivityLevel]}</ListGroupItem>
-                <ListGroupItem>Size: {fileSizeToString(file.size)}</ListGroupItem>
-                <ListGroupItem>Shared
-                    with {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.</ListGroupItem>
-            </ListGroup>
+            <Card.Group>
+                <Card>
+                    <Card.Content>
+                        <List divided>
+                            <List.Item className="itemPadding">
+                                <List.Content floated="right">
+                                    {new Date(file.createdAt).toLocaleString()}
+                                </List.Content>
+                                Created at:
+                            </List.Item>
+                            <List.Item className="itemPadding">
+                                <List.Content floated="right">
+                                    {new Date(file.modifiedAt).toLocaleString()}
+                                </List.Content>
+                                Modified at:
+                            </List.Item>
+                            <List.Item className="itemPadding">
+                                <List.Content floated="right">
+                                    {file.favorited ?
+                                        <Icon color="blue" onClick={() => favorite()} name="star" /> :
+                                        <Icon color="blue" onClick={() => favorite()} name="star outline" />}
+                                </List.Content>
+                                Favorite file:
+                            </List.Item>
+                        </List>
+                    </Card.Content>
+                </Card>
+                <Card>
+                    <Card.Content>
+                        <List divided>
+                            <List.Item className="itemPadding">
+                                Sensitivity:
+                                <List.Content floated="right">
+                                    {SensitivityLevel[file.sensitivityLevel]}
+                                </List.Content>
+                            </List.Item>
+                            <List.Item className="itemPadding">
+                                Size:
+                                <List.Content floated="right">
+                                    {fileSizeToString(file.size)}
+                                </List.Content>
+                            </List.Item>
+                            <List.Item className="itemPadding">
+                                Shared with:
+                                <List.Content floated="right">
+                                    {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
+                                </List.Content>
+                            </List.Item>
+                        </List>
+                    </Card.Content>
+                </Card>
+            </Card.Group>
         </div>
     );
 };
@@ -145,21 +176,23 @@ const FileSharing = ({ file, updateSharing, revokeRights }) => {
             </h3>);
     }
     return (
-        <div className="container-fluid">
-            <ListGroup className="col-sm-4 col-sm-offset-4">
-                {sharedWith.map((acl, index) =>
-                    (<ListGroupItem key={index}>
-                        <span
-                            className="text-left"><b>{acl.entity.displayName}</b> has <b>{RightsNameMap[acl.right]}</b> access.</span>
-                        <ButtonGroup bsSize="xsmall" className="pull-right">
-                            <Button onClick={() => updateSharing(acl)}
-                                className="btn btn-primary">Change</Button>
-                            <Button onClick={() => revokeRights(acl)}
-                                className="btn btn-danger">Revoke</Button>
-                        </ButtonGroup>
-                    </ListGroupItem>))}
-            </ListGroup>
-        </div>
+        <Card>
+            <Card.Content>
+                <List>
+                    {sharedWith.map((acl, index) =>
+                        (<ListGroupItem key={index}>
+                            <span
+                                className="text-left"><b>{acl.entity.displayName}</b> has <b>{RightsNameMap[acl.right]}</b> access.</span>
+                            <Button.Group floated="right">
+                                <Button onClick={() => updateSharing(acl)}
+                                    color="blue">Change</Button>
+                                <Button onClick={() => revokeRights(acl)}
+                                    color="red">Revoke</Button>
+                            </Button.Group>
+                        </ListGroupItem>))}
+                </List>
+            </Card.Content>
+        </Card>
     );
 };
 

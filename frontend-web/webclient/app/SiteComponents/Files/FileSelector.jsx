@@ -1,7 +1,7 @@
 import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
-import { Modal, FormGroup, InputGroup } from "react-bootstrap";
-import { Icon, Button, List } from "semantic-ui-react";
+import { Modal } from "react-bootstrap";
+import { Icon, Button, List, Input } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
 import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "../../UtilityFunctions";
@@ -206,9 +206,11 @@ const FileSelectorBody = (props) => {
         return null;
     }
 
-    const files = 
+    const disallowedPaths = (!!props.disallowedPaths) ? props.disallowedPaths : [];
+
+    const files =
         ((!!props.onlyAllowFolders) ? props.files.filter(f => f.type === "DIRECTORY") : props.files)
-                 .filter((it) => !props.disallowedPaths.some((d) => d === it.path));
+            .filter((it) => !disallowedPaths.some((d) => d === it.path));
     return (
         <Modal.Body>
             <List divided size={"large"}>
@@ -252,26 +254,20 @@ const CurrentFolder = ({ currentPath, onlyAllowFolders, onClick }) =>
 const CreatingFolder = ({ creatingFolderName, updateText, handleKeyDown }) => (
     (creatingFolderName == null) ? null : (
         <List.Item className="itemPadding">
-            <FormGroup>
-                <div className="form-inline">
-                    <InputGroup>
-                        <i className="ion-android-folder create-folder-placement" />
-                    </InputGroup>
-                    <InputGroup>
-                        <input
-                            onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
-                            className="form-control"
-                            type="text"
-                            placeholder="Folder name..."
-                            value={creatingFolderName ? creatingFolderName : ""}
-                            onChange={(e) => updateText(e.target.value)}
-                            autoFocus
-                        />
-                        <span className="input-group-addon hidden-lg btn-info btn" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</span>
-                        <span className="input-group-addon hidden-lg btn" onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</span>
-                    </InputGroup>
-                </div>
-            </FormGroup>
+            <List.Content>
+                <List.Icon name="folder" color="blue"/>
+                <Input
+                    onKeyDown={(e) => handleKeyDown(e.keyCode, true)}
+                    placeholder="Folder name..."
+                    value={creatingFolderName ? creatingFolderName : ""}
+                    onChange={(e) => updateText(e.target.value)}
+                    autoFocus
+                />
+                <Button.Group floated="right">
+                    <Button color="blue" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</Button>
+                    <Button onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</Button>
+                </Button.Group>
+            </List.Content>
         </List.Item>
     )
 );

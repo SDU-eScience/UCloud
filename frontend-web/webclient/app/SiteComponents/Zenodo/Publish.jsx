@@ -1,6 +1,5 @@
 import React from "react";
-import { ButtonToolbar, ListGroupItem } from "react-bootstrap";
-import { Button } from "semantic-ui-react";
+import { Button, Container, List } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
@@ -82,7 +81,7 @@ class ZenodoPublish extends React.Component {
         }
         return (
             <section>
-                <div className="container">
+                <Container>
                     <h3>File Selection</h3>
                     <CardAndBody>
                         <form onSubmit={e => this.submit(e)} className="form-horizontal">
@@ -104,17 +103,15 @@ class ZenodoPublish extends React.Component {
                                     </div>
                                 </div>
                             </fieldset>
-                            <ButtonToolbar>
-                                <Button onClick={() => this.newFile()}>Add additional file</Button>
-                                <LoadingButton
-                                    disabled={this.state.requestSent || !filesSelected || !name}
-                                    loading={this.state.requestSent}
-                                    style={"pull-right"} buttonContent={"Upload files for publishing"}
-                                    handler={this.submit} />
-                            </ButtonToolbar>
+                            <Button onClick={() => this.newFile()}>Add additional file</Button>
+                            <LoadingButton
+                                disabled={this.state.requestSent || !filesSelected || !name}
+                                loading={this.state.requestSent}
+                                buttonContent={"Upload files for publishing"}
+                                handler={this.submit} />
                         </form>
                     </CardAndBody>
-                </div>
+                </Container>
             </section>
         );
     }
@@ -129,17 +126,17 @@ const CardAndBody = ({ children }) => (
 );
 
 const FileSelections = ({ files, handleFileSelection, removeFile }) => (
-    <fieldset>
+    <List>
         {files.map((file, index) =>
-            (<ListGroupItem key={index} className="col-sm-offset-2 col-md-8 input-group zero-padding">
+            (<List.Item key={index} className="col-sm-offset-2 col-md-8 input-group zero-padding">
                 <FileSelector
                     path={file}
                     uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
                     allowUpload={false}
                     remove={files.length > 1 ? () => removeFile(index) : false}
                 />
-            </ListGroupItem>))}
-    </fieldset>
+            </List.Item>))}
+    </List>
 );
 
 const mapStateToProps = (state) => ({ connected, loading } = state.zenodo);

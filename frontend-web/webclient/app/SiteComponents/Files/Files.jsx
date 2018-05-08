@@ -616,8 +616,8 @@ const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, si
 
 const Favorited = ({ file, favoriteFile }) =>
     file.favorited ?
-    (<Icon onClick={() => favoriteFile(file.path)} name="star" className="favorite-padding" />) :
-    (<Icon name="star outline" className="fileData favorite-padding" onClick={() => favoriteFile(file.path)} />);
+        (<Icon onClick={() => favoriteFile(file.path)} name="star" className="favorite-padding" />) :
+        (<Icon name="star outline" className="fileData favorite-padding" onClick={() => favoriteFile(file.path)} />);
 
 const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) => {
     const move = () => {
