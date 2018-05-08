@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Form, Input } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Form, Input, Container } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
@@ -203,7 +203,7 @@ class Files extends React.Component {
         };
         return (
             <React.StrictMode>
-                <section>
+                <Container>
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
                         <ContextButtons
@@ -259,7 +259,7 @@ class Files extends React.Component {
                         refetch={() => refetchFiles(path)}
                         rename={rename}
                     />
-                </section>
+                </Container>
                 <FileSelectorModal
                     show={this.props.fileSelectorShown}
                     onHide={() => this.props.showFileSelector(false)}
@@ -616,8 +616,8 @@ const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, si
 
 const Favorited = ({ file, favoriteFile }) =>
     file.favorited ?
-        (<a onClick={() => favoriteFile(file.path)} className="ion-star favorite-margin" />) :
-        (<a className="ion-ios-star-outline fileData favorite-margin" onClick={() => favoriteFile(file.path)} />);
+    (<Icon onClick={() => favoriteFile(file.path)} name="star" className="favorite-padding" />) :
+    (<Icon name="star outline" className="fileData favorite-padding" onClick={() => favoriteFile(file.path)} />);
 
 const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) => {
     const move = () => {

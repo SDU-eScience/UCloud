@@ -85,7 +85,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
 const ListFileContent = ({ path, type, link }) =>
     <React.Fragment>
         <List.Content>
-            <FileIcon name={type === "FILE" ? getTypeFromFile(path) : "folder"} link={link} color="grey"/>
+            <FileIcon name={type === "FILE" ? getTypeFromFile(path) : "folder"} link={link} color="grey" />
             <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
                 {getFilenameFromPath(path)}
             </Link>
@@ -102,7 +102,6 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
             <List.Content floated="right">
                 <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
             </List.Content>
-            <Icon name="folder"/>
             <ListFileContent path={file.path} type={file.type} link={file.link} />
         </List.Item>
     ));

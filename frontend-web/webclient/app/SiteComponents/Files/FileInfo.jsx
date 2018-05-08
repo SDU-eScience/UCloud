@@ -2,9 +2,9 @@ import React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString } from "../../UtilityFunctions";
 import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
-import SectionContainerCard from "../SectionContainerCard";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../../DefaultObjects"
+import { Container } from "semantic-ui-react";
 import { ListGroup, ListGroupItem, Jumbotron, Button, ButtonGroup } from "react-bootstrap";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
@@ -49,7 +49,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
         }
     }
     return (
-        <SectionContainerCard>
+        <Container>
             <FileHeader file={file} />
             <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
             <FileSharing
@@ -59,7 +59,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
             />
             <BallPulseLoading loading={loading} />
             {button}
-        </SectionContainerCard>
+        </Container>
     );
 };
 

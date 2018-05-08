@@ -1,8 +1,8 @@
 import React from "react";
-import { Button, Table, ButtonToolbar } from "react-bootstrap";
+import { ButtonToolbar } from "react-bootstrap";
+import { Button, Table } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { Link } from "react-router-dom";
-import { Card } from "../Cards";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
@@ -40,47 +40,39 @@ class ZenodoHome extends React.Component {
     }
 }
 
+const PublishStatusBody = ({ publications }) =>
+    !publications.length ?
+        <h3>
+            <small className="text-center">No publications found.</small>
+        </h3> :
+        <Container>
+            <Table>
+                <Table.Header>
+                    <Table.Row>
+                        <Table.HeaderCell>ID</Table.HeaderCell>
+                        <Table.HeaderCell>Name</Table.HeaderCell>
+                        <Table.HeaderCell>Status</Table.HeaderCell>
+                        <Table.HeaderCell />
+                        <Table.HeaderCell>Info</Table.HeaderCell>
+                        <Table.HeaderCell>Last update</Table.HeaderCell>
+                    </Table.Row>
+                </Table.Header>
+                <PublicationList publications={publications} />
+            </Table>
+        </Container>
+
+
 const PublishStatus = (props) => {
-    let body = null;
     if (props.loading) {
-        return (<BallPulseLoading loading={props.loading} />
-        );
-    }
-    if (!props.publications.length) {
-        body = (
-            <h3>
-                <small className="text-center">No publications found.</small>
-            </h3>
-        );
-    } else {
-        body = (
-            <div>
-                <Table responsive>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Status</th>
-                            <th />
-                            <th>Info</th>
-                            <th>Last update</th>
-                        </tr>
-                    </thead>
-                    <PublicationList publications={props.publications} />
-                </Table>
-            </div>)
+        return (<BallPulseLoading loading={props.loading} />);
     }
 
     return (
         <div>
-            <Card>
-                <div className="card-body">
-                    {body}
-                    <Link to="/zenodo/publish/">
-                        <Button>Create new upload</Button>
-                    </Link>
-                </div>
-            </Card>
+            <PublishStatusBody publications={props.publications} />
+            <Link to="/zenodo/publish/">
+                <Button>Create new upload</Button>
+            </Link>
         </div>);
 }
 
@@ -99,22 +91,23 @@ const PublicationList = (props) => {
                 </a>);
         }
         return (
-            <tr key={index}>
-                <td>{publication.id}</td>
-                <td>{publication.name}</td>
-                <td>{toLowerCaseAndCapitalize(publication.status)}</td>
-                <td>{actionButton}</td>
-                <td>
-                    <Link to={`/zenodo/info/${window.encodeURIComponent(publication.id)}`}><Button>Show
-                        More</Button></Link>
-                </td>
-                <td>{new Date(publication.modifiedAt).toLocaleString()}</td>
-            </tr>);
+            <Table.Row key={index}>
+                <Table.Cell>{publication.id}</Table.Cell>
+                <Table.Cell>{publication.name}</Table.Cell>
+                <Table.Cell>{toLowerCaseAndCapitalize(publication.status)}</Table.Cell>
+                <Table.Cell>{actionButton}</Table.Cell>
+                <Table.Cell>
+                    <Link to={`/zenodo/info/${window.encodeURIComponent(publication.id)}`}>
+                        <Button>Show More</Button>
+                    </Link>
+                </Table.Cell>
+                <Table.Cell>{new Date(publication.modifiedAt).toLocaleString()}</Table.Cell>
+            </Table.Row>);
     });
     return (
-        <tbody>
+        <Table.Body>
             {publicationList}
-        </tbody>
+        </Table.Body>
     );
 };
 

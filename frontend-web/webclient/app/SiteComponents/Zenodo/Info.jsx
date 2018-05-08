@@ -1,6 +1,6 @@
 import React from "react";
 import {Jumbotron, Table, ListGroupItem, ListGroup, ProgressBar} from "react-bootstrap";
-import SectionContainerCard from "../SectionContainerCard";
+import { Container } from "semantic-ui-react";
 import {BallPulseLoading} from "../LoadingIcon/LoadingIcon";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
@@ -36,12 +36,12 @@ class ZenodoInfo extends React.Component {
 
     render() {
         if (this.state.loading) {
-            return (<SectionContainerCard><BallPulseLoading loading={this.state.loading}/></SectionContainerCard>)
+            return (<Container><BallPulseLoading loading={this.state.loading}/></Container>)
         }
         return (
-            <SectionContainerCard>
+            <Container>
                 <ZenodoPublishingBody publication={this.state.publication} uploads={this.state.uploads}/>
-            </SectionContainerCard>
+            </Container>
         );
     }
 }

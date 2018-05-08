@@ -30,7 +30,7 @@ class SidebarComponent extends React.Component {
         const { activeIndex } = this.state;
         return (
             <Sidebar.Pushable as={Segment}>
-                <Sidebar as={Menu} animation="overlay" visible={open} vertical>
+                <Sidebar as={Menu} fixed="left" animation="overlay" visible={open} vertical>
                     <Menu.Item>
                         <Avatar
                             avatarStyle="Circle"
@@ -74,8 +74,8 @@ class SidebarComponent extends React.Component {
                     <Menu.Item>
                         <Accordion>
                             <Accordion.Title onClick={this.handleClick} index={0} active={activeIndex === 0}>
+                                <Icon name="dropdown" />
                                 Applications
-                            <Icon name="dropdown" />
                             </Accordion.Title>
                             {/*<Transition duration={200} visible={activeIndex === 0} animation="fade right">*/}
                             <Accordion.Content active={activeIndex === 0}>
@@ -100,8 +100,8 @@ class SidebarComponent extends React.Component {
                     <Menu.Item>
                         <Accordion>
                             <Accordion.Title onClick={this.handleClick} index={1} active={activeIndex === 1}>
+                                <Icon name="dropdown" />
                                 Publishing
-                            <Icon name="dropdown" />
                             </Accordion.Title>
                             {/*<Transition duration={200} visible={activeIndex === 0} animation="fade right">*/}
                             <Accordion.Content active={activeIndex === 1}>
