@@ -4,12 +4,12 @@ import dk.sdu.cloud.storage.services.FileSystemException
 import org.slf4j.LoggerFactory
 
 class XAttrService(
-    private val processRunner: CephFSProcessRunner,
+    private val processRunner: ProcessRunnerFactory,
     private val isDevelopment: Boolean
 ) {
     fun getAttributeList(user: String, mountedPath: String): Map<String, String> {
         val command = listOf(getfattrExecutable, "-d", mountedPath)
-        val (status, stdout, stderr) = processRunner.runAsUserWithResultAsInMemoryString(user, command)
+        val (status, stdout, stderr) = processRunner(user).runWithResultAsInMemoryString(command)
 
         if (status != 0) {
             if (stderr.contains("Permission denied")) {
@@ -36,7 +36,7 @@ class XAttrService(
         if (!safeValueRegex.matches(key)) throw IllegalArgumentException("invalid value")
 
         val command = listOf(setfattrExecutable, "-n", "user.$key", "-v", value, mountedPath)
-        val (status, stdout, stderr) = processRunner.runAsUserWithResultAsInMemoryString(user, command)
+        val (status, stdout, stderr) = processRunner(user).runWithResultAsInMemoryString(command)
         if (status != 0) {
             if (stderr.contains("Permission denied")) {
                 throw FileSystemException.PermissionException()

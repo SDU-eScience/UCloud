@@ -7,7 +7,7 @@ import java.util.ArrayList
 
 class FileACLService(
     private val cloudToCephFsDao: CloudToCephFsDao,
-    private val processRunner: CephFSProcessRunner,
+    private val processRunner: ProcessRunnerFactory,
     private val isDevelopment: Boolean
 ) {
     private val setfaclExecutable: String
@@ -46,7 +46,7 @@ class FileACLService(
             add(mountedPath)
         }.toList()
 
-        val result = processRunner.runAsUserWithResultAsInMemoryString(fromUser, command)
+        val result = processRunner(fromUser).runWithResultAsInMemoryString(command)
         if (result.status != 0) {
             log.info("createEntry failed with status ${result.status}!")
             log.info("stderr: ${result.stderr}")
@@ -76,7 +76,7 @@ class FileACLService(
             add(mountedPath)
         }.toList()
 
-        val result = processRunner.runAsUserWithResultAsInMemoryString(fromUser, command)
+        val result = processRunner(fromUser).runWithResultAsInMemoryString(command)
         if (result.status != 0) {
             log.info("removeEntry failed with status ${result.status}!")
             log.info("stderr: ${result.stderr}")

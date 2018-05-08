@@ -15,7 +15,7 @@ data class FavoritedFile(val type: FileType, val from: String, val to: String, v
 
 class CephFSFileSystemService(
     private val cloudToCephFsDao: CloudToCephFsDao,
-    private val processRunner: CephFSProcessRunner,
+    private val processRunner: ProcessRunnerFactory,
     private val fileACLService: FileACLService,
     private val xAttrService: XAttrService,
     private val treeService: TreeService,
@@ -33,7 +33,7 @@ class CephFSFileSystemService(
 
         val command = mutableListOf(dirListingExecutable)
         if (includeFavorites) command += listOf("--fav", translateAndCheckFile(favoritesDirectory(user), true))
-        val (status, stdout, stderr) = processRunner.runAsUserWithResultAsInMemoryString(user, command, absolutePath)
+        val (status, stdout, stderr) = processRunner(user).runWithResultAsInMemoryString(command, absolutePath)
 
         if (status != 0) {
             log.info("ls failed $user, $path")
@@ -59,7 +59,7 @@ class CephFSFileSystemService(
             "--just-fav"
         )
 
-        val (status, stdout, stderr) = processRunner.runAsUserWithResultAsInMemoryString(user, command)
+        val (status, stdout, stderr) = processRunner(user).runWithResultAsInMemoryString(command)
 
         if (status == 0) {
             return parseDirListingOutput(
@@ -90,8 +90,7 @@ class CephFSFileSystemService(
 
     override fun mkdir(user: String, path: String) {
         val absolutePath = translateAndCheckFile(path)
-        val (status, _, stderr) = processRunner.runAsUserWithResultAsInMemoryString(
-            user,
+        val (status, _, stderr) = processRunner(user).runWithResultAsInMemoryString(
             listOf("mkdir", "-p", absolutePath)
         )
 
@@ -111,8 +110,7 @@ class CephFSFileSystemService(
     override fun rmdir(user: String, path: String) {
         val absolutePath = translateAndCheckFile(path)
 
-        val (status, _, stderr) = processRunner.runAsUserWithResultAsInMemoryString(
-            user,
+        val (status, _, stderr) = processRunner(user).runWithResultAsInMemoryString(
             listOf("rm", "-rf", absolutePath)
         )
         if (status != 0) {
@@ -130,8 +128,7 @@ class CephFSFileSystemService(
             throw FileSystemException.AlreadyExists(newPath)
         }
 
-        val (status, _, stderr) = processRunner.runAsUserWithResultAsInMemoryString(
-            user,
+        val (status, _, stderr) = processRunner(user).runWithResultAsInMemoryString(
             listOf("mv", absolutePath, newAbsolutePath)
         )
         if (status != 0) {
@@ -144,8 +141,7 @@ class CephFSFileSystemService(
         val absolutePath = translateAndCheckFile(path)
         val newAbsolutePath = translateAndCheckFile(newPath)
 
-        val (status, _, stderr) = processRunner.runAsUserWithResultAsInMemoryString(
-            user,
+        val (status, _, stderr) = processRunner(user).runWithResultAsInMemoryString(
             listOf("cp", "-r", absolutePath, newAbsolutePath)
         )
         if (status != 0) {
@@ -162,7 +158,7 @@ class CephFSFileSystemService(
     override fun read(user: String, path: String): InputStream {
         val absolutePath = translateAndCheckFile(path)
         // TODO Permission (sensitivity) check
-        return processRunner.runAsUser(user, listOf("cat", absolutePath)).inputStream
+        return processRunner(user).run(listOf("cat", absolutePath)).inputStream
     }
 
     override fun write(user: String, path: String, writer: OutputStream.() -> Unit) {
@@ -170,7 +166,7 @@ class CephFSFileSystemService(
 
         // TODO Permission (sensitivity) check
         val process =
-            processRunner.runAsUser(user, listOf("bash", "-c", "cat - > ${BashEscaper.safeBashArgument(absolutePath)}"))
+            processRunner(user).run(listOf("bash", "-c", "cat - > ${BashEscaper.safeBashArgument(absolutePath)}"))
         process.outputStream.writer()
         process.outputStream.close()
         if (process.waitFor() != 0) {
@@ -317,7 +313,7 @@ class CephFSFileSystemService(
             throw IllegalArgumentException("Cannot point to target ($linkFile, $pointsTo)")
         }
 
-        val process = processRunner.runAsUser(user, listOf("ln", "-s", absPointsToPath, absLinkPath))
+        val process = processRunner(user).run(listOf("ln", "-s", absPointsToPath, absLinkPath))
         val status = process.waitFor()
         if (status != 0) {
             log.info("ln failed $user, $absLinkPath $absPointsToPath")
@@ -341,7 +337,7 @@ class CephFSFileSystemService(
         val toRemove = allFavorites.filter { it.inode == stat.inode }
         if (toRemove.isEmpty()) return
         val command = listOf("rm") + toRemove.map { it.from }
-        val process = processRunner.runAsUser(user, command)
+        val process = processRunner(user).run(command)
         val status = process.waitFor()
         if (status != 0) {
             log.info("rm failed $user")

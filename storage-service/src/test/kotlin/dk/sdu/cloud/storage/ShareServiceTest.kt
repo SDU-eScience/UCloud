@@ -50,7 +50,8 @@ class ShareServiceTest {
     @Test
     fun testGrantShare() {
         val processRunner = mockk<CephFSProcessRunner>()
-        every { processRunner.runAsUser(any(), any(), any()) } just Runs
+        val processRunnerFactory: ProcessRunnerFactory = { processRunner }
+        every { processRunner.run(any(), any()) } just Runs
 
         val fileAclService = mockk<FileACLService>()
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } just Runs
@@ -60,7 +61,7 @@ class ShareServiceTest {
 
         val service = CephFSFileSystemService(
             dao,
-            processRunner,
+            processRunnerFactory,
             fileAclService,
             mockk(),
             mockk(),
@@ -102,6 +103,7 @@ class ShareServiceTest {
     @Test(expected = ShareException.PermissionException::class)
     fun testGrantShareWithMissingPermissions() {
         val processRunner = mockk<CephFSProcessRunner>()
+        val processRunnerFactory: ProcessRunnerFactory = { processRunner }
 
         val fileAclService = mockk<FileACLService>()
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } throws
@@ -112,7 +114,7 @@ class ShareServiceTest {
 
         val service = CephFSFileSystemService(
             dao,
-            processRunner,
+            processRunnerFactory,
             fileAclService,
             mockk(),
             mockk(),
@@ -126,21 +128,21 @@ class ShareServiceTest {
     @Test(expected = ShareException.PermissionException::class)
     fun testGrantShareWithLowLevelFailure() {
         val processRunner = mockk<CephFSProcessRunner>()
+        val processRunnerFactory: ProcessRunnerFactory = { processRunner }
         every {
-            processRunner.runAsUserWithResultAsInMemoryString(
-                any(),
+            processRunner.runWithResultAsInMemoryString(
                 any(),
                 any()
             )
         } returns InMemoryProcessResultAsString(1, "", "")
 
         val dao = createUsers()
-        val fileAclService = FileACLService(dao, processRunner, true)
+        val fileAclService = FileACLService(dao, processRunnerFactory, true)
         val fsRoot = createFileSystem()
 
         val service = CephFSFileSystemService(
             dao,
-            processRunner,
+            processRunnerFactory,
             fileAclService,
             mockk(),
             mockk(),
@@ -154,7 +156,8 @@ class ShareServiceTest {
     @Test
     fun testRevoke() {
         val processRunner = mockk<CephFSProcessRunner>()
-        every { processRunner.runAsUser(any(), any(), any()) } just Runs
+        val processRunnerFactory: ProcessRunnerFactory = { processRunner }
+        every { processRunner.run(any(), any()) } just Runs
 
         val fileAclService = mockk<FileACLService>()
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } just Runs
@@ -165,7 +168,7 @@ class ShareServiceTest {
 
         val service = CephFSFileSystemService(
             dao,
-            processRunner,
+            processRunnerFactory,
             fileAclService,
             mockk(),
             mockk(),

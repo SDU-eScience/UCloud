@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
  * See native/tree.cpp
  */
 class TreeService(
-    private val processRunner: CephFSProcessRunner,
+    private val processRunner: ProcessRunnerFactory,
     private val isDevelopment: Boolean
 ) {
     /**
@@ -26,7 +26,7 @@ class TreeService(
         modifiedSince: Long = 0,
         handler: suspend (SyncItem) -> Unit
     ) {
-        val process = processRunner.runAsUser(user, listOf(executable, modifiedSince.toString(), mountedPath))
+        val process = processRunner(user).run(listOf(executable, modifiedSince.toString(), mountedPath))
         process.inputStream.bufferedReader().use { reader ->
             var line: String? = reader.readLine()
             while (line != null) {

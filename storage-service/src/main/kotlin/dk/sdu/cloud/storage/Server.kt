@@ -41,7 +41,7 @@ class Server(
         val isDevelopment = args.contains("--dev")
 
         val cloudToCephFsDao = CloudToCephFsDao(isDevelopment)
-        val processRunner = CephFSProcessRunner(cloudToCephFsDao, isDevelopment)
+        val processRunner = SimpleCephFSProcessRunner(cloudToCephFsDao, isDevelopment)
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
         val fileAclService =
             FileACLService(cloudToCephFsDao, processRunner, isDevelopment)

@@ -2,18 +2,20 @@ package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.storage.services.cephfs.CephFSProcessRunner
 import dk.sdu.cloud.storage.services.cephfs.InMemoryProcessResultAsString
+import dk.sdu.cloud.storage.services.cephfs.ProcessRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.XAttrService
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class XAttrTest {
     @Test
     fun testBasicXAttrParsing() {
         val runner = mockk<CephFSProcessRunner>()
-        every { runner.runAsUserWithResultAsInMemoryString(any(), any(), any()) } returns InMemoryProcessResultAsString(
+        val factory: ProcessRunnerFactory = { runner }
+        every { runner.runWithResultAsInMemoryString(any(), any()) } returns InMemoryProcessResultAsString(
             status = 0,
 
             stdout = """
@@ -26,10 +28,10 @@ class XAttrTest {
             stderr = ""
         )
 
-        val service = XAttrService(runner, true)
+        val service = XAttrService(factory, false)
         val attributeList = service.getAttributeList("user", "foobar")
         verify {
-            runner.runAsUserWithResultAsInMemoryString("user", listOf("getfattr", "-d", "foobar"))
+            runner.runWithResultAsInMemoryString(listOf("getfattr", "-d", "foobar"))
         }
 
         assertEquals("bar", attributeList["foo"])
