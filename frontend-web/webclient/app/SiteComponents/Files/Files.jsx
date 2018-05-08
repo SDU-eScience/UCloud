@@ -13,6 +13,7 @@ import * as Actions from "../../Actions/Files";
 import { updatePageTitle } from "../../Actions/Status";
 import { changeUppyFilesOpen } from "../../Actions/UppyActions";
 import { FileSelectorModal } from "./FileSelector";
+import { FileIcon } from "../UtilityComponents";
 
 class Files extends React.Component {
     constructor(props) {
@@ -585,14 +586,6 @@ const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
             </Link>);
     }
 }
-
-const FileIcon = ({ name, size, link, color }) =>
-    link ?
-        <Icon.Group size={size}>
-            <Icon name={name} color={color} />
-            <Icon corner color="grey" name="share" />
-        </Icon.Group> :
-        <Icon name={name} size={size} color={color} />
 
 const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, size, link, handleKeyDown }) => {
     const color = type === "DIRECTORY" ? "blue" : "grey";
