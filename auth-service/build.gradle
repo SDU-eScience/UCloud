@@ -4,12 +4,15 @@ version '1.0.0-SNAPSHOT'
 buildscript {
     ext.kotlin_version = '1.2.40'
     ext.ktor_version = '0.9.1'
+    ext.dokka_version = "0.9.16"
 
     repositories {
         mavenCentral()
+        jcenter()
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:${dokka_version}"
     }
 }
 
@@ -17,7 +20,13 @@ apply plugin: 'idea'
 apply plugin: 'kotlin'
 apply plugin: 'application'
 apply plugin: 'maven-publish'
+apply plugin: 'org.jetbrains.dokka'
 sourceCompatibility = 1.8
+
+dokka {
+    outputFormat = "html"
+    outputDirectory = "$buildDir/javadoc"
+}
 
 mainClassName = "dk.sdu.cloud.auth.ServerMainKt"
 
