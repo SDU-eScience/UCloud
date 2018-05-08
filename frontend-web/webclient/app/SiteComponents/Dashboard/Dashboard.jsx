@@ -1,6 +1,6 @@
 import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
-import { getParentPath } from "../../UtilityFunctions";
+import { getParentPath, getTypeFromFile } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { favorite, sortFilesByModified, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
@@ -11,6 +11,7 @@ import "./Dashboard.scss";
 import "../Styling/Shared.scss";
 import { Card, List, Container, Icon } from "semantic-ui-react";
 import moment from "moment";
+import { FileIcon } from "../UtilityComponents";
 
 class Dashboard extends React.Component {
     constructor(props) {
@@ -62,7 +63,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
             <List.Content floated="right">
                 <Icon name="star" color="yellow" onClick={() => favorite(file.path)} />
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} />
+            <ListFileContent path={file.path} type={file.type} link={false} />
         </List.Item>)
     );
 
@@ -81,10 +82,10 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
         </Card >)
 };
 
-const ListFileContent = ({ path, type }) =>
+const ListFileContent = ({ path, type, link }) =>
     <React.Fragment>
-        <List.Icon name={type === "FILE" ? "file" : "folder"} />
         <List.Content>
+            <FileIcon name={type === "FILE" ? getTypeFromFile(path) : "folder"} link={link} color="grey"/>
             <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
                 {getFilenameFromPath(path)}
             </Link>
@@ -101,7 +102,8 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
             <List.Content floated="right">
                 <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} />
+            <Icon name="folder"/>
+            <ListFileContent path={file.path} type={file.type} link={file.link} />
         </List.Item>
     ));
 

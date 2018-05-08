@@ -13,6 +13,7 @@ import * as Actions from "../../Actions/Files";
 import { updatePageTitle } from "../../Actions/Status";
 import { changeUppyFilesOpen } from "../../Actions/UppyActions";
 import { FileSelectorModal } from "./FileSelector";
+import { FileIcon } from "../UtilityComponents";
 
 class Files extends React.Component {
     constructor(props) {
@@ -231,6 +232,7 @@ class Files extends React.Component {
                             fetchFiles={fetchNewFiles}
                             showFileSelector={this.props.showFileSelector}
                             setFileSelectorCallback={this.props.setFileSelectorCallback}
+                            setDisallowedPaths={this.props.setDisallowedPaths}
                         >
                             <PaginationButtons
                                 currentPage={currentFilesPage}
@@ -268,6 +270,7 @@ class Files extends React.Component {
                     canSelectFolders
                     files={this.props.fileSelectorFiles}
                     onClick={this.props.fileSelectorCallback}
+                    disallowedPaths={this.props.disallowedPaths}
                 />
             </React.StrictMode>);
     }
@@ -445,6 +448,7 @@ export const FilesTable = (props) => {
                 forceInlineButtons={props.forceInlineButtons}
                 showFileSelector={props.showFileSelector}
                 setFileSelectorCallback={props.setFileSelectorCallback}
+                setDisallowedPaths={props.setDisallowedPaths}
             />
             <Table.Footer>
                 <Table.Row>
@@ -501,6 +505,7 @@ const FilesList = (props) => {
             fetchFiles={props.fetchFiles}
             showFileSelector={props.showFileSelector}
             setFileSelectorCallback={props.setFileSelectorCallback}
+            setDisallowedPaths={props.setDisallowedPaths}
         />)
     );
     return (
@@ -552,6 +557,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
                 refetch={props.refetch}
                 showFileSelector={props.showFileSelector}
                 setFileSelectorCallback={props.setFileSelectorCallback}
+                setDisallowedPaths={props.setDisallowedPaths}
             />
         </Table.Cell>
     </Table.Row>
@@ -581,17 +587,16 @@ const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
     }
 }
 
-const FileIcon = ({ name, size, link, color }) =>
-    link ?
-        <Icon.Group size={size}>
-            <Icon name={name} color={color} />
-            <Icon corner color="grey" name="share" />
-        </Icon.Group> :
-        <Icon name={name} size={size} color={color} />
-
 const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, size, link, handleKeyDown }) => {
     const color = type === "DIRECTORY" ? "blue" : "grey";
-    const icon = (<FileIcon color={color} name={type === "DIRECTORY" ? "folder" : uf.getTypeFromFile(name)} size={size} link={link} className="create-folder" />)
+    const icon = (
+        <FileIcon
+            color={color}
+            name={type === "DIRECTORY" ? "folder" : uf.getTypeFromFile(name)}
+            size={size} link={link}
+            className="create-folder"
+        />
+    );
     return beingRenamed ?
         <React.Fragment>
             {icon}
@@ -617,12 +622,14 @@ const Favorited = ({ file, favoriteFile }) =>
 const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) => {
     const move = () => {
         props.showFileSelector(true);
+        props.setDisallowedPaths([file.path]);
         props.setFileSelectorCallback((newPath) => {
             const currentPath = file.path;
             const newPathForFile = `${newPath}/${uf.getFilenameFromPath(file.path)}`;
             Cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => refetch());
             props.showFileSelector(false);
             props.setFileSelectorCallback(null);
+            props.setDisallowedPaths([]);
         });
     };
     const copy = () => {
@@ -682,13 +689,14 @@ Files.propTypes = {
 }
 
 const mapStateToProps = (state) => {
-    const { files, filesPerPage, currentFilesPage, loading, path, fileSelectorFiles, fileSelectorPath, fileSelectorShown, fileSelectorCallback } = state.files;
+    const { files, filesPerPage, currentFilesPage, loading, path, fileSelectorFiles, fileSelectorPath,
+        fileSelectorShown, fileSelectorCallback, disallowedPaths } = state.files;
     const { uppyFiles, uppyFilesOpen } = state.uppy;
     const favFilesCount = files.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = files.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
-        files, filesPerPage, currentFilesPage, loading, path, uppy: uppyFiles, uppyOpen: uppyFilesOpen, favFilesCount, checkedFilesCount,
-        fileSelectorFiles, fileSelectorPath, fileSelectorShown, fileSelectorCallback
+        files, filesPerPage, currentFilesPage, loading, path, uppy: uppyFiles, uppyOpen: uppyFilesOpen, favFilesCount,
+        checkedFilesCount, fileSelectorFiles, fileSelectorPath, fileSelectorShown, fileSelectorCallback, disallowedPaths
     }
 };
 
@@ -724,7 +732,9 @@ const mapDispatchToProps = (dispatch) => ({
         dispatch(Actions.updateFiles(files)),
     updateFilesPerPage: (newSize, files) =>
         dispatch(Actions.updateFilesPerPage(newSize, files)),
-    openUppy: () => dispatch(Actions.changeUppyFilesOpen(true))
+    openUppy: () => dispatch(Actions.changeUppyFilesOpen(true)),
+    setDisallowedPaths: (disallowedPaths) =>
+        dispatch(Actions.setDisallowedPaths(disallowedPaths))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);

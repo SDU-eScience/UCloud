@@ -112,7 +112,8 @@ export const initObject = (cloud: SDUCloud) => ({
         fileSelectorShown: false,
         fileSelectorFiles: [] as File[],
         fileSelectorPath: cloud.homeFolder,
-        fileSelectorCallback: Function
+        fileSelectorCallback: Function,
+        disallowedPaths: []
     },
     uppy: {
         uppyFiles: initializeUppy({ maxNumberOfFiles: false } as UppyRestriction, cloud),

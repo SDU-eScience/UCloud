@@ -9,6 +9,7 @@ import PromiseKeeper from "../../PromiseKeeper";
 import { dispatch } from "redux";
 import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
 import { KeyCode } from "../../DefaultObjects";
+import { FileIcon } from "../UtilityComponents";
 import "./Files.scss";
 import "../Styling/Shared.scss";
 
@@ -204,8 +205,10 @@ const FileSelectorBody = (props) => {
     if (props.loading) {
         return null;
     }
-    const files = (!!props.onlyAllowFolders) ?
-        props.files.filter(f => f.type === "DIRECTORY") : props.files;
+
+    const files = 
+        ((!!props.onlyAllowFolders) ? props.files.filter(f => f.type === "DIRECTORY") : props.files)
+                 .filter((it) => !props.disallowedPaths.some((d) => d === it.path));
     return (
         <Modal.Body>
             <List divided size={"large"}>
@@ -306,8 +309,8 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
                                 <Button onClick={() => onClick(file.path)} className="pull-right">Select</Button>
                                 : null}
                         </List.Content>
-                        <List.Icon name="folder" />
                         <List.Content onClick={() => fetchFiles(file.path)}>
+                            <FileIcon name="folder" link={file.link} color="blue" />
                             {getFilenameFromPath(file.path)}
                         </List.Content>
                     </List.Item>)

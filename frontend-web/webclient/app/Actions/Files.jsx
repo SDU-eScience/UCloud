@@ -11,7 +11,8 @@ import {
     FILE_SELECTOR_SHOWN,
     SET_FILE_SELECTOR_LOADING,
     RECEIVE_FILE_SELECTOR_FILES,
-    SET_FILE_SELECTOR_CALLBACK
+    SET_FILE_SELECTOR_CALLBACK,
+    SET_DISALLOWED_PATHS
 } from "../Reducers/Files";
 import { getParentPath, sortFilesByTypeAndName } from "../UtilityFunctions";
 
@@ -95,6 +96,11 @@ export const fetchFileselectorFiles = (path) =>
 export const setFileSelectorLoading = () => ({
     type: SET_FILE_SELECTOR_LOADING
 })
+
+export const setDisallowedPaths = (paths) => ({
+    type: SET_DISALLOWED_PATHS,
+    paths
+});
 
 export const setFileSelectorCallback = (callback) => ({
     type: SET_FILE_SELECTOR_CALLBACK,
