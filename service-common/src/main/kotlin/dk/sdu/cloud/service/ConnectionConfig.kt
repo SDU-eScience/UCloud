@@ -18,7 +18,12 @@ data class DatabaseConfiguration(
     val driver: String,
     val username: String,
     val password: String
-)
+) {
+    override fun toString(): String {
+        return "DatabaseConfiguration(url='$url', driver='$driver', username='$username')"
+    }
+}
+
 
 data class KafkaConnectionConfig(val servers: List<KafkaHostConfig>)
 

@@ -71,7 +71,7 @@ dependencies {
     // ------------
     // Service
     // ------------
-    compile "dk.sdu.cloud:service-common:0.8.0-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.8.1-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.0.0-SNAPSHOT"
     compile "dk.sdu.cloud:notification-api:0.1.0-SNAPSHOT"
 

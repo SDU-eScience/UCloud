@@ -17,7 +17,12 @@ data class DatabaseConfiguration(
     val driver: String,
     val username: String,
     val password: String
-)
+) {
+    override fun toString(): String {
+        return "DatabaseConfiguration(url='$url', driver='$driver', username='$username')"
+    }
+}
+
 
 data class HPCConfig(
     private val connection: RawConnectionConfig,
@@ -34,10 +39,16 @@ data class HPCConfig(
     override fun configure() {
         connection.configure(AppServiceDescription, 42200)
     }
+
+    override fun toString(): String {
+        return "HPCConfig(connection=$connection, ssh=$ssh, storage=$storage, rpc=$rpc, database=$database)"
+    }
 }
 
 data class StorageConfiguration(val host: String, val port: Int, val zone: String)
-data class RPCConfiguration(val secretToken: String)
+data class RPCConfiguration(val secretToken: String) {
+    override fun toString(): String = "RPCConfiguration(xxxx)"
+}
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.project.MainKt")
 

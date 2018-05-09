@@ -16,7 +16,11 @@ data class SimpleSSHConfig(
     val user: String,
     val keyPassword: String,
     val keyHome: String = System.getProperty("user.home") + File.separator + ".ssh"
-)
+) {
+    override fun toString(): String {
+        return "SimpleSSHConfig(server='$server', port=$port, user='$user')"
+    }
+}
 
 class SSHConnection(val session: Session) {
     fun openExecChannel(): ChannelExec = session.openChannel("exec") as ChannelExec

@@ -22,12 +22,20 @@ data class Configuration(
     override fun configure() {
         connection.configure(ZenodoServiceDescription, 42250)
     }
+
+    override fun toString(): String {
+        return "Configuration(connection=$connection, zenodo=$zenodo, production=$production)"
+    }
 }
 
 data class ZenodoAPIConfiguration(
     val clientId: String,
     val clientSecret: String
-)
+) {
+    override fun toString(): String {
+        return "ZenodoAPIConfiguration()"
+    }
+}
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.zenodo.MainKt")
 

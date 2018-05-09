@@ -29,7 +29,7 @@ data class Configuration(
     }
 
     override fun toString(): String {
-        return "Configuration(storage=$storage, connection=$connection, refreshToken='$refreshToken', consulHostname='$consulHostname')"
+        return "Configuration(storage=$storage, connection=$connection, appDatabaseUser='$appDatabaseUser', consulHostname='$consulHostname')"
     }
 }
 
