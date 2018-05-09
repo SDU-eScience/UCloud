@@ -202,7 +202,7 @@ class Files extends React.Component {
             history.push(`/files/${path}`);
         };
         return (
-            <React.StrictMode>
+            <React.Fragment>
                 <Container>
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
@@ -272,7 +272,7 @@ class Files extends React.Component {
                     onClick={this.props.fileSelectorCallback}
                     disallowedPaths={this.props.disallowedPaths}
                 />
-            </React.StrictMode>);
+            </React.Fragment>);
     }
 }
 
@@ -636,11 +636,19 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
         props.showFileSelector(true);
         props.setFileSelectorCallback((newPath) => {
             const currentPath = file.path;
-            Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(file.path)}`).then(({ response }) => {
-                console.log(response);
-                props.showFileSelector(false);
-                props.setFileSelectorCallback(null);
-            }).catch(f => console.log(f));
+            const newPathForFile = `${newPath}/${uf.getFilenameFromPath(file.path)}`;
+            Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(file.path)}`).catch(({ request }) => {
+                if (request.status === 404) {
+                    const newPathForFile = `${newPath}/${uf.getFilenameFromPath(file.path)}`;
+                    Cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => {
+                        props.showFileSelector(false);
+                        props.setFileSelectorCallback(null);
+                        refetch();
+                    });
+                } else {
+                    alert(`An error occurred. ${request.statusCode}`)
+                }
+            });
         });
     };
     return (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
@@ -732,7 +740,7 @@ const mapDispatchToProps = (dispatch) => ({
         dispatch(Actions.updateFiles(files)),
     updateFilesPerPage: (newSize, files) =>
         dispatch(Actions.updateFilesPerPage(newSize, files)),
-    openUppy: () => dispatch(Actions.changeUppyFilesOpen(true)),
+    openUppy: () => dispatch(changeUppyFilesOpen(true)),
     setDisallowedPaths: (disallowedPaths) =>
         dispatch(Actions.setDisallowedPaths(disallowedPaths))
 });
