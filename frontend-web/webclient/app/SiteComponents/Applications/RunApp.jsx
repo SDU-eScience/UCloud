@@ -237,57 +237,48 @@ const JobSchedulingParams = (props) => {
     const { maxTime } = props.jobInfo;
     return (
         <React.Fragment>
-            <fieldset>
-                <div className="form-group">
-                    <label className="col-sm-2 control-label">Number of nodes</label>
-                    <div className={"col-md-8"}>
-                        <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
-                            className="col-md-4 form-control"
-                            onChange={e => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(e.target.value), null)} />
-                    </div>
-                </div>
-            </fieldset>
-            <fieldset>
-                <div className="form-group">
-                    <label className="col-sm-2 control-label">Tasks per node</label>
-                    <div className="col-md-8">
-                        <input type="number" step="1" placeholder={"Default value: " + props.tool.defaultTasksPerNode}
-                            className="col-md-4 form-control"
-                            onChange={e => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(e.target.value), null)} />
-                    </div>
-                </div>
-            </fieldset>
-            <fieldset>
-                <FormGroup>
-                    <label className="col-sm-2 control-label">Maximum time allowed</label>
-                    <div className="col-xs-8">
-                        <div className="form-inline">
-                            <InputGroup>
-                                <input type="number" step="1" min="0" className="form-control time-selection"
-                                    placeholder={props.tool.defaultMaxTime.hours}
-                                    value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
-                                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")} />
-                                <span className="input-group-addon">Hours</span>
-                            </InputGroup>{" "}
-                            <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control time-selection"
-                                    placeholder={props.tool.defaultMaxTime.minutes}
-                                    value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
-                                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "minutes")} />
-                                <span className="input-group-addon">Minutes</span>
-                            </InputGroup>{"  "}
-                            <InputGroup>
-                                <input type="number" step="1" min="0" max="59" className="form-control time-selection"
-                                    placeholder={props.tool.defaultMaxTime.seconds}
-                                    value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
-                                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "seconds")} />
-                                <span className="input-group-addon">Seconds</span>
-                            </InputGroup>
-                        </div>
-                    </div>
-                </FormGroup>
-            </fieldset>
-            <fieldset><CommentField onCommentChange={props.onCommentChange} comment={props.comment} /></fieldset>
+
+            <Form.Group widths="equal">
+                <Form.Input
+                    label="Number of nodes"
+                    type="number" step="1"
+                    placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
+                    onChange={e => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(e.target.value), null)}
+                />
+                <Form.Input
+                    label="Tasks per node"
+                    type="number" step="1"
+                    placeholder={"Default value: " + props.tool.defaultTasksPerNode}
+                    onChange={e => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(e.target.value), null)}
+                />
+            </Form.Group>
+            <label>Maximum time allowed</label>
+            <Form.Group widths="equal">
+                <Form.Input
+                    fluid
+                    label="Hours"
+                    placeholder={props.tool.defaultMaxTime.hours}
+                    type="number" step="1" min="0"
+                    value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
+                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")}
+                />
+                <Form.Input
+                    fluid
+                    label="Minutes"
+                    placeholder={props.tool.defaultMaxTime.minutes}
+                    type="number" step="1" min="0" max="59"
+                    value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
+                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "minutes")}
+                />
+                <Form.Input
+                    fluid
+                    label="Seconds"
+                    placeholder={props.tool.defaultMaxTime.seconds}
+                    type="number" step="1" min="0" max="59"
+                    value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
+                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "seconds")}
+                />
+            </Form.Group>
         </React.Fragment>)
 };
 
