@@ -17,11 +17,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
+import io.ktor.response.respondText
 import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.util.escapeHTML
-import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 
 data class Configuration(
@@ -78,9 +78,25 @@ class Main {
                     call.respond(HttpStatusCode.BadRequest)
                 }
             }
+
+            post("/api/sync-callback") {
+                try {
+                    val parameters = call.receiveParameters()
+                    val access = parameters["accessToken"]!!
+                    val refresh = parameters["refreshToken"]!!
+                    call.respond(
+                        FreeMarkerContent(
+                            "sync.ftl",
+                            mapOf("accessToken" to access.escapeHTML(), "refreshToken" to refresh.escapeHTML())
+                        )
+                    )
+                } catch (ex: Exception) {
+                    call.respondText("Bad request", status = HttpStatusCode.BadRequest)
+                }
+            }
         }
 
-        serviceRegistry.register(listOf("/api/auth-callback"))
+        serviceRegistry.register(listOf("/api/auth-callback", "/api/sync-callback"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

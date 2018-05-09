@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.client.HttpClient
+import dk.sdu.cloud.client.asJson
 import dk.sdu.cloud.client.setJsonBody
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
@@ -31,7 +32,7 @@ private val mapper = jacksonObjectMapper().apply {
     configure(JsonParser.Feature.ALLOW_COMMENTS, true)
     configure(SerializationFeature.INDENT_OUTPUT, true)
 }
-private val printStackTraces = true
+private val printStackTraces = false
 
 data class SyncSettings(val token: String)
 
@@ -141,11 +142,62 @@ fun compareWithLocal(workingDirectory: File, targetDirectory: String, item: Sync
     }
 }
 
+data class AccessToken(val accessToken: String)
+
+suspend fun auth(token: String): AccessToken? {
+    val resp = HttpClient.post("https://cloud.sdu.dk/auth/refresh") {
+        addHeader("Authorization", "Bearer $token")
+    }
+
+    return if (resp.statusCode in 200..399) {
+        resp.asJson()
+    } else {
+        null
+    }
+}
+
+fun printHelp() {
+    println("Usage abc2-sync <targetDirectory> [--pull] [--push]")
+    println()
+    println("--pull: Pull files from SDUCloud to your current working directory")
+    println("--push: Push files from your current working directory to SDUCloud")
+    println()
+    println("--auth: Perform authentication")
+    println("--help: This message")
+}
+
 fun main(args: Array<String>) {
     runBlocking {
+        val shouldPull = args.contains("--pull")
+        val shouldPush = args.contains("--push")
+        val shouldAuth = args.contains("--auth")
+        val shouldHelp = args.contains("--help")
+
         try {
+            if (shouldHelp) {
+                printHelp()
+                exitProcess(0)
+            }
+
+            if (shouldAuth) {
+                println("Go to https://cloud.sdu.dk/auth/login?service=sync and login")
+                println("Once you have authenticated you will be presented with an access token.")
+                println()
+                println("Enter your access token below:")
+                val token = Scanner(System.`in`).nextLine()
+                if (auth(token) == null) {
+                    println("Invalid token. Try again.")
+                    exitProcess(1)
+                }
+                mapper.writeValue(File(System.getProperty("user.home"), ".sdu-sync"), SyncSettings(token))
+                exitProcess(0)
+            }
+
             val workingDirectory = File(".").absoluteFile.normalize()
-            val targetDirectory = args.firstOrNull() ?: throw IllegalArgumentException("Missing target directory")
+            val targetDirectory = args.firstOrNull() ?: run {
+                printHelp()
+                exitProcess(0)
+            }
 
             val settings = try {
                 mapper.readValue<SyncSettings>(File(System.getProperty("user.home"), ".sdu-sync"))
@@ -153,17 +205,14 @@ fun main(args: Array<String>) {
                 throw IllegalStateException("Could not read settings", ignored)
             }
 
+            val jwt = auth(settings.token)?.accessToken
+                    ?: throw IllegalStateException("Invalid token. Retry with abc2-sync --auth")
+
             data class SyncPayload(val path: String, val modifiedSince: Long)
 
             val response = HttpClient.post("https://cloud.sdu.dk/api/files/sync") {
-                //            addHeader("Job-Id", UUID.randomUUID().toString())
-                addHeader("Authorization", "Bearer ${settings.token}")
-                setJsonBody(
-                    SyncPayload(
-                        path = targetDirectory,
-                        modifiedSince = /*meta?.lastSynchronizedAt ?: 0*/0
-                    )
-                )
+                addHeader("Authorization", "Bearer $jwt")
+                setJsonBody(SyncPayload(path = targetDirectory, modifiedSince = 0))
             }
 
             if (response.statusCode !in 200..299) {
@@ -192,122 +241,12 @@ fun main(args: Array<String>) {
 
             val allResults = jobs.map { it.await() }
 
-            val filesToDownload = allResults.filterIsInstance<SyncResult.LocalIsOutdated>()
-                .map { it.remotePath.removePrefix(targetDirectory) }
-
-            data class BulkDownloadRequest(val prefix: String, val files: List<String>)
-
-            val downloadResponse = HttpClient.post("https://cloud.sdu.dk/api/files/bulk") {
-                addHeader("Authorization", "Bearer ${settings.token}")
-                setJsonBody(BulkDownloadRequest(targetDirectory, filesToDownload))
+            if (shouldPull) {
+                pullFilesFromRemote(allResults, targetDirectory, jwt, workingDirectory)
             }
 
-            if (downloadResponse.statusCode !in 200..299) throw IllegalStateException("Bad server response")
-
-            TarInputStream(GZIPInputStream(downloadResponse.responseBodyAsStream)).use {
-                val buffer = ByteArray(8 * 1024)
-                var mutableEntry: TarEntry? = it.nextEntry
-                while (mutableEntry != null) {
-                    val currentEntry = mutableEntry
-                    println("Downloading ${currentEntry.name} (${currentEntry.size} bytes)")
-
-                    val file = File(workingDirectory, currentEntry.name)
-
-                    if (currentEntry.isDirectory) {
-                        file.mkdirs()
-                    } else {
-                        file.parentFile.mkdirs()
-
-                        val fileOut = file.outputStream()
-                        val start = System.currentTimeMillis()
-
-                        val bar = ProgressBar().apply {
-                            current = 0
-                            maximum = currentEntry.size
-                            message = currentEntry.name
-                        }
-
-                        bar.render()
-
-                        CappedInputStream(it, currentEntry.size).use {
-                            var bytes = it.read(buffer)
-                            if (bytes > 0) bar.current += bytes
-                            bar.render()
-                            while (bytes >= 0) {
-                                fileOut.write(buffer, 0, bytes)
-                                bytes = it.read(buffer)
-                                if (bytes > 0) bar.current += bytes
-                                bar.render()
-                            }
-                        }
-                        println(System.currentTimeMillis() - start)
-                        println()
-                    }
-                    mutableEntry = it.nextEntry
-                }
-            }
-
-            var filesAdded = 0
-            var foundAny = false
-            val uploadFile = Files.createTempFile("upload", ".tar.gz").toFile()
-            TarOutputStream(GZIPOutputStream(FileOutputStream(uploadFile))).use { out ->
-                val isUpToDate = allResults
-                    .filter { it is SyncResult.LocalIsInSync || it is SyncResult.LocalIsOutdated }
-                    .map { it.localPath }
-                    .toSet()
-
-                Files.walk(workingDirectory.toPath())
-                    .filter {
-                        val toFile = it.toFile()
-                        toFile != workingDirectory.normalize() &&
-                                toFile.absolutePath !in isUpToDate
-                    }
-                    .forEach {
-
-                        val file = it.toFile()
-                        val localPath = file.relativeTo(workingDirectory).path
-
-                        if (file.isDirectory) {
-                            out.putNextEntry(
-                                TarEntry(
-                                    TarHeader.createHeader(
-                                        localPath, 0, 0, true, 511
-                                    )
-                                )
-                            )
-                        } else {
-                            foundAny = true
-                            filesAdded++
-
-                            println(localPath)
-                            out.putNextEntry(
-                                TarEntry(
-                                    TarHeader.createHeader(
-                                        localPath, file.length(), 0, false, 511
-                                    )
-                                )
-                            )
-
-                            file.inputStream().copyTo(out)
-                        }
-                    }
-            }
-
-            if (foundAny) {
-                println("Uploading files ($filesAdded files)")
-                val result = HttpClient.post("https://cloud.sdu.dk/api/upload/bulk") {
-                    addHeader("Authorization", "Bearer ${settings.token}")
-                    addBodyPart(StringPart("policy", "OVERWRITE"))
-                    addBodyPart(StringPart("path", targetDirectory))
-                    addBodyPart(StringPart("format", "tgz"))
-                    addBodyPart(FilePart("upload", uploadFile))
-                }
-
-                if (result.statusCode !in 200..399) {
-                    debug(result.statusCode)
-                    debug(result.responseBody)
-                    throw IllegalStateException("Bad server response")
-                }
+            if (shouldPush) {
+                pushFilesToRemote(allResults, workingDirectory, jwt, targetDirectory)
             }
 
             exitProcess(0)
@@ -318,6 +257,136 @@ fun main(args: Array<String>) {
                 errPrintln(ex.message)
             }
             exitProcess(1)
+        }
+    }
+}
+
+private suspend fun pushFilesToRemote(
+    allResults: List<SyncResult>,
+    workingDirectory: File,
+    jwt: String,
+    targetDirectory: String
+) {
+    var filesAdded = 0
+    var foundAny = false
+    val uploadFile = Files.createTempFile("upload", ".tar.gz").toFile()
+    TarOutputStream(GZIPOutputStream(FileOutputStream(uploadFile))).use { out ->
+        val isUpToDate = allResults
+            .filter { it is SyncResult.LocalIsInSync || it is SyncResult.LocalIsOutdated }
+            .map { it.localPath }
+            .toSet()
+
+        Files.walk(workingDirectory.toPath())
+            .filter {
+                val toFile = it.toFile()
+                toFile != workingDirectory.normalize() &&
+                        toFile.absolutePath !in isUpToDate
+            }
+            .forEach {
+
+                val file = it.toFile()
+                val localPath = file.relativeTo(workingDirectory).path
+
+                if (file.isDirectory) {
+                    out.putNextEntry(
+                        TarEntry(
+                            TarHeader.createHeader(
+                                localPath, 0, 0, true, 511
+                            )
+                        )
+                    )
+                } else {
+                    foundAny = true
+                    filesAdded++
+
+                    out.putNextEntry(
+                        TarEntry(
+                            TarHeader.createHeader(
+                                localPath, file.length(), 0, false, 511
+                            )
+                        )
+                    )
+
+                    file.inputStream().copyTo(out)
+                }
+            }
+    }
+
+    if (foundAny) {
+        println("Uploading files ($filesAdded files)")
+        val result = HttpClient.post("https://cloud.sdu.dk/api/upload/bulk") {
+            addHeader("Authorization", "Bearer $jwt")
+            addBodyPart(StringPart("policy", "OVERWRITE"))
+            addBodyPart(StringPart("path", targetDirectory))
+            addBodyPart(StringPart("format", "tgz"))
+            addBodyPart(FilePart("upload", uploadFile))
+        }
+
+        if (result.statusCode !in 200..399) {
+            debug(result.statusCode)
+            debug(result.responseBody)
+            throw IllegalStateException("Bad server response")
+        }
+    }
+}
+
+private suspend fun pullFilesFromRemote(
+    allResults: List<SyncResult>,
+    targetDirectory: String,
+    jwt: String,
+    workingDirectory: File
+) {
+    data class BulkDownloadRequest(val prefix: String, val files: List<String>)
+
+    val filesToDownload = allResults.filterIsInstance<SyncResult.LocalIsOutdated>()
+        .map { it.remotePath.removePrefix(targetDirectory) }
+
+    val downloadResponse = HttpClient.post("https://cloud.sdu.dk/api/files/bulk") {
+        addHeader("Authorization", "Bearer $jwt")
+        setJsonBody(BulkDownloadRequest(targetDirectory, filesToDownload))
+    }
+
+    if (downloadResponse.statusCode !in 200..299) throw IllegalStateException("Bad server response")
+
+    TarInputStream(GZIPInputStream(downloadResponse.responseBodyAsStream)).use {
+        val buffer = ByteArray(8 * 1024)
+        var mutableEntry: TarEntry? = it.nextEntry
+        while (mutableEntry != null) {
+            val currentEntry = mutableEntry
+            println("Downloading ${currentEntry.name} (${currentEntry.size} bytes)")
+
+            val file = File(workingDirectory, currentEntry.name)
+
+            if (currentEntry.isDirectory) {
+                file.mkdirs()
+            } else {
+                file.parentFile.mkdirs()
+
+                val fileOut = file.outputStream()
+
+                val bar = ProgressBar().apply {
+                    current = 0
+                    maximum = currentEntry.size
+                    message = currentEntry.name
+                }
+
+                bar.render()
+
+                CappedInputStream(it, currentEntry.size).use {
+                    var bytes = it.read(buffer)
+                    if (bytes > 0) bar.current += bytes
+                    bar.render()
+                    while (bytes >= 0) {
+                        fileOut.write(buffer, 0, bytes)
+                        bytes = it.read(buffer)
+                        if (bytes > 0) bar.current += bytes
+                        bar.render()
+                    }
+                }
+                println()
+                println()
+            }
+            mutableEntry = it.nextEntry
         }
     }
 }
@@ -352,9 +421,9 @@ class ProgressBar {
     var stream: PrintStream = System.out
 
     fun render() {
-        val percentage = current / maximum.toDouble()
+        val percentage = if (maximum == 0L) 1.0 else current / maximum.toDouble()
         val format = DecimalFormat("#0.00")
-        val percentageString = format.format(current / maximum.toDouble() * 100)
+        val percentageString = format.format(percentage * 100)
         stream.print('\r')
         when {
             terminalSize >= 80 -> {
