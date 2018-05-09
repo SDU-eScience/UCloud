@@ -1,5 +1,4 @@
 import * as React from "react";
-import "react-bootstrap";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { Button, Popup, Feed, Icon, Divider, SemanticICONS, Label } from 'semantic-ui-react';
 import { Redirect } from "react-router";
