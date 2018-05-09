@@ -80,39 +80,37 @@ class ZenodoPublish extends React.Component {
             return (<NotConnectedToZenodo />);
         }
         return (
-            <section>
-                <Container className="container-margin">
-                    <Header as="h3">
-                        <Header.Content>
-                            File Selection
+            <Container className="container-margin">
+                <Header as="h3">
+                    <Header.Content>
+                        File Selection
                         </Header.Content>
-                    </Header>
-                    <Form onSubmit={e => this.submit(e)}>
-                        <FileSelections
-                            handleFileSelection={this.handleFileSelection}
-                            files={this.state.files}
-                            newFile={this.newFile}
-                            removeFile={this.removeFile}
+                </Header>
+                <Form onSubmit={e => this.submit(e)}>
+                    <FileSelections
+                        handleFileSelection={this.handleFileSelection}
+                        files={this.state.files}
+                        newFile={this.newFile}
+                        removeFile={this.removeFile}
+                    />
+                    <Form.Field>
+                        <Form.Input
+                            fluid
+                            label="Publication Name"
+                            required={true}
+                            value={this.state.name}
+                            type="text"
+                            onChange={e => this.updateName(e.target.value)}
                         />
-                        <Form.Field>
-                            <Form.Input
-                                fluid
-                                label="Publication Name"
-                                required={true}
-                                value={this.state.name}
-                                type="text"
-                                onChange={e => this.updateName(e.target.value)}
-                            />
-                        </Form.Field>
-                    </Form>
-                    <Button floated="left" onClick={() => this.newFile()}>Add additional file</Button>
-                    <LoadingButton floated="right"
-                        disabled={this.state.requestSent || !filesSelected || !name}
-                        loading={this.state.requestSent}
-                        buttonContent={"Upload files for publishing"}
-                        handler={this.submit} />
-                </Container>
-            </section >
+                    </Form.Field>
+                </Form>
+                <Button floated="left" onClick={() => this.newFile()}>Add additional file</Button>
+                <LoadingButton floated="right"
+                    disabled={this.state.requestSent || !filesSelected || !name}
+                    loading={this.state.requestSent}
+                    buttonContent={"Upload files for publishing"}
+                    handler={this.submit} />
+            </Container>
         );
     }
 }

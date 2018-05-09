@@ -38,7 +38,7 @@ class ZenodoInfo extends React.Component {
             return (<Container><BallPulseLoading loading={this.state.loading} /></Container>)
         }
         return (
-            <Container>
+            <Container className="container-margin">
                 <ZenodoPublishingBody publication={this.state.publication} uploads={this.state.uploads} />
             </Container>
         );
