@@ -1,5 +1,7 @@
 # Package dk.sdu.cloud.app.api
 
+Contains the API descriptions of this service.
+
 ## REST Endpoints
 
   - [`/api/hpc/jobs`](-h-p-c-job-descriptions/index.md): Operations regarding jobs
