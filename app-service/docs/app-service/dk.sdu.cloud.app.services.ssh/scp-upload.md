@@ -1,0 +1,6 @@
+[app-service](../index.md) / [dk.sdu.cloud.app.services.ssh](index.md) / [scpUpload](./scp-upload.md)
+
+# scpUpload
+
+`fun `[`SSHConnection`](-s-s-h-connection/index.md)`.scpUpload(file: `[`File`](http://docs.oracle.com/javase/6/docs/api/java/io/File.html)`, destination: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, permissions: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`): `[`Int`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/index.html)
+`fun `[`SSHConnection`](-s-s-h-connection/index.md)`.scpUpload(fileLength: `[`Long`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/index.html)`, fileName: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, fileDestination: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, filePermissions: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)`, fileWriter: (`[`OutputStream`](http://docs.oracle.com/javase/6/docs/api/java/io/OutputStream.html)`) -> `[`Unit`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/index.html)`): `[`Int`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/index.html)

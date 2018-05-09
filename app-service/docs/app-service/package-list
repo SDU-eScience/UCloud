@@ -1,0 +1,9 @@
+$dokka.format:gfm
+$dokka.linkExtension:md
+$dokka.location:dk.sdu.cloud.app.services$buildSafeBashString(kotlin.collections.Iterable((dk.sdu.cloud.app.services.InvocationParameter)), kotlin.collections.Map((dk.sdu.cloud.app.api.ApplicationParameter((kotlin.Any)), )))dk.sdu.cloud.app.services/kotlin.collections.-iterable/build-safe-bash-string.md
+$dokka.location:dk.sdu.cloud.app.services.ssh$awaitClosed(com.jcraft.jsch.ChannelExec, kotlin.Long, kotlin.Long)dk.sdu.cloud.app.services.ssh/com.jcraft.jsch.-channel-exec/await-closed.md
+dk.sdu.cloud.app
+dk.sdu.cloud.app.api
+dk.sdu.cloud.app.http
+dk.sdu.cloud.app.services
+dk.sdu.cloud.app.services.ssh

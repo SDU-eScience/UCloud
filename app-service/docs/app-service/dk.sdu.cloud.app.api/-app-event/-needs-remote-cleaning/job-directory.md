@@ -1,0 +1,5 @@
+[app-service](../../../index.md) / [dk.sdu.cloud.app.api](../../index.md) / [AppEvent](../index.md) / [NeedsRemoteCleaning](index.md) / [jobDirectory](./job-directory.md)
+
+# jobDirectory
+
+`abstract val jobDirectory: `[`String`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/index.html)

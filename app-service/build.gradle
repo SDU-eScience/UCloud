@@ -22,8 +22,10 @@ apply plugin: 'application'
 apply plugin: 'org.jetbrains.dokka'
 
 dokka {
-    outputFormat = "html"
-    outputDirectory = "$buildDir/javadoc"
+    outputFormat = "gfm"
+    outputDirectory = "$projectDir/docs"
+
+    includes = ["docs/api.md"]
 }
 
 sourceCompatibility = 1.8
