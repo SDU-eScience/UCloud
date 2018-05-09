@@ -4,6 +4,7 @@ import PromiseKeeper from "../../PromiseKeeper";
 import {Cloud} from "../../../authentication/SDUCloudObject";
 import {shortUUID} from "../../UtilityFunctions";
 import {Glyphicon, ListGroup, ListGroupItem, OverlayTrigger, Tooltip} from "react-bootstrap";
+import {Container} from "semantic-ui-react";
 import {Link} from "react-router-dom";
 import {FilesTable} from "../Files/Files";
 import "./wizard.scss";
@@ -116,10 +117,9 @@ class DetailedResult extends React.Component {
         const lastStepName = isFailure ? "Failure" : "Success";
 
         return (
-            <div>
+            <Container className="container-margin">
                 <h4>Progress</h4>
-                <div className="card">
-                    <div className="card-body">
+                
                         <ProgressTracker>
                             <ProgressTrackerItem
                                 error={isFailure}
@@ -152,9 +152,7 @@ class DetailedResult extends React.Component {
                                 complete={this.isStateComplete(lastStep)}
                                 title={lastStepName}/>
                         </ProgressTracker>
-                    </div>
-                </div>
-            </div>
+            </Container>
         );
     }
 
