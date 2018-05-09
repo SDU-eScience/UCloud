@@ -6,6 +6,7 @@ import dk.sdu.cloud.storage.util.BoundaryContainedStream
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.Closeable
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.*
@@ -53,12 +54,13 @@ interface ProcessRunner : Closeable {
     ): InMemoryProcessResultAsString {
         val process = run(command, directory)
 
+        process.outputStream.close()
         val stdout = process.inputStream.bufferedReader().readText()
+        log.debug { "stdout: $stdout" }
         val stderr = process.errorStream.bufferedReader().readText()
+        log.debug { "stderr: $stderr" }
         val status = process.waitFor()
         log.debug { "status: $status" }
-        log.debug { "stdout: $stdout" }
-        log.debug { "stderr: $stderr" }
 
         return InMemoryProcessResultAsString(status, stdout, stderr)
     }
@@ -69,10 +71,15 @@ interface ProcessRunner : Closeable {
 }
 
 @Suppress("FunctionName")
-fun SimpleCephFSProcessRunner(cloudToCephFsDao: CloudToCephFsDao, isDevelopment: Boolean): ProcessRunnerFactory {
+fun SimpleCephFSProcessRunnerFactory(cloudToCephFsDao: CloudToCephFsDao, isDevelopment: Boolean): ProcessRunnerFactory {
     return { user: String ->
         CephFSProcessRunner(cloudToCephFsDao, isDevelopment, user)
     }
+}
+
+@Suppress("FunctionName")
+fun StreamingProcessRunnerFactory(cloudToCephFsDao: CloudToCephFsDao, isDevelopment: Boolean): ProcessRunnerFactory {
+    return { StreamingProcessRunner(cloudToCephFsDao, isDevelopment, it) }
 }
 
 class CephFSProcessRunner(
@@ -112,15 +119,6 @@ class CephFSProcessRunner(
     }
 }
 
-fun main(args: Array<String>) {
-    val streamingProcessRunner = StreamingProcessRunner(CloudToCephFsDao(true), true, "jonas@hinchely.dk")
-    println(streamingProcessRunner.runWithResultAsInMemoryString(listOf("echo", "Hello!", "World!")))
-    println("Running last")
-    println(streamingProcessRunner.runWithResultAsInMemoryString(listOf("sleep", "1")))
-    println("Done")
-    streamingProcessRunner.close()
-}
-
 class StreamingProcessRunner(
     private val cloudToCephFsDao: CloudToCephFsDao,
     private val isDevelopment: Boolean,
@@ -137,6 +135,13 @@ class StreamingProcessRunner(
         return "process-runner-boundary-${UUID.randomUUID()}"
     }
 
+    fun debug() {
+        bashProcess.outputStream.close()
+        bashProcess.waitFor()
+        println(bashProcess.inputStream.bufferedReader().readText())
+        println(bashProcess.errorStream.bufferedReader().readText())
+    }
+
     override fun run(command: List<String>, directory: String?): IProcess {
         val boundary = generateNewBoundary()
 
@@ -149,14 +154,22 @@ class StreamingProcessRunner(
 
         log.debug("Running command (user=$user): $bashCommand")
 
-        bashProcess.outputStream.apply {
-            write((bashCommand + "\n").toByteArray())
+        log.debug("Bash process alive? ${bashProcess.isAlive}")
+        val out = bashProcess.outputStream
+        out.apply {
+            fun w(str: String) {
+                log.debug(str)
+                write(str.toByteArray())
+            }
+
+            w(("$bashCommand;"))
 
             // Save status, mark end of process, write status
-            write("STATUS=$?\n".toByteArray())
-            write("echo $boundary\n".toByteArray())
-            write("echo $boundary >&2\n".toByteArray())
-            write("echo \$STATUS\n".toByteArray())
+            // NOTE(Dan): Do not use new-lines, as these will leak into the output stream of sub-processes
+            w("STATUS=$?;")
+            w("echo $boundary;")
+            w("echo $boundary >&2;")
+            w("echo \$STATUS\n")
 
             // Always flush at end of command
             flush()
@@ -165,7 +178,7 @@ class StreamingProcessRunner(
         val boundaryBytes = (boundary + '\n').toByteArray()
         val wrappedStdout = BoundaryContainedStream(boundaryBytes, bashProcess.inputStream)
         val wrappedStderr = BoundaryContainedStream(boundaryBytes, bashProcess.errorStream)
-        val outputStream = GuardedOutputStream(bashProcess.outputStream)
+        val outputStream = GuardedOutputStream(out)
 
         return BoundaryContainedProcess(
             wrappedStdout,
@@ -197,6 +210,7 @@ class BoundaryContainedProcess(
     override fun waitFor(): Int {
         inputStream.discardAll()
         errorStream.discardAll()
+        outputStream.close()
 
         val remaining = inputStream.readRemainingAfterBoundary()
 
@@ -229,5 +243,6 @@ class BoundaryContainedProcess(
     override fun close() {
         inputStream.discardAll()
         errorStream.discardAll()
+        outputStream.close()
     }
 }

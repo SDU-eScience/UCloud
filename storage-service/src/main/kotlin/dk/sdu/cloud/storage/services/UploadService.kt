@@ -6,6 +6,7 @@ import dk.sdu.cloud.storage.util.CappedInputStream
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.GZIPInputStream
@@ -61,6 +62,7 @@ class UploadService(
         val rejectedDirectories = ArrayList<String>()
 
         TarInputStream(GZIPInputStream(stream)).use {
+            val createdDirectories = HashSet<String>()
             var entry: TarEntry? = it.nextEntry
             while (entry != null) {
                 val initialTargetPath = fs.joinPath(path, entry.name)
@@ -120,8 +122,15 @@ class UploadService(
 
                         try {
                             if (entry.isDirectory) {
+                                createdDirectories += targetPath
                                 fs.mkdir(ctx, targetPath)
                             } else {
+                                val parentDir = File(targetPath).parentFile.path
+                                if (parentDir !in createdDirectories) {
+                                    createdDirectories += parentDir
+                                    fs.mkdir(ctx, parentDir)
+                                }
+
                                 upload(ctx, targetPath) { cappedStream.copyTo(this) }
                             }
                         } catch (ex: FileSystemException.PermissionException) {

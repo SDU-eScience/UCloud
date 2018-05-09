@@ -3,7 +3,7 @@ package dk.sdu.cloud.storage
 import dk.sdu.cloud.storage.services.BulkDownloadService
 import dk.sdu.cloud.storage.services.cephfs.CephFSFileSystemService
 import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
-import dk.sdu.cloud.storage.services.cephfs.SimpleCephFSProcessRunner
+import dk.sdu.cloud.storage.services.cephfs.SimpleCephFSProcessRunnerFactory
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
@@ -62,7 +62,7 @@ class BulkDownloadTest {
 
         val fs = CephFSFileSystemService(
             dao,
-            SimpleCephFSProcessRunner(dao, true),
+            SimpleCephFSProcessRunnerFactory(dao, true),
             mockk(),
             mockk(),
             mockk(),
@@ -96,7 +96,7 @@ class BulkDownloadTest {
 
         val fs = CephFSFileSystemService(
             dao,
-            SimpleCephFSProcessRunner(dao, true),
+            SimpleCephFSProcessRunnerFactory(dao, true),
             mockk(),
             mockk(),
             mockk(),
