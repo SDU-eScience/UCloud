@@ -1,9 +1,9 @@
 import React from "react";
-import { Button, Container, List } from "semantic-ui-react";
+import { Button, Container, List, Header, Input, Form } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
-import {BallPulseLoading, LoadingButton} from "../LoadingIcon/LoadingIcon";
+import { BallPulseLoading, LoadingButton } from "../LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
@@ -75,69 +75,61 @@ class ZenodoPublish extends React.Component {
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
         const { name } = this.state;
         if (this.props.loading) {
-            return (<BallPulseLoading loading={true}/>)
+            return (<BallPulseLoading loading={true} />)
         } else if (!this.props.connected) {
             return (<NotConnectedToZenodo />);
         }
         return (
             <section>
-                <Container>
-                    <h3>File Selection</h3>
-                    <CardAndBody>
-                        <form onSubmit={e => this.submit(e)}>
-                            <FileSelections
-                                handleFileSelection={this.handleFileSelection}
-                                files={this.state.files}
-                                newFile={this.newFile}
-                                removeFile={this.removeFile}
+                <Container className="container-margin">
+                    <Header as="h3">
+                        <Header.Content>
+                            File Selection
+                        </Header.Content>
+                    </Header>
+                    <Form onSubmit={e => this.submit(e)}>
+                        <FileSelections
+                            handleFileSelection={this.handleFileSelection}
+                            files={this.state.files}
+                            newFile={this.newFile}
+                            removeFile={this.removeFile}
+                        />
+                        <Form.Field>
+                            <Form.Input
+                                fluid
+                                label="Publication Name"
+                                required={true}
+                                value={this.state.name}
+                                type="text"
+                                onChange={e => this.updateName(e.target.value)}
                             />
-                            <fieldset>
-                                <div className="form-group">
-                                    <label className="col-sm-2 control-label">Publication Name</label>
-                                    <div className="col-md-8">
-                                        <input required={true}
-                                            value={this.state.name}
-                                            className="form-control"
-                                            type="text" onChange={e => this.updateName(e.target.value)} />
-                                        <span className="help-block">The name of the publication</span>
-                                    </div>
-                                </div>
-                            </fieldset>
-                            <Button onClick={() => this.newFile()}>Add additional file</Button>
-                            <LoadingButton
-                                disabled={this.state.requestSent || !filesSelected || !name}
-                                loading={this.state.requestSent}
-                                buttonContent={"Upload files for publishing"}
-                                handler={this.submit} />
-                        </form>
-                    </CardAndBody>
+                        </Form.Field>
+                    </Form>
+                    <Button floated="left" onClick={() => this.newFile()}>Add additional file</Button>
+                    <LoadingButton floated="right"
+                        disabled={this.state.requestSent || !filesSelected || !name}
+                        loading={this.state.requestSent}
+                        buttonContent={"Upload files for publishing"}
+                        handler={this.submit} />
                 </Container>
-            </section>
+            </section >
         );
     }
 }
 
-const CardAndBody = ({ children }) => (
-    <div className="card">
-        <div className="card-body">
-            {children}
-        </div>
-    </div>
-);
-
 const FileSelections = ({ files, handleFileSelection, removeFile }) => (
-    <List>
+    <React.Fragment>
         {files.map((file, index) =>
-            (<List.Item key={index} className="col-sm-offset-2 col-md-8 input-group zero-padding">
+            (<Form.Field key={index}>
                 <FileSelector
                     path={file}
                     uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
                     allowUpload={false}
                     remove={files.length > 1 ? () => removeFile(index) : false}
                 />
-            </List.Item>))}
-    </List>
+            </Form.Field>))}
+    </React.Fragment>
 );
 
-const mapStateToProps = (state) => ({ connected, loading } = state.zenodo);
+const mapStateToProps = ({ zenodo }) => ({ connected, loading } = zenodo);
 export default connect(mapStateToProps)(ZenodoPublish);

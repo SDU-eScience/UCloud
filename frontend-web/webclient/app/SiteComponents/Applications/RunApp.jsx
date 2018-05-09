@@ -1,5 +1,4 @@
 import React from "react";
-import { Jumbotron, InputGroup, FormGroup } from "react-bootstrap";
 import { Container, Header, Form, Input } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
@@ -182,7 +181,7 @@ const ApplicationHeader = ({ authors, name, description }) => {
     let authorString = (!!authors) ? authors.join(", ") : "";
 
     return (
-        <Header as="h2">
+        <Header as="h1">
             <Header.Content>
                 {name}
                 <h4>{pluralize(authors, "Author")}: {authorString}</h4>
@@ -237,7 +236,6 @@ const JobSchedulingParams = (props) => {
     const { maxTime } = props.jobInfo;
     return (
         <React.Fragment>
-
             <Form.Group widths="equal">
                 <Form.Input
                     label="Number of nodes"
@@ -281,22 +279,6 @@ const JobSchedulingParams = (props) => {
             </Form.Group>
         </React.Fragment>)
 };
-
-const CommentField = (props) => (
-    <div className="form-group">
-        <label className="col-sm-2 control-label">Comment</label>
-        <div className="col-md-8 col-lg-6">
-            <textarea
-                disabled
-                required
-                placeholder="Add a comment about this job..."
-                className="col-md-4 form-control text-area-no-resize"
-                rows="5"
-                onChange={e => props.onCommentChange(e.target.value)}
-            />
-        </div>
-    </div>
-);
 
 const parameterTypeToComponent = (type) => {
     switch (type) {
@@ -356,7 +338,6 @@ const TextParameter = (props) => {
             <input
                 placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
                 required={!props.parameter.optional}
-                className="form-control"
                 type="text" onChange={e => internalOnChange(e)}
             />
         </GenericParameter>

@@ -44,6 +44,7 @@ export const SmallSpinner = ({ loading, color }) => (loading) ?
 
 export const LoadingButton = (props) => (
     <Button
+        floated={props.floated}
         onClick={e => props.handler(e)}
         className={props.style}
         disabled={props.disabled}

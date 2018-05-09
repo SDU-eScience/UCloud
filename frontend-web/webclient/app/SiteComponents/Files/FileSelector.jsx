@@ -161,8 +161,7 @@ class FileSelector extends React.Component {
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={this.props.remove} />) : null;
         return (
-            <div>
-
+            <React.Fragment>
                 <Input
                     className="readonly"
                     required={this.props.isRequired}
@@ -170,9 +169,9 @@ class FileSelector extends React.Component {
                     value={path}
                     action
                 >
-                    
+
                     <input />
-                    <Button onClick={this.openModal} content="Browse files" />
+                    <Button onClick={this.openModal} content="Browse files" color="blue" />
                     {uploadButton}
                     {removeButton}
                 </Input>
@@ -190,7 +189,7 @@ class FileSelector extends React.Component {
                     updateText={this.updateCreateFolderName}
                     createFolder={this.startCreateNewFolder}
                 />
-            </div>)
+            </React.Fragment>)
     }
 }
 
@@ -237,7 +236,7 @@ const FileSelectorBody = (props) => {
                 <CurrentFolder currentPath={removeTrailingSlash(props.currentPath)} onlyAllowFolders={props.onlyAllowFolders} onClick={props.onClick} />
                 <FileList files={files} onClick={props.onClick} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
             </List>
-            {props.createFolder != null ? <Button className="btn btn-info" onClick={() => props.createFolder()}>
+            {props.createFolder != null ? <Button onClick={() => props.createFolder()}>
                 Create new folder
             </Button> : null}
         </Modal.Body>)
@@ -291,8 +290,8 @@ const ReturnFolder = ({ currentPath, parentPath, fetchFiles, onClick, canSelectF
             </List.Content>
         </List.Item>);
 
-const UploadButton = ({ onClick }) => (<Button color="blue" onClick={() => onClick()}>Upload file</Button>);
-const RemoveButton = ({ onClick }) => (<Button color="red" onClick={() => onClick()}>✗</Button>)
+const UploadButton = ({ onClick }) => (<Button color="grey" onClick={() => onClick()}>Upload file</Button>);
+const RemoveButton = ({ onClick }) => (<Button color="grey" onClick={() => onClick()}>✗</Button>)
 
 const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
     !files.length ? null :
@@ -307,7 +306,7 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
                     : (<List.Item key={index} className="itemPadding pointer-cursor">
                         <List.Content floated="right">
                             {canSelectFolders ?
-                                <Button onClick={() => onClick(file.path)} className="pull-right">Select</Button>
+                                <Button onClick={() => onClick(file.path)} floated="right">Select</Button>
                                 : null}
                         </List.Content>
                         <List.Content onClick={() => fetchFiles(file.path)}>
