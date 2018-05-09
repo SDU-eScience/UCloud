@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Table, Container } from "semantic-ui-react";
+import { Button, Table, Container, Header } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
@@ -30,10 +30,17 @@ class ZenodoHome extends React.Component {
             return (<NotConnectedToZenodo />);
         } else {
             return (
-                <div className="container">
-                    <h4>Upload progress<small className="pull-right">Connected to Zenodo</small></h4>
+                <Container className="container-margin">
+                    <Header as="h2">
+                        <Header.Content>
+                            Upload progress
+                        </Header.Content>
+                        <Header.Subheader>
+                            Connected to Zenodo
+                        </Header.Subheader>
+                    </Header>
                     <PublishStatus publications={this.props.publications} loading={this.props.loading} />
-                </div>
+                </Container>
             );
         }
     }
@@ -44,21 +51,20 @@ const PublishStatusBody = ({ publications }) =>
         <h3>
             <small className="text-center">No publications found.</small>
         </h3> :
-        <Container>
-            <Table>
-                <Table.Header>
-                    <Table.Row>
-                        <Table.HeaderCell>ID</Table.HeaderCell>
-                        <Table.HeaderCell>Name</Table.HeaderCell>
-                        <Table.HeaderCell>Status</Table.HeaderCell>
-                        <Table.HeaderCell />
-                        <Table.HeaderCell>Info</Table.HeaderCell>
-                        <Table.HeaderCell>Last update</Table.HeaderCell>
-                    </Table.Row>
-                </Table.Header>
-                <PublicationList publications={publications} />
-            </Table>
-        </Container>
+        <Table basic="very">
+            <Table.Header>
+                <Table.Row>
+                    <Table.HeaderCell>ID</Table.HeaderCell>
+                    <Table.HeaderCell>Name</Table.HeaderCell>
+                    <Table.HeaderCell>Status</Table.HeaderCell>
+                    <Table.HeaderCell />
+                    <Table.HeaderCell>Info</Table.HeaderCell>
+                    <Table.HeaderCell>Last update</Table.HeaderCell>
+                </Table.Row>
+            </Table.Header>
+            <PublicationList publications={publications} />
+        </Table>
+
 
 
 const PublishStatus = (props) => {
@@ -84,7 +90,7 @@ const PublicationList = (props) => {
         if (publication.zenodoAction) {
             actionButton = (
                 <a href={publication.zenodoAction} target="_blank">
-                    <Button bsStyle="info">Finish publication at
+                    <Button>Finish publication at
                         Zenodo
                     </Button>
                 </a>);

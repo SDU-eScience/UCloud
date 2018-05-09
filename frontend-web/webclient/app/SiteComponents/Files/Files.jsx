@@ -203,7 +203,7 @@ class Files extends React.Component {
         };
         return (
             <React.Fragment>
-                <Container>
+                <Container className="container-margin">
                     <div className="col-lg-10">
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
                         <ContextButtons
@@ -276,24 +276,8 @@ class Files extends React.Component {
     }
 }
 
-const SearchBar = ({ searchText, updateText }) => (
-    <div className="input-group searchbar">
-        <input
-            className="form-control"
-            type="text"
-            placeholder="Search in current files..."
-            value={searchText ? searchText : ""}
-            onChange={(e) => updateText(e)}
-        />
-        <span className="input-group-addon">
-            <span className="glyphicon glyphicon-search" />
-        </span>
-    </div>
-);
-
 const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchText, updateText, createFolder, refetch, ...props }) => (
     <div className="col-lg-2 visible-lg">
-        <SearchBar searchText={searchText} updateText={updateText} />
         <ContextButtons upload={onClick} createFolder={createFolder} mobileOnly={false} />
         <br /><br /><br />
         <FileOptions selectedFiles={selectedFiles} refetch={refetch} rename={props.rename} />
