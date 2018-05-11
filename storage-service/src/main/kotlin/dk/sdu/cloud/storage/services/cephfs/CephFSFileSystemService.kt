@@ -115,7 +115,7 @@ class CephFSFileSystemService(
                 }
 
                 eventProducer.emit(
-                    StorageEvent.Created(
+                    StorageEvent.CreatedOrModified(
                         id = fileStat.inode.toString(),
                         path = fileStat.path,
                         owner = fileStat.ownerName,
@@ -149,9 +149,9 @@ class CephFSFileSystemService(
                 // TODO if directory we will have to traverse it (easier if we write C code for this?)
 
                 eventProducer.emit(
-                    StorageEvent.Created(
+                    StorageEvent.CreatedOrModified(
                         id = fileStat.inode.toString(),
-                        path = path,
+                        path = fileStat.path,
                         owner = fileStat.ownerName,
                         timestamp = fileStat.createdAt,
                         type = if (fileStat.link) FileType.LINK else fileStat.type
@@ -182,13 +182,25 @@ class CephFSFileSystemService(
                     log.warn("Unable to stat file after move. path=$path, newPath=$newPath")
                 }
 
+                if (!fileStat.link && fileStat.type == FileType.DIRECTORY) {
+                    syncList(ctx, newPath) {
+                        eventProducer.emit(
+                            StorageEvent.Moved(
+                                id = it.uniqueId,
+                                path = it.path,
+                                owner = it.user,
+                                timestamp = it.createdAt
+                            )
+                        )
+                    }
+                }
+
                 eventProducer.emit(
                     StorageEvent.Moved(
                         id = fileStat.inode.toString(),
-                        path = path,
+                        path = fileStat.path,
                         owner = fileStat.ownerName,
-                        timestamp = fileStat.createdAt,
-                        newPath = newPath
+                        timestamp = fileStat.createdAt
                     )
                 )
             }
@@ -219,9 +231,9 @@ class CephFSFileSystemService(
                 // TODO if directory we will have to traverse it (easier if we write C code for this?)
 
                 eventProducer.emit(
-                    StorageEvent.Created(
+                    StorageEvent.CreatedOrModified(
                         id = fileStat.inode.toString(),
-                        path = newPath,
+                        path = fileStat.path,
                         owner = fileStat.ownerName,
                         timestamp = fileStat.createdAt,
                         type = fileStat.type
@@ -256,9 +268,9 @@ class CephFSFileSystemService(
                 }
 
                 eventProducer.emit(
-                    StorageEvent.Created(
+                    StorageEvent.CreatedOrModified(
                         id = fileStat.inode.toString(),
-                        path = path,
+                        path = fileStat.path,
                         owner = fileStat.ownerName,
                         timestamp = fileStat.createdAt,
                         type = fileStat.type
@@ -418,9 +430,9 @@ class CephFSFileSystemService(
                 }
 
                 eventProducer.emit(
-                    StorageEvent.Created(
+                    StorageEvent.CreatedOrModified(
                         id = fileStat.inode.toString(),
-                        path = linkFile,
+                        path = fileStat.path,
                         owner = fileStat.ownerName,
                         timestamp = fileStat.createdAt,
                         type = FileType.LINK
@@ -431,9 +443,7 @@ class CephFSFileSystemService(
     }
 
     override fun createFavorite(ctx: FSUserContext, fileToFavorite: String) {
-        // TODO Hack, but highly unlikely that we will have duplicates in practice.
         // TODO Create retrieveFavorites folder if it does not exist yet
-//        val suffix = abs(random.nextInt()).toString(16)
         val targetLocation =
             findFreeNameForNewFile(ctx, joinPath(favoritesDirectory(ctx), fileToFavorite.fileName()))
 

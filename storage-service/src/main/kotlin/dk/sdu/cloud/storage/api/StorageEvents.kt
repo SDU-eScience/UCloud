@@ -50,22 +50,12 @@ sealed class StorageEvent {
     /**
      * Emitted when a file has been created.
      */
-    data class Created(
+    data class CreatedOrModified(
         override val id: String,
         override val path: String,
         override val owner: String,
         override val timestamp: Long,
         val type: FileType
-    ) : StorageEvent()
-
-    /**
-     * Emitted when a file has been modified
-     */
-    data class Modified(
-        override val id: String,
-        override val path: String,
-        override val owner: String,
-        override val timestamp: Long
     ) : StorageEvent()
 
     /**
@@ -80,13 +70,14 @@ sealed class StorageEvent {
 
     /**
      * Emitted when a file is moved from one location to another
+     *
+     * __Note:__ The path in this case refers to the _new_ path. No effort is made to preserve the old path.
      */
     data class Moved(
         override val id: String,
         override val path: String,
         override val owner: String,
-        override val timestamp: Long,
-        val newPath: String
+        override val timestamp: Long
     ) : StorageEvent()
 }
 
