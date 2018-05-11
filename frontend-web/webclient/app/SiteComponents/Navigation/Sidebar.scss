@@ -2,7 +2,7 @@ a.sidebar-option {
     text-decoration: none;
 }
 
-.sidebar.menu svg {
+.sidebar.menu svg, div.ui.vertical.left.fixed.menu div.item svg {
     margin-left: 65px;
     margin-bottom: 15px;
     width: 100px;
@@ -11,4 +11,22 @@ a.sidebar-option {
 
 .user-name {
     text-align: center;
+}
+
+.sidebar-height {
+    height: 100vh;
+}
+
+.container-margin {
+    margin: 60px 25px 25px 25px;
+}
+
+@media(min-width: 1025px) {
+    .container-padding {
+        padding-left: 260px;
+    }
+}
+
+.ui.vertical.my-sidebar {
+    width: 260px;
 }

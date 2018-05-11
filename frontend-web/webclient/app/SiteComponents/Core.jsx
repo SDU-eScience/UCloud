@@ -1,6 +1,4 @@
 import React from "react";
-import "./Core.scss";
-import "./LayoutVariants.scss";
 import { Switch, Route } from "react-router-dom";
 import PropTypes from "prop-types";
 import Files from "./Files/Files";
@@ -22,7 +20,7 @@ import { connect } from "react-redux";
 import UppyWrapper from "./UppyWrapper";
 import * as Share from "./Shares";
 
-const NotFound = () => (<div className="container-fluid"><h1>Not found.</h1></div>);
+const NotFound = () => (<div><h1>Not found.</h1></div>);
 
 const Core = (props) => (
     <React.Fragment>
@@ -48,8 +46,8 @@ const Core = (props) => (
         </Sidebar>
         <UppyWrapper />
         <footer>
-                <span>{new Date().getFullYear()} - SDUCloud.</span>
-            </footer>
+            <span>{new Date().getFullYear()} - SDUCloud.</span>
+        </footer>
     </React.Fragment>
 );
 

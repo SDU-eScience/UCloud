@@ -1,8 +1,7 @@
 import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
-import { Modal } from "react-bootstrap";
 import PropTypes from "prop-types";
-import { Icon, Button, List, Input } from "semantic-ui-react";
+import { Modal, Icon, Button, List, Input } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs"
 import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "../../UtilityFunctions";
@@ -169,7 +168,6 @@ class FileSelector extends React.Component {
                     value={path}
                     action
                 >
-
                     <input />
                     <Button onClick={this.openModal} content="Browse files" color="blue" />
                     {uploadButton}
@@ -194,9 +192,9 @@ class FileSelector extends React.Component {
 }
 
 export const FileSelectorModal = (props) =>
-    <Modal show={props.show} onHide={props.onHide}>
-        <Modal.Header closeButton>
-            <Modal.Title>File selector</Modal.Title>
+    <Modal open={props.show} onClose={props.onHide} size="large">
+        <Modal.Header>
+            File selector
         </Modal.Header>
         <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
         <BallPulseLoading loading={props.loading} />
@@ -212,12 +210,12 @@ const FileSelectorBody = (props) => {
 
     const disallowedPaths = (!!props.disallowedPaths) ? props.disallowedPaths : [];
 
-    const files =
-        ((!!props.onlyAllowFolders) ? props.files.filter(f => f.type === "DIRECTORY") : props.files)
+    const files = ((!!props.onlyAllowFolders) ? 
+            props.files.filter(f => f.type === "DIRECTORY") : props.files)
             .filter((it) => !disallowedPaths.some((d) => d === it.path));
     return (
-        <Modal.Body>
-            <List divided size={"large"}>
+        <Modal.Content>
+            <List divided size="large">
                 <List.Header>
                     Filename
                     </List.Header>
@@ -239,7 +237,7 @@ const FileSelectorBody = (props) => {
             {props.createFolder != null ? <Button onClick={() => props.createFolder()}>
                 Create new folder
             </Button> : null}
-        </Modal.Body>)
+        </Modal.Content>)
 };
 
 const CurrentFolder = ({ currentPath, onlyAllowFolders, onClick }) =>

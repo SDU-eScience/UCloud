@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Menu, Dropdown, Icon } from "semantic-ui-react";
+import { Menu, Dropdown, Icon, Responsive } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import "./Header.scss";
@@ -17,13 +17,15 @@ class Header extends React.Component<any, any> {
 
     public render() {
         return (
-            <Menu color="blue" secondary className="menu-padding">
-                <Menu.Item onClick={() => this.props.dispatch(setSidebarOpen())}>
-                    <Icon.Group size="large">
-                        <Icon name="sidebar" />
-                        <Icon corner color="grey" size="large" name={this.sidebarIcon()} />
-                    </Icon.Group>
-                </Menu.Item>
+            <Menu className="menu-padding">
+                <Responsive maxWidth={1024}>
+                    <Menu.Item onClick={() => this.props.dispatch(setSidebarOpen())}>
+                        <Icon.Group size="large">
+                            <Icon name="sidebar" />
+                            <Icon corner color="grey" size="large" name={this.sidebarIcon()} />
+                        </Icon.Group>
+                    </Menu.Item>
+                </Responsive>
                 <Menu.Menu position="right">
                     <Menu.Item>
                         <Notifications />

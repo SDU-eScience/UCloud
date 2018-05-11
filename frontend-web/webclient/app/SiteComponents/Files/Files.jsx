@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Form, Input, Container } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Form, Input, Container, Grid, Responsive } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
@@ -41,7 +41,6 @@ class Files extends React.Component {
                 name: ""
             }
         };
-        this.updateSearchText = this.updateSearchText.bind(this);
         this.selectOrDeselectAllFiles = this.selectOrDeselectAllFiles.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.updateCreateFolderName = this.updateCreateFolderName.bind(this);
@@ -97,15 +96,6 @@ class Files extends React.Component {
                     ) : this.resetFolderObject();
             }
         }
-    }
-
-    updateSearchText(e) {
-        e.preventDefault();
-        const value = e.target.value;
-        this.setState(() => ({ searchText: value }));
-        const files = this.props.files;
-        files.forEach(file => file.isChecked = false);
-        this.props.updateFiles(files);
     }
 
     selectOrDeselectAllFiles(checked) {
@@ -203,14 +193,16 @@ class Files extends React.Component {
         };
         return (
             <React.Fragment>
-                <Container className="container-margin">
-                    <div className="col-lg-10">
+                <Grid>
+                    <Grid.Column width={13}>
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
-                        <ContextButtons
-                            upload={openUppy}
-                            createFolder={() => this.createFolder(currentPath)}
-                            mobileOnly={true}
-                        />
+                        <Responsive maxWidth={1024}>
+                            <ContextButtons
+                                upload={openUppy}
+                                createFolder={() => this.createFolder(currentPath)}
+                                mobileOnly={true}
+                            />
+                        </Responsive>
                         <FilesTable
                             handleKeyDown={this.handleKeyDown}
                             creatingNewFolder={this.state.creatingNewFolder}
@@ -247,19 +239,21 @@ class Files extends React.Component {
                         >{" Files per page"}
                         </EntriesPerPageSelector>
                         <BallPulseLoading loading={loading} />
-                    </div>
-                    <ContextBar
-                        selectedFiles={selectedFiles}
-                        currentPath={path}
-                        createFolder={() => this.createFolder(currentPath)}
-                        getFavorites={this.getFavorites}
-                        onClick={openUppy}
-                        searchText={this.state.searchText}
-                        updateText={this.updateSearchText}
-                        refetch={() => refetchFiles(path)}
-                        rename={rename}
-                    />
-                </Container>
+                    </Grid.Column>
+                    <Responsive as={Grid.Column} width="3" minWidth={1025}>
+                        
+                            <ContextBar
+                                selectedFiles={selectedFiles}
+                                currentPath={path}
+                                createFolder={() => this.createFolder(currentPath)}
+                                getFavorites={this.getFavorites}
+                                onClick={openUppy}
+                                refetch={() => refetchFiles(path)}
+                                rename={rename}
+                            />
+                        
+                    </Responsive>
+                </Grid>
                 <FileSelectorModal
                     show={this.props.fileSelectorShown}
                     onHide={() => this.props.showFileSelector(false)}
@@ -272,12 +266,12 @@ class Files extends React.Component {
                     onClick={this.props.fileSelectorCallback}
                     disallowedPaths={this.props.disallowedPaths}
                 />
-            </React.Fragment>);
+            </React.Fragment >);
     }
 }
 
 const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchText, updateText, createFolder, refetch, ...props }) => (
-    <div className="col-lg-2 visible-lg">
+    <div>
         <ContextButtons upload={onClick} createFolder={createFolder} mobileOnly={false} />
         <br /><br /><br />
         <FileOptions selectedFiles={selectedFiles} refetch={refetch} rename={props.rename} />
@@ -285,7 +279,7 @@ const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchT
 );
 
 const ContextButtons = ({ upload, createFolder, mobileOnly }) => (
-    <span className={mobileOnly ? "hidden-lg" : ""}>
+    <React.Fragment>
         <p>
             <Button color="blue" fluid onClick={() => upload()}> Upload Files </Button>
         </p>
@@ -293,7 +287,7 @@ const ContextButtons = ({ upload, createFolder, mobileOnly }) => (
             <Button basic fluid onClick={() => createFolder()}> New folder</Button>
         </p>
         {mobileOnly ? (<React.Fragment><br /><br /><br /><br /></React.Fragment>) : null}
-    </span>
+    </React.Fragment>
 );
 
 

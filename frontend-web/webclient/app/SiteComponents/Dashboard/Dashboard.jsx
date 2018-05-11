@@ -35,19 +35,16 @@ class Dashboard extends React.Component {
             this.props.receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited));
         return (
             <React.StrictMode>
-
-                <Container className="container-margin">
-                    <Card.Group>
-                        <DashboardFavoriteFiles
-                            files={favoriteFiles}
-                            isLoading={favoriteLoading}
-                            favorite={(filePath) => favoriteOrUnfavorite(filePath)}
-                        />
-                        <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
-                        <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
-                        <DashboardRecentActivity activities={activity} isLoading={activityLoading} />
-                    </Card.Group>
-                </Container>
+                <Card.Group>
+                    <DashboardFavoriteFiles
+                        files={favoriteFiles}
+                        isLoading={favoriteLoading}
+                        favorite={(filePath) => favoriteOrUnfavorite(filePath)}
+                    />
+                    <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
+                    <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
+                    <DashboardRecentActivity activities={activity} isLoading={activityLoading} />
+                </Card.Group>
             </React.StrictMode>
         );
     }
