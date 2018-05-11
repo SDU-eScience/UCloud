@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.storage.api.StorageEvents
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.http.*
@@ -55,7 +56,8 @@ class Server(
                 xattrService,
                 treeService,
                 fsRoot,
-                isDevelopment
+                isDevelopment,
+                kafka.producer.forStream(StorageEvents.events)
             )
 
         val checksumService = ChecksumService(fs)

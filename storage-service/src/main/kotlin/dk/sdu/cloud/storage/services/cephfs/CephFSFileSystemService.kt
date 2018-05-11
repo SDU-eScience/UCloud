@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.services.cephfs
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.BashEscaper
+import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
@@ -17,7 +18,8 @@ class CephFSFileSystemService(
     private val xAttrService: XAttrService,
     private val treeService: TreeService,
     private val fsRoot: String,
-    private val isDevelopment: Boolean = false
+    private val isDevelopment: Boolean = false,
+    private val eventProducer: StorageEventProducer
 ) : FileSystemService {
     override fun openContext(user: String): FSUserContext {
         return processRunner(user)
@@ -105,6 +107,23 @@ class CephFSFileSystemService(
                     throw FileSystemException.CriticalException("mkdir failed ${ctx.user}, $path, $stderr")
                 }
             }
+        } else {
+            launch {
+                val fileStat = stat(ctx, path) ?: return@launch run {
+                    log.warn("Unable to find directory after creation. stat returned null!")
+                    log.warn("Path is $path")
+                }
+
+                eventProducer.emit(
+                    StorageEvent.Created(
+                        id = fileStat.inode.toString(),
+                        path = fileStat.path,
+                        owner = fileStat.ownerName,
+                        timestamp = fileStat.createdAt,
+                        type = fileStat.type
+                    )
+                )
+            }
         }
     }
 
@@ -117,6 +136,28 @@ class CephFSFileSystemService(
         if (status != 0) {
             if (stderr.contains("Permission denied")) throw FileSystemException.PermissionException()
             else throw FileSystemException.CriticalException("rm failed $status, ${ctx.user}, $path, $stderr")
+        } else {
+            // TODO We need to calculate a complete list of items we have deleted for this to be correct.
+            // TODO We need to calculate a complete list of items we have deleted for this to be correct.
+            // TODO We need to calculate a complete list of items we have deleted for this to be correct.
+
+            launch {
+                val fileStat = stat(ctx, path) ?: return@launch run {
+                    log.warn("Unable to stat file after copy. path=$path")
+                }
+
+                // TODO if directory we will have to traverse it (easier if we write C code for this?)
+
+                eventProducer.emit(
+                    StorageEvent.Created(
+                        id = fileStat.inode.toString(),
+                        path = path,
+                        owner = fileStat.ownerName,
+                        timestamp = fileStat.createdAt,
+                        type = if (fileStat.link) FileType.LINK else fileStat.type
+                    )
+                )
+            }
         }
     }
 
@@ -135,6 +176,22 @@ class CephFSFileSystemService(
         if (status != 0) {
             if (stderr.contains("Permission denied")) throw FileSystemException.PermissionException()
             else throw FileSystemException.CriticalException("mv failed $status, ${ctx.user}, $path, $stderr")
+        } else {
+            launch {
+                val fileStat = stat(ctx, newPath) ?: return@launch run {
+                    log.warn("Unable to stat file after move. path=$path, newPath=$newPath")
+                }
+
+                eventProducer.emit(
+                    StorageEvent.Moved(
+                        id = fileStat.inode.toString(),
+                        path = path,
+                        owner = fileStat.ownerName,
+                        timestamp = fileStat.createdAt,
+                        newPath = newPath
+                    )
+                )
+            }
         }
     }
 
@@ -152,6 +209,24 @@ class CephFSFileSystemService(
                     "Cannot copy to this location"
                 )
                 else -> throw FileSystemException.CriticalException("cp failed $status, ${ctx.user}, $path, $stderr")
+            }
+        } else {
+            launch {
+                val fileStat = stat(ctx, newPath) ?: return@launch run {
+                    log.warn("Unable to stat file after copy. path=$path, newPath=$newPath")
+                }
+
+                // TODO if directory we will have to traverse it (easier if we write C code for this?)
+
+                eventProducer.emit(
+                    StorageEvent.Created(
+                        id = fileStat.inode.toString(),
+                        path = newPath,
+                        owner = fileStat.ownerName,
+                        timestamp = fileStat.createdAt,
+                        type = fileStat.type
+                    )
+                )
             }
         }
     }
@@ -174,6 +249,22 @@ class CephFSFileSystemService(
             log.info("write failed ${ctx.user}, $path")
             log.info(process.errorStream.reader().readText())
             throw IllegalStateException()
+        } else {
+            launch {
+                val fileStat = stat(ctx, path) ?: return@launch run {
+                    log.warn("Unable to stat file after copy. path=$path")
+                }
+
+                eventProducer.emit(
+                    StorageEvent.Created(
+                        id = fileStat.inode.toString(),
+                        path = path,
+                        owner = fileStat.ownerName,
+                        timestamp = fileStat.createdAt,
+                        type = fileStat.type
+                    )
+                )
+            }
         }
     }
 
@@ -320,6 +411,22 @@ class CephFSFileSystemService(
             log.info("ln failed ${ctx.user}, $absLinkPath $absPointsToPath")
             log.info(process.errorStream.reader().readText())
             throw IllegalStateException()
+        } else {
+            launch {
+                val fileStat = stat(ctx, linkFile) ?: return@launch run {
+                    log.warn("Unable to stat file after soft link. path=$linkFile")
+                }
+
+                eventProducer.emit(
+                    StorageEvent.Created(
+                        id = fileStat.inode.toString(),
+                        path = linkFile,
+                        owner = fileStat.ownerName,
+                        timestamp = fileStat.createdAt,
+                        type = FileType.LINK
+                    )
+                )
+            }
         }
     }
 

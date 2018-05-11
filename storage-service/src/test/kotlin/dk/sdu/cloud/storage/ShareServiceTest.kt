@@ -66,7 +66,8 @@ class ShareServiceTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val ctx = service.openContext("user1")
@@ -120,7 +121,8 @@ class ShareServiceTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         service.grantRights(
@@ -153,7 +155,8 @@ class ShareServiceTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         service.grantRights(
@@ -184,7 +187,8 @@ class ShareServiceTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val ctx = service.openContext("user1")

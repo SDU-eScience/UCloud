@@ -3,8 +3,8 @@ package dk.sdu.cloud.storage
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
-import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
 import dk.sdu.cloud.storage.services.cephfs.CephFSFileSystemService
+import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
 import io.mockk.mockk
 import org.junit.Assert.*
 import org.junit.Test
@@ -12,7 +12,8 @@ import java.io.File
 
 class FileSystemServiceTest {
     private val service = CephFSFileSystemService(
-        CloudToCephFsDao(true), mockk(), mockk(), mockk(), mockk(), "", true
+        CloudToCephFsDao(true), mockk(), mockk(), mockk(), mockk(), "", true,
+        mockk(relaxed = true)
     )
 
     @Test

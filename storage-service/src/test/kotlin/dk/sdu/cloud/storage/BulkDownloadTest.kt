@@ -67,7 +67,8 @@ class BulkDownloadTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val service = BulkDownloadService(fs)
@@ -101,7 +102,8 @@ class BulkDownloadTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+                    mockk(relaxed = true)
         )
 
         val service = BulkDownloadService(fs)

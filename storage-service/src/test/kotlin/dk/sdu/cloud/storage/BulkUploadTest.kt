@@ -98,7 +98,8 @@ class BulkUploadTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val upload = UploadService(fs, mockk(relaxed = true))
@@ -144,7 +145,8 @@ class BulkUploadTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val upload = UploadService(fs, mockk(relaxed = true))
@@ -198,7 +200,8 @@ class BulkUploadTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val upload = UploadService(fs, mockk(relaxed = true))
@@ -247,7 +250,8 @@ class BulkUploadTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val upload = UploadService(fs, mockk(relaxed = true))
@@ -298,7 +302,8 @@ class BulkUploadTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val upload = UploadService(fs, mockk(relaxed = true))
@@ -347,7 +352,8 @@ class BulkUploadTest {
             mockk(),
             mockk(),
             fsRoot.absolutePath,
-            true
+            true,
+            mockk(relaxed = true)
         )
 
         val upload = UploadService(fs, mockk(relaxed = true))
