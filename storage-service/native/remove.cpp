@@ -18,7 +18,7 @@ int compare(const FTSENT **one, const FTSENT **two) {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <from>", argv[0]);
+        fprintf(stderr, "Usage: %s <from>\n", argv[0]);
         exit(1);
     }
 

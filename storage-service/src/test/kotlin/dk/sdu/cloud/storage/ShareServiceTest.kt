@@ -12,16 +12,6 @@ import java.io.File
 import java.nio.file.Files
 
 class ShareServiceTest {
-    fun File.mkdir(name: String, closure: File.() -> Unit) {
-        val f = File(this, name)
-        f.mkdir()
-        f.closure()
-    }
-
-    fun File.touch(name: String) {
-        File(this, name).writeText("Hello!")
-    }
-
     fun createFileSystem(): File {
         val fsRoot = Files.createTempDirectory("share-service-test").toFile()
         fsRoot.apply {
@@ -49,26 +39,11 @@ class ShareServiceTest {
 
     @Test
     fun testGrantShare() {
-        val processRunner = mockk<CephFSProcessRunner>()
-        val processRunnerFactory: ProcessRunnerFactory = { processRunner }
-        every { processRunner.run(any(), any()) } just Runs
-
         val fileAclService = mockk<FileACLService>()
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } just Runs
 
-        val dao = createUsers()
         val fsRoot = createFileSystem()
-
-        val service = CephFSFileSystemService(
-            dao,
-            processRunnerFactory,
-            fileAclService,
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val service = cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 
         val ctx = service.openContext("user1")
         service.grantRights(ctx, "user2", "/home/user1/PleaseShare", setOf(AccessRight.READ, AccessRight.EXECUTE))
@@ -104,26 +79,12 @@ class ShareServiceTest {
 
     @Test(expected = ShareException.PermissionException::class)
     fun testGrantShareWithMissingPermissions() {
-        val processRunner = mockk<CephFSProcessRunner>()
-        val processRunnerFactory: ProcessRunnerFactory = { processRunner }
-
         val fileAclService = mockk<FileACLService>()
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } throws
                 ShareException.PermissionException()
 
-        val dao = createUsers()
         val fsRoot = createFileSystem()
-
-        val service = CephFSFileSystemService(
-            dao,
-            processRunnerFactory,
-            fileAclService,
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val service = cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 
         service.grantRights(
             service.openContext("user1"),
@@ -148,15 +109,11 @@ class ShareServiceTest {
         val fileAclService = FileACLService(dao, true)
         val fsRoot = createFileSystem()
 
-        val service = CephFSFileSystemService(
-            dao,
-            processRunnerFactory,
-            fileAclService,
-            mockk(),
-            mockk(),
+        val service = cephFSWithRelaxedMocks(
             fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
+            cloudToCephFsDao = dao,
+            fileACLService = fileAclService,
+            processRunner = processRunnerFactory
         )
 
         service.grantRights(
@@ -169,27 +126,12 @@ class ShareServiceTest {
 
     @Test
     fun testRevoke() {
-        val processRunner = mockk<CephFSProcessRunner>()
-        val processRunnerFactory: ProcessRunnerFactory = { processRunner }
-        every { processRunner.run(any(), any()) } just Runs
-
         val fileAclService = mockk<FileACLService>()
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } just Runs
         every { fileAclService.removeEntry(any(), any(), any(), any(), any()) } just Runs
 
-        val dao = createUsers()
         val fsRoot = createFileSystem()
-
-        val service = CephFSFileSystemService(
-            dao,
-            processRunnerFactory,
-            fileAclService,
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val service = cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 
         val ctx = service.openContext("user1")
         service.grantRights(
@@ -205,16 +147,16 @@ class ShareServiceTest {
                 ctx,
                 "user2",
                 File(fsRoot, "home/user1/PleaseShare").absolutePath,
-                false,
-                true
+                defaultList = false,
+                recursive = true
             )
 
             fileAclService.removeEntry(
                 ctx,
                 "user2",
                 File(fsRoot, "home/user1/PleaseShare").absolutePath,
-                true,
-                true
+                defaultList = true,
+                recursive = true
             )
         }
     }

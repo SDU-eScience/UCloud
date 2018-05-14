@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.services.cephfs
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.BashEscaper
+import dk.sdu.cloud.storage.util.CommaSeparatedLexer
 import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -17,6 +18,8 @@ class CephFSFileSystemService(
     private val fileACLService: FileACLService,
     private val xAttrService: XAttrService,
     private val treeService: TreeService,
+    private val copyService: CopyService,
+    private val removeService: RemoveService,
     private val fsRoot: String,
     private val isDevelopment: Boolean = false,
     private val eventProducer: StorageEventProducer
@@ -114,6 +117,8 @@ class CephFSFileSystemService(
                     log.warn("Path is $path")
                 }
 
+                // TODO This will not emit for dirs before that
+
                 eventProducer.emit(
                     StorageEvent.CreatedOrModified(
                         id = fileStat.inode.toString(),
@@ -130,33 +135,18 @@ class CephFSFileSystemService(
     override fun rmdir(ctx: FSUserContext, path: String) {
         val absolutePath = translateAndCheckFile(path)
 
-        val (status, _, stderr) = ctx.runWithResultAsInMemoryString(
-            listOf("rm", "-rf", absolutePath)
-        )
-        if (status != 0) {
-            if (stderr.contains("Permission denied")) throw FileSystemException.PermissionException()
-            else throw FileSystemException.CriticalException("rm failed $status, ${ctx.user}, $path, $stderr")
-        } else {
-            // TODO We need to calculate a complete list of items we have deleted for this to be correct.
-            // TODO We need to calculate a complete list of items we have deleted for this to be correct.
-            // TODO We need to calculate a complete list of items we have deleted for this to be correct.
+        val removedItems = removeService.remove(ctx, absolutePath).map {
+            it.copy(path = it.path.toCloudPath())
+        }
 
-            launch {
-                val fileStat = stat(ctx, path) ?: return@launch run {
-                    log.warn("Unable to stat file after copy. path=$path")
-                }
+        if (removedItems.isEmpty()) {
+            // TODO Do we want to give feedback for individual items that could not be deleted?
+            throw FileSystemException.PermissionException()
+        }
 
-                // TODO if directory we will have to traverse it (easier if we write C code for this?)
-
-                eventProducer.emit(
-                    StorageEvent.CreatedOrModified(
-                        id = fileStat.inode.toString(),
-                        path = fileStat.path,
-                        owner = fileStat.ownerName,
-                        timestamp = fileStat.createdAt,
-                        type = if (fileStat.link) FileType.LINK else fileStat.type
-                    )
-                )
+        launch {
+            removedItems.forEach {
+                eventProducer.emit(it)
             }
         }
     }
@@ -211,36 +201,14 @@ class CephFSFileSystemService(
         val absolutePath = translateAndCheckFile(path)
         val newAbsolutePath = translateAndCheckFile(newPath)
 
-        val (status, _, stderr) = ctx.runWithResultAsInMemoryString(
-            listOf("cp", "-r", absolutePath, newAbsolutePath)
-        )
-        if (status != 0) {
-            when {
-                stderr.contains("Permission denied") -> throw FileSystemException.PermissionException()
-                stderr.contains("Not a directory") -> throw FileSystemException.BadRequest(
-                    "Cannot copy to this location"
-                )
-                else -> throw FileSystemException.CriticalException("cp failed $status, ${ctx.user}, $path, $stderr")
-            }
-        } else {
-            launch {
-                val fileStat = stat(ctx, newPath) ?: return@launch run {
-                    log.warn("Unable to stat file after copy. path=$path, newPath=$newPath")
-                }
+        val copiedItems =
+            copyService.copy(ctx, absolutePath, newAbsolutePath).map { it.copy(path = it.path.toCloudPath()) }
 
-                // TODO if directory we will have to traverse it (easier if we write C code for this?)
-
-                eventProducer.emit(
-                    StorageEvent.CreatedOrModified(
-                        id = fileStat.inode.toString(),
-                        path = fileStat.path,
-                        owner = fileStat.ownerName,
-                        timestamp = fileStat.createdAt,
-                        type = fileStat.type
-                    )
-                )
-            }
+        if (copiedItems.isEmpty()) {
+            throw FileSystemException.PermissionException()
         }
+
+        launch { copiedItems.forEach { eventProducer.emit(it) } }
     }
 
     override fun read(ctx: FSUserContext, path: String): InputStream {
@@ -326,42 +294,32 @@ class CephFSFileSystemService(
             emptyList()
         }
 
+        val lexer = CommaSeparatedLexer()
         val files = outputLines.mapNotNull { line ->
             if (line.isBlank()) return@mapNotNull null
+            lexer.line = line
 
-            var cursor = 0
-            val chars = line.toCharArray()
-            fun readToken(): String {
-                val builder = StringBuilder()
-                while (cursor < chars.size) {
-                    val c = chars[cursor++]
-                    if (c == ',') break
-                    builder.append(c)
-                }
-                return builder.toString()
-            }
-
-            val dirTypeToken = readToken()
+            val dirTypeToken = lexer.readToken()
             val dirType = parseDirType(dirTypeToken)
-            val isLink = readToken().toInt() != 0
+            val isLink = lexer.readToken().toInt() != 0
 
-            val unixPermissions = readToken().toInt()
+            val unixPermissions = lexer.readToken().toInt()
 
-            val user = cloudToCephFsDao.findCloudUser(readToken()) ?: return@mapNotNull null
-            val group = readToken() // TODO translate
+            val user = cloudToCephFsDao.findCloudUser(lexer.readToken()) ?: return@mapNotNull null
+            val group = lexer.readToken() // TODO translate
 
-            val size = readToken().toLong()
-            val createdAt = readToken().toLong()
-            val modifiedAt = readToken().toLong()
-            val accessedAt = readToken().toLong()
+            val size = lexer.readToken().toLong()
+            val createdAt = lexer.readToken().toLong()
+            val modifiedAt = lexer.readToken().toLong()
+            val accessedAt = lexer.readToken().toLong()
 
-            val inode = readToken().toLong()
+            val inode = lexer.readToken().toLong()
             val isFavorited = favorites.any { it.inode == inode }
 
-            val aclEntries = readToken().toInt()
+            val aclEntries = lexer.readToken().toInt()
             val entries = (0 until aclEntries).map {
-                val aclEntity = readToken()
-                val mode = readToken().toInt()
+                val aclEntity = lexer.readToken()
+                val mode = lexer.readToken().toInt()
 
                 val isGroup = (mode and SHARED_WITH_UTYPE) != 0
                 val hasRead = (mode and SHARED_WITH_READ) != 0
@@ -376,8 +334,8 @@ class CephFSFileSystemService(
                 AccessEntry(aclEntity, isGroup, rights)
             }
 
-            val sensitivity = SensitivityLevel.valueOf(readToken())
-            val fileName = line.substring(cursor)
+            val sensitivity = SensitivityLevel.valueOf(lexer.readToken())
+            val fileName = line.substring(lexer.cursor)
             if (!includeImplicit && (fileName == ".." || fileName == "." || fileName == "")) return@mapNotNull null
             val filePath = File(where, fileName).normalize().absolutePath
 

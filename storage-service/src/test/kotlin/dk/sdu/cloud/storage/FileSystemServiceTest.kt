@@ -11,10 +11,7 @@ import org.junit.Test
 import java.io.File
 
 class FileSystemServiceTest {
-    private val service = CephFSFileSystemService(
-        CloudToCephFsDao(true), mockk(), mockk(), mockk(), mockk(), "", true,
-        mockk(relaxed = true)
-    )
+    private val service = cephFSWithRelaxedMocks(".")
 
     @Test
     fun testOutputParsing() {

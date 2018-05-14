@@ -2,10 +2,6 @@ package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.storage.api.BulkUploadOverwritePolicy
 import dk.sdu.cloud.storage.services.UploadService
-import dk.sdu.cloud.storage.services.cephfs.CephFSFileSystemService
-import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
-import dk.sdu.cloud.storage.services.cephfs.SimpleCephFSProcessRunnerFactory
-import io.mockk.every
 import io.mockk.mockk
 import junit.framework.Assert.*
 import org.junit.Test
@@ -63,21 +59,8 @@ class BulkUploadTest {
         }
     }
 
-    fun createUsers(): CloudToCephFsDao {
-        val dao = mockk<CloudToCephFsDao>()
-        every { dao.findUnixUser(any()) } answers {
-            firstArg() as String
-        }
-
-        every { dao.findCloudUser(any()) } answers {
-            firstArg() as String
-        }
-        return dao
-    }
-
     @Test
     fun testSimpleUpload() {
-        val dao = createUsers()
         val fsRoot = createFileSystem {
             mkdir("home") {
                 mkdir("user") {
@@ -91,16 +74,7 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val fs = CephFSFileSystemService(
-            dao,
-            SimpleCephFSProcessRunnerFactory(dao, true),
-            mockk(),
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val upload = UploadService(fs, mockk(relaxed = true))
         upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.OVERWRITE, tarFile.inputStream())
@@ -120,7 +94,6 @@ class BulkUploadTest {
 
     @Test
     fun testRename() {
-        val dao = createUsers()
         val originalContents = "original"
         val fsRoot = createFileSystem {
             mkdir("home") {
@@ -138,16 +111,7 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val fs = CephFSFileSystemService(
-            dao,
-            SimpleCephFSProcessRunnerFactory(dao, true),
-            mockk(),
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
@@ -175,7 +139,6 @@ class BulkUploadTest {
 
     @Test
     fun testOverwrite() {
-        val dao = createUsers()
         val originalContents = "original"
         val fsRoot = createFileSystem {
             mkdir("home") {
@@ -193,16 +156,7 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val fs = CephFSFileSystemService(
-            dao,
-            SimpleCephFSProcessRunnerFactory(dao, true),
-            mockk(),
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
@@ -225,7 +179,6 @@ class BulkUploadTest {
 
     @Test
     fun testReject() {
-        val dao = createUsers()
         val originalContents = "original"
         val fsRoot = createFileSystem {
             mkdir("home") {
@@ -243,16 +196,7 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val fs = CephFSFileSystemService(
-            dao,
-            SimpleCephFSProcessRunnerFactory(dao, true),
-            mockk(),
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
@@ -276,7 +220,6 @@ class BulkUploadTest {
 
     @Test
     fun testFromFileToDir() {
-        val dao = createUsers()
         val originalContents = "original"
         val fsRoot = createFileSystem {
             mkdir("home") {
@@ -295,16 +238,7 @@ class BulkUploadTest {
             putFile("test/file/foo", "contents")
         }
 
-        val fs = CephFSFileSystemService(
-            dao,
-            SimpleCephFSProcessRunnerFactory(dao, true),
-            mockk(),
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
@@ -328,7 +262,6 @@ class BulkUploadTest {
 
     @Test
     fun testFromDirToFile() {
-        val dao = createUsers()
         val fsRoot = createFileSystem {
             mkdir("home") {
                 mkdir("user") {
@@ -344,17 +277,7 @@ class BulkUploadTest {
             putDirectory("test")
             putFile("test/file", "contents")
         }
-
-        val fs = CephFSFileSystemService(
-            dao,
-            SimpleCephFSProcessRunnerFactory(dao, true),
-            mockk(),
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =

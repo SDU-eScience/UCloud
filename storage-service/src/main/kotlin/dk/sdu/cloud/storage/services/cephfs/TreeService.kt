@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.services.cephfs
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.SyncItem
+import dk.sdu.cloud.storage.util.CommaSeparatedLexer
 import org.slf4j.LoggerFactory
 
 /**
@@ -28,37 +29,28 @@ class TreeService(
     ) {
         val process = ctx.run(listOf(executable, modifiedSince.toString(), mountedPath))
         process.inputStream.bufferedReader().use { reader ->
+            val lexer = CommaSeparatedLexer()
             var line: String? = reader.readLine()
             while (line != null) {
-                var cursor = 0
-                val chars = line.toCharArray()
-                fun readToken(): String {
-                    val builder = StringBuilder()
-                    while (cursor < chars.size) {
-                        val c = chars[cursor++]
-                        if (c == ',') break
-                        builder.append(c)
-                    }
-                    return builder.toString()
-                }
+                lexer.line = line
 
-                val type = when (readToken()) {
+                val type = when (lexer.readToken()) {
                     "D" -> FileType.DIRECTORY
                     "F" -> FileType.FILE
-                    else -> throw IllegalStateException("Unknown file type: $cursor, $line")
+                    else -> throw IllegalStateException("Unknown file type: ${lexer.cursor}, $line")
                 }
 
-                val unixMode = readToken().toInt()
-                val ownerUser = readToken()
-                val ownerGroup = readToken()
-                val size = readToken().toLong()
-                val createdAt = readToken().toLong() * 1000
-                val modifiedAt = readToken().toLong() * 1000
-                val accessedAt = readToken().toLong() * 1000
-                val inode = readToken()
-                val checksum = readToken().takeIf { it.isNotEmpty() }
-                val checksumType = readToken().takeIf { it.isNotEmpty() }
-                val path = line.substring(cursor)
+                val unixMode = lexer.readToken().toInt()
+                val ownerUser = lexer.readToken()
+                val ownerGroup = lexer.readToken()
+                val size = lexer.readToken().toLong()
+                val createdAt = lexer.readToken().toLong() * 1000
+                val modifiedAt = lexer.readToken().toLong() * 1000
+                val accessedAt = lexer.readToken().toLong() * 1000
+                val inode = lexer.readToken()
+                val checksum = lexer.readToken().takeIf { it.isNotEmpty() }
+                val checksumType = lexer.readToken().takeIf { it.isNotEmpty() }
+                val path = line.substring(lexer.cursor)
 
                 handler(
                     SyncItem(

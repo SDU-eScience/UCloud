@@ -125,7 +125,7 @@ int last_index_of(const char *haystack, char needle) {
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s <to> <from>", argv[0]);
+        fprintf(stderr, "Usage: %s <to> <from>\n", argv[0]);
         exit(1);
     }
 

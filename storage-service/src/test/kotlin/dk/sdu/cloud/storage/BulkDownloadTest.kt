@@ -43,33 +43,10 @@ class BulkDownloadTest {
         return fsRoot
     }
 
-    fun createUsers(): CloudToCephFsDao {
-        val dao = mockk<CloudToCephFsDao>()
-        every { dao.findUnixUser(any()) } answers {
-            firstArg() as String
-        }
-
-        every { dao.findCloudUser(any()) } answers {
-            firstArg() as String
-        }
-        return dao
-    }
-
     @Test
     fun testSimpleDownload() {
-        val dao = createUsers()
         val fsRoot = createFileSystem()
-
-        val fs = CephFSFileSystemService(
-            dao,
-            SimpleCephFSProcessRunnerFactory(dao, true),
-            mockk(),
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-            mockk(relaxed = true)
-        )
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val service = BulkDownloadService(fs)
         val out = ByteArrayOutputStream()
@@ -92,19 +69,8 @@ class BulkDownloadTest {
 
     @Test
     fun testSimpleDownloadWithMissingFiles() {
-        val dao = createUsers()
         val fsRoot = createFileSystem()
-
-        val fs = CephFSFileSystemService(
-            dao,
-            SimpleCephFSProcessRunnerFactory(dao, true),
-            mockk(),
-            mockk(),
-            mockk(),
-            fsRoot.absolutePath,
-            true,
-                    mockk(relaxed = true)
-        )
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val service = BulkDownloadService(fs)
         val out = ByteArrayOutputStream()

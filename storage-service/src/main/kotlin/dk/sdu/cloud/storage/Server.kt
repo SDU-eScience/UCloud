@@ -48,6 +48,8 @@ class Server(
             FileACLService(cloudToCephFsDao, isDevelopment)
         val xattrService = XAttrService(isDevelopment)
         val treeService = TreeService(isDevelopment)
+        val copyService = CopyService(isDevelopment)
+        val removeService = RemoveService(isDevelopment)
         val fs: FileSystemService =
             CephFSFileSystemService(
                 cloudToCephFsDao,
@@ -55,6 +57,8 @@ class Server(
                 fileAclService,
                 xattrService,
                 treeService,
+                copyService,
+                removeService,
                 fsRoot,
                 isDevelopment,
                 kafka.producer.forStream(StorageEvents.events)
