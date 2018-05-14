@@ -3,9 +3,10 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cerrno>
-#include <zconf.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <sys/stat.h>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 
@@ -15,6 +16,7 @@
 
 #else
 #include <sys/sendfile.h>
+#include <linux/limits.h>
 #endif
 
 void print_file_created(uint64_t inode, const char *path, bool is_dir) {
@@ -135,8 +137,7 @@ int main(int argc, char **argv) {
     file_system = fts_open(
             argv + 2, // argv[argc] is always nullptr
 
-            FTS_LOGICAL | // Follow sym links
-            FTS_COMFOLLOW | // Immediately follow initial symlink
+            FTS_PHYSICAL | // DO NOT FOLLOW SYMLINKS
             FTS_XDEV, // Don't leave file system (stay in CephFS)
 
             &compare

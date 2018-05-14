@@ -3,10 +3,14 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cerrno>
-#include <zconf.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <sys/stat.h>
+
+#ifdef __linux__
+#include <linux/limits.h>
+#endif
 
 void print_file_deleted(uint64_t inode, const char *path) {
     printf("%llu,%s\n", inode, path);
