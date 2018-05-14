@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "semantic-ui-react";
-import { updatePageTitle } from "../../Actions/Status";
 import { connect } from "react-redux";
 import { Status } from "../../types/types";
 

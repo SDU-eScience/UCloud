@@ -4,7 +4,6 @@ import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import "./Header.scss";
 import Notifications from "../Notifications/index";
-import StatusBar from "./StatusBar";
 import { setSidebarOpen } from "../../Actions/Sidebar";
 
 interface HeaderProps { title: string }

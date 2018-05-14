@@ -4,7 +4,7 @@ import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToStri
 import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../../DefaultObjects"
-import { Container, Segment, Header, List, Button, Card, Icon } from "semantic-ui-react";
+import { Container, Header, List, Button, Card, Icon } from "semantic-ui-react";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";

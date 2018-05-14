@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Container, List, Header, Input, Form } from "semantic-ui-react";
+import { Button, Container, Header, Form } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";

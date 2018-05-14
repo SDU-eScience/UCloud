@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Form, Input, Container, Grid, Responsive } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import * as uf from "../../UtilityFunctions";

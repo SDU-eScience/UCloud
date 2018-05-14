@@ -1,6 +1,5 @@
 import React from "react";
 import { Button, Table, Container, Header } from "semantic-ui-react";
-import { Cloud } from "../../../authentication/SDUCloudObject"
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
