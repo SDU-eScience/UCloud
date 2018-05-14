@@ -28,36 +28,59 @@ int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
 
-// Source: https://stackoverflow.com/a/2180157
-int copy_file(const char *source, const char *destination) {
-    int input, output;
-    if ((input = open(source, O_RDONLY)) == -1) {
+// Source: https://stackoverflow.com/a/2180788
+int copy_file(const char *from, const char *to) {
+    int fd_to, fd_from;
+    char buf[4096];
+    ssize_t nread;
+    int saved_errno;
+
+    fd_from = open(from, O_RDONLY);
+    if (fd_from < 0)
         return -1;
+
+    fd_to = open(to, O_WRONLY | O_CREAT, 0660);
+    if (fd_to < 0) {
+        goto out_error;
     }
 
-    if ((output = creat(destination, 0660)) == -1) {
-        close(input);
-        return -1;
+    while (nread = read(fd_from, buf, sizeof buf), nread > 0) {
+        char *out_ptr = buf;
+        ssize_t nwritten;
+
+        do {
+            nwritten = write(fd_to, out_ptr, nread);
+
+            if (nwritten >= 0) {
+                nread -= nwritten;
+                out_ptr += nwritten;
+            } else if (errno != EINTR) {
+                goto out_error;
+            }
+        } while (nread > 0);
     }
 
-    // Here we use kernel-space copying for performance reasons
-#if defined(__APPLE__) || defined(__FreeBSD__)
-    // fcopyfile works on FreeBSD and OS X 10.5+
-    int result = fcopyfile(input, output, 0, COPYFILE_ALL);
-#else
-    // sendfile will work with non-socket output (i.e. regular file) on Linux 2.6.33+
-    off_t bytesCopied = 0;
-    struct stat fileinfo = {0};
-    fstat(input, &fileinfo);
-    int result = sendfile(output, input, &bytesCopied, fileinfo.st_size);
-#endif
+    if (nread == 0) {
+        if (close(fd_to) < 0) {
+            fd_to = -1;
+            goto out_error;
+        }
+        close(fd_from);
 
-    close(input);
-    close(output);
+        /* Success! */
+        return 0;
+    }
 
-    return result;
+    out_error:
+    saved_errno = errno;
+
+    close(fd_from);
+    if (fd_to >= 0)
+        close(fd_to);
+
+    errno = saved_errno;
+    return -1;
 }
-
 
 // Source: https://stackoverflow.com/a/675193
 static int do_mkdir(const char *path, mode_t mode) {
