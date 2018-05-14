@@ -17,6 +17,11 @@
 #include <sys/sendfile.h>
 #endif
 
+void print_file_created(uint64_t inode, const char *path, bool is_dir) {
+    char type = is_dir ? 'D' : 'F';
+    printf("%llu,%c,%s\n", inode, type, path);
+}
+
 int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
@@ -59,8 +64,20 @@ static int do_mkdir(const char *path, mode_t mode) {
 
     if (stat(path, &st) != 0) {
         /* Directory does not exist. EEXIST for race condition */
-        if (mkdir(path, mode) != 0 && errno != EEXIST)
+        int mkdir_status = mkdir(path, mode);
+        if (mkdir_status != 0 && errno != EEXIST) {
             status = -1;
+        }
+
+        if (mkdir_status == 0) {
+            stat(path, &st);
+            status = stat(path, &st);
+            if (status != 0) {
+                fprintf(stderr, "stat failed for %s after successful mkdir! %s \n", path, strerror(errno));
+            } else {
+                print_file_created(st.st_ino, path, true);
+            }
+        }
     } else if (!S_ISDIR(st.st_mode)) {
         errno = ENOTDIR;
         status = -1;
@@ -77,7 +94,7 @@ static int mkpath(const char *path, mode_t mode) {
 
     status = 0;
     pp = copypath;
-    while (status == 0 && (sp = strchr(pp, '/')) != 0) {
+    while (status == 0 && (sp = strchr(pp, '/')) != nullptr) {
         if (sp != pp) {
             /* Neither root nor double slash in path */
             *sp = '\0';
@@ -104,6 +121,7 @@ int last_index_of(const char *haystack, char needle) {
     }
     return result;
 }
+
 
 int main(int argc, char **argv) {
     if (argc < 3) {
@@ -142,6 +160,8 @@ int main(int argc, char **argv) {
 
     char constructed_to_path[PATH_MAX];
     char parent_path[PATH_MAX];
+    struct stat s{};
+    int status;
 
     if (nullptr != file_system) {
         while ((node = fts_read(file_system)) != nullptr) {
@@ -159,7 +179,7 @@ int main(int argc, char **argv) {
 
             if (node->fts_info == FTS_D) {
                 fprintf(stderr, "  File is directory!\n");
-                auto status = mkdir(constructed_to_path, 0700);
+                status = mkpath(constructed_to_path, 0700); // mkpaths prints dirs created
                 if (status != 0) {
                     auto err_name = strerror(errno);
                     fprintf(stderr, "  mkdir failed! %d %s\n", status, err_name);
@@ -167,12 +187,25 @@ int main(int argc, char **argv) {
             } else if (node->fts_info == FTS_F) {
                 int i = last_index_of(constructed_to_path, '/');
                 if (i == -1) continue;
+
+                // Create parent dir (dirs are not guaranteed to show up in traversal)
                 strncpy(parent_path, constructed_to_path, (size_t) i);
-                mkpath(parent_path, 0700);
-                fprintf(stderr, "  Creating parent directory %s\n", parent_path);
-                auto status = copy_file(from, constructed_to_path);
+                status = mkpath(parent_path, 0700); // mkpath prints dirs created
+                if (status != 0) {
+                    fprintf(stderr, "  Creating parent directory failed! %s\n", parent_path);
+                }
+
+                // Copy file
+                status = copy_file(from, constructed_to_path);
                 if (status != 0) {
                     fprintf(stderr, "  copy_file failed! %s\n", strerror(errno));
+                } else {
+                    status = stat(constructed_to_path, &s);
+                    if (status != 0) {
+                        fprintf(stderr, "  stat failed after successful copy! %s\n", strerror(errno));
+                    } else {
+                        print_file_created(s.st_ino, constructed_to_path, false);
+                    }
                 }
             }
         }
