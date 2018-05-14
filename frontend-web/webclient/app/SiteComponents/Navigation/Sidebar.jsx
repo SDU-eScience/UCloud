@@ -32,7 +32,7 @@ class SidebarComponent extends React.Component {
             <React.Fragment>
                 <Sidebar.Pushable className="sidebar-height">
                     <Responsive minWidth={1025}>
-                        <Menu vertical fixed="left" visible={true} className="my-sidebar">
+                        <Menu vertical fixed="left" className="my-sidebar">
                             <SidebarMenuItems handleClick={this.handleClick} activeIndex={activeIndex} />
                         </Menu>
                     </Responsive>
@@ -56,104 +56,102 @@ const MobileSidebar = ({ handleClick, activeIndex, visible }) => (
         <SidebarMenuItems handleClick={handleClick} activeIndex={activeIndex} />
     </Sidebar>
 );
-const SidebarMenuItems = ({ handleClick, activeIndex }, ...props) => {
-    return (
-        <React.Fragment>
-            <Menu.Item>
-                <Avatar
-                    avatarStyle="Circle"
-                    topType="NoHair"
-                    accessoriesType="Blank"
-                    facialHairType="Blank"
-                    clotheType="GraphicShirt"
-                    clotheColor="Blue02"
-                    graphicType="Bear"
-                    eyeType="Default"
-                    eyebrowType="Default"
-                    mouthType="Smile"
-                    skinColor="Light"
-                />
-                <div className="user-name">{`Welcome, ${Cloud.userInfo.firstNames}`}</div>
-            </Menu.Item>
-            <Menu.Item>
-                <Link to={"/dashboard"} className="sidebar-option">
-                    <List>
-                        <List.Item>
-                            <List.Content floated="right">
-                                <List.Icon name="home" />
-                            </List.Content>
-                            Dashboard
+const SidebarMenuItems = ({ handleClick, activeIndex }, ...props) => (
+    <React.Fragment>
+        <Menu.Item>
+            <Avatar
+                avatarStyle="Circle"
+                topType="NoHair"
+                accessoriesType="Blank"
+                facialHairType="Blank"
+                clotheType="GraphicShirt"
+                clotheColor="Blue02"
+                graphicType="Bear"
+                eyeType="Default"
+                eyebrowType="Default"
+                mouthType="Smile"
+                skinColor="Light"
+            />
+            <div className="user-name">{`Welcome, ${Cloud.userInfo.firstNames}`}</div>
+        </Menu.Item>
+        <Menu.Item>
+            <Link to={"/dashboard"} className="sidebar-option">
+                <List>
+                    <List.Item>
+                        <List.Content floated="right">
+                            <List.Icon name="home" />
+                        </List.Content>
+                        Dashboard
                     </List.Item>
-                    </List>
-                </Link>
-            </Menu.Item>
-            <Menu.Item>
-                <Link to={`/files/${Cloud.homeFolder}`} className="sidebar-option">
-                    <List>
-                        <List.Item>
-                            <List.Content floated="right" >
-                                <List.Icon name="file" floated="right" />
-                            </List.Content>
-                            Files
+                </List>
+            </Link>
+        </Menu.Item>
+        <Menu.Item>
+            <Link to={`/files/${Cloud.homeFolder}`} className="sidebar-option">
+                <List>
+                    <List.Item>
+                        <List.Content floated="right" >
+                            <List.Icon name="file" floated="right" />
+                        </List.Content>
+                        Files
                     </List.Item>
-                    </List>
-                </Link>
-            </Menu.Item>
-            <Menu.Item>
-                <Accordion>
-                    <Accordion.Title onClick={handleClick} index={0} active={activeIndex === 0}>
-                        <Icon name="dropdown" />
-                        Applications
+                </List>
+            </Link>
+        </Menu.Item>
+        <Menu.Item>
+            <Accordion>
+                <Accordion.Title onClick={handleClick} index={0} active={activeIndex === 0}>
+                    <Icon name="dropdown" />
+                    Applications
                             </Accordion.Title>
-                    <Transition duration={200} visible={activeIndex === 0} animation="fade right">
-                        <Accordion.Content active={activeIndex === 0}>
-                            <List>
-                                <Link to="/applications" className="sidebar-option">
-                                    <List.Item>
-                                        <List.Icon name="code" />
-                                        Run
+                <Transition duration={200} visible={activeIndex === 0} animation="fade right">
+                    <Accordion.Content active={activeIndex === 0}>
+                        <List>
+                            <Link to="/applications" className="sidebar-option">
+                                <List.Item>
+                                    <List.Icon name="code" />
+                                    Run
                                 </List.Item>
-                                </Link>
-                                <Link to="/analyses" className="sidebar-option">
-                                    <List.Item>
-                                        <Icon name="tasks" />
-                                        Results
+                            </Link>
+                            <Link to="/analyses" className="sidebar-option">
+                                <List.Item>
+                                    <Icon name="tasks" />
+                                    Results
                                 </List.Item>
-                                </Link>
-                            </List>
-                        </Accordion.Content>
-                    </Transition>
-                </Accordion>
-            </Menu.Item>
-            <Menu.Item>
-                <Accordion>
-                    <Accordion.Title onClick={handleClick} index={1} active={activeIndex === 1}>
-                        <Icon name="dropdown" />
-                        Publishing
-                            </Accordion.Title>
-                    <Transition duration={200} visible={activeIndex === 1} animation="fade right">
-                        <Accordion.Content active={activeIndex === 1}>
-                            <List>
-                                <Link to="/zenodo" className="sidebar-option">
-                                    <List.Item>
-                                        <List.Icon name="newspaper" />
-                                        Publications
-                                            </List.Item>
-                                </Link>
-                                <Link to="/zenodo/publish" className="sidebar-option">
-                                    <List.Item>
-                                        <List.Icon name="edit" />
-                                        Publish
-                                            </List.Item>
-                                </Link>
-                            </List>
-                        </Accordion.Content>
-                    </Transition>
-                </Accordion>
-            </Menu.Item>
-        </React.Fragment>
-    )
-};
+                            </Link>
+                        </List>
+                    </Accordion.Content>
+                </Transition>
+            </Accordion>
+        </Menu.Item>
+        <Menu.Item>
+            <Accordion>
+                <Accordion.Title onClick={handleClick} index={1} active={activeIndex === 1}>
+                    <Icon name="dropdown" />
+                    Publishing
+                </Accordion.Title>
+                <Transition duration={200} visible={activeIndex === 1} animation="fade right">
+                    <Accordion.Content active={activeIndex === 1}>
+                        <List>
+                            <Link to="/zenodo" className="sidebar-option">
+                                <List.Item>
+                                    <List.Icon name="newspaper" />
+                                    Publications
+                                </List.Item>
+                            </Link>
+                            <Link to="/zenodo/publish" className="sidebar-option">
+                                <List.Item>
+                                    <List.Icon name="edit" />
+                                    Publish
+                                </List.Item>
+                            </Link>
+                        </List>
+                    </Accordion.Content>
+                </Transition>
+            </Accordion>
+        </Menu.Item>
+    </React.Fragment>
+);
 
 const mapStateToProps = ({ sidebar }) => ({ options, loading, open } = sidebar);
 export default connect(mapStateToProps)(SidebarComponent);

@@ -241,17 +241,15 @@ class Files extends React.Component {
                         <BallPulseLoading loading={loading} />
                     </Grid.Column>
                     <Responsive as={Grid.Column} width="3" minWidth={1025}>
-                        
-                            <ContextBar
-                                selectedFiles={selectedFiles}
-                                currentPath={path}
-                                createFolder={() => this.createFolder(currentPath)}
-                                getFavorites={this.getFavorites}
-                                onClick={openUppy}
-                                refetch={() => refetchFiles(path)}
-                                rename={rename}
-                            />
-                        
+                        <ContextBar
+                            selectedFiles={selectedFiles}
+                            currentPath={path}
+                            createFolder={() => this.createFolder(currentPath)}
+                            getFavorites={this.getFavorites}
+                            onClick={openUppy}
+                            refetch={() => refetchFiles(path)}
+                            rename={rename}
+                        />
                     </Responsive>
                 </Grid>
                 <FileSelectorModal
