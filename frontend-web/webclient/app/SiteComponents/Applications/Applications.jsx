@@ -63,7 +63,7 @@ class Applications extends React.Component {
         const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
         const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage), 0);
         return (
-            <Container className="container-margin">
+            <React.Fragment>
                 <BallPulseLoading loading={loading} />
                 <Table basic="very">
                     <Table.Header>
@@ -98,7 +98,7 @@ class Applications extends React.Component {
                         </Table.Row>
                     </Table.Footer>
                 </Table>
-            </Container >);
+            </React.Fragment>);
     }
 }
 

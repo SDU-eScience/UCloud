@@ -41,14 +41,3 @@ export const SmallSpinner = ({ loading, color }) => (loading) ?
         <div />
         <div />
     </i> : null;
-
-export const LoadingButton = (props) => (
-    <Button
-        floated={props.floated}
-        onClick={e => props.handler(e)}
-        className={props.style}
-        disabled={props.disabled}
-    >
-        {props.loading ? <Spinner loading /> : props.buttonContent}
-    </Button>
-);

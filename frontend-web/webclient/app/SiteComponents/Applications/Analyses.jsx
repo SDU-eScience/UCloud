@@ -47,43 +47,41 @@ class Analyses extends React.Component {
 
         return (
             <React.StrictMode>
-                <Container className="container-margin">
-                    <BallPulseLoading loading={this.props.loading} />
-                    <WebSocketSupport />
-                    {noAnalysis}
-                    <Table basic="very">
-                        <Table.Header>
-                            <Table.Row>
-                                <Table.HeaderCell>App Name</Table.HeaderCell>
-                                <Table.HeaderCell>Job Id</Table.HeaderCell>
-                                <Table.HeaderCell>State</Table.HeaderCell>
-                                <Table.HeaderCell>Status</Table.HeaderCell>
-                                <Table.HeaderCell>Started at</Table.HeaderCell>
-                                <Table.HeaderCell>Last updated at</Table.HeaderCell>
-                            </Table.Row>
-                        </Table.Header>
-                        <AnalysesList analyses={this.props.analyses} />
-                        <Table.Footer>
-                            <Table.Row>
-                                <Table.Cell colSpan="6" textAlign="center">
-                                    <PaginationButtons
-                                        totalPages={this.props.totalPages}
-                                        currentPage={this.props.pageNumber}
-                                        toPage={(pageNumber) => dispatch(fetchAnalyses(analysesPerPage, pageNumber))}
-                                    />
-                                </Table.Cell>
-                            </Table.Row>
-                        </Table.Footer>
-                    </Table>
-                    <EntriesPerPageSelector
-                        entriesPerPage={this.props.analysesPerPage}
-                        onChange={(pageSize) => dispatch(fetchAnalyses(pageSize, 0))}
-                        totalPages={this.props.totalPages}
-                    >
-                        {" Analyses per page"}
-                    </EntriesPerPageSelector>
-                </Container>
-            </React.StrictMode >
+                <BallPulseLoading loading={this.props.loading} />
+                <WebSocketSupport />
+                {noAnalysis}
+                <Table basic="very">
+                    <Table.Header>
+                        <Table.Row>
+                            <Table.HeaderCell>App Name</Table.HeaderCell>
+                            <Table.HeaderCell>Job Id</Table.HeaderCell>
+                            <Table.HeaderCell>State</Table.HeaderCell>
+                            <Table.HeaderCell>Status</Table.HeaderCell>
+                            <Table.HeaderCell>Started at</Table.HeaderCell>
+                            <Table.HeaderCell>Last updated at</Table.HeaderCell>
+                        </Table.Row>
+                    </Table.Header>
+                    <AnalysesList analyses={this.props.analyses} />
+                    <Table.Footer>
+                        <Table.Row>
+                            <Table.Cell colSpan="6" textAlign="center">
+                                <PaginationButtons
+                                    totalPages={this.props.totalPages}
+                                    currentPage={this.props.pageNumber}
+                                    toPage={(pageNumber) => dispatch(fetchAnalyses(analysesPerPage, pageNumber))}
+                                />
+                            </Table.Cell>
+                        </Table.Row>
+                    </Table.Footer>
+                </Table>
+                <EntriesPerPageSelector
+                    entriesPerPage={this.props.analysesPerPage}
+                    onChange={(pageSize) => dispatch(fetchAnalyses(pageSize, 0))}
+                    totalPages={this.props.totalPages}
+                >
+                    {" Analyses per page"}
+                </EntriesPerPageSelector>
+            </React.StrictMode>
         )
     }
 }

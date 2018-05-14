@@ -1,10 +1,10 @@
 import React from "react";
-import { Container, Header, Form, Input } from "semantic-ui-react";
+import { Container, Header, Form, Input, Button } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
-import { BallPulseLoading, LoadingButton } from "../LoadingIcon/LoadingIcon"
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
@@ -146,8 +146,7 @@ class RunApp extends React.Component {
 
     render() {
         return (
-            <section>
-                <Container className="container-margin">
+            <React.Fragment>
                     <BallPulseLoading loading={this.state.loading} />
 
                     <ApplicationHeader
@@ -170,8 +169,7 @@ class RunApp extends React.Component {
                         tool={this.state.tool}
                         jobSubmitted={this.state.jobSubmitted}
                     />
-                </Container>
-            </section>)
+                </React.Fragment>)
     }
 }
 
@@ -223,10 +221,11 @@ const Parameters = (props) => {
                 jobInfo={props.jobInfo}
                 tool={props.tool}
             />
-            <LoadingButton bsStyle={"primary"} disabled={props.jobSubmitted}
+            <Button
+                color="blue"
                 loading={props.jobSubmitted}
-                style={""} buttonContent={"Submit"}
-                handler={props.handleSubmit} />
+                content={"Submit"}
+                onClick={props.handleSubmit} />
         </Form>
     )
 };

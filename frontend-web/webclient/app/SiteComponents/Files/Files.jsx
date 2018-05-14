@@ -452,7 +452,7 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                     autoFocus
                 />
                 <Button.Group floated="right">
-                    <Button color="primary" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</Button>
+                    <Button color="blue" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</Button>
                     <Button onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</Button>
                 </Button.Group>
             </Table.Cell>

@@ -29,7 +29,7 @@ class ZenodoHome extends React.Component {
             return (<NotConnectedToZenodo />);
         } else {
             return (
-                <Container className="container-margin">
+                <React.Fragment>
                     <Header as="h2">
                         <Header.Content>
                             Upload progress
@@ -39,7 +39,7 @@ class ZenodoHome extends React.Component {
                         </Header.Subheader>
                     </Header>
                     <PublishStatus publications={this.props.publications} loading={this.props.loading} />
-                </Container>
+                </React.Fragment>
             );
         }
     }

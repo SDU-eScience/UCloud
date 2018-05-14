@@ -3,7 +3,7 @@ import { Button, Container, Header, Form } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
-import { BallPulseLoading, LoadingButton } from "../LoadingIcon/LoadingIcon";
+import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
@@ -80,13 +80,13 @@ class ZenodoPublish extends React.Component {
             return (<NotConnectedToZenodo />);
         }
         return (
-            <Container className="container-margin">
+            <React.Fragment>
                 <Header as="h3">
                     <Header.Content>
                         File Selection
-                        </Header.Content>
+                    </Header.Content>
                 </Header>
-                <Form onSubmit={e => this.submit(e)}>
+                <Form onSubmit={(e) => this.submit(e)}>
                     <FileSelections
                         handleFileSelection={this.handleFileSelection}
                         files={this.state.files}
@@ -103,14 +103,17 @@ class ZenodoPublish extends React.Component {
                             onChange={e => this.updateName(e.target.value)}
                         />
                     </Form.Field>
+                    <Button
+                        disabled={!this.state.name || this.state.files.filter(p => p).length === 0 }
+                        floated="right"
+                        color="blue"
+                        loading={this.state.requestSent}
+                        content="Upload files for publishing"
+                        onClick={this.submit}
+                    />
                 </Form>
                 <Button floated="left" onClick={() => this.newFile()}>Add additional file</Button>
-                <LoadingButton floated="right"
-                    disabled={this.state.requestSent || !filesSelected || !name}
-                    loading={this.state.requestSent}
-                    buttonContent={"Upload files for publishing"}
-                    handler={this.submit} />
-            </Container>
+            </React.Fragment>
         );
     }
 }
