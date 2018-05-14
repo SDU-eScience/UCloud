@@ -6,7 +6,7 @@ import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import { Dropdown, Button, Icon, Table, Header, Form, Input, Container, Grid, Responsive } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
-import { BreadCrumbs } from "../Breadcrumbs";
+import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
 import * as Actions from "../../Actions/Files";
@@ -178,7 +178,7 @@ class Files extends React.Component {
             .filter(f => uf.getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
         const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length && shownFiles.length > 0;
         // Lambdas
-        const goTo = (pageNumber, files) => {
+        const goTo = (pageNumber) => {
             this.props.goToPage(pageNumber, files);
             this.resetFolderObject();
         };
@@ -194,9 +194,9 @@ class Files extends React.Component {
         return (
             <React.Fragment>
                 <Grid>
-                    <Grid.Column width={13}>
+                    <Grid.Column computer={13} tablet={16}>
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
-                        <Responsive maxWidth={1024}>
+                        <Responsive maxWidth={991}>
                             <ContextButtons
                                 upload={openUppy}
                                 createFolder={() => this.createFolder(currentPath)}
@@ -229,18 +229,18 @@ class Files extends React.Component {
                             <PaginationButtons
                                 currentPage={currentFilesPage}
                                 totalPages={totalPages}
-                                toPage={(pageNumber) => goTo(pageNumber, files)}
+                                toPage={(pageNumber) => goTo(pageNumber)}
                             />
                         </FilesTable>
                         <EntriesPerPageSelector
                             entriesPerPage={filesPerPage}
                             totalPages={totalPages}
                             onChange={(newSize) => updateFilesPerPage(newSize, files)}
-                        >{" Files per page"}
+                        >{"    Files per page"}
                         </EntriesPerPageSelector>
                         <BallPulseLoading loading={loading} />
                     </Grid.Column>
-                    <Responsive as={Grid.Column} width="3" minWidth={1025}>
+                    <Responsive as={Grid.Column} computer={3} minWidth={992}>
                         <ContextBar
                             selectedFiles={selectedFiles}
                             currentPath={path}
@@ -381,7 +381,7 @@ export const FilesTable = (props) => {
     let sortingIconFunction = (!!props.sortingIcon) ? props.sortingIcon : () => "";
 
     return (
-        <Table basic="very" padded="very">
+        <Table unstackable basic="very" padded="very">
             <Table.Header>
                 {noFiles}
                 {!noFiles ? (
@@ -391,18 +391,18 @@ export const FilesTable = (props) => {
                             Filename
                             <span className={"pull-right " + sortingIconFunction("typeAndName")} />
                         </Table.HeaderCell>
-                        <Table.HeaderCell onClick={() => sortingFunction("modifiedAt", "number")}>
+                        <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortingFunction("modifiedAt", "number")}>
                             <span>
                                 Modified
                                 <span className={"pull-right " + sortingIconFunction("modifiedAt")} />
                             </span>
-                        </Table.HeaderCell>
-                        <Table.HeaderCell onClick={() => null}>
+                        </Responsive>
+                        <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => null}>
                             <span>
                                 Members
                                 <span className={"pull-right " + sortingIconFunction("owner")} />
                             </span>
-                        </Table.HeaderCell>
+                        </Responsive>
                         <Table.HeaderCell />
                     </Table.Row>) : null}
             </Table.Header>
@@ -455,7 +455,8 @@ const CreateFolder = ({ creatingNewFolder, creatingFolderName, updateText, handl
                     <Button color="primary" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</Button>
                     <Button onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</Button>
                 </Button.Group>
-            </Table.Cell><Table.Cell></Table.Cell><Table.Cell></Table.Cell><Table.Cell></Table.Cell>
+            </Table.Cell>
+            <Responsive as={Table.Cell} /><Responsive as={Table.Cell} /><Table.Cell />
         </Table.Row>
     )
 );
@@ -522,8 +523,8 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
             />
             {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile} /> : null}
         </Table.Cell>
-        <Table.Cell>{new Date(file.modifiedAt).toLocaleString()}</Table.Cell>
-        <Table.Cell>{owner}</Table.Cell>
+        <Responsive as={Table.Cell} minWidth={768}>{new Date(file.modifiedAt).toLocaleString()}</Responsive>
+        <Responsive as={Table.Cell} minWidth={768}>{owner}</Responsive>
         <Table.Cell>
             <Icon className="fileData" name="share alternate" onClick={() => uf.shareFile(file.path, Cloud)} />
             <MobileButtons

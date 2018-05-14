@@ -28,20 +28,26 @@ class SidebarComponent extends React.Component {
     render() {
         const { open, dispatch } = this.props;
         const { activeIndex } = this.state;
+        const closeSidebar = () => dispatch(setSidebarClosed())
         return (
             <React.Fragment>
                 <Sidebar.Pushable className="sidebar-height">
                     <Responsive minWidth={1025}>
-                        <Menu vertical fixed="left" className="my-sidebar">
-                            <SidebarMenuItems handleClick={this.handleClick} activeIndex={activeIndex} />
+                        <Menu vertical borderless={true} fixed="left" className="my-sidebar">
+                            <SidebarMenuItems handleClick={this.handleClick} activeIndex={activeIndex} closeSidebar={closeSidebar} />
                         </Menu>
                     </Responsive>
-                    <MobileSidebar visible={open} handleClick={this.handleClick} activeIndex={activeIndex} />
+                    <MobileSidebar
+                        closeSidebar={closeSidebar}
+                        visible={open}
+                        handleClick={this.handleClick}
+                        activeIndex={activeIndex}
+                    />
                     <Sidebar.Pusher
-                        onClick={() => open ? dispatch(setSidebarClosed()) : null}
+                        onClick={() => open ? closeSidebar() : null}
                         dimmed={open && window.innerWidth <= 1024}
                     >
-                        <div className="container-margin container-padding">
+                        <div className="container-margin content-height container-padding">
                             {this.props.children}
                         </div>
                     </Sidebar.Pusher>
@@ -51,12 +57,12 @@ class SidebarComponent extends React.Component {
     }
 }
 
-const MobileSidebar = ({ handleClick, activeIndex, visible }) => (
+const MobileSidebar = ({ handleClick, activeIndex, visible, closeSidebar }) => (
     <Sidebar as={Menu} animation="overlay" vertical fixed="left" visible={visible}>
-        <SidebarMenuItems handleClick={handleClick} activeIndex={activeIndex} />
+        <SidebarMenuItems closeSidebar={closeSidebar} handleClick={handleClick} activeIndex={activeIndex} />
     </Sidebar>
 );
-const SidebarMenuItems = ({ handleClick, activeIndex }, ...props) => (
+const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndex }, ...props) => (
     <React.Fragment>
         <Menu.Item>
             <Avatar
@@ -75,7 +81,7 @@ const SidebarMenuItems = ({ handleClick, activeIndex }, ...props) => (
             <div className="user-name">{`Welcome, ${Cloud.userInfo.firstNames}`}</div>
         </Menu.Item>
         <Menu.Item>
-            <Link to={"/dashboard"} className="sidebar-option">
+            <Link to={"/dashboard"} onClick={() => closeSidebar()} className="sidebar-option">
                 <List>
                     <List.Item>
                         <List.Content floated="right">
@@ -87,7 +93,7 @@ const SidebarMenuItems = ({ handleClick, activeIndex }, ...props) => (
             </Link>
         </Menu.Item>
         <Menu.Item>
-            <Link to={`/files/${Cloud.homeFolder}`} className="sidebar-option">
+            <Link to={`/files/${Cloud.homeFolder}`} onClick={() => closeSidebar()} className="sidebar-option">
                 <List>
                     <List.Item>
                         <List.Content floated="right" >
@@ -107,13 +113,13 @@ const SidebarMenuItems = ({ handleClick, activeIndex }, ...props) => (
                 <Transition duration={200} visible={activeIndex === 0} animation="fade right">
                     <Accordion.Content active={activeIndex === 0}>
                         <List>
-                            <Link to="/applications" className="sidebar-option">
+                            <Link to="/applications" onClick={() => closeSidebar()} className="sidebar-option">
                                 <List.Item>
                                     <List.Icon name="code" />
                                     Run
                                 </List.Item>
                             </Link>
-                            <Link to="/analyses" className="sidebar-option">
+                            <Link to="/analyses" onClick={() => closeSidebar()} className="sidebar-option">
                                 <List.Item>
                                     <Icon name="tasks" />
                                     Results
@@ -133,13 +139,13 @@ const SidebarMenuItems = ({ handleClick, activeIndex }, ...props) => (
                 <Transition duration={200} visible={activeIndex === 1} animation="fade right">
                     <Accordion.Content active={activeIndex === 1}>
                         <List>
-                            <Link to="/zenodo" className="sidebar-option">
+                            <Link to="/zenodo" onClick={() => closeSidebar()} className="sidebar-option">
                                 <List.Item>
                                     <List.Icon name="newspaper" />
                                     Publications
                                 </List.Item>
                             </Link>
-                            <Link to="/zenodo/publish" className="sidebar-option">
+                            <Link to="/zenodo/publish" onClick={() => closeSidebar()} className="sidebar-option">
                                 <List.Item>
                                     <List.Icon name="edit" />
                                     Publish

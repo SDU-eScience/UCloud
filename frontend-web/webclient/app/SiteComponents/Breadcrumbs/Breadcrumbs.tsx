@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Breadcrumb } from "semantic-ui-react";
+import "./Breadcrumbs.scss";
 
 interface Breadcrumbs { currentPath: string, navigate: (path: string) => void }
 export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
@@ -18,7 +19,7 @@ export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
     ));
     
     return (
-        <Breadcrumb>
+        <Breadcrumb className="breadcrumb-margin">
             {breadcrumbs}
             <Breadcrumb.Section active>
                 {activePathsMapping.local}

@@ -3,7 +3,7 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import PropTypes from "prop-types";
 import { Modal, Icon, Button, List, Input } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { BreadCrumbs } from "../Breadcrumbs"
+import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
 import { dispatch } from "redux";

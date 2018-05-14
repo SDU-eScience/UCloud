@@ -23,12 +23,12 @@ const EntriesPerPageSelectorOptions = [
 ]
 interface EntriesPerPageSelector { entriesPerPage: number, onChange: Function, totalPages: number, children: React.ReactNode }
 export const EntriesPerPageSelector = ({ entriesPerPage, onChange, totalPages, children }: EntriesPerPageSelector) => (
-    <React.Fragment>
+    <div>
         <Dropdown
             onChange={(e, { value }) => onChange(value as number)}
             options={EntriesPerPageSelectorOptions}
             selection
             value={entriesPerPage}
         /> {children}
-    </React.Fragment>
+    </div>
 );

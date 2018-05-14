@@ -14,12 +14,10 @@ a.sidebar-option {
 }
 
 .sidebar-height {
-    height: 100vh;
+    min-height: 100vh;
 }
 
-.container-margin {
-    margin: 60px 25px 25px 25px;
-}
+
 
 @media(min-width: 1025px) {
     .container-padding {
@@ -27,6 +25,15 @@ a.sidebar-option {
     }
 }
 
+@media(min-width: 768px) {
+    .container-margin {
+        margin: 60px 25px 25px 25px;
+    }
+}
+
+.content-height {
+    min-height: 100vh;
+}
 .ui.vertical.my-sidebar {
     width: 260px;
 }

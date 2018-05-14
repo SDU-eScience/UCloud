@@ -3,3 +3,12 @@
     padding-bottom: 0.8em;
 }
 
+.footer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 1rem;
+    text-align: right;
+    z-index: -1;
+}

@@ -44,11 +44,9 @@ const Core = (props) => (
                 <Route component={NotFound} />
             </Switch>
         </Sidebar>
-        <UppyWrapper />
-        <footer>
-            <span>{new Date().getFullYear()} - SDUCloud.</span>
-        </footer>
-    </React.Fragment>
+        <span className="footer">{new Date().getFullYear()} - SDUCloud</span>
+    <UppyWrapper />
+    </React.Fragment >
 );
 
 export default (Core);
