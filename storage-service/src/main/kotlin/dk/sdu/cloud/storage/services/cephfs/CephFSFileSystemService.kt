@@ -573,8 +573,3 @@ class CephFSFileSystemService(
     }
 }
 
-fun main(args: Array<String>) {
-    val rawArgument = BashEscaper.safeBashArgument("\$PWD").removeSuffix("\"").removePrefix("\"")
-    println(rawArgument)
-    println(BashEscaper.safeBashArgument(rawArgument))
-}
