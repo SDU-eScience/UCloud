@@ -46,7 +46,7 @@ typealias ProcessRunnerFactory = (user: String) -> ProcessRunner
 interface ProcessRunner : Closeable {
     val user: String
 
-    fun run(command: List<String>, directory: String? = null): IProcess
+    fun run(command: List<String>, directory: String? = null, noEscape: Boolean = false): IProcess
 
     fun runWithResultAsInMemoryString(
         command: List<String>,
@@ -92,17 +92,23 @@ class CephFSProcessRunner(
         return if (!isDevelopment) listOf("sudo", "-u", user) else emptyList()
     }
 
-    override fun run(command: List<String>, directory: String?): IProcess {
+    override fun run(command: List<String>, directory: String?, noEscape: Boolean): IProcess {
         return ProcessBuilder().apply {
             val prefix = asUser(user)
 
             val bashCommand = if (directory == null) {
-                command.joinToString(" ") { BashEscaper.safeBashArgument(it) }
+                command.joinToString(" ") {
+                    if (noEscape) it
+                    else BashEscaper.safeBashArgument(it)
+                }
             } else {
                 "cd ${BashEscaper.safeBashArgument(directory)} ; " +
-                        command.joinToString(" ") { BashEscaper.safeBashArgument(it) }
+                        command.joinToString(" ") {
+                            if (noEscape) it
+                            else BashEscaper.safeBashArgument(it)
+                        }
             }
-            log.debug("Running command (user=$user): $bashCommand")
+            log.debug("Running command (user=$user): $bashCommand [$command]")
 
             val wrappedCommand = listOf("bash", "-c", bashCommand)
             command(prefix + wrappedCommand)
@@ -142,14 +148,20 @@ class StreamingProcessRunner(
         println(bashProcess.errorStream.bufferedReader().readText())
     }
 
-    override fun run(command: List<String>, directory: String?): IProcess {
+    override fun run(command: List<String>, directory: String?, noEscape: Boolean): IProcess {
         val boundary = generateNewBoundary()
 
         val bashCommand = if (directory == null) {
-            command.joinToString(" ") { BashEscaper.safeBashArgument(it) }
+            command.joinToString(" ") {
+                if (noEscape) it
+                else BashEscaper.safeBashArgument(it)
+            }
         } else {
             "cd ${BashEscaper.safeBashArgument(directory)} ; " +
-                    command.joinToString(" ") { BashEscaper.safeBashArgument(it) }
+                    command.joinToString(" ") {
+                        if (noEscape) it
+                        else BashEscaper.safeBashArgument(it)
+                    }
         }
 
         log.debug("Running command (user=$user): $bashCommand")

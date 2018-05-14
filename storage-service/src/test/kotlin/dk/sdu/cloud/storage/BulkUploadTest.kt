@@ -297,4 +297,41 @@ class BulkUploadTest {
         assertEquals(1, result.size)
         assertEquals(listOf("/home/user/test/file"), result)
     }
+
+    @Test
+    fun testShellInjection() {
+        val fsRoot = createFileSystem {
+            mkdir("home") {
+                mkdir("user") {
+                    mkdir("test") {
+                        mkdir("file") {}
+                    }
+                }
+            }
+        }
+
+        val tarFile = Files.createTempFile("foo", ".tar.gz").toFile()
+        createTarFile(tarFile.outputStream()) {
+            putDirectory("test")
+            putFile("test/\$PWD", "contents")
+        }
+        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+
+        val upload = UploadService(fs, mockk(relaxed = true))
+        val result =
+            upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.OVERWRITE, tarFile.inputStream())
+
+        val homeDir = File(fsRoot, "/home/user")
+        assertTrue(homeDir.exists())
+
+        val testDir = File(homeDir, "test")
+        assertTrue(testDir.exists())
+        assertTrue(testDir.isDirectory)
+
+        val origTestFile = File(testDir, "\$PWD")
+        assertTrue(origTestFile.exists())
+        assertFalse(origTestFile.isDirectory)
+
+        assertEquals(0, result.size)
+    }
 }

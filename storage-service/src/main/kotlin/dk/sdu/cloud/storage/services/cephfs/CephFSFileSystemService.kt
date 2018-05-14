@@ -222,7 +222,7 @@ class CephFSFileSystemService(
 
         // TODO Permission (sensitivity) check
         val process =
-            ctx.run(listOf("bash", "-c", "cat - > ${BashEscaper.safeBashArgument(absolutePath)}"))
+            ctx.run(listOf("cat - > ${BashEscaper.safeBashArgument(absolutePath)}"), noEscape = true)
         process.outputStream.writer()
         process.outputStream.close()
         if (process.waitFor() != 0) {
@@ -571,4 +571,10 @@ class CephFSFileSystemService(
         private const val SHARED_WITH_WRITE = 4
         private const val SHARED_WITH_EXECUTE = 8
     }
+}
+
+fun main(args: Array<String>) {
+    val rawArgument = BashEscaper.safeBashArgument("\$PWD").removeSuffix("\"").removePrefix("\"")
+    println(rawArgument)
+    println(BashEscaper.safeBashArgument(rawArgument))
 }
