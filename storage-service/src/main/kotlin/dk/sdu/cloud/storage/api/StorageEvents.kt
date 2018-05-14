@@ -1,6 +1,9 @@
 package dk.sdu.cloud.storage.api
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaDescriptions
+import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.MappedEventProducer
 
 /**
@@ -16,6 +19,16 @@ import dk.sdu.cloud.service.MappedEventProducer
  * the [StorageEvent.path] or that the file even exists, since multiple new events may have occurred when the event
  * is consumed.
  */
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = StorageEvent.CreatedOrModified::class, name = "created"),
+    JsonSubTypes.Type(value = StorageEvent.Deleted::class, name = "deleted"),
+    JsonSubTypes.Type(value = StorageEvent.Moved::class, name = "moved")
+)
 sealed class StorageEvent {
     /**
      * The unique ID of the file
