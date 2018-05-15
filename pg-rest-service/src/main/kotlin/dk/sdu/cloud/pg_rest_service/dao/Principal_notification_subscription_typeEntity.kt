@@ -1,0 +1,17 @@
+package dk.sdu.cloud.controller.dao
+import dk.sdu.cloud.pg_rest_service.model.Principal_notification_subscription_type
+import org.jetbrains.exposed.dao.EntityID
+import org.jetbrains.exposed.dao.IntEntity
+import org.jetbrains.exposed.dao.IntEntityClass
+
+
+class Principal_notification_subscription_typeEntity(id: EntityID<Int>) : IntEntity(id) {
+	companion object: IntEntityClass<Principal_notification_subscription_typeEntity>(Principal_notification_subscription_type)
+
+	var principalnotificationsubscriptiontypename by Principal_notification_subscription_type.principalnotificationsubscriptiontypename
+	var modified_ts by Principal_notification_subscription_type.modified_ts
+	var marked_for_delete by Principal_notification_subscription_type.marked_for_delete
+	var created_ts by Principal_notification_subscription_type.created_ts
+	var active by Principal_notification_subscription_type.active
+	var nosuppress by Principal_notification_subscription_type.nosuppress
+}
