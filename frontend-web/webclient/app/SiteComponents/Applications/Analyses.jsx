@@ -3,7 +3,7 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { WebSocketSupport, toLowerCaseAndCapitalize, shortUUID } from "../../UtilityFunctions"
 import { updatePageTitle } from "../../Actions/Status";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { Container, Table } from "semantic-ui-react";
+import { Container, Table, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { connect } from "react-redux";
@@ -50,14 +50,14 @@ class Analyses extends React.Component {
                 <BallPulseLoading loading={this.props.loading} />
                 <WebSocketSupport />
                 {noAnalysis}
-                <Table basic="very">
+                <Table basic="very" unstackable className="mobile-padding">
                     <Table.Header>
                         <Table.Row>
                             <Table.HeaderCell>App Name</Table.HeaderCell>
                             <Table.HeaderCell>Job Id</Table.HeaderCell>
                             <Table.HeaderCell>State</Table.HeaderCell>
-                            <Table.HeaderCell>Status</Table.HeaderCell>
-                            <Table.HeaderCell>Started at</Table.HeaderCell>
+                            <Responsive as={Table.HeaderCell} minWidth={768}>Status</Responsive>
+                            <Responsive as={Table.HeaderCell} minWidth={768}>Started at</Responsive>
                             <Table.HeaderCell>Last updated at</Table.HeaderCell>
                         </Table.Row>
                     </Table.Header>
@@ -106,8 +106,8 @@ const AnalysesList = ({ analyses, children }) => {
                     </Link>
                 </Table.Cell>
                 <Table.Cell>{toLowerCaseAndCapitalize(analysis.state)}</Table.Cell>
-                <Table.Cell>{analysis.status}</Table.Cell>
-                <Table.Cell>{formatDate(analysis.createdAt)}</Table.Cell>
+                <Responsive as={Table.Cell} minWidth={768}>{analysis.status}</Responsive>
+                <Responsive as={Table.Cell} minWidth={768}>{formatDate(analysis.createdAt)}</Responsive>
                 <Table.Cell>{formatDate(analysis.modifiedAt)}</Table.Cell>
             </Table.Row>)
     });

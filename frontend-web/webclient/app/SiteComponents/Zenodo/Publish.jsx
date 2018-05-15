@@ -81,19 +81,19 @@ class ZenodoPublish extends React.Component {
         }
         return (
             <React.Fragment>
-                <Header as="h3">
-                    <Header.Content>
+                <Header as="h3" >
+                    <Header.Content className="mobile-padding">
                         File Selection
                     </Header.Content>
                 </Header>
                 <Form onSubmit={(e) => this.submit(e)}>
-                    <FileSelections
+                    <FileSelections className="mobile-padding"
                         handleFileSelection={this.handleFileSelection}
                         files={this.state.files}
                         newFile={this.newFile}
                         removeFile={this.removeFile}
                     />
-                    <Form.Field>
+                    <Form.Field className="mobile-padding">
                         <Form.Input
                             fluid
                             label="Publication Name"
@@ -104,15 +104,16 @@ class ZenodoPublish extends React.Component {
                         />
                     </Form.Field>
                     <Button
+                        className="mobile-right-margin"
                         disabled={!this.state.name || this.state.files.filter(p => p).length === 0 }
                         floated="right"
                         color="blue"
                         loading={this.state.requestSent}
-                        content="Upload files for publishing"
+                        content="Upload files"
                         onClick={this.submit}
                     />
                 </Form>
-                <Button floated="left" onClick={() => this.newFile()}>Add additional file</Button>
+                <Button className="mobile-left-margin" floated="left" content="Add file" onClick={() => this.newFile()}/>
             </React.Fragment>
         );
     }

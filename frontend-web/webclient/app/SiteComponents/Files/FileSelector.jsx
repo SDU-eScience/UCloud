@@ -162,14 +162,14 @@ class FileSelector extends React.Component {
         return (
             <React.Fragment>
                 <Input
-                    className="readonly"
+                    className="readonly mobile-padding"
                     required={this.props.isRequired}
                     placeholder={"No file selected"}
                     value={path}
                     action
                 >
                     <input />
-                    <Button onClick={this.openModal} content="Browse files" color="blue" />
+                    <Button onClick={this.openModal} content="Browse" color="blue" />
                     {uploadButton}
                     {removeButton}
                 </Input>

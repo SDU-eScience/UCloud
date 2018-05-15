@@ -12,3 +12,21 @@
     text-align: right;
     z-index: -1;
 }
+
+@media(max-width: 767px) {
+   .mobile-padding {
+       padding: 10px 10px 10px 10px;
+   }
+   .mobile-left-padding {
+       padding-left: 10px;
+   }
+   .mobile-right-padding {
+       padding-right: 10px;
+   }
+   .ui.button.mobile-left-margin {
+       margin-left: 10px;
+   }
+   .ui.button.mobile-right-margin {
+      margin-right: 10px;
+   }
+}

@@ -8,7 +8,7 @@ export const PaginationButtons = ({ totalPages, toPage, currentPage }: Paginatio
     totalPages > 1 ?
         (<Pagination
             totalPages={totalPages}
-            defaultActivePage={1}
+            activePage={currentPage + 1}
             onPageChange={(e, u) => toPage(u.activePage as number - 1)}
         />) : null
 );

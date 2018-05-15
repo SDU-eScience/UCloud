@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Table, Container, Header } from "semantic-ui-react";
+import { Button, Table, Container, Header, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
@@ -31,12 +31,12 @@ class ZenodoHome extends React.Component {
             return (
                 <React.Fragment>
                     <Header as="h2">
-                        <Header.Content>
+                        <Header.Content className="mobile-padding">
                             Upload progress
                         </Header.Content>
-                        <Header.Subheader>
+                        <Responsive as={Header.Subheader} minWidth={768}>
                             Connected to Zenodo
-                        </Header.Subheader>
+                        </Responsive>
                     </Header>
                     <PublishStatus publications={this.props.publications} loading={this.props.loading} />
                 </React.Fragment>
@@ -50,7 +50,7 @@ const PublishStatusBody = ({ publications }) =>
         <h3>
             <small className="text-center">No publications found.</small>
         </h3> :
-        <Table basic="very">
+        <Table basic="very" unstackable>
             <Table.Header>
                 <Table.Row>
                     <Table.HeaderCell>ID</Table.HeaderCell>

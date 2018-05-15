@@ -35,7 +35,7 @@ class Dashboard extends React.Component {
             this.props.receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited));
         return (
             <React.StrictMode>
-                <Card.Group>
+                <Card.Group className="mobile-padding">
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
