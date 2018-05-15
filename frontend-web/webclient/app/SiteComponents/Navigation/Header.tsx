@@ -12,16 +12,15 @@ class Header extends React.Component<any, any> {
         super(props);
     }
 
-    sidebarIcon = () => this.props.open ? "triangle left" : "triangle right";
-
     public render() {
+        const sidebarIcon = this.props.open ? "triangle left" : "triangle right";
         return (
             <Menu className="menu-padding">
                 <Responsive maxWidth={1024}>
-                    <Menu.Item onClick={() => this.props.dispatch(setSidebarOpen())}>
+                    <Menu.Item onClick={() => this.props.dispatch(setSidebarOpen())} className="sidebar-button-padding">
                         <Icon.Group size="large">
                             <Icon name="sidebar" />
-                            <Icon corner color="grey" size="large" name={this.sidebarIcon()} />
+                            <Icon corner color="grey" size="massive" name={sidebarIcon} />
                         </Icon.Group>
                     </Menu.Item>
                 </Responsive>
