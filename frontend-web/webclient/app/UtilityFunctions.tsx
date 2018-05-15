@@ -314,7 +314,7 @@ export const getCurrentRights = (files: File[], cloud: Cloud) => {
 interface LastSorting { name: string, asc: boolean }
 export const getSortingIcon = (lastSorting: LastSorting, name: string): string => {
     if (lastSorting.name === name) {
-        return lastSorting.asc ? "ion-android-arrow-down" : "ion-android-arrow-up";
+        return lastSorting.asc ? "chevron down" : "chevron up";
     }
     return "";
 };

@@ -1,14 +1,14 @@
 @media (min-width: 992px) {
-    .fileData {
+    .file-data {
         visibility: hidden;
     }
 }
 
-tr:hover .fileData {
+tr:hover .file-data {
     visibility: visible;
 }
 
-th:hover .fileData {
+th:hover .file-data {
     visibility: visible;
 }
 
@@ -23,6 +23,19 @@ th:hover .fileData {
     }
 }
 
+table.ui.unstackable.very.basic.padded.table thead tr th.filename-row {
+    padding-left: 18px;
+}
+
+.checkbox-margin {
+    margin-right: 10px;
+    margin-left: 10px;
+}
+
+.checkbox-margin label {
+    margin-top: 4px;
+}
+
 .create-folder-placement {
     padding-right: 8px;
     vertical-align: middle;
@@ -31,10 +44,6 @@ th:hover .fileData {
 
 .pointer-cursor {
     cursor: pointer;
-}
-
-.checkbox-margin {
-    margin: 8px;
 }
 
 .black-text {
@@ -47,6 +56,11 @@ th:hover .fileData {
 
 .favorite-padding {
     padding: 7px;
+}
+
+.table-row-padding {
+    padding-top: 1em;
+    padding-bottom: 1em;
 }
 
 .create-folder {
@@ -62,6 +76,6 @@ th:hover .fileData {
     visibility: visible;
 }
 
-table.ui.very.basic.padded.table tbody tr.fileRow td.table-cell-padding-left {
+table.ui.very.basic.padded.table tbody tr.file-row td.table-cell-padding-left {
     padding-left: 18px;
 }

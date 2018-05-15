@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
@@ -176,7 +176,6 @@ class Files extends React.Component {
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
             .filter(f => uf.getFilenameFromPath(f.path).toLowerCase().includes(this.state.searchText.toLowerCase()));
-        const masterCheckboxChecked = shownFiles.length === shownFiles.filter(file => file.isChecked).length && shownFiles.length > 0;
         // Lambdas
         const goTo = (pageNumber) => {
             this.props.goToPage(pageNumber, files);
@@ -213,7 +212,6 @@ class Files extends React.Component {
                             updateCreateFolderName={this.updateCreateFolderName}
                             files={shownFiles}
                             loading={loading}
-                            masterCheckbox={masterCheckboxChecked}
                             sortingIcon={(name) => uf.getSortingIcon(this.state.lastSorting, name)}
                             addOrRemoveFile={(checked, newFile) => checkFile(checked, files, newFile)}
                             sortFiles={this.sortFilesBy}
@@ -352,28 +350,30 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
     );
 };
 
+const NoFiles = ({ noFiles, children }) =>
+    noFiles ? (
+        <Table.Row>
+            <Table.Cell>
+                <Header>There are no files in current folder</Header>
+            </Table.Cell>
+        </Table.Row>) : children;
 
 export const FilesTable = (props) => {
     if (props.loading) {
         return null;
     }
-    const noFiles = (!props.files.length && !props.creatingNewFolder) ?
-        <Table.Row>
-            <Table.Cell>
-                <Header>There are no files in current folder</Header>
-            </Table.Cell>
-        </Table.Row> : null;
     let hasCheckbox = (!!props.selectOrDeselectAllFiles);
+    const checkedFilesCount = props.files.filter(file => file.isChecked).length;
+    const masterCheckboxChecked = props.files.length === checkedFilesCount && props.files.length > 0;
+    const indeterminate = checkedFilesCount < props.files.length && checkedFilesCount > 0;
     let masterCheckbox = (hasCheckbox) ? (
-        <span className="checkbox-margin">
-            <input
-                className={`hidden-checkbox ${props.masterCheckbox ? "" : "fileData"}`}
-                onClick={e => e.stopPropagation()}
-                checked={props.masterCheckbox}
-                type="checkbox"
-                onChange={(e) => props.selectOrDeselectAllFiles(e.target.checked)}
-            />
-        </span>
+        <Checkbox
+            className="hidden-checkbox checkbox-margin"
+            onClick={(e, d) => props.selectOrDeselectAllFiles(d.checked)}
+            checked={masterCheckboxChecked}
+            indeterminate={indeterminate}
+            onChange={(e) => e.stopPropagation()}
+        />
     ) : null;
     let hasFavoriteButton = (!!props.favoriteFile);
 
@@ -383,28 +383,24 @@ export const FilesTable = (props) => {
     return (
         <Table unstackable basic="very" padded="very">
             <Table.Header>
-                {noFiles}
-                {!noFiles ? (
+                <NoFiles noFiles={(!props.files.length && !props.creatingNewFolder)}>
                     <Table.Row>
-                        <Table.HeaderCell className="checkbox-header" onClick={() => sortingFunction("typeAndName", "typeAndName")}>
+                        <Table.HeaderCell className="filename-row" onClick={() => sortingFunction("typeAndName", "typeAndName")}>
                             {masterCheckbox}
                             Filename
-                            <span className={"pull-right " + sortingIconFunction("typeAndName")} />
+                            <Icon floated="right" name={sortingIconFunction("typeAndName")} />
                         </Table.HeaderCell>
                         <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortingFunction("modifiedAt", "number")}>
-                            <span>
-                                Modified
-                                <span className={"pull-right " + sortingIconFunction("modifiedAt")} />
-                            </span>
+                            Modified
+                            <Icon floated="right" name={sortingIconFunction("modifiedAt")} />
                         </Responsive>
                         <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => null}>
-                            <span>
-                                Members
-                                <span className={"pull-right " + sortingIconFunction("owner")} />
-                            </span>
+                            Members
+                            <Icon floated="right" name={sortingIconFunction("owner")} />
                         </Responsive>
                         <Table.HeaderCell />
-                    </Table.Row>) : null}
+                    </Table.Row>
+                </NoFiles>
             </Table.Header>
             <FilesList
                 refetch={props.refetch}
@@ -498,17 +494,15 @@ const FilesList = (props) => {
 }
 
 const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, ...props }) => (
-    <Table.Row className="fileRow">
+    <Table.Row className="file-row">
         <Table.Cell className="table-cell-padding-left">
             {(hasCheckbox) ? (
-                <span className={`checkbox-margin ${props.masterCheckbox ? "" : "fileData"}`}>
-                    <input
-                        checked={file.isChecked}
-                        type="checkbox"
-                        className="hidden-checkbox"
-                        onClick={(e) => addOrRemoveFile(e.target.checked, file)}
-                    />
-                </span>
+                <Checkbox
+                    checked={file.isChecked}
+                    type="checkbox"
+                    className="hidden-checkbox checkbox-margin"
+                    onClick={(e, { checked }) => addOrRemoveFile(checked, file)}
+                />
             ) : null}
             <FileType
                 type={file.type}
@@ -526,7 +520,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
         <Responsive as={Table.Cell} minWidth={768}>{new Date(file.modifiedAt).toLocaleString()}</Responsive>
         <Responsive as={Table.Cell} minWidth={768}>{owner}</Responsive>
         <Table.Cell>
-            <Icon className="fileData" name="share alternate" onClick={() => uf.shareFile(file.path, Cloud)} />
+            <Icon className="file-data" name="share alternate" onClick={() => uf.shareFile(file.path, Cloud)} />
             <MobileButtons
                 file={file}
                 forceInlineButtons={forceInlineButtons}
@@ -594,7 +588,7 @@ const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, si
 const Favorited = ({ file, favoriteFile }) =>
     file.favorited ?
         (<Icon onClick={() => favoriteFile(file.path)} name="star" className="favorite-padding" />) :
-        (<Icon name="star outline" className="fileData favorite-padding" onClick={() => favoriteFile(file.path)} />);
+        (<Icon name="star outline" className="file-data favorite-padding" onClick={() => favoriteFile(file.path)} />);
 
 const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) => {
     const move = () => {

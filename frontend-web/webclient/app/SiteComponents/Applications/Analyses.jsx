@@ -58,7 +58,7 @@ class Analyses extends React.Component {
                             <Table.HeaderCell>State</Table.HeaderCell>
                             <Responsive as={Table.HeaderCell} minWidth={768}>Status</Responsive>
                             <Responsive as={Table.HeaderCell} minWidth={768}>Started at</Responsive>
-                            <Table.HeaderCell>Last updated at</Table.HeaderCell>
+                            <Responsive as={Table.HeaderCell} minWidth={768}>Last updated at</Responsive>
                         </Table.Row>
                     </Table.Header>
                     <AnalysesList analyses={this.props.analyses} />
@@ -108,7 +108,7 @@ const AnalysesList = ({ analyses, children }) => {
                 <Table.Cell>{toLowerCaseAndCapitalize(analysis.state)}</Table.Cell>
                 <Responsive as={Table.Cell} minWidth={768}>{analysis.status}</Responsive>
                 <Responsive as={Table.Cell} minWidth={768}>{formatDate(analysis.createdAt)}</Responsive>
-                <Table.Cell>{formatDate(analysis.modifiedAt)}</Table.Cell>
+                <Responsive as={Table.Cell} minWidth={768}>{formatDate(analysis.modifiedAt)}</Responsive>
             </Table.Row>)
     });
     return (
