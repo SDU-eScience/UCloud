@@ -7,9 +7,14 @@ sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
+
+    maven {
+        url "https://artifacts.elastic.co/maven"
+    }
 }
 
 dependencies {
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
+    compile "org.elasticsearch.client:x-pack-transport:6.2.4"
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
