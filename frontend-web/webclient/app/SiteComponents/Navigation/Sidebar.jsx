@@ -10,7 +10,7 @@ class SidebarComponent extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            activeIndex: -1
+            activeIndices: [false, false]
         };
         const { dispatch } = props;
         dispatch(setSidebarLoading(true));
@@ -20,28 +20,28 @@ class SidebarComponent extends React.Component {
 
     handleClick(e, titleProps) {
         const { index } = titleProps;
-        const { activeIndex } = this.state;
-        const newIndex = activeIndex === index ? -1 : index;
-        this.setState({ activeIndex: newIndex });
+        const { activeIndices } = this.state;
+        activeIndices[index] = !activeIndices[index]
+        this.setState({ activeIndices });
     }
 
     render() {
         const { open, dispatch } = this.props;
-        const { activeIndex } = this.state;
+        const { activeIndices } = this.state;
         const closeSidebar = () => dispatch(setSidebarClosed())
         return (
             <React.Fragment>
                 <Sidebar.Pushable className="sidebar-height">
                     <Responsive minWidth={1025}>
-                        <Menu vertical borderless={true} fixed="left" className="my-sidebar">
-                            <SidebarMenuItems handleClick={this.handleClick} activeIndex={activeIndex} closeSidebar={closeSidebar} />
-                        </Menu>
+                        <Accordion as={Menu} vertical borderless={true} fixed="left" className="my-sidebar">
+                            <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={closeSidebar} />
+                        </Accordion>
                     </Responsive>
                     <MobileSidebar
                         closeSidebar={closeSidebar}
                         visible={open}
                         handleClick={this.handleClick}
-                        activeIndex={activeIndex}
+                        activeIndices={activeIndices}
                     />
                     <Sidebar.Pusher
                         onClick={() => open ? closeSidebar() : null}
@@ -57,105 +57,99 @@ class SidebarComponent extends React.Component {
     }
 }
 
-const MobileSidebar = ({ handleClick, activeIndex, visible, closeSidebar }) => (
-    <Sidebar as={Menu} animation="overlay" vertical fixed="left" visible={visible}>
-        <SidebarMenuItems closeSidebar={closeSidebar} handleClick={handleClick} activeIndex={activeIndex} />
+const MobileSidebar = ({ handleClick, activeIndices, visible, closeSidebar }) => (
+    <Sidebar animation="overlay" visible={visible}>
+        <Accordion as={Menu} vertical fixed="left" className="my-sidebar">
+            <SidebarMenuItems closeSidebar={closeSidebar} handleClick={handleClick} activeIndices={activeIndices} />
+        </Accordion>
+
     </Sidebar>
 );
-const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndex }, ...props) => (
+const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }, ...props) => (
     <React.Fragment>
-        <Menu.Item>
-            <Avatar
-                avatarStyle="Circle"
-                topType="NoHair"
-                accessoriesType="Blank"
-                facialHairType="Blank"
-                clotheType="GraphicShirt"
-                clotheColor="Blue02"
-                graphicType="Bear"
-                eyeType="Default"
-                eyebrowType="Default"
-                mouthType="Smile"
-                skinColor="Light"
-            />
-            <div className="user-name">{`Welcome, ${Cloud.userInfo.firstNames}`}</div>
-        </Menu.Item>
-        <Menu.Item>
-            <Link to={"/dashboard"} onClick={() => closeSidebar()} className="sidebar-option">
-                <List>
-                    <List.Item>
-                        <List.Content floated="right">
-                            <List.Icon name="home" />
-                        </List.Content>
-                        Dashboard
+        <Accordion>
+            <Menu.Item>
+                <Avatar
+                    avatarStyle="Circle"
+                    topType="NoHair"
+                    accessoriesType="Blank"
+                    facialHairType="Blank"
+                    clotheType="GraphicShirt"
+                    clotheColor="Blue02"
+                    graphicType="Bear"
+                    eyeType="Default"
+                    eyebrowType="Default"
+                    mouthType="Smile"
+                    skinColor="Light"
+                />
+                <div className="user-name">{`Welcome, ${Cloud.userInfo.firstNames}`}</div>
+            </Menu.Item>
+            <Menu.Item>
+                <Link to={"/dashboard"} onClick={() => closeSidebar()} className="sidebar-option">
+                    <List>
+                        <List.Item>
+                            <List.Content floated="right">
+                                <List.Icon name="home" />
+                            </List.Content>
+                            Dashboard
                     </List.Item>
-                </List>
-            </Link>
-        </Menu.Item>
-        <Menu.Item>
-            <Link to={`/files/${Cloud.homeFolder}`} onClick={() => closeSidebar()} className="sidebar-option">
-                <List>
-                    <List.Item>
-                        <List.Content floated="right" >
-                            <List.Icon name="file" floated="right" />
-                        </List.Content>
-                        Files
+                    </List>
+                </Link>
+            </Menu.Item>
+            <Menu.Item>
+                <Link to={`/files/${Cloud.homeFolder}`} onClick={() => closeSidebar()} className="sidebar-option">
+                    <List>
+                        <List.Item>
+                            <List.Content floated="right" >
+                                <List.Icon name="file" floated="right" />
+                            </List.Content>
+                            Files
                     </List.Item>
-                </List>
-            </Link>
-        </Menu.Item>
-        <Menu.Item>
-            <Accordion>
-                <Accordion.Title onClick={handleClick} index={0} active={activeIndex === 0}>
-                    <Icon name="dropdown" />
+                    </List>
+                </Link>
+            </Menu.Item>
+            <Menu.Item>
+                <Accordion.Title onClick={handleClick} index={0} active={activeIndices[0]}>
                     Applications
-                            </Accordion.Title>
-                <Transition duration={200} visible={activeIndex === 0} animation="fade right">
-                    <Accordion.Content active={activeIndex === 0}>
-                        <List>
-                            <Link to="/applications" onClick={() => closeSidebar()} className="sidebar-option">
-                                <List.Item>
-                                    <List.Icon name="code" />
-                                    Run
-                                </List.Item>
-                            </Link>
-                            <Link to="/analyses" onClick={() => closeSidebar()} className="sidebar-option">
-                                <List.Item>
-                                    <Icon name="tasks" />
-                                    Results
-                                </List.Item>
-                            </Link>
-                        </List>
-                    </Accordion.Content>
-                </Transition>
-            </Accordion>
-        </Menu.Item>
-        <Menu.Item>
-            <Accordion>
-                <Accordion.Title onClick={handleClick} index={1} active={activeIndex === 1}>
                     <Icon name="dropdown" />
-                    Publishing
                 </Accordion.Title>
-                <Transition duration={200} visible={activeIndex === 1} animation="fade right">
-                    <Accordion.Content active={activeIndex === 1}>
-                        <List>
-                            <Link to="/zenodo" onClick={() => closeSidebar()} className="sidebar-option">
-                                <List.Item>
-                                    <List.Icon name="newspaper" />
-                                    Publications
+                <Accordion.Content active={activeIndices[0]} >
+                    <List>
+                        <Link to="/applications" onClick={() => closeSidebar()} className="sidebar-option">
+                            <List.Item className="item-padding-right">
+                                <List.Icon name="code" />
+                                Run
+                            </List.Item>
+                        </Link>
+                        <Link to="/analyses" onClick={() => closeSidebar()} className="sidebar-option">
+                            <List.Item className="item-padding-right">
+                                <Icon name="tasks" />
+                                Results
+                            </List.Item>
+                        </Link>
+                    </List>
+                </Accordion.Content>
+            </Menu.Item>
+            <Menu.Item>
+                <Accordion.Title content="Publishing" onClick={handleClick} index={1} active={activeIndices[1]} />
+                <Accordion.Content active={activeIndices[1]}>
+                    <List>
+                        <Link to="/zenodo" onClick={() => closeSidebar()} className="sidebar-option">
+                            <List.Item className="item-padding-right">
+                                <List.Icon name="newspaper" />
+                                Publications
                                 </List.Item>
-                            </Link>
-                            <Link to="/zenodo/publish" onClick={() => closeSidebar()} className="sidebar-option">
-                                <List.Item>
-                                    <List.Icon name="edit" />
-                                    Publish
-                                </List.Item>
-                            </Link>
-                        </List>
-                    </Accordion.Content>
-                </Transition>
-            </Accordion>
-        </Menu.Item>
+                        </Link>
+                        <Link to="/zenodo/publish" onClick={() => closeSidebar()} className="sidebar-option">
+                            <List.Item className="item-padding-right">
+                                <List.Icon name="edit" />
+                                Publish
+                            </List.Item>
+                        </Link>
+                    </List>
+                </Accordion.Content>
+            </Menu.Item>
+        </Accordion>
     </React.Fragment>
 );
 
