@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Rating } from "semantic-ui-react";
 import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
@@ -282,37 +282,23 @@ const ContextButtons = ({ upload, createFolder, mobileOnly }) => (
         <p>
             <Button basic fluid onClick={() => createFolder()}> New folder</Button>
         </p>
-        {mobileOnly ? (<React.Fragment><br /><br /><br /><br /></React.Fragment>) : null}
     </React.Fragment>
 );
-
 
 const FileOptions = ({ selectedFiles, refetch, rename }) => {
     if (!selectedFiles.length) {
         return null;
     }
-    const toFileText = (files) => {
-        if (selectedFiles.length > 1) {
-            return `${selectedFiles.length} files selected.`;
-        } else {
-            const filename = uf.getFilenameFromPath(selectedFiles[0].path);
-            if (filename.length > 10) {
-                return filename.slice(0, 17) + "...";
-            } else {
-                return filename;
-            }
-        }
-    };
-    const fileText = toFileText(selectedFiles);
+
+    const fileText = uf.toFileText(selectedFiles);
     const rights = uf.getCurrentRights(selectedFiles, Cloud);
     const downloadDisabled = (selectedFiles.length > 1 || selectedFiles[0].sensitivityLevel === "SENSITIVE");
     return (
         <div>
             <h3>{fileText}</h3>
             <p>
-                <Link disabled={selectedFiles.length !== 1}
-                    to={`/fileInfo/${selectedFiles[0].path}/`}>
-                    <Button color="blue" fluid>
+                <Link to={`/fileInfo/${selectedFiles[0].path}/`}>
+                    <Button color="blue" fluid disabled={selectedFiles.length !== 1}>
                         <Icon name="settings" /> Properties
                     </Button>
                 </Link>
@@ -493,10 +479,10 @@ const FilesList = (props) => {
         </Table.Body>);
 }
 
-const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasCheckbox, forceInlineButtons, ...props }) => (
+const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, forceInlineButtons, ...props }) => (
     <Table.Row className="file-row">
         <Table.Cell className="table-cell-padding-left">
-            {(hasCheckbox) ? (
+            {(props.hasCheckbox) ? (
                 <Checkbox
                     checked={file.isChecked}
                     type="checkbox"
@@ -515,7 +501,13 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, hasChe
                 update={props.updateName}
                 fetchFiles={props.fetchFiles}
             />
-            {(!!favoriteFile) ? <Favorited file={file} favoriteFile={favoriteFile} /> : null}
+            {(!!favoriteFile) ?
+                <Rating
+                    rating={file.favorited ? 1 : 0}
+                    className={`${file.favorited ? "" : "file-data"} favorite-padding`}
+                    onClick={() => favoriteFile(file.path)}
+                /> : null
+            }
         </Table.Cell>
         <Responsive as={Table.Cell} minWidth={768}>{new Date(file.modifiedAt).toLocaleString()}</Responsive>
         <Responsive as={Table.Cell} minWidth={768}>{owner}</Responsive>
@@ -585,11 +577,6 @@ const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, si
         <span>{icon}{name}</span>
 };
 
-const Favorited = ({ file, favoriteFile }) =>
-    file.favorited ?
-        (<Icon onClick={() => favoriteFile(file.path)} name="star" className="favorite-padding" />) :
-        (<Icon name="star outline" className="file-data favorite-padding" onClick={() => favoriteFile(file.path)} />);
-
 const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) => {
     const move = () => {
         props.showFileSelector(true);
@@ -622,6 +609,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
             });
         });
     };
+
     return (<span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
         <Dropdown direction="left" icon="ellipsis horizontal">
             <Dropdown.Menu>

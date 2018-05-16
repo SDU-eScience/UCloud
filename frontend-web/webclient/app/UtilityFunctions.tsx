@@ -392,6 +392,15 @@ export const getTypeFromFile = (filePath: string): string => {
     }
 }
 
+export const toFileText = (selectedFiles: File[]): string => {
+    if (selectedFiles.length > 1) {
+        return `${selectedFiles.length} files selected.`;
+    } else {
+        const filename = getFilenameFromPath(selectedFiles[0].path);
+        filename.length > 10 ? filename.slice(0, 17) + "..." : filename;
+    }
+}
+
 export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
 export const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
