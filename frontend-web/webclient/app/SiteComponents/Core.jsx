@@ -19,6 +19,7 @@ import ZenodoInfo from "./Zenodo/Info";
 import { connect } from "react-redux";
 import UppyWrapper from "./UppyWrapper";
 import * as Share from "./Shares";
+import Metadata from "./Zenodo/Metadata";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
@@ -41,11 +42,12 @@ const Core = (props) => (
                 <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo} />
                 <Route exact path="/zenodo/publish/" component={ZenodoPublish} />
                 <Route exact path="/shares" component={Share.List} />
+                <Route exact path="/metadata" component={Metadata} />
                 <Route component={NotFound} />
             </Switch>
         </Sidebar>
         <span className="footer">{new Date().getFullYear()} - SDUCloud</span>
-    <UppyWrapper />
+        <UppyWrapper />
     </React.Fragment >
 );
 

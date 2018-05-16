@@ -95,3 +95,8 @@ export enum AccessRight {
     WRITE = "WRITE",
     EXECUTE = "EXECUTE"
 }
+
+export interface DropdownOption {
+    name: string
+    value: string
+}
