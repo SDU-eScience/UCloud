@@ -2,13 +2,19 @@ package dk.sdu.cloud.metadata
 
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.metadata.api.MetadataServiceDescription
-import dk.sdu.cloud.metadata.api.ProjectEvent
 import dk.sdu.cloud.metadata.api.ProjectEvents
+import dk.sdu.cloud.metadata.http.MetadataController
+import dk.sdu.cloud.metadata.http.ProjectsController
 import dk.sdu.cloud.metadata.processor.StorageEventProcessor
+import dk.sdu.cloud.metadata.services.ElasticMetadataService
+import dk.sdu.cloud.metadata.services.InMemoryProjectDAO
+import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageEvents
 import io.ktor.application.install
+import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -33,6 +39,9 @@ class Server(
         log.info("Creating core services")
         val isDevelopment = args.contains("--dev")
 
+        val projectService = ProjectService(InMemoryProjectDAO())
+        val elasticMetadataService = ElasticMetadataService()
+
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
             val kBuilder = StreamsBuilder()
@@ -41,8 +50,8 @@ class Server(
             StorageEventProcessor(
                 kBuilder.stream(StorageEvents.events),
                 kBuilder.stream(ProjectEvents.events),
-                TODO(),
-                TODO()
+                elasticMetadataService,
+                projectService
             ).init()
             log.info("Stream processors configured!")
 
@@ -63,7 +72,20 @@ class Server(
             install(JWTProtection)
 
             routing {
+                route("api") {
+                    protect()
 
+                    route("projects") {
+                        ProjectsController(
+                            kafka.producer.forStream(ProjectEvents.events),
+                            projectService
+                        ).configure(this)
+                    }
+
+                    route("metadata") {
+                        MetadataController(elasticMetadataService, elasticMetadataService).configure(this)
+                    }
+                }
             }
 
             log.info("HTTP server successfully configured!")

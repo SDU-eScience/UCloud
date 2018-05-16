@@ -2,7 +2,7 @@ package dk.sdu.cloud.metadata.api
 
 import dk.sdu.cloud.storage.api.FileType
 
-class FileDescriptionForMetadata(
+data class FileDescriptionForMetadata(
     val id: String,
     val type: FileType,
     val path: String

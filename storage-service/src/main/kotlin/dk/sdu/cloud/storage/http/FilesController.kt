@@ -148,6 +148,7 @@ class FilesController(private val fs: FileSystemService) {
                                     }
                                 )
 
+                                appendToken(it.uniqueId)
                                 appendToken(it.user)
                                 appendToken(it.modifiedAt)
 
@@ -162,6 +163,7 @@ class FilesController(private val fs: FileSystemService) {
                                 append(it.path)
                                 append('\n')
 
+                                println(toString())
                                 toString()
                             })
                         }

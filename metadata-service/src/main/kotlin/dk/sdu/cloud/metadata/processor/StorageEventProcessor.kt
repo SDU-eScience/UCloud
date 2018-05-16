@@ -96,7 +96,8 @@ class StorageEventProcessor(
                             files = event.initialFiles,
                             creators = emptyList(),
                             description = "",
-                            license = ""
+                            license = "",
+                            id = event.projectId
                         )
                     )
                 }

@@ -173,6 +173,7 @@ class CephFSFileSystemService(
                 }
 
                 if (!fileStat.link && fileStat.type == FileType.DIRECTORY) {
+                    // TODO This is incorrect if target is moved into directory
                     syncList(ctx, newPath) {
                         eventProducer.emit(
                             StorageEvent.Moved(

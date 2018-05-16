@@ -47,6 +47,7 @@ sealed class SyncResult {
 
 data class SyncItem(
     val fileType: String,
+    val uniqueId: String,
     val user: String,
     val modifiedAt: Long,
     val checksum: String?,
@@ -68,6 +69,7 @@ fun parseSyncItem(syncLine: String): SyncItem {
     }
 
     val fileType = readToken()
+    val uniqueId = readToken()
     val user = readToken()
     val modifiedAt = readToken().toLong()
     val hasChecksum = when (readToken()) {
@@ -83,6 +85,7 @@ fun parseSyncItem(syncLine: String): SyncItem {
 
     return SyncItem(
         fileType,
+        uniqueId,
         user,
         modifiedAt,
         checksum,

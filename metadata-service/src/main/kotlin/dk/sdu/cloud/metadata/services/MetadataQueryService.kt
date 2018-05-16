@@ -1,6 +1,6 @@
 package dk.sdu.cloud.metadata.services
 
-import dk.sdu.cloud.storage.api.Metadata
+import dk.sdu.cloud.metadata.api.ProjectMetadata
 
 /**
  * Represents an external metadata service.
@@ -11,7 +11,7 @@ import dk.sdu.cloud.storage.api.Metadata
  * to implement.
  */
 interface MetadataQueryService {
-    fun getById(id: String): Metadata?
+    fun getById(id: String): ProjectMetadata?
 }
 
 /**

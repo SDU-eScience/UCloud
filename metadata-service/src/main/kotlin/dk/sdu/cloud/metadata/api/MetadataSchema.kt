@@ -7,6 +7,18 @@ enum class AccessRight {
     CLOSED
 }
 
+interface UserEditableProjectMetadata {
+    val title: String
+    val description: String
+    val license: String
+    val keywords: List<String>?
+    val contributors: List<Creator>?
+    val references: List<String>?
+    val grants: List<Grant>?
+    val subjects: List<Subject>?
+    val relatedIdentifiers: List<RelatedIdentifier>?
+}
+
 data class ProjectMetadata(
     /**
      * The SDUCloud FSRoot this metadata belongs to (i.e. project)
@@ -16,7 +28,7 @@ data class ProjectMetadata(
     /**
      * The title of this project
      */
-    val title: String,
+    override val title: String,
 
     /**
      * A list of files in this project
@@ -31,33 +43,34 @@ data class ProjectMetadata(
     /**
      * A description of the project.
      */
-    val description: String,
+    override val description: String,
 
     /**
      * The license of the project
      */
-    val license: String,
+    override val license: String,
 
-    /**
-     * A metadata service assigned unique identifier
-     */
-    val id: String? = null,
+    val id: String,
 
     val embargoDate: Long? = null,
+    // access conditions for embargo
     val accessConditions: String? = null,
-    val keywords: List<String>? = null,
+
+    override val keywords: List<String>? = null,
     val notes: String? = null,
-    val contributors: List<Creator>? = null,
-    val references: List<String>? = null,
-    val grants: List<Grant>? = null,
+    override val contributors: List<Creator>? = null,
+    override val references: List<String>? = null,
+    override val grants: List<Grant>? = null,
+
     val journalInformation: JournalInformation? = null,
     val conferenceInformation: ConferenceInformation? = null,
     val imprintInformation: ImprintInformation? = null,
     val partOfInformation: PartOfInformation? = null,
     val thesisInformation: ThesisInformation? = null,
+
     val subjects: List<Subject>? = null,
-    val relatedIdentifiers: List<RelatedIdentifier>? = null
-) {
+    override val relatedIdentifiers: List<RelatedIdentifier>? = null
+): UserEditableProjectMetadata {
     init {
         if (title.isBlank()) throw IllegalArgumentException("title cannot be blank")
     }
@@ -117,7 +130,7 @@ sealed class RelatedIdentifier(val relation: String) {
 }
 
 data class Creator(
-    val name :String,
+    val name: String,
     val affiliation: String? = null,
     val orcId: String? = null,
     val gnd: String? = null

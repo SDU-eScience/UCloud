@@ -2,6 +2,9 @@ package dk.sdu.cloud.metadata.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.service.RESTHandler
+import io.ktor.http.HttpStatusCode
 import java.io.File
 import java.util.*
 
@@ -13,6 +16,20 @@ data class Project(
 
 sealed class ProjectException : RuntimeException() {
     class Duplicate : ProjectException()
+    class NotFound : ProjectException()
+}
+
+suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithProject(closure: () -> Unit) {
+    try {
+        closure()
+    } catch (ex: ProjectException) {
+        when (ex) {
+            is ProjectException.Duplicate -> error(CommonErrorMessage("Already exists"), HttpStatusCode.Conflict)
+            is ProjectException.NotFound -> error(CommonErrorMessage("Not Found"), HttpStatusCode.NotFound)
+        }
+    } catch (ex: Exception) {
+        error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
+    }
 }
 
 interface ProjectDAO {
@@ -61,6 +78,8 @@ class InMemoryProjectDAO : ProjectDAO {
             val projectWithId = project.copy(id = id)
             dbByRoot[project.fsRoot] = projectWithId
             dbById[id] = projectWithId
+
+            mapper.writeValue(diskFile, dbById)
             return id
         }
     }
