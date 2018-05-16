@@ -22,8 +22,7 @@ class Metadata extends React.Component {
         this.setStateEvList = this.setStateEvList.bind(this);
     }
 
-    onPublish(e) {
-        console.log(e.target);
+    onSubmit(e) {
         e.preventDefault();
     }
 
@@ -59,7 +58,6 @@ class Metadata extends React.Component {
 
     setStateEv(key) {
         return (e, { value }) => {
-            console.log(key, value);
             let object = {};
             object[key] = value;
             this.setState(() => object);
@@ -68,7 +66,6 @@ class Metadata extends React.Component {
 
     setStateEvList(key, index) {
         return (e, { value }) => {
-            console.log(key, index, value);
             const list = this.state[key] != null ? this.state[key] : [];
             list[index] = value;
             let object = {
@@ -80,7 +77,7 @@ class Metadata extends React.Component {
 
     render() {
         return (
-            <Form onSubmit={(e, d, c) => console.log(e, d, c)}>
+            <Form onSubmit={this.onSubmit}>
                 <Form.Field required>
                     <label>Title</label>
                     <Form.Input placeholder="Title" onChange={this.setStateEv("title")} required />
@@ -91,14 +88,7 @@ class Metadata extends React.Component {
                 </Form.Field>
                 <Form.Field>
                     <label>License</label>
-                    <Form.Dropdown onChange={this.setStateEv("license")}
-                        search
-                        searchInput={{ type: "string" }}
-                        selection
-                        required
-                        options={licenseOptions}
-                        placeholder="Select license"
-                    />
+                    <LicenseDropdown setStateEv={this.setStateEv} />
                 </Form.Field>
                 <Form.Field>
                     <label>Keywords</label>
@@ -132,6 +122,25 @@ class Metadata extends React.Component {
                 <Button type="submit" content="Submit" />
             </Form>
         )
+    }
+}
+
+class LicenseDropdown extends React.PureComponent {
+    constructor(props) {
+        super(props)
+    }
+
+    render() {
+        return (
+            <Form.Dropdown onChange={this.props.setStateEv("license")}
+                search
+                searchInput={{ type: "string" }}
+                selection
+                required
+                options={licenseOptions}
+                placeholder="Select license"
+            />
+        );
     }
 }
 
