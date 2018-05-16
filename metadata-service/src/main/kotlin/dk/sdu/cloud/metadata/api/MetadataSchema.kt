@@ -7,7 +7,7 @@ enum class AccessRight {
     CLOSED
 }
 
-data class Metadata(
+data class ProjectMetadata(
     /**
      * The SDUCloud FSRoot this metadata belongs to (i.e. project)
      */
@@ -21,7 +21,7 @@ data class Metadata(
     /**
      * A list of files in this project
      */
-    val files: List<String>,
+    val files: List<FileDescriptionForMetadata>,
 
     /**
      * A list of creators of this project (defaults to users in project)
@@ -38,6 +38,11 @@ data class Metadata(
      */
     val license: String,
 
+    /**
+     * A metadata service assigned unique identifier
+     */
+    val id: String? = null,
+
     val embargoDate: Long? = null,
     val accessConditions: String? = null,
     val keywords: List<String>? = null,
@@ -52,7 +57,11 @@ data class Metadata(
     val thesisInformation: ThesisInformation? = null,
     val subjects: List<Subject>? = null,
     val relatedIdentifiers: List<RelatedIdentifier>? = null
-)
+) {
+    init {
+        if (title.isBlank()) throw IllegalArgumentException("title cannot be blank")
+    }
+}
 
 data class JournalInformation(
     val title: String?,

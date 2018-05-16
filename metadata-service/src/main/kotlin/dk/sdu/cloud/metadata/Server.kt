@@ -3,6 +3,8 @@ package dk.sdu.cloud.metadata
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.metadata.api.MetadataServiceDescription
+import dk.sdu.cloud.metadata.api.ProjectEvent
+import dk.sdu.cloud.metadata.api.ProjectEvents
 import dk.sdu.cloud.metadata.processor.StorageEventProcessor
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageEvents
@@ -36,7 +38,12 @@ class Server(
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            StorageEventProcessor(kBuilder.stream(StorageEvents.events)).init()
+            StorageEventProcessor(
+                kBuilder.stream(StorageEvents.events),
+                kBuilder.stream(ProjectEvents.events),
+                TODO(),
+                TODO()
+            ).init()
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {
@@ -70,7 +77,7 @@ class Server(
         kStreams.start()
         log.info("Kafka Streams started!")
 
-        serviceRegistry.register(listOf("/api/metadata"))
+        serviceRegistry.register(listOf("/api/metadata", "/api/projects"))
         log.info("Server is ready!")
         log.info(instance.toString())
     }

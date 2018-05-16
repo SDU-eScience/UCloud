@@ -1,0 +1,24 @@
+package dk.sdu.cloud.metadata.services
+
+import dk.sdu.cloud.storage.api.Metadata
+
+/**
+ * Represents an external metadata service.
+ *
+ * This interface only describes the command side of the metadata service (i.e. the write operations)
+ *
+ * The interface only contains the most simple query operations, that all metadata services are expected
+ * to implement.
+ */
+interface MetadataQueryService {
+    fun getById(id: String): Metadata?
+}
+
+/**
+ * Represents an external metadata service.
+ *
+ * This interface describes the query side (i.e.
+ */
+interface MetadataAdvancedQueryService {
+
+}
