@@ -1,5 +1,5 @@
 group "dk.sdu.cloud"
-version "0.8.1-SNAPSHOT"
+version "0.8.2-SNAPSHOT"
 
 buildscript {
     ext.kotlin_version = "1.2.40"

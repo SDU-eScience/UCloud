@@ -1,6 +1,8 @@
 package dk.sdu.cloud.metadata.services
 
 import dk.sdu.cloud.metadata.api.ProjectMetadata
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 
 /**
  * Represents an external metadata service.
@@ -20,5 +22,5 @@ interface MetadataQueryService {
  * This interface describes the query side (i.e.
  */
 interface MetadataAdvancedQueryService {
-
+    fun simpleQuery(query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata>
 }

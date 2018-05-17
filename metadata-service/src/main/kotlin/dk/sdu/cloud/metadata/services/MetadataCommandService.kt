@@ -2,6 +2,7 @@ package dk.sdu.cloud.metadata.services
 
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.api.FileDescriptionForMetadata
+import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
 
 sealed class MetadataException : RuntimeException() {
     class NotFound : MetadataException()
@@ -14,7 +15,7 @@ sealed class MetadataException : RuntimeException() {
  */
 interface MetadataCommandService {
     fun create(metadata: ProjectMetadata)
-    fun update(metadata: ProjectMetadata)
+    fun update(projectId: String, metadata: UserEditableProjectMetadata)
 
     fun addFiles(projectId: String, files: Set<FileDescriptionForMetadata>)
 

@@ -2,8 +2,12 @@ package dk.sdu.cloud.metadata.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.metadata.api.MetadataDescriptions
+import dk.sdu.cloud.metadata.api.MetadataQueryDescriptions
+import dk.sdu.cloud.metadata.services.MetadataAdvancedQueryService
 import dk.sdu.cloud.metadata.services.MetadataCommandService
 import dk.sdu.cloud.metadata.services.MetadataQueryService
+import dk.sdu.cloud.metadata.services.tryWithProject
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import io.ktor.http.HttpStatusCode
@@ -12,13 +16,14 @@ import org.slf4j.LoggerFactory
 
 class MetadataController(
     private val metadataCommandService: MetadataCommandService,
-    private val metadataQueryService: MetadataQueryService
+    private val metadataQueryService: MetadataQueryService,
+    private val metadataAdvancedQueryService: MetadataAdvancedQueryService
 ) {
     fun configure(routing: Route) = with(routing) {
         implement(MetadataDescriptions.updateProjectMetadata) {
             logEntry(log, it)
 
-            metadataCommandService.update(it)
+            metadataCommandService.update(it.id, it)
             ok(Unit)
         }
 
@@ -33,10 +38,12 @@ class MetadataController(
             }
         }
 
-        implement(MetadataDescriptions.findByPath) {
+        implement(MetadataQueryDescriptions.simpleQuery) {
             logEntry(log, it)
 
-            TODO()
+            tryWithProject {
+                ok(metadataAdvancedQueryService.simpleQuery(it.query, it.pagination))
+            }
         }
     }
 

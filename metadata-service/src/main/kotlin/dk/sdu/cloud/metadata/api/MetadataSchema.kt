@@ -8,9 +8,9 @@ enum class AccessRight {
 }
 
 interface UserEditableProjectMetadata {
-    val title: String
-    val description: String
-    val license: String
+    val title: String?
+    val description: String?
+    val license: String?
     val keywords: List<String>?
     val contributors: List<Creator>?
     val references: List<String>?
@@ -18,6 +18,19 @@ interface UserEditableProjectMetadata {
     val subjects: List<Subject>?
     val relatedIdentifiers: List<RelatedIdentifier>?
 }
+
+data class ProjectMetadataEditRequest(
+    val id: String,
+    override val title: String? = null,
+    override val description: String? = null,
+    override val license: String? = null,
+    override val keywords: List<String>? = null,
+    override val contributors: List<Creator>? = null,
+    override val references: List<String>? = null,
+    override val grants: List<Grant>? = null,
+    override val subjects: List<Subject>? = null,
+    override val relatedIdentifiers: List<RelatedIdentifier>? = null
+) : UserEditableProjectMetadata
 
 data class ProjectMetadata(
     /**
@@ -68,7 +81,7 @@ data class ProjectMetadata(
     val partOfInformation: PartOfInformation? = null,
     val thesisInformation: ThesisInformation? = null,
 
-    val subjects: List<Subject>? = null,
+    override val subjects: List<Subject>? = null,
     override val relatedIdentifiers: List<RelatedIdentifier>? = null
 ): UserEditableProjectMetadata {
     init {

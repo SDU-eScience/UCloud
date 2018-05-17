@@ -4,7 +4,9 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RESTHandler
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 
@@ -29,6 +31,7 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithProject(closure:
         }
     } catch (ex: Exception) {
         error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
+        ProjectService.log.warn(ex.stackTraceToString())
     }
 }
 
@@ -93,5 +96,7 @@ class InMemoryProjectDAO : ProjectDAO {
 
 // Maybe this would make sense?
 class ProjectService(private val dao: ProjectDAO) : ProjectDAO by dao {
-
+    companion object {
+        val log = LoggerFactory.getLogger(ProjectService::class.java)
+    }
 }

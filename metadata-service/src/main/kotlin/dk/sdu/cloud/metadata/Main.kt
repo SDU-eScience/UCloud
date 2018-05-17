@@ -10,9 +10,17 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import org.slf4j.LoggerFactory
 
+data class ElasticConfiguration(
+    val hostname: String,
+    val port: Int = 9200,
+    val scheme: String = "http"
+)
+
 data class Configuration(
     private val connection: RawConnectionConfig,
-    val refreshToken: String
+    val refreshToken: String,
+    val elastic: ElasticConfiguration
+
 ) : ServerConfiguration {
     @get:JsonIgnore
     override val connConfig: ConnectionConfig

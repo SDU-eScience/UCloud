@@ -10,12 +10,17 @@ data class Page<out T>(
     val pagesInTotal: Int = itemsInTotal / itemsPerPage
 }
 
-data class PaginationRequest(
-    val itemsPerPage: Int? = null,
-    val page: Int? = null
-) {
+interface WithPaginationRequest {
+    val itemsPerPage: Int?
+    val page: Int?
+
     fun normalize() = NormalizedPaginationRequest(itemsPerPage, page)
 }
+
+data class PaginationRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+): WithPaginationRequest
 
 class NormalizedPaginationRequest(
     itemsPerPage: Int?,

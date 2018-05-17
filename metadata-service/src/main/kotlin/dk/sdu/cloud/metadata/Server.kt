@@ -40,7 +40,7 @@ class Server(
         val isDevelopment = args.contains("--dev")
 
         val projectService = ProjectService(InMemoryProjectDAO())
-        val elasticMetadataService = ElasticMetadataService()
+        val elasticMetadataService = with (configuration.elastic) { ElasticMetadataService(hostname, port, scheme) }
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
@@ -83,7 +83,11 @@ class Server(
                     }
 
                     route("metadata") {
-                        MetadataController(elasticMetadataService, elasticMetadataService).configure(this)
+                        MetadataController(
+                            elasticMetadataService,
+                            elasticMetadataService,
+                            elasticMetadataService
+                        ).configure(this)
                     }
                 }
             }

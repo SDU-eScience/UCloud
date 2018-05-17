@@ -9,11 +9,13 @@ import io.netty.handler.codec.http.HttpMethod
 object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
     private const val baseContext = "/api/metadata"
 
-    val updateProjectMetadata = callDescription<ProjectMetadata, Unit, CommonErrorMessage> {
+    val updateProjectMetadata = callDescription<ProjectMetadataEditRequest, Unit, CommonErrorMessage> {
         method = HttpMethod.POST
         prettyName = "metadata-update"
 
-        path { using(baseContext) }
+        path {
+            using(baseContext)
+        }
 
         body { bindEntireRequestFromBody() }
     }
@@ -28,6 +30,7 @@ object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
         }
     }
 
+    /*
     val findByPath = callDescription<FindByPath, ProjectMetadata, CommonErrorMessage> {
         method = HttpMethod.GET
         prettyName = "metadata-find-by-path"
@@ -37,4 +40,5 @@ object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
             +boundTo(FindByPath::path)
         }
     }
+    */
 }
