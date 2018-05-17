@@ -169,7 +169,7 @@ class FileSelector extends React.Component {
                     action
                 >
                     <input />
-                    <Button onClick={this.openModal} content="Browse" color="blue" />
+                    <Button type="button" onClick={this.openModal} content="Browse" color="blue" />
                     {uploadButton}
                     {removeButton}
                 </Input>
@@ -288,8 +288,8 @@ const ReturnFolder = ({ currentPath, parentPath, fetchFiles, onClick, canSelectF
             </List.Content>
         </List.Item>);
 
-const UploadButton = ({ onClick }) => (<Button color="grey" onClick={() => onClick()}>Upload file</Button>);
-const RemoveButton = ({ onClick }) => (<Button color="grey" onClick={() => onClick()}>✗</Button>)
+const UploadButton = ({ onClick }) => (<Button type="button" color="grey" onClick={() => onClick()}>Upload file</Button>);
+const RemoveButton = ({ onClick }) => (<Button type="button" color="grey" onClick={() => onClick()}>✗</Button>)
 
 const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
     !files.length ? null :

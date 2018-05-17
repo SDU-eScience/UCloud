@@ -93,7 +93,7 @@ class Notifications extends React.Component<any, NotificationState> {
                             <Icon name='bell' />{unreadLength}
                         </Label>
                     }
-                    content={<Feed>{entries}</Feed>}
+                    content={<Feed>{entries.length ? entries : <NoNotifications />}</Feed>}
 
                     on='click'
                     position='top right'
@@ -102,6 +102,13 @@ class Notifications extends React.Component<any, NotificationState> {
         );
     }
 }
+
+const NoNotifications = () =>
+    <Feed.Event className="notification">
+        <Feed.Content>
+            <Feed.Label>No notifications</Feed.Label>
+        </Feed.Content>
+    </Feed.Event>
 
 interface Notification {
     type: string

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Menu, Dropdown, Icon, Responsive } from "semantic-ui-react";
+import { Menu, Dropdown, Icon, Responsive, Header as H1 } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import "./Header.scss";
@@ -24,6 +24,11 @@ class Header extends React.Component<any, any> {
                         </Icon.Group>
                     </Menu.Item>
                 </Responsive>
+                <Menu.Item>
+                    <H1>
+                        SDUCloud
+                    </H1>
+                </Menu.Item>
                 <Menu.Menu position="right">
                     <Menu.Item>
                         <Notifications />
