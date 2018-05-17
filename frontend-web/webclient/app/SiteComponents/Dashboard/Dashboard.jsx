@@ -43,7 +43,6 @@ class Dashboard extends React.Component {
                     />
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
-                    <DashboardRecentActivity activities={activity} isLoading={activityLoading} />
                 </Card.Group>
             </React.StrictMode>
         );
@@ -150,19 +149,6 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
 
 const statusToIconName = (status) => status === "SUCCESS" ? "check" : "x";
 const statusToColor = (status) => status === "SUCCESS" ? "green" : "red";
-
-const DashboardRecentActivity = ({ activity, isLoading }) => (
-    <Card>
-        <Card.Content>
-            <Card.Header>
-                Recent Activity
-                </Card.Header>
-            <h3 className="text-center">
-                <small>No activity found</small>
-            </h3>
-        </Card.Content>
-    </Card>
-);
 
 const mapDispatchToProps = (dispatch) => ({
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
