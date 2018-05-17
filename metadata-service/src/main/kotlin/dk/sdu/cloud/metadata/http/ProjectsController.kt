@@ -1,15 +1,15 @@
 package dk.sdu.cloud.metadata.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.metadata.api.*
 import dk.sdu.cloud.metadata.services.Project
 import dk.sdu.cloud.metadata.services.ProjectException
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.tryWithProject
-import dk.sdu.cloud.service.cloudClient
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SyncFileListRequest
@@ -23,10 +23,12 @@ class ProjectsController(
     private val projectService: ProjectService
 ) {
     fun configure(routing: Route) = with(routing) {
-        implement(ProjectDescriptions.create) {
-            logEntry(log, it)
+        implement(ProjectDescriptions.create) { request ->
+            logEntry(log, request)
 
-            val result = FileDescriptions.syncFileList.call(SyncFileListRequest(it.fsRoot, 0), call.cloudClient)
+            val cloudCtx = call.cloudClient.parent
+            val cloud = cloudCtx.jwtAuth(call.request.validatedPrincipal.token).withCausedBy(call.request.jobId)
+            val result = FileDescriptions.syncFileList.call(SyncFileListRequest(request.fsRoot, 0), cloud)
 
             if (result is RESTResponse.Err) {
                 if (result.status == HttpStatusCode.Forbidden.value) {
@@ -42,14 +44,26 @@ class ProjectsController(
                 .bufferedReader()
                 .lines()
                 .map { parseSyncItem(it) }
-                .map { FileDescriptionForMetadata(it.uniqueId, it.fileType, it.path) }
                 .collect(Collectors.toList())
 
+            val metadataFiles = initialFiles.map { FileDescriptionForMetadata(it.uniqueId, it.fileType, it.path) }
+            val rootFile = initialFiles.find { it.path == request.fsRoot } ?: return@implement run {
+                log.warn("Expected to find information about root file")
+                error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
+            }
+
+            val currentUser = call.request.validatedPrincipal.subject
+            if (rootFile.user != currentUser) {
+                log.debug("User is not owner of folder")
+                error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
+                return@implement
+            }
+
             tryWithProject {
-                val project = Project("", it.fsRoot, "")
+                val project = Project("", request.fsRoot, "", currentUser)
                 val id = projectService.createProject(project)
                 val projectWithId = project.copy(id = id)
-                projectEventProducer.emit(ProjectEvent.Created(projectWithId, initialFiles))
+                projectEventProducer.emit(ProjectEvent.Created(projectWithId, metadataFiles))
                 ok(CreateProjectResponse(id))
             }
         }

@@ -8,6 +8,7 @@ import dk.sdu.cloud.metadata.api.MetadataServiceDescription
 import dk.sdu.cloud.service.*
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 
 data class ElasticConfiguration(
@@ -18,6 +19,7 @@ data class ElasticConfiguration(
 
 data class Configuration(
     private val connection: RawConnectionConfig,
+    val database: DatabaseConfiguration,
     val refreshToken: String,
     val elastic: ElasticConfiguration
 
@@ -63,6 +65,16 @@ fun main(args: Array<String>) {
     }
 
     log.info("Using engine: ${engine.javaClass.simpleName}")
+
+    log.info("Connected to database")
+    Database.connect(
+        url = configuration.database.url,
+        driver = configuration.database.driver,
+
+        user = configuration.database.username,
+        password = configuration.database.password
+    )
+    log.info("Connected!")
 
     Server(configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
 }

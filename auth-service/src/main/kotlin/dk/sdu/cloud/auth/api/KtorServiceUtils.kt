@@ -113,8 +113,8 @@ class JWTProtection {
 }
 
 
-private val jwtKey = AttributeKey<DecodedJWT>("JWT")
-var ApplicationRequest.validatedPrincipal: DecodedJWT
+private val jwtKey = AttributeKey<SecurityPrincipal>("JWT")
+var ApplicationRequest.validatedPrincipal: SecurityPrincipal
     get() = call.attributes[jwtKey]
     private set(value) = call.attributes.put(jwtKey, value)
 
@@ -122,4 +122,9 @@ private val roleKey = AttributeKey<Role>("role")
 var ApplicationRequest.principalRole: Role
     get() = call.attributes[roleKey]
     private set(value) = call.attributes.put(roleKey, value)
+
+typealias SecurityPrincipal = DecodedJWT
+
+val ApplicationRequest.currentUsername: String
+    get() = validatedPrincipal.subject
 

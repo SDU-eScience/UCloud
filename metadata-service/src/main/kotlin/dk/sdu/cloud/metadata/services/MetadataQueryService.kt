@@ -13,7 +13,7 @@ import dk.sdu.cloud.service.Page
  * to implement.
  */
 interface MetadataQueryService {
-    fun getById(id: String): ProjectMetadata?
+    fun getById(user: String, id: String): ProjectMetadata?
 }
 
 /**
@@ -22,5 +22,5 @@ interface MetadataQueryService {
  * This interface describes the query side (i.e.
  */
 interface MetadataAdvancedQueryService {
-    fun simpleQuery(query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata>
+    fun simpleQuery(user: String, query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata>
 }

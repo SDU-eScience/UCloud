@@ -13,6 +13,7 @@ import java.util.*
 data class Project(
     val id: String?,
     val fsRoot: String,
+    val owner: String,
     val description: String
 )
 

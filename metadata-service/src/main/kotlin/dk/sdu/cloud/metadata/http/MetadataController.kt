@@ -1,13 +1,13 @@
 package dk.sdu.cloud.metadata.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.auth.api.currentUsername
 import dk.sdu.cloud.metadata.api.MetadataDescriptions
 import dk.sdu.cloud.metadata.api.MetadataQueryDescriptions
 import dk.sdu.cloud.metadata.services.MetadataAdvancedQueryService
 import dk.sdu.cloud.metadata.services.MetadataCommandService
 import dk.sdu.cloud.metadata.services.MetadataQueryService
 import dk.sdu.cloud.metadata.services.tryWithProject
-import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import io.ktor.http.HttpStatusCode
@@ -23,14 +23,14 @@ class MetadataController(
         implement(MetadataDescriptions.updateProjectMetadata) {
             logEntry(log, it)
 
-            metadataCommandService.update(it.id, it)
+            metadataCommandService.update(call.request.currentUsername, it.id, it)
             ok(Unit)
         }
 
         implement(MetadataDescriptions.findById) {
             logEntry(log, it)
 
-            val result = metadataQueryService.getById(it.id)
+            val result = metadataQueryService.getById(call.request.currentUsername, it.id)
             if (result == null) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
             } else {
@@ -42,7 +42,7 @@ class MetadataController(
             logEntry(log, it)
 
             tryWithProject {
-                ok(metadataAdvancedQueryService.simpleQuery(it.query, it.pagination))
+                ok(metadataAdvancedQueryService.simpleQuery(call.request.currentUsername, it.query, it.pagination))
             }
         }
     }

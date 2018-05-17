@@ -8,9 +8,7 @@ import dk.sdu.cloud.metadata.api.ProjectEvents
 import dk.sdu.cloud.metadata.http.MetadataController
 import dk.sdu.cloud.metadata.http.ProjectsController
 import dk.sdu.cloud.metadata.processor.StorageEventProcessor
-import dk.sdu.cloud.metadata.services.ElasticMetadataService
-import dk.sdu.cloud.metadata.services.InMemoryProjectDAO
-import dk.sdu.cloud.metadata.services.ProjectService
+import dk.sdu.cloud.metadata.services.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageEvents
 import io.ktor.application.install
@@ -19,8 +17,11 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
+import org.jetbrains.exposed.sql.SchemaUtils.create
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
+import kotlin.system.exitProcess
 
 class Server(
     private val configuration: Configuration,
@@ -36,11 +37,17 @@ class Server(
     fun start() {
         val instance = MetadataServiceDescription.instance(configuration.connConfig)
 
-        log.info("Creating core services")
-        val isDevelopment = args.contains("--dev")
+        if (args.contains("--create-db")) {
+            transaction {
+                create(Projects)
+            }
+            exitProcess(0)
+        }
 
-        val projectService = ProjectService(InMemoryProjectDAO())
-        val elasticMetadataService = with (configuration.elastic) { ElasticMetadataService(hostname, port, scheme) }
+        log.info("Creating core services")
+        val projectService = ProjectService(ProjectSQLDao())
+        val elasticMetadataService =
+            with(configuration.elastic) { ElasticMetadataService(hostname, port, scheme, projectService) }
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")

@@ -82,6 +82,10 @@ dependencies {
     compile 'mbuhot:eskotlin:0.4.0'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
 
+    // Database
+    compile group: 'com.h2database', name: 'h2', version: '1.4.196'
+    compile 'org.jetbrains.exposed:exposed:0.10.2'
+
     // ------------
     // Testing
     // ------------

@@ -21,13 +21,19 @@ import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.LoggerFactory
 
 class ElasticMetadataService(
-    elasticHost: String, elasticPort: Int, elasticScheme: String
+    elasticHost: String,
+    elasticPort: Int,
+    elasticScheme: String,
+
+    private val projectService: ProjectService
 ) : MetadataCommandService, MetadataQueryService, MetadataAdvancedQueryService {
     private val client = RestHighLevelClient(RestClient.builder(HttpHost(elasticHost, elasticPort, elasticScheme)))
     private val mapper = jacksonObjectMapper()
     private val singleInstanceOfMicroServiceLockBadIdeaButWorksForNow = Any()
 
     override fun create(metadata: ProjectMetadata) {
+        if (internalGetById(metadata.id) != null) throw MetadataException.Duplicate()
+
         client.index(
             IndexRequest(index, doc, metadata.id).apply {
                 source(mapper.writeValueAsString(metadata), XContentType.JSON)
@@ -35,10 +41,13 @@ class ElasticMetadataService(
         )
     }
 
-    override fun update(projectId: String, metadata: UserEditableProjectMetadata) {
+    override fun update(user: String, projectId: String, metadata: UserEditableProjectMetadata) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
+            val project = projectService.findById(projectId) ?: throw MetadataException.NotFound()
+            if (project.owner != user) throw MetadataException.NotAllowed()
+
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
-            val existing = getById(projectId) ?: throw MetadataException.NotFound()
+            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
             val newMetadata = existing.copy(
                 title = if (metadata.title != null) metadata.title!! else existing.title,
                 description = if (metadata.description != null) metadata.description!! else existing.description,
@@ -70,7 +79,7 @@ class ElasticMetadataService(
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
 
-            val existing = getById(projectId) ?: throw MetadataException.NotFound()
+            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
             internalUpdate(existing.copy(files = (existing.files.toSet() + files).toList()))
         }
     }
@@ -79,7 +88,7 @@ class ElasticMetadataService(
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
 
-            val existing = getById(projectId) ?: throw MetadataException.NotFound()
+            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
             internalUpdate(existing.copy(files = existing.files.toSet().filter { it.id !in files }))
         }
     }
@@ -88,7 +97,7 @@ class ElasticMetadataService(
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
 
-            val existing = getById(projectId) ?: throw MetadataException.NotFound()
+            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
             val actualFile = existing.files.toSet().find { it.id == fileId } ?: throw MetadataException.NotFound()
 
             val set = existing.files.toSet().filter { it.id != fileId } + actualFile.copy(path = newPath)
@@ -100,17 +109,21 @@ class ElasticMetadataService(
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
 
-            val existing = getById(projectId) ?: throw MetadataException.NotFound()
+            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
             internalUpdate(existing.copy(files = emptyList()))
         }
     }
 
-    override fun getById(id: String): ProjectMetadata? {
+    private fun internalGetById(id: String): ProjectMetadata? {
         val getResponse = client[GetRequest(index, doc, id)]
         return getResponse?.takeIf { it.isExists }?.sourceAsBytes?.let { mapper.readValue(it) }
     }
 
-    override fun simpleQuery(query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata> {
+    override fun getById(user: String, id: String): ProjectMetadata? {
+        return internalGetById(id)
+    }
+
+    override fun simpleQuery(user: String, query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata> {
         val request = SearchRequest().apply {
             source(SearchSourceBuilder().apply {
                 val q = bool {
