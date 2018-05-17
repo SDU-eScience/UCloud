@@ -146,3 +146,5 @@ service-common/service-common.iml
 service-registry/service-registry.iml
 app-service/dev.db.mv.db
 app-service/dev.db.trace.db
+metadata-service/dev.db.mv.db
+metadata-service/dev.db.trace.db
