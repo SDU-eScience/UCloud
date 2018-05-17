@@ -192,9 +192,11 @@ class FileSelector extends React.Component {
 }
 
 export const FileSelectorModal = (props) =>
-    <Modal open={props.show} onClose={props.onHide} size="large">
+    // closeOnDimmerClick is a fix caused by modal incompatibility. See ModalFix.scss
+    <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick={false} size="large">
         <Modal.Header>
             File selector
+            <Button floated="right" circular icon="cancel" type="button" onClick={props.onHide}/>
         </Modal.Header>
         <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
         <BallPulseLoading loading={props.loading} />
@@ -229,7 +231,7 @@ const FileSelectorBody = (props) => {
                     parentPath={removeTrailingSlash(getParentPath(props.currentPath))}
                     fetchFiles={props.fetchFiles}
                     onClick={props.onClick}
-                    canSelectFolders={props.canSelectFolders}
+                    canSelectFolders={!!props.canSelectFolders}
                 />
                 <CurrentFolder currentPath={removeTrailingSlash(props.currentPath)} onlyAllowFolders={props.onlyAllowFolders} onClick={props.onClick} />
                 <FileList files={files} onClick={props.onClick} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
@@ -296,8 +298,8 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
         (<React.Fragment>
             {files.map((file, index) =>
                 file.type === "FILE" ?
-                    (<List.Item key={index} className="itemPadding pointer-cursor">
-                        <List.Content onClick={() => onClick(file)}>
+                    (<List.Item onClick={() => onClick(file)} key={index} className="itemPadding pointer-cursor">
+                        <List.Content>
                             <Icon className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
                         </List.Content>
                     </List.Item>)

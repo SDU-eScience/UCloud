@@ -144,18 +144,11 @@ export const initObject = (cloud: SDUCloud) => ({
         publications: [] as Publication[]
     },
     sidebar: {
-        open: sidebarOpen(),
+        open: false,
         loading: false,
         options: [] as SidebarOption[]
     }
 });
-
-const sidebarOpen = () =>
-    window.localStorage.getItem("sidebar-open") ?
-        window.localStorage.getItem("sidebar-open") === "true" : false || window.innerWidth > 768;
-
-
-
 
 export const identifierTypes = [
     {
