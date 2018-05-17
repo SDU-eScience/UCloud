@@ -1,7 +1,7 @@
 import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Link } from "react-router-dom";
-import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
+import * as Pagination from "../Pagination";
 import { Table, Button, Icon, Container } from "semantic-ui-react";
 import { getSortingIcon } from "../../UtilityFunctions";
 import { connect } from "react-redux";
@@ -81,19 +81,17 @@ class Applications extends React.Component {
                     <Table.Footer>
                         <Table.Row>
                             <Table.Cell>
-                                <PaginationButtons
+                                <Pagination.Buttons
                                     loading={loading}
                                     toPage={(page) => dispatch(toPage(page))}
                                     currentPage={currentApplicationsPage}
                                     totalPages={totalPages}
                                 />
-                                <EntriesPerPageSelector
+                                <Pagination.EntriesPerPageSelector
                                     entriesPerPage={applicationsPerPage}
                                     onChange={(size) => dispatch(updateApplicationsPerPage(size))}
-                                    totalPages={totalPages}
-                                >
-                                    {" Applications per page"}
-                                </EntriesPerPageSelector>
+                                    content="Applications per page"
+                                />
                             </Table.Cell>
                         </Table.Row>
                     </Table.Footer>

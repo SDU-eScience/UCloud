@@ -5,7 +5,7 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Rating } from "semantic-ui-react";
-import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
+import * as Pagination from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
@@ -224,18 +224,17 @@ class Files extends React.Component {
                             setFileSelectorCallback={this.props.setFileSelectorCallback}
                             setDisallowedPaths={this.props.setDisallowedPaths}
                         >
-                            <PaginationButtons
+                            <Pagination.Buttons
                                 currentPage={currentFilesPage}
                                 totalPages={totalPages}
                                 toPage={(pageNumber) => goTo(pageNumber)}
                             />
                         </FilesTable>
-                        <EntriesPerPageSelector
+                        <Pagination.EntriesPerPageSelector
                             entriesPerPage={filesPerPage}
-                            totalPages={totalPages}
                             onChange={(newSize) => updateFilesPerPage(newSize, files)}
-                        >{"    Files per page"}
-                        </EntriesPerPageSelector>
+                            content="Files per page"
+                        />
                         <BallPulseLoading loading={loading} />
                     </Grid.Column>
                     <Responsive as={Grid.Column} computer={3} minWidth={992}>

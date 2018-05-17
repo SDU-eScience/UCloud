@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { Form, Header, Dropdown, Button } from "semantic-ui-react";
 import { licenseOptions, identifierTypes } from "../../DefaultObjects";
 import { createRange } from "../../UtilityFunctions";
@@ -8,8 +8,8 @@ const newGrant = () => ({ id: "" });
 const newIdentifier = () => ({ identifier: "", type: "" });
 const newSubject = () => ({ term: "", identifier: "" });
 
-class Metadata extends React.Component {
-    constructor(props) {
+export class CreateUpdate extends React.Component<any, any> {
+    constructor(props: any) {
         super(props);
         this.state = {
             title: "",
@@ -25,7 +25,7 @@ class Metadata extends React.Component {
         };
         this.setStateEv = this.setStateEv.bind(this);
         this.setStateEvObject = this.setStateEvObject.bind(this);
-        this.setStateEvOList = this.setStateEvObject.bind(this);
+        this.setStateEvObject = this.setStateEvObject.bind(this);
     }
 
     onSubmit(e) {
@@ -62,7 +62,7 @@ class Metadata extends React.Component {
             this.setState(() => object);
         };
     }
-    
+
     setStateEvList(key) {
         return (value, index) => {
             const list = this.state[key];
@@ -94,7 +94,12 @@ class Metadata extends React.Component {
             <Form onSubmit={this.onSubmit}>
                 <Form.Field required>
                     <label>Title</label>
-                    <Form.Input placeholder="Title" value={this.state.title} onChange={this.setStateEv("title")} required />
+                    <Form.Input 
+                        placeholder="Title" 
+                        value={this.state.title} 
+                        onChange={this.setStateEv("title")} 
+                        required 
+                    />
                 </Form.Field>
                 <Form.Field required>
                     <label>Description</label>
@@ -102,11 +107,15 @@ class Metadata extends React.Component {
                 </Form.Field>
                 <Form.Field>
                     <label>License</label>
-                    <LicenseDropdown setStateEv={this.setStateEv} />
+                    <LicenseDropdown onChange={this.setStateEv("license")} />
                 </Form.Field>
                 <Form.Field>
                     <label>Keywords</label>
-                    <FormFieldList amount={this.state.keywords} name="keyword" setStateEvList={this.setStateEvList("keywords")} />
+                    <FormFieldList 
+                        amount={this.state.keywords} 
+                        name="keyword" 
+                        setStateEvList={this.setStateEvList("keywords")} 
+                    />
                     <Button content="New keyword" onClick={(e) => this.addRow(e, "keywords")} />
                 </Form.Field>
                 <Form.Field>
@@ -115,12 +124,19 @@ class Metadata extends React.Component {
                 </Form.Field>
                 <Form.Field>
                     <label>Collaborators</label>
-                    <Collaborators collaborators={this.state.collaborators} setStateEvObject={this.setStateEvObject("collaborators")} />
+                    <Collaborators 
+                        collaborators={this.state.collaborators} 
+                        setStateEvObject={this.setStateEvObject("collaborators")} 
+                    />
                     <Button content="Add collaborator" onClick={(e) => this.addCollaborator(e)} />
                 </Form.Field>
                 <Form.Field>
                     <label>References</label>
-                    <FormFieldList name="reference" amount={this.state.references} setStateEvList={this.setStateEvList("references")} />
+                    <FormFieldList 
+                        name="reference" 
+                        amount={this.state.references} 
+                        setStateEvList={this.setStateEvList("references")} 
+                    />
                     <Button content="Add reference" onClick={(e) => this.addRow(e, "references")} />
                 </Form.Field>
                 <Form.Field>
@@ -130,7 +146,10 @@ class Metadata extends React.Component {
                 </Form.Field>
                 <Form.Field>
                     <label>Related Identifiers</label>
-                    <RelatedIdentifiers identifiers={this.state.identifiers} setStateEvObject={this.setStateEvObject("identifiers")} />
+                    <RelatedIdentifiers 
+                        identifiers={this.state.identifiers} 
+                        setStateEvObject={this.setStateEvObject("identifiers")} 
+                    />
                     <Button content="Add identifier" onClick={(e) => this.addIdentifier(e)} />
                 </Form.Field>
                 <Button type="submit" content="Submit" />
@@ -139,14 +158,18 @@ class Metadata extends React.Component {
     }
 }
 
-class LicenseDropdown extends React.PureComponent {
-    constructor(props) {
+interface LicenseDropdownProps {
+    onChange: (ev, details) => void
+}
+
+class LicenseDropdown extends React.PureComponent<LicenseDropdownProps> {
+    constructor(props: any) {
         super(props)
     }
 
     render() {
         return (
-            <Form.Dropdown onChange={this.props.setStateEv("license")}
+            <Form.Dropdown onChange={(e, other) => this.props.onChange(e, other)}
                 search
                 searchInput={{ type: "string" }}
                 selection
@@ -161,15 +184,33 @@ class LicenseDropdown extends React.PureComponent {
 const Subjects = ({ subjects, setStateEvObject }) =>
     subjects.map((s, i) =>
         <Form.Group key={i} widths="equal">
-            <Form.Input fluid value={s.term} label="Term" required placeholder="Term..." onChange={(e, { value }) => setStateEvObject(value, i, "term")} />
-            <Form.Input fluid value={s.identifier} label="Identifier" placeholder="Identifier..." onChange={(e, { value }) => setStateEvObject(value, i, "identifier")} />
+            <Form.Input 
+                fluid 
+                value={s.term} 
+                label="Term" 
+                required 
+                placeholder="Term..." 
+                onChange={(e, { value }) => setStateEvObject(value, i, "term")} 
+            />
+            <Form.Input 
+                fluid 
+                value={s.identifier} 
+                label="Identifier" 
+                placeholder="Identifier..." 
+                onChange={(e, { value }) => setStateEvObject(value, i, "identifier")} 
+            />
         </Form.Group>
     );
 
 const RelatedIdentifiers = ({ identifiers, setStateEvObject }) =>
     identifiers.map((_, i) =>
         <Form.Group key={i} widths="equal">
-            <Form.Input fluid label="Identifier" required placeholder="Identifier..." onChange={(e, { value }) => setStateEvObject(value, i, "identifier")} />
+            <Form.Input 
+                fluid label="Identifier" 
+                required 
+                placeholder="Identifier..." 
+                onChange={(e, { value }) => setStateEvObject(value, i, "identifier")} 
+            />
             <Form.Dropdown label="Type"
                 search
                 searchInput={{ type: "string" }}
@@ -185,14 +226,36 @@ const RelatedIdentifiers = ({ identifiers, setStateEvObject }) =>
 const Collaborators = ({ collaborators, setStateEvObject }) =>
     collaborators.map((c, i) =>
         <Form.Group key={i} widths="equal">
-            <Form.Input fluid label="Name" required placeholder="Name..." onChange={(e, { value }) => setStateEvObject(value, i, "name")} />
-            <Form.Input fluid label="Affiliation" placeholder="Affiliation..." onChange={(e, { value }) => setStateEvObject(value, i, "affiliation")} />
-            <Form.Input fluid label="ORCiD" placeholder="ORCiD..." onChange={(e, { value }) => setStateEvObject(value, i, "orcid")} />
-            <Form.Input fluid label="GND" placeholder="GND" onChange={(e, { value }) => setStateEvObject(value, i, "gnd")} />
+            <Form.Input 
+                fluid 
+                label="Name" 
+                required 
+                placeholder="Name..." 
+                onChange={(e, { value }) => setStateEvObject(value, i, "name")} 
+            />
+
+            <Form.Input 
+                fluid 
+                label="Affiliation" 
+                placeholder="Affiliation..." 
+                onChange={(e, { value }) => setStateEvObject(value, i, "affiliation")} 
+            />
+            
+            <Form.Input 
+                fluid 
+                label="ORCiD" 
+                placeholder="ORCiD..." 
+                onChange={(e, { value }) => setStateEvObject(value, i, "orcid")} 
+            />
+            
+            <Form.Input 
+                fluid 
+                label="GND" 
+                placeholder="GND" 
+                onChange={(e, { value }) => setStateEvObject(value, i, "gnd")} 
+            />
         </Form.Group>
     );
 
 const FormFieldList = ({ amount, name, setStateEvList }) =>
     amount.map((c, i) => <Form.Input key={i} value={c} placeholder={`Enter ${name}`} onChange={(e, { value }) => setStateEvList(value, i)} />);
-
-export default Metadata;

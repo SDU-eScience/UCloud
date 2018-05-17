@@ -83,10 +83,10 @@ export interface Notification {
 }
 
 export interface Page<T> {
-    itemsInTotal: Number,
-    itemsPerPage: Number,
+    itemsInTotal: number,
+    itemsPerPage: number,
 
-    pageNumber: Number,
+    pageNumber: number,
     items: T[]
 }
 

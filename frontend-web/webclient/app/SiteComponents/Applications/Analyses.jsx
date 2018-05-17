@@ -5,7 +5,7 @@ import { updatePageTitle } from "../../Actions/Status";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Container, Table, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
-import { PaginationButtons, EntriesPerPageSelector } from "../Pagination";
+import * as Pagination from "../Pagination";
 import { connect } from "react-redux";
 import "../Styling/Shared.scss";
 import { setLoading, fetchAnalyses } from "../../Actions/Analyses";
@@ -65,7 +65,7 @@ class Analyses extends React.Component {
                     <Table.Footer>
                         <Table.Row>
                             <Table.Cell colSpan="6" textAlign="center">
-                                <PaginationButtons
+                                <Pagination.Buttons
                                     totalPages={this.props.totalPages}
                                     currentPage={this.props.pageNumber}
                                     toPage={(pageNumber) => dispatch(fetchAnalyses(analysesPerPage, pageNumber))}
@@ -74,13 +74,11 @@ class Analyses extends React.Component {
                         </Table.Row>
                     </Table.Footer>
                 </Table>
-                <EntriesPerPageSelector
+                <Pagination.EntriesPerPageSelector
                     entriesPerPage={this.props.analysesPerPage}
                     onChange={(pageSize) => dispatch(fetchAnalyses(pageSize, 0))}
-                    totalPages={this.props.totalPages}
-                >
-                    {" Analyses per page"}
-                </EntriesPerPageSelector>
+                    content="Results per page"
+                />
             </React.StrictMode>
         )
     }

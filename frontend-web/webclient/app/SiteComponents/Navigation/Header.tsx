@@ -1,7 +1,8 @@
 import * as React from "react";
-import { Menu, Dropdown, Icon, Responsive, Header as H1 } from "semantic-ui-react";
+import { Button, Input, Menu, Dropdown, Icon, Responsive, Header as H1 } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
+import { Link } from "react-router-dom";
 import "./Header.scss";
 import Notifications from "../Notifications/index";
 import { setSidebarOpen } from "../../Actions/Sidebar";
@@ -25,11 +26,19 @@ class Header extends React.Component<any, any> {
                     </Menu.Item>
                 </Responsive>
                 <Menu.Item>
-                    <H1>
-                        SDUCloud
-                    </H1>
+                    <H1>SDUCloud</H1>
                 </Menu.Item>
                 <Menu.Menu position="right">
+                    <Menu.Item>
+                        <Responsive minWidth={700}>
+                            <Input className="header-search" fluid icon='search' placeholder='Search...' />
+                        </Responsive>
+                        <Responsive maxWidth={699}>
+                            <Link to={`/metadata/search?query=updateplz`}>
+                                <Icon name='search' />
+                            </Link>
+                        </Responsive>
+                    </Menu.Item>
                     <Menu.Item>
                         <Notifications />
                     </Menu.Item>
