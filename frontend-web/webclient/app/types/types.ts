@@ -82,6 +82,8 @@ export interface Notification {
     isRead: boolean
 }
 
+export const emptyPage: Page<any> = { items: [], itemsPerPage: 10, itemsInTotal: 0, pageNumber: 0 };
+
 export interface Page<T> {
     itemsInTotal: number,
     itemsPerPage: number,

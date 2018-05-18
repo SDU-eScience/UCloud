@@ -60,7 +60,8 @@ class ProjectsController(
             }
 
             tryWithProject {
-                val project = Project("", request.fsRoot, "", currentUser)
+                log.debug("Creating a project! $currentUser")
+                val project = Project("", request.fsRoot, currentUser, "")
                 val id = projectService.createProject(project)
                 val projectWithId = project.copy(id = id)
                 projectEventProducer.emit(ProjectEvent.Created(projectWithId, metadataFiles))

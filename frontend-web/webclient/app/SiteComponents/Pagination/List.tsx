@@ -1,8 +1,9 @@
 import * as React from "react";
-import { Message, Header, Pagination, Dropdown } from "semantic-ui-react";
+import { Grid, Message, Header, Pagination, Dropdown } from "semantic-ui-react";
 import { Page } from "../../types/types";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import * as Self from ".";
+import "./pagination.scss";
 
 interface ListProps {
     pageRenderer: (page: Page<any>) => React.ReactNode
@@ -47,17 +48,21 @@ export class List extends React.PureComponent<ListProps> {
 
                 {body}
 
-                <Self.Buttons
-                    currentPage={props.currentPage}
-                    toPage={(page) => ifPresent(props.onPageChanged, (c) => c(page))}
-                    totalPages={props.results.itemsInTotal / props.itemsPerPage}
-                />
+                <div>
+                    <Self.Buttons
+                        as="span"
+                        currentPage={props.currentPage}
+                        toPage={(page) => ifPresent(props.onPageChanged, (c) => c(page))}
+                        totalPages={props.results.itemsInTotal / props.itemsPerPage}
+                    />
 
-                <Self.EntriesPerPageSelector
-                    content="Results per page"
-                    entriesPerPage={props.itemsPerPage}
-                    onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
-                />
+                    <Self.EntriesPerPageSelector
+                        content="Items per page"
+                        className="pagination-items-per-page"
+                        entriesPerPage={props.itemsPerPage}
+                        onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
+                    />
+                </div>
             </div>
         );
     }
@@ -66,12 +71,22 @@ export class List extends React.PureComponent<ListProps> {
     private renderBody(): React.ReactNode {
         const props = this.props;
         if (props.loading) {
-            return <BallPulseLoading loading />
+            return <Grid centered verticalAlign="middle" columns={1}>
+                <div className="pagination-loader">
+                    <DefaultLoading loading className="pagination-list-loading" />
+                </div>
+            </Grid>
         } else {
             if (props.results == null || props.results.items.length == 0) {
                 return <div>
                     <Header as="h2">
-                        No results. <a href="#">Try again?</a>
+                        No results.
+                        <a 
+                            href="#" 
+                            onClick={() => ifPresent(props.onRefresh, (c) => c())}
+                        >
+                            Try again?
+                        </a>
                     </Header>
                 </div>;
             } else {

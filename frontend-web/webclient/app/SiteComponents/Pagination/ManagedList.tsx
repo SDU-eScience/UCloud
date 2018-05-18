@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Message, Header, Pagination, Dropdown } from "semantic-ui-react";
-import { Page } from "../../types/types";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { Page, emptyPage } from "../../types/types";
 import * as Self from ".";
 
 interface ManagedListProps {
@@ -25,8 +24,16 @@ export class ManagedList extends React.Component<ManagedListProps, ManagedListSt
             loading: false,
             currentPage: 0,
             itemsPerPage: 10,
-            results: { items: [], itemsPerPage: 10, itemsInTotal: 0, pageNumber: 0 }
+            results: emptyPage
         };
+    }
+
+    componentDidMount() {
+        this.refresh();
+    }
+
+    componentWillReceiveProps() {
+        this.refresh();
     }
 
     private refresh() {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "semantic-ui-react";
+import { Icon, Button } from "semantic-ui-react";
 import "../../../node_modules/loaders.css/loaders.css";
 import "./colors.scss";
 
@@ -41,3 +41,7 @@ export const SmallSpinner = ({ loading, color }) => (loading) ?
         <div />
         <div />
     </i> : null;
+
+export const DefaultLoading = (props) => (props.loading) ?
+    <Icon name="circle notched" size='huge' className={props.className} loading />
+    : null;

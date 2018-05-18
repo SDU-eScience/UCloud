@@ -1,120 +1,113 @@
 import * as React from "react";
-import { Message, Input, Form, Header, Dropdown, Button } from "semantic-ui-react";
+import { Link } from "react-router-dom";
+import { Label, Icon, Card, Message, Input, Form, Header, Dropdown, Button } from "semantic-ui-react";
 import { simpleSearch, ProjectMetadata } from "./api";
-import { Page } from "../../types/types";
+import { Page, emptyPage } from "../../types/types";
 import * as Pagination from "../Pagination";
-
-export interface SearchProps {
-    match?: any
-    location?: { search: string }
-}
 
 interface SearchState {
     query: string
-    page: number
-    itemsPerPage: number
-    totalPages: number
-
-    errorMessage?: string
-    pageWithRecords: Page<ProjectMetadata>
+    dataProvider: (page: number, itemsPerPage: number) => Promise<Page<ProjectMetadata>>
 }
 
-const emptyPage = { itemsInTotal: 0, itemsPerPage: 10, items: [], pageNumber: 0 };
-
-export class Search extends React.Component<SearchProps, SearchState> {
-    constructor(props: SearchProps) {
+export class Search extends React.Component<any, SearchState> {
+    constructor(props) {
         super(props);
         this.state = {
             query: "",
-            page: 0,
-            itemsPerPage: 10,
-            totalPages: 0,
-            pageWithRecords: emptyPage
+            dataProvider: (page: number, itemsPerPage: number) => Promise.resolve(emptyPage)
         };
     }
 
     componentWillReceiveProps() {
+        // TODO Doesn't work correctly with react router on back/forwards browser navigation
         this.checkQueryParams();
     }
 
     private checkQueryParams() {
-        const params = new URLSearchParams(this.props.location.search);
-        const rawQuery = params.get("query");
-        const rawPage = params.get("page");
+        // console.log(window.location.search);
+        // const params = new URLSearchParams(window.location.search);
+        // const rawQuery = params.get("query");
+        // const query = rawQuery ? rawQuery : "";
+        const query = this.props.match.params.query;
 
-        const query = rawQuery ? rawQuery : "";
-        const page = rawPage ? parseInt(rawPage) : 0;
-
-        if (this.state.query != query || this.state.page != page) {
-            this.refreshSearch(query, page);
+        if (this.state.query != query) {
+            this.setState(() => ({
+                query,
+                dataProvider: (page: number, itemsPerPage: number) => simpleSearch(query, page, itemsPerPage)
+            }));
         }
     }
 
-    private refreshResults() {
-        this.refreshSearch(this.state.query, this.state.page);
-    }
-
-    private refreshSearch(query: string, page: number) {
-        this.setState(() => ({ query, page }));
-
-        simpleSearch(query, 0, 10).then(e => {
-            this.setState(() => ({
-                pageWithRecords: e,
-                totalPages: e.itemsInTotal / e.itemsPerPage
-            }));
-        }).catch(e => {
-            this.setState(() => ({
-                errorMessage: "Unable to retrieve search results",
-                pageWithRecords: emptyPage
-            }));
-        });
-    }
-
     render() {
-        const { errorMessage } = this.state;
-        const results = (this.state.pageWithRecords.items.length == 0) ?
-            <div>No results</div>
-            :
-            <div />;
         return (
             <div>
-                <Input fluid icon='search' placeholder='Search...' />
-                {errorMessage ?
-                    <Message color='red' onDismiss={() => this.setState({ errorMessage: null })}>
-                        {errorMessage}
-                    </Message>
-                    : null
-                }
+                <Header as="h2">Results matching '{this.state.query}'</Header>
 
-                <div>
-                    Query: {this.state.query} <br />
-                    Page: {this.state.page} <br />
-                </div>
-
-                {results}
-
-                <Pagination.Buttons
-                    currentPage={this.state.page}
-                    totalPages={this.state.totalPages}
-                    toPage={(newPage: number) => { }}
-                />
-
-                <Pagination.EntriesPerPageSelector
-                    entriesPerPage={this.state.itemsPerPage}
-                    onChange={() => { }}
-                    content="Results per page"
+                <Pagination.ManagedList
+                    dataProvider={this.state.dataProvider}
+                    pageRenderer={this.pageRenderer}
                 />
             </div>
         );
     }
+
+    pageRenderer(page: Page<ProjectMetadata>): React.ReactNode {
+        return <React.Fragment>
+            {page.items.map((item, index) => <SearchItem item={item} key={index} />)}
+        </React.Fragment>;
+    }
 }
 
-class SearchItem extends React.Component<any, any> {
-    constructor(props: any) {
-        super(props);
-    }
+const SearchItem = ({ item }: { item: ProjectMetadata }) => (
+    <Card fluid>
+        <Card.Content>
+            <Header><Link to={`metadata/${item.id}`}>{item.title}</Link></Header>
+        </Card.Content>
 
-    render() {
-        return <div />;
+        <Card.Content
+            description={
+                firstParagraphWithLimitedLength(
+                    defaultIfBlank(item.description, "No description"),
+                    800
+                )
+            }
+        />
+        <Card.Content extra>
+            <Label color='green'>
+                <Icon name='folder open' />
+                Open Access
+            </Label>
+            <Label color='blue'>
+                <Icon name='book' />
+                MIT
+                <Label.Detail>License</Label.Detail>
+            </Label>
+            <Label basic>
+                <Icon name='file' />
+                {item.files.length}
+                <Label.Detail>Files</Label.Detail>
+            </Label>
+        </Card.Content>
+    </Card>
+);
+
+const defaultIfBlank = (text: string, defaultValue: string): string => {
+    if (text.length == 0) return defaultValue;
+    else return text;
+}
+
+const firstParagraphWithLimitedLength = (text: string, maxLength: number): string => {
+    const lines = text.split("\n");
+    const paragraphEndsAt = lines.findIndex((line) => /^\s*$/.test(line))
+
+    let firstParagraph: string
+    if (paragraphEndsAt == -1) firstParagraph = text;
+    else firstParagraph = lines.slice(0, paragraphEndsAt).join("\n");
+
+    if (firstParagraph.length > maxLength) {
+        return firstParagraph.substring(0, maxLength) + "...";
+    } else {
+        return firstParagraph;
     }
 }

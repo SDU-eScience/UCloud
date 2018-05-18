@@ -44,7 +44,10 @@ class ElasticMetadataService(
     override fun update(user: String, projectId: String, metadata: UserEditableProjectMetadata) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             val project = projectService.findById(projectId) ?: throw MetadataException.NotFound()
-            if (project.owner != user) throw MetadataException.NotAllowed()
+            if (project.owner != user) {
+                log.debug("Not allowed. Project owner is '${project.owner}' current user is '$user'")
+                throw MetadataException.NotAllowed()
+            }
 
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
             val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
