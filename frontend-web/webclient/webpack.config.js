@@ -3,7 +3,6 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const path = require('path');
-
 //var baseHref = process.env.REACT_BASE_HREF ? process.env.REACT_BASE_HREF : '/';
 const baseHref = "/app";
 
@@ -46,7 +45,7 @@ module.exports = {
             }, {
                 test: /\.css$/,
                 exclude: path.join(process.cwd(), '/app'),
-                use: ExtractTextPlugin.extract({fallback: "style-loader", use: "css-loader"})
+                use: ExtractTextPlugin.extract({ fallback: "style-loader", use: "css-loader" })
             }, {
                 test: /\.css$/,
                 include: path.join(process.cwd(), '/app'),
@@ -73,21 +72,11 @@ module.exports = {
     },
 
     plugins: [
-        new webpack.optimize.CommonsChunkPlugin({name: 'vendor', filename: 'vendor[hash:6].js'}),
+        new webpack.optimize.CommonsChunkPlugin({ name: 'vendor', filename: 'vendor[hash:6].js' }),
         new HtmlWebpackPlugin({
             template: 'app/index.html',
             baseUrl: baseHref
         }),
-        new CopyWebpackPlugin([{
-            from: 'img',
-            to: 'img',
-            context: path.join(__dirname, 'app')
-        },{
-            from: 'fonts',
-            to: 'fonts',
-            context: path.join(__dirname, 'app')
-        }]),
-
         // https://github.com/moment/moment/issues/2979#issuecomment-189899510
         new webpack.ContextReplacementPlugin(/\.\/locale$/, 'empty-module', false, /js$/),
         new webpack.DefinePlugin({
