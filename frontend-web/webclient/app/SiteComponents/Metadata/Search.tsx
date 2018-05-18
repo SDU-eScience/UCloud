@@ -62,7 +62,7 @@ export class Search extends React.Component<any, SearchState> {
 const SearchItem = ({ item }: { item: ProjectMetadata }) => (
     <Card fluid>
         <Card.Content>
-            <Header><Link to={`metadata/${item.id}`}>{item.title}</Link></Header>
+            <Header><Link to={`/metadata/${item.id}`}>{item.title}</Link></Header>
         </Card.Content>
 
         <Card.Content

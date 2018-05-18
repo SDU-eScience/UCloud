@@ -62,7 +62,7 @@ export interface RelatedIdentifier {
     identifier: string
 }
 
-export interface Creator{
+export interface Creator {
     name?: string,
     affiliation?: string
     orcId?: string
@@ -75,7 +75,17 @@ export interface FileDescriptionForMetadata {
     path: string
 }
 
-export function simpleSearch(query: string, page: number, itemsPerPage: number): Promise<Page<ProjectMetadata>> {
-    return Cloud.get(`/metadata/search?query=${query}&page=${page}&itemsPerPage=${itemsPerPage}`)
-        .then(f => f.response);
+export const simpleSearch = (
+    query: string,
+    page: number,
+    itemsPerPage: number
+): Promise<Page<ProjectMetadata>> => {
+    return Cloud.get(
+        `/metadata/search?query=${query}` +
+        `&page=${page}&itemsPerPage=${itemsPerPage}`
+    ).then(f => f.response);
+}
+
+export const getById = (id: string): Promise<ProjectMetadata> => {
+    return Cloud.get(`/metadata/${id}`).then(f => f.response);
 }
