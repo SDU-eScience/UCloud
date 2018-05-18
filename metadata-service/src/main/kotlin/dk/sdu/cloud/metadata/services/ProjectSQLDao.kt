@@ -7,6 +7,7 @@ import org.jetbrains.exposed.dao.IntIdTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.Function
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.io.File
 
 object Projects : IntIdTable() {
     val fsRoot = text("fs_root").uniqueIndex()
@@ -49,10 +50,11 @@ class ProjectSQLDao : ProjectDAO {
     }
 
     override fun findBestMatchingProjectByPath(path: String): Project? {
+        val normalizedPath = File(path).normalize().path
         return transaction {
             ProjectEntity.wrapRows(
                 Projects
-                    .select { stringLiteral(path) like Concat(Projects.fsRoot, stringLiteral("%")) }
+                    .select { stringLiteral(normalizedPath) like Concat(Projects.fsRoot, stringLiteral("%")) }
                     .orderBy(CharLength(Projects.fsRoot), isAsc = false)
                     .limit(1)
             ).toList().singleOrNull()?.toProject()
