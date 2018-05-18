@@ -71,4 +71,4 @@ class Concat<T : String?>(private val expr: Expression<T>, private val other: Ex
 }
 
 infix fun <T : String?> ExpressionWithColumnType<T>.like(expr: Expression<T>): Op<Boolean> =
-    LikeOp(this, QueryParameter(expr, columnType))
+    LikeOp(this, expr)
