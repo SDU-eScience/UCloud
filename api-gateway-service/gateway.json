@@ -1,0 +1,17 @@
+{
+  "kafka": {
+    "servers": ["localhost:9092"]
+  },
+
+  "hostname": "localhost",
+
+  "zookeeper": {
+    "hostname": "localhost"
+  },
+
+  "targets": [
+    "D:/work/sducloud/app-service/build/libs"
+  ],
+
+  "reloadSecret": "testing"
+}

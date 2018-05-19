@@ -29,6 +29,7 @@ repositories {
     mavenCentral()
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+    maven { url "https://dl.bintray.com/kotlin/exposed" }
 
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
@@ -65,6 +66,10 @@ dependencies {
     compile group: "io.ktor", name: "ktor-jackson", version: "$ktor_version"
     compile group: "io.ktor", name: "ktor-server-host-common", version: "$ktor_version"
 
+    // exposed
+    compile 'org.jetbrains.exposed:exposed:0.10.2'
+    compile group: 'org.postgresql', name: 'postgresql', version: '42.2.2'
+
     // Service discovery
     compile 'com.orbitz.consul:consul-client:1.1.0'
     compile group: "com.github.zafarkhaja", name: "java-semver", version: "0.9.0"
@@ -74,6 +79,9 @@ dependencies {
 
     // Testing
     testCompile group: "junit", name: "junit", version: "4.12"
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
 }
 
 compileKotlin {
