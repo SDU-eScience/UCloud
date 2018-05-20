@@ -47,8 +47,10 @@ const Core = (props) => (
                 <Route exact path="/metadata/search/:query" component={Metadata.Search} />
                 <Route component={NotFound} />
             </Switch>
+            <div className="footer">
+                {new Date().getFullYear()} - SDUCloud
+            </div>
         </Sidebar>
-        <span className="footer">{new Date().getFullYear()} - SDUCloud</span>
         <UppyWrapper />
     </React.Fragment >
 );
