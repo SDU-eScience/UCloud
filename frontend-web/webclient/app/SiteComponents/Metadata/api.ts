@@ -5,46 +5,46 @@ export interface ProjectMetadata {
     /**
      * The SDUCloud FSRoot this metadata belongs to (i.e. project)
      */
-    sduCloudRoot: string,
+    sduCloudRoot: string
 
     /**
      * The title of this project
      */
-    title: string,
+    title: string
 
     /**
      * A list of files in this project
      */
-    files: [FileDescriptionForMetadata],
+    files: FileDescriptionForMetadata[]
 
     /**
      * A list of creators of this project (defaults to users in project)
      */
-    creators: [Creator],
+    creators: Creator[]
 
     /**
      * A description of the project.
      */
-    description: string,
+    description: string
 
     /**
      * The license of the project
      */
-    license: string,
+    license: string
 
-    id: string,
+    id: string
 
     embargoDate?: number
     accessConditions?: string
 
-    keywords?: [string]
+    keywords?: string[]
     notes?: string
-    contributors?: [Creator]
-    references?: [string]
-    grants?: [Grant]
+    contributors?: Creator[]
+    references?: string[]
+    grants?: Grant[]
 
-    subjects?: [Subject]
-    relatedIdentifiers?: [RelatedIdentifier]
+    subjects?: Subject[]
+    relatedIdentifiers?: RelatedIdentifier[]
 }
 
 export interface Grant {
@@ -63,7 +63,7 @@ export interface RelatedIdentifier {
 }
 
 export interface Creator {
-    name?: string,
+    name?: string
     affiliation?: string
     orcId?: string
     gnd?: string
