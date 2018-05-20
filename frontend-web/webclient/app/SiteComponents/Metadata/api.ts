@@ -89,3 +89,7 @@ export const simpleSearch = (
 export const getById = (id: string): Promise<ProjectMetadata> => {
     return Cloud.get(`/metadata/${id}`).then(f => f.response);
 }
+
+export const updateById = (payload: any): Promise<any> => {
+    return Cloud.post("/metadata", payload).then(f => f.response);
+}

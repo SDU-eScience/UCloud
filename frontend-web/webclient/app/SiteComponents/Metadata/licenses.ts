@@ -1,4 +1,9 @@
-export const allLicenses = [
+interface License {
+  name: string
+  link: string
+  identifier: string
+}
+export const allLicenses: License[] = [
     {
       "name": "BSD Zero Clause License",
       "link": "https://spdx.org/licenses/0BSD.html",
@@ -1720,3 +1725,7 @@ export const allLicenses = [
       "identifier": "ZPL-2.1"
     }
   ];
+
+export const findLicenseByIdentifier = (identifier: string): License | null => {
+  return allLicenses.find(it => it.identifier == identifier);
+};

@@ -3,7 +3,7 @@ import { Search, Form, Header, Dropdown, Button } from "semantic-ui-react";
 import { identifierTypes } from "../../DefaultObjects";
 import { createRange } from "../../UtilityFunctions";
 import { allLicenses } from "./licenses";
-import { Creator, Grant, RelatedIdentifier, Subject } from "./api";
+import { Creator, Grant, RelatedIdentifier, Subject, getById, updateById } from "./api";
 
 const newCollaborator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newGrant = (): Grant => ({ id: "" });
@@ -37,21 +37,47 @@ export class CreateUpdate extends React.Component<any, any> {
     constructor(props: any) {
         super(props);
         this.state = {
+            id: "2",
             title: "",
             description: "",
             license: null,
             keywords: [""],
             notes: "",
-            collaborators: [newCollaborator()],
+            contributors: [newCollaborator()],
             references: [""],
             grants: [newGrant(), newGrant()],
             subjects: [newSubject()],
-            identifiers: [newIdentifier()],
-            errors: { collaborators: {}, subjects: {}, identifiers: {} }
+            relatedIdentifiers: [newIdentifier()],
+            errors: { contributors: {}, subjects: {}, relatedIdentifiers: {} }
         };
         this.setStateEv = this.setStateEv.bind(this);
         this.setStateEvObject = this.setStateEvObject.bind(this);
         this.setStateEvObject = this.setStateEvObject.bind(this);
+    }
+
+    componentDidMount() {
+        getById(this.state.id).then(e => {
+            const license = allLicenses.find(it => it.identifier == e.license);
+            const mappedLicense = license ? { 
+                title: license.name,
+                link: license.link,
+                identifier: license.identifier
+            } : null;
+
+            this.setState({
+                title: e.title,
+                description: e.description,
+                license: mappedLicense,
+                keywords: e.keywords ? e.keywords : [""],
+                notes: e.notes ? e.notes : "",
+                contributors: e.contributors ? e.contributors : [newCollaborator()],
+                references: e.references ? e.references : [""],
+                grants: e.grants ? e.grants : [newGrant()],
+                subjects: e.subjects ? e.subjects : [newSubject()],
+                relatedIdentifiers: e.relatedIdentifiers ? 
+                    e.relatedIdentifiers : [newIdentifier()]
+            });
+        });
     }
 
     onSubmit(e) {
@@ -62,33 +88,38 @@ export class CreateUpdate extends React.Component<any, any> {
 
         if (!hasErrors) {
             const {
+                id,
                 title,
                 description,
                 license,
                 keywords,
                 notes,
-                collaborators,
+                contributors,
                 references,
                 grants,
                 subjects,
-                identifiers
+                relatedIdentifiers
             } = this.state;
 
             const licenseIdentifier = license ? license.identifier : null;
 
             const payload = {
+                id,
                 title,
                 description,
                 license: licenseIdentifier,
                 keywords: keywords.filter(e => !blankOrNull(e)),
-                notes,
-                collaborators: collaborators.filter(e => creatorHasValue(e)),
+                // notes, // TODO Needs to be user editable
+                contributors: contributors.filter(e => creatorHasValue(e)),
                 references: references.filter(e => !blankOrNull(e)),
                 subjects: subjects.filter(e => subjectHasValue(e)),
-                identifiers: identifiers.filter(e => identifierHasValue(e))
+                relatedIdentifiers: relatedIdentifiers.filter(e => identifierHasValue(e))
             };
 
             console.log(payload);
+            updateById(payload)
+                .then(it => console.log("Success!"))
+                .catch(it => console.warn("Failure!", it));
         }
     }
 
@@ -99,12 +130,12 @@ export class CreateUpdate extends React.Component<any, any> {
         if (blankOrNull(this.state.description)) errors["description"] = true;
 
         let errCollaborators = {};
-        this.state.collaborators.forEach((element, index) => {
+        this.state.contributors.forEach((element, index) => {
             if (creatorHasValue(element)) {
                 if (blankOrNull(element.name)) errCollaborators[index] = true;
             }
         });
-        errors["collaborators"] = errCollaborators;
+        errors["contributors"] = errCollaborators;
 
         let errSubjects = {};
         this.state.subjects.forEach((element, index) => {
@@ -115,12 +146,12 @@ export class CreateUpdate extends React.Component<any, any> {
         errors["subjects"] = errSubjects;
 
         let errIdentifiers = {};
-        this.state.identifiers.forEach((element, index) => {
+        this.state.relatedIdentifiers.forEach((element, index) => {
             if (identifierHasValue(element)) {
                 if (blankOrNull(element.identifier)) errIdentifiers[index] = true;
             }
         });
-        errors["identifiers"] = errIdentifiers;
+        errors["relatedIdentifiers"] = errIdentifiers;
 
         this.setState({ errors });
 
@@ -148,7 +179,7 @@ export class CreateUpdate extends React.Component<any, any> {
 
     addCollaborator(e) {
         e.preventDefault();
-        this.setState(() => ({ collaborators: this.state.collaborators.concat(newCollaborator()) }));
+        this.setState(() => ({ contributors: this.state.contributors.concat(newCollaborator()) }));
     }
 
     addSubject(e) {
@@ -158,7 +189,7 @@ export class CreateUpdate extends React.Component<any, any> {
 
     addIdentifier(e) {
         e.preventDefault();
-        this.setState(() => ({ identifiers: this.state.identifiers.concat(newIdentifier()) }));
+        this.setState(() => ({ relatedIdentifiers: this.state.relatedIdentifiers.concat(newIdentifier()) }));
     }
 
     setStateEv(key) {
@@ -209,6 +240,7 @@ export class CreateUpdate extends React.Component<any, any> {
                     <Form.TextArea
                         value={this.state.description}
                         error={this.state.errors.description}
+                        rows={15}
                         placeholder="Description"
                         onChange={this.setStateEv("description")}
                         required
@@ -269,11 +301,11 @@ export class CreateUpdate extends React.Component<any, any> {
                 </Form.Field>
 
                 <Form.Field>
-                    <label>Collaborators</label>
-                    <Collaborators
-                        collaborators={this.state.collaborators}
-                        errors={this.state.errors.collaborators}
-                        onChange={this.setStateEvObject("collaborators")}
+                    <label>Contributors</label>
+                    <Contributors
+                        contributors={this.state.contributors}
+                        errors={this.state.errors.contributors}
+                        onChange={this.setStateEvObject("contributors")}
                     />
                     <Button
                         type="button"
@@ -311,12 +343,12 @@ export class CreateUpdate extends React.Component<any, any> {
                 </Form.Field>
 
                 <Form.Field>
-                    <label>Related Identifiers</label>
+                    <label>Related identifiers</label>
 
                     <RelatedIdentifiers
-                        identifiers={this.state.identifiers}
-                        onChange={this.setStateEvObject("identifiers")}
-                        errors={this.state.errors.identifiers}
+                        relatedIdentifiers={this.state.relatedIdentifiers}
+                        onChange={this.setStateEvObject("relatedIdentifiers")}
+                        errors={this.state.errors.relatedIdentifiers}
                     />
                     <Button
                         type="button"
@@ -414,15 +446,15 @@ const Subjects = ({ subjects, errors, onChange }: SubjectsProps) =>
     </React.Fragment>
 
 interface RelatedIdentifiersProps {
-    identifiers: RelatedIdentifier[]
+    relatedIdentifiers: RelatedIdentifier[]
     onChange: (value, index: number, key: string) => void
     errors: any
 }
 
-const RelatedIdentifiers = ({ identifiers, errors, onChange }: RelatedIdentifiersProps) =>
+const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIdentifiersProps) =>
     <React.Fragment>
         {
-            identifiers.map((identifier, i) =>
+            relatedIdentifiers.map((identifier, i) =>
                 <Form.Group key={i} widths="equal">
                     <Form.Input
                         error={errors[i]}
@@ -447,15 +479,15 @@ const RelatedIdentifiers = ({ identifiers, errors, onChange }: RelatedIdentifier
     </React.Fragment>;
 
 interface CollaboratorsProps {
-    collaborators: Creator[]
+    contributors: Creator[]
     onChange: (value, index: number, key: string) => void
     errors: any
 }
 
-const Collaborators = ({ collaborators, errors, onChange }: CollaboratorsProps) =>
+const Contributors = ({ contributors, errors, onChange }: CollaboratorsProps) =>
     <React.Fragment>
         {
-            collaborators.map((c, i) =>
+            contributors.map((c, i) =>
                 <Form.Group key={i} widths="equal">
                     <Form.Input
                         fluid
@@ -480,7 +512,7 @@ const Collaborators = ({ collaborators, errors, onChange }: CollaboratorsProps) 
                         label="ORCiD"
                         placeholder="ORCiD..."
                         value={c.orcId}
-                        onChange={(e, { value }) => onChange(value, i, "orcid")}
+                        onChange={(e, { value }) => onChange(value, i, "orcId")}
                     />
 
                     <Form.Input
