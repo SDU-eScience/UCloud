@@ -50,15 +50,15 @@ export class CreateUpdate extends React.Component<any, any> {
             relatedIdentifiers: [newIdentifier()],
             errors: { contributors: {}, subjects: {}, relatedIdentifiers: {} }
         };
+
         this.setStateEv = this.setStateEv.bind(this);
-        this.setStateEvObject = this.setStateEvObject.bind(this);
-        this.setStateEvObject = this.setStateEvObject.bind(this);
+        this.setStateEvList = this.setStateEvList.bind(this);
     }
 
     componentDidMount() {
         getById(this.state.id).then(e => {
             const license = allLicenses.find(it => it.identifier == e.license);
-            const mappedLicense = license ? { 
+            const mappedLicense = license ? {
                 title: license.name,
                 link: license.link,
                 identifier: license.identifier
@@ -74,7 +74,7 @@ export class CreateUpdate extends React.Component<any, any> {
                 references: e.references ? e.references : [""],
                 grants: e.grants ? e.grants : [newGrant()],
                 subjects: e.subjects ? e.subjects : [newSubject()],
-                relatedIdentifiers: e.relatedIdentifiers ? 
+                relatedIdentifiers: e.relatedIdentifiers ?
                     e.relatedIdentifiers : [newIdentifier()]
             });
         });
@@ -87,36 +87,22 @@ export class CreateUpdate extends React.Component<any, any> {
         console.log(hasErrors);
 
         if (!hasErrors) {
-            const {
-                id,
-                title,
-                description,
-                license,
-                keywords,
-                notes,
-                contributors,
-                references,
-                grants,
-                subjects,
-                relatedIdentifiers
-            } = this.state;
-
-            const licenseIdentifier = license ? license.identifier : null;
+            const s = this.state;
+            const licenseIdentifier = s.license ? s.license.identifier : null;
 
             const payload = {
-                id,
-                title,
-                description,
+                id: s.id,
+                title: s.title,
+                description: s.description,
                 license: licenseIdentifier,
-                keywords: keywords.filter(e => !blankOrNull(e)),
+                keywords: s.keywords.filter(e => !blankOrNull(e)),
                 // notes, // TODO Needs to be user editable
-                contributors: contributors.filter(e => creatorHasValue(e)),
-                references: references.filter(e => !blankOrNull(e)),
-                subjects: subjects.filter(e => subjectHasValue(e)),
-                relatedIdentifiers: relatedIdentifiers.filter(e => identifierHasValue(e))
+                contributors: s.contributors.filter(e => creatorHasValue(e)),
+                references: s.references.filter(e => !blankOrNull(e)),
+                subjects: s.subjects.filter(e => subjectHasValue(e)),
+                relatedIdentifiers: s.relatedIdentifiers.filter(e => identifierHasValue(e))
             };
 
-            console.log(payload);
             updateById(payload)
                 .then(it => console.log("Success!"))
                 .catch(it => console.warn("Failure!", it));
@@ -194,31 +180,16 @@ export class CreateUpdate extends React.Component<any, any> {
 
     setStateEv(key) {
         return (e, { value }) => {
-            let object = {};
-            object[key] = value;
-            this.setState(() => object);
+            this.setState(() => ({ [key]: value }));
         };
     }
 
     setStateEvList(key) {
-        return (value, index) => {
-            const list = this.state[key];
-            list[index] = value;
-            let object = {
-                [key]: list
-            };
-            this.setState(() => object);
-        };
-    }
-
-    setStateEvObject(key) {
         return (value, index, member) => {
             const list = this.state[key];
-            list[index][member] = value;
-            let object = {
-                [key]: list
-            };
-            this.setState(() => object);
+            if (!!member) list[index][member] = value;
+            else list[index] = value;
+            this.setState(() => ({ [key]: list }));
         };
     }
 
@@ -305,7 +276,7 @@ export class CreateUpdate extends React.Component<any, any> {
                     <Contributors
                         contributors={this.state.contributors}
                         errors={this.state.errors.contributors}
-                        onChange={this.setStateEvObject("contributors")}
+                        onChange={this.setStateEvList("contributors")}
                     />
                     <Button
                         type="button"
@@ -332,7 +303,7 @@ export class CreateUpdate extends React.Component<any, any> {
                     <label>Subjects</label>
                     <Subjects
                         subjects={this.state.subjects}
-                        onChange={this.setStateEvObject("subjects")}
+                        onChange={this.setStateEvList("subjects")}
                         errors={this.state.errors.subjects}
                     />
                     <Button
@@ -347,7 +318,7 @@ export class CreateUpdate extends React.Component<any, any> {
 
                     <RelatedIdentifiers
                         relatedIdentifiers={this.state.relatedIdentifiers}
-                        onChange={this.setStateEvObject("relatedIdentifiers")}
+                        onChange={this.setStateEvList("relatedIdentifiers")}
                         errors={this.state.errors.relatedIdentifiers}
                     />
                     <Button
@@ -395,7 +366,7 @@ class LicenseDropdown extends React.Component<LicenseDropdownProps, LicenseDropd
                 .filter(e => e.name.toLowerCase().indexOf(value.toLowerCase()) !== -1)
                 .map(e => ({ title: e.name, identifier: e.identifier, link: e.link }));
 
-            this.setState({ results });
+            this.setState({ isLoading: false, results });
         }, 0);
     }
 
@@ -419,31 +390,17 @@ interface SubjectsProps {
     errors: any
 }
 
-const Subjects = ({ subjects, errors, onChange }: SubjectsProps) =>
-    <React.Fragment>
-        {
-            subjects.map((s, i) =>
-                <Form.Group key={i} widths="equal">
-                    <Form.Input
-                        fluid
-                        value={s.term}
-                        label="Term"
-                        required
-                        placeholder="Term..."
-                        error={errors[i]}
-                        onChange={(e, { value }) => onChange(value, i, "term")}
-                    />
-                    <Form.Input
-                        fluid
-                        value={s.identifier}
-                        label="Identifier"
-                        placeholder="Identifier..."
-                        onChange={(e, { value }) => onChange(value, i, "identifier")}
-                    />
-                </Form.Group>
-            )
-        }
-    </React.Fragment>
+const Subjects = ({ subjects, errors, onChange }: SubjectsProps) => {
+    const elements = subjects.map((value, index) => {
+        const sharedProps = { value, onChange, index };
+        return <Form.Group key={index} widths="equal">
+            <InputInList name="term" displayName="Term" error={errors[index]}
+                {...sharedProps} />
+            <InputInList name="identifier" displayName="Identifier" {...sharedProps} />
+        </Form.Group>;
+    });
+    return <React.Fragment>{elements}</React.Fragment>;
+};
 
 interface RelatedIdentifiersProps {
     relatedIdentifiers: RelatedIdentifier[]
@@ -451,32 +408,27 @@ interface RelatedIdentifiersProps {
     errors: any
 }
 
-const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIdentifiersProps) =>
-    <React.Fragment>
-        {
-            relatedIdentifiers.map((identifier, i) =>
-                <Form.Group key={i} widths="equal">
-                    <Form.Input
-                        error={errors[i]}
-                        fluid label="Identifier"
-                        required
-                        placeholder="Identifier..."
-                        value={identifier.identifier}
-                        onChange={(e, { value }) => onChange(value, i, "identifier")}
-                    />
-                    <Form.Dropdown label="Type"
-                        search
-                        searchInput={{ type: "string" }}
-                        selection
-                        options={identifierTypes}
-                        value={identifier.relation}
-                        placeholder="Select type"
-                        onChange={(e, { value }) => onChange(value, i, "relation")}
-                    />
-                </Form.Group>
-            )
-        }
-    </React.Fragment>;
+const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIdentifiersProps) => {
+    const elements = relatedIdentifiers.map((value, index) => {
+        const sharedProps = { value, onChange, index };
+        return <Form.Group key={index} widths="equal">
+            <InputInList name="identifier" displayName="Identifier" error={errors[index]}
+                {...sharedProps} />
+
+            <Form.Dropdown label="Type"
+                search
+                searchInput={{ type: "string" }}
+                selection
+                options={identifierTypes}
+                value={value.relation}
+                placeholder="Select type"
+                onChange={(e, { value }) => onChange(value, index, "relation")}
+            />
+        </Form.Group>;
+    });
+
+    return <React.Fragment>{elements}</React.Fragment>;
+};
 
 interface CollaboratorsProps {
     contributors: Creator[]
@@ -487,45 +439,37 @@ interface CollaboratorsProps {
 const Contributors = ({ contributors, errors, onChange }: CollaboratorsProps) =>
     <React.Fragment>
         {
-            contributors.map((c, i) =>
-                <Form.Group key={i} widths="equal">
-                    <Form.Input
-                        fluid
-                        label="Name"
-                        required
-                        placeholder="Name..."
-                        error={errors[i]}
-                        value={c.name}
-                        onChange={(e, { value }) => onChange(value, i, "name")}
-                    />
+            contributors.map((value, index) => {
+                const sharedProps = { value, onChange, index };
 
-                    <Form.Input
-                        fluid
-                        label="Affiliation"
-                        placeholder="Affiliation..."
-                        value={c.affiliation}
-                        onChange={(e, { value }) => onChange(value, i, "affiliation")}
-                    />
-
-                    <Form.Input
-                        fluid
-                        label="ORCiD"
-                        placeholder="ORCiD..."
-                        value={c.orcId}
-                        onChange={(e, { value }) => onChange(value, i, "orcId")}
-                    />
-
-                    <Form.Input
-                        fluid
-                        label="GND"
-                        placeholder="GND"
-                        value={c.gnd}
-                        onChange={(e, { value }) => onChange(value, i, "gnd")}
-                    />
+                return <Form.Group key={index} widths="equal">
+                    <InputInList name="name" displayName="Name" {...sharedProps}
+                        error={errors[index]} />
+                    <InputInList name="affiliation" displayName="Affiliation" {...sharedProps} />
+                    <InputInList name="orcId" displayName="ORCID" {...sharedProps} />
+                    <InputInList name="gnd" displayName="GND" {...sharedProps} />
                 </Form.Group>
-            )
+            })
         }
     </React.Fragment>
+
+const InputInList = (p: {
+    name: string,
+    value: any,
+    displayName: string,
+    index: number,
+    onChange: (value, i: number, name: string) => void,
+    error?: any
+}) => (
+        <Form.Input
+            fluid
+            label={p.displayName}
+            placeholder={`${p.displayName}...`}
+            value={p.value[p.name]}
+            onChange={(e, { value }) => p.onChange(value, p.index, p.name)}
+            error={p.error}
+        />
+    );
 
 const FormFieldList = ({ items, name, onChange }) =>
     <React.Fragment>
