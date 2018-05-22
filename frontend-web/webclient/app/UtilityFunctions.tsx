@@ -37,7 +37,7 @@ export const isInvalidPathName = (path: string, filePaths: string[]): string => 
     return "";
 }
 
-export const isFixedFolder = (filePath, homeFolder) => {
+export const isFixedFolder = (filePath: string, homeFolder: string) => {
     return [
         `${homeFolder}/Favorites`,
         `${homeFolder}/Uploads`,
@@ -121,7 +121,7 @@ export const successNotification = (title: string) => swal({
     title
 });
 
-export const shareFile = (path: string, cloud: Cloud, callback: Function) => swal({
+const shareSwal = () => swal({
     title: "Share",
     input: "text",
     html: `<form class="ui form">
@@ -144,23 +144,28 @@ export const shareFile = (path: string, cloud: Cloud, callback: Function) => swa
     inputValidator: (value) =>
         (!value && "Username missing") ||
         !((document.getElementById("read-swal") as HTMLInputElement).checked ||
-        (document.getElementById("write-swal") as HTMLInputElement).checked ||
-        (document.getElementById("execute-swal") as HTMLInputElement).checked) && "Select at least one access right",
-}).then((i) => {
-    if (i.dismiss) return;
-    const rights = [];
-    (document.getElementById("read-swal") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
-    (document.getElementById("write-swal") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
-    (document.getElementById("execute-swal") as HTMLInputElement).checked ? rights.push(AccessRight.EXECUTE) : null;
-    const body = {
-        sharedWith: i.value,
-        path,
-        rights
-    };
-    cloud.put(`/shares/`, body).then(() => successNotification(`${getFilenameFromPath(path)} shared with ${i.value}`))
-        .catch(() => failureNotification(`The file could not be shared at this time. Please try again later.`));
+            (document.getElementById("write-swal") as HTMLInputElement).checked ||
+            (document.getElementById("execute-swal") as HTMLInputElement).checked) && "Select at least one access right",
 });
 
+export const shareFiles = (paths: string[], cloud: Cloud, callback: Function) =>
+    shareSwal().then((input) => {
+        if (input.dismiss) return;
+        const rights = [] as string[];
+        (document.getElementById("read-swal") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
+        (document.getElementById("write-swal") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
+        (document.getElementById("execute-swal") as HTMLInputElement).checked ? rights.push(AccessRight.EXECUTE) : null;
+        let i = 0;
+        paths.forEach(path => {
+            const body = {
+                sharedWith: input.value,
+                path,
+                rights
+            };
+            cloud.put(`/shares/`, body).then(() => ++i === paths.length ? successNotification("Files shared successfully") : null)
+                .catch(() => failureNotification(`${getFilenameFromPath(path)} could not be shared at this time. Please try again later.`));
+        });
+    });
 
 export const updateSharingOfFile = (filePath: string, user: string, currentRights: string, cloud: Cloud, callback: () => any) => {
     swal({
@@ -391,6 +396,8 @@ export const getTypeFromFile = (filePath: string): string => {
     }
 }
 
+export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
+
 export const toFileText = (selectedFiles: File[]): string => {
     if (selectedFiles.length > 1) {
         return `${selectedFiles.length} files selected.`;
@@ -402,5 +409,5 @@ export const toFileText = (selectedFiles: File[]): string => {
 
 export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
-export const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
+export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
