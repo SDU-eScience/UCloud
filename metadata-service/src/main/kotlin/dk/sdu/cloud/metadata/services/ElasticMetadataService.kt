@@ -127,13 +127,12 @@ class ElasticMetadataService(
     }
 
     override fun simpleQuery(user: String, query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata> {
-        val request = SearchRequest().apply {
+        val request = SearchRequest().apply {  //Add index to SearchRequest("index") if needed to search in specific index
             source(SearchSourceBuilder().apply {
                 val q = bool {
-                    should = listOf(
-                        match { "description" to query },
-                        match { "title" to query }
-                    )
+                    common {
+                        CommonData( "full_search", query, "OR", "AND")
+                    }.cutoffFrequency(0.001f)
                 }
 
                 from(paging.itemsPerPage * paging.page)
@@ -153,6 +152,54 @@ class ElasticMetadataService(
         }
 
         return Page(response.hits.totalHits.toInt(), paging.itemsPerPage, paging.page, records)
+    }
+
+    override fun createSettingsAndMappingForProjectMetadataIndex() {
+        try {
+            val request = CreateIndexRequest("project_metadata")
+            request.settings(Settings.builder()
+                    .put("analysis.analyzer.autocomplete.tokenizer", "autocomplete")
+                    .put("analysis.analyzer.autocomplete.filter", "lowercase")
+                    .put("analysis.analyzer.autocomplete_search.tokenizer", "lowercase")
+                    .put("analysis.tokenizer.autocomplete.type", "edge_ngram")
+                    .put("analysis.tokenizer.autocomplete.min_gram", 2)
+                    .put("analysis.tokenizer.autocomplete.max_gram", 10)
+                    .put("analysis.tokenizer.autocomplete.token_chars", "letter")
+            )
+
+            request.mapping("doc", """
+        {
+          "properties": {
+            "title": {
+              "type":  "text",
+              "copy_to": "full_search"
+            },
+            "description": {
+              "type":  "text",
+              "copy_to": "full_search"
+            },
+            "keywords": {
+              "type":  "text",
+              "copy_to": "full_search"
+            },
+            "notes": {
+              "type":  "text",
+              "copy_to": "full_search"
+            },
+            "full_search": {
+              "type":  "text",
+              "analyzer" : "autocomplete",
+              "search_analyzer" : "autocomplete_search"
+            }
+          }
+        }
+        """, XContentType.JSON)
+
+            client.indices().create(request)
+        } catch (ex: Exception) {
+            log.debug("Exception caught when creating settings and mapping for index")
+            log.debug(ex.stackTraceToString())
+        }
     }
 
     companion object {
