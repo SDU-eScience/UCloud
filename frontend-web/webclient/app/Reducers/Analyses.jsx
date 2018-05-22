@@ -14,7 +14,7 @@ const analyses = (state = [], action) => {
             return { ...state, analysesPerPage: action.analysesPerPage };
         }
         default: {
-            return state
+            return state;
         }
     }
 }
