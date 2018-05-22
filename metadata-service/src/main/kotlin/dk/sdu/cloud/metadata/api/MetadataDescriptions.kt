@@ -35,15 +35,17 @@ object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
         }
     }
 
-    /*
-    val findByPath = callDescription<FindByPath, ProjectMetadata, CommonErrorMessage> {
+    val findByPath = callDescription<FindByPath, ProjectMetadataWithRightsInfo, CommonErrorMessage> {
         method = HttpMethod.GET
         prettyName = "metadata-find-by-path"
 
         path {
             using(baseContext)
+            +"by-path"
+        }
+
+        params {
             +boundTo(FindByPath::path)
         }
     }
-    */
 }

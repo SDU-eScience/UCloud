@@ -3,7 +3,8 @@ import { Search, Form, Header, Dropdown, Button } from "semantic-ui-react";
 import { identifierTypes } from "../../DefaultObjects";
 import { createRange } from "../../UtilityFunctions";
 import { allLicenses } from "./licenses";
-import { Creator, Grant, RelatedIdentifier, Subject, getById, updateById } from "./api";
+import { Creator, Grant, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
+import { blankOrNull } from "../../UtilityFunctions";
 
 const newCollaborator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -35,8 +36,10 @@ const identifierHasValue = (identifier: RelatedIdentifier): boolean => {
 export class CreateUpdate extends React.Component<any, any> {
     constructor(props: any) {
         super(props);
+        const urlPath = props.match.params[0];
+
         this.state = {
-            id: "2",
+            path: urlPath,
             title: "",
             description: "",
             license: null,
@@ -44,7 +47,7 @@ export class CreateUpdate extends React.Component<any, any> {
             notes: "",
             contributors: [newCollaborator()],
             references: [""],
-            grants: ["", ""],
+            grants: [""],
             subjects: [newSubject()],
             relatedIdentifiers: [newIdentifier()],
             errors: { contributors: {}, subjects: {}, relatedIdentifiers: {} }
@@ -55,7 +58,7 @@ export class CreateUpdate extends React.Component<any, any> {
     }
 
     componentDidMount() {
-        getById(this.state.id).then(it => {
+        getByPath(this.state.path).then(it => {
             const md = it.metadata;
             const license = allLicenses.find(it => it.identifier == md.license);
             const mappedLicense = license ? {
@@ -65,6 +68,7 @@ export class CreateUpdate extends React.Component<any, any> {
             } : null;
 
             this.setState({
+                id: md.id,
                 title: md.title,
                 description: md.description,
                 license: mappedLicense,
@@ -101,7 +105,7 @@ export class CreateUpdate extends React.Component<any, any> {
                 references: s.references.filter(e => !blankOrNull(e)),
                 subjects: s.subjects.filter(e => subjectHasValue(e)),
                 relatedIdentifiers: s.relatedIdentifiers.filter(e => identifierHasValue(e)),
-                grants: s.grants.map(it => ({ id: it }))
+                grants: s.grants.filter(e => !blankOrNull(e)).map(it => ({ id: it }))
             };
 
             updateById(payload)
@@ -499,8 +503,3 @@ const FormFieldList = ({ items, name, onChange }) =>
                 />)
         }
     </React.Fragment>;
-
-
-const blankOrNull = (value: string): boolean => {
-    return value == null || value.length == 0 || /^\s*$/.test(value);
-}
