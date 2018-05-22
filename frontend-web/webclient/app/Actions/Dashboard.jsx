@@ -1,5 +1,6 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
 import { SET_ALL_LOADING, RECEIVE_FAVORITES, RECEIVE_RECENT_ANALYSES, RECEIVE_RECENT_FILES } from "../Reducers/Dashboard";
+import { genericFailureNotification } from "../UtilityFunctions";
 
 export const setAllLoading = (loading) => ({
     type: SET_ALL_LOADING,
@@ -11,7 +12,7 @@ export const fetchFavorites = () =>
         let actualFavorites = response.filter(file => file.favorited);
         const subsetFavorites = actualFavorites.slice(0, 10);
         return receiveFavorites(subsetFavorites);
-    });
+    }).catch(() => genericFailureNotification());
 
 export const receiveFavorites = (favorites) => ({
     type: RECEIVE_FAVORITES,
@@ -22,7 +23,7 @@ export const fetchRecentFiles = () =>
     Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) => {
         const recentSubset = response.slice(0, 10);
         return receiveRecentFiles(recentSubset);
-    });
+    }).catch(() => genericFailureNotification());
 
 const receiveRecentFiles = (recentFiles) => ({
     type: RECEIVE_RECENT_FILES,
@@ -33,7 +34,7 @@ export const fetchRecentAnalyses = () =>
     Cloud.get("/hpc/jobs").then(({ response }) => {
         const recentAnalyses = response.items.slice(0, 10);
         return receiveRecentAnalyses(recentAnalyses);
-    });
+    }).catch(() => genericFailureNotification());
 
 const receiveRecentAnalyses = (recentAnalyses) => ({
     type: RECEIVE_RECENT_ANALYSES,

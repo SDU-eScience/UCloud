@@ -583,7 +583,10 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
         props.setFileSelectorCallback((newPath) => {
             const currentPath = file.path;
             const newPathForFile = `${newPath}/${uf.getFilenameFromPath(file.path)}`;
-            Cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => refetch());
+            Cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => {
+                uf.successNotification(`${uf.getFilenameFromPath(currentPath)} moved to ${uf.getParentPath(newPathForFile)}`);
+                refetch();
+            }).catch(() => uf.failureNotification("An error occurred, please try again later"));
             props.showFileSelector(false);
             props.setFileSelectorCallback(null);
             props.setDisallowedPaths([]);
@@ -601,9 +604,10 @@ const MobileButtons = ({ file, forceInlineButtons, rename, refetch, ...props }) 
                         props.showFileSelector(false);
                         props.setFileSelectorCallback(null);
                         refetch();
+                        uf.successNotification("File copied.")
                     });
                 } else {
-                    alert(`An error occurred. ${request.statusCode}`)
+                    uf.failureNotification(`An error occurred, please try again later.`)
                 }
             });
         });

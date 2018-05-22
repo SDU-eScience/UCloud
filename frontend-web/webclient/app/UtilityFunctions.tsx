@@ -99,6 +99,30 @@ export const getOwnerFromAcls = (acls: Acl[], cloud: Cloud) => {
     }
 };
 
+
+
+export const failureNotification = (title: string) => swal({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 3000,
+    type: "error",
+    title
+});
+
+export const genericFailureNotification = (title: string) => 
+    failureNotification("An error occurred, please try again later.")
+
+export const successNotification = (title: string) => swal({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 3000,
+    type: "success",
+    title
+});
+
+
 export const updateSharingOfFile = (filePath: string, user: string, currentRights: string, cloud: Cloud, callback: () => any) => {
     swal({
         title: "Please specify access level",
@@ -154,21 +178,19 @@ export const shareFile = (filePath: string, cloud: Cloud, callback: Function) =>
             inputOptions: {
                 "READ": "Read Access",
                 "READ_WRITE": "Read/Write Access",
-                //"OWN": "Own the file"
+                "EXECUTE": "Execute"
             },
         }).then((type: any) => {
             if (type.dismiss) {
                 return;
             }
             const body = {
-                entity: input.value,
-                onFile: filePath,
-                rights: type.value,
-                type: "grant",
+                sharedWith: input.value,
+                path: filePath,
+                rights: [type.value]
             };
-            cloud.put("/acl", body).then((response: any) => {
-                swal("Success!", `The file has been shared with ${input.value}`, "success").then(() => callback ? callback() : null);
-            });
+            cloud.put(`/shares/`, body).then(() => successNotification(`${getFilenameFromPath(filePath)} shared with ${input.value}`))
+                                       .catch(() => failureNotification(`The file could not be shared at this time. Please try again later.`));
         });
     }
     );

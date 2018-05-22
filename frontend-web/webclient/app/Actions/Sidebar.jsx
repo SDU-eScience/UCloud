@@ -4,7 +4,7 @@ import * as Types from "../Reducers/Sidebar";
 export const fetchSidebarOptions = () => 
     Cloud.get("/../mock-api/mock_sidebar_options.json").then(({ response }) => {
         return receiveSidebarOptions(response);
-    });
+    }).catch(() => genericFailureNotification());;
 
 export const setSidebarLoading = (loading) => ({
     type: Types.SET_SIDEBAR_LOADING,
