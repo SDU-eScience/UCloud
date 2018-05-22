@@ -10,6 +10,7 @@ import dk.sdu.cloud.metadata.services.ProjectException
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.tryWithProject
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.storage.api.AnnotateFileRequest
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SyncFileListRequest
@@ -26,40 +27,56 @@ class ProjectsController(
         implement(ProjectDescriptions.create) { request ->
             logEntry(log, request)
 
-            val cloudCtx = call.cloudClient.parent
-            val cloud = cloudCtx.jwtAuth(call.request.validatedPrincipal.token).withCausedBy(call.request.jobId)
-            val result = FileDescriptions.syncFileList.call(SyncFileListRequest(request.fsRoot, 0), cloud)
-
-            if (result is RESTResponse.Err) {
-                if (result.status == HttpStatusCode.Forbidden.value) {
-                    error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
-                } else {
-                    log.warn(result.response.responseBody)
-                    error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
-                }
-                return@implement
-            }
-
-            val initialFiles = result.response.responseBodyAsStream
-                .bufferedReader()
-                .lines()
-                .map { parseSyncItem(it) }
-                .collect(Collectors.toList())
-
-            val metadataFiles = initialFiles.map { FileDescriptionForMetadata(it.uniqueId, it.fileType, it.path) }
-            val rootFile = initialFiles.find { it.path == request.fsRoot } ?: return@implement run {
-                log.warn("Expected to find information about root file")
-                error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
-            }
-
-            val currentUser = call.request.validatedPrincipal.subject
-            if (rootFile.user != currentUser) {
-                log.debug("User is not owner of folder")
-                error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
-                return@implement
-            }
-
             tryWithProject {
+                // TODO Move this to service
+                // TODO Move this to service
+                // TODO Move this to service
+                val cloudCtx = call.cloudClient.parent
+                val cloud = cloudCtx.jwtAuth(call.request.validatedPrincipal.token).withCausedBy(call.request.jobId)
+                val result = FileDescriptions.syncFileList.call(SyncFileListRequest(request.fsRoot, 0), cloud)
+
+                if (result is RESTResponse.Err) {
+                    if (result.status == HttpStatusCode.Forbidden.value) {
+                        error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
+                    } else {
+                        log.warn(result.response.responseBody)
+                        error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
+                    }
+                    return@implement
+                }
+
+                val initialFiles = result.response.responseBodyAsStream
+                    .bufferedReader()
+                    .lines()
+                    .map { parseSyncItem(it) }
+                    .collect(Collectors.toList())
+
+                val metadataFiles = initialFiles.map { FileDescriptionForMetadata(it.uniqueId, it.fileType, it.path) }
+                val rootFile = initialFiles.find { it.path == request.fsRoot } ?: return@implement run {
+                    log.warn("Expected to find information about root file")
+                    error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
+                }
+
+                val currentUser = call.request.validatedPrincipal.subject
+                if (rootFile.user != currentUser) {
+                    log.debug("User is not owner of folder")
+                    error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
+                    return@implement
+                }
+
+                val annotateResult = FileDescriptions.annotate.call(
+                    AnnotateFileRequest(request.fsRoot, PROJECT_ANNOTATION, currentUser),
+                    call.cloudClient // Must be performed as the service
+                )
+
+                if (annotateResult is RESTResponse.Err) {
+                    log.warn("Unable to annotate file! Status = ${annotateResult.status}")
+                    log.warn(annotateResult.rawResponseBody)
+                    error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
+                    return@implement
+                }
+
+                // TODO Failure in last part must remove the annotation!
                 log.debug("Creating a project! $currentUser")
                 val project = Project("", request.fsRoot, currentUser, "")
                 val id = projectService.createProject(project)
@@ -80,6 +97,7 @@ class ProjectsController(
 
     companion object {
         private val log = LoggerFactory.getLogger(ProjectsController::class.java)
+        const val PROJECT_ANNOTATION = "P"
     }
 }
 

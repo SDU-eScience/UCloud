@@ -6,7 +6,6 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
-import dk.sdu.cloud.storage.services.FileSystemService
 import io.netty.handler.codec.http.HttpMethod
 
 data class FindByPath(val path: String)
@@ -24,7 +23,21 @@ data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null
 
 data class AnnotateFileRequest(val path: String, val annotatedWith: String, val proxyUser: String) {
     init {
-        FileSystemService.validateAnnotation(annotatedWith)
+        validateAnnotation(annotatedWith)
+    }
+}
+
+fun validateAnnotation(annotation: String) {
+    if (annotation.contains(Regex("[0-9]"))) {
+        throw IllegalArgumentException("Annotation reserved for future use")
+    }
+
+    if (annotation.contains(',') || annotation.contains('\n')) {
+        throw IllegalArgumentException("Illegal annotation")
+    }
+
+    if (annotation.length > 1) {
+        throw IllegalArgumentException("Annotation type reserved for future use")
     }
 }
 

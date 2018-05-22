@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.currentUsername
 import dk.sdu.cloud.metadata.api.MetadataDescriptions
 import dk.sdu.cloud.metadata.api.MetadataQueryDescriptions
+import dk.sdu.cloud.metadata.api.ProjectMetadataWithRightsInfo
 import dk.sdu.cloud.metadata.services.MetadataAdvancedQueryService
 import dk.sdu.cloud.metadata.services.MetadataCommandService
 import dk.sdu.cloud.metadata.services.MetadataQueryService
@@ -34,7 +35,8 @@ class MetadataController(
             if (result == null) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
             } else {
-                ok(result)
+                val canEdit = metadataCommandService.canEdit(call.request.currentUsername, it.id)
+                ok(ProjectMetadataWithRightsInfo(result, canEdit = canEdit))
             }
         }
 

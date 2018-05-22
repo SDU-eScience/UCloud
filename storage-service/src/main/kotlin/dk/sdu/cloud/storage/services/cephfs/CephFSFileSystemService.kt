@@ -546,7 +546,7 @@ class CephFSFileSystemService(
     }
 
     override fun annotateFiles(ctx: FSUserContext, path: String, annotation: String) {
-        FileSystemService.validateAnnotation(annotation)
+        validateAnnotation(annotation)
         setMetaValue(ctx, path, "annotate${UUID.randomUUID().toString().replace("-", "")}", annotation)
     }
 

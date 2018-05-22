@@ -55,8 +55,9 @@ export class CreateUpdate extends React.Component<any, any> {
     }
 
     componentDidMount() {
-        getById(this.state.id).then(e => {
-            const license = allLicenses.find(it => it.identifier == e.license);
+        getById(this.state.id).then(it => {
+            const md = it.metadata;
+            const license = allLicenses.find(it => it.identifier == md.license);
             const mappedLicense = license ? {
                 title: license.name,
                 link: license.link,
@@ -64,17 +65,17 @@ export class CreateUpdate extends React.Component<any, any> {
             } : null;
 
             this.setState({
-                title: e.title,
-                description: e.description,
+                title: md.title,
+                description: md.description,
                 license: mappedLicense,
-                keywords: e.keywords ? e.keywords : [""],
-                notes: e.notes ? e.notes : "",
-                contributors: e.contributors ? e.contributors : [newCollaborator()],
-                references: e.references ? e.references : [""],
-                grants: e.grants ? e.grants.map(it => it ? it.id : "") : [""],
-                subjects: e.subjects ? e.subjects : [newSubject()],
-                relatedIdentifiers: e.relatedIdentifiers ?
-                    e.relatedIdentifiers : [newIdentifier()]
+                keywords: md.keywords ? md.keywords : [""],
+                notes: md.notes ? md.notes : "",
+                contributors: md.contributors ? md.contributors : [newCollaborator()],
+                references: md.references ? md.references : [""],
+                grants: md.grants ? md.grants.map(it => it ? it.id : "") : [""],
+                subjects: md.subjects ? md.subjects : [newSubject()],
+                relatedIdentifiers: md.relatedIdentifiers ?
+                    md.relatedIdentifiers : [newIdentifier()]
             });
         });
     }

@@ -72,25 +72,6 @@ interface FileSystemService {
     )
 
     fun openContext(user: String): FSUserContext
-
-    companion object {
-        fun validateAnnotation(annotation: String) {
-            if (annotation.contains(Regex("[0-9]"))) {
-                throw IllegalArgumentException("Annotation reserved for future use")
-            }
-
-            if (annotation.contains(',') || annotation.contains('\n')) {
-                throw IllegalArgumentException("Illegal annotation")
-            }
-
-            if (annotation.length > 1) {
-                throw IllegalArgumentException("Annotation type reserved for future use")
-            }
-        }
-
-    }
-
-
 }
 
 data class SyncItem(

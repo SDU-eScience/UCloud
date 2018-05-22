@@ -28,9 +28,9 @@ class ElasticMetadataService(
     private val projectService: ProjectService
 ) : MetadataCommandService, MetadataQueryService, MetadataAdvancedQueryService {
     private val client = RestHighLevelClient(RestClient.builder(HttpHost(elasticHost, elasticPort, elasticScheme)))
+
     private val mapper = jacksonObjectMapper()
     private val singleInstanceOfMicroServiceLockBadIdeaButWorksForNow = Any()
-
     override fun create(metadata: ProjectMetadata) {
         if (internalGetById(metadata.id) != null) throw MetadataException.Duplicate()
 
@@ -41,10 +41,19 @@ class ElasticMetadataService(
         )
     }
 
+    override fun canEdit(user: String, projectId: String): Boolean {
+        val project = projectService.findById(projectId) ?: throw MetadataException.NotFound()
+        return canEdit(user, project)
+    }
+
+    private fun canEdit(user: String, project: Project): Boolean {
+        return project.owner == user
+    }
+
     override fun update(user: String, projectId: String, metadata: UserEditableProjectMetadata) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             val project = projectService.findById(projectId) ?: throw MetadataException.NotFound()
-            if (project.owner != user) {
+            if (!canEdit(user, project)) {
                 log.debug("Not allowed. Project owner is '${project.owner}' current user is '$user'")
                 throw MetadataException.NotAllowed()
             }
