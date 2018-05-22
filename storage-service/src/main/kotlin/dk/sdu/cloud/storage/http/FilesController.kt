@@ -1,9 +1,6 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.principalRole
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.FileDescriptions
@@ -168,6 +165,16 @@ class FilesController(private val fs: FileSystemService) {
                             })
                         }
                     }
+                }
+            }
+
+            implement(FileDescriptions.annotate) { req ->
+                logEntry(log, req)
+                if (!protect(listOf(Role.ADMIN, Role.SERVICE))) return@implement
+
+                tryWithFS {
+                    fs.annotateFiles(fs.openContext(req.proxyUser), req.path, req.annotatedWith)
+                    ok(Unit)
                 }
             }
         }

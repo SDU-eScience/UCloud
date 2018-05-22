@@ -8,7 +8,6 @@ import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.services.cephfs.FavoritedFile
 import dk.sdu.cloud.storage.services.cephfs.ProcessRunner
-import dk.sdu.cloud.storage.services.cephfs.ProcessRunnerFactory
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -16,6 +15,7 @@ import java.io.InputStream
 import java.io.OutputStream
 
 typealias FSUserContext = ProcessRunner
+
 interface FileSystemService {
     fun ls(
         ctx: FSUserContext,
@@ -55,6 +55,8 @@ interface FileSystemService {
     fun getMetaValue(ctx: FSUserContext, path: String, key: String): String
     fun setMetaValue(ctx: FSUserContext, path: String, key: String, value: String)
 
+    fun annotateFiles(ctx: FSUserContext, path: String, annotation: String)
+
     /**
      * Retrieves a "sync" list of files starting at [path].
      *
@@ -62,7 +64,12 @@ interface FileSystemService {
      *
      * Only file entries that have been modified since [modifiedSince] will be included.
      */
-    suspend fun syncList(ctx: FSUserContext, path: String, modifiedSince: Long = 0, itemHandler: suspend (SyncItem) -> Unit)
+    suspend fun syncList(
+        ctx: FSUserContext,
+        path: String,
+        modifiedSince: Long = 0,
+        itemHandler: suspend (SyncItem) -> Unit
+    )
 
     fun openContext(user: String): FSUserContext
 }
@@ -94,6 +101,7 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(body: () -> U
     try {
         body()
     } catch (ex: Exception) {
+        fsLog.debug(ex.stackTraceToString())
         handleFSException(ex)
     }
 }
@@ -112,8 +120,8 @@ suspend fun RESTHandler<*, *, CommonErrorMessage>.handleFSException(ex: Exceptio
                     HttpStatusCode.Forbidden
                 )
                 is FileSystemException.CriticalException -> {
-                    log.warn("Caught critical FS exception!")
-                    log.warn(ex.stackTraceToString())
+                    fsLog.warn("Caught critical FS exception!")
+                    fsLog.warn(ex.stackTraceToString())
                     error(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
                 }
             }
@@ -124,11 +132,11 @@ suspend fun RESTHandler<*, *, CommonErrorMessage>.handleFSException(ex: Exceptio
         }
 
         else -> {
-            log.warn("Unknown FS exception!")
-            log.warn(ex.stackTraceToString())
+            fsLog.warn("Unknown FS exception!")
+            fsLog.warn(ex.stackTraceToString())
             error(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
         }
     }
 }
 
-private val log = LoggerFactory.getLogger(FileSystemService::class.java)
+val fsLog = LoggerFactory.getLogger(FileSystemService::class.java)

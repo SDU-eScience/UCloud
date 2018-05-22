@@ -31,6 +31,7 @@ data class StorageFile(
     val favorited: Boolean,
     val sensitivityLevel: SensitivityLevel,
     val link: Boolean,
+    val annotations: Set<String>,
     @get:JsonIgnore val inode: Long = 0
 )
 

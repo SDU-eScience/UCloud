@@ -3,6 +3,7 @@ import swal from "sweetalert2";
 import { RightsMap, RightsNameMap, SensitivityLevelMap } from "./DefaultObjects";
 import { File, Acl } from "./types/types";
 import Cloud from "../authentication/lib";
+import { AccessRight } from "./types/types";
 
 interface Type { type: string }
 export const NotificationIcon = ({ type }: Type) => {
@@ -99,8 +100,6 @@ export const getOwnerFromAcls = (acls: Acl[], cloud: Cloud) => {
     }
 };
 
-
-
 export const failureNotification = (title: string) => swal({
     toast: true,
     position: "top-end",
@@ -110,7 +109,7 @@ export const failureNotification = (title: string) => swal({
     title
 });
 
-export const genericFailureNotification = (title: string) => 
+export const genericFailureNotification = (title: string) =>
     failureNotification("An error occurred, please try again later.")
 
 export const successNotification = (title: string) => swal({
@@ -120,6 +119,46 @@ export const successNotification = (title: string) => swal({
     timer: 3000,
     type: "success",
     title
+});
+
+export const shareFile = (path: string, cloud: Cloud, callback: Function) => swal({
+    title: "Share",
+    input: "text",
+    html: `<form class="ui form">
+            <div class="three fields">
+                <div class="field"><div class="ui checkbox">
+                    <input id="read-swal" type="checkbox" /><label>Read</label>
+                </div></div>
+                <div class="field"><div class="ui checkbox">
+                    <input id="write-swal" type="checkbox" /><label>Write</label>
+                </div></div>
+                <div class="field"><div class="ui checkbox">
+                    <input id="execute-swal" type="checkbox" /><label>Execute</label>
+                </div></div>
+            </div>
+          </form>`,
+    showCloseButton: true,
+    showCancelButton: true,
+    inputPlaceholder: "Enter username...",
+    focusConfirm: false,
+    inputValidator: (value) =>
+        (!value && "Username missing") ||
+        !((document.getElementById("read-swal") as HTMLInputElement).checked ||
+        (document.getElementById("write-swal") as HTMLInputElement).checked ||
+        (document.getElementById("execute-swal") as HTMLInputElement).checked) && "Select at least one access right",
+}).then((i) => {
+    if (i.dismiss) return;
+    const rights = [];
+    (document.getElementById("read-swal") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
+    (document.getElementById("write-swal") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
+    (document.getElementById("execute-swal") as HTMLInputElement).checked ? rights.push(AccessRight.EXECUTE) : null;
+    const body = {
+        sharedWith: i.value,
+        path,
+        rights
+    };
+    cloud.put(`/shares/`, body).then(() => successNotification(`${getFilenameFromPath(path)} shared with ${i.value}`))
+        .catch(() => failureNotification(`The file could not be shared at this time. Please try again later.`));
 });
 
 
@@ -154,68 +193,6 @@ export const updateSharingOfFile = (filePath: string, user: string, currentRight
     });
 };
 
-export const shareFile = (filePath: string, cloud: Cloud, callback: Function) => {
-    swal({
-        title: "Share file",
-        text: `Enter a username to share ${getFilenameFromPath(filePath)} with.`,
-        input: "text",
-        confirmButtonText: "Next",
-        showCancelButton: true,
-        showCloseButton: true,
-        inputValidator: (value: string) => {
-            return !value && 'Please enter a username'
-        }
-    }).then((input: any) => {
-        if (input.dismiss) {
-            return;
-        }
-        swal({
-            title: "Please specify access level",
-            text: `The file ${getFilenameFromPath(filePath)} is to be shared with ${input.value}.`,
-            input: "select",
-            showCancelButton: true,
-            showCloseButton: true,
-            inputOptions: {
-                "READ": "Read Access",
-                "READ_WRITE": "Read/Write Access",
-                "EXECUTE": "Execute"
-            },
-        }).then((type: any) => {
-            if (type.dismiss) {
-                return;
-            }
-            const body = {
-                sharedWith: input.value,
-                path: filePath,
-                rights: [type.value]
-            };
-            cloud.put(`/shares/`, body).then(() => successNotification(`${getFilenameFromPath(filePath)} shared with ${input.value}`))
-                                       .catch(() => failureNotification(`The file could not be shared at this time. Please try again later.`));
-        });
-    }
-    );
-}
-
-export const revokeSharing = (filePath: string, person: string, rightsLevel: string, cloud: Cloud) =>
-    console.warn("Revoking of sharing must be rewritten");
-/*
-swal({
-    title: "Revoke access",
-    text: `Revoke ${rightsLevel} access for ${person}`,
-}).then((input: any) => {
-    if (input.dismiss) {
-        return;
-    }
-    const body = {
-        onFile: filePath,
-        entity: person,
-        type: "revoke",
-    };
-
-    return cloud.delete("/acl", body);//.then(response => {
-
-    //});
-});*/
 
 export const renameFile = (filePath: string) =>
     swal({
@@ -419,7 +396,7 @@ export const toFileText = (selectedFiles: File[]): string => {
         return `${selectedFiles.length} files selected.`;
     } else {
         const filename = getFilenameFromPath(selectedFiles[0].path);
-        filename.length > 10 ? filename.slice(0, 17) + "..." : filename;
+        return filename.length > 10 ? filename.slice(0, 17) + "..." : filename;
     }
 }
 

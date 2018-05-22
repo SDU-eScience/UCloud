@@ -6,6 +6,11 @@ import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.storage.api.FindByPath
 import io.netty.handler.codec.http.HttpMethod
 
+data class ProjectMetadataWithRightsInfo(
+    val metadata: ProjectMetadata,
+    val canEdit: Boolean
+)
+
 object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
     private const val baseContext = "/api/metadata"
 
@@ -20,7 +25,7 @@ object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
         body { bindEntireRequestFromBody() }
     }
 
-    val findById = callDescription<FindByProjectId, ProjectMetadata, CommonErrorMessage> {
+    val findById = callDescription<FindByProjectId, ProjectMetadataWithRightsInfo, CommonErrorMessage> {
         method = HttpMethod.GET
         prettyName = "metadata-find"
 

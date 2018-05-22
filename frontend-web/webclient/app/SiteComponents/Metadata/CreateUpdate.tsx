@@ -6,7 +6,6 @@ import { allLicenses } from "./licenses";
 import { Creator, Grant, RelatedIdentifier, Subject, getById, updateById } from "./api";
 
 const newCollaborator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
-const newGrant = (): Grant => ({ id: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
 const newSubject = (): Subject => ({ term: "", identifier: "" });
 
@@ -45,7 +44,7 @@ export class CreateUpdate extends React.Component<any, any> {
             notes: "",
             contributors: [newCollaborator()],
             references: [""],
-            grants: [newGrant(), newGrant()],
+            grants: ["", ""],
             subjects: [newSubject()],
             relatedIdentifiers: [newIdentifier()],
             errors: { contributors: {}, subjects: {}, relatedIdentifiers: {} }
@@ -56,8 +55,9 @@ export class CreateUpdate extends React.Component<any, any> {
     }
 
     componentDidMount() {
-        getById(this.state.id).then(e => {
-            const license = allLicenses.find(it => it.identifier == e.license);
+        getById(this.state.id).then(it => {
+            const md = it.metadata;
+            const license = allLicenses.find(it => it.identifier == md.license);
             const mappedLicense = license ? {
                 title: license.name,
                 link: license.link,
@@ -65,17 +65,17 @@ export class CreateUpdate extends React.Component<any, any> {
             } : null;
 
             this.setState({
-                title: e.title,
-                description: e.description,
+                title: md.title,
+                description: md.description,
                 license: mappedLicense,
-                keywords: e.keywords ? e.keywords : [""],
-                notes: e.notes ? e.notes : "",
-                contributors: e.contributors ? e.contributors : [newCollaborator()],
-                references: e.references ? e.references : [""],
-                grants: e.grants ? e.grants : [newGrant()],
-                subjects: e.subjects ? e.subjects : [newSubject()],
-                relatedIdentifiers: e.relatedIdentifiers ?
-                    e.relatedIdentifiers : [newIdentifier()]
+                keywords: md.keywords ? md.keywords : [""],
+                notes: md.notes ? md.notes : "",
+                contributors: md.contributors ? md.contributors : [newCollaborator()],
+                references: md.references ? md.references : [""],
+                grants: md.grants ? md.grants.map(it => it ? it.id : "") : [""],
+                subjects: md.subjects ? md.subjects : [newSubject()],
+                relatedIdentifiers: md.relatedIdentifiers ?
+                    md.relatedIdentifiers : [newIdentifier()]
             });
         });
     }
@@ -100,7 +100,8 @@ export class CreateUpdate extends React.Component<any, any> {
                 contributors: s.contributors.filter(e => creatorHasValue(e)),
                 references: s.references.filter(e => !blankOrNull(e)),
                 subjects: s.subjects.filter(e => subjectHasValue(e)),
-                relatedIdentifiers: s.relatedIdentifiers.filter(e => identifierHasValue(e))
+                relatedIdentifiers: s.relatedIdentifiers.filter(e => identifierHasValue(e)),
+                grants: s.grants.map(it => ({ id: it }))
             };
 
             updateById(payload)
@@ -298,6 +299,21 @@ export class CreateUpdate extends React.Component<any, any> {
                         onClick={(e) => this.addRow(e, "references")}
                     />
                 </Form.Field>
+
+                <Form.Field>
+                    <label>Grants</label>
+                    <FormFieldList
+                        name="grant"
+                        items={this.state.grants}
+                        onChange={this.setStateEvList("grants")}
+                    />
+                    <Button
+                        type="button"
+                        content="Add grant"
+                        onClick={(e) => this.addRow(e, "grants")}
+                    />
+                </Form.Field>
+
 
                 <Form.Field>
                     <label>Subjects</label>

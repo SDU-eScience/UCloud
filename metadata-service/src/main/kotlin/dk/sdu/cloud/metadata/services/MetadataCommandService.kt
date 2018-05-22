@@ -27,4 +27,6 @@ interface MetadataCommandService {
     fun updatePathOfFile(projectId: String, fileId: String, newPath: String)
 
     fun removeAllFiles(projectId: String)
+
+    fun canEdit(user: String, projectId: String): Boolean
 }

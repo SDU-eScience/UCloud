@@ -21,6 +21,7 @@ import {
     Grid
 } from "semantic-ui-react";
 import "./view.scss";
+import { identifierTypes } from "../../DefaultObjects";
 
 interface ViewProps {
     metadata: ProjectMetadata
@@ -48,7 +49,10 @@ export const View = (props: ViewProps) => {
                 <ReactMarkdown source={metadata.description} />
             </Grid.Column>
             <Grid.Column width={4}>
-                <Header as="h4">About</Header>
+                <Header as="h4">
+                    <Icon name="info" />
+                    <Header.Content>About</Header.Content>
+                </Header>
                 <List>
                     <List.Item>
                         <Label color='green' className="metadata-detailed-tag">
@@ -79,7 +83,10 @@ export const View = (props: ViewProps) => {
                     </List.Item>
                 </List>
 
-                <Header as="h4">Keywords</Header>
+                <Header as="h4">
+                    <Icon name="hashtag" />
+                    <Header.Content>Keywords</Header.Content>
+                </Header>
                 <List>
                     {
                         metadata.keywords.map((it, idx) => (
@@ -90,20 +97,34 @@ export const View = (props: ViewProps) => {
                     }
                 </List>
 
-                <Header as="h4">References</Header>
+                <Header as="h4">
+                    <Icon name="bookmark" />
+                    <Header.Content>References</Header.Content>
+                </Header>
                 <List>
                     {
                         metadata.references.map((it, idx) => (
                             <List.Item>
-                                {isIdentifierDOI(it) ? 
-                                    <DOIBadge identifier={it} key={idx} />
-                                    :
-                                    <Label className="metadata-detailed-tag" key={idx}>{it}</Label>
-                                }
+                                <PotentialDOIBadge identifier={it} key={idx} />
                             </List.Item>
                         ))
                     }
                 </List>
+
+                <Header as="h4">
+                    <Icon name="money" />
+                    <Header.Content>Grants</Header.Content>
+                </Header>
+                <List>
+                    {
+                        metadata.grants.map((it, idx) => (
+                            <List.Item>
+                                <PotentialDOIBadge identifier={it.id} key={idx} />
+                            </List.Item>
+                        ))
+                    }
+                </List>
+
             </Grid.Column>
         </Grid>
     </div>;
@@ -136,7 +157,13 @@ const ContributorItem = (props: { contributor: Creator }) => {
                         : null
                     }
                     {contributor.orcId ?
-                        <p><b>ORCID:</b> {contributor.orcId}</p>
+                        <p>
+                            <b>ORCID:</b>
+                            {" "}
+                            <a href={`https://orcid.org/${contributor.orcId}`} target="_blank">
+                                {contributor.orcId}
+                            </a>
+                        </p>
                         : null
                     }
                 </React.Fragment>
@@ -188,7 +215,13 @@ const DOIBadge = (props: { identifier: string }) => {
     return <a href={`https://doi.org/${identifier}`} target="_blank">
         <Label className="metadata-detailed-tag" color="blue">
             {identifier}
-            {/* <Label.Detail>DOI</Label.Detail> */}
         </Label>
     </a>;
 }
+
+const PotentialDOIBadge = (props: { identifier: string }) => {
+    if (isIdentifierDOI(props.identifier)) {
+        return <DOIBadge identifier={props.identifier} />;
+    }
+    return <Label className="metadata-detailed-tag">{props.identifier}</Label>;
+};

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services.cephfs
 
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.BashEscaper
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.*
 
 data class FavoritedFile(val type: FileType, val from: String, val to: String, val inode: Long)
 
@@ -335,7 +337,16 @@ class CephFSFileSystemService(
                 AccessEntry(aclEntity, isGroup, rights)
             }
 
-            val sensitivity = SensitivityLevel.valueOf(lexer.readToken())
+            val annotations = lexer.readToken().toCharArray().map { it.toString() }.toSet()
+
+            val sensitivity = try {
+                SensitivityLevel.valueOf(lexer.readToken())
+            } catch (ex: Exception) {
+                log.debug(ex.stackTraceToString())
+                throw FileSystemException.CriticalException("Internal error. " +
+                        "Could not resolve sensitivity level ${lexer.line}")
+            }
+
             val fileName = line.substring(lexer.cursor)
             if (!includeImplicit && (fileName == ".." || fileName == "." || fileName == "")) return@mapNotNull null
             val filePath = File(where, fileName).normalize().absolutePath
@@ -354,7 +365,8 @@ class CephFSFileSystemService(
                 acl = entries,
                 favorited = isFavorited,
                 sensitivityLevel = sensitivity,
-                inode = inode
+                inode = inode,
+                annotations = annotations
             )
         }
 
@@ -532,6 +544,12 @@ class CephFSFileSystemService(
             )
         }
     }
+
+    override fun annotateFiles(ctx: FSUserContext, path: String, annotation: String) {
+        validateAnnotation(annotation)
+        setMetaValue(ctx, path, "annotate${UUID.randomUUID().toString().replace("-", "")}", annotation)
+    }
+
 
     private fun favoritesDirectory(ctx: FSUserContext): String {
         return joinPath(homeDirectory(ctx), "Favorites", isDirectory = true)

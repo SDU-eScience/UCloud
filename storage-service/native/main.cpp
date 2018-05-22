@@ -14,6 +14,7 @@
 #include <acl/libacl.h>
 #include <string.h>
 #define GETXATTR(path, name, value, size) getxattr(path, name, value, size)
+#define LISTXATTR(path, buffer, buffer_size) listxattr(path, buffer, buffer_size)
 #endif
 
 #ifdef __APPLE__
@@ -21,6 +22,7 @@
 #include "libacl.h"
 
 #define GETXATTR(path, name, value, size) getxattr(path, name, value, size, 0, 0)
+#define LISTXATTR(path, buffer, buffer_size) listxattr(path, buffer, buffer_size, 0)
 
 int acl_get_perm(acl_permset_t perm, int value) {
     return 0;
@@ -165,7 +167,7 @@ int main(int argc, char **argv) {
     acl_entry_t entry{};
     acl_tag_t acl_tag;
     acl_permset_t permset;
-    char sensitivity_buffer[32];
+    char xattr_buffer[32];
 
     char resolve_buffer[PATH_MAX];
     link_t link{};
@@ -299,11 +301,34 @@ int main(int argc, char **argv) {
             std::cout << e.name << ',' << (int) e.mode << ',';
         }
 
-        memset(&sensitivity_buffer, 0, 32);
-        GETXATTR(ep->d_name, "user.sensitivity", &sensitivity_buffer, 32);
 
-        char *sensitivity_result = sensitivity_buffer;
-        if (strlen(sensitivity_buffer) == 0) {
+        size_t attr_name_buffer_size = 1024 * 32;
+        char attr_name_buffer[attr_name_buffer_size];
+        auto list_size = LISTXATTR(ep->d_name, attr_name_buffer, attr_name_buffer_size);
+
+        const char *annotate_prefix = "user.annotate";
+        size_t annotate_prefix_length = strlen(annotate_prefix);
+
+        char *key = attr_name_buffer;
+        while (list_size > 0) {
+            memset(&xattr_buffer, 0, 32);
+
+            if (strncmp(annotate_prefix, key, annotate_prefix_length) == 0) {
+                GETXATTR(ep->d_name, key, &xattr_buffer, 32);
+                std::cout << xattr_buffer;
+            }
+
+            size_t key_length = strlen(key) + 1;
+            list_size -= key_length;
+            key += key_length;
+        }
+        std::cout << ',';
+
+        memset(&xattr_buffer, 0, 32);
+        GETXATTR(ep->d_name, "user.sensitivity", &xattr_buffer, 32);
+
+        char *sensitivity_result = xattr_buffer;
+        if (strlen(xattr_buffer) == 0) {
             sensitivity_result = const_cast<char *>("CONFIDENTIAL");
         }
 

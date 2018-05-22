@@ -1,6 +1,11 @@
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Page } from "../../types/types";
 
+export interface ProjectMetadataWithRights {
+    metadata: ProjectMetadata
+    canEdit: boolean
+}
+
 export interface ProjectMetadata {
     /**
      * The SDUCloud FSRoot this metadata belongs to (i.e. project)
@@ -86,7 +91,7 @@ export const simpleSearch = (
     ).then(f => f.response);
 }
 
-export const getById = (id: string): Promise<ProjectMetadata> => {
+export const getById = (id: string): Promise<ProjectMetadataWithRights> => {
     return Cloud.get(`/metadata/${id}`).then(f => f.response);
 }
 
