@@ -6,6 +6,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
+import dk.sdu.cloud.storage.services.FileSystemService
 import io.netty.handler.codec.http.HttpMethod
 
 data class FindByPath(val path: String)
@@ -21,6 +22,12 @@ data class CopyRequest(val path: String, val newPath: String)
 data class BulkDownloadRequest(val prefix: String, val files: List<String>)
 data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null)
 
+data class AnnotateFileRequest(val path: String, val annotatedWith: String, val proxyUser: String) {
+    init {
+        FileSystemService.validateAnnotation(annotatedWith)
+    }
+}
+
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
 
@@ -32,6 +39,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
+    // TODO Should stat the link and not the resolved entry
     val stat = callDescription<FindByPath, StorageFile, CommonErrorMessage> {
         prettyName = "stat"
         path {
@@ -159,6 +167,37 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         path {
             using(baseContext)
             +"sync"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    /**
+     * Annotates a file with metadata. Privileged API.
+     */
+    val annotate = callDescription<AnnotateFileRequest, Unit, CommonErrorMessage> {
+        /*
+        Implementation strategies:
+
+          - Use XATTRs
+            + Fast to implement
+            + No concurrency guarantees (practically impossible in single field)
+            + Multiple fields with UUID is doable, but cannot guarantee we don't get duplicates
+              - UUIDs take up space
+          - Use a database
+            + Takes slightly longer to implement
+            + No limitations on what we can store
+            + Concurrency guarantees
+            + Cleaning up when files are deleted (Kafka stream)
+            + At this point we could (should?) maintain a reverse lookup for inodes and path
+            + Will need a correct stat API for this to work
+         */
+        prettyName = "filesAnnotate"
+        method = HttpMethod.POST
+
+        path {
+            using(baseContext)
+            +"annotate"
         }
 
         body { bindEntireRequestFromBody() }

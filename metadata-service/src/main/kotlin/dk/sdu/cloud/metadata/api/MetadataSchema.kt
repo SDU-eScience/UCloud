@@ -1,5 +1,7 @@
 package dk.sdu.cloud.metadata.api
 
+import dk.sdu.cloud.metadata.util.Licenses
+
 enum class AccessRight {
     OPEN_ACCESS,
     EMBARGOED,
@@ -17,6 +19,7 @@ interface UserEditableProjectMetadata {
     val grants: List<Grant>?
     val subjects: List<Subject>?
     val relatedIdentifiers: List<RelatedIdentifier>?
+    val notes: String?
 }
 
 data class ProjectMetadataEditRequest(
@@ -29,6 +32,7 @@ data class ProjectMetadataEditRequest(
     override val references: List<String>? = null,
     override val grants: List<Grant>? = null,
     override val subjects: List<Subject>? = null,
+    override val notes: String? = null,
     override val relatedIdentifiers: List<RelatedIdentifier>? = null
 ) : UserEditableProjectMetadata
 
@@ -61,7 +65,7 @@ data class ProjectMetadata(
     /**
      * The license of the project
      */
-    override val license: String,
+    override val license: String?,
 
     val id: String,
 
@@ -70,7 +74,7 @@ data class ProjectMetadata(
     val accessConditions: String? = null,
 
     override val keywords: List<String>? = null,
-    val notes: String? = null,
+    override val notes: String? = null,
     override val contributors: List<Creator>? = null,
     override val references: List<String>? = null,
     override val grants: List<Grant>? = null,
@@ -85,7 +89,11 @@ data class ProjectMetadata(
     override val relatedIdentifiers: List<RelatedIdentifier>? = null
 ): UserEditableProjectMetadata {
     init {
-        if (title.isBlank()) throw IllegalArgumentException("title cannot be blank")
+        if (title.isBlank()) throw IllegalArgumentException("Metadata 'title' cannot be blank")
+        if (description.isBlank()) throw IllegalArgumentException("Metadata 'description' cannot be blank")
+        if (!license.isNullOrBlank() && license != null && !Licenses.isValidLicenseIdentifier(license)) {
+            throw IllegalArgumentException("Metadata 'license' is invalid")
+        }
     }
 }
 
@@ -121,9 +129,17 @@ data class ThesisInformation(
     val university: String?
 )
 
-data class Grant(val id: String)
+data class Grant(val id: String) {
+    init {
+        if (id.isBlank()) throw IllegalArgumentException("Grant 'id' cannot be blank")
+    }
+}
 
-data class Subject(val term: String, val identifier: String, val scheme: String?)
+data class Subject(val term: String, val identifier: String, val scheme: String?) {
+    init {
+        if (term.isBlank()) throw IllegalArgumentException("Subject 'term' cannot be blank")
+    }
+}
 
 sealed class RelatedIdentifier(val relation: String) {
     abstract val identifier: String
@@ -147,4 +163,8 @@ data class Creator(
     val affiliation: String? = null,
     val orcId: String? = null,
     val gnd: String? = null
-)
+) {
+    init {
+        if (name.isBlank()) throw IllegalArgumentException("Creator 'name' cannot be blank")
+    }
+}

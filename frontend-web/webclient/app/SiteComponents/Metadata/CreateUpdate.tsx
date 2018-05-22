@@ -6,7 +6,6 @@ import { allLicenses } from "./licenses";
 import { Creator, Grant, RelatedIdentifier, Subject, getById, updateById } from "./api";
 
 const newCollaborator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
-const newGrant = (): Grant => ({ id: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
 const newSubject = (): Subject => ({ term: "", identifier: "" });
 
@@ -45,7 +44,7 @@ export class CreateUpdate extends React.Component<any, any> {
             notes: "",
             contributors: [newCollaborator()],
             references: [""],
-            grants: [newGrant(), newGrant()],
+            grants: ["", ""],
             subjects: [newSubject()],
             relatedIdentifiers: [newIdentifier()],
             errors: { contributors: {}, subjects: {}, relatedIdentifiers: {} }
@@ -72,7 +71,7 @@ export class CreateUpdate extends React.Component<any, any> {
                 notes: e.notes ? e.notes : "",
                 contributors: e.contributors ? e.contributors : [newCollaborator()],
                 references: e.references ? e.references : [""],
-                grants: e.grants ? e.grants : [newGrant()],
+                grants: e.grants ? e.grants.map(it => it ? it.id : "") : [""],
                 subjects: e.subjects ? e.subjects : [newSubject()],
                 relatedIdentifiers: e.relatedIdentifiers ?
                     e.relatedIdentifiers : [newIdentifier()]
@@ -100,7 +99,8 @@ export class CreateUpdate extends React.Component<any, any> {
                 contributors: s.contributors.filter(e => creatorHasValue(e)),
                 references: s.references.filter(e => !blankOrNull(e)),
                 subjects: s.subjects.filter(e => subjectHasValue(e)),
-                relatedIdentifiers: s.relatedIdentifiers.filter(e => identifierHasValue(e))
+                relatedIdentifiers: s.relatedIdentifiers.filter(e => identifierHasValue(e)),
+                grants: s.grants.map(it => ({ id: it }))
             };
 
             updateById(payload)
@@ -298,6 +298,21 @@ export class CreateUpdate extends React.Component<any, any> {
                         onClick={(e) => this.addRow(e, "references")}
                     />
                 </Form.Field>
+
+                <Form.Field>
+                    <label>Grants</label>
+                    <FormFieldList
+                        name="grant"
+                        items={this.state.grants}
+                        onChange={this.setStateEvList("grants")}
+                    />
+                    <Button
+                        type="button"
+                        content="Add grant"
+                        onClick={(e) => this.addRow(e, "grants")}
+                    />
+                </Form.Field>
+
 
                 <Form.Field>
                     <label>Subjects</label>
