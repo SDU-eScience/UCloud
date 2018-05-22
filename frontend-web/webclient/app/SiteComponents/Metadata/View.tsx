@@ -4,8 +4,9 @@ import { ProjectMetadata } from "./api";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import * as ReactMarkdown from "react-markdown";
 import { FilesTable } from "../Files/Files";
-import { Creator, getById } from "./api";
+import { Creator, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
+import { blankOrNull } from "../../UtilityFunctions";
 import {
     Label,
     Icon,
@@ -25,10 +26,11 @@ import { identifierTypes } from "../../DefaultObjects";
 
 interface ViewProps {
     metadata: ProjectMetadata
+    canEdit: boolean
 }
 
 export const View = (props: ViewProps) => {
-    const { metadata } = props;
+    const { metadata, canEdit } = props;
     const license = metadata.license ? findLicenseByIdentifier(metadata.license) : null;
 
     return <div>
@@ -49,6 +51,25 @@ export const View = (props: ViewProps) => {
                 <ReactMarkdown source={metadata.description} />
             </Grid.Column>
             <Grid.Column width={4}>
+                { canEdit ?
+                    <React.Fragment>
+                        <Header as="h4">
+                            <Icon name="hand pointer" />
+                            <Header.Content>Actions</Header.Content>
+                        </Header>
+                        <List>
+                            <List.Item>
+                                <Link to={`/metadata/edit/${metadata.sduCloudRoot}`}>
+                                    <Label color='blue' className="metadata-detailed-tag">
+                                        <Icon name='edit' />
+                                        Edit
+                                    </Label>
+                                </Link>
+                            </List.Item>
+                        </List>
+                    </React.Fragment>
+                    : null
+                }
                 <Header as="h4">
                     <Icon name="info" />
                     <Header.Content>About</Header.Content>
@@ -132,10 +153,11 @@ export const View = (props: ViewProps) => {
 
 const ContributorItem = (props: { contributor: Creator }) => {
     const { contributor } = props;
+    console.log(contributor);
     if (
-        contributor.affiliation != null ||
-        contributor.gnd != null ||
-        contributor.orcId != null
+        !blankOrNull(contributor.affiliation) ||
+        !blankOrNull(contributor.gnd) ||
+        !blankOrNull(contributor.orcId)
     ) {
         return <Popup
             trigger={
@@ -148,15 +170,15 @@ const ContributorItem = (props: { contributor: Creator }) => {
             }
             content={
                 <React.Fragment>
-                    {contributor.affiliation ?
+                    {!blankOrNull(contributor.affiliation) ?
                         <p><b>Affiliation:</b> {contributor.affiliation}</p>
                         : null
                     }
-                    {contributor.gnd ?
+                    {!blankOrNull(contributor.gnd) ?
                         <p><b>GND:</b> {contributor.gnd}</p>
                         : null
                     }
-                    {contributor.orcId ?
+                    {!blankOrNull(contributor.orcId) ?
                         <p>
                             <b>ORCID:</b>
                             {" "}
@@ -179,6 +201,7 @@ const ContributorItem = (props: { contributor: Creator }) => {
 
 interface ManagedViewState {
     metadata?: ProjectMetadata
+    canEdit?: boolean
     errorMessage?: string
 }
 
@@ -188,12 +211,13 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
         this.state = {};
     }
 
-    componentWillReceiveProps() {
-        const id = this.props.match.params.id;
-        if (!!this.state.metadata && this.state.metadata.id == id) return;
+    // TODO This is not the correct place to do this!
+    componentDidMount() {
+        const urlPath = this.props.match.params[0];
+        if (!!this.state.metadata) return;
 
-        getById(id)
-            .then(metadata => this.setState(() => ({ metadata })))
+        getByPath(urlPath)
+            .then(it => this.setState(() => ({ metadata: it.metadata, canEdit: it.canEdit })))
             .catch(() => console.warn("TODO something went wrong"));
     }
 
@@ -201,7 +225,7 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
         if (!this.state.metadata) {
             return <DefaultLoading loading />;
         } else {
-            return <View metadata={this.state.metadata} />;
+            return <View canEdit={this.state.canEdit} metadata={this.state.metadata} />;
         }
     }
 }

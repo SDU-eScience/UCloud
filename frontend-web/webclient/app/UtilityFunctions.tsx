@@ -404,3 +404,7 @@ export const inRange = (status: number, min: number, max: number): boolean => st
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
 export const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
+
+export const blankOrNull = (value: string): boolean => {
+    return value == null || value.length == 0 || /^\s*$/.test(value);
+}

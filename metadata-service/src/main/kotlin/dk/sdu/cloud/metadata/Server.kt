@@ -93,7 +93,8 @@ class Server(
                         MetadataController(
                             elasticMetadataService,
                             elasticMetadataService,
-                            elasticMetadataService
+                            elasticMetadataService,
+                            projectService
                         ).configure(this)
                     }
                 }

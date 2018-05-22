@@ -95,6 +95,10 @@ export const getById = (id: string): Promise<ProjectMetadataWithRights> => {
     return Cloud.get(`/metadata/${id}`).then(f => f.response);
 }
 
+export const getByPath = (path: string): Promise<ProjectMetadataWithRights> => {
+    return Cloud.get(`/metadata/by-path?path=${path}`).then(f => f.response);
+}
+
 export const updateById = (payload: any): Promise<any> => {
     return Cloud.post("/metadata", payload).then(f => f.response);
 }

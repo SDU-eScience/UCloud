@@ -29,8 +29,9 @@ class ProjectEntity(id: EntityID<Int>) : IntEntity(id) {
 
 class ProjectSQLDao : ProjectDAO {
     override fun findByFSRoot(path: String): Project? {
+        val normalizedPath = File(path).normalize().path
         return transaction {
-            ProjectEntity.find { Projects.fsRoot eq path }.toList().singleOrNull()?.toProject()
+            ProjectEntity.find { Projects.fsRoot eq normalizedPath }.toList().singleOrNull()?.toProject()
         }
     }
 
