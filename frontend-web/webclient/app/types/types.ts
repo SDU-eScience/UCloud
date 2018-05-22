@@ -10,6 +10,7 @@ export interface File {
     sensitivityLevel: string
     isChecked?: boolean
     link: boolean
+    annotations: string[] 
 }
 
 export interface Acl {

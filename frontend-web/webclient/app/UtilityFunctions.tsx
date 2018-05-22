@@ -396,7 +396,7 @@ export const toFileText = (selectedFiles: File[]): string => {
         return `${selectedFiles.length} files selected.`;
     } else {
         const filename = getFilenameFromPath(selectedFiles[0].path);
-        filename.length > 10 ? filename.slice(0, 17) + "..." : filename;
+        return filename.length > 10 ? filename.slice(0, 17) + "..." : filename;
     }
 }
 
