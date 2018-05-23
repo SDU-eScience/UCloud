@@ -543,7 +543,7 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
                 onClick={() => uf.shareFile(selectedFiles[0].path, Cloud)}>
                 <Icon name="share alternate" /> Share
             </Button>
-            <Button className="context-button-margin" disabled={downloadDisabled || selectedFiles[0].type === "DIRECTORY"} basic fluid
+            <Button className="context-button-margin" disabled={downloadDisabled} basic fluid
                 onClick={() => uf.downloadFile(selectedFiles[0].path, Cloud)}>
                 <Icon name="download" /> Download
                 </Button>
@@ -569,9 +569,9 @@ const MobileButtons = ({ file, forceInlineButtons, rename, ...props }) => (
                 <Dropdown.Item onClick={() => uf.shareFile(file.path, Cloud)}>
                     Share file
                 </Dropdown.Item>
-                {file.type === "FILE" ? <Dropdown.Item onClick={() => uf.downloadFile(file.path, Cloud)}>
+                <Dropdown.Item onClick={() => uf.downloadFile(file.path, Cloud)}>
                     Download file
-                </Dropdown.Item> : null}
+                </Dropdown.Item>
                 {rename && !uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => rename(file.path)}>
                     Rename file
                 </Dropdown.Item> : null}
