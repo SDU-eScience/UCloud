@@ -72,6 +72,8 @@ interface FileSystemService {
     )
 
     fun openContext(user: String): FSUserContext
+
+    fun markAsOpenAccess(ctx: FSUserContext, path: String)
 }
 
 data class SyncItem(

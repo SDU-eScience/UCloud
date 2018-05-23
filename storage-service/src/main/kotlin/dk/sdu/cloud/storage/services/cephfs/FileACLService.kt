@@ -4,7 +4,7 @@ import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.ShareException
 import org.slf4j.LoggerFactory
-import java.util.ArrayList
+import java.util.*
 
 class FileACLService(
     private val cloudToCephFsDao: CloudToCephFsDao,
@@ -13,19 +13,14 @@ class FileACLService(
     private val setfaclExecutable: String
         get() = if (isDevelopment) "echo" else "setfacl"
 
-    fun createEntry(
+    private fun internalCreateEntry(
         ctx: FSUserContext,
-        toUser: String,
+        faclEntity: String,
         mountedPath: String,
         rights: Set<AccessRight>,
         defaultList: Boolean = false,
         recursive: Boolean = false
     ) {
-        val toUserUnix =
-            cloudToCephFsDao.findUnixUser(toUser) ?: throw ShareException.BadRequest(
-                "$toUser does not exist"
-            )
-
         val command = ArrayList<String>().apply {
             add(setfaclExecutable)
 
@@ -41,7 +36,7 @@ class FileACLService(
                 read + write + execute
             }
 
-            add("u:$toUserUnix:$permissions")
+            add("$faclEntity:$permissions")
 
             add(mountedPath)
         }.toList()
@@ -53,6 +48,32 @@ class FileACLService(
             log.info("stdout: ${result.stdout}")
             throw ShareException.PermissionException()
         }
+    }
+
+    fun createEntry(
+        ctx: FSUserContext,
+        toUser: String,
+        mountedPath: String,
+        rights: Set<AccessRight>,
+        defaultList: Boolean = false,
+        recursive: Boolean = false
+    ) {
+        val toUserUnix =
+            cloudToCephFsDao.findUnixUser(toUser) ?: throw ShareException.BadRequest(
+                "$toUser does not exist"
+            )
+
+        internalCreateEntry(ctx, "u:$toUserUnix", mountedPath, rights, defaultList, recursive)
+    }
+
+    fun createEntryForOthers(
+        ctx: FSUserContext,
+        mountedPath: String,
+        rights: Set<AccessRight>,
+        defaultList: Boolean = false,
+        recursive: Boolean = false
+    ) {
+        internalCreateEntry(ctx, "o", mountedPath, rights, defaultList, recursive)
     }
 
     fun removeEntry(

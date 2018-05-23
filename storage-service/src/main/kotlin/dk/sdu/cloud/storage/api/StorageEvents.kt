@@ -90,7 +90,8 @@ sealed class StorageEvent {
         override val id: String,
         override val path: String,
         override val owner: String,
-        override val timestamp: Long
+        override val timestamp: Long,
+        val oldPath: String
     ) : StorageEvent()
 }
 

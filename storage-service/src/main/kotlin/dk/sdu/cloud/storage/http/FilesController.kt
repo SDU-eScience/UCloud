@@ -177,6 +177,16 @@ class FilesController(private val fs: FileSystemService) {
                     ok(Unit)
                 }
             }
+
+            implement(FileDescriptions.markAsOpenAccess) { req ->
+                logEntry(log, req)
+                if (!protect(listOf(Role.ADMIN, Role.SERVICE))) return@implement
+
+                tryWithFS {
+                    fs.markAsOpenAccess(fs.openContext(req.proxyUser), req.path)
+                    ok(Unit)
+                }
+            }
         }
     }
 
