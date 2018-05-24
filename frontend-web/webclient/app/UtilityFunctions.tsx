@@ -4,6 +4,7 @@ import { RightsMap, RightsNameMap, SensitivityLevelMap } from "./DefaultObjects"
 import { File, Acl } from "./types/types";
 import Cloud from "../authentication/lib";
 import { AccessRight } from "./types/types";
+import { SemanticICONS } from "semantic-ui-react";
 
 interface Type { type: string }
 export const NotificationIcon = ({ type }: Type) => {
@@ -282,21 +283,22 @@ export const downloadFile = (path: string, cloud: Cloud) =>
     });
 
 export const fileSizeToString = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
     if (!bytes) { return ""; }
     if (bytes < 1000) {
         return `${bytes} B`;
     } else if (bytes < 1000 ** 2) {
-        return `${bytes / 1000} KB`;
+        return `${(bytes / 1000).toFixed(2)} KB`;
     } else if (bytes < 1000 ** 3) {
-        return `${bytes / 1000 ** 2} MB`;
+        return `${(bytes / 1000 ** 2).toFixed(2)} MB`;
     } else if (bytes < 1000 ** 4) {
-        return `${bytes / 1000 ** 3} GB`;
+        return `${(bytes / 1000 ** 3).toFixed(2)} GB`;
     } else if (bytes < 1000 ** 5) {
-        return `${bytes / 1000 ** 4} TB`;
+        return `${(bytes / 1000 ** 4).toFixed(2)} TB`;
     } else if (bytes < 1000 ** 6) {
-        return `${bytes / 1000 ** 5} PB`;
+        return `${(bytes / 1000 ** 5).toFixed(2)} PB`;
     } else if (bytes < 1000 ** 7) {
-        return `${bytes / 1000 ** 6} EB`;
+        return `${(bytes / 1000 ** 6).toFixed(2)} EB`;
     } else {
         return `${bytes} B`;
     }
@@ -339,7 +341,7 @@ export const createRangeInclusive = (count: number): number[] => {
     return range;
 };
 
-export const getTypeFromFile = (filePath: string): string => {
+export const iconFromFilePath = (filePath: string): SemanticICONS => {
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
         return "file text outline";
@@ -388,7 +390,10 @@ export const getTypeFromFile = (filePath: string): string => {
             return "file text outline";
         case "wav":
         case "mp3":
-            return "ion-android-volume-up";
+            return "volume up";
+        case "gz":
+        case "zip":
+            return "file archive outline";
         default:
             if (getFilenameFromPath(filePath).split(".").length > 1)
                 console.warn(`Unhandled extension "${filePath}" for file ${filePath}`)
@@ -414,4 +419,8 @@ export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperC
 
 export const blankOrNull = (value: string): boolean => {
     return value == null || value.length == 0 || /^\s*$/.test(value);
+}
+
+export const ifPresent = (f, handler: (f: any) => void) => {
+    if (f) handler(f);
 }

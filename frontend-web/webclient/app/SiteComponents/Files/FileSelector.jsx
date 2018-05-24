@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import { Modal, Icon, Button, List, Input } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
-import { sortFilesByTypeAndName, getFilenameFromPath, getTypeFromFile, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "../../UtilityFunctions";
+import { sortFilesByTypeAndName, getFilenameFromPath, iconFromFilePath, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
 import { dispatch } from "redux";
 import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
@@ -300,7 +300,7 @@ const FileList = ({ files, fetchFiles, onClick, canSelectFolders }) =>
                 file.type === "FILE" ?
                     (<List.Item onClick={() => onClick(file)} key={index} className="itemPadding pointer-cursor">
                         <List.Content>
-                            <Icon className={getTypeFromFile(file.path)} /> {getFilenameFromPath(file.path)}
+                            <Icon className={iconFromFilePath(file.path)} /> {getFilenameFromPath(file.path)}
                         </List.Content>
                     </List.Item>)
                     : (<List.Item key={index} className="itemPadding pointer-cursor">

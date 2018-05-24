@@ -4,7 +4,20 @@ import { connect } from "react-redux";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Rating } from "semantic-ui-react";
+import {
+    Modal,
+    Dropdown,
+    Button,
+    Icon,
+    Table,
+    Header,
+    Input,
+    Grid,
+    Responsive,
+    Checkbox,
+    Rating
+} from "semantic-ui-react";
+
 import * as Pagination from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
@@ -14,6 +27,7 @@ import { updatePageTitle } from "../../Actions/Status";
 import { changeUppyFilesOpen } from "../../Actions/UppyActions";
 import { FileSelectorModal } from "./FileSelector";
 import { FileIcon } from "../UtilityComponents";
+import { Uploader } from "../Uploader";
 
 class Files extends React.Component {
     constructor(props) {
@@ -199,6 +213,7 @@ class Files extends React.Component {
                             <ContextButtons
                                 upload={openUppy}
                                 createFolder={() => this.createFolder(currentPath)}
+                                currentPath={currentPath}
                                 mobileOnly={true}
                             />
                         </Responsive>
@@ -267,15 +282,26 @@ class Files extends React.Component {
 
 const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchText, updateText, createFolder, refetch, ...props }) => (
     <div>
-        <ContextButtons upload={onClick} createFolder={createFolder} mobileOnly={false} />
+        <ContextButtons currentPath={currentPath} upload={onClick} createFolder={createFolder} mobileOnly={false} />
         <br /><br /><br />
         <FileOptions selectedFiles={selectedFiles} refetch={refetch} rename={props.rename} />
     </div>
 );
 
-const ContextButtons = ({ upload, createFolder, mobileOnly }) => (
+const ContextButtons = ({ currentPath, upload, createFolder, mobileOnly }) => (
     <div>
-        <Button color="blue" className="context-button-margin" fluid onClick={() => upload()}> Upload Files </Button>
+        {/* <Button color="blue" className="context-button-margin" fluid onClick={() => upload()}> Upload Files </Button> */}
+        <Modal trigger={<Button color="blue" className="context-button-margin" fluid>Upload Files</Button>}>
+            <Modal.Header>
+                Upload Files
+            </Modal.Header>
+
+            <Modal.Content scrolling>
+                <Modal.Description>
+                    <Uploader location={currentPath} />
+                </Modal.Description>
+            </Modal.Content>
+        </Modal>
         <Button basic className="context-button-margin" fluid onClick={() => createFolder()}> New folder</Button>
     </div>
 );
@@ -500,7 +526,7 @@ const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, si
     const icon = (
         <FileIcon
             color={color}
-            name={type === "DIRECTORY" ? "folder" : uf.getTypeFromFile(name)}
+            name={type === "DIRECTORY" ? "folder" : uf.iconFromFilePath(name)}
             size={size} link={link}
             className="create-folder"
         />
