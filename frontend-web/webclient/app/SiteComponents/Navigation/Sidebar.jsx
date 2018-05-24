@@ -149,6 +149,18 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }, ...props
                     </List>
                 </Accordion.Content>
             </Menu.Item>
+            <Menu.Item>
+                <Link to={"/shares"} onClick={() => closeSidebar()} className="sidebar-option">
+                    <List>
+                        <List.Item>
+                            <List.Content floated="right">
+                                <List.Icon name="share" />
+                            </List.Content>
+                            Shares
+                    </List.Item>
+                    </List>
+                </Link>
+            </Menu.Item>
         </Accordion>
     </React.Fragment>
 );

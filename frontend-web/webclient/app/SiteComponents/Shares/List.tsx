@@ -9,32 +9,41 @@ import "./List.scss"
 
 interface ListState {
     shares: SharesByPath[]
-    errorMessage: string
+    errorMessage: string,
+    page: number,
+    itemsPerPage: number
 }
 
 export class List extends React.Component<any, ListState> {
     constructor(props: any) {
         super(props);
-        this.state = { shares: [], errorMessage: null };
+        this.state = {
+            shares: [],
+            errorMessage: null,
+            page: 0,
+            itemsPerPage: 10
+        };
     }
 
-    public componentWillMount() {
+    public componentDidMount() {
         this.reload();
     }
 
     reload() {
-        retrieveShares().then(e => this.setState({ shares: e.items })).catch(e => {
+        retrieveShares(this.state.page, this.state.itemsPerPage).then(e => this.setState({ shares: e.items })).catch(e => {
             this.setState({ errorMessage: "Unable to retrieve shares!" });
         });
     }
 
     public render() {
         let { shares, errorMessage } = this.state;
+        const noSharesWith = this.state.shares.filter(it => !it.sharedByMe).length === 0;
+        const noSharesBy = this.state.shares.filter(it => it.sharedByMe).length === 0;
         return (
-            <Container>
-                {errorMessage ? <Message color='red' onDismiss={() => this.setState({ errorMessage: null })}>{errorMessage}</Message> : null}
+            <React.Fragment>
+                {errorMessage ? <Message color="red" onDismiss={() => this.setState({ errorMessage: null })}>{errorMessage}</Message> : null}
                 <Header>Shared with Me</Header>
-                {this.state.shares.map(it =>
+                {noSharesWith ? <NoShares /> : this.state.shares.filter(it => !it.sharedByMe).map(it =>
                     <ListEntry
                         groupedShare={it}
                         key={it.path}
@@ -45,7 +54,19 @@ export class List extends React.Component<any, ListState> {
                         onRights={e => this.onEntryAction(e)}
                         onError={it => this.setState({ errorMessage: it })} />
                 )}
-            </Container>
+                <Header>Shared by Me</Header>
+                {noSharesBy ? <NoShares /> : this.state.shares.filter(it => it.sharedByMe).map(it =>
+                    <ListEntry
+                        groupedShare={it}
+                        key={it.path}
+                        onAccepted={e => this.onEntryAction(e)}
+                        onRejected={e => this.onEntryAction(e)}
+                        onRevoked={e => this.onEntryAction(e)}
+                        onShared={e => this.onEntryAction(e)}
+                        onRights={e => this.onEntryAction(e)}
+                        onError={it => this.setState({ errorMessage: it })} />
+                )}
+            </React.Fragment>
         );
     }
 
@@ -53,6 +74,8 @@ export class List extends React.Component<any, ListState> {
         this.reload();
     }
 }
+
+const NoShares = () => <Header textAlign="center"><Header.Subheader content="No shares" /></Header>
 
 interface ListEntryProperties {
     groupedShare: SharesByPath
@@ -104,7 +127,10 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                     <Card.Meta>Shared by {groupedShare.sharedBy}</Card.Meta>
                     <Card.Description>
                         {message}
-                        <Button negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" size='mini' onClick={() => this.onRevoke(actualShare)} />
+                        <Button.Group floated="right">
+                            {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
+                                <Button negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" size='mini' onClick={() => this.onRevoke(actualShare)} /> : null}
+                        </Button.Group>
                     </Card.Description>
                 </Card.Content>
 
@@ -126,23 +152,20 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         let { groupedShare } = this.props;
         let { isLoading } = this.state;
 
-        let shareComponents: JSX.Element[] = groupedShare.shares.map(e => {
-            return (
-                <SemList.Item key={e.id}>
-                    <SemList.Icon name='user circle' size='large' verticalAlign='top' />
-                    <SemList.Content>
-                        <SemList.Header>
-                            {e.sharedWith}
-                        </SemList.Header>
-                        <SemList.Description>
-                            <AccessRightsDisplay className='ar-display-padding' size='mini' rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
-                            {/* TODO Styling of revoke */}
-                            <Button negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" size='mini' onClick={() => this.onRevoke(e)} />
-                        </SemList.Description>
-                    </SemList.Content>
-                </SemList.Item>
-            );
-        });
+        let shareComponents: JSX.Element[] = groupedShare.shares.map(e => (
+            <SemList.Item key={e.id}>
+                <Button negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" floated="right" size="mini" onClick={() => this.onRevoke(e)} />
+                <SemList.Icon name='user circle' size="large" verticalAlign='top' />
+                <SemList.Content>
+                    <SemList.Header>
+                        {e.sharedWith}
+                    </SemList.Header>
+                    <SemList.Description>
+                        <AccessRightsDisplay className='ar-display-padding' size='mini' rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
+                    </SemList.Description>
+                </SemList.Content>
+            </SemList.Item>
+        ));
 
         return (
             <Card fluid>
@@ -260,8 +283,8 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 disabled={props.disabled}
                 positive={read}
                 toggle
-                icon='search'
-                content='Read'
+                icon="search"
+                content="Read"
                 onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.READ) : 0}
             />
 
@@ -269,8 +292,8 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 disabled={props.disabled}
                 positive={write}
                 toggle
-                icon='edit'
-                content='Write'
+                icon="edit"
+                content="Write"
                 onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.WRITE) : 0}
             />
 
@@ -308,10 +331,9 @@ interface Share {
     state: ShareState
 }
 
-function retrieveShares(byState?: ShareState, page?: Number, itemsPerPage?: Number): Promise<Page<SharesByPath>> {
-    let url = "/shares?"
+function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
+    let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (byState) url += `state=${byState}`
-
     return Cloud.get(url).then((e) => e.response);
 }
 

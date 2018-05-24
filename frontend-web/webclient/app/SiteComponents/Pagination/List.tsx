@@ -35,7 +35,7 @@ export class List extends React.PureComponent<ListProps> {
         const props = this.props;
         const body = this.renderBody();
 
-        let errorComponent = null
+        let errorComponent = null;
         if (typeof props.errorMessage == "string") {
             errorComponent = <Message color='red' onDismiss={props.onErrorDismiss}>{props.errorMessage}</Message>;
         } else if (typeof props.errorMessage == "function") {
@@ -85,7 +85,7 @@ export class List extends React.PureComponent<ListProps> {
                             href="#" 
                             onClick={() => ifPresent(props.onRefresh, (c) => c())}
                         >
-                            Try again?
+                            {" Try again?"}
                         </a>
                     </Header>
                 </div>;

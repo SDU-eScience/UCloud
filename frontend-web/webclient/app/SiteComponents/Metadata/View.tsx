@@ -3,26 +3,18 @@ import { Link } from "react-router-dom";
 import { ProjectMetadata } from "./api";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import * as ReactMarkdown from "react-markdown";
-import { FilesTable } from "../Files/Files";
 import { Creator, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
 import { blankOrNull } from "../../UtilityFunctions";
 import {
     Label,
     Icon,
-    Card,
-    Message,
     List,
-    Input,
-    Form,
     Header,
-    Dropdown,
-    Button,
     Popup,
     Grid
 } from "semantic-ui-react";
 import "./view.scss";
-import { identifierTypes } from "../../DefaultObjects";
 
 interface ViewProps {
     metadata: ProjectMetadata
@@ -111,8 +103,8 @@ export const View = (props: ViewProps) => {
                 <List>
                     {
                         metadata.keywords.map((it, idx) => (
-                            <List.Item>
-                                <Label className="metadata-detailed-tag" key={idx}>{it}</Label>
+                            <List.Item key={idx}>
+                                <Label className="metadata-detailed-tag">{it}</Label>
                             </List.Item>
                         ))
                     }
@@ -125,8 +117,8 @@ export const View = (props: ViewProps) => {
                 <List>
                     {
                         metadata.references.map((it, idx) => (
-                            <List.Item>
-                                <PotentialDOIBadge identifier={it} key={idx} />
+                            <List.Item key={idx}>
+                                <PotentialDOIBadge identifier={it} />
                             </List.Item>
                         ))
                     }
@@ -139,8 +131,8 @@ export const View = (props: ViewProps) => {
                 <List>
                     {
                         metadata.grants.map((it, idx) => (
-                            <List.Item>
-                                <PotentialDOIBadge identifier={it.id} key={idx} />
+                            <List.Item key={idx}>
+                                <PotentialDOIBadge identifier={it.id} />
                             </List.Item>
                         ))
                     }
@@ -197,7 +189,7 @@ const ContributorItem = (props: { contributor: Creator }) => {
     } else {
         return <List.Item icon="user" content={contributor.name} {...props} />
     }
-}
+};
 
 interface ManagedViewState {
     metadata?: ProjectMetadata
@@ -214,10 +206,10 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
     // TODO This is not the correct place to do this!
     componentDidMount() {
         const urlPath = this.props.match.params[0];
-        if (!!this.state.metadata) return;
+        if (!!this.state.metadata || !!urlPath) return;
 
         getByPath(urlPath)
-            .then(it => this.setState(() => ({ metadata: it.metadata, canEdit: it.canEdit })))
+            .then(it => this.setState(() => ({ metadata: handleNullArrays(it.metadata), canEdit: it.canEdit })))
             .catch(() => console.warn("TODO something went wrong"));
     }
 
@@ -230,9 +222,19 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
     }
 }
 
+// TODO find more elegant solution
+const handleNullArrays = (metadata: ProjectMetadata):ProjectMetadata => {
+    const mData = { ...metadata };
+    mData.contributors = mData.contributors ? mData.contributors : [];
+    mData.keywords = mData.keywords ? mData.keywords : [];
+    mData.references = mData.references ? mData.references : [];
+    mData.grants = mData.grants ? mData.grants : [];
+    return mData;
+};
+
 const isIdentifierDOI = (identifier: string): boolean => {
     return /^10\..+\/.+$/.test(identifier);
-}
+};
 
 const DOIBadge = (props: { identifier: string }) => {
     const { identifier } = props;

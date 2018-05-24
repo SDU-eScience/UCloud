@@ -272,13 +272,15 @@ export const getFilenameFromPath = (path: string): string =>
     !path ? "" : path.split("/").pop();
 
 
-export const downloadFile = (path: string, cloud: Cloud) =>
-    cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) => {
-        let link = document.createElement("a");
-        window.location.href = "/api/files/download?path=" + encodeURI(path) + "&token=" + encodeURI(token);
-        link.setAttribute("download", "");
-        link.click();
-    });
+export const downloadFiles = (paths: string[], cloud: Cloud) => {
+    paths.forEach(p =>
+        cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) => {
+            let link = document.createElement("a");
+            window.location.href = "/api/files/download?path=" + encodeURI(p) + "&token=" + encodeURI(token);
+            link.download = "";
+            link.click();
+        }));
+}
 
 export const fileSizeToString = (bytes: number): string => {
     if (!bytes) { return ""; }
@@ -396,7 +398,7 @@ export const getTypeFromFile = (filePath: string): string => {
 };
 
 export const createProject = (filePath: string, cloud: Cloud) =>
-    cloud.put("/projects", { fsRoot: filePath}).then(() =>
+    cloud.put("/projects", { fsRoot: filePath }).then(() =>
         successNotification(`${filePath} project creation started.`)
     ).catch(() => genericFailureNotification());
 

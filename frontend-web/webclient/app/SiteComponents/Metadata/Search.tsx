@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Label, Icon, Card, Message, Input, Form, Header, Dropdown, Button } from "semantic-ui-react";
+import { Label, Icon, Card, Header} from "semantic-ui-react";
 import { simpleSearch, ProjectMetadata } from "./api";
 import { Page, emptyPage } from "../../types/types";
 import * as Pagination from "../Pagination";
@@ -19,7 +19,11 @@ export class Search extends React.Component<any, SearchState> {
         };
     }
 
-    componentWillReceiveProps() {
+    componentDidMount() {
+        this.checkQueryParams();
+    }
+
+    componentDidUpdate() {
         // TODO Doesn't work correctly with react router on back/forwards browser navigation
         this.checkQueryParams();
     }
@@ -29,8 +33,7 @@ export class Search extends React.Component<any, SearchState> {
         // const params = new URLSearchParams(window.location.search);
         // const rawQuery = params.get("query");
         // const query = rawQuery ? rawQuery : "";
-        const query = this.props.match.params.query;
-
+        const query = this.props.match.params.query;;
         if (this.state.query != query) {
             this.setState(() => ({
                 query,
@@ -62,7 +65,7 @@ export class Search extends React.Component<any, SearchState> {
 const SearchItem = ({ item }: { item: ProjectMetadata }) => (
     <Card fluid>
         <Card.Content>
-            <Header><Link to={`/metadata/${item.id}`}>{item.title}</Link></Header>
+            <Header><Link to={`/metadata/${item.sduCloudRoot}`}>{item.title}</Link></Header>
         </Card.Content>
 
         <Card.Content
@@ -95,13 +98,13 @@ const SearchItem = ({ item }: { item: ProjectMetadata }) => (
 const defaultIfBlank = (text: string, defaultValue: string): string => {
     if (text.length == 0) return defaultValue;
     else return text;
-}
+};
 
 const firstParagraphWithLimitedLength = (text: string, maxLength: number): string => {
     const lines = text.split("\n");
-    const paragraphEndsAt = lines.findIndex((line) => /^\s*$/.test(line))
+    const paragraphEndsAt = lines.findIndex((line) => /^\s*$/.test(line));
 
-    let firstParagraph: string
+    let firstParagraph: string;
     if (paragraphEndsAt == -1) firstParagraph = text;
     else firstParagraph = lines.slice(0, paragraphEndsAt).join("\n");
 
@@ -110,4 +113,4 @@ const firstParagraphWithLimitedLength = (text: string, maxLength: number): strin
     } else {
         return firstParagraph;
     }
-}
+};

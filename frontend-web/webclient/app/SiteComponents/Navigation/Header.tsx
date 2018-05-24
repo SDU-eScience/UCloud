@@ -1,20 +1,26 @@
 import * as React from "react";
-import { Button, Input, Menu, Dropdown, Icon, Responsive, Header as H1 } from "semantic-ui-react";
+import {Input, Menu, Dropdown, Icon, Responsive, Header as H1, Form} from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
-import { Link } from "react-router-dom";
+import {Link, withRouter} from "react-router-dom";
 import "./Header.scss";
 import Notifications from "../Notifications/index";
 import { setSidebarOpen } from "../../Actions/Sidebar";
 
-interface HeaderProps { title: string }
 class Header extends React.Component<any, any> {
     constructor(props) {
         super(props);
+        this.state = {
+            searchText: ""
+        };
     }
+
+    updateSearchText = (searchText) =>
+        this.setState(() => ({ searchText }));
 
     public render() {
         const sidebarIcon = this.props.open ? "triangle left" : "triangle right";
+        const {searchText} = this.state;
         return (
             <Menu className="menu-padding">
                 <Responsive maxWidth={1024}>
@@ -31,7 +37,9 @@ class Header extends React.Component<any, any> {
                 <Menu.Menu position="right">
                     <Menu.Item>
                         <Responsive minWidth={700}>
-                            <Input className="header-search" fluid icon='search' placeholder='Search...' />
+                            <Form onSubmit={(e) => {e.preventDefault(); !!searchText ? this.props.history.push(`/metadata/search/${searchText}`) : null}} >
+                                <Input value={searchText} onChange={(e, {value}) => this.updateSearchText(value)} className="header-search" fluid icon='search' placeholder='Search...'/>
+                            </Form>
                         </Responsive>
                         <Responsive maxWidth={699}>
                             <Link to={`/metadata/search?query=updateplz`}>
@@ -54,4 +62,4 @@ class Header extends React.Component<any, any> {
 }
 
 const mapStateToProps = ({ sidebar }: any) => ({ open: sidebar.open });
-export default connect(mapStateToProps)(Header);
+export default connect(mapStateToProps)(withRouter(Header));

@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Message, Header, Pagination, Dropdown } from "semantic-ui-react";
 import { Page, emptyPage } from "../../types/types";
 import * as Self from ".";
 
@@ -14,6 +13,7 @@ interface ManagedListState {
     itemsPerPage: number
     results: Page<any>
     errorMessage?: string
+    dataProvider: Function
 }
 
 export class ManagedList extends React.Component<ManagedListProps, ManagedListState> {
@@ -24,7 +24,8 @@ export class ManagedList extends React.Component<ManagedListProps, ManagedListSt
             loading: false,
             currentPage: 0,
             itemsPerPage: 10,
-            results: emptyPage
+            results: emptyPage,
+            dataProvider: (page: number, itemsPerPage: number) => emptyPage
         };
     }
 
@@ -32,8 +33,11 @@ export class ManagedList extends React.Component<ManagedListProps, ManagedListSt
         this.refresh();
     }
 
-    componentWillReceiveProps() {
-        this.refresh();
+    componentDidUpdate() {
+        if (this.state.dataProvider !== this.props.dataProvider) {
+            this.setState(() => ({ dataProvider: this.props.dataProvider }));
+            this.refresh();
+        }
     }
 
     private refresh() {
