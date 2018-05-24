@@ -216,7 +216,7 @@ const FileSelectorBody = (props) => {
             props.files.filter(f => f.type === "DIRECTORY") : props.files)
             .filter((it) => !disallowedPaths.some((d) => d === it.path));
     return (
-        <Modal.Content>
+        <Modal.Content scrolling>
             <List divided size="large">
                 <List.Header>
                     Filename

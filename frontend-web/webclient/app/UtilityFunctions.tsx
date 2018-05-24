@@ -36,7 +36,7 @@ export const isInvalidPathName = (path: string, filePaths: string[]): string => 
     const existingName = filePaths.some((it) => it === path);
     if (existingName) return "File with that name already exists";
     return "";
-}
+};
 
 export const isFixedFolder = (filePath: string, homeFolder: string) => {
     return [
@@ -62,7 +62,7 @@ export const sortFilesByTypeAndName = (files: File[], asc: boolean) => {
         if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
             return -1 * order;
         else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
-            return 1 * order;
+            return order;
         else {
             return getFilenameFromPath(a.path).localeCompare(getFilenameFromPath(b.path)) * order;
         }
@@ -110,8 +110,7 @@ export const failureNotification = (title: string) => swal({
     title
 });
 
-export const genericFailureNotification = (title: string) =>
-    failureNotification("An error occurred, please try again later.")
+export const genericFailureNotification = () => failureNotification("An error occurred, please try again later.");
 
 export const successNotification = (title: string) => swal({
     toast: true,
@@ -149,7 +148,7 @@ const shareSwal = () => swal({
             (document.getElementById("execute-swal") as HTMLInputElement).checked) && "Select at least one access right",
 });
 
-export const shareFiles = (paths: string[], cloud: Cloud, callback: Function) =>
+export const shareFiles = (paths: string[], cloud: Cloud) =>
     shareSwal().then((input) => {
         if (input.dismiss) return;
         const rights = [] as string[];
@@ -396,10 +395,15 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
             return "file archive outline";
         default:
             if (getFilenameFromPath(filePath).split(".").length > 1)
-                console.warn(`Unhandled extension "${filePath}" for file ${filePath}`)
+                console.warn(`Unhandled extension "${filePath}" for file ${filePath}`);
             return "file text outline";
     }
-}
+};
+
+export const createProject = (filePath: string, cloud: Cloud) =>
+    cloud.put("/projects", { fsRoot: filePath}).then(() =>
+        successNotification(`${filePath} project creation started.`)
+    ).catch(() => genericFailureNotification());
 
 export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
 
@@ -410,7 +414,10 @@ export const toFileText = (selectedFiles: File[]): string => {
         const filename = getFilenameFromPath(selectedFiles[0].path);
         return filename.length > 10 ? filename.slice(0, 17) + "..." : filename;
     }
-}
+};
+
+export const isLink = (file) => file.link;
+export const isDirectory = (file) => file.type === "DIRECTORY";
 
 export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
@@ -419,8 +426,8 @@ export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperC
 
 export const blankOrNull = (value: string): boolean => {
     return value == null || value.length == 0 || /^\s*$/.test(value);
-}
+};
 
 export const ifPresent = (f, handler: (f: any) => void) => {
     if (f) handler(f);
-}
+};

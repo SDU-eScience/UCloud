@@ -1,6 +1,5 @@
 import React from "react";
 import { Switch, Route } from "react-router-dom";
-import PropTypes from "prop-types";
 import Files from "./Files/Files";
 import FileInfo from "./Files/FileInfo";
 import Dashboard from "./Dashboard/Dashboard";
@@ -16,14 +15,13 @@ import UserAuditing from "./Admin/UserAuditing";
 import ZenodoPublish from "./Zenodo/Publish";
 import ZenodoHome from "./Zenodo/Zenodo";
 import ZenodoInfo from "./Zenodo/Info";
-import { connect } from "react-redux";
 import UppyWrapper from "./UppyWrapper";
 import * as Share from "./Shares";
 import * as Metadata from "./Metadata";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
-const Core = (props) => (
+const Core = () => (
     <React.Fragment>
         <Header />
         <Sidebar>
@@ -43,8 +41,8 @@ const Core = (props) => (
                 <Route exact path="/zenodo/publish/" component={ZenodoPublish} />
                 <Route exact path="/shares" component={Share.List} />
                 <Route exact path="/metadata/edit/*" component={Metadata.CreateUpdate} />
-                <Route exact path="/metadata/*" component={Metadata.ManagedView} />
                 <Route exact path="/metadata/search/:query" component={Metadata.Search} />
+                <Route exact path="/metadata/*" component={Metadata.ManagedView} />
                 <Route component={NotFound} />
             </Switch>
             <div className="footer">
