@@ -61,13 +61,18 @@ class SimpleDownloadController(
                         call.respondDirectWrite(contentType = ContentType.Application.Zip, status = HttpStatusCode.OK) {
                             ZipOutputStream(toOutputStream()).use { os ->
                                 fs.syncList(ctx, request.path) { item ->
+                                    val filePath = item.path.substringAfter(stat.path).removePrefix("/")
+
                                     if (item.type == FileType.FILE) {
                                         os.putNextEntry(
                                             ZipEntry(
-                                                item.path.substringAfter(stat.path).removePrefix("/")
+                                                filePath
                                             )
                                         )
                                         fs.read(ctx, item.path).copyTo(os)
+                                        os.closeEntry()
+                                    } else if (item.type == FileType.DIRECTORY) {
+                                        os.putNextEntry(ZipEntry(filePath.removeSuffix("/") + "/"))
                                         os.closeEntry()
                                     }
                                 }
