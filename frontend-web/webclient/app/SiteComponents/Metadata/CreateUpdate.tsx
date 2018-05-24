@@ -37,7 +37,7 @@ export class CreateUpdate extends React.Component<any, any> {
     constructor(props: any) {
         super(props);
         const urlPath = props.match.params[0];
-
+    
         this.state = {
             path: urlPath,
             title: "",
@@ -45,6 +45,7 @@ export class CreateUpdate extends React.Component<any, any> {
             license: null,
             keywords: [""],
             notes: "",
+            dataManagementPlan: "",
             contributors: [newCollaborator()],
             references: [""],
             grants: [""],
@@ -78,8 +79,7 @@ export class CreateUpdate extends React.Component<any, any> {
                 references: md.references ? md.references : [""],
                 grants: md.grants ? md.grants.map(it => it ? it.id : "") : [""],
                 subjects: md.subjects ? md.subjects : [newSubject()],
-                relatedIdentifiers: md.relatedIdentifiers ?
-                    md.relatedIdentifiers : [newIdentifier()]
+                relatedIdentifiers: md.relatedIdentifiers ? md.relatedIdentifiers : [newIdentifier()]
             });
         });
     }
@@ -101,6 +101,7 @@ export class CreateUpdate extends React.Component<any, any> {
                 license: licenseIdentifier,
                 keywords: s.keywords.filter(e => !blankOrNull(e)),
                 // notes, // TODO Needs to be user editable
+                // dataManagementPlan: s.dataManagementPlan,
                 contributors: s.contributors.filter(e => creatorHasValue(e)),
                 references: s.references.filter(e => !blankOrNull(e)),
                 subjects: s.subjects.filter(e => subjectHasValue(e)),
@@ -109,7 +110,7 @@ export class CreateUpdate extends React.Component<any, any> {
             };
 
             updateById(payload)
-                .then(it => console.log("Success!"))
+                .then(it => this.props.history.push(`/metadata/${this.state.path}`))
                 .catch(it => console.warn("Failure!", it));
         }
     }
@@ -273,6 +274,15 @@ export class CreateUpdate extends React.Component<any, any> {
                         value={this.state.notes}
                         placeholder="Notes..."
                         onChange={this.setStateEv("notes")}
+                    />
+                </Form.Field>
+
+                <Form.Field>
+                    <label>Data Management Plan</label>
+                    <Form.TextArea
+                        value={this.state.dataManagementPlan}
+                        placeholder="Data Management Plan..."
+                        onChange={this.setStateEv("dataManagementPlan")}
                     />
                 </Form.Field>
 

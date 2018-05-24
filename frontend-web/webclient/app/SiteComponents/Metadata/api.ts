@@ -50,6 +50,12 @@ export interface ProjectMetadata {
 
     subjects?: Subject[]
     relatedIdentifiers?: RelatedIdentifier[]
+
+    /**
+    * The data management plan devised for the project
+    * TODO: NOTE, Currently not being transmitted to backend or received from backend
+    */
+    dataManagementPlan?: string
 }
 
 export interface Grant {
