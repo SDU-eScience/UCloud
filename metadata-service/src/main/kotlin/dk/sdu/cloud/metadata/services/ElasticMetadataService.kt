@@ -9,16 +9,21 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.stackTraceToString
 import mbuhot.eskotlin.query.compound.bool
-import mbuhot.eskotlin.query.fulltext.match
+import mbuhot.eskotlin.query.term.term
 import org.apache.http.HttpHost
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
+import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.LoggerFactory
+import java.io.File
 
 class ElasticMetadataService(
     elasticHost: String,
@@ -99,9 +104,18 @@ class ElasticMetadataService(
     override fun removeFilesById(projectId: String, files: Set<String>) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
+            val normalizedFiles = files.map { it.normalize() }.toSet()
 
             val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
-            internalUpdate(existing.copy(files = existing.files.toSet().filter { it.id !in files }))
+            val rootFile = existing.files.find { it.path == existing.sduCloudRoot }?.id ?: ""
+            if (rootFile in normalizedFiles) {
+                log.debug("Deleting project (root file contained in deleted)")
+                internalDelete(projectId)
+                projectService.deleteProjectById(projectId)
+            } else {
+                log.debug("Deleting files from project (non-root)")
+                internalUpdate(existing.copy(files = existing.files.toSet().filter { it.id !in normalizedFiles }))
+            }
         }
     }
 
@@ -112,8 +126,17 @@ class ElasticMetadataService(
             val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
             val actualFile = existing.files.toSet().find { it.id == fileId } ?: throw MetadataException.NotFound()
 
+            val hasNewRoot = actualFile.path.normalize() == existing.sduCloudRoot.normalize()
+            val newRoot =
+                if (hasNewRoot) { newPath }
+                else { existing.sduCloudRoot }
+
+            if (hasNewRoot) {
+                projectService.updateProjectRoot(projectId, newPath.normalize())
+            }
+
             val set = existing.files.toSet().filter { it.id != fileId } + actualFile.copy(path = newPath)
-            internalUpdate(existing.copy(files = set.toList()))
+            internalUpdate(existing.copy(files = set.toList(), sduCloudRoot = newRoot.normalize()))
         }
     }
 
@@ -136,12 +159,12 @@ class ElasticMetadataService(
     }
 
     override fun simpleQuery(user: String, query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata> {
-        val request = SearchRequest().apply {  //Add index to SearchRequest("index") if needed to search in specific index
+        val request = SearchRequest(index).apply {
             source(SearchSourceBuilder().apply {
                 val q = bool {
-                    common {
-                        CommonData( "full_search", query, "OR", "AND")
-                    }.cutoffFrequency(0.001f)
+                    must {
+                       term { "full_search" to query }
+                    }
                 }
 
                 from(paging.itemsPerPage * paging.page)
@@ -163,10 +186,31 @@ class ElasticMetadataService(
         return Page(response.hits.totalHits.toInt(), paging.itemsPerPage, paging.page, records)
     }
 
-    override fun createSettingsAndMappingForProjectMetadataIndex() {
+    private fun internalDelete(projectId: String) {
+        client.delete(DeleteRequest(index, doc, projectId))
+    }
+
+    override fun delete(user: String, projectId: String) {
+        if (canEdit(user, projectId)) {
+            internalDelete(projectId)
+        } else {
+            throw MetadataException.NotAllowed()
+        }
+    }
+
+    private fun String.normalize(): String = File(this).normalize().path
+
+    fun initializeElasticSearch() {
         try {
-            val request = CreateIndexRequest("project_metadata")
-            request.settings(Settings.builder()
+            client.indices().delete(DeleteIndexRequest(index))
+        } catch (ex: Exception) {
+            log.debug(ex.stackTraceToString())
+        }
+
+        try {
+            val request = CreateIndexRequest(index)
+            request.settings(
+                Settings.builder()
                     .put("analysis.analyzer.autocomplete.tokenizer", "autocomplete")
                     .put("analysis.analyzer.autocomplete.filter", "lowercase")
                     .put("analysis.analyzer.autocomplete_search.tokenizer", "lowercase")
@@ -176,7 +220,7 @@ class ElasticMetadataService(
                     .put("analysis.tokenizer.autocomplete.token_chars", "letter")
             )
 
-            request.mapping("doc", """
+            request.mapping(doc, """
         {
           "properties": {
             "title": {

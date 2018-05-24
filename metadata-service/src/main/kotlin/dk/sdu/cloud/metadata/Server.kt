@@ -18,6 +18,7 @@ import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.jetbrains.exposed.sql.SchemaUtils.create
+import org.jetbrains.exposed.sql.SchemaUtils.drop
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
@@ -37,17 +38,23 @@ class Server(
     fun start() {
         val instance = MetadataServiceDescription.instance(configuration.connConfig)
 
-        if (args.contains("--create-db")) {
-            transaction {
-                create(Projects)
-            }
-            exitProcess(0)
-        }
-
         log.info("Creating core services")
         val projectService = ProjectService(ProjectSQLDao())
         val elasticMetadataService =
             with(configuration.elastic) { ElasticMetadataService(hostname, port, scheme, projectService) }
+
+        if (args.contains("--init-db")) {
+            log.info("Initializing database")
+            transaction {
+                drop(Projects)
+                create(Projects)
+            }
+            exitProcess(0)
+        } else if (args.contains("--init-elastic")) {
+            log.info("Initializing elastic search")
+            elasticMetadataService.initializeElasticSearch()
+            exitProcess(0)
+        }
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
@@ -58,7 +65,8 @@ class Server(
                 kBuilder.stream(StorageEvents.events),
                 kBuilder.stream(ProjectEvents.events),
                 elasticMetadataService,
-                projectService
+                projectService,
+                cloud
             ).init()
             log.info("Stream processors configured!")
 

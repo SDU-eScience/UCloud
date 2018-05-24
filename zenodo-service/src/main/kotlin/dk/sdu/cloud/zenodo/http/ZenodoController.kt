@@ -78,7 +78,7 @@ class ZenodoController(
                 }
 
                 try {
-                    ok(publicationService.findForUser(call.request.validatedPrincipal))
+                    ok(publicationService.findForUser(call.request.validatedPrincipal, it.pagination))
                 } catch (ex: PublicationException) {
                     error(ZenodoErrorMessage(ex.connected, ex.message), ex.recommendedStatusCode)
                 }

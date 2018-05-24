@@ -2,6 +2,8 @@ package dk.sdu.cloud.zenodo.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.jpa.sduclouddb.ZenodoPublicationDataobjectRel
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.zenodo.api.*
 import io.ktor.http.HttpStatusCode
 import java.util.*
@@ -74,8 +76,7 @@ class PublicationService(
 
     fun findForUser(
         jwt: DecodedJWT,
-        offset: Int = 0,
-        maxDesiredResults: Int = 10
+        pagination: NormalizedPaginationRequest
     ): ZenodoPublicationList {
         if (!isConnected(jwt)) throw PublicationException.NotConnected()
         val cloudEntityManager = createEntityManager()
@@ -85,11 +86,24 @@ class PublicationService(
             JPAZenodoPublication::class.java
         ).apply {
             setParameter("personRefId", jwt.subject)
-            firstResult = offset
-            maxResults = Math.min(maxDesiredResults, 30)
+            firstResult = pagination.page * pagination.itemsPerPage
+            maxResults = pagination.itemsPerPage
         }.resultList
 
-        return ZenodoPublicationList(publications.map { it.toModel() })
+        val count = cloudEntityManager.createQuery(
+            "SELECT COUNT(z) FROM ZenodoPublication z WHERE z.personRefId = :personRefId", Int::class.java).apply {
+            setParameter("personRefId", jwt.subject)
+        }.resultList
+
+
+        return ZenodoPublicationList(
+            Page(
+                itemsInTotal = count[0],
+                itemsPerPage = pagination.itemsPerPage,
+                pageNumber = pagination.page,
+                items = publications.map { it.toModel() }
+            )
+        )
     }
 
     fun createUploadForFiles(jwt: DecodedJWT, name: String, filePaths: Set<String>): Int {

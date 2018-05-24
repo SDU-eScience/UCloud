@@ -182,7 +182,10 @@ class CephFSFileSystemService(
                                 id = it.uniqueId,
                                 path = it.path,
                                 owner = it.user,
-                                timestamp = it.createdAt
+                                timestamp = it.createdAt,
+                                oldPath = it.path.removePrefix(newPath).removePrefix("/").let {
+                                    File("$path/$it").normalize().path
+                                }
                             )
                         )
                     }
@@ -193,7 +196,8 @@ class CephFSFileSystemService(
                         id = fileStat.inode.toString(),
                         path = fileStat.path,
                         owner = fileStat.ownerName,
-                        timestamp = fileStat.createdAt
+                        timestamp = fileStat.createdAt,
+                        oldPath = path
                     )
                 )
             }
@@ -343,8 +347,10 @@ class CephFSFileSystemService(
                 SensitivityLevel.valueOf(lexer.readToken())
             } catch (ex: Exception) {
                 log.debug(ex.stackTraceToString())
-                throw FileSystemException.CriticalException("Internal error. " +
-                        "Could not resolve sensitivity level ${lexer.line}")
+                throw FileSystemException.CriticalException(
+                    "Internal error. " +
+                            "Could not resolve sensitivity level ${lexer.line}"
+                )
             }
 
             val fileName = line.substring(lexer.cursor)
@@ -550,6 +556,37 @@ class CephFSFileSystemService(
         setMetaValue(ctx, path, "annotate${UUID.randomUUID().toString().replace("-", "")}", annotation)
     }
 
+    override fun markAsOpenAccess(ctx: FSUserContext, path: String) {
+        val mountedPath = translateAndCheckFile(path)
+
+        val parents: List<String> = run {
+            if (path == "/") throw ShareException.BadRequest("Cannot grant rights on root")
+            val parents = path.parents()
+
+            parents.filter { it != "/" && it != "/home/" }
+        }.map { translateAndCheckFile(it) }
+
+        // Execute rights are required on all parent directories (otherwise we cannot perform the
+        // traversal to the share)
+        parents.forEach { fileACLService.createEntryForOthers(ctx, it, setOf(AccessRight.EXECUTE)) }
+
+        // Grant on both default and current list
+        fileACLService.createEntryForOthers(
+            ctx,
+            mountedPath,
+            setOf(AccessRight.READ),
+            defaultList = true,
+            recursive = true
+        )
+
+        fileACLService.createEntryForOthers(
+            ctx,
+            mountedPath,
+            setOf(AccessRight.READ),
+            defaultList = false,
+            recursive = true
+        )
+    }
 
     private fun favoritesDirectory(ctx: FSUserContext): String {
         return joinPath(homeDirectory(ctx), "Favorites", isDirectory = true)

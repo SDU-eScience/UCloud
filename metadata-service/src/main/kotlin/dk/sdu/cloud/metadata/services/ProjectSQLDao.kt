@@ -28,6 +28,42 @@ class ProjectEntity(id: EntityID<Int>) : IntEntity(id) {
 }
 
 class ProjectSQLDao : ProjectDAO {
+    override fun deleteProjectById(id: String) {
+        val convertedId = id.toIntOrNull() ?: throw ProjectException.NotFound()
+        val deleted = transaction {
+            Projects.deleteWhere { Projects.id eq convertedId }
+        }
+
+        if (deleted != 1) {
+            throw ProjectException.NotFound()
+        }
+    }
+
+    override fun deleteProjectByRoot(root: String) {
+        val normalizedPath = File(root).normalize().path
+        val deleted = transaction {
+            Projects.deleteWhere { Projects.fsRoot eq normalizedPath }
+        }
+
+        if (deleted != 1) {
+            throw ProjectException.NotFound()
+        }
+    }
+
+    override fun updateProjectRoot(id: String, newRoot: String) {
+        val convertedId = id.toIntOrNull() ?: throw ProjectException.NotFound()
+
+        val updated = transaction {
+            Projects.update({ Projects.id eq convertedId }, limit = 1) {
+                it[fsRoot] = newRoot
+            }
+        }
+
+        if (updated != 1) {
+            throw ProjectException.NotFound()
+        }
+    }
+
     override fun findByFSRoot(path: String): Project? {
         val normalizedPath = File(path).normalize().path
         return transaction {

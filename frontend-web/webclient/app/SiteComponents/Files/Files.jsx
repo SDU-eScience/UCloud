@@ -547,6 +547,7 @@ const FileOptions = ({ selectedFiles, rename, ...props }) => {
                 <Icon name="share alternate" /> Share
             </Button>
             <Button className="context-button-margin" basic fluid disabled={downloadDisabled}
+
                 onClick={() => uf.downloadFile(selectedFiles[0].path, Cloud)}>
                 <Icon name="download" /> Download
             </Button>
@@ -612,6 +613,7 @@ const MobileButtons = ({ file, forceInlineButtons, rename, ...props }) => (
         </Dropdown.Menu>
     </Dropdown>
 );
+
 const EditOrCreateProject = ({ canBeProject, isProject, path, Type }) => (
     canBeProject ?
         <Type onClick={isProject ? null : () => uf.createProject(path, Cloud)}>

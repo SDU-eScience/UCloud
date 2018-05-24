@@ -24,6 +24,14 @@ data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null
 data class AnnotateFileRequest(val path: String, val annotatedWith: String, val proxyUser: String) {
     init {
         validateAnnotation(annotatedWith)
+        if (proxyUser.isBlank()) throw IllegalArgumentException("proxyUser cannot be blank")
+    }
+}
+
+data class MarkFileAsOpenAccessRequest(val path: String, val proxyUser: String) {
+    init {
+        if (path.isBlank()) throw IllegalArgumentException("path cannot be empty")
+        if (proxyUser.isBlank()) throw IllegalArgumentException("proxyUser cannot be blank")
     }
 }
 
@@ -211,6 +219,21 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         path {
             using(baseContext)
             +"annotate"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    /**
+     * Marks a file as open access. Privileged API.
+     */
+    val markAsOpenAccess = callDescription<MarkFileAsOpenAccessRequest, Unit, CommonErrorMessage> {
+        prettyName = "filesMarkAsOpenAccess"
+        method = HttpMethod.POST
+
+        path {
+            using(baseContext)
+            +"open"
         }
 
         body { bindEntireRequestFromBody() }

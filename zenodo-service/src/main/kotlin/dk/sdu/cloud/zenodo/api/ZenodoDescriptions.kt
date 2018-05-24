@@ -4,6 +4,8 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByIntId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.storage.api.WithPagination
 import io.netty.handler.codec.http.HttpMethod
 
 data class ZenodoAccessRequest(val returnTo: String)
@@ -48,9 +50,14 @@ data class ZenodoPublicationWithFiles(
 )
 
 data class ZenodoPublicationList(
-    val inProgress: List<ZenodoPublication>,
+    val inProgress: Page<ZenodoPublication>,
     override val connected: Boolean = true
 ) : ZenodoIsConnected
+
+data class ZenodoListPublicationsRequest(
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPagination
 
 object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
     private const val baseContext = "/api/zenodo"
@@ -91,13 +98,18 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
         }
     }
 
-    val listPublications = callDescription<Unit, ZenodoPublicationList, ZenodoErrorMessage> {
+    val listPublications = callDescription<ZenodoListPublicationsRequest, ZenodoPublicationList, ZenodoErrorMessage> {
         method = HttpMethod.GET
         prettyName = "listPublications"
 
         path {
             using(baseContext)
             +"publications"
+        }
+
+        params {
+            +boundTo(ZenodoListPublicationsRequest::itemsPerPage)
+            +boundTo(ZenodoListPublicationsRequest::page)
         }
     }
 
