@@ -108,6 +108,22 @@ class PublicationService(
 
     fun createUploadForFiles(jwt: DecodedJWT, name: String, filePaths: Set<String>): Int {
         if (!isConnected(jwt)) throw PublicationException.NotConnected()
+
+        val filePathsList = filePaths.toList()
+        var mutableFilesList = mutableListOf<String>()
+        for (i in 0 until filePathsList.size) {
+            var noDuplicate = true
+            for (j in i+1 until filePathsList.size) {
+                if ( filePathsList[i].substringAfterLast('/') == filePathsList[j].substringAfterLast('/')) {
+                    noDuplicate = false
+                    break
+                }
+            }
+            if (noDuplicate) {
+                mutableFilesList.add(filePathsList[i])
+            }
+        }
+        println(mutableFilesList)
         createEntityManager().let { em ->
             return em.transaction.useTransaction {
                 val now = Date()
@@ -121,7 +137,7 @@ class PublicationService(
                 }
                 em.persist(publication)
 
-                filePaths.forEach { objectId ->
+                mutableFilesList.forEach { objectId ->
                     em.persist(ZenodoPublicationDataobjectRel().apply {
                         publicationRefId = publication
                         dataobjectRefId = objectId
