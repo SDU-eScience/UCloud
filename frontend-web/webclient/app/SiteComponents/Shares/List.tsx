@@ -4,7 +4,7 @@ import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, 
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { AccessRight, Page } from "../../types/types";
-import { getFilenameFromPath } from "../../UtilityFunctions";
+import { getFilenameFromPath, shareSwal } from "../../UtilityFunctions";
 import "./List.scss"
 
 interface ListState {
@@ -181,7 +181,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                                 <SemList.Icon name='add' size='large' verticalAlign='middle' />
                                 <SemList.Content>
                                     <SemList.Header>
-                                        <Button color='green' disabled={isLoading} loading={isLoading} onClick={() => this.onCreateShare()}>
+                                        <Button color='green' disabled={isLoading} loading={isLoading} onClick={() => this.onCreateShare(groupedShare.path)}>
                                             Share this with another user
                                         </Button>
                                     </SemList.Header>
@@ -215,12 +215,20 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             .then(e => this.setState({ isLoading: false }));
     }
 
-    onCreateShare() {
+    onCreateShare(path: string) {
         this.setState({ isLoading: true });
-        createShare("user3@test.dk", "/home/jonas@hinchely.dk/Jobs", [AccessRight.READ, AccessRight.WRITE])
-            .then(it => this.maybeInvoke(it.id, this.props.onShared))
-            .catch(e => this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError))
-            .then(e => this.setState({ isLoading: false }));
+        shareSwal().then(({ dismiss, value }) => {
+            if (dismiss) { this.setState(() => ({ isLoading: false })); return; }
+            const rights = [] as AccessRight[];
+            // FIXME Fix immediately when SweetAlert allows forms
+            (document.getElementById("read-swal") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
+            (document.getElementById("write-swal") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
+            (document.getElementById("execute-swal") as HTMLInputElement).checked ? rights.push(AccessRight.EXECUTE) : null;
+            createShare(value, path, rights)
+                .then(it => this.maybeInvoke(it.id, this.props.onShared))
+                .catch(e => this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError))
+                .then(e => this.setState({ isLoading: false }))
+        })
     }
 
     onRevoke(share: Share) {
@@ -233,7 +241,6 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     }
 
     onAccept(share: Share) {
-        console.log(share);
         this.setState({ isLoading: true });
 
         acceptShare(share.id)
@@ -243,7 +250,6 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     }
 
     onReject(share: Share) {
-        console.log(share);
         this.setState({ isLoading: true });
 
         rejectShare(share.id)

@@ -121,7 +121,7 @@ export const successNotification = (title: string) => swal({
     title
 });
 
-const shareSwal = () => swal({
+export const shareSwal = () => swal({
     title: "Share",
     input: "text",
     html: `<form class="ui form">
@@ -166,6 +166,17 @@ export const shareFiles = (paths: string[], cloud: Cloud) =>
                 .catch(() => failureNotification(`${getFilenameFromPath(path)} could not be shared at this time. Please try again later.`));
         });
     });
+
+export const inputSwal = (inputName: string) => ({
+    title: "Share",
+    input: "text",
+    showCloseButton: true,
+    showCancelButton: true,
+    inputPlaceholder: `Enter ${inputName}...`,
+    focusConfirm: false,
+    inputValidator: (value) =>
+        (!value && `${toLowerCaseAndCapitalize(inputName)} missing`)
+});
 
 export const updateSharingOfFile = (filePath: string, user: string, currentRights: string, cloud: Cloud, callback: () => any) => {
     swal({
