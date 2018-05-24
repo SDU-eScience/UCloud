@@ -594,7 +594,7 @@ const FileOptions = ({ selectedFiles, rename, ...props }) => {
             </Button>
             <Button className="context-button-margin" color="red" fluid
                 disabled={rights.rightsLevel < 3}
-                onClick={() => uf.batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, propsrefetch)}>
+                onClick={() => uf.batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, props.refetch)}>
                 <Icon name="trash" /> Delete
             </Button>
         </div>
