@@ -171,7 +171,7 @@ class Files extends React.Component {
 
     render() {
         // PROPS
-        const { uppy, files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles,
+        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles,
             fetchNewFiles, openUppy, checkFile, updateFilesPerPage, updateFiles } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage)
@@ -185,9 +185,9 @@ class Files extends React.Component {
         const rename = () => {
             const firstSelectedFile = selectedFiles[0];
             this.startEditFile(files.findIndex((f) => f.path === firstSelectedFile.path), firstSelectedFile.path);
-        }
+        };
         const navigate = (path) => {
-            fetchNewFiles(path)
+            fetchNewFiles(path);
             history.push(`/files/${path}`);
         };
         return (
@@ -203,6 +203,7 @@ class Files extends React.Component {
                             />
                         </Responsive>
                         <FilesTable
+                            allowCopyAndMove
                             handleKeyDown={this.handleKeyDown}
                             creatingNewFolder={this.state.creatingNewFolder}
                             creatingFolderName={this.state.creatingFolderName}
@@ -242,9 +243,12 @@ class Files extends React.Component {
                             selectedFiles={selectedFiles}
                             currentPath={path}
                             createFolder={() => this.createFolder(currentPath)}
-                            getFavorites={this.getFavorites}
                             onClick={openUppy}
                             refetch={() => refetchFiles(path)}
+                            fetchFiles={fetchNewFiles}
+                            showFileSelector={this.props.showFileSelector}
+                            setFileSelectorCallback={this.props.setFileSelectorCallback}
+                            setDisallowedPaths={this.props.setDisallowedPaths}
                             rename={rename}
                         />
                     </Responsive>
@@ -265,15 +269,15 @@ class Files extends React.Component {
     }
 }
 
-const ContextBar = ({ getFavorites, onClick, currentPath, selectedFiles, searchText, updateText, createFolder, refetch, ...props }) => (
+const ContextBar = ({ onClick, selectedFiles, createFolder, ...props }) => (
     <div>
-        <ContextButtons upload={onClick} createFolder={createFolder} mobileOnly={false} />
+        <ContextButtons upload={onClick} createFolder={createFolder} />
         <br /><br /><br />
-        <FileOptions selectedFiles={selectedFiles} refetch={refetch} rename={props.rename} />
+        <FileOptions selectedFiles={selectedFiles} rename={props.rename} {...props} />
     </div>
 );
 
-const ContextButtons = ({ upload, createFolder, mobileOnly }) => (
+const ContextButtons = ({ upload, createFolder }) => (
     <div>
         <Button color="blue" className="context-button-margin" fluid onClick={() => upload()}> Upload Files </Button>
         <Button basic className="context-button-margin" fluid onClick={() => createFolder()}> New folder</Button>
@@ -305,7 +309,6 @@ export const FilesTable = (props) => {
             onChange={(e) => e.stopPropagation()}
         />
     ) : null;
-    let hasFavoriteButton = (!!props.favoriteFile);
 
     let sortingFunction = (!!props.sortFiles) ? props.sortFiles : () => 0;
     let sortingIconFunction = (!!props.sortingIcon) ? props.sortingIcon : () => "";
@@ -333,6 +336,7 @@ export const FilesTable = (props) => {
                 </NoFiles>
             </Table.Header>
             <FilesList
+                allowCopyAndMove={!!props.allowCopyAndMove}
                 refetch={props.refetch}
                 fetchFiles={props.fetchFiles}
                 creatingNewFolder={props.creatingNewFolder}
@@ -393,6 +397,7 @@ const FilesList = (props) => {
             key={index}
             index={index}
             file={file}
+            allowCopyAndMove={props.allowCopyAndMove}
             handleKeyDown={props.handleKeyDown}
             beingRenamed={props.editFolder ? index === props.editFolder.index : undefined}
             updateName={props.updateEditFileName}
@@ -421,7 +426,7 @@ const FilesList = (props) => {
             />
             {filesList}
         </Table.Body>);
-}
+};
 
 const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, forceInlineButtons, ...props }) => (
     <Table.Row className="file-row">
@@ -445,6 +450,7 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, forceI
                 update={props.updateName}
                 fetchFiles={props.fetchFiles}
             />
+            {uf.isProject(file) ? <Icon className="group-icon-padding" name="users" /> : null}
             {(!!favoriteFile) ?
                 <Rating
                     rating={file.favorited ? 1 : 0}
@@ -452,13 +458,13 @@ const File = ({ file, favoriteFile, beingRenamed, addOrRemoveFile, owner, forceI
                     onClick={() => favoriteFile(file.path)}
                 /> : null
             }
-            {file.annotations.some(it => it === "p") ? <Icon name="users" /> : null}
         </Table.Cell>
         <Responsive as={Table.Cell} minWidth={768}>{new Date(file.modifiedAt).toLocaleString()}</Responsive>
         <Responsive as={Table.Cell} minWidth={768}>{owner}</Responsive>
         <Table.Cell>
-            <Icon className="file-data" name="share alternate" onClick={() => uf.shareFile(file.path, Cloud)} />
+            <Icon className="file-data" name="share alternate" onClick={() => uf.shareFiles([file.path], Cloud)} />
             <MobileButtons
+                allowCopyAndMove={props.allowCopyAndMove}
                 file={file}
                 forceInlineButtons={forceInlineButtons}
                 rename={props.renameFile ? (path) => props.renameFile(props.index, path) : undefined}
@@ -493,7 +499,7 @@ const FileType = ({ type, path, beingRenamed, update, link, ...props }) => {
                 {fileName}
             </Link>);
     }
-}
+};
 
 const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, size, link, handleKeyDown }) => {
     const color = type === "DIRECTORY" ? "blue" : "grey";
@@ -510,26 +516,24 @@ const FileName = ({ name, beingRenamed, renameName, type, updateEditFileName, si
             {icon}
             <Input
                 value={renameName}
-                onChange={(e) => updateEditFileName(e)}
-                onKeyDown={(e) => handleKeyDown(e.keyCode, false)}
+                onChange={(e) => { updateEditFileName(e)}}
+                onKeyDown={(e) => { handleKeyDown(e.keyCode, false)}}
                 autoFocus
             />
             <Button.Group floated="right">
-                <Button color="primary" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</Button>
+                <Button color="twitter" onClick={() => handleKeyDown(KeyCode.ENTER, true)}>√</Button>
                 <Button onClick={() => handleKeyDown(KeyCode.ESC, true)}>✗</Button>
             </Button.Group>
         </React.Fragment> :
         <span>{icon}{name}</span>
 };
 
-const FileOptions = ({ selectedFiles, refetch, rename }) => {
-    if (!selectedFiles.length) {
-        return null;
-    }
-
+const FileOptions = ({ selectedFiles, rename, ...props }) => {
+    if (!selectedFiles.length) return null;
     const fileText = uf.toFileText(selectedFiles);
     const rights = uf.getCurrentRights(selectedFiles, Cloud);
-    const downloadDisabled = (selectedFiles.length > 1 || selectedFiles[0].sensitivityLevel === "SENSITIVE");
+    const moveDisabled = selectedFiles.some(f => uf.isFixedFolder(f.path, Cloud.homeFolder));
+    const downloadDisabled = (selectedFiles.length > 1 || selectedFiles.some(f => f.sensitivityLevel === "SENSITIVE"));
     return (
         <div>
             <Header as="h3">{fileText}</Header>
@@ -539,22 +543,32 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
                 </Button>
             </Link>
             <Button className="context-button-margin" fluid basic
-                disabled={selectedFiles.length > 1}
-                onClick={() => uf.shareFile(selectedFiles[0].path, Cloud)}>
+                onClick={() => uf.shareFiles(selectedFiles.map(f => f.path), Cloud)}>
                 <Icon name="share alternate" /> Share
             </Button>
-            <Button className="context-button-margin" disabled={downloadDisabled} basic fluid
+            <Button className="context-button-margin" basic fluid disabled={downloadDisabled}
+
                 onClick={() => uf.downloadFile(selectedFiles[0].path, Cloud)}>
                 <Icon name="download" /> Download
-                </Button>
+            </Button>
             <Button className="context-button-margin" fluid basic
-                onClick={() => uf.rename()}
+                onClick={() => rename()}
                 disabled={rights.rightsLevel < 3 || selectedFiles.length !== 1}>
                 <Icon name="edit" /> Rename
-                </Button>
+            </Button>
+            <Button className="context-button-margin" fluid basic
+                onClick={() => move(selectedFiles, props)}
+                disabled={rights.rightsLevel < 3}>
+                <Icon name="move" /> Move
+            </Button>
+            <Button className="context-button-margin" fluid basic
+                onClick={() => copy(selectedFiles, props)}
+                disabled={rights.rightsLevel < 3}>
+                <Icon name="copy" /> Copy
+            </Button>
             <Button className="context-button-margin" color="red" fluid
                 disabled={rights.rightsLevel < 3}
-                onClick={() => uf.batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, refetch)}>
+                onClick={() => uf.batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, propsrefetch)}>
                 <Icon name="trash" /> Delete
             </Button>
         </div>
@@ -563,78 +577,95 @@ const FileOptions = ({ selectedFiles, refetch, rename }) => {
 
 
 const MobileButtons = ({ file, forceInlineButtons, rename, ...props }) => (
-    <span className={(!forceInlineButtons) ? "hidden-lg" : ""}>
-        <Dropdown direction="left" icon="ellipsis horizontal">
-            <Dropdown.Menu>
-                <Dropdown.Item onClick={() => uf.shareFile(file.path, Cloud)}>
-                    Share file
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => uf.downloadFile(file.path, Cloud)}>
-                    Download file
-                </Dropdown.Item>
-                {rename && !uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => rename(file.path)}>
-                    Rename file
-                </Dropdown.Item> : null}
-                <Dropdown.Item onClick={() => copy(file, props)}>
-                    Copy file
-                </Dropdown.Item>
-                {!uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => move(file, props)}>
-                    Move file
-                </Dropdown.Item> : null}
-                {!uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => uf.showFileDeletionPrompt(file.path, Cloud, refetch)}>
-                    Delete file
-                </Dropdown.Item> : null}
-                <Dropdown.Item>
-                    <Link to={`/fileInfo/${file.path}/`} className="black-text">
-                        Properties
-                    </Link>
-                </Dropdown.Item>
-                {file.type === "DIRECTORY" ?
-                    <Dropdown.Item>
-                        <Link to={`/metadata/${file.path}/`} className="black-text">
-                            {file.annotations.some((it) => it === "p") ? "Edit Project" : "New Project"}
-                        </Link>
-                    </Dropdown.Item> : null}
-            </Dropdown.Menu>
-        </Dropdown>
-    </span>
+    <Dropdown direction="left" icon="ellipsis horizontal">
+        <Dropdown.Menu>
+            <Dropdown.Item onClick={() => uf.shareFiles([file.path], Cloud)}>
+                Share file
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => uf.downloadFile(file.path, Cloud)}>
+                Download
+            </Dropdown.Item>
+            {rename && !uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => rename(file.path)}>
+                Rename file
+            </Dropdown.Item> : null}
+            {props.allowCopyAndMove ?
+            <React.Fragment>
+                <Dropdown.Item onClick={() => copy([file], props)}>
+                Copy file
+            </Dropdown.Item>
+            {!uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item onClick={() => move([file], props)}>
+                Move file
+            </Dropdown.Item> : null}</React.Fragment>: null}
+            {!uf.isFixedFolder(file.path, Cloud.homeFolder) ? <Dropdown.Item color="red" onClick={() => uf.showFileDeletionPrompt(file.path, Cloud, props.refetch)}>
+                Delete file
+            </Dropdown.Item> : null}
+            <Dropdown.Item>
+                <Link to={`/fileInfo/${file.path}/`} className="black-text">
+                    Properties
+                </Link>
+            </Dropdown.Item>
+            <EditOrCreateProject
+                canBeProject={uf.isDirectory(file) && !uf.isFixedFolder(file.path, Cloud.homeFolder) && !uf.isLink(file)}
+                isProject={uf.isProject(file)}
+                path={file.path}
+                Type={Dropdown.Item}
+            />
+        </Dropdown.Menu>
+    </Dropdown>
 );
 
-const copy = (file, operations) => {
+const EditOrCreateProject = ({ canBeProject, isProject, path, Type }) => (
+    canBeProject ?
+        <Type onClick={isProject ? null : () => uf.createProject(path, Cloud)}>
+            {isProject ?
+                <Link to={`/metadata/${path}/`} className="black-text">
+                    Edit Project
+            </Link> :
+                "Create Project"
+            }
+        </Type> : null
+);
+
+const copy = (files, operations) => {
+    let i = 0;
     operations.showFileSelector(true);
     operations.setFileSelectorCallback((newPath) => {
-        const currentPath = file.path;
-        const newPathForFile = `${newPath}/${uf.getFilenameFromPath(file.path)}`;
-        Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(file.path)}`).catch(({ request }) => {
-            if (request.status === 404) {
-                const newPathForFile = `${newPath}/${uf.getFilenameFromPath(file.path)}`;
-                Cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => {
-                    operations.showFileSelector(false);
-                    operations.setFileSelectorCallback(null);
-                    operations.refetch();
-                    uf.successNotification("File copied.")
-                });
-            } else {
-                uf.failureNotification(`An error occurred, please try again later.`)
+        operations.showFileSelector(false);
+        operations.setFileSelectorCallback(null);    
+        files.forEach((f) => {
+            const currentPath = f.path;
+            Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(currentPath)}`).catch(({ request }) => {
+                if (request.status === 404) {
+                    const newPathForFile = `${newPath}/${uf.getFilenameFromPath(currentPath)}`;
+                    Cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).catch(() =>
+                        uf.failureNotification(`An error occured copying file ${currentPath}.`)
+                    ).then(() => {
+                        if (++i === files.length) { operations.refetch(); uf.successNotification("File copied."); }
+                    });
+                } else {
+                    uf.failureNotification(`An error occurred, please try again later.`)
+                }
             }
-        });
+        )});
     });
 };
 
-const move = (file, operations) => {
+const move = (files, operations) => {
     operations.showFileSelector(true);
-    operations.setDisallowedPaths([file.path]);
+    operations.setDisallowedPaths(files.map(f => f.path));
     operations.setFileSelectorCallback((newPath) => {
-        const currentPath = file.path;
-        const newPathForFile = `${newPath}/${uf.getFilenameFromPath(file.path)}`;
-        Cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => {
-            uf.successNotification(`${uf.getFilenameFromPath(currentPath)} moved to ${uf.getParentPath(newPathForFile)}`);
-            refetch();
-        }).catch(() => uf.failureNotification("An error occurred, please try again later"));
-        operations.showFileSelector(false);
-        operations.setFileSelectorCallback(null);
-        operations.setDisallowedPaths([]);
-    });
+        files.forEach((f) => {
+            const currentPath = f.path;
+            const newPathForFile = `${newPath}/${uf.getFilenameFromPath(currentPath)}`;
+            Cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => {
+                uf.successNotification(`${uf.getFilenameFromPath(currentPath)} moved to ${uf.getParentPath(newPathForFile)}`);
+                operations.refetch();
+            }).catch(() => uf.failureNotification("An error occurred, please try again later"));
+            operations.showFileSelector(false);
+            operations.setFileSelectorCallback(null);
+            operations.setDisallowedPaths([]);
+        })
+    })
 };
 
 Files.propTypes = {
@@ -647,7 +678,7 @@ Files.propTypes = {
     path: PropTypes.string.isRequired,
     uppy: PropTypes.object,
     uppyOpen: PropTypes.bool.isRequired,
-}
+};
 
 const mapStateToProps = (state) => {
     const { files, filesPerPage, currentFilesPage, loading, path, fileSelectorFiles, fileSelectorPath,
