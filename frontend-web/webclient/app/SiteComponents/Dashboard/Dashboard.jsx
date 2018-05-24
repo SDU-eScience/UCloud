@@ -3,20 +3,20 @@ import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { getParentPath, getTypeFromFile } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
-import { favorite, sortFilesByModified, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
+import { favorite, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
 import { updatePageTitle } from "../../Actions/Status";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../../Actions/Dashboard";
 import { connect } from "react-redux";
 import "./Dashboard.scss";
 import "../Styling/Shared.scss";
-import { Card, List, Container, Icon } from "semantic-ui-react";
+import { Card, List, Icon } from "semantic-ui-react";
 import moment from "moment";
 import { FileIcon } from "../UtilityComponents";
 
 class Dashboard extends React.Component {
     constructor(props) {
         super(props);
-        const { dispatch, favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
+        const { favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
         this.props.updatePageTitle();
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
             this.props.setAllLoading(true);
@@ -29,8 +29,8 @@ class Dashboard extends React.Component {
 
 
     render() {
-        const { favoriteFiles, recentFiles, recentAnalyses, activity,
-            favoriteLoading, recentLoading, analysesLoading, activityLoading } = this.props;
+        const { favoriteFiles, recentFiles, recentAnalyses,
+            favoriteLoading, recentLoading, analysesLoading } = this.props;
         const favoriteOrUnfavorite = (filePath) =>
             this.props.receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited));
         return (
@@ -180,7 +180,7 @@ const mapStateToProps = (state) => {
         recentLoading,
         analysesLoading,
         activityLoading,
-        favoriteFilesLength: favoriteFiles.length // Hack to ensure rerendering
+        favoriteFilesLength: favoriteFiles.length // Hack to ensure re-rendering
     };
 };
 
