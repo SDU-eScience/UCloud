@@ -4,6 +4,7 @@ import { Page } from "../../types/types";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import * as Self from ".";
 import "./pagination.scss";
+import { ifPresent } from "../../UtilityFunctions";
 
 interface ListProps {
     pageRenderer: (page: Page<any>) => React.ReactNode
@@ -94,8 +95,4 @@ export class List extends React.PureComponent<ListProps> {
             }
         }
     }
-}
-
-function ifPresent(f, handler: (f: any) => void) {
-    if (f) handler(f);
 }

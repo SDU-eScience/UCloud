@@ -1,6 +1,6 @@
 import React from "react";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
-import { getParentPath, getTypeFromFile } from "../../UtilityFunctions";
+import { getParentPath, iconFromFilePath } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { favorite, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
@@ -80,7 +80,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
 const ListFileContent = ({ path, type, link }) =>
     <React.Fragment>
         <List.Content>
-            <FileIcon name={type === "FILE" ? getTypeFromFile(path) : "folder"} link={link} color="grey" />
+            <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} link={link} color="grey" />
             <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
                 {getFilenameFromPath(path)}
             </Link>
