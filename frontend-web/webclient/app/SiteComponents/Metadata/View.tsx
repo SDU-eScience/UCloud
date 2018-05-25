@@ -206,7 +206,7 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
     // TODO This is not the correct place to do this!
     componentDidMount() {
         const urlPath = this.props.match.params[0];
-        if (!!this.state.metadata || !urlPath) return;
+        if (!!this.state.metadata) return;
         
         getByPath(urlPath)
             .then(it => this.setState(() => ({ metadata: handleNullArrays(it.metadata), canEdit: it.canEdit })))
