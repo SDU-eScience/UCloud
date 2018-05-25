@@ -37,13 +37,14 @@ export class List extends React.Component<any, ListState> {
 
     public render() {
         let { shares, errorMessage } = this.state;
-        const noSharesWith = this.state.shares.filter(it => !it.sharedByMe).length === 0;
-        const noSharesBy = this.state.shares.filter(it => it.sharedByMe).length === 0;
+        this.props.byPath ? shares = shares.filter(it => it.path === this.props.byPath) : null;
+        const noSharesWith = shares.filter(it => !it.sharedByMe).length === 0;
+        const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
         return (
             <React.Fragment>
                 {errorMessage ? <Message color="red" onDismiss={() => this.setState({ errorMessage: null })}>{errorMessage}</Message> : null}
                 <Header>Shared with Me</Header>
-                {noSharesWith ? <NoShares /> : this.state.shares.filter(it => !it.sharedByMe).map(it =>
+                {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
                     <ListEntry
                         groupedShare={it}
                         key={it.path}
@@ -55,7 +56,7 @@ export class List extends React.Component<any, ListState> {
                         onError={it => this.setState({ errorMessage: it })} />
                 )}
                 <Header>Shared by Me</Header>
-                {noSharesBy ? <NoShares /> : this.state.shares.filter(it => it.sharedByMe).map(it =>
+                {noSharesBy ? <NoShares /> : shares.filter(it => it.sharedByMe).map(it =>
                     <ListEntry
                         groupedShare={it}
                         key={it.path}
@@ -323,7 +324,7 @@ enum ShareState {
 }
 
 type ShareId = string
-interface SharesByPath {
+export interface SharesByPath {
     path: string,
     sharedBy: string,
     sharedByMe: boolean,

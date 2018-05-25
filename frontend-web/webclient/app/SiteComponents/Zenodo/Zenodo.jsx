@@ -48,7 +48,7 @@ class ZenodoHome extends React.Component {
 const PublishStatusBody = ({ publications }) =>
     !publications.length ?
         <h3>
-            <small className="text-center">No publications found.</small>
+            <small>No publications found.</small>
         </h3> :
         <Table basic="very" unstackable>
             <Table.Header>

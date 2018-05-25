@@ -9,6 +9,7 @@ import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { updatePageTitle } from "../../Actions/Status";
+import { List as ShareList } from "../Shares/List";
 
 
 const FileInfo = ({ dispatch, files, loading, ...props }) => {
@@ -27,26 +28,6 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
 
     if (!file) { return (<BallPulseLoading loading={true} />) }
 
-    const retrieveFilesCallback = () => {
-        dispatch(setLoading(true));
-        dispatch(fetchFiles(props.filesPath));
-    };
-
-    let button = (<div />);
-    if (file) {
-        const currentRights = file.acl.find(acl => acl.entity.displayName === Cloud.username);
-        if (currentRights) {
-            if (currentRights.right === "OWN") {
-                button = (
-                    <Button
-                        onClick={() => shareFile(file.path, Cloud, retrieveFilesCallback)}
-                        color="blue"
-                    >
-                        Share file
-                    </Button>);
-            }
-        }
-    }
     return (
         <Container className="container-margin">
             <Header as='h2' icon textAlign='center'>
@@ -58,13 +39,8 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
                 </Header.Subheader>
             </Header>
             <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
-            <FileSharing
-                file={file}
-                revokeRights={(acl) => revokeRights(file, acl, () => dispatch(updateFiles(files)))}
-                updateSharing={(acl) => updateSharingOfFile(file.path, acl.entity.displayName, acl.right, Cloud, retrieveFilesCallback)}
-            />
+            <ShareList byPath={file.path} />
             <BallPulseLoading loading={loading} />
-            {button}
         </Container>
     );
 };
@@ -200,20 +176,14 @@ FileInfo.propTypes = {
     files: PropTypes.array.isRequired,
     filesPath: PropTypes.string.isRequired,
     favoriteCount: PropTypes.number.isRequired,
-    aclCount: PropTypes.number.isRequired
 };
 
 const mapStateToProps = (state) => {
     const { loading, files, path } = state.files;
-    let aclCount = 0;
-    files.forEach((file) => {
-        aclCount += file.acl.length;
-    });
     return {
         loading,
         files,
         filesPath: path,
-        aclCount,
         favoriteCount: files.filter(file => file.favorited).length // Hack to ensure rerender
     }
 }
