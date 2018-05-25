@@ -386,6 +386,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         case "bib":
         case "toc":
         case "jar":
+        case "exe":
             return "file code outline";
         case "png":
         case "gif":
