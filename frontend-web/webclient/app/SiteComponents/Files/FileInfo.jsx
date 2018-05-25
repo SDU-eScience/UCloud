@@ -45,41 +45,12 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
     );
 };
 
-const revokeRights = (file, acl, callback) => {
-    swal({
-        title: "Revoke access",
-        text: `Revoke ${RightsNameMap[acl.right]} access for ${acl.entity.displayName}.`,
-        showCancelButton: true,
-        showCloseButton: true,
-    }).then(input => {
-        if (input.dismiss) {
-            return;
-        }
-        const body = {
-            onFile: file.path,
-            entity: acl.entity.displayName,
-            type: "revoke",
-        };
-        Cloud.delete("/acl", body).then(res => {
-            removeAcl(file, acl);
-            swal("Success!", "Rights have been revoked", "success").then(() => callback ? callback() : null);
-        }).catch((failure) => {
-            swal("Error", "An error occurred revoking the rights. Please try again later", "error");
-        });
-    });
-};
-
-const removeAcl = (file, toRemoveAcl) => {
-    let index = file.acl.findIndex(acl => acl.entity.name === toRemoveAcl.entity.name);
-    file.acl = file.acl.slice(0, index).concat(file.acl.slice(index + 1));
-};
-
 const FileView = ({ file, favorite }) => {
     if (!file) {
         return null;
     }
     return (
-        <div className="container-fluid">
+        <div>
             <Card.Group>
                 <Card>
                     <Card.Content>
@@ -132,42 +103,6 @@ const FileView = ({ file, favorite }) => {
                 </Card>
             </Card.Group>
         </div>
-    );
-};
-
-const FileSharing = ({ file, updateSharing, revokeRights }) => {
-    if (!file) {
-        return null;
-    }
-    const currentRights = file.acl.find(acl => acl.entity.displayName === Cloud.username);
-    if (!currentRights || currentRights.right !== "OWN") {
-        return null;
-    }
-    const sharedWith = file.acl.filter(acl => acl.entity.displayName !== Cloud.username);
-    if (!sharedWith.length) {
-        return (
-            <h3 className="text-center">
-                <small>This file has not been shared with anyone.</small>
-            </h3>);
-    }
-    return (
-        <Card>
-            <Card.Content>
-                <List>
-                    {sharedWith.map((acl, index) =>
-                        (<ListGroupItem key={index}>
-                            <span
-                                className="text-left"><b>{acl.entity.displayName}</b> has <b>{RightsNameMap[acl.right]}</b> access.</span>
-                            <Button.Group floated="right">
-                                <Button onClick={() => updateSharing(acl)}
-                                    color="blue">Change</Button>
-                                <Button onClick={() => revokeRights(acl)}
-                                    color="red">Revoke</Button>
-                            </Button.Group>
-                        </ListGroupItem>))}
-                </List>
-            </Card.Content>
-        </Card>
     );
 };
 
