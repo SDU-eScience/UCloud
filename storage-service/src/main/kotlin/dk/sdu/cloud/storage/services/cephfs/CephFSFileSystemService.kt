@@ -156,6 +156,7 @@ class CephFSFileSystemService(
     override fun move(ctx: FSUserContext, path: String, newPath: String) {
         val absolutePath = translateAndCheckFile(path)
         val newAbsolutePath = translateAndCheckFile(newPath)
+        if (absolutePath == newAbsolutePath) throw FileSystemException.AlreadyExists(newPath)
 
         val stat = stat(ctx, newAbsolutePath)
         if (stat != null && stat.type != FileType.DIRECTORY) {
