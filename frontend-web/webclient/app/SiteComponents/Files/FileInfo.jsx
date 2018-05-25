@@ -4,7 +4,7 @@ import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToStri
 import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
 import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../../DefaultObjects"
-import { Container, Header, List, Button, Card, Icon } from "semantic-ui-react";
+import { Container, Header, List, Button, Card, Icon, Rating } from "semantic-ui-react";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
@@ -86,9 +86,9 @@ const revokeRights = (file, acl, callback) => {
         };
         Cloud.delete("/acl", body).then(res => {
             removeAcl(file, acl);
-            swal("Success!", `Rights have been revoked`, "success").then(() => callback ? callback() : null);
+            swal("Success!", "Rights have been revoked", "success").then(() => callback ? callback() : null);
         }).catch((failure) => {
-            swal("Error", `An error occurred revoking the rights. Please try again later`, "error");
+            swal("Error", "An error occurred revoking the rights. Please try again later", "error");
         });
     });
 };
@@ -122,9 +122,8 @@ const FileView = ({ file, favorite }) => {
                             </List.Item>
                             <List.Item className="itemPadding">
                                 <List.Content floated="right">
-                                    {file.favorited ?
-                                        <Icon color="blue" onClick={() => favorite()} name="star" /> :
-                                        <Icon color="blue" onClick={() => favorite()} name="star outline" />}
+                                    <Rating rating={file.favorited ? 1 : 0} onClick={() => favorite(file.path)}
+                                    />
                                 </List.Content>
                                 Favorite file:
                             </List.Item>

@@ -421,14 +421,8 @@ export const createProject = (filePath: string, cloud: Cloud) =>
 
 export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
 
-export const toFileText = (selectedFiles: File[]): string => {
-    if (selectedFiles.length > 1) {
-        return `${selectedFiles.length} files selected.`;
-    } else {
-        const filename = getFilenameFromPath(selectedFiles[0].path);
-        return filename.length > 10 ? filename.slice(0, 17) + "..." : filename;
-    }
-};
+export const toFileText = (selectedFiles: File[]): string =>
+    selectedFiles.length > 1 ? `${selectedFiles.length} files selected.` : getFilenameFromPath(selectedFiles[0].path);
 
 export const isLink = (file) => file.link;
 export const isDirectory = (file) => file.type === "DIRECTORY";

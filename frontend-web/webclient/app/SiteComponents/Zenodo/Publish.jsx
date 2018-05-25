@@ -103,17 +103,23 @@ class ZenodoPublish extends React.Component {
                             onChange={e => this.updateName(e.target.value)}
                         />
                     </Form.Field>
-                    <Button
-                        className="mobile-right-margin"
-                        disabled={!this.state.name || this.state.files.filter(p => p).length === 0 }
-                        floated="right"
-                        color="blue"
-                        loading={this.state.requestSent}
-                        content="Upload files"
-                        onClick={this.submit}
-                    />
+                    <Form.Field>
+                        <Button className="bottom-padding"
+                            floated="left"
+                            content="Add file"
+                            type="button"
+                            onClick={() => this.newFile()}
+                        />
+                        <Button className="bottom-padding"
+                            disabled={!this.state.name || this.state.files.filter(p => p).length === 0}
+                            floated="right"
+                            color="blue"
+                            loading={this.state.requestSent}
+                            content="Upload files"
+                            onClick={this.submit}
+                        />
+                    </Form.Field>
                 </Form>
-                <Button className="mobile-left-margin" floated="left" content="Add file" onClick={() => this.newFile()}/>
             </React.Fragment>
         );
     }
