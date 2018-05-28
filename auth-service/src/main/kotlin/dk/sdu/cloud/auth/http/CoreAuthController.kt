@@ -14,13 +14,10 @@ import io.ktor.content.static
 import io.ktor.html.respondHtml
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.request.ApplicationRequest
-import io.ktor.request.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Routing
 import io.ktor.routing.get
-import io.ktor.routing.post
 import io.ktor.routing.route
 import kotlinx.html.*
 import org.slf4j.LoggerFactory
@@ -32,14 +29,6 @@ class CoreAuthController(
     private val enablePasswords: Boolean,
     private val enableWayf: Boolean
 ) {
-    private val ApplicationRequest.bearerToken: String?
-        get() {
-            val header = call.request.header(HttpHeaders.Authorization) ?: return null
-
-            if (!header.startsWith("Bearer ")) return null
-            return header.removePrefix("Bearer ")
-        }
-
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)
 
     fun configure(routing: Routing): Unit = with(routing) {
@@ -270,7 +259,7 @@ class CoreAuthController(
             implement(AuthDescriptions.refresh) {
                 logEntry(log, Unit) { "refreshToken=${call.request.headers[HttpHeaders.Authorization]}" }
 
-                val refreshToken = call.request.bearerToken ?: return@implement run {
+                val refreshToken = call.request.bearer ?: return@implement run {
                     error(HttpStatusCode.Unauthorized)
                 }
 
@@ -286,7 +275,7 @@ class CoreAuthController(
             implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
                 logEntry(log, it)
 
-                val bearerToken = call.request.bearerToken ?: return@implement run {
+                val bearerToken = call.request.bearer ?: return@implement run {
                     error(HttpStatusCode.Unauthorized)
                 }
 
@@ -334,11 +323,11 @@ class CoreAuthController(
                 }
             }
 
-            post("logout") {
-                logEntry(log, headerIncludeFilter = { it == HttpHeaders.Authorization })
+            implement(AuthDescriptions.logout) {
+                logEntry(log, Unit) { "refresh = ${call.request.bearer}" }
 
                 // TODO Invalidate at WAYF
-                val refreshToken = call.request.bearerToken ?: return@post run {
+                val refreshToken = call.request.bearer ?: return@implement run {
                     call.respond(HttpStatusCode.Unauthorized)
                 }
                 try {

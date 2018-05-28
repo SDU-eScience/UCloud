@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { failureNotification } from "../app/UtilityFunctions";
 
 export default class SDUCloud {
     constructor(context, serviceName) {
@@ -59,7 +60,7 @@ export default class SDUCloud {
                             request: req,
                         });
                     } else {
-                        reject({request: req, response: parsedResponse});
+                        reject({ request: req, response: parsedResponse });
                     }
                 };
                 if (body) {
@@ -188,7 +189,7 @@ export default class SDUCloud {
                     req.setRequestHeader("contentType", "application/json");
                     req.onload = () => {
                         if (req.status >= 200 && req.status <= 299) {
-                            resolve({response: JSON.parse(req.response), request: req});
+                            resolve({ response: JSON.parse(req.response), request: req });
                         } else {
                             reject(req.response);
                         }
@@ -249,7 +250,7 @@ export default class SDUCloud {
         }
 
         try {
-            this.decodedToken = jwt.decode(accessToken, {complete: true});
+            this.decodedToken = jwt.decode(accessToken, { complete: true });
         } catch (err) {
             console.log("Received malformed JWT");
             SDUCloud.storedAccessToken = null;
@@ -259,9 +260,29 @@ export default class SDUCloud {
     }
 
     logout() {
-        window.localStorage.removeItem("accessToken");
-        window.localStorage.removeItem("refreshToken");
-        this.openBrowserLoginPage()
+        new Promise((resolve, reject) => {
+            let req = new XMLHttpRequest();
+            req.open("POST", `${this.authContext}/logout`);
+            req.setRequestHeader("Authorization", `Bearer ${SDUCloud.storedRefreshToken}`);
+            req.setRequestHeader("contentType", "application/json");
+            req.onload = () => {
+                if (req.status >= 200 && req.status <= 299) {
+                    resolve(req.response);
+                } else {
+                    reject(req.response);
+                }
+            };
+            req.send();
+        })
+        .then(e => {
+            window.localStorage.removeItem("accessToken");
+            window.localStorage.removeItem("refreshToken");
+            this.openBrowserLoginPage()
+        })
+        .catch(e => {
+            failureNotification("Unable to logout. Try again later...");
+            console.warn("Unable to invalidate session server side!");
+        });
     }
 
     static get storedAccessToken() {
