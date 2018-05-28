@@ -23,15 +23,15 @@ enum class FileType {
 data class StorageFile(
     val type: FileType,
     val path: String,
-    val createdAt: Long,
-    val modifiedAt: Long,
+    val createdAt: Long = System.currentTimeMillis(),
+    val modifiedAt: Long = System.currentTimeMillis(),
     val ownerName: String,
-    val size: Long,
-    val acl: List<AccessEntry>,
-    val favorited: Boolean,
-    val sensitivityLevel: SensitivityLevel,
-    val link: Boolean,
-    val annotations: Set<String>,
+    val size: Long = 0,
+    val acl: List<AccessEntry> = emptyList(),
+    val favorited: Boolean = false,
+    val sensitivityLevel: SensitivityLevel = SensitivityLevel.CONFIDENTIAL,
+    val link: Boolean = false,
+    val annotations: Set<String> = emptySet(),
     @get:JsonIgnore val inode: Long = 0
 )
 

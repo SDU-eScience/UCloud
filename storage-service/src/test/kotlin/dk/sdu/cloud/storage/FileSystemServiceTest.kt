@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
+import dk.sdu.cloud.storage.services.FileSystemException
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
@@ -108,4 +109,37 @@ class FileSystemServiceTest {
         assertEquals(1099511627815L, parsed.first.first().inode)
         assertTrue(parsed.second.find { it.path.endsWith("Jobs") }!!.favorited)
     }
+
+    @Test (expected = FileSystemException.CriticalException::class)
+    fun testFavoritesWrongFormating() {
+        val output = """
+            1
+            D
+            Favorites/Jobs_00000000
+            /mnt/cephfs/home/jonas@hinchely.dk/Jobs
+            1099511627815
+            D,0,448,c_jonas_hinchely_dk,c_jonas_hinchely_dk,8,1523962672,1523962672,1523962688,1099511627810,0,,CONFIDENTIAL,.
+            L,0,493,root,root,4,1523883079,1523883079,1523973678,1099511627777,0,,CONFIDENTIAL,..
+            D,0,448,c_jonas_hinchely_dk,c_jonas_hinchely_dk,1,1523880643,1523880643,1523968202,1099511627816,0,,CONFIDENTIAL,A Link to Uploads
+            D,0,448,c_jonas_hinchely_dk,c_jonas_hinchely_dk,1,1523880643,1523880643,1523968202,1099511627816,0,CONFIDENTIAL,Uploads
+        """.trimIndent()
+        service.parseDirListingOutput(File("/home/jonas@hinchely.dk"), output, false, true)
+
+    }
+
+
+    @Test (expected = IllegalStateException::class)
+    fun testIllegalTypeNOTDFL() {
+        val output = """
+            1
+            D
+            Favorites/Jobs_00000000
+            /mnt/cephfs/home/jonas@hinchely.dk/Jobs
+            1099511627815
+            K,0,448,c_jonas_hinchely_dk,c_jonas_hinchely_dk,8,1523962672,1523962672,1523962688,1099511627810,0,CONFIDENTIAL,.
+            D,0,493,root,root,4,1523883079,1523883079,1523973678,1099511627777,0,CONFIDENTIAL,..
+        """.trimIndent()
+        service.parseDirListingOutput(File("/home/jonas@hinchely.dk"), output, false, true)
+    }
+
 }

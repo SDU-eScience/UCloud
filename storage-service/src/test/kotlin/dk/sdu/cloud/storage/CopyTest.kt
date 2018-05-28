@@ -70,4 +70,6 @@ class CopyTest {
             emitter.emit(match { it is StorageEvent.CreatedOrModified && it.path == "/home/user1/folder_copy" })
         }
     }
+
+
 }
