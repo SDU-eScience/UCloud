@@ -248,7 +248,7 @@ const CurrentFolder = ({ currentPath, onlyAllowFolders, onClick }) =>
             <List.Content floated="right">
                 <Button onClick={() => onClick(currentPath)}>Select</Button>
             </List.Content>
-            <List.Icon name="folder" />
+            <List.Icon name="folder" color="blue"/>
             <List.Content onClick={() => onClick(getParentPath(currentPath))}>
                 {`${getFilenameFromPath(currentPath)} (Current folder)`}
             </List.Content>

@@ -143,18 +143,22 @@ export const shareSwal = () => swal({
     focusConfirm: false,
     inputValidator: (value) =>
         (!value && "Username missing") ||
-        !((document.getElementById("read-swal") as HTMLInputElement).checked ||
-            (document.getElementById("write-swal") as HTMLInputElement).checked ||
-            (document.getElementById("execute-swal") as HTMLInputElement).checked) && "Select at least one access right",
+        !(isElementChecked("read-swal") ||
+            isElementChecked("write-swal") ||
+            isElementChecked("execute-swal")) && "Select at least one access right",
 });
+
+function isElementChecked(id: string): boolean {
+    return (document.getElementById(id) as HTMLInputElement).checked;
+}
 
 export const shareFiles = (paths: string[], cloud: Cloud) =>
     shareSwal().then((input) => {
         if (input.dismiss) return;
         const rights = [] as string[];
-        (document.getElementById("read-swal") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
-        (document.getElementById("write-swal") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
-        (document.getElementById("execute-swal") as HTMLInputElement).checked ? rights.push(AccessRight.EXECUTE) : null;
+        if (isElementChecked("read-swal")) rights.push(AccessRight.READ);
+        if (isElementChecked("write-swal")) rights.push(AccessRight.WRITE);
+        if (isElementChecked("execute-swal")) rights.push(AccessRight.EXECUTE);
         let i = 0;
         paths.forEach(path => {
             const body = {
@@ -430,6 +434,7 @@ export const isDirectory = (file) => file.type === "DIRECTORY";
 export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
+export const addTrailingSlash = (path: string) => path.endsWith("/") ? path : `${path}/`;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
 
 export const blankOrNull = (value: string): boolean => {
