@@ -1,5 +1,8 @@
 package dk.sdu.cloud.service
 
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.client.*
@@ -28,7 +31,11 @@ internal fun Exception.stackTraceToString(): String = StringWriter().apply {
 }.toString()
 
 object RESTServerSupport {
-    var defaultMapper: ObjectMapper = jacksonObjectMapper()
+    var defaultMapper: ObjectMapper = jacksonObjectMapper().apply {
+        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        configure(JsonParser.Feature.ALLOW_COMMENTS, true)
+        configure(JsonParser.Feature.ALLOW_TRAILING_COMMA, true)
+    }
     var allowMissingKafkaHttpLogger = false
 }
 
@@ -208,11 +215,17 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): P
 
     return try {
         ParsedRequestBody.Parsed(RESTServerSupport.defaultMapper.readValue<Any>(requestBody, restBody.ref))
-    } catch (ex: IllegalArgumentException) {
-        log.debug("Caught exception while trying to deserialize request body")
-        log.debug(ex.stackTraceToString())
+    } catch (ex: Exception) {
+        when (ex) {
+            is IllegalArgumentException, is JsonMappingException -> {
+                log.debug("Caught exception while trying to deserialize request body")
+                log.debug(ex.stackTraceToString())
 
-        ParsedRequestBody.MissingAndRequired
+                ParsedRequestBody.MissingAndRequired
+            }
+
+            else -> throw ex
+        }
     }
 }
 
