@@ -1,12 +1,5 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.StorageEvent
-import dk.sdu.cloud.storage.api.StorageEventProducer
-import dk.sdu.cloud.storage.services.FileSystemException
-import io.mockk.Runs
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
 import org.junit.Assert
 import org.junit.Test
 import java.io.File

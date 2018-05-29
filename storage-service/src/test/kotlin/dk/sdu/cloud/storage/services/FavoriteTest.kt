@@ -1,9 +1,7 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.api.StorageEventProducer
-import dk.sdu.cloud.storage.api.StorageFile
 import io.mockk.*
 import org.junit.Assert
 import org.junit.Test

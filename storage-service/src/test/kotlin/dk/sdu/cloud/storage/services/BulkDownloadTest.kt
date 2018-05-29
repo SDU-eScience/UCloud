@@ -1,11 +1,5 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.services.BulkDownloadService
-import dk.sdu.cloud.storage.services.cephfs.CephFSFileSystemService
-import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
-import dk.sdu.cloud.storage.services.cephfs.SimpleCephFSProcessRunnerFactory
-import io.mockk.every
-import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.kamranzafar.jtar.TarEntry

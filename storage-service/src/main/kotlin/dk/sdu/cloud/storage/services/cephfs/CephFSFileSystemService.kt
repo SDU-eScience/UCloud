@@ -44,6 +44,7 @@ class CephFSFileSystemService(
         val (status, stdout, stderr) = ctx.runWithResultAsInMemoryString(command, absolutePath)
 
         if (status != 0) {
+            if (stderr.contains("No such file or directory")) throw FileSystemException.NotFound(path)
             log.info("ls failed ${ctx.user}, $path")
             log.info(stderr)
             throw IllegalStateException()
