@@ -42,6 +42,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string) => {
     return [
         `${homeFolder}/Favorites`,
         `${homeFolder}/Uploads`,
+        `${homeFolder}/Jobs`,
         `${homeFolder}/Trash bin`
     ].some((it) => it === filePath)
 };
@@ -428,9 +429,9 @@ export const isProject = (file: File) => file.type === "DIRECTORY" && file.annot
 export const toFileText = (selectedFiles: File[]): string =>
     selectedFiles.length > 1 ? `${selectedFiles.length} files selected.` : getFilenameFromPath(selectedFiles[0].path);
 
-export const isLink = (file) => file.link;
-export const isDirectory = (file) => file.type === "DIRECTORY";
-
+export const isLink = (file: File) => file.link;
+export const isDirectory = (file: File) => file.type === "DIRECTORY";
+export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(homeFolder, "Home");
 export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
