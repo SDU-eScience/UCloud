@@ -69,6 +69,7 @@ fun createDummyFS(): File {
                 mkdir("another-one") {
                     touch("file")
                 }
+                mkdir("Favorites"){}
             }
         }
     }

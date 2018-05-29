@@ -13,8 +13,6 @@ import io.mockk.use
 
 class AuthMocking {
 
-
-
     fun <T> withAuthMock(block: () -> T): T {
         return objectMockk(TokenValidation).use {
             // TODO Refactor this part
