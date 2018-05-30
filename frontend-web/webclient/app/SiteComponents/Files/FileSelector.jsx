@@ -186,7 +186,8 @@ export const FileSelectorModal = (props) => (
     <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick={false} size="large">
         <Modal.Header>
             File selector
-            <Button floated="right" circular icon="cancel" type="button" onClick={props.onHide} />
+            <Button circular floated="right" icon="cancel" type="button" onClick={props.onHide}/>
+            <Button icon="redo" loading={props.loading} floated="right" circular onClick={() => props.fetchFiles(props.currentPath)}/>
         </Modal.Header>
         <Modal.Content scrolling>
             <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
@@ -225,16 +226,16 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...p
                 />
                 <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
             </List>
-            <CreateFolderButton createFolder={props.createFolder}/>
+            <CreateFolderButton createFolder={props.createFolder} />
         </React.Fragment>)
 };
 
 const CreateFolderButton = ({ createFolder }) =>
-    !!createFolder ? 
-        (<Button 
-            onClick={() => createFolder()} 
-            className="create-folder-button" 
-            content="Create new folder" 
+    !!createFolder ?
+        (<Button
+            onClick={() => createFolder()}
+            className="create-folder-button"
+            content="Create new folder"
         />) : null
 
 
