@@ -20,6 +20,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.defaultForFilePath
 import io.ktor.response.header
 import io.ktor.response.respond
+import io.ktor.response.respondWrite
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
@@ -87,7 +88,11 @@ class SimpleDownloadController(
                             "attachment; filename=\"${stat.path.substringAfterLast('/')}\""
                         )
 
-                        call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
+                        // See #185
+                        // ktor unable to send files larger than 2GB
+                        val sizeForWorkaroundIssue185 = if (stat.size >= Int.MAX_VALUE) null else stat.size
+
+                        call.respondDirectWrite(sizeForWorkaroundIssue185, contentType, HttpStatusCode.OK) {
                             val stream = fs.read(ctx, request.path)
 
                             stream.use {
