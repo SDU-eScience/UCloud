@@ -68,7 +68,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
                 <Card.Header>
                     Favorite files
                 </Card.Header>
-                <DefaultLoading loading={isLoading} color="black" />
+                <DefaultLoading loading={isLoading} />
                 {noFavorites}
                 <List divided size={"large"}>
                     {filesList}
@@ -107,7 +107,7 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
                 <Card.Header>
                     Recently used files
                 </Card.Header>
-                <DefaultLoading loading={isLoading} color="black" />
+                <DefaultLoading loading={isLoading} />
                 {noRecents}
                 <List divided size={"large"}>
                     {filesList}
@@ -122,7 +122,7 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
             <Card.Header>
                 Recent Analyses
             </Card.Header>
-            <DefaultLoading loading={isLoading} color="black" />
+            <DefaultLoading loading={isLoading} />
             {isLoading || analyses.length ? null :
                 (<h3 className="text-center">
                     <small>No analyses found</small>

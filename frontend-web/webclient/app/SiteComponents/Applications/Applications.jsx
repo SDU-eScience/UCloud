@@ -64,7 +64,7 @@ class Applications extends React.Component {
         const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage), 0);
         return (
             <React.Fragment>
-                <DefaultLoading loading={loading} color="black" />
+                <DefaultLoading loading={loading} />
                 <Table basic="very">
                     <Table.Header>
                         <Table.Row>

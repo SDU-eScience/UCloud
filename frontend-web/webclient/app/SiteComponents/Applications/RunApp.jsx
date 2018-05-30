@@ -147,7 +147,7 @@ class RunApp extends React.Component {
     render() {
         return (
             <React.Fragment>
-                    <DefaultLoading loading={this.state.loading} color="black" />
+                    <DefaultLoading loading={this.state.loading}/>
 
                     <ApplicationHeader
                         name={this.state.displayAppName}

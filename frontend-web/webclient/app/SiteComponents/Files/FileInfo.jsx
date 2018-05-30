@@ -26,7 +26,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
         dispatch(updatePath(parentPath));
     }
 
-    if (!file) { return (<DefaultLoading loading={true} color="black" />) }
+    if (!file) { return (<DefaultLoading loading={true} />) }
 
     return (
         <Container className="container-margin">
@@ -40,7 +40,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
             </Header>
             <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
             <ShareList byPath={file.path} />
-            <DefaultLoading loading={loading} color="black" />
+            <DefaultLoading loading={loading} />
         </Container>
     );
 };

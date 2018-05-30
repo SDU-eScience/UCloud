@@ -35,7 +35,7 @@ class ZenodoInfo extends React.Component {
 
     render() {
         if (this.state.loading) {
-            return (<Container><DefaultLoading loading={isLoading} color="black" /></Container>)
+            return (<Container><DefaultLoading loading={isLoading} /></Container>)
         }
         return (
             <Container className="container-margin">

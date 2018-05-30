@@ -92,7 +92,7 @@ class Notifications extends React.Component {
         return (
             <section>
                 <div className="container container-md">
-                    <DefaultLoading loading={this.state.loading} color="black" />
+                    <DefaultLoading loading={this.state.loading}/>
                     <WebSocketSupport />
                     <p className="ph">Last 24 hours</p>
                     <div className="card">

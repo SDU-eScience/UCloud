@@ -75,7 +75,7 @@ class ZenodoPublish extends React.Component {
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
         const { name } = this.state;
         if (this.props.loading) {
-            return (<DefaultLoading loading={true} color="black" />);
+            return (<DefaultLoading loading={true} />);
         } else if (!this.props.connected) {
             return (<NotConnectedToZenodo />);
         }
@@ -131,7 +131,7 @@ const FileSelections = ({ files, handleFileSelection, removeFile }) => (
             (<Form.Field key={index}>
                 <FileSelector
                     path={file}
-                    uploadCallback={chosenFile => handleFileSelection(chosenFile, index)}
+                    onFileSelect={chosenFile => handleFileSelection(chosenFile, index)}
                     allowUpload={false}
                     remove={files.length > 1 ? () => removeFile(index) : false}
                 />

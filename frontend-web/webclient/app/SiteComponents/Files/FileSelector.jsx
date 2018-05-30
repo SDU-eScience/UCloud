@@ -190,7 +190,7 @@ export const FileSelectorModal = (props) => (
         </Modal.Header>
         <Modal.Content scrolling>
             <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
-            <DefaultLoading size="big" color="black" loading={props.loading}/>
+            <DefaultLoading size="big" loading={props.loading}/>
             <FileSelectorBody {...props} />
         </Modal.Content>
     </Modal>

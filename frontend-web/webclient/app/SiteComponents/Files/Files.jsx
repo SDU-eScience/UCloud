@@ -175,7 +175,7 @@ class Files extends React.Component {
                 <Grid>
                     <Grid.Column computer={13} tablet={16}>
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
-                        <DefaultLoading loading={loading} color="black" size="big" />
+                        <DefaultLoading loading={loading} size="big" />
                         <Responsive maxWidth={991}>
                             <ContextButtons
                                 createFolder={() => this.createFolder(currentPath)}

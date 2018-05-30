@@ -68,7 +68,7 @@ const PublishStatusBody = ({ publications }) =>
 
 const PublishStatus = (props) => {
     if (props.loading) {
-        return (<DefaultLoading color="black" loading={props.loading} />);
+        return (<DefaultLoading loading={props.loading} />);
     }
 
     return (
