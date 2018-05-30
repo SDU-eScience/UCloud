@@ -20,50 +20,90 @@ object HttpClient {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
-    suspend fun get(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
-        val builder = httpClient.prepareGet(url)
+    suspend fun get(
+        url: String,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000,
+        options: (BoundRequestBuilder.() -> Unit)? = null
+    ): Response {
+        val builder = httpClient.prepareGet(url).setRequestTimeout(requestTimeout).setReadTimeout(readTimeout)
         if (options != null) builder.options()
         return builder.async()
     }
 
-    suspend fun put(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
-        val builder = httpClient.preparePut(url)
+    suspend fun put(
+        url: String,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000,
+        options: (BoundRequestBuilder.() -> Unit)? = null
+    ): Response {
+        val builder = httpClient.preparePut(url).setRequestTimeout(requestTimeout).setReadTimeout(readTimeout)
         if (options != null) builder.options()
         return builder.async()
     }
 
-    suspend fun patch(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
-        val builder = httpClient.preparePatch(url)
+    suspend fun patch(
+        url: String,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000,
+        options: (BoundRequestBuilder.() -> Unit)? = null
+    ): Response {
+        val builder = httpClient.preparePatch(url).setRequestTimeout(requestTimeout).setReadTimeout(readTimeout)
         if (options != null) builder.options()
         return builder.async()
     }
 
-    suspend fun post(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
-        val builder = httpClient.preparePost(url)
+    suspend fun post(
+        url: String,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000,
+        options: (BoundRequestBuilder.() -> Unit)? = null
+    ): Response {
+        val builder = httpClient.preparePost(url).setRequestTimeout(requestTimeout).setReadTimeout(readTimeout)
         if (options != null) builder.options()
         return builder.async()
     }
 
-    suspend fun delete(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
-        val builder = httpClient.prepareDelete(url)
+    suspend fun delete(
+        url: String,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000,
+        options: (BoundRequestBuilder.() -> Unit)? = null
+    ): Response {
+        val builder = httpClient.prepareDelete(url).setRequestTimeout(requestTimeout).setReadTimeout(readTimeout)
         if (options != null) builder.options()
         return builder.async()
     }
 
-    suspend fun options(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
-        val builder = httpClient.prepareOptions(url)
+    suspend fun options(
+        url: String,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000,
+        options: (BoundRequestBuilder.() -> Unit)? = null
+    ): Response {
+        val builder = httpClient.prepareOptions(url).setRequestTimeout(requestTimeout).setReadTimeout(readTimeout)
         if (options != null) builder.options()
         return builder.async()
     }
 
-    suspend fun trace(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
-        val builder = httpClient.prepareTrace(url)
+    suspend fun trace(
+        url: String,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000,
+        options: (BoundRequestBuilder.() -> Unit)? = null
+    ): Response {
+        val builder = httpClient.prepareTrace(url).setRequestTimeout(requestTimeout).setReadTimeout(readTimeout)
         if (options != null) builder.options()
         return builder.async()
     }
 
-    suspend fun head(url: String, options: (BoundRequestBuilder.() -> Unit)? = null): Response {
-        val builder = httpClient.prepareHead(url)
+    suspend fun head(
+        url: String,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000,
+        options: (BoundRequestBuilder.() -> Unit)? = null
+    ): Response {
+        val builder = httpClient.prepareHead(url).setRequestTimeout(requestTimeout).setReadTimeout(readTimeout)
         if (options != null) builder.options()
         return builder.async()
     }
@@ -94,8 +134,8 @@ suspend fun BoundRequestBuilder.async(): Response = suspendCoroutine { continuat
 }
 
 inline fun <reified T : Any> Response.asJson(mapper: ObjectMapper = HttpClient.defaultMapper): T =
-        mapper.readValue(responseBody)
+    mapper.readValue(responseBody)
 
 fun Response.asDynamicJson(mapper: ObjectMapper = HttpClient.defaultMapper): JsonNode =
-        mapper.readTree(responseBody)
+    mapper.readTree(responseBody)
 

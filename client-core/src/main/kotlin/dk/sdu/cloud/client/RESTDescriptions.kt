@@ -11,12 +11,12 @@ sealed class ProxyDescription {
     abstract val method: HttpMethod
 
     data class Manual(
-            override val template: String,
-            override val method: HttpMethod
+        override val template: String,
+        override val method: HttpMethod
     ) : ProxyDescription()
 
     data class FromDescription(
-            val description: RESTCallDescription<*, *, *>
+        val description: RESTCallDescription<*, *, *>
     ) : ProxyDescription() {
         override val method: HttpMethod
             get() = description.method
@@ -38,16 +38,16 @@ abstract class RESTDescriptions(val owner: ServiceDescription) {
      * To do this manually create a description and call [register] with the template.
      */
     protected inline fun <reified R : Any, reified S : Any, reified E : Any> callDescription(
-            mapper: ObjectMapper = HttpClient.defaultMapper,
-            noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
-            body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
+        mapper: ObjectMapper = HttpClient.defaultMapper,
+        noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
+        body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
     ): RESTCallDescription<R, S, E> {
         val builder = RESTCallDescriptionBuilder(
-                requestType = R::class,
-                responseTypeSuccess = S::class,
-                responseTypeFailure = E::class,
-                deserializerSuccess = mapper.readerFor(jacksonTypeRef<S>()),
-                deserializerError = mapper.readerFor(jacksonTypeRef<E>())
+            requestType = R::class,
+            responseTypeSuccess = S::class,
+            responseTypeFailure = E::class,
+            deserializerSuccess = mapper.readerFor(jacksonTypeRef<S>()),
+            deserializerError = mapper.readerFor(jacksonTypeRef<E>())
         )
         builder.body()
         return builder.build(owner, additionalRequestConfiguration).also { register(it) }

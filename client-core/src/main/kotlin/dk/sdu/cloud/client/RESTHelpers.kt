@@ -13,18 +13,18 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
 data class RESTCallDescription<R : Any, S : Any, E : Any>(
-        val method: HttpMethod,
-        val path: RESTPath<R>,
-        val body: RESTBody<R, *>?,
-        val params: RESTParams<R>?,
-        val requestType: KClass<R>,
-        val responseTypeSuccess: KClass<S>,
-        val responseTypeFailure: KClass<E>,
-        val deserializerSuccess: ObjectReader,
-        val deserializerError: ObjectReader,
-        val owner: ServiceDescription,
-        var fullName: String?,
-        val requestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null
+    val method: HttpMethod,
+    val path: RESTPath<R>,
+    val body: RESTBody<R, *>?,
+    val params: RESTParams<R>?,
+    val requestType: KClass<R>,
+    val responseTypeSuccess: KClass<S>,
+    val responseTypeFailure: KClass<E>,
+    val deserializerSuccess: ObjectReader,
+    val deserializerError: ObjectReader,
+    val owner: ServiceDescription,
+    var fullName: String?,
+    val requestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null
 ) {
     init {
         if (fullName == null) {
@@ -59,10 +59,10 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
         fun String.urlEncode() = URLEncoder.encode(this, "UTF-8")
 
         val queryPath = queryPathMap
-                .map { it.key.urlEncode() + "=" + it.value.urlEncode() }
-                .joinToString("&")
-                .takeIf { it.isNotEmpty() }
-                ?.let { "?$it" } ?: ""
+            .map { it.key.urlEncode() + "=" + it.value.urlEncode() }
+            .joinToString("&")
+            .takeIf { it.isNotEmpty() }
+            ?.let { "?$it" } ?: ""
 
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
         return object : PreparedRESTCall<S, E>(resolvedPath, owner) {
@@ -105,8 +105,13 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
         }
     }
 
-    suspend fun call(payload: R, cloud: AuthenticatedCloud): RESTResponse<S, E> {
-        return prepare(payload).call(cloud)
+    suspend fun call(
+        payload: R,
+        cloud: AuthenticatedCloud,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000
+    ): RESTResponse<S, E> {
+        return prepare(payload).call(cloud, requestTimeout, readTimeout)
     }
 
     companion object {
@@ -117,18 +122,18 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
 fun <S : Any, E : Any> RESTCallDescription<Unit, S, E>.prepare(): PreparedRESTCall<S, E> = prepare(Unit)
 
 suspend fun <S : Any, E : Any> RESTCallDescription<Unit, S, E>.call(cloud: AuthenticatedCloud): RESTResponse<S, E> =
-        call(Unit, cloud)
+    call(Unit, cloud)
 
 sealed class RESTBody<R : Any, T : Any> {
     abstract val ref: TypeReference<T>
 
     data class BoundToSubProperty<R : Any, T : Any>(
-            val property: KProperty1<R, *>,
-            override val ref: TypeReference<T>
+        val property: KProperty1<R, *>,
+        override val ref: TypeReference<T>
     ) : RESTBody<R, T>()
 
     data class BoundToEntireRequest<R : Any>(
-            override val ref: TypeReference<R>
+        override val ref: TypeReference<R>
     ) : RESTBody<R, R>()
 }
 
@@ -147,10 +152,10 @@ sealed class RESTQueryParameter<R : Any> {
 }
 
 inline fun <reified T : Any, reified E : Any> preparedCallWithJsonOutput(
-        endpoint: String,
-        owner: ServiceDescription,
-        mapper: ObjectMapper = HttpClient.defaultMapper,
-        crossinline configureBody: BoundRequestBuilder.() -> Unit = {}
+    endpoint: String,
+    owner: ServiceDescription,
+    mapper: ObjectMapper = HttpClient.defaultMapper,
+    crossinline configureBody: BoundRequestBuilder.() -> Unit = {}
 ): PreparedRESTCall<T, E> {
     val successRef = mapper.readerFor(jacksonTypeRef<T>())
     val errorRef = mapper.readerFor(jacksonTypeRef<E>())

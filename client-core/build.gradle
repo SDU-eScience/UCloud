@@ -1,8 +1,8 @@
 group 'dk.sdu.cloud'
-version '0.1.0-SNAPSHOT'
+version '0.2.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.21'
+    ext.kotlin_version = '1.2.41'
 
     repositories {
         mavenCentral()
@@ -39,11 +39,17 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
 
-    compile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.1.0-alpha25'
+    compile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.4.8'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.2'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.2'
     compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.9.2'
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
+
+    // Testing
+    testCompile group: "junit", name: "junit", version: "4.12"
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
+    testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
 }
 
 compileKotlin {

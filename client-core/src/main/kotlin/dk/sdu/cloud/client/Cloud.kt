@@ -34,7 +34,11 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
     abstract fun deserializeSuccess(response: Response): T
     abstract fun deserializeError(response: Response): E?
 
-    suspend fun call(context: AuthenticatedCloud): RESTResponse<T, E> {
+    suspend fun call(
+        context: AuthenticatedCloud,
+        requestTimeout: Int = -1,
+        readTimeout: Int = 60_000
+    ): RESTResponse<T, E> {
         // While loop is used for retries in case of connection issues.
         //
         // When a connection issue is encountered the CloudContext is allowed to attempt reconfiguration. If it deems
@@ -47,7 +51,7 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
             val endpoint = context.parent.resolveEndpoint(this).removeSuffix("/")
             val url = "$endpoint/$resolvedEndpoint"
             val resp = try {
-                HttpClient.get(url) {
+                HttpClient.get(url, requestTimeout, readTimeout) {
                     context.apply { configureCall() }
                     configure()
                     log.debug("Making call: $url: ${this@PreparedRESTCall}")
@@ -121,8 +125,8 @@ interface AuthenticatedCloud {
 }
 
 class JWTAuthenticatedCloud(
-        override val parent: CloudContext,
-        val token: String // token is kept public such that tools may check if JWT has expired
+    override val parent: CloudContext,
+    val token: String // token is kept public such that tools may check if JWT has expired
 ) : AuthenticatedCloud {
     override fun BoundRequestBuilder.configureCall() {
         setHeader("Authorization", "Bearer $token")

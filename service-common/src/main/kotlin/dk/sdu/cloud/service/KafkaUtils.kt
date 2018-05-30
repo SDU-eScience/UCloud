@@ -19,47 +19,6 @@ import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.math.min
 import kotlin.reflect.KClass
 
-class EventProducer<in K, in V>(
-    private val producer: KafkaProducer<String, String>,
-    private val description: StreamDescription<K, V>
-) {
-    val topicName: String get() = description.name
-
-    suspend fun emit(key: K, value: V) = suspendCoroutine<RecordMetadata> { cont ->
-        val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
-        val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
-
-        log.debug("Emitting event: $stringKey : ${stringValue.substring(0, min(100, stringValue.length))}")
-        producer.send(ProducerRecord(description.name, stringKey, stringValue)) { result, ex ->
-            if (ex == null) cont.resume(result)
-            else cont.resumeWithException(ex)
-        }
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(EventProducer::class.java)
-    }
-}
-
-class MappedEventProducer<in K, in V>(
-    producer: KafkaProducer<String, String>,
-    private val description: MappedStreamDescription<K, V>
-) {
-    private val delegate = EventProducer(producer, description)
-
-    suspend fun emit(value: V) {
-        val key = description.mapper(value)
-        delegate.emit(key, value)
-    }
-}
-
-fun <K, V> KafkaProducer<String, String>.forStream(description: StreamDescription<K, V>): EventProducer<K, V> =
-    EventProducer(this, description)
-
-fun <K, V> KafkaProducer<String, String>.forStream(
-    description: MappedStreamDescription<K, V>
-): MappedEventProducer<K, V> = MappedEventProducer(this, description)
-
 fun <K, V> StreamsBuilder.stream(description: StreamDescription<K, V>): KStream<K, V> =
     stream(description.name, Consumed.with(description.keySerde, description.valueSerde))
 
@@ -115,17 +74,18 @@ class KafkaServices(
     private val streamsConfig: Properties,
     val producer: KafkaProducer<String, String>
 ) {
-    fun build(block: Topology): KafkaStreams {
+    public fun build(block: Topology): KafkaStreams {
         return KafkaStreams(block, streamsConfig)
     }
 }
 
+@Suppress("RedundantVisibilityModifier", "MemberVisibilityCanBePrivate")
 object KafkaUtil {
-    fun retrieveKafkaStreamsConfiguration(config: ConnectionConfig): Properties {
+    public fun retrieveKafkaStreamsConfiguration(config: ConnectionConfig): Properties {
         return retrieveKafkaStreamsConfiguration(config.kafka, config.service)
     }
 
-    fun retrieveKafkaStreamsConfiguration(
+    public fun retrieveKafkaStreamsConfiguration(
         kafkaConnectionConfig: KafkaConnectionConfig,
         serviceConfig: ServiceConnectionConfig
     ): Properties = Properties().apply {
@@ -138,11 +98,11 @@ object KafkaUtil {
         this[StreamsConfig.STATE_DIR_CONFIG] = File(System.getProperty("java.io.tmpdir"), "kafka-streams").absolutePath
     }
 
-    fun retrieveKafkaProducerConfiguration(config: ConnectionConfig): Properties {
+    public fun retrieveKafkaProducerConfiguration(config: ConnectionConfig): Properties {
         return retrieveKafkaProducerConfiguration(config.kafka)
     }
 
-    fun retrieveKafkaProducerConfiguration(kafkaServers: KafkaConnectionConfig): Properties = Properties().apply {
+    public fun retrieveKafkaProducerConfiguration(kafkaServers: KafkaConnectionConfig): Properties = Properties().apply {
         this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.servers.joinToString(",") { it.toString() }
         this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
         this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
@@ -153,7 +113,7 @@ object KafkaUtil {
      *
      * It is possible to change the configuration used by passing either [streamsConfigBody] or [producerConfigBody]
      */
-    inline fun createKafkaServices(
+    public inline fun createKafkaServices(
         configuration: ServerConfiguration,
         streamsConfigBody: (Properties) -> Unit = {},
         producerConfigBody: (Properties) -> Unit = {},
