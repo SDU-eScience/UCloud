@@ -2,7 +2,7 @@ import React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { getParentPath, updateSharingOfFile, shareFile, favorite, fileSizeToString, toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { SensitivityLevel, RightsNameMap } from "../../DefaultObjects"
 import { Container, Header, List, Button, Card, Icon, Rating } from "semantic-ui-react";
 import swal from "sweetalert2";
@@ -26,7 +26,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
         dispatch(updatePath(parentPath));
     }
 
-    if (!file) { return (<BallPulseLoading loading={true} />) }
+    if (!file) { return (<DefaultLoading loading={true} color="black" />) }
 
     return (
         <Container className="container-margin">
@@ -40,7 +40,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
             </Header>
             <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
             <ShareList byPath={file.path} />
-            <BallPulseLoading loading={loading} />
+            <DefaultLoading loading={loading} color="black" />
         </Container>
     );
 };

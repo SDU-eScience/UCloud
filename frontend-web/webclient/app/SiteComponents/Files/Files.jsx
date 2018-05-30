@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import {
@@ -175,6 +175,7 @@ class Files extends React.Component {
                 <Grid>
                     <Grid.Column computer={13} tablet={16}>
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
+                        <DefaultLoading loading={loading} color="black" size="big" />
                         <Responsive maxWidth={991}>
                             <ContextButtons
                                 createFolder={() => this.createFolder(currentPath)}
@@ -212,7 +213,6 @@ class Files extends React.Component {
                             onChange={(newSize) => updateFilesPerPage(newSize, files)}
                             content="Files per page"
                         />
-                        <BallPulseLoading loading={loading} />
                     </Grid.Column>
                     <Responsive as={Grid.Column} computer={3} minWidth={992}>
                         <ContextBar
@@ -278,9 +278,7 @@ const NoFiles = ({ noFiles, children }) =>
         </Table.Row>) : children;
 
 export function FilesTable({ allowCopyAndMove = false, refetch = () => null, ...props }) {
-    if (props.loading) {
-        return null;
-    }
+    if (props.loading) { return null; }
     let hasCheckbox = (!!props.checkAllFiles);
     const checkedFilesCount = props.files.filter(file => file.isChecked).length;
     const masterCheckboxChecked = props.files.length === checkedFilesCount && props.files.length > 0;

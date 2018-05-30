@@ -2,7 +2,7 @@ import React from "react";
 import { Button, Table, Container, Header, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
 import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
@@ -68,7 +68,7 @@ const PublishStatusBody = ({ publications }) =>
 
 const PublishStatus = (props) => {
     if (props.loading) {
-        return (<BallPulseLoading loading={props.loading} />);
+        return (<DefaultLoading color="black" loading={props.loading} />);
     }
 
     return (
@@ -89,9 +89,7 @@ const PublicationList = (props) => {
         if (publication.zenodoAction) {
             actionButton = (
                 <a href={publication.zenodoAction} target="_blank">
-                    <Button>Finish publication at
-                        Zenodo
-                    </Button>
+                    <Button content="Finish publication at Zenodo" />
                 </a>);
         }
         return (

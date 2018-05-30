@@ -1,5 +1,5 @@
 import React from "react";
-import { BallPulseLoading } from '../LoadingIcon/LoadingIcon'
+import { DefaultLoading } from '../LoadingIcon/LoadingIcon'
 import { NotificationIcon, WebSocketSupport } from '../../UtilityFunctions'
 import { Table } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
@@ -92,7 +92,7 @@ class Notifications extends React.Component {
         return (
             <section>
                 <div className="container container-md">
-                    <BallPulseLoading loading={this.state.loading} />
+                    <DefaultLoading loading={this.state.loading} color="black" />
                     <WebSocketSupport />
                     <p className="ph">Last 24 hours</p>
                     <div className="card">

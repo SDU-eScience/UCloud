@@ -1,6 +1,6 @@
 import React from "react";
 import { Container, Header, List, Table, Progress } from "semantic-ui-react";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
 import { updatePageTitle } from "../../Actions/Status";
@@ -35,7 +35,7 @@ class ZenodoInfo extends React.Component {
 
     render() {
         if (this.state.loading) {
-            return (<Container><BallPulseLoading loading={this.state.loading} /></Container>)
+            return (<Container><DefaultLoading loading={isLoading} color="black" /></Container>)
         }
         return (
             <Container className="container-margin">

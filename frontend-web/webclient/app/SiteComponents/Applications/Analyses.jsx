@@ -1,5 +1,5 @@
 import React from "react";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { WebSocketSupport, toLowerCaseAndCapitalize, shortUUID } from "../../UtilityFunctions"
 import { updatePageTitle } from "../../Actions/Status";
 import { Cloud } from "../../../authentication/SDUCloudObject";
@@ -47,7 +47,7 @@ class Analyses extends React.Component {
 
         return (
             <React.StrictMode>
-                <BallPulseLoading loading={this.props.loading} />
+                <DefaultLoading loading={this.props.loading} />
                 <WebSocketSupport />
                 {noAnalysis}
                 <Table basic="very" unstackable className="mobile-padding">

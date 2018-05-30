@@ -4,7 +4,7 @@ import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon"
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
@@ -147,7 +147,7 @@ class RunApp extends React.Component {
     render() {
         return (
             <React.Fragment>
-                    <BallPulseLoading loading={this.state.loading} />
+                    <DefaultLoading loading={this.state.loading} color="black" />
 
                     <ApplicationHeader
                         name={this.state.displayAppName}

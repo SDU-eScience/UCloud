@@ -1,5 +1,5 @@
 import React from "react";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { getParentPath, iconFromFilePath } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
@@ -68,7 +68,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
                 <Card.Header>
                     Favorite files
                 </Card.Header>
-                <BallPulseLoading loading={isLoading} />
+                <DefaultLoading loading={isLoading} color="black" />
                 {noFavorites}
                 <List divided size={"large"}>
                     {filesList}
@@ -107,7 +107,7 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
                 <Card.Header>
                     Recently used files
                 </Card.Header>
-                <BallPulseLoading loading={isLoading} />
+                <DefaultLoading loading={isLoading} color="black" />
                 {noRecents}
                 <List divided size={"large"}>
                     {filesList}
@@ -122,7 +122,7 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
             <Card.Header>
                 Recent Analyses
             </Card.Header>
-            <BallPulseLoading loading={isLoading} />
+            <DefaultLoading loading={isLoading} color="black" />
             {isLoading || analyses.length ? null :
                 (<h3 className="text-center">
                     <small>No analyses found</small>

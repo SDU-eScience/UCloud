@@ -3,7 +3,7 @@ import { Button, Container, Header, Form } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
@@ -75,7 +75,7 @@ class ZenodoPublish extends React.Component {
         const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
         const { name } = this.state;
         if (this.props.loading) {
-            return (<BallPulseLoading loading={true} />)
+            return (<DefaultLoading loading={true} color="black" />);
         } else if (!this.props.connected) {
             return (<NotConnectedToZenodo />);
         }

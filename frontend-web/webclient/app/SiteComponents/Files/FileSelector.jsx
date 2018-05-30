@@ -1,5 +1,5 @@
 import React from "react";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import PropTypes from "prop-types";
 import { Modal, Icon, Button, List, Input } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
@@ -127,7 +127,7 @@ class FileSelector extends React.Component {
     }
 
     fetchFiles(path) {
-        this.setState(() => ({ loading: true, creatingFolderName: null }));
+        this.setState(() => ({ loading: true, creatingFolder: false }));
         this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(req => {
             this.setState(() => ({
                 files: uf.sortFilesByTypeAndName(req.response, true),
@@ -187,23 +187,21 @@ export const FileSelectorModal = (props) => (
             File selector
             <Button floated="right" circular icon="cancel" type="button" onClick={props.onHide} />
         </Modal.Header>
-        <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
-        <BallPulseLoading loading={props.loading} />
-        <FileSelectorBody {...props} />
+        <Modal.Content scrolling>
+            <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
+            <DefaultLoading size="big" color="black" loading={props.loading}/>
+            <FileSelectorBody {...props} />
+        </Modal.Content>
     </Modal>
 );
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...props }) => {
-    if (props.loading) {
-        return null;
-    }
-
     const files = (onlyAllowFolders ?
         props.files.filter(f => uf.isDirectory(f)) : props.files)
         .filter((it) => !disallowedPaths.some((d) => d === it.path));
     // FIXME removetrailingslash usage needed?
     return (
-        <Modal.Content scrolling>
+        <React.Fragment>
             <List divided size="large">
                 <List.Header>
                     Filename
@@ -229,7 +227,7 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...p
             {props.createFolder != null ? <Button onClick={() => props.createFolder()}>
                 Create new folder
             </Button> : null}
-        </Modal.Content>)
+        </React.Fragment>)
 };
 
 
@@ -272,7 +270,7 @@ const ReturnFolder = ({ currentPath, parentPath, fetchFiles, onClick, canSelectF
                     <Button onClick={() => onClick(parentPath)}>Select</Button>
                 </List.Content>) : null}
             <List.Icon name="folder" color="blue" />
-            <List.Content content=".."/>
+            <List.Content content=".." />
         </List.Item>);
 
 const UploadButton = ({ onClick }) => (<Button type="button" content="Upload File" onClick={() => onClick()} />);

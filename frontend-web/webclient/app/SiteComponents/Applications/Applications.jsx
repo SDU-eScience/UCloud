@@ -1,5 +1,5 @@
 import React from "react";
-import { BallPulseLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Link } from "react-router-dom";
 import * as Pagination from "../Pagination";
 import { Table, Button, Icon, Container } from "semantic-ui-react";
@@ -64,7 +64,7 @@ class Applications extends React.Component {
         const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage), 0);
         return (
             <React.Fragment>
-                <BallPulseLoading loading={loading} />
+                <DefaultLoading loading={loading} color="black" />
                 <Table basic="very">
                     <Table.Header>
                         <Table.Row>
