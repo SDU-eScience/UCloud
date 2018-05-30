@@ -6,12 +6,14 @@ import * as moment from "moment";
 import { AccessRight, Page } from "../../types/types";
 import { getFilenameFromPath, shareSwal } from "../../UtilityFunctions";
 import "./List.scss"
+import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 
 interface ListState {
     shares: SharesByPath[]
     errorMessage: string,
     page: number,
     itemsPerPage: number
+    loading: boolean
 }
 
 export class List extends React.Component<any, ListState> {
@@ -21,7 +23,8 @@ export class List extends React.Component<any, ListState> {
             shares: [],
             errorMessage: null,
             page: 0,
-            itemsPerPage: 10
+            itemsPerPage: 10,
+            loading: true
         };
     }
 
@@ -32,7 +35,7 @@ export class List extends React.Component<any, ListState> {
     reload() {
         retrieveShares(this.state.page, this.state.itemsPerPage).then(e => this.setState({ shares: e.items })).catch(e => {
             this.setState({ errorMessage: "Unable to retrieve shares!" });
-        });
+        }).then(() => this.setState(() => ({ loading: false })));
     }
 
     public render() {
@@ -43,6 +46,7 @@ export class List extends React.Component<any, ListState> {
         return (
             <React.Fragment>
                 {errorMessage ? <Message color="red" onDismiss={() => this.setState({ errorMessage: null })}>{errorMessage}</Message> : null}
+                <DefaultLoading loading={this.state.loading} size="big" />
                 <Header>Shared with Me</Header>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
                     <ListEntry

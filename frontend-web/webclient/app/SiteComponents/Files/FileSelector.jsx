@@ -225,11 +225,17 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...p
                 />
                 <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
             </List>
-            {props.createFolder != null ? <Button onClick={() => props.createFolder()}>
-                Create new folder
-            </Button> : null}
+            <CreateFolderButton createFolder={props.createFolder}/>
         </React.Fragment>)
 };
+
+const CreateFolderButton = ({ createFolder }) =>
+    !!createFolder ? 
+        (<Button 
+            onClick={() => createFolder()} 
+            className="create-folder-button" 
+            content="Create new folder" 
+        />) : null
 
 
 // FIXME CurrentFolder and Return should share exact same traits
