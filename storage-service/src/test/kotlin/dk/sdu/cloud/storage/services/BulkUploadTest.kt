@@ -1,7 +1,6 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.BulkUploadOverwritePolicy
-import dk.sdu.cloud.storage.services.UploadService
 import io.mockk.mockk
 import junit.framework.Assert.*
 import org.junit.Test

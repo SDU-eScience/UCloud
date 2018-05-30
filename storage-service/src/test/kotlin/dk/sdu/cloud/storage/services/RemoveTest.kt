@@ -1,17 +1,17 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.api.StorageEventProducer
-import dk.sdu.cloud.storage.services.FileSystemException
 import dk.sdu.cloud.storage.services.cephfs.RemoveService
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
-import org.junit.Assert
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 
-class MakeTest {
-
+class RemoveTest {
     fun createFileSystem(): File {
         val fsRoot = Files.createTempDirectory("share-service-test").toFile()
         fsRoot.apply {
@@ -32,28 +32,8 @@ class MakeTest {
         return fsRoot
     }
 
-    @Test (expected = FileSystemException.AlreadyExists::class)
-    fun testNewDirAlreadyExists() {
-        val emitter: StorageEventProducer = mockk()
-        coEvery { emitter.emit(any()) } coAnswers {
-            println("Hello! ${it.invocation.args.first()}}")
-        }
-
-        val fsRoot = createFileSystem()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath,
-            eventProducer = emitter
-        )
-
-        val existingFolder = File(fsRoot, "home/user1/folder")
-        Assert.assertTrue(existingFolder.exists())
-
-        fs.mkdir(fs.openContext("user1"), "/home/user1/folder")
-
-    }
-
     @Test
-    fun testPathSanitation() {
+    fun testSimpleRemove() {
         val emitter: StorageEventProducer = mockk()
         coEvery { emitter.emit(any()) } coAnswers {
             println("Hello! ${it.invocation.args.first()}}")
@@ -62,17 +42,43 @@ class MakeTest {
         val fsRoot = createFileSystem()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath,
+            removeService = RemoveService(true),
             eventProducer = emitter
         )
 
-        val existingFolder = File(fsRoot, "home/user1/folder/Weirdpath")
-        Assert.assertFalse(existingFolder.exists())
+        fs.rmdir(fs.openContext("user1"), "/home/user1/folder")
+        val existingFolder = File(fsRoot, "home/user1/folder")
+        assertFalse(existingFolder.exists())
 
-        fs.mkdir(fs.openContext("user1"), "/home/user1/folder/./../folder/./Weirdpath")
+        // The function returns immediately. We want to wait for those events to have been emitted.
+        // This is not a fool proof way of doing it. But we have no way of waiting for tasks
+        Thread.sleep(100)
 
-        val existingFolder2 = File(fsRoot, "home/user1/folder/Weirdpath")
-        Assert.assertTrue(existingFolder2.exists())
+        coVerify {
+            emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" })
+            emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" })
+            emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" })
+            emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder" })
+        }
     }
 
+    @Test(expected = FileSystemException.PermissionException::class)
+    fun testNonExistingPathRemove() {
+        val emitter: StorageEventProducer = mockk()
+        coEvery { emitter.emit(any()) } coAnswers {
+            println("Hello! ${it.invocation.args.first()}}")
+        }
 
+        val fsRoot = createFileSystem()
+        val fs = cephFSWithRelaxedMocks(
+            fsRoot.absolutePath,
+            removeService = RemoveService(true),
+            eventProducer = emitter
+        )
+
+        //Folder should not exists
+        val nonExistingFolder = File(fsRoot, "home/user1/fold")
+        assertFalse(nonExistingFolder.exists())
+        fs.rmdir(fs.openContext("user1"), "/home/user1/fold")
+    }
 }

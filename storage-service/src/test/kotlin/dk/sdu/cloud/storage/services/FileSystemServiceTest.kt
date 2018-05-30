@@ -1,9 +1,8 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
-import dk.sdu.cloud.storage.services.FileSystemException
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File

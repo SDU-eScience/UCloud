@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.services.cephfs.CephFSProcessRunner
 import dk.sdu.cloud.storage.services.cephfs.InMemoryProcessResultAsString

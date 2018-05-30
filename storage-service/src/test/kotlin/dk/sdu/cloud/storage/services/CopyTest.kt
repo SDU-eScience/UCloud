@@ -1,12 +1,9 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.api.StorageEventProducer
 import dk.sdu.cloud.storage.services.cephfs.CopyService
-import io.mockk.Runs
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
+import io.mockk.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

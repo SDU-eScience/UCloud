@@ -1,12 +1,8 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.AccessRight
-import dk.sdu.cloud.storage.services.ShareException
 import dk.sdu.cloud.storage.services.cephfs.*
-import io.mockk.Runs
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import io.mockk.*
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
@@ -43,7 +39,8 @@ class ShareServiceTest {
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } just Runs
 
         val fsRoot = createFileSystem()
-        val service = cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
+        val service =
+            cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 
         val ctx = service.openContext("user1")
         service.grantRights(ctx, "user2", "/home/user1/PleaseShare", setOf(AccessRight.READ, AccessRight.EXECUTE))
@@ -84,7 +81,8 @@ class ShareServiceTest {
                 ShareException.PermissionException()
 
         val fsRoot = createFileSystem()
-        val service = cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
+        val service =
+            cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 
         service.grantRights(
             service.openContext("user1"),
@@ -131,7 +129,8 @@ class ShareServiceTest {
         every { fileAclService.removeEntry(any(), any(), any(), any(), any()) } just Runs
 
         val fsRoot = createFileSystem()
-        val service = cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
+        val service =
+            cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 
         val ctx = service.openContext("user1")
         service.grantRights(

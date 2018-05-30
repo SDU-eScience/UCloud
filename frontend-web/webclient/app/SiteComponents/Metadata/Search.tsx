@@ -37,7 +37,7 @@ export class Search extends React.Component<any, SearchState> {
         if (this.state.query != query) {
             this.setState(() => ({
                 query,
-                dataProvider: (page: number, itemsPerPage: number) => simpleSearch(query, page, itemsPerPage)
+                dataProvider: (page: number, itemsPerPage: number) => simpleSearch(query.toLowerCase(), page, itemsPerPage)
             }));
         }
     }

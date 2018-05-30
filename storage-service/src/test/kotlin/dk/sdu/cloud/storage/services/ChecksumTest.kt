@@ -1,7 +1,6 @@
-package dk.sdu.cloud.storage
+package dk.sdu.cloud.storage.services
 
 
-import dk.sdu.cloud.storage.services.ChecksumService
 import org.junit.Assert
 import org.junit.Test
 import java.io.File
@@ -39,7 +38,7 @@ class ChecksumTest {
         val checksum = cs.computeAndAttachChecksum(fs.openContext("user1"), "home/user1/folder/a")
         Assert.assertTrue(checksum.checksum == "01C77500CC529C8D85A620C9FEF013496A702B83".toLowerCase())
     }
-    
+
     @Test (expected = IllegalArgumentException::class)
     fun illegalAlgorithm() {
 

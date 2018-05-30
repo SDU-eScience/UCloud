@@ -102,7 +102,8 @@ class CephFSProcessRunner(
                     else BashEscaper.safeBashArgument(it)
                 }
             } else {
-                "cd ${BashEscaper.safeBashArgument(directory)} ; " +
+                // TODO We need to ensure directory exists. We cannot do this with File(directory)
+                "cd ${BashEscaper.safeBashArgument(directory)} && " +
                         command.joinToString(" ") {
                             if (noEscape) it
                             else BashEscaper.safeBashArgument(it)
@@ -157,7 +158,7 @@ class StreamingProcessRunner(
                 else BashEscaper.safeBashArgument(it)
             }
         } else {
-            "cd ${BashEscaper.safeBashArgument(directory)} ; " +
+            "cd ${BashEscaper.safeBashArgument(directory)} && " +
                     command.joinToString(" ") {
                         if (noEscape) it
                         else BashEscaper.safeBashArgument(it)

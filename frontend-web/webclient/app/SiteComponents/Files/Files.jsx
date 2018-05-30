@@ -27,20 +27,18 @@ import { updatePageTitle } from "../../Actions/Status";
 import { FileSelectorModal } from "./FileSelector";
 import { FileIcon } from "../UtilityComponents";
 import { Uploader } from "../Uploader";
-import { ETIME } from "constants";
 
 class Files extends React.Component {
     constructor(props) {
         super(props);
         const urlPath = props.match.params[0];
-        const { history, updatePath, setPageTitle, fetchNewFiles } = props;
+        const { history, fetchNewFiles } = props;
         if (urlPath) {
             fetchNewFiles(urlPath);
         } else {
             fetchNewFiles(Cloud.homeFolder);
             history.push(`/files/${Cloud.homeFolder}/`);
         }
-        setPageTitle();
         this.state = {
             lastSorting: {
                 name: "typeAndName",
@@ -239,7 +237,7 @@ class Files extends React.Component {
                     onlyAllowFolders
                     canSelectFolders
                     files={this.props.fileSelectorFiles}
-                    onClick={this.props.fileSelectorCallback}
+                    setSelectedFile={this.props.fileSelectorCallback}
                     disallowedPaths={this.props.disallowedPaths}
                 />
             </React.Fragment>);
@@ -279,7 +277,7 @@ const NoFiles = ({ noFiles, children }) =>
             </Table.Cell>
         </Table.Row>) : children;
 
-export function FilesTable(props) {
+export function FilesTable({ allowCopyAndMove = false, refetch = () => null, ...props }) {
     if (props.loading) {
         return null;
     }
@@ -323,8 +321,8 @@ export function FilesTable(props) {
                 </NoFiles>
             </Table.Header>
             <FilesList
-                allowCopyAndMove={!!props.allowCopyAndMove}
-                refetch={props.refetch}
+                allowCopyAndMove={allowCopyAndMove}
+                refetch={refetch}
                 fetchFiles={props.fetchFiles}
                 creatingNewFolder={props.creatingNewFolder}
                 editFolderIndex={props.editFolderIndex}
@@ -419,7 +417,6 @@ const PredicatedRating = ({ predicate, file, onClick, rating }) =>
             onClick={onClick}
         />
     ) : null;
-
 
 const GroupIcon = ({ isProject }) => isProject ? (<Icon className="group-icon-padding" name="users" />) : null;
 
@@ -518,7 +515,7 @@ function FileOptions({ selectedFiles, rename, ...props }) {
         <div>
             <Header as="h3">{fileText}</Header>
             <Link to={`/fileInfo/${selectedFiles[0].path}/`} disabled={selectedFiles.length !== 1}>
-                <Button className="context-button-margin" color="blue" fluid
+                <Button className="context-button-margin" color="blue" fluid basic
                     disabled={selectedFiles.length !== 1}
                     icon="settings" content="Properties"
                 />
@@ -538,7 +535,7 @@ function FileOptions({ selectedFiles, rename, ...props }) {
             />
             <Button className="context-button-margin" fluid basic
                 onClick={() => move(selectedFiles, props)}
-                disabled={rights.rightsLevel < 3}
+                disabled={rights.rightsLevel < 3 || moveDisabled}
                 icon="move" content="Move"
             />
             <Button className="context-button-margin" fluid basic
@@ -546,6 +543,7 @@ function FileOptions({ selectedFiles, rename, ...props }) {
                 disabled={rights.rightsLevel < 3}
                 icon="copy" content="Copy"
             />
+            <EditOrCreateProjectButton file={selectedFiles[0]} disabled={selectedFiles.length > 1} />
             <Button className="context-button-margin" color="red" fluid basic
                 disabled={rights.rightsLevel < 3}
                 onClick={() => uf.batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, props.refetch)}
@@ -556,7 +554,7 @@ function FileOptions({ selectedFiles, rename, ...props }) {
 };
 
 const PredicatedDropDownItem = ({ predicate, content, onClick }) =>
-    predicate ? <Dropdown.Item content={content} onClick={onClick} /> : null
+    predicate ? <Dropdown.Item content={content} onClick={onClick} /> : null;
 
 const MobileButtons = ({ file, Buttons, rename, ...props }) => (
     <Dropdown direction="left" icon="ellipsis horizontal">
@@ -586,28 +584,51 @@ const MobileButtons = ({ file, Buttons, rename, ...props }) => (
                     Properties
                 </Link>
             </Dropdown.Item>
-            <EditOrCreateProject file={file} Type={Dropdown.Item} />
+            <EditOrCreateProject file={file} />
         </Dropdown.Menu>
     </Dropdown>
 );
 
-function EditOrCreateProject({ file, Type }) {
+function EditOrCreateProjectButton({ file, disabled }) {
     const canBeProject = uf.isDirectory(file) && !uf.isFixedFolder(file.path, Cloud.homeFolder) && !uf.isLink(file);
-    return canBeProject ?
-        <Type onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud)}>
-            {uf.isProject(file) ? (
-                <Link to={`/metadata/${file.path}/`} className="black-text">
-                    Edit Project
-                </Link>) : "Create Project"}
-        </Type> : null
+    const projectButton = (
+        <Button className="context-button-margin" fluid basic icon="users" disabled={disabled || !canBeProject}
+            content={uf.isProject(file) ? "Edit Project" : "Create Project"}
+            onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud)}
+        />
+    );
+    if (uf.isProject(file)) {
+        return (
+            <Link to={`/metadata/${file.path}/`} className="context-button-margin">
+                {projectButton}
+            </Link>);
+    } else {
+        return projectButton;
+    }
+}
+
+function EditOrCreateProject({ file }) {
+    const canBeProject = uf.isDirectory(file) && !uf.isFixedFolder(file.path, Cloud.homeFolder) && !uf.isLink(file);
+    if (!canBeProject) { return null; }
+    const projectLink = uf.isProject(file) ? (
+        <Link to={`/metadata/${file.path}/`} className="black-text">
+            Edit Project
+        </Link>) : "Create Project";
+    return (
+        <Dropdown.Item onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud)}>
+            {projectLink}
+        </Dropdown.Item>)
 }
 
 function copy(files, operations) {
     let i = 0;
+    operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
-    operations.setFileSelectorCallback((newPath) => {
+    operations.setFileSelectorCallback((file) => {
+        const newPath = file.path;
         operations.showFileSelector(false);
         operations.setFileSelectorCallback(null);
+        operations.setDisallowedPaths([]);
         files.forEach((f) => {
             const currentPath = f.path;
             Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(currentPath)}`).catch(({ request }) => {
@@ -621,8 +642,7 @@ function copy(files, operations) {
                 } else {
                     uf.failureNotification(`An error occurred, please try again later.`)
                 }
-            }
-            )
+            })
         });
     });
 };
@@ -630,12 +650,15 @@ function copy(files, operations) {
 function move(files, operations) {
     operations.showFileSelector(true);
     operations.setDisallowedPaths(files.map(f => f.path));
-    operations.setFileSelectorCallback((newPath) => {
+    operations.setFileSelectorCallback((file) => {
+        const newPath = file.path;
         files.forEach((f) => {
             let currentPath = f.path;
             let newPathForFile = `${newPath}/${uf.getFilenameFromPath(currentPath)}`;
             Cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => {
-                uf.successNotification(`${uf.getFilenameFromPath(currentPath)} moved to ${uf.getParentPath(newPathForFile)}`);
+                const fromPath = uf.getFilenameFromPath(currentPath);
+                const toPath = uf.replaceHomeFolder(newPathForFile, Cloud.homeFolder);
+                uf.successNotification(`${fromPath} moved to ${toPath}`);
                 operations.refetch();
             }).catch(() => uf.failureNotification("An error occurred, please try again later"));
             operations.showFileSelector(false);
@@ -681,7 +704,6 @@ const mapDispatchToProps = (dispatch) => ({
     showFileSelector: (open) => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: (callback) =>
         dispatch(Actions.setFileSelectorCallback(callback)),
-    setPageTitle: () => dispatch(updatePageTitle("Files")),
     checkFile: (checked, files, newFile) => {
         files.find(file => file.path === newFile.path).isChecked = checked;
         dispatch(Actions.updateFiles(files));
@@ -691,6 +713,7 @@ const mapDispatchToProps = (dispatch) => ({
         dispatch(Actions.updateFiles(files));
         dispatch(Actions.toPage(pageNumber));
     },
+    setPageTitle: () => dispatch(updatePageTitle("Files")),
     updateFiles: (files) => dispatch(Actions.updateFiles(files)),
     updateFilesPerPage: (newSize, files) => dispatch(Actions.updateFilesPerPage(newSize, files)),
     setDisallowedPaths: (disallowedPaths) => dispatch(Actions.setDisallowedPaths(disallowedPaths))
