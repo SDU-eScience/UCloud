@@ -89,7 +89,7 @@ class FileSelector extends React.Component {
                 path: path,
                 name: name,
             };
-            this.props.uploadCallback(fileObject);
+            this.props.onFileSelect(fileObject);
         });
     };
 
@@ -123,7 +123,7 @@ class FileSelector extends React.Component {
             modalShown: false,
             creatingFolder: false
         }));
-        this.props.uploadCallback(fileCopy);
+        this.props.onFileSelect(fileCopy);
     }
 
     fetchFiles(path) {
@@ -175,6 +175,7 @@ class FileSelector extends React.Component {
                     handleKeyDown={this.handleKeyDown}
                     createFolder={this.startCreateNewFolder}
                     canSelectFolders={this.props.canSelectFolders}
+                    onlyAllowFolders={this.props.onlyAllowFolders}
                 />
             </React.Fragment>)
     }

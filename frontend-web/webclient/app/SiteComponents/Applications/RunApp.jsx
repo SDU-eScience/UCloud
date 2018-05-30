@@ -283,6 +283,8 @@ const parameterTypeToComponent = (type) => {
     switch (type) {
         case "input_file":
             return InputFileParameter;
+        case "input_directory":
+            return InputDirectoryParameter;
         case "integer":
             return IntegerParameter;
         case "floating_point":
@@ -291,7 +293,6 @@ const parameterTypeToComponent = (type) => {
             return TextParameter;
         case "boolean":
             return BooleanParameter;
-
         default:
             console.warn(`Unknown parameter type: ${type}`);
             return null;
@@ -314,9 +315,8 @@ const InputFileParameter = (props) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
-                onFileSelectionChange={(file) => internalOnChange(file)}
+                onFileSelect={(file) => internalOnChange(file)}
                 uppyOpen={props.uppyOpen}
-                uploadCallback={(file) => internalOnChange(file)}
                 uppy={props.uppy}
                 path={path}
                 isRequired={!props.parameter.optional}
@@ -325,6 +325,27 @@ const InputFileParameter = (props) => {
         </GenericParameter>
     );
 };
+
+const InputDirectoryParameter = (props) => {
+    const internalOnChange = (file) => {
+        props.onChange(props.parameter.name, {
+            source: file.path,
+            destination: getFilenameFromPath(file.path) // TODO Should allow for custom name at destination
+        });
+    };
+    const path = props.value ? props.value.source : "";
+    return (
+        <GenericParameter parameter={props.parameter}>
+            <FileSelector
+                onFileSelect={(file) => internalOnChange(file)}
+                path={path}
+                canSelectFolders
+                onlyAllowFolders
+                isRequired={!props.parameter.optional}
+            />
+        </GenericParameter>
+    )
+}
 
 const TextParameter = (props) => {
     const internalOnChange = (event) => {
