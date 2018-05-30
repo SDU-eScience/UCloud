@@ -85,28 +85,10 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }, ...props
                 <div className="user-name">{`Welcome, ${Cloud.userInfo.firstNames}`}</div>
             </Menu.Item>
             <Menu.Item>
-                <Link to={"/dashboard"} onClick={() => closeSidebar()} className="sidebar-option">
-                    <List>
-                        <List.Item>
-                            <List.Content floated="right">
-                                <List.Icon name="home" />
-                            </List.Content>
-                            Dashboard
-                    </List.Item>
-                    </List>
-                </Link>
+                <MenuLink icon="home" to="/dashboard" name="Dashboard" onClick={() => closeSidebar()} />
             </Menu.Item>
             <Menu.Item>
-                <Link to={`/files/${Cloud.homeFolder}`} onClick={() => closeSidebar()} className="sidebar-option">
-                    <List>
-                        <List.Item>
-                            <List.Content floated="right" >
-                                <List.Icon name="file" floated="right" />
-                            </List.Content>
-                            Files
-                    </List.Item>
-                    </List>
-                </Link>
+                <MenuLink icon="file" to={`/files/${Cloud.homeFolder}`} name="Files" onClick={() => closeSidebar()} />
             </Menu.Item>
             <Menu.Item>
                 <Accordion.Title onClick={handleClick} index={0} active={activeIndices[0]}>
@@ -150,20 +132,23 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }, ...props
                 </Accordion.Content>
             </Menu.Item>
             <Menu.Item>
-                <Link to={"/shares"} onClick={() => closeSidebar()} className="sidebar-option">
-                    <List>
-                        <List.Item>
-                            <List.Content floated="right">
-                                <List.Icon name="share" />
-                            </List.Content>
-                            Shares
-                    </List.Item>
-                    </List>
-                </Link>
+                <MenuLink icon="share" to="/shares" name="Shares" onClick={() => closeSidebar()} />
             </Menu.Item>
         </Accordion>
     </React.Fragment>
 );
+
+const MenuLink = ({ icon, name, to, onClick }) =>
+    <Link to={to} onClick={onClick} className="sidebar-option">
+        <List>
+            <List.Item>
+                <List.Content floated="right">
+                    <List.Icon name={icon} />
+                </List.Content>
+                {name}
+                </List.Item>
+        </List>
+    </Link>
 
 const mapStateToProps = ({ sidebar }) => ({ options, loading, open } = sidebar);
 export default connect(mapStateToProps)(SidebarComponent);

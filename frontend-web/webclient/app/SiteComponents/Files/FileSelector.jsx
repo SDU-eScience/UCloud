@@ -186,12 +186,12 @@ export const FileSelectorModal = (props) => (
     <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick={false} size="large">
         <Modal.Header>
             File selector
-            <Button circular floated="right" icon="cancel" type="button" onClick={props.onHide}/>
-            <Button icon="redo" loading={props.loading} floated="right" circular onClick={() => props.fetchFiles(props.currentPath)}/>
+            <Button circular floated="right" icon="cancel" type="button" onClick={props.onHide} />
+            <Button icon="redo" loading={props.loading} floated="right" circular onClick={() => props.fetchFiles(props.currentPath)} />
         </Modal.Header>
         <Modal.Content scrolling>
             <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
-            <DefaultLoading size="big" loading={props.loading}/>
+            <DefaultLoading size="big" loading={props.loading} />
             <FileSelectorBody {...props} />
         </Modal.Content>
     </Modal>
@@ -232,11 +232,7 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...p
 
 const CreateFolderButton = ({ createFolder }) =>
     !!createFolder ?
-        (<Button
-            onClick={() => createFolder()}
-            className="create-folder-button"
-            content="Create new folder"
-        />) : null
+        (<Button onClick={() => createFolder()} className="create-folder-button" content="Create new folder" />) : null;
 
 
 // FIXME CurrentFolder and Return should share exact same traits
