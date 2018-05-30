@@ -94,9 +94,9 @@ class Notifications extends React.Component<any, NotificationState> {
                         </Label>
                     }
                     content={<Feed>{entries.length ? entries : <NoNotifications />}</Feed>}
-
-                    on='click'
-                    position='top right'
+                    
+                    on="click"
+                    position="bottom right"
                 />
             </div>
         );
