@@ -652,6 +652,33 @@ object ApplicationDAO {
 
                 outputFileGlobs = listOf("stdout.txt", "stderr.txt", "*.html", "*.zip")
             )
+        ),
+
+        "bwa-mem" to listOf(
+            ApplicationDescription(
+                tool = NameAndVersion("bwa-sambamba", "1.0.0"),
+                info = NameAndVersion("bwa-mem", "1.0.0"),
+                prettyName = "BWA-MEM",
+                description = "BWA-MEM",
+                createdAt = 1527663964000L,
+                modifiedAt = 1527663964000L,
+                outputFileGlobs = listOf("sample.bam.*", "stdout.txt", "stderr.txt"),
+                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
+
+                parameters = listOf(
+                    ApplicationParameter.Text("index_base_main", optional = false, prettyName = "Index Base Main File"),
+                    ApplicationParameter.InputDirectory("index_base", optional = false, prettyName = "Index Resources"),
+                    ApplicationParameter.InputFile("R1", optional = false, prettyName = "R1"),
+                    ApplicationParameter.InputFile("R2", optional = false, prettyName = "R2")
+                ),
+
+                invocation = listOf(
+                    WordInvocationParameter("bwa-mem"),
+                    VariableInvocationParameter(listOf("index_base", "index_base_main"), variableSeparator = ""),
+                    VariableInvocationParameter(listOf("R1")),
+                    VariableInvocationParameter(listOf("R2"))
+                )
+            )
         )
     )
 

@@ -32,6 +32,7 @@ class SBatchGenerator {
         when (tool.backend) {
             ToolBackend.SINGULARITY -> requiredModules.add("singularity")
             else -> {
+                // No extra required modules
             }
         }
 
@@ -53,7 +54,7 @@ class SBatchGenerator {
             ToolBackend.UDOCKER -> {
                 ArrayList<String>().apply {
                     val containerWorkDir = "/scratch"
-                    addAll(listOf("udocker", "run", "--rm"))
+                    addAll(listOf("udocker-prep", "-q", "run", "--rm"))
                     add("--workdir=$containerWorkDir")
                     add("--volume=${safeBashArgument(workDir)}:$containerWorkDir")
                     add(safeBashArgument(tool.container))

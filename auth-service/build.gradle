@@ -2,7 +2,7 @@ group 'dk.sdu.cloud'
 version '1.0.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.40'
+    ext.kotlin_version = '1.2.41'
     ext.ktor_version = '0.9.1'
     ext.dokka_version = "0.9.16"
 
@@ -60,7 +60,7 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     testCompile group: 'junit', name: 'junit', version: '4.12'
 
-    compile "dk.sdu.cloud:service-common:0.8.1-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.9.0-SNAPSHOT"
 
     compile "io.ktor:ktor-server-core:$ktor_version"
     compile "io.ktor:ktor-server-netty:$ktor_version"

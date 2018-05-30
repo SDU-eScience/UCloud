@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = ApplicationParameter.InputFile::class, name = "input_file"),
+    JsonSubTypes.Type(value = ApplicationParameter.InputDirectory::class, name = "input_directory"),
     JsonSubTypes.Type(value = ApplicationParameter.Text::class, name = "text"),
     JsonSubTypes.Type(value = ApplicationParameter.Integer::class, name = "integer"),
     JsonSubTypes.Type(value = ApplicationParameter.Bool::class, name = "boolean"),
@@ -55,6 +56,27 @@ sealed class ApplicationParameter<V : Any> {
         }
 
         override fun toInvocationArgument(entry: FileTransferDescription): String = entry.destination
+    }
+
+    data class InputDirectory(
+        override val name: String,
+        override val optional: Boolean,
+        override val defaultValue: FileTransferDescription? = null,
+        override val prettyName: String = name,
+        override val description: String = ""
+    ) : ApplicationParameter<FileTransferDescription>() {
+        override fun internalMap(inputParameter: Any): FileTransferDescription {
+            @Suppress("UNCHECKED_CAST")
+            val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
+            val source = params["source"] as String? ?: throw IllegalArgumentException("Missing source property")
+            val destination =
+                params["destination"] as String? ?: throw IllegalArgumentException("Missing destination property")
+
+            return FileTransferDescription(source, destination)
+        }
+
+        override fun toInvocationArgument(entry: FileTransferDescription): String =
+            entry.destination.removeSuffix("/") + "/"
     }
 
     data class Text(

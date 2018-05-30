@@ -18,7 +18,10 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.URI
+import java.nio.file.Files
 import java.util.*
 
 class JobExecutionService(
@@ -219,6 +222,8 @@ class JobExecutionService(
         }
     }
 
+    // TODO This shouldn't accept a cloud. This service already has one
+    // TODO We shouldn't require the JWT of user, but rather rely entirely on pre-authenticated messages
     suspend fun startJob(req: AppRequest.Start, principal: DecodedJWT, cloud: AuthenticatedCloud): String {
         val validatedJob = validateJob(req, principal, cloud)
         dao.transaction {
@@ -297,11 +302,18 @@ class JobExecutionService(
     ): List<ValidatedFileForUpload> {
         val result = ArrayList<ValidatedFileForUpload>()
 
-        for (input in app.parameters.filterIsInstance<ApplicationParameter.InputFile>()) {
-            val inputParameter = applicationParameters[input.name]
+        loop@ for (input in app.parameters) {
+            val isDirectory = input is ApplicationParameter.InputDirectory
+            val parameter: ApplicationParameter<FileTransferDescription> = when (input) {
+                is ApplicationParameter.InputFile -> input
+                is ApplicationParameter.InputDirectory -> input
+                else -> continue@loop
+            }
+
+            val inputParameter = applicationParameters[parameter.name]
 
             val transferDescription = try {
-                input.map(inputParameter)
+                parameter.map(inputParameter)
             } catch (ex: IllegalArgumentException) {
                 throw JobValidationException(ex.message ?: DEFAULT_ERROR_MESSAGE)
             } ?: continue
@@ -311,10 +323,20 @@ class JobExecutionService(
                     throw JobValidationException("Missing file in storage: $sourcePath. Are you sure it exists?")
                 }
                 .result
-                .takeIf { it.type == FileType.FILE } ?: throw JobValidationException("Directories not supported")
 
-//            val stat = storage.fileQuery.stat(sourcePath).capture()
-//                    ?: throw JobValidationException("Missing file in storage: ${sourcePath.path}. Are you sure it exists?")
+            if (!isDirectory && stat.type != FileType.FILE) {
+                throw JobValidationException(
+                    "Expected a file for ${input.name}, but instead got " +
+                            "a ${stat.type.name.toLowerCase()} (value: $sourcePath)"
+                )
+            }
+
+            if (isDirectory && stat.type != FileType.DIRECTORY) {
+                throw JobValidationException(
+                    "Expected a directory for ${input.name}, but instead got " +
+                            "a ${stat.type.name.toLowerCase()} (value: $sourcePath)"
+                )
+            }
 
             // Resolve relative path against working directory. Ensure that file is still inside of
             // the working directory.
@@ -327,9 +349,45 @@ class JobExecutionService(
 
             val name = destinationPath.split("/").last()
 
-            result.add(ValidatedFileForUpload(stat, name, destinationPath, sourcePath))
+            result.add(
+                ValidatedFileForUpload(
+                    stat,
+                    name,
+                    destinationPath,
+                    sourcePath,
+                    if (isDirectory) FileForUploadArchiveType.ZIP else null
+                )
+            )
         }
         return result
+    }
+
+    private fun InputStream.copyToWithDebugging(target: OutputStream, bufferSize: Int) {
+        var nextTarget = 1024 * 1024
+        target.use { out ->
+            this.use { ins ->
+                var writtenInTotal = 0L
+                val buffer = ByteArray(bufferSize)
+                var hasMoreData = true
+                while (hasMoreData) {
+                    var ptr = 0
+                    while (ptr < buffer.size && hasMoreData) {
+                        val read = ins.read(buffer, ptr, buffer.size - ptr)
+                        if (read <= 0) {
+                            hasMoreData = false
+                            break
+                        }
+                        ptr += read
+                        writtenInTotal += read
+                        if (writtenInTotal >= nextTarget) {
+                            log.debug("Wrote $writtenInTotal bytes")
+                            nextTarget += 1024 * 1024
+                        }
+                    }
+                    out.write(buffer, 0, ptr)
+                }
+            }
+        }
     }
 
     /**
@@ -339,7 +397,11 @@ class JobExecutionService(
      */
     private suspend fun prepareJob(event: AppEvent.Validated, cloud: CloudContext): AppEvent.Prepared {
         log.debug("prepareJob(event = $event)")
-        TokenValidation.validateOrNull(event.jwt) ?: throw JobNotAllowedException()
+        // TODO This might not be valid for the entire duration if we have long transfers
+        val validateOrNull = TokenValidation.validateOrNull(event.jwt)
+        validateOrNull ?: throw JobNotAllowedException()
+        log.debug("Using token: ${validateOrNull.subject}")
+
         val userCloud = JWTAuthenticatedCloud(cloud, event.jwt).withCausedBy(event.systemId)
         sshConnectionPool.use {
             mkdir(event.workingDirectory, true)
@@ -353,10 +415,10 @@ class JobExecutionService(
 
                 val token =
                     (AuthDescriptions.requestOneTimeTokenWithAudience.call(
-                        RequestOneTimeToken("$DOWNLOAD_FILE_SCOPE,irods"), userCloud
+                        RequestOneTimeToken(DOWNLOAD_FILE_SCOPE), userCloud
                     ) as? RESTResponse.Ok)?.result?.accessToken ?: run {
                         log.warn("Unable to request a new one time token for download!")
-                        throw JobInternalException("Unable to upload output files to SDU Cloud")
+                        throw JobInternalException("Unable to upload input files to Abacus")
                     }
 
                 val fileDownload = (FileDescriptions.download.call(
@@ -364,18 +426,32 @@ class JobExecutionService(
                     userCloud
                 ) as? RESTResponse.Ok)?.response?.responseBodyAsStream ?: run {
                     log.warn("Unable to download file: ${upload.sourcePath}")
-                    throw JobInternalException("Unable to upload output files to SDU Cloud")
+                    throw JobInternalException("Unable to upload input files to Abacus")
+                }
+
+                val (uploadSize, fileInputStream) = if (upload.needsExtractionOfType != null) {
+                    // Extraction requires us to know the precise size before we send to HPC. This information
+                    // needs to be transferred before the file. We cannot do this in memory since we don't know
+                    // how large the file is. Thus we have to go through the disk.
+                    //
+                    // This does, however, make it significantly slower.
+
+                    log.debug("File needs extraction writing to file first!")
+                    val output = Files.createTempFile("apparchive", ".zip").toFile()
+                    fileDownload.copyToWithDebugging(output.outputStream(), 1024 * 64)
+                    Pair(output.length(), output.inputStream())
+                } else {
+                    Pair(upload.stat.size, fileDownload)
                 }
 
                 val uploadStatus = try {
                     scpUpload(
-                        upload.stat.size,
+                        uploadSize,
                         upload.destinationFileName,
                         upload.destinationPath,
                         "0600"
                     ) {
-                        // Internal transfer, so we use a large buffer
-                        fileDownload.transferTo(it, 1024 * 4096)
+                        fileInputStream.copyToWithDebugging(it, 1024 * 64)
                     }
                 } catch (ex: Exception) {
                     // TODO Don't treat all errors like this
@@ -387,6 +463,22 @@ class JobExecutionService(
                 if (uploadStatus != 0) {
                     log.warn("Caught error during upload:")
                     log.warn("SCP Upload returned $uploadStatus")
+                    throw JobInternalException("Internal error")
+                }
+
+                val zipStatus: Int = when (upload.needsExtractionOfType) {
+                    FileForUploadArchiveType.ZIP -> {
+                        unzip(upload.destinationPath, File(upload.destinationPath).parent)
+                    }
+
+                    null -> {
+                        // Do nothing
+                        0
+                    }
+                }
+
+                if (zipStatus >= 3) {
+                    log.warn("Unable to extract input files")
                     throw JobInternalException("Internal error")
                 }
 
@@ -655,5 +747,10 @@ data class ValidatedFileForUpload(
     val stat: StorageFile,
     val destinationFileName: String,
     val destinationPath: String,
-    val sourcePath: String
+    val sourcePath: String,
+    val needsExtractionOfType: FileForUploadArchiveType?
 )
+
+enum class FileForUploadArchiveType {
+    ZIP
+}

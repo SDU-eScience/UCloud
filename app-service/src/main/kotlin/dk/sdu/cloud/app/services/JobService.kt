@@ -7,7 +7,6 @@ import dk.sdu.cloud.app.services.ssh.linesInRange
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
-import io.ktor.http.HttpStatusCode
 import java.io.File
 import kotlin.math.min
 
@@ -84,12 +83,5 @@ class JobService(
     suspend fun startJob(who: DecodedJWT, req: AppRequest.Start, cloud: AuthenticatedCloud): String {
         return jobExecutionService.startJob(req, who, cloud)
     }
-}
-
-sealed class JobServiceException(message: String, val statusCode: HttpStatusCode) : RuntimeException(message) {
-    data class NotFound(val entity: String) : JobServiceException("Not found: $entity", HttpStatusCode.NotFound)
-    class NotReady : JobServiceException("Not ready yet", HttpStatusCode.BadRequest)
-    class AlreadyComplete : JobServiceException("Job already complete", HttpStatusCode.BadRequest)
-    class InvalidRequest(why: String) : JobServiceException("Bad request. $why", HttpStatusCode.BadRequest)
 }
 

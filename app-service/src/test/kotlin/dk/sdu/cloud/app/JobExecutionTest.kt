@@ -125,11 +125,16 @@ class JobExecutionTest {
     private fun irodsStat(name: String): StorageFile {
         return StorageFile(
             FileType.FILE,
-            StoragePath(name),
+            name,
             System.currentTimeMillis(),
             System.currentTimeMillis(),
             dummyTokenSubject,
-            10L
+            10L,
+            emptyList(),
+            false,
+            SensitivityLevel.CONFIDENTIAL,
+            false,
+            emptySet()
         )
     }
 
@@ -302,14 +307,7 @@ class JobExecutionTest {
             } answers {
                 RESTResponse.Ok(
                     mockk(relaxed = true),
-                    StorageFile(
-                        FileType.FILE,
-                        StoragePath((call.invocation.args.first() as FindByPath).path),
-                        System.currentTimeMillis(),
-                        System.currentTimeMillis(),
-                        dummyTokenSubject,
-                        10L
-                    )
+                    irodsStat(path)
                 )
             }
 
@@ -398,14 +396,7 @@ class JobExecutionTest {
                 } answers {
                     RESTResponse.Ok(
                         mockk(relaxed = true),
-                        StorageFile(
-                            FileType.FILE,
-                            StoragePath((call.invocation.args.first() as FindByPath).path),
-                            System.currentTimeMillis(),
-                            System.currentTimeMillis(),
-                            dummyTokenSubject,
-                            10L
-                        )
+                        irodsStat(path)
                     )
                 }
             }
@@ -461,14 +452,7 @@ class JobExecutionTest {
                 } answers {
                     RESTResponse.Ok(
                         mockk(relaxed = true),
-                        StorageFile(
-                            FileType.FILE,
-                            StoragePath((call.invocation.args.first() as FindByPath).path),
-                            System.currentTimeMillis(),
-                            System.currentTimeMillis(),
-                            dummyTokenSubject,
-                            10L
-                        )
+                        irodsStat(path)
                     )
                 }
             }

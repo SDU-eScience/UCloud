@@ -134,6 +134,23 @@ object ToolDAO {
                 requiredModules = emptyList(),
                 backend = ToolBackend.UDOCKER
             )
+        ),
+
+        "bwa-sambamba" to listOf(
+            ToolDescription(
+                prettyName = "bwa-sambamba",
+                authors = listOf("BWA Authors", "Sambamba Authors"),
+                createdAt = 1527663964000L,
+                modifiedAt = 1527663964000L,
+                description = "",
+                info = NameAndVersion("bwa-sambamba", "1.0.0"),
+                container = "snakemake-bwa-sambamba",
+                defaultNumberOfNodes = 1,
+                defaultTasksPerNode = 1,
+                defaultMaxTime = SimpleDuration(1, 0, 0),
+                requiredModules = emptyList(),
+                backend = ToolBackend.UDOCKER
+            )
         )
     )
 

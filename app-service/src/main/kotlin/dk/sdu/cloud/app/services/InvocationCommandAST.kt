@@ -39,17 +39,19 @@ class VariableInvocationParameter(
 ) : InvocationParameter() {
     override fun buildInvocationSnippet(parameters: Map<ApplicationParameter<*>, Any?>): String? {
         val relevantTypesToValue = parameters.filter { it.key.name in variableNames }
+        val nameToTypeAndValue = relevantTypesToValue.entries.associateBy { it.key.name }
 
         if (relevantTypesToValue.size != variableNames.size) {
             val notFound = parameters.filter { it.key.name !in variableNames }.map { it.key.name }
             log.warn("Could not find the following parameters: $notFound")
         }
 
-        val middlePart = relevantTypesToValue.mapNotNull {
-            val value = it.value ?: return@mapNotNull null
+        val middlePart = variableNames.mapNotNull {
+            val typeAndValue = nameToTypeAndValue[it] ?: return@mapNotNull null
+            val value = typeAndValue.value ?: return@mapNotNull null
 
             @Suppress("UNCHECKED_CAST")
-            val parameter = it.key as ApplicationParameter<Any>
+            val parameter = typeAndValue.key as ApplicationParameter<Any>
 
             prefixVariable +
                     BashEscaper.safeBashArgument(parameter.toInvocationArgument(value)) +
