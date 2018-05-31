@@ -50,7 +50,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
 ) {
     val template = restCall.path.toKtorTemplate(fullyQualified = false)
     route(template) {
-        method(HttpMethod.parse(restCall.method.name())) {
+        method(restCall.method) {
             val logger = application.featureOrNull(KafkaHttpLogger)
             if (logger == null) {
                 if (!didComplainAboutMissingKafkaLogger && !RESTServerSupport.allowMissingKafkaHttpLogger) {

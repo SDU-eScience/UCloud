@@ -5,8 +5,13 @@ import com.orbitz.consul.Consul
 import com.orbitz.consul.model.kv.ImmutableOperation
 import com.orbitz.consul.model.kv.Operation
 import com.orbitz.consul.model.kv.Verb
-import dk.sdu.cloud.client.HttpClient
 import dk.sdu.cloud.client.ServiceDescription
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.apache.Apache
+import io.ktor.client.request.get
+import io.ktor.client.response.HttpResponse
+import io.ktor.client.response.readText
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
@@ -103,7 +108,9 @@ class ServiceRegistry(
                     // TODO FIXME HTTP IS HARDCODED
                     val status = try {
                         runBlocking {
-                            HttpClient.get("http://${instance.hostname}:${instance.port}$HEALTH_URI")
+                            httpHealthClient.get<HttpResponse>(
+                                "http://${instance.hostname}:${instance.port}$HEALTH_URI"
+                            )
                         }
                     } catch (ex: Exception) {
                         healthLog.warn("Caught exception while sending request to health endpoint!")
@@ -111,10 +118,10 @@ class ServiceRegistry(
                         return@run false
                     }
 
-                    if (status.statusCode !in 200..299) {
+                    if (!status.status.isSuccess()) {
                         healthLog.warn("Health endpoint did not return a status code in range 200..299")
-                        healthLog.warn("${status.statusCode} - ${status.statusText}")
-                        healthLog.warn(status.responseBody)
+                        healthLog.warn(status.status.toString())
+                        healthLog.warn(runBlocking { status.readText() })
 
                         agent.fail(serviceId)
                         return@run false
@@ -162,5 +169,7 @@ class ServiceRegistry(
 
         private val log = LoggerFactory.getLogger(ServiceRegistry::class.java)
         private fun Version.toStringNoMetadata() = "$majorVersion.$minorVersion.$patchVersion"
+
+        private val httpHealthClient = HttpClient(Apache)
     }
 }

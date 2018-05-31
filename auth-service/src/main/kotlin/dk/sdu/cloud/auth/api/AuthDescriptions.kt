@@ -1,14 +1,14 @@
 package dk.sdu.cloud.auth.api
 
 import dk.sdu.cloud.client.RESTDescriptions
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.http.HttpMethod
 
 data class OneTimeAccessToken(val accessToken: String, val jti: String)
 object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     private const val baseContext = "/auth"
 
     val refresh = callDescription<Unit, AccessToken, Unit> {
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         prettyName = "refresh"
 
         path {
@@ -18,7 +18,7 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     }
 
     val logout = callDescription<Unit, Unit, Unit> {
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         prettyName = "logout"
 
         path {
@@ -28,7 +28,7 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     }
 
     val claim = callDescription<ClaimOneTimeToken, Unit, Unit> {
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         prettyName = "claim"
 
         path {
@@ -39,7 +39,7 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     }
 
     val requestOneTimeTokenWithAudience = callDescription<RequestOneTimeToken, OneTimeAccessToken, Unit> {
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         prettyName = "requestOneTimeTokenWithAudience"
 
         path {

@@ -144,7 +144,7 @@ object ToolDAO {
                 modifiedAt = 1527663964000L,
                 description = "",
                 info = NameAndVersion("bwa-sambamba", "1.0.0"),
-                container = "snakemake-bwa-sambamba",
+                container = "bwa-sambamba",
                 defaultNumberOfNodes = 1,
                 defaultTasksPerNode = 1,
                 defaultMaxTime = SimpleDuration(1, 0, 0),

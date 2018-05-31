@@ -6,8 +6,8 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTDescriptions
 import io.ktor.http.ContentType
+import io.ktor.http.HttpMethod
 import io.ktor.http.defaultForFilePath
-import io.netty.handler.codec.http.HttpMethod
 import okhttp3.*
 import okio.BufferedSink
 import org.slf4j.LoggerFactory
@@ -28,7 +28,7 @@ object MultiPartUploadDescriptions : RESTDescriptions(StorageServiceDescription)
     // TODO FIXME Really need that multi-part support
     val upload = callDescription<Unit, Unit, CommonErrorMessage>(
         body = {
-            method = HttpMethod.POST
+            method = HttpMethod.Post
             prettyName = "upload"
 
             path {
@@ -40,7 +40,7 @@ object MultiPartUploadDescriptions : RESTDescriptions(StorageServiceDescription)
     // TODO FIXME Really need that multi-part support
     val bulkUpload = callDescription<Unit, BulkUploadErrorMessage, CommonErrorMessage> {
         prettyName = "bulkUpload"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)

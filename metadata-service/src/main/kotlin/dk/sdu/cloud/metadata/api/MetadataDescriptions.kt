@@ -4,7 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.storage.api.FindByPath
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.http.HttpMethod
 
 data class ProjectMetadataWithRightsInfo(
     val metadata: ProjectMetadata,
@@ -15,7 +15,7 @@ object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
     private const val baseContext = "/api/metadata"
 
     val updateProjectMetadata = callDescription<ProjectMetadataEditRequest, Unit, CommonErrorMessage> {
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         prettyName = "metadata-update"
 
         path {
@@ -26,7 +26,7 @@ object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
     }
 
     val findById = callDescription<FindByProjectId, ProjectMetadataWithRightsInfo, CommonErrorMessage> {
-        method = HttpMethod.GET
+        method = HttpMethod.Get
         prettyName = "metadata-find"
 
         path {
@@ -36,7 +36,7 @@ object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
     }
 
     val findByPath = callDescription<FindByPath, ProjectMetadataWithRightsInfo, CommonErrorMessage> {
-        method = HttpMethod.GET
+        method = HttpMethod.Get
         prettyName = "metadata-find-by-path"
 
         path {

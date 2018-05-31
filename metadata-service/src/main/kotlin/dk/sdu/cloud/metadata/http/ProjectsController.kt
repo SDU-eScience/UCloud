@@ -16,6 +16,7 @@ import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SyncFileListRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
+import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import org.slf4j.LoggerFactory
 import java.util.stream.Collectors
 
@@ -39,13 +40,13 @@ class ProjectsController(
                     if (result.status == HttpStatusCode.Forbidden.value) {
                         error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
                     } else {
-                        log.warn(result.response.responseBody)
+                        log.warn(result.rawResponseBody)
                         error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
                     }
                     return@implement
                 }
 
-                val initialFiles = result.response.responseBodyAsStream
+                val initialFiles = result.response.content.toInputStream()
                     .bufferedReader()
                     .lines()
                     .map { parseSyncItem(it) }

@@ -662,19 +662,25 @@ object ApplicationDAO {
                 description = "BWA-MEM",
                 createdAt = 1527663964000L,
                 modifiedAt = 1527663964000L,
-                outputFileGlobs = listOf("sample.bam.*", "stdout.txt", "stderr.txt"),
+                outputFileGlobs = listOf("sample.bam*", "stdout.txt", "stderr.txt"),
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
 
                 parameters = listOf(
-                    ApplicationParameter.Text("index_base_main", optional = false, prettyName = "Index Base Main File"),
-                    ApplicationParameter.InputDirectory("index_base", optional = false, prettyName = "Index Resources"),
+                    ApplicationParameter.InputFile("index_base_main", optional = false, prettyName = "Index Resources"),
+                    ApplicationParameter.InputFile("base_dict", optional = false, prettyName = ".fasta.dict"),
+                    ApplicationParameter.InputFile("base_amb", optional = false, prettyName = ".fasta.amb"),
+                    ApplicationParameter.InputFile("base_ann", optional = false, prettyName = ".fasta.ann"),
+                    ApplicationParameter.InputFile("base_bwt", optional = false, prettyName = ".fasta.bwt"),
+                    ApplicationParameter.InputFile("base_fai", optional = false, prettyName = ".fasta.fai"),
+                    ApplicationParameter.InputFile("base_pac", optional = false, prettyName = ".fasta.pac"),
+                    ApplicationParameter.InputFile("base_sa", optional = false, prettyName = ".fasta.sa"),
                     ApplicationParameter.InputFile("R1", optional = false, prettyName = "R1"),
                     ApplicationParameter.InputFile("R2", optional = false, prettyName = "R2")
                 ),
 
                 invocation = listOf(
                     WordInvocationParameter("bwa-mem"),
-                    VariableInvocationParameter(listOf("index_base", "index_base_main"), variableSeparator = ""),
+                    VariableInvocationParameter(listOf("index_base_main")),
                     VariableInvocationParameter(listOf("R1")),
                     VariableInvocationParameter(listOf("R2"))
                 )

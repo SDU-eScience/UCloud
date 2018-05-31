@@ -1,9 +1,11 @@
 package dk.sdu.cloud.client
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
-import io.netty.handler.codec.http.HttpMethod
-import org.asynchttpclient.BoundRequestBuilder
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.http.HttpMethod
 import org.slf4j.LoggerFactory
 
 sealed class ProxyDescription {
@@ -26,6 +28,7 @@ sealed class ProxyDescription {
     }
 }
 
+
 abstract class RESTDescriptions(val owner: ServiceDescription) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -38,8 +41,8 @@ abstract class RESTDescriptions(val owner: ServiceDescription) {
      * To do this manually create a description and call [register] with the template.
      */
     protected inline fun <reified R : Any, reified S : Any, reified E : Any> callDescription(
-        mapper: ObjectMapper = HttpClient.defaultMapper,
-        noinline additionalRequestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null,
+        mapper: ObjectMapper = defaultMapper,
+        noinline additionalRequestConfiguration: (HttpRequestBuilder.(R) -> Unit)? = null,
         body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
     ): RESTCallDescription<R, S, E> {
         val builder = RESTCallDescriptionBuilder(

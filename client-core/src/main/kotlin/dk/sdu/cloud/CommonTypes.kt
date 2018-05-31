@@ -7,3 +7,5 @@ data class FindByStringId(val id: String)
 data class FindByLongId(val id: Long)
 data class FindByIntId(val id: Int)
 data class FindByDoubleId(val id: Double)
+
+typealias BinaryStream = Unit

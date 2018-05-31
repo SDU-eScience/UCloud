@@ -6,7 +6,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.http.HttpMethod
 
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
@@ -66,7 +66,7 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
      */
     val start = callDescription<AppRequest.Start, JobStartedResponse, CommonErrorMessage> {
         prettyName = "jobsStart"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -86,7 +86,7 @@ object HPCJobDescriptions : RESTDescriptions(AppServiceDescription) {
      */
     val follow = callDescription<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage> {
         prettyName = "followStdStreams"
-        method = HttpMethod.GET
+        method = HttpMethod.Get
 
         path {
             using(baseContext)

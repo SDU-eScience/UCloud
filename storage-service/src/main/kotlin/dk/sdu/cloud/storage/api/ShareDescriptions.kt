@@ -6,7 +6,7 @@ import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.http.HttpMethod
 
 interface WithPagination {
     val itemsPerPage: Int?
@@ -53,7 +53,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val list = callDescription<ListSharesRequest, Page<SharesByPath>, CommonErrorMessage> {
         prettyName = "listShare"
-        method = HttpMethod.GET
+        method = HttpMethod.Get
 
         path {
             using(baseContext)
@@ -67,7 +67,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val create = callDescription<CreateShareRequest, FindByShareId, CommonErrorMessage> {
         prettyName = "createShare"
-        method = HttpMethod.PUT
+        method = HttpMethod.Put
 
         path {
             using(baseContext)
@@ -80,7 +80,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val update = callDescription<UpdateShareRequest, Unit, CommonErrorMessage> {
         prettyName = "updateShare"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -93,7 +93,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val revoke = callDescription<FindByShareId, Unit, CommonErrorMessage> {
         prettyName = "revokeShare"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -104,7 +104,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val reject = callDescription<FindByShareId, Unit, CommonErrorMessage> {
         prettyName = "rejectShare"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -115,7 +115,7 @@ object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val accept = callDescription<FindByShareId, Unit, CommonErrorMessage> {
         prettyName = "acceptShare"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)

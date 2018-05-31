@@ -4,7 +4,8 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTDescriptions
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.client.request.header
+import io.ktor.http.HttpMethod
 import io.tus.java.client.TusClient
 import io.tus.java.client.TusURLMemoryStore
 import io.tus.java.client.TusUpload
@@ -51,8 +52,8 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val create = callDescription<UploadCreationCommand, Unit, Unit>(
         additionalRequestConfiguration = { req ->
-            addHeader(TusHeaders.Resumable, TUS_VERSION)
-            addHeader(TusHeaders.UploadLength, req.length)
+            header(TusHeaders.Resumable, TUS_VERSION)
+            header(TusHeaders.UploadLength, req.length.toString())
 
             val metadata = HashMap<String, String>().apply {
                 if (req.fileName != null) this["filename"] = req.fileName
@@ -66,25 +67,25 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
             val encodedMetadata = metadata.map {
                 "${it.key} ${String(encoder.encode(it.value.toByteArray()))}"
             }.joinToString(",")
-            addHeader(TusHeaders.UploadMetadata, encodedMetadata)
+            header(TusHeaders.UploadMetadata, encodedMetadata)
         },
 
         body = {
             prettyName = "tusCreate"
             path { using(baseContext) }
-            method = HttpMethod.POST
+            method = HttpMethod.Post
         }
     )
 
     val probeTusConfiguration = callDescription<Unit, Unit, Unit> {
         prettyName = "tusOptions"
         path { using(baseContext) }
-        method = HttpMethod.OPTIONS
+        method = HttpMethod.Options
     }
 
     val findUploadStatusById = callDescription<FindByStringId, Unit, Unit> {
         prettyName = "tusFindUploadStatusById"
-        method = HttpMethod.HEAD
+        method = HttpMethod.Head
         path {
             using(baseContext)
             +boundTo(FindByStringId::id)
@@ -93,7 +94,7 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val uploadChunkViaPost = callDescription<FindByStringId, Unit, Unit> {
         prettyName = "tusUpload"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         path {
             using(baseContext)
             +boundTo(FindByStringId::id)
@@ -102,7 +103,7 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val uploadChunk = callDescription<FindByStringId, Unit, Unit> {
         prettyName = "tusUpload"
-        method = HttpMethod.PATCH
+        method = HttpMethod.Patch
         path {
             using(baseContext)
             +boundTo(FindByStringId::id)
@@ -151,7 +152,7 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     init {
-        register("/api/tus/{id}", HttpMethod.OPTIONS) // Needed for CORS
+        register("/api/tus/{id}", HttpMethod.Options) // Needed for CORS
     }
 
     private val log = LoggerFactory.getLogger(TusDescriptions::class.java)

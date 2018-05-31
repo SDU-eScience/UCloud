@@ -4,10 +4,9 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.notification.api.NotificationServiceDescription
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.http.HttpMethod
 
 data class ListNotificationRequest(
     val type: String? = null,
@@ -25,7 +24,7 @@ object NotificationDescriptions : RESTDescriptions(NotificationServiceDescriptio
 
     val list = callDescription<ListNotificationRequest, Page<Notification>, CommonErrorMessage> {
         prettyName = "list"
-        method = HttpMethod.GET
+        method = HttpMethod.Get
 
         path {
             using(baseContext)
@@ -41,7 +40,7 @@ object NotificationDescriptions : RESTDescriptions(NotificationServiceDescriptio
 
     val markAsRead = callDescription<FindByNotificationId, Unit, CommonErrorMessage> {
         prettyName = "markAsRead"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -52,7 +51,7 @@ object NotificationDescriptions : RESTDescriptions(NotificationServiceDescriptio
 
     val create = callDescription<CreateNotification, FindByNotificationId, CommonErrorMessage> {
         prettyName = "create"
-        method = HttpMethod.PUT
+        method = HttpMethod.Put
 
         path {
             using(baseContext)
@@ -65,7 +64,7 @@ object NotificationDescriptions : RESTDescriptions(NotificationServiceDescriptio
 
     val delete = callDescription<FindByNotificationId, Unit, CommonErrorMessage> {
         prettyName = "delete"
-        method = HttpMethod.DELETE
+        method = HttpMethod.Delete
 
         path {
             using(baseContext)

@@ -3,7 +3,8 @@ package dk.sdu.cloud.client
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.http.HttpMethod
 import org.asynchttpclient.BoundRequestBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
@@ -19,7 +20,7 @@ class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
     private val deserializerSuccess: ObjectReader,
     private val deserializerError: ObjectReader
 ) {
-    var method: HttpMethod = HttpMethod.GET
+    var method: HttpMethod = HttpMethod.Get
     var prettyName: String? = null
     internal var path: RESTPath<R>? = null
     internal var body: RESTBody<R, *>? = null
@@ -42,7 +43,7 @@ class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
 
     fun build(
         owner: ServiceDescription,
-        additionalConfiguration: (BoundRequestBuilder.(R) -> Unit)?
+        additionalConfiguration: (HttpRequestBuilder.(R) -> Unit)?
     ): RESTCallDescription<R, S, E> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
         val fullName = prettyName?.let { pretty -> owner.name + '.' + pretty }

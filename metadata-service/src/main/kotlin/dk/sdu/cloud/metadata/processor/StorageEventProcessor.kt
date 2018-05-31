@@ -113,7 +113,7 @@ class StorageEventProcessor(
 
                     if (markResult !is RESTResponse.Ok) {
                         log.warn("Could not mark project as open access. Not creating internal project!")
-                        log.warn("Response was: ${markResult.status} ${markResult.response.responseBody}")
+                        log.warn("Response was: ${markResult.status} ${markResult.rawResponseBody}")
                         return@forEach
                     }
 

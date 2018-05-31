@@ -4,9 +4,13 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
-import io.netty.handler.codec.http.HttpMethod
-import org.asynchttpclient.BoundRequestBuilder
-import org.asynchttpclient.Response
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.response.HttpResponse
+import io.ktor.content.TextContent
+import io.ktor.http.ContentType
+import io.ktor.http.HttpMethod
+import io.ktor.http.contentType
+import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import org.slf4j.LoggerFactory
 import java.net.URLEncoder
 import kotlin.reflect.KClass
@@ -24,7 +28,7 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
     val deserializerError: ObjectReader,
     val owner: ServiceDescription,
     var fullName: String?,
-    val requestConfiguration: (BoundRequestBuilder.(R) -> Unit)? = null
+    val requestConfiguration: (HttpRequestBuilder.(R) -> Unit)? = null
 ) {
     init {
         if (fullName == null) {
@@ -66,40 +70,53 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
 
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
         return object : PreparedRESTCall<S, E>(resolvedPath, owner) {
-            override fun deserializeSuccess(response: Response): S {
+            override fun deserializeSuccess(response: HttpResponse): S {
                 return if (responseTypeSuccess == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as S
                 } else {
-                    deserializerSuccess.readValue(response.responseBody)
+                    // TODO Don't use blocking API
+                    // TODO Don't use blocking API
+                    // TODO Don't use blocking API
+                    deserializerSuccess.readValue(response.content.toInputStream())
                 }
             }
 
-            override fun deserializeError(response: Response): E? {
+            override fun deserializeError(response: HttpResponse): E? {
                 return if (responseTypeFailure == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as E
                 } else {
-                    deserializerError.readValue(response.responseBody)
+                    // TODO Don't use blocking API
+                    // TODO Don't use blocking API
+                    // TODO Don't use blocking API
+                    deserializerError.readValue(response.content.toInputStream())
                 }
             }
 
-            override fun BoundRequestBuilder.configure() {
-                setMethod(method.name())
+            override fun HttpRequestBuilder.configure() {
+                method = this@RESTCallDescription.method
                 requestConfiguration?.invoke(this, payload)
-                when (body) {
+                val requestBodyDescription = this@RESTCallDescription.body
+                when (requestBodyDescription) {
                     is RESTBody.BoundToEntireRequest<*> -> {
-                        setJsonBody(payload)
+                        body = TextContent(defaultMapper.writeValueAsString(payload), ContentType.Application.Json)
                     }
 
                     is RESTBody.BoundToSubProperty -> {
-                        setJsonBody(body.property.get(payload))
+                        contentType(ContentType.Application.Json)
+                        body = TextContent(
+                            defaultMapper.writeValueAsString(
+                                requestBodyDescription.property.get(payload)!!
+                            ),
+                            ContentType.Application.Json
+                        )
                     }
                 }
             }
 
             override fun toString(): String {
-                val name = (fullName ?: "${method.name()} $resolvedPath") + " (${owner.name}@${owner.version})"
+                val name = (fullName ?: "$method $resolvedPath") + " (${owner.name}@${owner.version})"
                 return "$name($payload)"
             }
         }
@@ -107,11 +124,9 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
 
     suspend fun call(
         payload: R,
-        cloud: AuthenticatedCloud,
-        requestTimeout: Int = -1,
-        readTimeout: Int = 60_000
+        cloud: AuthenticatedCloud
     ): RESTResponse<S, E> {
-        return prepare(payload).call(cloud, requestTimeout, readTimeout)
+        return prepare(payload).call(cloud)
     }
 
     companion object {
@@ -154,23 +169,23 @@ sealed class RESTQueryParameter<R : Any> {
 inline fun <reified T : Any, reified E : Any> preparedCallWithJsonOutput(
     endpoint: String,
     owner: ServiceDescription,
-    mapper: ObjectMapper = HttpClient.defaultMapper,
-    crossinline configureBody: BoundRequestBuilder.() -> Unit = {}
+    mapper: ObjectMapper = defaultMapper,
+    crossinline configureBody: HttpRequestBuilder.() -> Unit = {}
 ): PreparedRESTCall<T, E> {
     val successRef = mapper.readerFor(jacksonTypeRef<T>())
     val errorRef = mapper.readerFor(jacksonTypeRef<E>())
 
     return object : PreparedRESTCall<T, E>(endpoint, owner) {
-        override fun BoundRequestBuilder.configure() {
+        override fun HttpRequestBuilder.configure() {
             configureBody()
         }
 
-        override fun deserializeSuccess(response: Response): T {
-            return successRef.readValue(response.responseBody)
+        override fun deserializeSuccess(response: HttpResponse): T {
+            return successRef.readValue(response.content.toInputStream())
         }
 
-        override fun deserializeError(response: Response): E? {
-            return errorRef.readValue(response.responseBody)
+        override fun deserializeError(response: HttpResponse): E? {
+            return errorRef.readValue(response.content.toInputStream())
         }
     }
 }

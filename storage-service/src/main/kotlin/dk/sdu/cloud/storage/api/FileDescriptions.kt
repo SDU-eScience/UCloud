@@ -6,7 +6,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.http.HttpMethod
 
 data class FindByPath(val path: String)
 data class CreateDirectoryRequest(
@@ -75,7 +75,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val markAsFavorite = callDescription<FavoriteCommand.Grant, Unit, CommonErrorMessage> {
         prettyName = "filesMarkAsFavorite"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -89,7 +89,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val removeFavorite = callDescription<FavoriteCommand.Revoke, Unit, CommonErrorMessage> {
         prettyName = "filesRemoveAsFavorite"
-        method = HttpMethod.DELETE
+        method = HttpMethod.Delete
 
         path {
             using(baseContext)
@@ -103,7 +103,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val createDirectory = callDescription<CreateDirectoryRequest, Unit, CommonErrorMessage> {
         prettyName = "createDirectory"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -117,7 +117,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val deleteFile = callDescription<DeleteFileRequest, Unit, CommonErrorMessage> {
         prettyName = "deleteFile"
-        method = HttpMethod.DELETE
+        method = HttpMethod.Delete
 
         path {
             using(baseContext)
@@ -143,7 +143,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val move = callDescription<MoveRequest, Unit, CommonErrorMessage> {
         prettyName = "move"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         path {
             using(baseContext)
             +"move"
@@ -157,7 +157,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val copy = callDescription<MoveRequest, Unit, CommonErrorMessage> {
         prettyName = "copy"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         path {
             using(baseContext)
             +"copy"
@@ -171,7 +171,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val bulkDownload = callDescription<BulkDownloadRequest, Unit, CommonErrorMessage> {
         prettyName = "filesBulkDownload"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -183,7 +183,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
     val syncFileList = callDescription<SyncFileListRequest, Unit, CommonErrorMessage> {
         prettyName = "filesSyncFileList"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -214,7 +214,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
             + Will need a correct stat API for this to work
          */
         prettyName = "filesAnnotate"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
@@ -229,7 +229,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
      */
     val markAsOpenAccess = callDescription<MarkFileAsOpenAccessRequest, Unit, CommonErrorMessage> {
         prettyName = "filesMarkAsOpenAccess"
-        method = HttpMethod.POST
+        method = HttpMethod.Post
 
         path {
             using(baseContext)

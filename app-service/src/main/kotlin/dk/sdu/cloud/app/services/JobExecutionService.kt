@@ -15,6 +15,7 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.*
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -424,7 +425,7 @@ class JobExecutionService(
                 val fileDownload = (FileDescriptions.download.call(
                     DownloadByURI(upload.sourcePath, token),
                     userCloud
-                ) as? RESTResponse.Ok)?.response?.responseBodyAsStream ?: run {
+                ) as? RESTResponse.Ok)?.response?.content?.toInputStream() ?: run {
                     log.warn("Unable to download file: ${upload.sourcePath}")
                     throw JobInternalException("Unable to upload input files to Abacus")
                 }

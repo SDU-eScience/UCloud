@@ -5,9 +5,10 @@ import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.prepare
 import dk.sdu.cloud.service.TokenValidation
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.header
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
-import org.asynchttpclient.BoundRequestBuilder
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.time.temporal.ChronoUnit
@@ -89,9 +90,9 @@ class RefreshingJWTAuthenticatedCloud(
 ) : AuthenticatedCloud {
     val tokenRefresher = RefreshingJWTAuthenticator(parent, refreshToken)
 
-    override fun BoundRequestBuilder.configureCall() {
+    override fun HttpRequestBuilder.configureCall() {
         val actualToken = tokenRefresher.retrieveTokenRefreshIfNeeded()
-        setHeader("Authorization", "Bearer $actualToken")
+        header("Authorization", "Bearer $actualToken")
     }
 }
 
@@ -99,7 +100,7 @@ private class RefreshTokenAuthenticator(
     override val parent: CloudContext,
     private val refreshToken: String
 ) : AuthenticatedCloud {
-    override fun BoundRequestBuilder.configureCall() {
-        setHeader("Authorization", "Bearer $refreshToken")
+    override fun HttpRequestBuilder.configureCall() {
+        header("Authorization", "Bearer $refreshToken")
     }
 }

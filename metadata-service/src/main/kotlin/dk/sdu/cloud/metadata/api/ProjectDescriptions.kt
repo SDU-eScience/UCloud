@@ -6,7 +6,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.metadata.services.Project
 import dk.sdu.cloud.storage.api.FindByPath
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.http.HttpMethod
 
 data class CreateProjectRequest(val fsRoot: String)
 data class CreateProjectResponse(val id: String)
@@ -17,7 +17,7 @@ object ProjectDescriptions : RESTDescriptions(MetadataServiceDescription) {
     private const val baseContext = "/api/projects"
 
     val create = callDescription<CreateProjectRequest, CreateProjectResponse, CommonErrorMessage> {
-        method = HttpMethod.PUT
+        method = HttpMethod.Put
         prettyName = "projects-create"
 
         path {
@@ -28,7 +28,7 @@ object ProjectDescriptions : RESTDescriptions(MetadataServiceDescription) {
     }
 
     val findProjectByPath = callDescription<FindByPath, Project, CommonErrorMessage> {
-        method = HttpMethod.GET
+        method = HttpMethod.Get
         prettyName = "projects-find-by-path"
 
         path {

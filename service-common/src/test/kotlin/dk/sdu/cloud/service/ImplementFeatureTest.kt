@@ -6,17 +6,19 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.ServiceDescription
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.application.Application
+import io.ktor.application.install
+import io.ktor.features.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.jackson.jackson
 import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
+import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import kotlin.test.assertEquals
-
-typealias NHttpMethod = io.netty.handler.codec.http.HttpMethod
 
 object MyServiceDescription : ServiceDescription {
     override val name: String = "service"
@@ -27,7 +29,7 @@ data class SomeData(val data: Int)
 
 object TestDescriptions : RESTDescriptions(MyServiceDescription) {
     val echoId = callDescription<FindByIntId, SomeData, CommonErrorMessage> {
-        method = NHttpMethod.POST
+        method = HttpMethod.Post
         prettyName = "echoId"
 
         path {
@@ -40,6 +42,9 @@ object TestDescriptions : RESTDescriptions(MyServiceDescription) {
 val simpleEchoServer: Application.() -> Unit = {
     routing {
         RESTServerSupport.allowMissingKafkaHttpLogger = true
+        install(ContentNegotiation) {
+            jackson {  }
+        }
 
         implement(TestDescriptions.echoId) {
             ok(SomeData(it.id))
@@ -56,12 +61,14 @@ class ImplementFeatureTest {
             test = {
                 val response = handleRequest(HttpMethod.Post, "/echo") {
                     addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    body = """
+                    setBody(
+                        """
                         {
                             "id": 1337,
                             "not_present": 42
                         }
-                    """.trimIndent()
+                        """.trimIndent()
+                    )
                 }.response
 
                 assertEquals(HttpStatusCode.OK, response.status())
@@ -77,12 +84,14 @@ class ImplementFeatureTest {
             test = {
                 val response = handleRequest(HttpMethod.Post, "/echo") {
                     addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    body = """
+                    setBody(
+                        """
                         {
                             "id": "cannot convert to int",
                             "not_present": 42
                         }
-                    """.trimIndent()
+                        """.trimIndent()
+                    )
                 }.response
 
                 assertEquals(HttpStatusCode.BadRequest, response.status())
@@ -92,19 +101,20 @@ class ImplementFeatureTest {
 
 
     @Test
-    fun testeValidCall() {
-
+    fun testValidCall() {
         withTestApplication(
             moduleFunction = simpleEchoServer,
 
             test = {
                 val response = handleRequest(HttpMethod.Post, "/echo") {
                     addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    body = """
+                    setBody(
+                        """
                         {
                             "id": 1337
                         }
-                    """.trimIndent()
+                        """.trimIndent()
+                    )
                 }.response
 
                 assertEquals(HttpStatusCode.OK, response.status())

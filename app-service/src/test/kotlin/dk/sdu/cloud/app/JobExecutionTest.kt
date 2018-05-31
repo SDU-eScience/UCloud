@@ -15,9 +15,12 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.storage.api.*
+import io.ktor.client.response.HttpResponse
+import io.ktor.http.HttpStatusCode
 import io.mockk.*
 import io.mockk.impl.annotations.RelaxedMockK
 import io.tus.java.client.TusUploader
+import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.Response
 import org.junit.Assert.*
@@ -354,8 +357,8 @@ class JobExecutionTest {
             coEvery {
                 FileDescriptions.stat.call(match { it.path == path }, cloud)
             } answers {
-                val response: Response = mockk(relaxed = true)
-                every { response.statusCode } returns 404
+                val response: HttpResponse = mockk(relaxed = true)
+                every { response.status } returns HttpStatusCode.NotFound
                 RESTResponse.Err(
                     response,
                     CommonErrorMessage("Not found")
@@ -597,7 +600,8 @@ class JobExecutionTest {
                     irodsStat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
-                    fileName
+                    fileName,
+                    null
                 )
             ),
             inlineSBatchJob
@@ -653,7 +657,8 @@ class JobExecutionTest {
                     irodsStat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
-                    fileName
+                    fileName,
+                    null
                 )
             ),
             inlineSBatchJob
@@ -684,8 +689,8 @@ class JobExecutionTest {
                     if (downloadFailure) RESTResponse.Err(mockk(relaxed = true))
                     else {
                         val command = call.invocation.args.find { it is DownloadByURI } as DownloadByURI
-                        val response: Response = mockk(relaxed = true)
-                        every { response.responseBodyAsStream } answers {
+                        val response: HttpResponse = mockk(relaxed = true)
+                        every { response.content.toInputStream() } answers {
                             ByteArrayInputStream(command.path.substringAfterLast('/').toByteArray())
                         }
 
@@ -729,7 +734,8 @@ class JobExecutionTest {
                     irodsStat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
-                    fileName
+                    fileName,
+                    null
                 )
             ),
             inlineSBatchJob
@@ -769,7 +775,8 @@ class JobExecutionTest {
                     irodsStat(fileName),
                     fileName,
                     "$workingDirectory$fileName",
-                    fileName
+                    fileName,
+                    null
                 )
             ),
             inlineSBatchJob
@@ -1248,7 +1255,7 @@ class JobExecutionTest {
         every { TusDescriptions.create } returns createMock
 
         if (!commandFailure) {
-            val response = mockk<Response>(relaxed = true)
+            val response = mockk<HttpResponse>(relaxed = true)
             every { response.headers["Location"] } returns "https://cloud.sdu.dk/api/tus/upload-id"
             coEvery { createMock.call(capture(commands), any()) } returns RESTResponse.Ok(
                 response,
