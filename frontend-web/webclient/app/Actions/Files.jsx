@@ -14,7 +14,7 @@ import {
     SET_FILE_SELECTOR_CALLBACK,
     SET_DISALLOWED_PATHS
 } from "../Reducers/Files";
-import { getParentPath, sortFilesByTypeAndName } from "../UtilityFunctions";
+import { getParentPath, sortFilesByTypeAndName, failureNotification } from "../UtilityFunctions";
 
 /**
 ** Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -28,6 +28,9 @@ export const fetchFiles = (path, sorting, sortAscending) =>
             response = sorting(response, sortAscending);
         }
         return receiveFiles(response, path);
+    }).catch(() => {
+        failureNotification("An error occurred fetching files for this folder.");
+        return receiveFiles([], path);
     });
 
 export const toPage = (pageNumber) => ({

@@ -39,72 +39,67 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
                 </Header.Subheader>
             </Header>
             <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
+            {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
             <ShareList byPath={file.path} />
             <DefaultLoading loading={loading} />
         </Container>
     );
 };
 
-const FileView = ({ file, favorite }) => {
-    if (!file) {
-        return null;
-    }
-    return (
-        <div>
-            <Card.Group>
-                <Card>
-                    <Card.Content>
-                        <List divided>
-                            <List.Item className="itemPadding">
-                                <List.Content floated="right">
-                                    {new Date(file.createdAt).toLocaleString()}
-                                </List.Content>
-                                Created at:
+const FileView = ({ file, favorite }) =>
+    !file ? null : (
+        <Card.Group>
+            <Card>
+                <Card.Content>
+                    <List divided>
+                        <List.Item className="itemPadding">
+                            <List.Content floated="right">
+                                {new Date(file.createdAt).toLocaleString()}
+                            </List.Content>
+                            Created at:
                             </List.Item>
-                            <List.Item className="itemPadding">
-                                <List.Content floated="right">
-                                    {new Date(file.modifiedAt).toLocaleString()}
-                                </List.Content>
-                                Modified at:
+                        <List.Item className="itemPadding">
+                            <List.Content floated="right">
+                                {new Date(file.modifiedAt).toLocaleString()}
+                            </List.Content>
+                            Modified at:
                             </List.Item>
-                            <List.Item className="itemPadding">
-                                <List.Content floated="right">
-                                    <Rating rating={file.favorited ? 1 : 0} onClick={() => favorite(file.path)}
-                                    />
-                                </List.Content>
-                                Favorite file:
+                        <List.Item className="itemPadding">
+                            <List.Content floated="right">
+                                <Rating rating={file.favorited ? 1 : 0} onClick={() => favorite(file.path)}
+                                />
+                            </List.Content>
+                            Favorite file:
                             </List.Item>
-                        </List>
-                    </Card.Content>
-                </Card>
-                <Card>
-                    <Card.Content>
-                        <List divided>
-                            <List.Item className="itemPadding">
-                                Sensitivity:
+                    </List>
+                </Card.Content>
+            </Card>
+            <Card>
+                <Card.Content>
+                    <List divided>
+                        <List.Item className="itemPadding">
+                            Sensitivity:
                                 <List.Content floated="right">
-                                    {SensitivityLevel[file.sensitivityLevel]}
-                                </List.Content>
-                            </List.Item>
-                            <List.Item className="itemPadding">
-                                Size:
+                                {SensitivityLevel[file.sensitivityLevel]}
+                            </List.Content>
+                        </List.Item>
+                        <List.Item className="itemPadding">
+                            Size:
                                 <List.Content floated="right">
-                                    {fileSizeToString(file.size)}
-                                </List.Content>
-                            </List.Item>
-                            <List.Item className="itemPadding">
-                                Shared with:
+                                {fileSizeToString(file.size)}
+                            </List.Content>
+                        </List.Item>
+                        <List.Item className="itemPadding">
+                            Shared with:
                                 <List.Content floated="right">
-                                    {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
+                                {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
                                 </List.Content>
-                            </List.Item>
-                        </List>
-                    </Card.Content>
-                </Card>
-            </Card.Group>
-        </div>
+                        </List.Item>
+                    </List>
+                </Card.Content>
+            </Card>
+        </Card.Group>
     );
-};
 
 FileInfo.propTypes = {
     loading: PropTypes.bool.isRequired,

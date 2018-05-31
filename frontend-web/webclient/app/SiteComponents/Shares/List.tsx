@@ -40,6 +40,7 @@ export class List extends React.Component<any, ListState> {
 
     public render() {
         let { shares, errorMessage } = this.state;
+        // FIXME This approach will not work if # of shares exceeds 10. Needs retrieve shares by path.
         this.props.byPath ? shares = shares.filter(it => it.path === this.props.byPath) : null;
         const noSharesWith = shares.filter(it => !it.sharedByMe).length === 0;
         const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
