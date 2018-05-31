@@ -11,32 +11,13 @@ import java.io.File
 import java.nio.file.Files
 
 class CopyTest {
-    fun createFileSystem(): File {
-        val fsRoot = Files.createTempDirectory("share-service-test").toFile()
-        fsRoot.apply {
-            mkdir("home") {
-                mkdir("user1") {
-                    mkdir("folder") {
-                        touch("a", "File A")
-                        touch("b", "File B")
-                        touch("c", "File C")
-                    }
-
-                    mkdir("another-one") {
-                        touch("file")
-                    }
-                }
-            }
-        }
-        return fsRoot
-    }
 
     @Test
     fun testSimpleCopy() {
         val emitter: StorageEventProducer = mockk()
         coEvery { emitter.emit(any()) } just Runs
 
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath,
             copyService = CopyService(true),

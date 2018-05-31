@@ -8,21 +8,6 @@ import java.io.File
 import java.nio.file.Files
 
 class ShareServiceTest {
-    fun createFileSystem(): File {
-        val fsRoot = Files.createTempDirectory("share-service-test").toFile()
-        fsRoot.apply {
-            mkdir("home") {
-                (1..10).map { "user$it" }.forEach {
-                    mkdir(it) {
-                        mkdir("PleaseShare") {
-                            touch("file.txt")
-                        }
-                    }
-                }
-            }
-        }
-        return fsRoot
-    }
 
     fun createUsers(): CloudToCephFsDao {
         val dao = mockk<CloudToCephFsDao>()
@@ -38,7 +23,7 @@ class ShareServiceTest {
         val fileAclService = mockk<FileACLService>()
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } just Runs
 
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val service =
             cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 
@@ -80,7 +65,7 @@ class ShareServiceTest {
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } throws
                 ShareException.PermissionException()
 
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val service =
             cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 
@@ -105,7 +90,7 @@ class ShareServiceTest {
 
         val dao = createUsers()
         val fileAclService = FileACLService(dao, true)
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
 
         val service = cephFSWithRelaxedMocks(
             fsRoot.absolutePath,
@@ -128,7 +113,7 @@ class ShareServiceTest {
         every { fileAclService.createEntry(any(), any(), any(), any(), any(), any()) } just Runs
         every { fileAclService.removeEntry(any(), any(), any(), any(), any()) } just Runs
 
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val service =
             cephFSWithRelaxedMocks(fsRoot.absolutePath, fileACLService = fileAclService)
 

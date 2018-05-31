@@ -10,26 +10,6 @@ import java.nio.file.Files
 
 class MakeTest {
 
-    fun createFileSystem(): File {
-        val fsRoot = Files.createTempDirectory("share-service-test").toFile()
-        fsRoot.apply {
-            mkdir("home") {
-                mkdir("user1") {
-                    mkdir("folder") {
-                        touch("a", "File A")
-                        touch("b", "File B")
-                        touch("c", "File C")
-                    }
-
-                    mkdir("another-one") {
-                        touch("file")
-                    }
-                }
-            }
-        }
-        return fsRoot
-    }
-
     @Test (expected = FileSystemException.AlreadyExists::class)
     fun testNewDirAlreadyExists() {
         val emitter: StorageEventProducer = mockk()
@@ -37,7 +17,7 @@ class MakeTest {
             println("Hello! ${it.invocation.args.first()}}")
         }
 
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath,
             eventProducer = emitter
@@ -57,7 +37,7 @@ class MakeTest {
             println("Hello! ${it.invocation.args.first()}}")
         }
 
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath,
             eventProducer = emitter

@@ -7,30 +7,11 @@ import java.io.File
 import java.nio.file.Files
 
 class ChecksumTest {
-    fun createFileSystem(): File {
-        val fsRoot = Files.createTempDirectory("share-service-test").toFile()
-        fsRoot.apply {
-            mkdir("home") {
-                mkdir("user1") {
-                    mkdir("folder") {
-                        touch("a", "File A")
-                        touch("b", "File B")
-                        touch("c", "File C")
-                    }
-
-                    mkdir("another-one") {
-                        touch("file")
-                    }
-                }
-            }
-        }
-        return fsRoot
-    }
 
     @Test
     fun testChecksumSHA1() {
 
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath
         )
@@ -42,7 +23,7 @@ class ChecksumTest {
     @Test (expected = IllegalArgumentException::class)
     fun illegalAlgorithm() {
 
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath
         )

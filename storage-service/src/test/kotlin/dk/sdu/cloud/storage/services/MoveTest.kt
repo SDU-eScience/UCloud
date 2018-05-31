@@ -6,29 +6,10 @@ import java.io.File
 import java.nio.file.Files
 
 class MoveTest {
-    fun createFileSystem(): File {
-        val fsRoot = Files.createTempDirectory("share-service-test").toFile()
-        fsRoot.apply {
-            mkdir("home") {
-                mkdir("user1") {
-                    mkdir("folder") {
-                        touch("a", "File A")
-                        touch("b", "File B")
-                        touch("c", "File C")
-                    }
-
-                    mkdir("another-one") {
-                        touch("file")
-                    }
-                }
-            }
-        }
-        return fsRoot
-    }
 
     @Test
     fun testMove() {
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath
         )
@@ -44,7 +25,7 @@ class MoveTest {
 
     @Test(expected = FileSystemException.CriticalException::class)
     fun testMoveToSameLocation() {
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath
         )
@@ -57,7 +38,7 @@ class MoveTest {
 
     @Test (expected = FileSystemException.CriticalException::class)
     fun testMoveToNonexistingLocation() {
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath
         )
@@ -71,7 +52,7 @@ class MoveTest {
 
     @Test
     fun testMoveDirectory() {
-        val fsRoot = createFileSystem()
+        val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath
         )
