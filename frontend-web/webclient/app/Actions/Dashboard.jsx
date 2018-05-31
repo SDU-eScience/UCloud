@@ -38,7 +38,7 @@ const receiveRecentFiles = (recentFiles) => ({
 
 export const fetchRecentAnalyses = () =>
     Cloud.get("/hpc/jobs/?itemsPerPage=10&page=0").then(({ response }) => 
-        receiveRecentAnalyses(response)
+        receiveRecentAnalyses(response.items)
     ).catch(() => {
         failureNotification("Failed to fetch recent analyses. Please try again later.")
         return receiveRecentAnalyses([]);
