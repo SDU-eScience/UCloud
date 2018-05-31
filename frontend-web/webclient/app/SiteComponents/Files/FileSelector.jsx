@@ -222,7 +222,7 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...p
                 <CurrentFolder
                     currentPath={removeTrailingSlash(props.currentPath)}
                     onlyAllowFolders={onlyAllowFolders}
-                    onClick={props.onClick}
+                    setSelectedFile={props.setSelectedFile}
                 />
                 <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
             </List>
@@ -236,14 +236,14 @@ const CreateFolderButton = ({ createFolder }) =>
 
 
 // FIXME CurrentFolder and Return should share exact same traits
-const CurrentFolder = ({ currentPath, onlyAllowFolders, onClick }) =>
+const CurrentFolder = ({ currentPath, onlyAllowFolders, onClick, setSelectedFile }) =>
     onlyAllowFolders ? (
         <List.Item className="pointer-cursor itemPadding">
             <List.Content floated="right">
-                <Button onClick={() => onClick(currentPath)}>Select</Button>
+                <Button onClick={() => setSelectedFile({ path: currentPath })}>Select</Button>
             </List.Content>
             <List.Icon name="folder" color="blue" />
-            <List.Content onClick={() => onClick(getParentPath(currentPath))}>
+            <List.Content>
                 {`${getFilenameFromPath(uf.replaceHomeFolder(currentPath, Cloud.homeFolder))} (Current folder)`}
             </List.Content>
         </List.Item>
@@ -266,12 +266,12 @@ const CreatingFolder = ({ creatingFolder, updateText, handleKeyDown }) => (
     )
 );
 
-const ReturnFolder = ({ currentPath, parentPath, fetchFiles, onClick, canSelectFolders }) =>
+const ReturnFolder = ({ currentPath, parentPath, fetchFiles, setSelectedFile, canSelectFolders }) =>
     !(currentPath !== Cloud.homeFolder) || !(currentPath !== "/home") ? null : (
         <List.Item className="pointer-cursor itemPadding" onClick={() => fetchFiles(parentPath)}>
             {canSelectFolders ? (
                 <List.Content floated="right">
-                    <Button onClick={() => onClick(parentPath)}>Select</Button>
+                    <Button onClick={() => setSelectedFile({ path: getParentPath(currentPath) })}>Select</Button>
                 </List.Content>) : null}
             <List.Icon name="folder" color="blue" />
             <List.Content content=".." />

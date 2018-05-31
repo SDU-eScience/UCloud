@@ -630,7 +630,9 @@ function copy(files, operations) {
         operations.setDisallowedPaths([]);
         files.forEach((f) => {
             const currentPath = f.path;
-            Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(currentPath)}`).catch(({ request }) => {
+            Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(currentPath)}`).then(({ request }) => {
+                if (request.status === 200) uf.failureNotification("File already exists")   
+            }).catch(({ request }) => {
                 if (request.status === 404) {
                     const newPathForFile = `${newPath}/${uf.getFilenameFromPath(currentPath)}`;
                     Cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++).catch(() =>

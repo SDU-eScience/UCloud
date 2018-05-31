@@ -154,7 +154,7 @@ const ContributorItem = (props: { contributor: Creator }) => {
         return <Popup
             trigger={
                 <List.Item>
-                    <a href="#">
+                    <a href="#" onClick={(e) => e.preventDefault()}>
                         <Icon name="user" />
                         {contributor.name}
                     </a>
