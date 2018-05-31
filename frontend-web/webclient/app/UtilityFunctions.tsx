@@ -30,12 +30,12 @@ export const WebSocketSupport = () =>
             </small>
         </h3>) : null;
 
-export const isInvalidPathName = (path: string, filePaths: string[]): string => {
+export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
     const disallowedName = ["..", ".", "/"].some((it) => it === path);
-    if (disallowedName) return "Folder name cannot be '.', '..' or '/'";
+    if (disallowedName) { failureNotification("Folder name cannot be '.', '..' or '/'"); return true; }
     const existingName = filePaths.some((it) => it === path);
-    if (existingName) return "File with that name already exists";
-    return "";
+    if (existingName) { failureNotification("File with that name already exists"); return true; }
+    return false;
 };
 
 export const isFixedFolder = (filePath: string, homeFolder: string) => {

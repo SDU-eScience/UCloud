@@ -61,6 +61,8 @@ class Files extends React.Component {
         }));
     }
 
+
+    // FIXME Break down into smaller functions
     handleKeyDown(value, newFolder, name) {
         if (value === KeyCode.ESC) {
             this.resetFolderEditing();

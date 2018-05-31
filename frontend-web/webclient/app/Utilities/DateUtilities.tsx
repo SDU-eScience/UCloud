@@ -1,0 +1,1 @@
+export const dateToString = (date: number) => new Date(date).toLocaleString().replace(/\./g, ":");
