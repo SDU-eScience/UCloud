@@ -50,7 +50,7 @@ const PublishStatusBody = ({ publications }) =>
         <h3>
             <small>No publications found.</small>
         </h3> :
-        <Table basic="very" unstackable>
+        <Table basic="very">
             <Table.Header>
                 <Table.Row>
                     <Table.HeaderCell>ID</Table.HeaderCell>

@@ -1,8 +1,8 @@
 import * as React from "react";
-import {Input, Menu, Dropdown, Icon, Responsive, Header as H1, Form} from "semantic-ui-react";
+import { Input, Menu, Dropdown, Icon, Responsive, Header as H1, Form } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
-import {Link, withRouter} from "react-router-dom";
+import { Link, withRouter } from "react-router-dom";
 import "./Header.scss";
 import Notifications from "../Notifications/index";
 import { setSidebarOpen } from "../../Actions/Sidebar";
@@ -20,7 +20,7 @@ class Header extends React.Component<any, any> {
 
     public render() {
         const sidebarIcon = this.props.open ? "triangle left" : "triangle right";
-        const {searchText} = this.state;
+        const { searchText } = this.state;
         return (
             <Menu className="menu-padding">
                 <Responsive maxWidth={1024}>
@@ -32,17 +32,17 @@ class Header extends React.Component<any, any> {
                     </Menu.Item>
                 </Responsive>
                 <Menu.Item>
-                    <H1>SDUCloud</H1>
+                    <Link to={"/dashboard"}><H1>SDUCloud</H1></Link>
                 </Menu.Item>
                 <Menu.Menu position="right">
                     <Menu.Item>
                         <Responsive minWidth={700}>
-                            <Form onSubmit={(e) => {e.preventDefault(); !!searchText ? this.props.history.push(`/metadata/search/${searchText}`) : null}} >
-                                <Input value={searchText} onChange={(e, {value}) => this.updateSearchText(value)} className="header-search" fluid icon='search' placeholder='Search...'/>
+                            <Form onSubmit={(e) => { e.preventDefault(); !!searchText ? this.props.history.push(`/metadata/search/${searchText}`) : null }} >
+                                <Input value={searchText} onChange={(e, { value }) => this.updateSearchText(value)} className="header-search" fluid icon='search' placeholder='Search...' />
                             </Form>
                         </Responsive>
                         <Responsive maxWidth={699}>
-                            <Link to={`/metadata/search?query=updateplz`}>
+                            <Link to={`/metadata`}>
                                 <Icon name='search' />
                             </Link>
                         </Responsive>

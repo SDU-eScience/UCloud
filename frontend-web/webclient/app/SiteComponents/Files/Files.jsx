@@ -180,7 +180,6 @@ class Files extends React.Component {
                             <ContextButtons
                                 createFolder={() => this.createFolder(currentPath)}
                                 currentPath={currentPath}
-                                mobileOnly={true}
                             />
                         </Responsive>
                         <FilesTable
@@ -252,7 +251,7 @@ const ContextBar = ({ currentPath, selectedFiles, createFolder, ...props }) => (
     </div>
 );
 
-const ContextButtons = ({ currentPath, upload, createFolder }) => (
+const ContextButtons = ({ currentPath, createFolder }) => (
     <div>
         <Modal trigger={<Button color="blue" className="context-button-margin" fluid>Upload Files</Button>}>
             <Modal.Header>

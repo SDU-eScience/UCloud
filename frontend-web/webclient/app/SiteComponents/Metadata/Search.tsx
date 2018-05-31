@@ -33,7 +33,8 @@ export class Search extends React.Component<any, SearchState> {
         // const params = new URLSearchParams(window.location.search);
         // const rawQuery = params.get("query");
         // const query = rawQuery ? rawQuery : "";
-        const query = this.props.match.params.query;;
+        const query = this.props.match.params.query;
+        if (query.length === 0) return;
         if (this.state.query != query) {
             this.setState(() => ({
                 query,

@@ -1,10 +1,13 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { genericFailureNotification } from "../UtilityFunctions";
+import { failureNotification } from "../UtilityFunctions";
 import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_PAGE_SIZE } from "../Reducers/Analyses";
 
 export const fetchAnalyses = (analysesPerPage, currentPage) =>
     Cloud.get(`/hpc/jobs/?itemsPerPage=${analysesPerPage}&page=${currentPage}`)
-        .then(({ response }) => receiveAnalyses(response)).catch(() => genericFailureNotification());
+        .then(({ response }) => receiveAnalyses(response)).catch(() => {
+            failureNotification("Retrieval of analyses failed, please try again later.");
+            return setLoading(false);
+        });
 
 const receiveAnalyses = ({ items, itemsPerPage, pageNumber, pagesInTotal }) => ({
     type: RECEIVE_ANALYSES,
