@@ -90,15 +90,11 @@ export const favorite = (files: File[], path: string, cloud: Cloud) => {
     return files;
 };
 
-export const getOwnerFromAcls = (acls: Acl[], cloud: Cloud) => {
-    const userName: string = cloud.username;
-    const result = acls.find((acl: Acl) => acl.entity.displayName === userName);
-    if (!result) {
-        return "None"
-    } else if (acls.length > 1) {
-        return `${acls.length} members`;
+export const getOwnerFromAcls = (acls: Acl[]) => {
+    if (acls.length > 0) {
+        return `${acls.length + 1} members`;
     } else {
-        return "You";
+        return "Only You";
     }
 };
 

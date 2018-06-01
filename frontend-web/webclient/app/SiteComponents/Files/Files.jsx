@@ -379,7 +379,7 @@ function FilesList(props) {
             checkFile={props.checkFile}
             onFavoriteFile={props.onFavoriteFile}
             hasCheckbox={props.hasCheckbox}
-            owner={uf.getOwnerFromAcls(file.acl, Cloud)}
+            owner={uf.getOwnerFromAcls(file.acl)}
             refetch={props.refetch}
             fetchFiles={props.fetchFiles}
             showFileSelector={props.showFileSelector}
