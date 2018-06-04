@@ -34,7 +34,10 @@ interface UploaderState {
 interface UploaderProps {
     allowMultiple?: boolean
     location: string
+    onFilesUploaded?: () => void
 }
+
+const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => it.uploadXHR.readyState === 4);
 
 const newUpload = (file: File): Upload => {
     return {
@@ -79,6 +82,7 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
         }
     }
 
+    // TODO - The .then()'s are the same
     startUpload(index: number) {
         const upload = this.state.uploads[index];
         upload.isUploading = true;
@@ -89,6 +93,10 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.setState({ uploads: this.state.uploads });
             }).then(xhr => {
+                xhr.onloadend = () => {
+                    if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads))
+                        this.props.onFilesUploaded();
+                }
                 upload.uploadXHR = xhr;
                 this.setState({ uploads: this.state.uploads });
             });
@@ -97,6 +105,10 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.setState({ uploads: this.state.uploads });
             }).then(xhr => {
+                xhr.onloadend = () => {
+                    if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads))
+                        this.props.onFilesUploaded();
+                }
                 upload.uploadXHR = xhr;
                 this.setState({ uploads: this.state.uploads });
             });

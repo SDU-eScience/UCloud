@@ -177,13 +177,13 @@ class Files extends React.Component {
                 <Grid>
                     <Grid.Column computer={13} tablet={16}>
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
-                        <DefaultLoading loading={loading} size="big" />
                         <Responsive
                             as={ContextButtons}
                             maxWidth={991}
                             createFolder={() => this.createFolder()}
                             currentPath={path}
                         />
+                        <Icon className="float-right" link circular name="sync" onClick={() => refetchFiles(path)} loading={loading} />
                         <FilesTable
                             allowCopyAndMove
                             handleKeyDown={this.handleKeyDown}
@@ -247,13 +247,13 @@ class Files extends React.Component {
 
 const ContextBar = ({ currentPath, selectedFiles, createFolder, ...props }) => (
     <div>
-        <ContextButtons currentPath={currentPath} createFolder={createFolder} />
+        <ContextButtons refetch={props.refetch} currentPath={currentPath} createFolder={createFolder} />
         <br /><br /><br />
         <FileOptions selectedFiles={selectedFiles} rename={props.rename} {...props} />
     </div>
 );
 
-const ContextButtons = ({ currentPath, createFolder }) => (
+const ContextButtons = ({ currentPath, createFolder, refetch }) => (
     <div>
         <Modal trigger={<Button color="blue" className="context-button-margin" fluid>Upload Files</Button>}>
             <Modal.Header>
@@ -262,7 +262,7 @@ const ContextButtons = ({ currentPath, createFolder }) => (
 
             <Modal.Content scrolling>
                 <Modal.Description>
-                    <Uploader location={currentPath} />
+                    <Uploader location={currentPath} closeOnFinishedUpload onFilesUploaded={refetch} />
                 </Modal.Description>
             </Modal.Content>
         </Modal>
@@ -272,11 +272,9 @@ const ContextButtons = ({ currentPath, createFolder }) => (
 
 const NoFiles = ({ noFiles, children }) =>
     noFiles ? (
-        <Table.Row>
-            <Table.Cell>
-                <Header>There are no files in current folder</Header>
-            </Table.Cell>
-        </Table.Row>) : children;
+        <Table.Body><Table.Row>
+            <Table.Cell><Header>No files in current folder</Header></Table.Cell>
+        </Table.Row></Table.Body>) : children;
 
 export function FilesTable({ allowCopyAndMove = false, refetch = () => null, ...props }) {
     if (props.loading) { return null; }
@@ -300,42 +298,42 @@ export function FilesTable({ allowCopyAndMove = false, refetch = () => null, ...
     return (
         <Table unstackable basic="very" padded="very">
             <Table.Header>
-                <NoFiles noFiles={(!props.files.length && !props.creatingNewFolder)}>
-                    <Table.Row>
-                        <Table.HeaderCell className="filename-row" onClick={() => sortingFunction("typeAndName", "typeAndName")}>
-                            {masterCheckbox}
-                            Filename
+                <Table.Row>
+                    <Table.HeaderCell className="filename-row" onClick={() => sortingFunction("typeAndName", "typeAndName")}>
+                        {masterCheckbox}
+                        Filename
                             <Icon floated="right" name={sortingIconFunction("typeAndName")} />
-                        </Table.HeaderCell>
-                        <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortingFunction("modifiedAt", "number")}>
-                            Modified
+                    </Table.HeaderCell>
+                    <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortingFunction("modifiedAt", "number")}>
+                        Modified
                             <Icon floated="right" name={sortingIconFunction("modifiedAt")} />
-                        </Responsive>
-                        <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => null}>
-                            Members
+                    </Responsive>
+                    <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => null}>
+                        Members
                             <Icon floated="right" name={sortingIconFunction("owner")} />
-                        </Responsive>
-                        <Table.HeaderCell />
-                    </Table.Row>
-                </NoFiles>
+                    </Responsive>
+                    <Table.HeaderCell />
+                </Table.Row>
             </Table.Header>
-            <FilesList
-                allowCopyAndMove={allowCopyAndMove}
-                refetch={refetch}
-                fetchFiles={props.fetchFiles}
-                creatingNewFolder={props.creatingNewFolder}
-                editFolderIndex={props.editFolderIndex}
-                renameFile={props.renameFile}
-                handleKeyDown={props.handleKeyDown}
-                hasCheckbox={hasCheckbox}
-                files={props.files}
-                onFavoriteFile={props.onFavoriteFile}
-                selectedFiles={props.selectedFiles}
-                checkFile={props.checkFile}
-                showFileSelector={props.showFileSelector}
-                setFileSelectorCallback={props.setFileSelectorCallback}
-                setDisallowedPaths={props.setDisallowedPaths}
-            />
+            <NoFiles noFiles={(!props.files.length && !props.creatingNewFolder)}>
+                <FilesList
+                    allowCopyAndMove={allowCopyAndMove}
+                    refetch={refetch}
+                    fetchFiles={props.fetchFiles}
+                    creatingNewFolder={props.creatingNewFolder}
+                    editFolderIndex={props.editFolderIndex}
+                    renameFile={props.renameFile}
+                    handleKeyDown={props.handleKeyDown}
+                    hasCheckbox={hasCheckbox}
+                    files={props.files}
+                    onFavoriteFile={props.onFavoriteFile}
+                    selectedFiles={props.selectedFiles}
+                    checkFile={props.checkFile}
+                    showFileSelector={props.showFileSelector}
+                    setFileSelectorCallback={props.setFileSelectorCallback}
+                    setDisallowedPaths={props.setDisallowedPaths}
+                />
+            </NoFiles>
             <Table.Footer>
                 <Table.Row>
                     <Table.Cell colSpan="4" textAlign="center">

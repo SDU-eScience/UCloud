@@ -12,6 +12,7 @@ export const multipartUpload = (location: string, file: File, onProgress?: (e: P
         request.upload.onprogress = (e) => {
             if (!!onProgress) onProgress(e);
         };
+        request.responseType = "text";
         request.send(formData);
         return request;
     });
@@ -33,6 +34,7 @@ export const bulkUpload = (location: string, file: File, policy: BulkUploadPolic
         request.upload.onprogress = (e) => {
             if (!!onProgress) onProgress(e);
         };
+        request.responseType = "text";
         request.send(formData);
         return request;
     });

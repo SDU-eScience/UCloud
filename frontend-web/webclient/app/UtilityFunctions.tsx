@@ -361,6 +361,8 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
     }
     const extension = filename.split(".").pop();
     switch (extension) {
+        case "md":
+        case "swift":
         case "kt":
         case "js":
         case "jsx":
@@ -368,6 +370,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         case "tsx":
         case "java":
         case "py":
+        case "python":
         case "tex":
         case "r":
         case "c":
@@ -401,6 +404,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         case "json":
         case "csv":
         case "yml":
+        case "plist":
             return "file outline";
         case "wav":
         case "mp3":
