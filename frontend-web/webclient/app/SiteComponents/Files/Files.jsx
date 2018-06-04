@@ -154,7 +154,7 @@ class Files extends React.Component {
 
     render() {
         // PROPS
-        const { files, filesPerPage, currentFilesPage, path, loading, history, currentPath, refetchFiles,
+        const { files, filesPerPage, currentFilesPage, path, loading, history, refetchFiles,
             fetchNewFiles, checkFile, updateFilesPerPage, updateFiles } = this.props;
         const totalPages = Math.ceil(this.props.files.length / filesPerPage);
         const shownFiles = files.slice(currentFilesPage * filesPerPage, currentFilesPage * filesPerPage + filesPerPage);
@@ -178,12 +178,12 @@ class Files extends React.Component {
                     <Grid.Column computer={13} tablet={16}>
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
                         <DefaultLoading loading={loading} size="big" />
-                        <Responsive maxWidth={991}>
-                            <ContextButtons
-                                createFolder={() => this.createFolder(currentPath)}
-                                currentPath={currentPath}
-                            />
-                        </Responsive>
+                        <Responsive
+                            as={ContextButtons}
+                            maxWidth={991}
+                            createFolder={() => this.createFolder()}
+                            currentPath={path}
+                        />
                         <FilesTable
                             allowCopyAndMove
                             handleKeyDown={this.handleKeyDown}
@@ -219,7 +219,7 @@ class Files extends React.Component {
                         <ContextBar
                             selectedFiles={selectedFiles}
                             currentPath={path}
-                            createFolder={() => this.createFolder(currentPath)}
+                            createFolder={() => this.createFolder()}
                             refetch={() => refetchFiles(path)}
                             fetchFiles={fetchNewFiles}
                             showFileSelector={this.props.showFileSelector}
