@@ -172,6 +172,9 @@ class Files extends React.Component {
             fetchNewFiles(path);
             history.push(`/files/${path}`);
         };
+        const projectNavigation = (projectPath) => {
+            history.push(`/metadata/${projectPath}`)
+        };
         return (
             <React.Fragment>
                 <Grid>
@@ -187,6 +190,7 @@ class Files extends React.Component {
                         <FilesTable
                             allowCopyAndMove
                             handleKeyDown={this.handleKeyDown}
+                            projectNavigation={projectNavigation}
                             creatingNewFolder={this.state.creatingNewFolder}
                             editFolderIndex={this.state.editFolderIndex}
                             renameFile={this.startEditFile}
@@ -226,6 +230,7 @@ class Files extends React.Component {
                             setFileSelectorCallback={this.props.setFileSelectorCallback}
                             setDisallowedPaths={this.props.setDisallowedPaths}
                             rename={rename}
+                            projectNavigation={projectNavigation}
                         />
                     </Responsive>
                 </Grid>
@@ -249,27 +254,26 @@ const ContextBar = ({ currentPath, selectedFiles, createFolder, ...props }) => (
     <div>
         <ContextButtons refetch={props.refetch} currentPath={currentPath} createFolder={createFolder} />
         <br /><br /><br />
-        <FileOptions selectedFiles={selectedFiles} rename={props.rename} {...props} />
+        <FileOptions projectNavigation={props.projectNavigation} selectedFiles={selectedFiles} rename={props.rename} {...props} />
     </div>
 );
 
 const ContextButtons = ({ currentPath, createFolder, refetch }) => (
     <div>
         <Modal trigger={<Button color="blue" className="context-button-margin" fluid>Upload Files</Button>}>
-            <Modal.Header>
-                Upload Files
-            </Modal.Header>
+            <Modal.Header content="Upload Files" />
 
             <Modal.Content scrolling>
                 <Modal.Description>
-                    <Uploader location={currentPath} closeOnFinishedUpload onFilesUploaded={refetch} />
+                    <Uploader location={currentPath} onFilesUploaded={refetch} />
                 </Modal.Description>
             </Modal.Content>
         </Modal>
-        <Button basic className="context-button-margin" fluid onClick={() => createFolder()}> New folder</Button>
+        <Button basic className="context-button-margin" fluid onClick={() => createFolder()} content="New folder" />
     </div>
 );
 
+// TODO Move into FilesList as it has the appropriate values
 const NoFiles = ({ noFiles, children }) =>
     noFiles ? (
         <Table.Body><Table.Row>
@@ -317,6 +321,7 @@ export function FilesTable({ allowCopyAndMove = false, refetch = () => null, ...
             </Table.Header>
             <NoFiles noFiles={(!props.files.length && !props.creatingNewFolder)}>
                 <FilesList
+                    projectNavigation={props.projectNavigation}
                     allowCopyAndMove={allowCopyAndMove}
                     refetch={refetch}
                     fetchFiles={props.fetchFiles}
@@ -369,6 +374,7 @@ function FilesList(props) {
         (<FileRow
             key={index}
             index={index}
+            projectNavigation={props.projectNavigation}
             file={file}
             allowCopyAndMove={props.allowCopyAndMove}
             handleKeyDown={props.handleKeyDown}
@@ -445,6 +451,7 @@ const FileRow = ({ file, onFavoriteFile, beingRenamed, checkFile, owner, ...prop
         <Table.Cell>
             <Icon className="file-data" name="share alternate" onClick={() => uf.shareFiles([file.path], Cloud)} />
             <MobileButtons
+                projectNavigation={props.projectNavigation}
                 allowCopyAndMove={props.allowCopyAndMove}
                 file={file}
                 rename={props.renameFile ? () => props.renameFile(props.index) : undefined}
@@ -540,7 +547,7 @@ function FileOptions({ selectedFiles, rename, ...props }) {
                 disabled={rights.rightsLevel < 3}
                 icon="copy" content="Copy"
             />
-            <EditOrCreateProjectButton file={selectedFiles[0]} disabled={selectedFiles.length > 1} />
+            <EditOrCreateProjectButton projectNavigation={props.projectNavigation} file={selectedFiles[0]} disabled={selectedFiles.length > 1} />
             <Button className="context-button-margin" color="red" fluid basic
                 disabled={rights.rightsLevel < 3}
                 onClick={() => uf.batchDeleteFiles(selectedFiles.map((it) => it.path), Cloud, props.refetch)}
@@ -581,17 +588,17 @@ const MobileButtons = ({ file, Buttons, rename, ...props }) => (
                     Properties
                 </Link>
             </Dropdown.Item>
-            <EditOrCreateProject file={file} />
+            <EditOrCreateProject projectNavigation={props.projectNavigation} file={file} />
         </Dropdown.Menu>
     </Dropdown>
 );
 
-function EditOrCreateProjectButton({ file, disabled }) {
+function EditOrCreateProjectButton({ file, disabled, projectNavigation }) {
     const canBeProject = uf.isDirectory(file) && !uf.isFixedFolder(file.path, Cloud.homeFolder) && !uf.isLink(file);
     const projectButton = (
         <Button className="context-button-margin" fluid basic icon="users" disabled={disabled || !canBeProject}
             content={uf.isProject(file) ? "Edit Project" : "Create Project"}
-            onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud)}
+            onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud, projectNavigation)}
         />
     );
     if (uf.isProject(file)) {
@@ -604,7 +611,7 @@ function EditOrCreateProjectButton({ file, disabled }) {
     }
 }
 
-function EditOrCreateProject({ file }) {
+function EditOrCreateProject({ file, projectNavigation }) {
     const canBeProject = uf.isDirectory(file) && !uf.isFixedFolder(file.path, Cloud.homeFolder) && !uf.isLink(file);
     if (!canBeProject) { return null; }
     const projectLink = uf.isProject(file) ? (
@@ -612,7 +619,7 @@ function EditOrCreateProject({ file }) {
             Edit Project
         </Link>) : "Create Project";
     return (
-        <Dropdown.Item onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud)}>
+        <Dropdown.Item onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud, projectNavigation)}>
             {projectLink}
         </Dropdown.Item>)
 }
@@ -687,6 +694,12 @@ const mapStateToProps = (state) => {
         checkedFilesCount, fileSelectorFiles, fileSelectorPath, fileSelectorShown, fileSelectorCallback, disallowedPaths
     }
 };
+
+const listenForNewProject = () => {
+
+}
+
+
 
 const mapDispatchToProps = (dispatch) => ({
     fetchNewFiles: (path) => {

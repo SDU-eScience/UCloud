@@ -419,10 +419,21 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
     }
 };
 
-export const createProject = (filePath: string, cloud: Cloud) =>
-    cloud.put("/projects", { fsRoot: filePath }).then(() =>
-        successNotification(`${filePath} project creation started.`)
-    ).catch(() => genericFailureNotification());
+// TODO Remove navigation when backend support comes.
+export const createProject = (filePath: string, cloud: Cloud, navigate: (path: string) => void) =>
+    cloud.put("/projects", { fsRoot: filePath }).then(() => {
+        redirectToProject(filePath, cloud, navigate, 5);
+    }).catch(() => failureNotification(`An error occurred creating project ${filePath}`));
+
+const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) => void, remainingTries: number) => {
+    cloud.get(`/metadata/by-path?path=${path}`).then(() => navigate(path)).catch(() => {
+        if (remainingTries > 0) {
+            setTimeout(redirectToProject(path, cloud, navigate, remainingTries - 1), 400);
+        } else {
+            successNotification(`Project ${path} is being created.`)
+        }
+    });
+};
 
 export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
 
