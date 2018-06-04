@@ -100,6 +100,95 @@ class ShareTests {
     }
 
     @Test
+    fun createNotOwnerOfFilesTest() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = {
+                    val instance = ServiceInstance(
+                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
+                        "localhost",
+                        42000
+                    )
+                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
+                    install(JWTProtection)
+                    val fsRoot = createDummyFS()
+                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+                    val ss = ShareService(InMemoryShareDAO(), fs)
+
+                    routing {
+                        route("api") {
+                            ShareController(ss).configure(this)
+                            FilesController(fs).configure(this)
+                        }
+                    }
+                },
+
+                test = {
+
+                    val response = handleRequest(HttpMethod.Put, "/api/shares") {
+                        setUser("user1", Role.USER)
+                        setBody("""
+                            {
+                            "sharedWith" : "schulz",
+                            "path" : "/home/user1/folder/a",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent())
+                    }.response
+
+                    assertEquals(HttpStatusCode.Forbidden, response.status())
+
+
+                }
+            )
+        }
+    }
+
+    @Test
+    fun createNonexistingPathTest() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = {
+                    val instance = ServiceInstance(
+                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
+                        "localhost",
+                        42000
+                    )
+                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
+                    install(JWTProtection)
+                    val fsRoot = createDummyFS()
+                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+                    val ss = ShareService(InMemoryShareDAO(), fs)
+
+                    routing {
+                        route("api") {
+                            ShareController(ss).configure(this)
+                            FilesController(fs).configure(this)
+                        }
+                    }
+                },
+
+                test = {
+
+                    val response = handleRequest(HttpMethod.Put, "/api/shares") {
+                        setUser("schulz", Role.USER)
+                        setBody("""
+                            {
+                            "sharedWith" : "user1",
+                            "path" : "/home/user1/folder/notThere/a",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent())
+                    }.response
+
+                    assertEquals(HttpStatusCode.BadRequest, response.status())
+                }
+            )
+        }
+    }
+
+
+    @Test
     fun createListAndRejectTest() {
         withAuthMock {
             withTestApplication(
