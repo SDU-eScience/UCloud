@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.http.fileControllerTests
+package dk.sdu.cloud.storage.http.files
 
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
@@ -15,24 +15,22 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
+import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class MoveTesting {
 
+class MakeOpenAccessTests {
+
+    //Testing MarkAsOpenAccess
     @Test
-    fun moveFileTest() {
-
+    fun markAsOpenAccessTest() {
         withAuthMock {
             withTestApplication(
                 moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
+                    val instance = ServiceInstance(dk.sdu.cloud.storage.api.StorageServiceDescription.definition(), "localhost", 42000)
                     installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
                     install(JWTProtection)
                     val fsRoot = createDummyFS()
@@ -43,36 +41,20 @@ class MoveTesting {
                             FilesController(fs).configure(this)
                         }
                     }
-
                 },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/folder/a") {
-                        setUser("user1", Role.USER)
+                    val response = handleRequest(HttpMethod.Post, "/api/files/open") {
+                        setUser("user1", Role.ADMIN)
+                        setBody("""
+                            {
+                            "path" : "/home/user1/folder/a",
+                            "proxyUser" : "user1"
+                            }
+                            """.trimIndent())
                     }.response
 
                     assertEquals(HttpStatusCode.OK, response.status())
-
-                    val response2 = handleRequest(
-                        HttpMethod.Post,
-                        "/api/files/move?path=/home/user1/folder/a&newPath=/home/user1"
-                    ) {
-                        setUser("user1", Role.USER)
-                    }.response
-
-                    assertEquals(HttpStatusCode.OK, response2.status())
-
-                    val response3 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/folder/a") {
-                        setUser("user1", Role.USER)
-                    }.response
-
-                    assertEquals(HttpStatusCode.NotFound, response3.status())
-
-                    val response4 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/a") {
-                        setUser("user1", Role.USER)
-                    }.response
-
-                    assertEquals(HttpStatusCode.OK, response4.status())
                 }
             )
         }

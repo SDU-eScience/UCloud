@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.http.fileControllerTests
+package dk.sdu.cloud.storage.http.files
 
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
@@ -157,7 +157,7 @@ class AnnotationTests {
     }
 
     @Test
-    fun annotateFileValidAnnotationTest() {
+    fun annotateFileIsValidAnnotationTest() {
         withAuthMock {
             withTestApplication(
                 moduleFunction = {
@@ -191,8 +191,7 @@ class AnnotationTests {
                             """.trimIndent()
                         )
                     }.response
-                    //SHOULD THIS BE OKAY? TODO()
-                    assertEquals(HttpStatusCode.OK, response.status())
+                    assertEquals(HttpStatusCode.BadRequest, response.status())
 
                     val response1 = handleRequest(HttpMethod.Post, "/api/files/annotate") {
                         setUser("user1", Role.ADMIN)
@@ -206,8 +205,7 @@ class AnnotationTests {
                             """.trimIndent()
                         )
                     }.response
-                    //SHOULD BE 400 BAD REQUEST? TODO()
-                    assertEquals(HttpStatusCode.InternalServerError, response1.status())
+                    assertEquals(HttpStatusCode.BadRequest, response1.status())
 
                     val response2 = handleRequest(HttpMethod.Post, "/api/files/annotate") {
                         setUser("user1", Role.ADMIN)
@@ -221,8 +219,7 @@ class AnnotationTests {
                             """.trimIndent()
                         )
                     }.response
-                    //SHOULD BE 400 BAD REQUEST? TODO()
-                    assertEquals(HttpStatusCode.InternalServerError, response2.status())
+                    assertEquals(HttpStatusCode.BadRequest, response2.status())
 
                     val response3 = handleRequest(HttpMethod.Post, "/api/files/annotate") {
                         setUser("user1", Role.ADMIN)
@@ -236,8 +233,7 @@ class AnnotationTests {
                             """.trimIndent()
                         )
                     }.response
-                    //SHOULD BE 400 BAD REQUEST? TODO()
-                    assertEquals(HttpStatusCode.InternalServerError, response3.status())
+                    assertEquals(HttpStatusCode.BadRequest, response3.status())
 
                     val response4 = handleRequest(HttpMethod.Post, "/api/files/annotate") {
                         setUser("user1", Role.ADMIN)
@@ -251,8 +247,7 @@ class AnnotationTests {
                             """.trimIndent()
                         )
                     }.response
-                    //SHOULD BE 400 BAD REQUEST? TODO()
-                    assertEquals(HttpStatusCode.InternalServerError, response4.status())
+                    assertEquals(HttpStatusCode.BadRequest, response4.status())
                 }
             )
         }

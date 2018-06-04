@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.http.fileControllerTests
+package dk.sdu.cloud.storage.http.files
 
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
