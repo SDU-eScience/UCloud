@@ -7,6 +7,7 @@ add_executable(dirlisting main.cpp libacl.cpp libacl.h)
 add_executable(ceph-tree tree.cpp libacl.cpp libacl.h)
 add_executable(ceph-copy copy.cpp libacl.cpp libacl.h)
 add_executable(ceph-remove remove.cpp libacl.cpp libacl.h)
+add_executable(ceph-interpreter interpreter.cpp libacl.cpp libacl.h)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)

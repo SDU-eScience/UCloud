@@ -50,7 +50,7 @@ class BoundaryContainedStream(
                 // Full match
                 break
             } else if (internalBuffer[internalPtr] != boundaryBytes[boundaryPtr]) {
-                // Not a match, reset the search
+                // Not a match, reset the search. TODO Incorrect! Implement KMP
                 boundaryPtr = 0
             } else {
                 // A match, continue the search
