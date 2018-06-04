@@ -182,8 +182,7 @@ class FileSelector extends React.Component {
 }
 
 export const FileSelectorModal = (props) => (
-    // FIXME closeOnDimmerClick is a fix caused by modal incompatibility. See ModalFix.scss
-    <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick={false} size="large">
+    <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick size="large">
         <Modal.Header>
             File selector
             <Button circular floated="right" icon="cancel" type="button" onClick={props.onHide} />

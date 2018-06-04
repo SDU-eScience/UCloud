@@ -357,7 +357,7 @@ export const createRangeInclusive = (count: number): number[] => {
 export const iconFromFilePath = (filePath: string): SemanticICONS => {
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
-        return "file text outline";
+        return "file outline";
     }
     const extension = filename.split(".").pop();
     switch (extension) {
@@ -401,7 +401,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         case "json":
         case "csv":
         case "yml":
-            return "file text outline";
+            return "file outline";
         case "wav":
         case "mp3":
             return "volume up";
@@ -411,7 +411,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         default:
             if (getFilenameFromPath(filePath).split(".").length > 1)
                 console.warn(`Unhandled extension "${filePath}" for file ${filePath}`);
-            return "file text outline";
+            return "file outline";
     }
 };
 

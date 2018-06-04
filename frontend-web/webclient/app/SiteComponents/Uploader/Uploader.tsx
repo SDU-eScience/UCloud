@@ -238,8 +238,10 @@ const UploaderRow = (p: {
 
             <Grid.Column width={8}>
                 <Progress
+                    color="green"
                     indicating
                     total={100}
+                    success={p.progressPercentage === 100}
                     value={p.progressPercentage}
                     content={`${p.progressPercentage.toFixed(2)}%`}
                 />

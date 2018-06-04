@@ -631,7 +631,7 @@ function copy(files, operations) {
         files.forEach((f) => {
             const currentPath = f.path;
             Cloud.get(`/files/stat?path=${newPath}/${uf.getFilenameFromPath(currentPath)}`).then(({ request }) => {
-                if (request.status === 200) uf.failureNotification("File already exists")   
+                if (request.status === 200) uf.failureNotification("File already exists")
             }).catch(({ request }) => {
                 if (request.status === 404) {
                     const newPathForFile = `${newPath}/${uf.getFilenameFromPath(currentPath)}`;
