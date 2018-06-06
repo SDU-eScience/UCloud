@@ -12,12 +12,10 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 
-#include <copyfile.h>
 #include <iostream>
 #include <sys/stat.h>
 
 #else
-#include <sys/sendfile.h>
 #include <linux/limits.h>
 #endif
 
@@ -218,101 +216,3 @@ int copy_command(char *from_inp, char *to_inp) {
     return status;
 }
 
-int old_main(int argc, char **argv) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <to> <from>\n", argv[0]);
-        exit(1);
-    }
-
-    char *to_argument = argv[1];
-    char *from_argument = argv[2];
-    struct stat s{};
-
-    stat(from_argument, &s);
-    if (S_ISREG(s.st_mode)) { // NOLINT
-        copy_file(from_argument, to_argument);
-        stat(to_argument, &s);
-        print_file_created(s.st_ino, to_argument, false);
-    } else if (S_ISDIR(s.st_mode)) { // NOLINT
-        FTS *file_system = nullptr;
-        FTSENT *node = nullptr;
-
-        file_system = fts_open(
-                argv + 2, // argv[argc] is always nullptr
-
-                FTS_PHYSICAL | // NOLINT DO NOT FOLLOW SYMLINKS
-                FTS_XDEV, // Don't leave file system (stay in CephFS)
-
-                &compare
-        );
-
-        auto to_base_path = to_argument;
-        auto from_base_path = from_argument;
-
-        auto to_base_path_length = strlen(to_base_path);
-        auto from_base_path_length = strlen(from_base_path);
-
-        if (to_base_path[to_base_path_length - 1] == '/') {
-            to_base_path[to_base_path_length - 1] = '\0';
-            to_base_path_length--;
-        }
-
-        if (from_base_path[from_base_path_length - 1] == '/') {
-            from_base_path[from_base_path_length - 1] = '\0';
-            from_base_path_length--;
-        }
-
-        char constructed_to_path[PATH_MAX];
-        char parent_path[PATH_MAX];
-        int status;
-
-        if (nullptr != file_system) {
-            while ((node = fts_read(file_system)) != nullptr) {
-                if (node->fts_pathlen <= from_base_path_length) continue;
-                if (to_base_path_length + node->fts_pathlen - from_base_path_length >= PATH_MAX) continue;
-
-                memset(constructed_to_path, 0, PATH_MAX);
-                memset(parent_path, 0, PATH_MAX);
-
-                strcpy(constructed_to_path, to_base_path);
-                strcpy(constructed_to_path + to_base_path_length, node->fts_path + from_base_path_length);
-
-                auto from = node->fts_path;
-                fprintf(stderr, "Copying from %s to %s\n", from, constructed_to_path);
-
-                if (node->fts_info == FTS_D) {
-                    fprintf(stderr, "  File is directory!\n");
-                    status = mkpath(constructed_to_path, 0700); // mkpaths prints dirs created
-                    if (status != 0) {
-                        auto err_name = strerror(errno);
-                        fprintf(stderr, "  mkdir failed! %d %s\n", status, err_name);
-                    }
-                } else if (node->fts_info == FTS_F) {
-                    int i = last_index_of(constructed_to_path, '/');
-                    if (i == -1) continue;
-
-                    // Create parent dir (dirs are not guaranteed to show up in traversal)
-                    strncpy(parent_path, constructed_to_path, (size_t) i);
-                    status = mkpath(parent_path, 0700); // mkpath prints dirs created
-                    if (status != 0) {
-                        fprintf(stderr, "  Creating parent directory failed! %s\n", parent_path);
-                    }
-
-                    // Copy file
-                    status = copy_file(from, constructed_to_path);
-                    if (status != 0) {
-                        fprintf(stderr, "  copy_file failed! %s\n", strerror(errno));
-                    } else {
-                        status = stat(constructed_to_path, &s);
-                        if (status != 0) {
-                            fprintf(stderr, "  stat failed after successful copy! %s\n", strerror(errno));
-                        } else {
-                            print_file_created(s.st_ino, constructed_to_path, false);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return 0;
-}

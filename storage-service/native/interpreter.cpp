@@ -11,7 +11,9 @@
 #include <sys/timeb.h>
 #include <cmath>
 #include <string>
+
 #include "copy.h"
+#include "tree.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -311,7 +313,8 @@ int main(int argc, char **argv) {
             auto file = NEXT_ARGUMENT(0);
             write_command(file);
         } else if (IS_COMMAND("tree")) {
-
+            auto root = NEXT_ARGUMENT(0);
+            tree_command(root);
         } else if (IS_COMMAND("make-dir")) {
 
         } else if (IS_COMMAND("get-xattr")) {
