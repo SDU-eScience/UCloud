@@ -11,6 +11,7 @@
 #include <sys/timeb.h>
 #include <cmath>
 #include <string>
+#include "copy.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -54,15 +55,16 @@ char *read_argument(char *line, char args[MAX_ARGUMENTS][MAX_LINE_LENGTH], size_
     return args[arg_idx];
 }
 
-static void initialize_stdin_stream(char *token_in) {
-    fprintf(stderr, "Initializing streams\n");
+static void initialize_stdin_stream(char *token_inp) {
+    fprintf(stderr, "Initializing streams. EOF token is %s\n", token_inp);
     internal_buffer = (char *) malloc(INTERNAL_BUFFER_CAPACITY);
     if (internal_buffer == nullptr) {
         fprintf(stderr, "internal_buffer alloc failed\n");
         exit(1);
     }
 
-    token = token_in;
+    token = token_inp;
+    token_size = strlen(token_inp);
     fprintf(stderr, "Streams initialized\n");
 }
 
@@ -181,6 +183,22 @@ ssize_t stdin_read(char *buffer, size_t size) {
     }
 }
 
+static bool discard_and_reset_stream() {
+    // Stupid implementation
+    char buffer;
+    ssize_t read;
+    while ((read = stdin_read(&buffer, 1)) > 0) {
+        if (read < 0) return false;
+    }
+
+    if (is_at_end_of_stream()) {
+        reset_stream();
+        return true;
+    }
+
+    return false;
+}
+
 ssize_t stdin_read_line(char *result, size_t size) {
     // Stupid implementation
     char buf = '\0';
@@ -237,14 +255,9 @@ void write_command(char *file) {
         }
         close(out_file);
 
-        if (!is_at_end_of_stream()) {
-            exit(1);
-        }
 
-        reset_stream();
     }
 }
-
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -265,6 +278,8 @@ int main(int argc, char **argv) {
     auto line = (char *) malloc(MAX_LINE_LENGTH);
     char args[MAX_ARGUMENTS][MAX_LINE_LENGTH];
 
+    int status;
+
     while (true) {
         if (stdin_read_line(line, MAX_LINE_LENGTH) < 0) {
             fprintf(stderr, "< 0\n");
@@ -281,8 +296,8 @@ int main(int argc, char **argv) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);
 
-            printf("From: %s\n", from);
-            printf("To: %s\n", to);
+            status = copy_command(from, to);
+            printf("%d\n", status);
         } else if (IS_COMMAND("copy-tree")) {
             auto dir = NEXT_ARGUMENT(0);
             printf("Dir: %s\n", dir);
@@ -316,6 +331,13 @@ int main(int argc, char **argv) {
             auto attribute = NEXT_ARGUMENT(1);
 
         }
+
+        if (strcmp("", line) != 0) {
+            bool did_reset = discard_and_reset_stream();
+            printf("DONE TOKEN\n");
+            if (!did_reset) break;
+        }
+
     }
 
     return 0;
