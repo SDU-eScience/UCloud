@@ -178,38 +178,6 @@ export const inputSwal = (inputName: string) => ({
         (!value && `${toLowerCaseAndCapitalize(inputName)} missing`)
 });
 
-export const updateSharingOfFile = (filePath: string, user: string, currentRights: string, cloud: Cloud, callback: () => any) => {
-    swal({
-        title: "Please specify access level",
-        text: `The file ${getFilenameFromPath(filePath)} is to be shared with ${user}.`,
-        input: "select",
-        showCancelButton: true,
-        showCloseButton: true,
-        inputOptions: {
-            "READ": "Read Access",
-            "READ_WRITE": "Read/Write Access",
-            //"OWN": "Own the file"
-        },
-        inputValidator: (value: string) => {
-            return currentRights === value && `${user} already has ${RightsNameMap[value]} access.`
-        }
-    }).then((type: any) => {
-        if (type.dismiss) {
-            return;
-        }
-        const body = {
-            entity: user,
-            onFile: filePath,
-            rights: type.value,
-            type: "grant",
-        };
-        cloud.put("/acl", body).then(() => {
-            swal("Success!", `The file has been shared with ${user}`, "success").then(() => callback ? callback() : null);
-        });
-    });
-};
-
-
 export const renameFile = (filePath: string) =>
     swal({
         title: "Rename file",

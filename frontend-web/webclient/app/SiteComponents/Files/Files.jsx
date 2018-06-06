@@ -17,7 +17,7 @@ import {
     Checkbox,
     Rating
 } from "semantic-ui-react";
-
+import { dateToString } from "../../Utilities/DateUtilities";
 import * as Pagination from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
@@ -176,64 +176,62 @@ class Files extends React.Component {
             history.push(`/metadata/${projectPath}`)
         };
         return (
-            <React.Fragment>
-                <Grid>
-                    <Grid.Column computer={13} tablet={16}>
-                        <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
-                        <Responsive
-                            as={ContextButtons}
-                            maxWidth={991}
-                            createFolder={() => this.createFolder()}
-                            currentPath={path}
+            <Grid>
+                <Grid.Column computer={13} tablet={16}>
+                    <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
+                    <Responsive
+                        as={ContextButtons}
+                        maxWidth={991}
+                        createFolder={() => this.createFolder()}
+                        currentPath={path}
+                    />
+                    <Icon className="float-right" link circular name="sync" onClick={() => refetchFiles(path)} loading={loading} />
+                    <FilesTable
+                        allowCopyAndMove
+                        handleKeyDown={this.handleKeyDown}
+                        projectNavigation={projectNavigation}
+                        creatingNewFolder={this.state.creatingNewFolder}
+                        editFolderIndex={this.state.editFolderIndex}
+                        renameFile={this.startEditFile}
+                        files={shownFiles}
+                        loading={loading}
+                        sortingIcon={(name) => uf.getSortingIcon(this.state.lastSorting, name)}
+                        checkFile={(checked, newFile) => checkFile(checked, files, newFile)}
+                        sortFiles={this.sortFilesBy}
+                        onFavoriteFile={(filePath) => updateFiles(uf.favorite(files, filePath, Cloud))}
+                        checkAllFiles={this.checkAllFiles}
+                        refetch={() => refetchFiles(path)}
+                        fetchFiles={fetchNewFiles}
+                        showFileSelector={this.props.showFileSelector}
+                        setFileSelectorCallback={this.props.setFileSelectorCallback}
+                        setDisallowedPaths={this.props.setDisallowedPaths}
+                    >
+                        <Pagination.Buttons
+                            currentPage={currentFilesPage}
+                            totalPages={totalPages}
+                            toPage={(pageNumber) => goTo(pageNumber)}
                         />
-                        <Icon className="float-right" link circular name="sync" onClick={() => refetchFiles(path)} loading={loading} />
-                        <FilesTable
-                            allowCopyAndMove
-                            handleKeyDown={this.handleKeyDown}
-                            projectNavigation={projectNavigation}
-                            creatingNewFolder={this.state.creatingNewFolder}
-                            editFolderIndex={this.state.editFolderIndex}
-                            renameFile={this.startEditFile}
-                            files={shownFiles}
-                            loading={loading}
-                            sortingIcon={(name) => uf.getSortingIcon(this.state.lastSorting, name)}
-                            checkFile={(checked, newFile) => checkFile(checked, files, newFile)}
-                            sortFiles={this.sortFilesBy}
-                            onFavoriteFile={(filePath) => updateFiles(uf.favorite(files, filePath, Cloud))}
-                            checkAllFiles={this.checkAllFiles}
-                            refetch={() => refetchFiles(path)}
-                            fetchFiles={fetchNewFiles}
-                            showFileSelector={this.props.showFileSelector}
-                            setFileSelectorCallback={this.props.setFileSelectorCallback}
-                            setDisallowedPaths={this.props.setDisallowedPaths}
-                        >
-                            <Pagination.Buttons
-                                currentPage={currentFilesPage}
-                                totalPages={totalPages}
-                                toPage={(pageNumber) => goTo(pageNumber)}
-                            />
-                        </FilesTable>
-                        <Pagination.EntriesPerPageSelector
-                            entriesPerPage={filesPerPage}
-                            onChange={(newSize) => updateFilesPerPage(newSize, files)}
-                            content="Files per page"
-                        />
-                    </Grid.Column>
-                    <Responsive as={Grid.Column} computer={3} minWidth={992}>
-                        <ContextBar
-                            selectedFiles={selectedFiles}
-                            currentPath={path}
-                            createFolder={() => this.createFolder()}
-                            refetch={() => refetchFiles(path)}
-                            fetchFiles={fetchNewFiles}
-                            showFileSelector={this.props.showFileSelector}
-                            setFileSelectorCallback={this.props.setFileSelectorCallback}
-                            setDisallowedPaths={this.props.setDisallowedPaths}
-                            rename={rename}
-                            projectNavigation={projectNavigation}
-                        />
-                    </Responsive>
-                </Grid>
+                    </FilesTable>
+                    <Pagination.EntriesPerPageSelector
+                        entriesPerPage={filesPerPage}
+                        onChange={(newSize) => updateFilesPerPage(newSize, files)}
+                        content="Files per page"
+                    />
+                </Grid.Column>
+                <Responsive as={Grid.Column} computer={3} minWidth={992}>
+                    <ContextBar
+                        selectedFiles={selectedFiles}
+                        currentPath={path}
+                        createFolder={() => this.createFolder()}
+                        refetch={() => refetchFiles(path)}
+                        fetchFiles={fetchNewFiles}
+                        showFileSelector={this.props.showFileSelector}
+                        setFileSelectorCallback={this.props.setFileSelectorCallback}
+                        setDisallowedPaths={this.props.setDisallowedPaths}
+                        rename={rename}
+                        projectNavigation={projectNavigation}
+                    />
+                </Responsive>
                 <FileSelectorModal
                     show={this.props.fileSelectorShown}
                     onHide={() => this.props.showFileSelector(false)}
@@ -246,7 +244,7 @@ class Files extends React.Component {
                     setSelectedFile={this.props.fileSelectorCallback}
                     disallowedPaths={this.props.disallowedPaths}
                 />
-            </React.Fragment>);
+            </Grid>);
     }
 }
 
@@ -446,7 +444,7 @@ const FileRow = ({ file, onFavoriteFile, beingRenamed, checkFile, owner, ...prop
                 onClick={() => onFavoriteFile(file.path)}
             />
         </Table.Cell>
-        <Responsive as={Table.Cell} minWidth={768}>{new Date(file.modifiedAt).toLocaleString()}</Responsive>
+        <Responsive as={Table.Cell} minWidth={768}>{dateToString(file.modifiedAt)}</Responsive>
         <Responsive as={Table.Cell} minWidth={768}>{owner}</Responsive>
         <Table.Cell>
             <Icon className="file-data" name="share alternate" onClick={() => uf.shareFiles([file.path], Cloud)} />

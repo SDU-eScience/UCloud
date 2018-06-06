@@ -7,6 +7,7 @@ import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
 import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
+import { dateToString } from "../../Utilities/DateUtilities";
 
 
 class ZenodoHome extends React.Component {
@@ -103,7 +104,7 @@ const PublicationList = (props) => {
                         <Button>Show More</Button>
                     </Link>
                 </Table.Cell>
-                <Table.Cell>{new Date(publication.modifiedAt).toLocaleString()}</Table.Cell>
+                <Table.Cell>{dateToString(publication.modifiedAt)}</Table.Cell>
             </Table.Row>);
     });
     return (

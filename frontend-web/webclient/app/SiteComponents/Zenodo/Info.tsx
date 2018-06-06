@@ -3,8 +3,9 @@ import { Container, Header, List, Table, Progress } from "semantic-ui-react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
-import {Publication} from "../../types/types";
+import { Publication } from "../../types/types";
 import { match } from "react-router-dom";
+import { dateToString } from "../../Utilities/DateUtilities";
 
 interface ZenodoInfoState {
     promises: PromiseKeeper
@@ -16,7 +17,7 @@ interface ZenodoInfoState {
 }
 
 type ZenodoInfoProps = {
-    match: match<{jobID: string}>
+    match: match<{ jobID: string }>
 }
 
 class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
@@ -81,13 +82,13 @@ const ZenodoPublishingBody = ({ publication, uploads }) => {
                 <List.Item>
                     Started:
                     <List.Content floated="right">
-                        {new Date(publication.createdAt).toLocaleString()}
+                        {dateToString(publication.createdAt)}
                     </List.Content>
                 </List.Item>
                 <List.Item>
                     Last update:
                     <List.Content floated="right">
-                        {new Date(publication.modifiedAt).toLocaleString()}
+                        {dateToString(publication.modifiedAt)}
                     </List.Content>
                 </List.Item>
             </List>
