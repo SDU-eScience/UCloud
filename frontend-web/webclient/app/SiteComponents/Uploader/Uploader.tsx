@@ -127,8 +127,8 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
         console.log("Doing something!");
         const files = this.state.uploads.slice();
         if (index < files.length) {
-            files.splice(index, 1);
-            this.setState({ uploads: files });
+            const remainderFiles = files.slice(0, index).concat(files.slice(index + 1));
+            this.setState({ uploads: remainderFiles });
         }
     }
 

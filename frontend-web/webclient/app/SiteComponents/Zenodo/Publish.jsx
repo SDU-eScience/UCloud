@@ -42,10 +42,10 @@ class ZenodoPublish extends React.Component {
     }
 
     removeFile(index) {
-        const files = this.state.files;
-        files.splice(index, 1);
+        const { files } = this.state;
+        const remainderFiles = files.slice(0, index).concat(files.slice(index + 1));
         this.setState(() => ({
-            files
+            files: remainderFiles
         }));
     }
 
