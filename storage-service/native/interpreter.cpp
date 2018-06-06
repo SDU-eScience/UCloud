@@ -5,24 +5,40 @@
 #include <cassert>
 #include <sys/param.h>
 #include <fcntl.h>
+#include <cerrno>
+#include <ctime>
+#include <cstdint>
+#include <sys/timeb.h>
+#include <cmath>
+#include <string>
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
 #define IS_COMMAND(command) (strcmp(line, command) == 0)
 #define NEXT_ARGUMENT(idx) read_argument(line, args, idx)
-#define INTERNAL_BUFFER_CAPACITY (64 * 1024)
+#define INTERNAL_BUFFER_CAPACITY (32 * 1024)
+
+uint64_t ms() {
+    struct timeb timer_msec{};
+    ftime(&timer_msec);
+    return ((uint64_t) timer_msec.time) * 1000ll + (uint64_t) timer_msec.millitm;
+}
 
 ssize_t stdin_read_line(char *result, size_t size);
 
 static char *token;
 static size_t token_size;
-static size_t *token_table;
 
 static char *internal_buffer = nullptr;
 static ssize_t internal_pointer = -1;
 static ssize_t internal_buffer_size = -1;
 static size_t cleared_bytes = 0;
 static bool boundary_found = false;
+
+auto stdin_no = STDIN_FILENO;
+
+#define START_TIMER(a) auto timer ## a = ms();
+#define END_TIMER(a) a += ms() - timer ## a;
 
 char *read_argument(char *line, char args[MAX_ARGUMENTS][MAX_LINE_LENGTH], size_t arg_idx) {
     assert(arg_idx >= 0);
@@ -38,28 +54,8 @@ char *read_argument(char *line, char args[MAX_ARGUMENTS][MAX_LINE_LENGTH], size_
     return args[arg_idx];
 }
 
-size_t *build_kmp_table_for_token(const char *token, size_t *out_table_size) {
-    auto table_length = strlen(token);
-    auto table = (size_t *) calloc(table_length, sizeof(size_t));
-    if (table == nullptr) return nullptr;
-    *out_table_size = table_length;
-
-    for (size_t i = 1; i < table_length; i++) {
-        size_t j = table[i + 1];
-
-        while (j > 0 && token[j] != token[i]) {
-            j = table[j];
-        }
-
-        if (j > 0 || token[j] == token[i]) {
-            table[i + 1] = j + 1;
-        }
-    }
-
-    return table;
-}
-
 static void initialize_stdin_stream(char *token_in) {
+    fprintf(stderr, "Initializing streams\n");
     internal_buffer = (char *) malloc(INTERNAL_BUFFER_CAPACITY);
     if (internal_buffer == nullptr) {
         fprintf(stderr, "internal_buffer alloc failed\n");
@@ -67,46 +63,30 @@ static void initialize_stdin_stream(char *token_in) {
     }
 
     token = token_in;
-    token_table = build_kmp_table_for_token(token_in, &token_size);
+    fprintf(stderr, "Streams initialized\n");
 }
 
 static bool is_at_end_of_stream() {
     return boundary_found && cleared_bytes == 0;
 }
 
-auto moved_bytes = 0;
-auto num_scans = 0;
-uint64_t bytes_scanned = 0;
 static bool clear_as_much_as_possible() {
     assert(cleared_bytes == 0);
     assert(internal_pointer >= 0);
-    // KMP search on internal buffer until internal size
-    // We can clear all of the bytes, except for the last j bytes (longest possible prefix)
 
-    size_t j = 0;
-    auto i = (size_t) internal_pointer;
-    for (; i < internal_buffer_size; i++) {
-        bytes_scanned++;
+    std::string needle(token, token + token_size);
+    std::string haystack(internal_buffer + internal_pointer, internal_buffer + internal_buffer_size);
 
-        if (*(internal_buffer + i) == *(token + j)) {
-            if (++j == token_size) {
-                // Full match
-                i++;
-                break;
-            }
-        } else if (j > 0) {
-            // Not a match reset according to table
-            j = (size_t) token_table[j];
-            i--;
-        }
+    auto offset = haystack.find(needle);
+    auto len = (size_t) internal_buffer_size - internal_pointer;
+    if (offset == std::string::npos) {
+        if (token_size > len) cleared_bytes = len;
+        else cleared_bytes = len - (token_size - 1);
+        return false;
+    } else {
+        cleared_bytes = offset;
+        return true;
     }
-
-    // We don't clear bytes that could be a prefix (or a full match)
-    cleared_bytes = (i - internal_pointer) - j;
-    moved_bytes += j;
-    num_scans++;
-
-    return j == token_size;
 }
 
 static void reset_stream() {
@@ -124,7 +104,6 @@ static void reset_stream() {
     }
 }
 
-
 static void read_more_data() {
     assert(internal_buffer != nullptr);
     assert(cleared_bytes == 0);
@@ -137,7 +116,7 @@ static void read_more_data() {
         memcpy(internal_buffer, internal_buffer + internal_pointer, (size_t) remaining_buffer_size);
 
         auto bytes_read = read(
-                STDIN_FILENO,
+                stdin_no,
                 internal_buffer + remaining_buffer_size,
                 (size_t) INTERNAL_BUFFER_CAPACITY - remaining_buffer_size
         );
@@ -152,7 +131,7 @@ static void read_more_data() {
         internal_pointer = 0;
     } else {
         auto bytes_read = read(
-                STDIN_FILENO,
+                stdin_no,
                 internal_buffer,
                 INTERNAL_BUFFER_CAPACITY
         );
@@ -181,6 +160,7 @@ ssize_t stdin_read(char *buffer, size_t size) {
         cleared_bytes -= bytes_to_move;
         return bytes_to_move;
     } else if (!boundary_found) {
+
         read_more_data();
         boundary_found = clear_as_much_as_possible();
 
@@ -220,10 +200,61 @@ ssize_t stdin_read_line(char *result, size_t size) {
     return ptr;
 }
 
+void write_command(char *file) {
+    size_t write_buffer_size = INTERNAL_BUFFER_CAPACITY;
+    auto write_buffer = (char *) malloc(write_buffer_size);
+    assert(write_buffer != nullptr);
+
+    fprintf(stderr, "Writing to file '%s'. EOF token is '%s'\n", file, token);
+
+    fprintf(stderr, "Buffer at: %p\n", (void *) internal_buffer);
+    fprintf(stderr, "Word size is: %zu\n", sizeof(long));
+
+    auto out_file = open(file, O_WRONLY | O_CREAT, 0660);
+    if (out_file >= 0) {
+        ssize_t read;
+        read = stdin_read(write_buffer, write_buffer_size);
+        int required_iterations = 0;
+        while (read > 0) {
+            char *out_ptr = internal_buffer;
+            ssize_t nwritten;
+
+            do {
+                required_iterations++;
+                nwritten = write(out_file, out_ptr, read);
+
+                if (nwritten >= 0) {
+                    read -= nwritten;
+                    out_ptr += nwritten;
+                } else if (errno != EINTR) {
+                    fprintf(stderr, "Unexpected error\n");
+                    exit(1);
+                }
+
+            } while (read > 0);
+
+            read = stdin_read(write_buffer, write_buffer_size);
+        }
+        close(out_file);
+
+        if (!is_at_end_of_stream()) {
+            exit(1);
+        }
+
+        reset_stream();
+    }
+}
+
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "incorrect usage");
         return 1;
+    }
+
+    if (argc > 3) {
+        fprintf(stderr, "Using input from file: %s\n", argv[3]);
+        stdin_no = open(argv[3], O_RDONLY);
     }
 
     // Initialize streams
@@ -262,31 +293,8 @@ int main(int argc, char **argv) {
         } else if (IS_COMMAND("delete")) {
 
         } else if (IS_COMMAND("write")) {
-            static size_t write_buffer_size = INTERNAL_BUFFER_CAPACITY;
-            static auto write_buffer = (char *) malloc(write_buffer_size);
-            assert(write_buffer != nullptr);
-
             auto file = NEXT_ARGUMENT(0);
-            fprintf(stderr, "Writing to file '%s'. EOF token is '%s'\n", file, token);
-
-            auto out_file = open(file, O_WRONLY | O_CREAT, 0660);
-            if (out_file >= 0) {
-                ssize_t read;
-                while ((read = stdin_read(write_buffer, write_buffer_size)) > 0) {
-                    write(out_file, write_buffer, (size_t) read);
-                }
-                close(out_file);
-
-                if (!is_at_end_of_stream()) {
-                    fprintf(stderr, "Unexpected EOF while writing to file '%s'\n", file);
-                    exit(1);
-                }
-
-                reset_stream();
-            }
-            fprintf(stderr, "Moved bytes: %d\n", moved_bytes);
-            fprintf(stderr, "Scans: %d\n", num_scans);
-            fprintf(stderr, "Bytes: %llu\n", bytes_scanned);
+            write_command(file);
         } else if (IS_COMMAND("tree")) {
 
         } else if (IS_COMMAND("make-dir")) {
