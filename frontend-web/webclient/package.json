@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@types/react": "^16.3.16",
-    "@types/react-dom": "^16.0.5",
-    "@types/react-redux": "^6.0.1",
+    "@types/react-dom": "^16.0.6",
+    "@types/react-redux": "^6.0.2",
     "@types/react-router": "^4.0.26",
     "@types/react-router-dom": "^4.2.7",
     "avataaars": "^1.1.0",

@@ -16,7 +16,8 @@ export enum KeyCode {
     DOWN = 40,
     LEFT = 37,
     RIGHT = 39,
-    A = 65
+    A = 65,
+    B = 66
 }
 
 export const RightsMap: { [s: string]: number } = {

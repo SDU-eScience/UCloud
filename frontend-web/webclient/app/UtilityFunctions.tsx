@@ -41,7 +41,6 @@ export const isInvalidPathName = (path: string, filePaths: string[]): boolean =>
 export const isFixedFolder = (filePath: string, homeFolder: string) => {
     return [
         `${homeFolder}/Favorites`,
-        `${homeFolder}/Uploads`,
         `${homeFolder}/Jobs`,
         `${homeFolder}/Trash bin`
     ].some((it) => it === filePath)
@@ -53,7 +52,7 @@ export function sortByNumber<T>(list: T[], name: string, asc: boolean): T[] {
 }
 
 export function sortByString<T>(list: T[], name: string, asc: boolean): T[] {
-    list.sort((a: any, b: any) => ((a[name] as string).localeCompare(b[name] as string)) * (asc ? 1 : -1));
+    list.sort((a: T, b: T) => ((a[name] as string).localeCompare(b[name] as string)) * (asc ? 1 : -1));
     return list;
 }
 
@@ -397,6 +396,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         case "tiff":
         case "eps":
         case "ppm":
+        case "svg":
             return "image";
         case "txt":
         case "pdf":

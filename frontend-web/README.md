@@ -21,7 +21,7 @@ The front-end requires running two services, specifically `front-end/web` and `f
 
 After logging in to the site, the user will initially be presented with the dashboard. This provides an overview of a favorite files subset, 10 most recently used files and results of jobs that the user is associated with.
 
-The sidebar, if present, depending on the size of the device, will show Files, Applications, Publishing, and Shares. 
+The sidebar, if present, depending on the size of the device, will show Dashboard, Files, Applications, Publishing, and Shares. 
 
 The files component provides access to the user's files. Navigation is done by clicking on folders or clicking on a breadcrumb path. For any file, with few exceptions<sup>†</sup>, consisting of moving, renaming, copying, sharing, and deleting a folder or file. A file will also have a detailed breakdown of its info which can be accessed by clicking the Properties link for a file. Additionally, a user can create a folder in the currently accessed folder.
 

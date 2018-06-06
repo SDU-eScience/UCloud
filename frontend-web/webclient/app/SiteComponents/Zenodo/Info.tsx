@@ -1,33 +1,45 @@
-import React from "react";
+import * as React from "react";
 import { Container, Header, List, Table, Progress } from "semantic-ui-react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
-import { updatePageTitle } from "../../Actions/Status";
-import { connect } from "react-redux";
+import {Publication} from "../../types/types";
+import { match } from "react-router-dom";
 
-class ZenodoInfo extends React.Component {
-    constructor(props) {
+interface ZenodoInfoState {
+    promises: PromiseKeeper
+    loading: boolean
+    publicationID: string
+    publication?: Publication
+    intervalId: number
+    uploads?: any
+}
+
+type ZenodoInfoProps = {
+    match: match<{jobID: string}>
+}
+
+class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
+    constructor(props: ZenodoInfoProps) {
         super(props);
         this.state = {
             promises: new PromiseKeeper(),
             loading: true,
-            publicationID: window.decodeURIComponent(props.match.params.jobID),
+            publicationID: decodeURIComponent(props.match.params.jobID),
             publication: null,
             intervalId: -1
         };
-        this.props.dispatch(updatePageTitle("Zenodo Publication Info"));
-        this.reload = this.reload.bind(this);
     }
 
     componentWillMount() {
         this.setState(() => ({ loading: true }));
-        const intervalId = setInterval(this.reload, 500);
-        this.setState(() => ({ intervalId }));
+        const intervalId = window.setInterval(this.reload, 1000);
+        this.setState(() => ({ intervalId: intervalId }));
     }
 
-    reload() {
-        this.state.promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`))
+    reload = () => {
+        const { promises } = this.state;
+        promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`))
             .promise.then(({ response }) => {
                 this.setState(() => ({
                     publication: response.publication,
@@ -35,14 +47,14 @@ class ZenodoInfo extends React.Component {
                     loading: false,
                 }));
                 if (response.publication.status === "COMPLETE") {
-                    clearInterval(this.state.intervalId);
+                    window.clearInterval(this.state.intervalId);
                 }
             });
     }
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
-        clearInterval(this.state.intervalId);
+        window.clearInterval(this.state.intervalId);
     }
 
     render() {
@@ -58,7 +70,7 @@ class ZenodoInfo extends React.Component {
     }
 }
 
-const ZenodoPublishingBody = ({ publication, uploads, isActive }) => {
+const ZenodoPublishingBody = ({ publication, uploads }) => {
     let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
     return (
         <div>
@@ -107,4 +119,4 @@ const FilesList = ({ files }) =>
             </Table.Body>
         </Table>);
 
-export default connect()(ZenodoInfo);
+export default ZenodoInfo;
