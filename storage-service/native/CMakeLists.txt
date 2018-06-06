@@ -3,20 +3,28 @@ project(native)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(dirlisting main.cpp libacl.cpp libacl.h)
-add_executable(ceph-tree tree.cpp libacl.cpp libacl.h)
-add_executable(ceph-copy copy.cpp libacl.cpp libacl.h)
-add_executable(ceph-remove remove.cpp libacl.cpp libacl.h)
 add_executable(
         ceph-interpreter
+
         interpreter.cpp
+
+        utils.cpp
+        utils.h
+
         libacl.cpp
         libacl.h
+
         copy.cpp
         copy.h
-        utils.h
-        tree.h
+
         tree.cpp
+        tree.h
+
+        xattr.cpp
+        xattr.h
+
+        list.cpp
+        list.h
 )
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")

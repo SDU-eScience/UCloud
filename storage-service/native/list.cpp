@@ -9,20 +9,17 @@
 #include <sys/xattr.h>
 #include <cassert>
 #include <sstream>
+#include <cstring>
+
+#include "list.h"
+#include "utils.h"
 
 #ifdef __linux__
 #include <acl/libacl.h>
-#include <string.h>
-#define GETXATTR(path, name, value, size) getxattr(path, name, value, size)
-#define LISTXATTR(path, buffer, buffer_size) listxattr(path, buffer, buffer_size)
 #endif
 
 #ifdef __APPLE__
-
 #include "libacl.h"
-
-#define GETXATTR(path, name, value, size) getxattr(path, name, value, size, 0, 0)
-#define LISTXATTR(path, buffer, buffer_size) listxattr(path, buffer, buffer_size, 0)
 
 int acl_get_perm(acl_permset_t perm, int value) {
     return 0;
@@ -53,7 +50,7 @@ typedef struct {
 #define SHARED_WITH_WRITE 4
 #define SHARED_WITH_EXECUTE 8
 
-bool resolve_link(
+static bool resolve_link(
         const dirent *ep,
         struct stat *s,
         const char *parent_path,
@@ -69,6 +66,7 @@ bool resolve_link(
 
     // Construct full path
     strncpy(path_buffer, parent_path, PATH_MAX - 1);
+    strcat(path_buffer, "/");
     strcat(path_buffer, ep->d_name);
 
     // Resolve link
@@ -108,7 +106,7 @@ bool resolve_link(
     return success;
 }
 
-void find_favorites(const char *favorites_path) {
+static void find_favorites(const char *favorites_path) {
     struct dirent **entries;
     auto num_entries = scandir(favorites_path, &entries, one, alphasort);
     struct stat s{};
@@ -131,36 +129,16 @@ void find_favorites(const char *favorites_path) {
     std::cout << output.str();
 }
 
-char *find_favorites_path(int argc, char **argv) {
-    int fav_idx = -1;
-    for (int i = 0; i < argc; i++) {
-        char *current = argv[i];
-        if (strcmp(current, "--fav") == 0) {
-            fav_idx = i;
-            break;
-        }
-    }
-
-    if (fav_idx == -1) return nullptr;
-    if (fav_idx + 1 < argc) {
-        return argv[fav_idx + 1];
-    } else {
-        // Missing path
-        return nullptr;
-    }
+int favorites_command(const char *path) {
+    find_favorites(path);
+    return 0;
 }
 
-bool should_skip_listing(int argc, char **argv) {
-    for (int i = 0; i < argc; i++) {
-        char *current = argv[i];
-        if (strcmp(current, "--just-fav") == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-int main(int argc, char **argv) {
+// TODO FIXME THIS IS ALMOST DEFINITELY LEAKING
+// TODO FIXME THIS IS ALMOST DEFINITELY LEAKING
+// TODO FIXME THIS IS ALMOST DEFINITELY LEAKING
+// TODO FIXME THIS IS ALMOST DEFINITELY LEAKING
+int list_command(const char *path) {
     struct dirent **entries;
     struct stat stat_buffer{};
     acl_type_t acl_type = ACL_TYPE_ACCESS;
@@ -172,15 +150,7 @@ int main(int argc, char **argv) {
     char resolve_buffer[PATH_MAX];
     link_t link{};
 
-    char *favorites_path = find_favorites_path(argc, argv);
-    if (favorites_path != nullptr) {
-        find_favorites(favorites_path);
-    }
-
-    bool skip_listing = should_skip_listing(argc, argv);
-    if (skip_listing) return 0;
-
-    auto num_entries = scandir("./", &entries, one, alphasort);
+    auto num_entries = scandir(path, &entries, one, alphasort);
     for (int i = 0; i < num_entries; i++) {
         auto ep = entries[i];
         char file_type;
@@ -193,7 +163,7 @@ int main(int argc, char **argv) {
             file_type = 'L';
             is_link = true;
 
-            if (resolve_link(ep, &stat_buffer, "./", resolve_buffer, &link)) {
+            if (resolve_link(ep, &stat_buffer, path, resolve_buffer, &link)) {
                 file_type = link.type;
             } else {
                 fprintf(stderr, "Could not resolve file %s\n", ep->d_name);
@@ -300,7 +270,6 @@ int main(int argc, char **argv) {
         for (const auto &e : shares) {
             std::cout << e.name << ',' << (int) e.mode << ',';
         }
-
 
         size_t attr_name_buffer_size = 1024 * 32;
         char attr_name_buffer[attr_name_buffer_size];

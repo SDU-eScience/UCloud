@@ -8,18 +8,9 @@
 #include <grp.h>
 #include <cassert>
 #include <sstream>
-#include <sys/xattr.h>
 #include <list>
 #include "tree.h"
-
-#ifdef __linux__
-#include <string.h>
-#define GETXATTR(path, name, value, size) getxattr(path, name, value, size)
-#endif
-
-#ifdef __APPLE__
-#define GETXATTR(path, name, value, size) getxattr(path, name, value, size, 0, 0)
-#endif
+#include "utils.h"
 
 #define SHARED_WITH_UTYPE 1
 #define SHARED_WITH_READ 2
@@ -77,7 +68,6 @@ std::vector<tree_item_t> tree_list(const char *root) {
 
             &compare
     );
-
 
     if (file_system == nullptr) {
         goto cleanup;

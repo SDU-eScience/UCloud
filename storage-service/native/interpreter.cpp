@@ -14,6 +14,8 @@
 
 #include "copy.h"
 #include "tree.h"
+#include "xattr.h"
+#include "list.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -305,8 +307,12 @@ int main(int argc, char **argv) {
             printf("Dir: %s\n", dir);
         } else if (IS_COMMAND("move")) {
 
-        } else if (IS_COMMAND("list")) {
-
+        } else if (IS_COMMAND("list-directory")) {
+            auto dir = NEXT_ARGUMENT(0);
+            printf("%d\n", list_command(dir));
+        } else if (IS_COMMAND("list-favorites")) {
+            auto dir = NEXT_ARGUMENT(0);
+            printf("%d\n", favorites_command(dir));
         } else if (IS_COMMAND("delete")) {
 
         } else if (IS_COMMAND("write")) {
@@ -321,18 +327,22 @@ int main(int argc, char **argv) {
             auto file = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
 
+            printf("%d\n", xattr_get_command(file, attribute));
         } else if (IS_COMMAND("set-xattr")) {
             auto file = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
+            auto value = NEXT_ARGUMENT(2);
 
+            printf("%d\n", xattr_set_command(file, attribute, value));
         } else if (IS_COMMAND(("list-xattr"))) {
             auto file = NEXT_ARGUMENT(0);
-            auto attribute = NEXT_ARGUMENT(1);
 
+            printf("%d\n", xattr_list_command(file));
         } else if (IS_COMMAND("delete-xattr")) {
             auto file = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
 
+            printf("%d\n", xattr_delete_command(file, attribute));
         }
 
         if (strcmp("", line) != 0) {
@@ -340,7 +350,6 @@ int main(int argc, char **argv) {
             printf("DONE TOKEN\n");
             if (!did_reset) break;
         }
-
     }
 
     return 0;
