@@ -3,7 +3,7 @@ import { RECEIVE_PUBLICATIONS, SET_ZENODO_LOADING } from "../Reducers/Zenodo";
 
 export const fetchPublications = () =>
     Cloud.get("/zenodo/publications").then(({ response }) => {
-        return receivePublications(response.inProgress, response.connected);
+        return receivePublications(response.inProgress.items, response.connected);
     }).catch(failure => {
         return receivePublications([], false);
     });
