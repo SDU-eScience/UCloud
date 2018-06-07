@@ -25,6 +25,9 @@ add_executable(
 
         list.cpp
         list.h
+
+        delete.cpp
+        delete.h
 )
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")

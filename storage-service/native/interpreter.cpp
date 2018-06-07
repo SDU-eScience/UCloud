@@ -16,6 +16,7 @@
 #include "tree.h"
 #include "xattr.h"
 #include "list.h"
+#include "delete.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -314,7 +315,8 @@ int main(int argc, char **argv) {
             auto dir = NEXT_ARGUMENT(0);
             printf("%d\n", favorites_command(dir));
         } else if (IS_COMMAND("delete")) {
-
+            auto path = NEXT_ARGUMENT(0);
+            remove_command(path);
         } else if (IS_COMMAND("write")) {
             auto file = NEXT_ARGUMENT(0);
             write_command(file);

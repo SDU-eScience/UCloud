@@ -12,25 +12,26 @@
 #include <linux/limits.h>
 #endif
 
-void print_file_deleted(uint64_t inode, const char *path) {
+static void print_file_deleted(uint64_t inode, const char *path) {
     printf("%llu,%s\n", inode, path);
 }
 
-int compare(const FTSENT **one, const FTSENT **two) {
+static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
 
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <from>\n", argv[0]);
-        exit(1);
-    }
-
+int remove_command(const char *path_inp) {
+    int status = -1;
     FTS *file_system = nullptr;
     FTSENT *node = nullptr;
+    char *path = strdup(path_inp);
+
+    char *path_argv[2];
+    path_argv[0] = path;
+    path_argv[1] = nullptr;
 
     file_system = fts_open(
-            argv + 1, // argv[argc] is always nullptr
+            path_argv,
 
             FTS_PHYSICAL | // DO NOT FOLLOW SYMLINKS
             FTS_XDEV, // Don't leave file system (stay in CephFS)
@@ -41,7 +42,7 @@ int main(int argc, char **argv) {
     if (nullptr != file_system) {
         while ((node = fts_read(file_system)) != nullptr) {
             auto inode = node->fts_statp->st_ino;
-            auto path = node->fts_path;
+            auto file_path = node->fts_path;
 
             switch (node->fts_info) {
                 case FTS_DP:
@@ -50,9 +51,10 @@ int main(int argc, char **argv) {
                 case FTS_SLNONE:
                 case FTS_DEFAULT:
                     if (remove(node->fts_accpath) != 0) {
-                        fprintf(stderr, "%s: Failed to remove: %s\n", node->fts_path, strerror(errno));
+                        fprintf(stderr, "%s: Failed to remove: %s\n", file_path, strerror(errno));
                     } else {
-                        print_file_deleted(inode, path);
+                        status = 0; // Status is successful if any file was deleted by the action
+                        print_file_deleted(inode, file_path);
                     }
                     break;
 
@@ -60,5 +62,10 @@ int main(int argc, char **argv) {
             }
         }
     }
-    return 0;
+
+    cleanup:
+    if (file_system != nullptr) fts_close(file_system);
+    free(path);
+
+    return status;
 }
