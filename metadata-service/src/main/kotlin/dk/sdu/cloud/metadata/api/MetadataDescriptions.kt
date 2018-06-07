@@ -12,7 +12,7 @@ data class ProjectMetadataWithRightsInfo(
 )
 
 object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
-    private const val baseContext = "/api/metadata"
+    const val baseContext = "/api/metadata"
 
     val updateProjectMetadata = callDescription<ProjectMetadataEditRequest, Unit, CommonErrorMessage> {
         method = HttpMethod.Post

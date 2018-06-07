@@ -10,14 +10,12 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.stackTraceToString
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.term.term
-import org.apache.http.HttpHost
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.search.SearchRequest
-import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.xcontent.XContentType
@@ -26,20 +24,17 @@ import org.slf4j.LoggerFactory
 import java.io.File
 
 class ElasticMetadataService(
-    elasticHost: String,
-    elasticPort: Int,
-    elasticScheme: String,
-
+    private val elasticClient: RestHighLevelClient,
     private val projectService: ProjectService
 ) : MetadataCommandService, MetadataQueryService, MetadataAdvancedQueryService {
-    private val client = RestHighLevelClient(RestClient.builder(HttpHost(elasticHost, elasticPort, elasticScheme)))
+//    private val client = RestHighLevelClient(RestClient.builder(HttpHost(elasticHost, elasticPort, elasticScheme)))
 
     private val mapper = jacksonObjectMapper()
     private val singleInstanceOfMicroServiceLockBadIdeaButWorksForNow = Any()
     override fun create(metadata: ProjectMetadata) {
         if (internalGetById(metadata.id) != null) throw MetadataException.Duplicate()
 
-        client.index(
+        elasticClient.index(
             IndexRequest(index, doc, metadata.id).apply {
                 source(mapper.writeValueAsString(metadata), XContentType.JSON)
             }
@@ -82,7 +77,7 @@ class ElasticMetadataService(
     }
 
     private fun internalUpdate(metadata: ProjectMetadata) {
-        client.index(
+        elasticClient.index(
             IndexRequest(index, doc, metadata.id).apply {
                 source(mapper.writeValueAsString(metadata), XContentType.JSON)
             }
@@ -150,7 +145,7 @@ class ElasticMetadataService(
     }
 
     private fun internalGetById(id: String): ProjectMetadata? {
-        val getResponse = client[GetRequest(index, doc, id)]
+        val getResponse = elasticClient[GetRequest(index, doc, id)]
         return getResponse?.takeIf { it.isExists }?.sourceAsBytes?.let { mapper.readValue(it) }
     }
 
@@ -172,7 +167,7 @@ class ElasticMetadataService(
             })
         }
 
-        val response = client.search(request)
+        val response = elasticClient.search(request)
         val records = response.hits.hits.mapNotNull {
             try {
                 mapper.readValue<ProjectMetadata>(it.sourceAsString)
@@ -187,7 +182,7 @@ class ElasticMetadataService(
     }
 
     private fun internalDelete(projectId: String) {
-        client.delete(DeleteRequest(index, doc, projectId))
+        elasticClient.delete(DeleteRequest(index, doc, projectId))
     }
 
     override fun delete(user: String, projectId: String) {
@@ -202,7 +197,7 @@ class ElasticMetadataService(
 
     fun initializeElasticSearch() {
         try {
-            client.indices().delete(DeleteIndexRequest(index))
+            elasticClient.indices().delete(DeleteIndexRequest(index))
         } catch (ex: Exception) {
             log.debug(ex.stackTraceToString())
         }
@@ -248,7 +243,7 @@ class ElasticMetadataService(
         }
         """, XContentType.JSON)
 
-            client.indices().create(request)
+            elasticClient.indices().create(request)
         } catch (ex: Exception) {
             log.debug("Exception caught when creating settings and mapping for index")
             log.debug(ex.stackTraceToString())

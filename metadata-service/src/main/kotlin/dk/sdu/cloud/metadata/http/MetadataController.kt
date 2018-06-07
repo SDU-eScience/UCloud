@@ -18,8 +18,10 @@ class MetadataController(
     private val metadataAdvancedQueryService: MetadataAdvancedQueryService,
 
     private val projectService: ProjectService // TODO Should not be here
-) {
-    fun configure(routing: Route) = with(routing) {
+) : Controller {
+    override val baseContext: String = MetadataDescriptions.baseContext
+
+    override fun configure(routing: Route) = with(routing) {
         implement(MetadataDescriptions.updateProjectMetadata) {
             logEntry(log, it)
 

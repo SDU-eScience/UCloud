@@ -14,7 +14,7 @@ data class CreateProjectResponse(val id: String)
 typealias FindByProjectId = FindByStringId
 
 object ProjectDescriptions : RESTDescriptions(MetadataServiceDescription) {
-    private const val baseContext = "/api/projects"
+    const val baseContext = "/api/projects"
 
     val create = callDescription<CreateProjectRequest, CreateProjectResponse, CommonErrorMessage> {
         method = HttpMethod.Put
@@ -33,6 +33,9 @@ object ProjectDescriptions : RESTDescriptions(MetadataServiceDescription) {
 
         path {
             using(baseContext)
+        }
+
+        params {
             +boundTo(FindByPath::path)
         }
     }

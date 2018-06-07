@@ -1,5 +1,6 @@
 package dk.sdu.cloud.metadata.services
 
+import dk.sdu.cloud.metadata.util.normalize
 import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
@@ -40,7 +41,7 @@ class ProjectSQLDao : ProjectDAO {
     }
 
     override fun deleteProjectByRoot(root: String) {
-        val normalizedPath = File(root).normalize().path
+        val normalizedPath = root.normalize()
         val deleted = transaction {
             Projects.deleteWhere { Projects.fsRoot eq normalizedPath }
         }
@@ -65,7 +66,7 @@ class ProjectSQLDao : ProjectDAO {
     }
 
     override fun findByFSRoot(path: String): Project? {
-        val normalizedPath = File(path).normalize().path
+        val normalizedPath = path.normalize()
         return transaction {
             ProjectEntity.find { Projects.fsRoot eq normalizedPath }.toList().singleOrNull()?.toProject()
         }
@@ -87,7 +88,7 @@ class ProjectSQLDao : ProjectDAO {
     }
 
     override fun findBestMatchingProjectByPath(path: String): Project? {
-        val normalizedPath = File(path).normalize().path
+        val normalizedPath = path.normalize()
         return transaction {
             ProjectEntity.wrapRows(
                 Projects

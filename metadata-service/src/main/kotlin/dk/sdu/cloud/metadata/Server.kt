@@ -15,8 +15,11 @@ import io.ktor.application.install
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
+import org.apache.http.HttpHost
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
+import org.elasticsearch.client.RestClient
+import org.elasticsearch.client.RestHighLevelClient
 import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.jetbrains.exposed.sql.SchemaUtils.drop
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -41,7 +44,12 @@ class Server(
         log.info("Creating core services")
         val projectService = ProjectService(ProjectSQLDao())
         val elasticMetadataService =
-            with(configuration.elastic) { ElasticMetadataService(hostname, port, scheme, projectService) }
+            with(configuration.elastic) {
+                ElasticMetadataService(
+                    RestHighLevelClient(RestClient.builder(HttpHost(hostname, port, scheme))),
+                    projectService
+                )
+            }
 
         if (args.contains("--init-db")) {
             log.info("Initializing database")

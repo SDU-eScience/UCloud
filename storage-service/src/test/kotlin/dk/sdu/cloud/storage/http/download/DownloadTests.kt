@@ -6,7 +6,6 @@ import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
 import dk.sdu.cloud.storage.http.files.setUser
 import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
@@ -16,7 +15,6 @@ import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.application.install
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.response.header
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
@@ -57,7 +55,7 @@ class DownloadTests {
                     test = {
                         val response =
                             handleRequest(HttpMethod.Get, "/api/files/download?path=/home/user1/folder/a&token=token") {
-                                setUser("schulz", Role.USER)
+                                setUser("User", Role.USER)
                             }.response
 
                         println(response.headers.allValues())
@@ -100,7 +98,7 @@ class DownloadTests {
                     test = {
                         val response =
                             handleRequest(HttpMethod.Get, "/api/files/download?path=/home/user1/folder&token=token") {
-                                setUser("schulz", Role.USER)
+                                setUser("User", Role.USER)
                             }.response
 
 
@@ -142,7 +140,7 @@ class DownloadTests {
                     test = {
                         val response =
                             handleRequest(HttpMethod.Get, "/api/files/download?path=/home/user1/folder/notThere/a&token=token") {
-                                setUser("schulz", Role.USER)
+                                setUser("User", Role.USER)
                             }.response
 
 
@@ -183,7 +181,7 @@ class DownloadTests {
                     test = {
                         val response =
                             handleRequest(HttpMethod.Post, "/api/files/bulk") {
-                                setUser("schulz", Role.USER)
+                                setUser("User", Role.USER)
                                 setBody("""
                                     {
                                     "prefix" : "/home/user1/folder/",
@@ -231,7 +229,7 @@ class DownloadTests {
                     test = {
                         val response =
                             handleRequest(HttpMethod.Post, "/api/files/bulk") {
-                                setUser("schulz", Role.USER)
+                                setUser("User", Role.USER)
                                 setBody("""
                                     {
                                     "prefix" : "/home/user1/folder/",

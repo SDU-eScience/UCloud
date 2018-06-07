@@ -9,22 +9,34 @@ import dk.sdu.cloud.metadata.services.Project
 import dk.sdu.cloud.metadata.services.ProjectException
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.tryWithProject
+import dk.sdu.cloud.metadata.util.normalize
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.AnnotateFileRequest
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SyncFileListRequest
+import io.ktor.cio.toByteArray
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import org.slf4j.LoggerFactory
 import java.util.stream.Collectors
 
+// TODO FIXME Move to service-common
+// TODO FIXME Move to service-common
+// TODO FIXME Move to service-common
+interface Controller {
+    val baseContext: String
+    fun configure(routing: Route)
+}
+
 class ProjectsController(
     private val projectEventProducer: ProjectEventProducer,
     private val projectService: ProjectService
-) {
-    fun configure(routing: Route) = with(routing) {
+) : Controller {
+    override val baseContext = ProjectDescriptions.baseContext
+
+    override fun configure(routing: Route) = with(routing) {
         implement(ProjectDescriptions.create) { request ->
             logEntry(log, request)
 
@@ -52,9 +64,10 @@ class ProjectsController(
                     .map { parseSyncItem(it) }
                     .collect(Collectors.toList())
 
-                val metadataFiles = initialFiles.map { FileDescriptionForMetadata(it.uniqueId, it.fileType, it.path) }
-                val rootFile = initialFiles.find { it.path == request.fsRoot } ?: return@implement run {
-                    log.warn("Expected to find information about root file")
+                val metadataFiles = initialFiles.map { FileDescriptionForMetadata(it.uniqueId, it.fileType, it.path.normalize()) }
+
+                val rootFile = initialFiles.find { it.path.normalize() == request.fsRoot.normalize() } ?: return@implement run {
+                    log.info("Expected to find information about root file")
                     error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
                 }
 
@@ -102,7 +115,7 @@ class ProjectsController(
     }
 }
 
-private data class SyncItem(
+data class SyncItem(
     val fileType: FileType,
     val uniqueId: String,
     val user: String,
@@ -110,7 +123,43 @@ private data class SyncItem(
     val checksum: String?,
     val checksumType: String?,
     val path: String
-)
+) {
+    override fun toString(): String =
+        StringBuilder().apply {
+            val type = when (fileType) {
+                FileType.FILE -> "F"
+                FileType.DIRECTORY -> "D"
+                else -> throw IllegalArgumentException()
+            }
+
+            append(type)
+            append(',')
+
+            append(uniqueId)
+            append(',')
+
+            append(user)
+            append(',')
+
+            append(modifiedAt)
+            append(',')
+
+            val hasChecksum = checksum != null
+            append(if (hasChecksum) '1' else '0')
+            append(',')
+
+            if (hasChecksum) {
+                append(checksum)
+                append(',')
+
+                append(checksumType)
+                append(',')
+            }
+
+            append(path)
+        }.toString()
+
+}
 
 // TODO Should probably be distributed with storage-api
 private fun parseSyncItem(syncLine: String): SyncItem {

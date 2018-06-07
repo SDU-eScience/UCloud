@@ -31,7 +31,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 
 class ShareTests {
-
+    // Possible problem when tests are run on other computer. Schulz is not the owner of the filesystem.
     @Test
     fun createListAndAcceptTest() {
         withAuthMock {
