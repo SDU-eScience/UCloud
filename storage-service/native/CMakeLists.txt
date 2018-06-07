@@ -31,7 +31,7 @@ add_executable(
 
         stat.cpp
         stat.h
-)
+        mkdir.cpp mkdir.h)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)

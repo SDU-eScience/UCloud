@@ -18,6 +18,7 @@
 #include "list.h"
 #include "delete.h"
 #include "stat.h"
+#include "mkdir.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -325,7 +326,8 @@ int main(int argc, char **argv) {
             auto root = NEXT_ARGUMENT(0);
             tree_command(root);
         } else if (IS_COMMAND("make-dir")) {
-
+            auto file = NEXT_ARGUMENT(0);
+            printf("%d\n", mkdir_command(file));
         } else if (IS_COMMAND("get-xattr")) {
             auto file = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);

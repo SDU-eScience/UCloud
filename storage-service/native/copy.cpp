@@ -10,17 +10,13 @@
 #include "copy.h"
 #include "utils.h"
 
-void print_file_created(uint64_t inode, const char *path, bool is_dir) {
-    char type = is_dir ? 'D' : 'F';
-    printf("%llu,%c,%s\n", inode, type, path);
-}
 
-int compare(const FTSENT **one, const FTSENT **two) {
+static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
 
 // Source: https://stackoverflow.com/a/2180788
-int copy_file(const char *from, const char *to) {
+static int copy_file(const char *from, const char *to) {
     int fd_to, fd_from;
     char buf[4096];
     ssize_t nread;
@@ -71,59 +67,6 @@ int copy_file(const char *from, const char *to) {
 
     errno = saved_errno;
     return -1;
-}
-
-// Source: https://stackoverflow.com/a/675193
-static int do_mkdir(const char *path, mode_t mode) {
-    struct stat st{};
-    int status = 0;
-
-    if (stat(path, &st) != 0) {
-        /* Directory does not exist. EEXIST for race condition */
-        int mkdir_status = mkdir(path, mode);
-        if (mkdir_status != 0 && errno != EEXIST) {
-            status = -1;
-        }
-
-        if (mkdir_status == 0) {
-            stat(path, &st);
-            status = stat(path, &st);
-            if (status != 0) {
-                fprintf(stderr, "stat failed for %s after successful mkdir! %s \n", path, strerror(errno));
-            } else {
-                print_file_created(st.st_ino, path, true);
-            }
-        }
-    } else if (!S_ISDIR(st.st_mode)) {
-        errno = ENOTDIR;
-        status = -1;
-    }
-
-    return (status);
-}
-
-static int mkpath(const char *path, mode_t mode) {
-    char *pp;
-    char *sp;
-    int status;
-    char *copypath = strdup(path);
-
-    status = 0;
-    pp = copypath;
-    while (status == 0 && (sp = strchr(pp, '/')) != nullptr) {
-        if (sp != pp) {
-            /* Neither root nor double slash in path */
-            *sp = '\0';
-            status = do_mkdir(copypath, mode);
-            *sp = '/';
-        }
-        pp = sp + 1;
-    }
-    if (status == 0) {
-        status = do_mkdir(path, mode);
-    }
-    free(copypath);
-    return (status);
 }
 
 int last_index_of(const char *haystack, char needle) {

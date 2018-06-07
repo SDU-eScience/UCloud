@@ -37,6 +37,9 @@ typedef struct {
 int print_file(const char *path_inp, const struct stat *stat_inp);
 bool starts_with(const char *pre, const char *str);
 bool resolve_link(const char *path, link_t *link_out);
+void print_file_created(uint64_t inode, const char *path, bool is_dir);
+int mkpath(const char *path, mode_t mode);
+int do_mkdir(const char *path, mode_t mode);
 
 #ifdef __linux__
 #include <string.h>

@@ -240,3 +240,63 @@ int print_file(const char *path, const struct stat *stat_inp) {
     std::cout << path << std::endl;
     return 0;
 }
+
+void print_file_created(uint64_t inode, const char *path, bool is_dir) {
+    char type = is_dir ? 'D' : 'F';
+    printf("%llu,%c,%s\n", inode, type, path);
+}
+
+// Source: https://stackoverflow.com/a/675193
+int do_mkdir(const char *path, mode_t mode) {
+    struct stat st{};
+    int status = 0;
+
+    if (stat(path, &st) != 0) {
+        /* Directory does not exist. EEXIST for race condition */
+        int mkdir_status = mkdir(path, mode);
+        if (mkdir_status != 0 && errno != EEXIST) {
+            status = -errno;
+        }
+
+        if (mkdir_status == 0) {
+            stat(path, &st);
+            status = stat(path, &st);
+            if (status != 0) {
+                fprintf(stderr, "stat failed for %s after successful mkdir! %s \n", path, strerror(errno));
+            } else {
+                print_file_created(st.st_ino, path, true);
+            }
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        errno = ENOTDIR;
+        status = -1;
+    }
+
+    return (status);
+}
+
+int mkpath(const char *path, mode_t mode) {
+    char *pp;
+    char *sp;
+    int status;
+    char *copypath = strdup(path);
+
+    status = 0;
+    pp = copypath;
+    while (status == 0 && (sp = strchr(pp, '/')) != nullptr) {
+        if (sp != pp) {
+            /* Neither root nor double slash in path */
+            *sp = '\0';
+            status = do_mkdir(copypath, mode);
+            *sp = '/';
+        }
+        pp = sp + 1;
+    }
+    if (status == 0) {
+        status = do_mkdir(path, mode);
+    }
+    free(copypath);
+    return (status);
+}
+
+
