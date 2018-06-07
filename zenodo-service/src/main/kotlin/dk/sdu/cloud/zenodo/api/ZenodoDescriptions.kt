@@ -6,7 +6,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.storage.api.WithPagination
-import io.netty.handler.codec.http.HttpMethod
+import io.ktor.http.HttpMethod
 
 data class ZenodoAccessRequest(val returnTo: String)
 data class ZenodoAccessRedirectURL(val redirectTo: String)
@@ -63,7 +63,7 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
     private const val baseContext = "/api/zenodo"
 
     val requestAccess = callDescription<ZenodoAccessRequest, ZenodoAccessRedirectURL, CommonErrorMessage> {
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         prettyName = "requestAccess"
 
         path {
@@ -77,7 +77,7 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
     }
 
     val publish = callDescription<ZenodoPublishRequest, ZenodoPublishResponse, ZenodoErrorMessage> {
-        method = HttpMethod.POST
+        method = HttpMethod.Post
         prettyName = "publish"
 
         path {
@@ -89,7 +89,7 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
     }
 
     val status = callDescription<Unit, ZenodoConnectedStatus, CommonErrorMessage> {
-        method = HttpMethod.GET
+        method = HttpMethod.Get
         prettyName = "status"
 
         path {
@@ -99,7 +99,7 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
     }
 
     val listPublications = callDescription<ZenodoListPublicationsRequest, ZenodoPublicationList, ZenodoErrorMessage> {
-        method = HttpMethod.GET
+        method = HttpMethod.Get
         prettyName = "listPublications"
 
         path {
@@ -114,7 +114,7 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
     }
 
     val findPublicationById = callDescription<FindByIntId, ZenodoPublicationWithFiles, ZenodoErrorMessage> {
-        method = HttpMethod.GET
+        method = HttpMethod.Get
         prettyName = "findPublicationById"
 
         path {

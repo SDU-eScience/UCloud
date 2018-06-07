@@ -1,9 +1,9 @@
 package dk.sdu.cloud.zenodo.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.client.HttpClient
-import dk.sdu.cloud.client.asJson
 import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.zenodo.util.HttpClient
+import dk.sdu.cloud.zenodo.util.asJson
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.delay

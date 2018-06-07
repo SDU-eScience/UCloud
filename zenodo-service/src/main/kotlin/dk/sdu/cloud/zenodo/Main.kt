@@ -49,8 +49,14 @@ fun main(args: Array<String>) {
     val serviceRegistry = ServiceRegistry(serviceDescription.instance(configuration.connConfig))
     log.info("Connected to Service Registry!")
 
+    val parent = defaultServiceClient(args, serviceRegistry)
+    if (parent is DirectServiceClient) {
+        // TODO Temporary work around
+        parent.overrideServiceVersionPreference("storage", "*")
+    }
+
     val cloud = RefreshingJWTAuthenticatedCloud(
-        defaultServiceClient(args, serviceRegistry),
+        parent,
         configuration.refreshToken
     )
 

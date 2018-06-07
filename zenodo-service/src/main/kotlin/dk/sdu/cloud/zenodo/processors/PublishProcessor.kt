@@ -20,6 +20,7 @@ import dk.sdu.cloud.zenodo.api.ZenodoPublishCommand
 import dk.sdu.cloud.zenodo.services.PublicationService
 import dk.sdu.cloud.zenodo.services.ZenodoRPCException
 import dk.sdu.cloud.zenodo.services.ZenodoRPCService
+import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
@@ -106,7 +107,7 @@ class PublishProcessor(
             val tempFile = Files.createTempFile("zenodo-upload", "").toFile()
             try {
                 tempFile.outputStream().use { out ->
-                    fileDownload.response.responseBodyAsStream.use { inp ->
+                    fileDownload.response.content.toInputStream().use { inp ->
                         while (true) {
                             val read = inp.read(buffer)
                             if (read != -1) out.write(buffer, 0, read)

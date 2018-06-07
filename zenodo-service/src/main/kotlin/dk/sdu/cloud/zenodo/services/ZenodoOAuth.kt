@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.HttpClient
-import dk.sdu.cloud.client.asDynamicJson
+import dk.sdu.cloud.zenodo.util.HttpClient
+import dk.sdu.cloud.zenodo.util.asDynamicJson
 import java.io.File
 import java.net.URL
 import java.util.*
