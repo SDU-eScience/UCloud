@@ -5,19 +5,10 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdint.h>
+#include <cstdint>
 #include <sys/stat.h>
 #include "copy.h"
 #include "utils.h"
-
-#if defined(__APPLE__) || defined(__FreeBSD__)
-
-#include <iostream>
-#include <sys/stat.h>
-
-#else
-#include <linux/limits.h>
-#endif
 
 void print_file_created(uint64_t inode, const char *path, bool is_dir) {
     char type = is_dir ? 'D' : 'F';

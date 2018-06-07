@@ -17,6 +17,7 @@
 #include "xattr.h"
 #include "list.h"
 #include "delete.h"
+#include "stat.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -345,6 +346,9 @@ int main(int argc, char **argv) {
             auto attribute = NEXT_ARGUMENT(1);
 
             printf("%d\n", xattr_delete_command(file, attribute));
+        } else if (IS_COMMAND("stat")) {
+            auto file = NEXT_ARGUMENT(0);
+            printf("%d\n", stat_command(file));
         }
 
         if (strcmp("", line) != 0) {
