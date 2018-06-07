@@ -11,6 +11,7 @@
 #include <sys/timeb.h>
 #include <cmath>
 #include <string>
+#include <sys/stat.h>
 
 #include "copy.h"
 #include "tree.h"
@@ -19,6 +20,7 @@
 #include "delete.h"
 #include "stat.h"
 #include "mkdir.h"
+#include "move.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -241,7 +243,7 @@ void write_command(char *file) {
         read = stdin_read(write_buffer, write_buffer_size);
         int required_iterations = 0;
         while (read > 0) {
-            char *out_ptr = internal_buffer;
+            char *out_ptr = write_buffer;
             ssize_t nwritten;
 
             do {
@@ -261,9 +263,53 @@ void write_command(char *file) {
             read = stdin_read(write_buffer, write_buffer_size);
         }
         close(out_file);
-
-
     }
+
+    free(write_buffer);
+}
+
+void read_command(char *file) {
+    struct stat s{};
+    int status;
+
+    size_t read_buffer_size = INTERNAL_BUFFER_CAPACITY;
+    auto read_buffer = (char *) malloc(read_buffer_size);
+    auto in_file = open(file, O_RDONLY);
+    auto out_file = STDOUT_FILENO;
+
+    if (in_file > 0) {
+        status = fstat(in_file, &s);
+        assert(status == 0);
+
+        printf("%lli\n", s.st_size);
+
+        ssize_t bytes_read;
+        bytes_read = read(in_file, read_buffer, read_buffer_size);
+        int required_iterations = 0;
+        while (bytes_read > 0) {
+            char *out_ptr = read_buffer;
+            ssize_t nwritten;
+
+            do {
+                required_iterations++;
+                nwritten = write(out_file, out_ptr, (size_t) bytes_read);
+
+                if (nwritten >= 0) {
+                    bytes_read -= nwritten;
+                    out_ptr += nwritten;
+                } else if (errno != EINTR) {
+                    fprintf(stderr, "Unexpected error\n");
+                    exit(1);
+                }
+
+            } while (bytes_read > 0);
+
+            bytes_read = read(in_file, read_buffer, read_buffer_size);
+        }
+    }
+
+    if (in_file > 0) close(in_file);
+    free(read_buffer);
 }
 
 int main(int argc, char **argv) {
@@ -309,7 +355,9 @@ int main(int argc, char **argv) {
             auto dir = NEXT_ARGUMENT(0);
             printf("Dir: %s\n", dir);
         } else if (IS_COMMAND("move")) {
-
+            auto from = NEXT_ARGUMENT(0);
+            auto to = NEXT_ARGUMENT(1);
+            printf("%d\n", move_command(from, to));
         } else if (IS_COMMAND("list-directory")) {
             auto dir = NEXT_ARGUMENT(0);
             printf("%d\n", list_command(dir));
@@ -351,6 +399,9 @@ int main(int argc, char **argv) {
         } else if (IS_COMMAND("stat")) {
             auto file = NEXT_ARGUMENT(0);
             printf("%d\n", stat_command(file));
+        } else if (IS_COMMAND("read")) {
+            auto file = NEXT_ARGUMENT(0);
+            read_command(file);
         }
 
         if (strcmp("", line) != 0) {

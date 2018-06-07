@@ -23,7 +23,7 @@ static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
 
-static void print_item(const tree_item_t *item) {
+void print_tree_item(const tree_item_t *item) {
     std::cout
             << item->file_type << ','
             << item->unix_mode << ','
@@ -42,7 +42,7 @@ static void print_item(const tree_item_t *item) {
 void tree_command(const char *root) {
     auto list = tree_list(root);
     for (tree_item_t &item : list) {
-        print_item(&item);
+        print_tree_item(&item);
         printf("\n");
     }
 }

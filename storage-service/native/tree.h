@@ -1,6 +1,19 @@
 #ifndef NATIVE_TREE_H
 #define NATIVE_TREE_H
 
+#include <cstdint>
+#include <sys/stat.h>
+
+#if defined(__APPLE__) || defined(__FreeBSD__)
+
+#include <iostream>
+#include <sys/stat.h>
+
+#else
+#include <linux/limits.h>
+#endif
+
+
 #define USER_MAX 256
 #define GROUP_MAX 256
 #define CHECKSUM_MAX 256
@@ -23,5 +36,6 @@ typedef struct {
 
 void tree_command(const char *root);
 std::vector<tree_item_t> tree_list(const char *root);
+void print_tree_item(const tree_item_t *item);
 
 #endif //NATIVE_TREE_H
