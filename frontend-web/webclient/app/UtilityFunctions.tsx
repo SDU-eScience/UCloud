@@ -365,6 +365,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         case "eps":
         case "ppm":
         case "svg":
+        case "jpg":
             return "image";
         case "txt":
         case "pdf":
@@ -422,5 +423,5 @@ export const blankOrNull = (value: string): boolean => {
 };
 
 export const ifPresent = (f, handler: (f: any) => void) => {
-    if (f) handler(f);
+    if (f) handler(f)
 };

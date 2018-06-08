@@ -4,10 +4,22 @@ import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import { Link, withRouter } from "react-router-dom";
 import "./Header.scss";
+import { Dispatch } from "redux";
 import Notifications from "../Notifications/index";
 import { setSidebarOpen } from "../../Actions/Sidebar";
+import { History } from "history";
 
-class Header extends React.Component<any, any> {
+interface HeaderProps {
+    open: boolean
+    dispatch: Dispatch
+    history: History
+}
+
+interface HeaderState {
+    searchText: string
+}
+
+class Header extends React.Component<HeaderProps, HeaderState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -15,8 +27,7 @@ class Header extends React.Component<any, any> {
         };
     }
 
-    updateSearchText = (searchText) =>
-        this.setState(() => ({ searchText }));
+    updateSearchText = (searchText) => this.setState(() => ({ searchText }));
 
     public render() {
         const sidebarIcon = this.props.open ? "triangle left" : "triangle right";
@@ -42,8 +53,8 @@ class Header extends React.Component<any, any> {
                             </Form>
                         </Responsive>
                         <Responsive maxWidth={699}>
-                            <Link to={`/metadata`}>
-                                <Icon name='search' />
+                            <Link to={"/metadata/search/"}>
+                                <Icon name="search" />
                             </Link>
                         </Responsive>
                     </Menu.Item>
@@ -61,5 +72,10 @@ class Header extends React.Component<any, any> {
     }
 }
 
-const mapStateToProps = ({ sidebar }: any) => ({ open: sidebar.open });
+interface StateToProps {
+    sidebar: {
+        open: boolean
+    }
+}
+const mapStateToProps = ({ sidebar }: StateToProps) => ({ open: sidebar.open });
 export default connect(mapStateToProps)(withRouter(Header));

@@ -2,7 +2,6 @@ import React from "react";
 import { DefaultLoading } from '../LoadingIcon/LoadingIcon'
 import { NotificationIcon, WebSocketSupport } from '../../UtilityFunctions'
 import { Table } from "semantic-ui-react";
-import { Cloud } from "../../../authentication/SDUCloudObject";
 import { updatePageTitle } from "../../Actions/Status";
 import { connect } from "react-redux";
 import { dateToString } from "../../Utilities/DateUtilities";
@@ -77,6 +76,7 @@ class Notifications extends React.Component {
         })
     }
 
+    // FIXME use enumeration or booleans instead
     showMore(name) {
         if (name === "recent") {
             this.setState({

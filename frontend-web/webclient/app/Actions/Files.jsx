@@ -6,7 +6,6 @@ import {
     SET_FILES_LOADING,
     UPDATE_PATH,
     TO_FILES_PAGE,
-    UPDATE_FILES_INFO_PATH,
     SET_FILES_SORTING_COLUMN,
     FILE_SELECTOR_SHOWN,
     SET_FILE_SELECTOR_LOADING,
@@ -14,7 +13,7 @@ import {
     SET_FILE_SELECTOR_CALLBACK,
     SET_DISALLOWED_PATHS
 } from "../Reducers/Files";
-import { getParentPath, sortFilesByTypeAndName, failureNotification } from "../UtilityFunctions";
+import { sortFilesByTypeAndName, failureNotification } from "../UtilityFunctions";
 
 /**
 ** Creates a promise to fetch files. Sorts the files based on sorting function passed,

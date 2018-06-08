@@ -69,10 +69,10 @@ class Applications extends React.Component {
                     <Table.Header>
                         <Table.Row>
                             <Table.HeaderCell onClick={() => this.sortByString("name")}>
-                                Application Name <span className={`pull-right ${getSortingIcon(this.state.lastSorting, "name")}`} />
+                                Application Name <Icon name={getSortingIcon(this.state.lastSorting, "name")} />
                             </Table.HeaderCell>
                             <Table.HeaderCell onClick={() => this.sortByString("version")}>
-                                Version<span className={`pull-right ${getSortingIcon(this.state.lastSorting, "version")}`} />
+                                Version <Icon name={getSortingIcon(this.state.lastSorting, "version")} />
                             </Table.HeaderCell>
                             <Table.HeaderCell />
                         </Table.Row>

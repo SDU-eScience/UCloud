@@ -41,7 +41,7 @@ const Core = () => (
                 <Route exact path="/zenodo/publish/" component={ZenodoPublish} />
                 <Route exact path="/shares" component={Share.List} />
                 <Route exact path="/metadata/edit/*" component={Metadata.CreateUpdate} />
-                <Route exact path="/metadata/search/:query" component={Metadata.Search} />
+                <Route exact path="/metadata/search/:query?" component={Metadata.Search} />
                 <Route exact path="/metadata/*" component={Metadata.ManagedView} />
                 <Route component={NotFound} />
             </Switch>

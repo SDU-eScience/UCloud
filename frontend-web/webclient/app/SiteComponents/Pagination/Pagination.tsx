@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Pagination, Dropdown } from "semantic-ui-react";
-import { createRange } from "../../UtilityFunctions";
 
 interface PaginationButtons {
     totalPages: number,

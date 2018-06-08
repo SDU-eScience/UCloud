@@ -15,7 +15,7 @@ const receiveAnalyses = ({ items, itemsPerPage, pageNumber, pagesInTotal }) => (
     analysesPerPage: itemsPerPage,
     pageNumber: pageNumber,
     totalPages: pagesInTotal
-})
+});
 
 export const setPageSize = (pageSize) => ({
     type: SET_ANALYSES_PAGE_SIZE,

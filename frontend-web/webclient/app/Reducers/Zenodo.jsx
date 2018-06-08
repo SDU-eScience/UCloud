@@ -4,7 +4,7 @@ export const RECEIVE_PUBLICATIONS = "RECEIVE_PUBLICATIONS";
 const zenodo = (state = [], action) => {
     switch (action.type) {
         case RECEIVE_PUBLICATIONS: {
-            return { ...state, publications: action.publications, connected: action.connected, loading: false };
+            return { ...state, ...action, loading: false };
         }
         case SET_ZENODO_LOADING: {
             return { ...state, loading: action.loading };

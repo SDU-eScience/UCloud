@@ -25,7 +25,7 @@ class ZenodoPublish extends React.Component {
         dispatch(updatePageTitle("Zenodo Publication"));
         if (!connected) {
             dispatch(setZenodoLoading(true));
-            dispatch(fetchPublications());
+            dispatch(fetchPublications(0, 10));
         }
     }
 

@@ -3,7 +3,7 @@ import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { WebSocketSupport, toLowerCaseAndCapitalize, shortUUID } from "../../UtilityFunctions"
 import { updatePageTitle } from "../../Actions/Status";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { Container, Table, Responsive } from "semantic-ui-react";
+import { Table, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import * as Pagination from "../Pagination";
 import { connect } from "react-redux";
@@ -19,7 +19,7 @@ class Analyses extends React.Component {
         this.props.dispatch(updatePageTitle("Analyses"));
     }
 
-    componentWillMount() {
+    componentDidMount() {
         this.getAnalyses(false);
         let reloadIntervalId = setInterval(() => {
             this.getAnalyses(true)
@@ -85,6 +85,7 @@ class Analyses extends React.Component {
 }
 
 const AnalysesList = ({ analyses, children }) => {
+    // FIXME is analyses[0].name check necessary? Empty array evaluates to true, so should be valid without.
     if (!analyses && !analyses[0].name) {
         return null;
     }

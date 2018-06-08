@@ -1,17 +1,20 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { RECEIVE_PUBLICATIONS, SET_ZENODO_LOADING } from "../Reducers/Zenodo";
+import {
+    RECEIVE_PUBLICATIONS,
+    SET_ZENODO_LOADING
+} from "../Reducers/Zenodo";
 
-export const fetchPublications = () =>
-    Cloud.get("/zenodo/publications").then(({ response }) => {
-        return receivePublications(response.inProgress.items, response.connected);
+export const fetchPublications = (page, itemsPerPage) =>
+    Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) => {
+        return receivePublications(response.inProgress, response.connected);
     }).catch(failure => {
         return receivePublications([], false);
     });
 
-const receivePublications = (publications, connected) => ({
+const receivePublications = (page, connected) => ({
     type: RECEIVE_PUBLICATIONS,
-    publications,
-    connected
+    connected,
+    page
 })
 
 export const setZenodoLoading = (loading) => ({

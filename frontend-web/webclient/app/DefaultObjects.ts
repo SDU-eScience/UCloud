@@ -1,6 +1,6 @@
 import { tusConfig } from "./Configurations";
 import * as Uppy from "uppy";
-import { File, Analysis, Application, Status, Publication, SidebarOption, DropdownOption } from "./types/types"
+import { File, Analysis, Application, Status, Publication, SidebarOption, DropdownOption, emptyPage } from "./types/types"
 import SDUCloud from "../authentication/lib";
 
 export const DefaultStatus: Status = {
@@ -140,9 +140,9 @@ export const initObject = (cloud: SDUCloud) => ({
         totalPages: 0
     },
     zenodo: {
-        loading: false,
         connected: false,
-        publications: [] as Publication[]
+        loading: false,
+        page: emptyPage
     },
     sidebar: {
         open: false,
