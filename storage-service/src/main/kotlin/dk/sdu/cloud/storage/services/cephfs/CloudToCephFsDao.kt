@@ -39,7 +39,10 @@ class CloudToCephFsDao(val isDevelopment: Boolean) {
         }
     }
 
-    fun findCloudUser(unixUser: String): String? = userToCloud[unixUser]
+    fun findCloudUser(unixUser: String): String? {
+        log.debug("Looking for $unixUser in $userToCloud")
+        return userToCloud[unixUser]
+    }
 
     fun findUnixUser(cloudUser: String): String? = cloudToUser[cloudUser]
 
