@@ -1,16 +1,22 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Label, Icon, Card, Header} from "semantic-ui-react";
+import { Label, Icon, Card, Header, Responsive, Form, Input } from "semantic-ui-react";
 import { simpleSearch, ProjectMetadata } from "./api";
 import { Page, emptyPage } from "../../types/types";
+import { withRouter } from "react-router-dom";
 import * as Pagination from "../Pagination";
+import { KeyCode } from "../../DefaultObjects";
 
 interface SearchState {
     query: string
     dataProvider: (page: number, itemsPerPage: number) => Promise<Page<ProjectMetadata>>
 }
 
-export class Search extends React.Component<any, SearchState> {
+interface SearchProps {
+    history: History
+}
+
+class SearchComponent extends React.Component<any, SearchState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -34,8 +40,9 @@ export class Search extends React.Component<any, SearchState> {
         // const rawQuery = params.get("query");
         // const query = rawQuery ? rawQuery : "";
         const query = this.props.match.params.query;
-        if (query.length === 0 || query == null) return;
-        if (this.state.query != query) {
+        if (query == null) {
+            return;
+        } else if (this.state.query != query) {
             this.setState(() => ({
                 query,
                 dataProvider: (page: number, itemsPerPage: number) => simpleSearch(query.toLowerCase(), page, itemsPerPage)
@@ -44,8 +51,14 @@ export class Search extends React.Component<any, SearchState> {
     }
 
     render() {
+        const { history } = this.props;
         return (
             <div>
+                <Responsive as={Input} maxWidth={699}
+                    fluid
+                    placeholder="Search..."
+                    onKeyDown={(e) => { if (e.keyCode === KeyCode.ENTER) history.push(`/metadata/search/${e.target.value}`) }}
+                />
                 <Header as="h2">Results matching '{this.state.query}'</Header>
 
                 <Pagination.ManagedList
@@ -115,3 +128,5 @@ const firstParagraphWithLimitedLength = (text: string, maxLength: number): strin
         return firstParagraph;
     }
 };
+
+export const Search = withRouter(SearchComponent);

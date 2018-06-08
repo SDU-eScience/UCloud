@@ -52,10 +52,8 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                                 <Input value={searchText} onChange={(e, { value }) => this.updateSearchText(value)} className="header-search" fluid icon='search' placeholder='Search...' />
                             </Form>
                         </Responsive>
-                        <Responsive maxWidth={699}>
-                            <Link to={"/metadata/search/"}>
-                                <Icon name="search" />
-                            </Link>
+                        <Responsive maxWidth={699} as={Link} to={"/metadata/search/"}>
+                            <Icon name="search" />
                         </Responsive>
                     </Menu.Item>
                     <Menu.Item>
