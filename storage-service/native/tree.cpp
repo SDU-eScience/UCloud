@@ -18,13 +18,10 @@ static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
 
-void tree_command(const char *path) {
+void tree_command(const char *path, uint64_t mode) {
     FTS *file_system = nullptr;
     FTSENT *node = nullptr;
     char *root_path = nullptr;
-    std::ostringstream stream;
-    uint64_t matches = 0;
-    int status = 0;
 
     root_path = strdup(path);
     char *path_argv[2];
@@ -49,13 +46,12 @@ void tree_command(const char *path) {
         switch (node->fts_info) {
             case FTS_D:
             case FTS_F: {
-                status = print_file_information(
-                        stream,
+                print_file_information(
+                        std::cout,
                         node->fts_path,
                         node->fts_statp,
-                        FILE_TYPE | UNIX_MODE | OWNER | GROUP | SIZE | TIMESTAMPS | INODE | CHECKSUM | PATH
+                        mode
                 );
-                if (status == 0) matches++;
                 break;
             }
 
@@ -63,8 +59,6 @@ void tree_command(const char *path) {
                 break;
         }
     }
-
-    std::cout << matches << std::endl << stream.str();
 
     cleanup:
     if (file_system != nullptr) fts_close(file_system);

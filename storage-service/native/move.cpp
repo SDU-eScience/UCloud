@@ -4,6 +4,7 @@
 
 #include "move.h"
 #include "tree.h"
+#include "file_utils.h"
 
 int move_command(const char *from, const char *to) {
     struct stat s{};
@@ -19,11 +20,12 @@ int move_command(const char *from, const char *to) {
     status = lstat(to, &s);
     if (status != 0) return -errno;
 
+    uint64_t mode = FILE_TYPE | INODE | PATH;
     if (S_ISDIR(s.st_mode)) {
-        tree_command(to);
+        tree_command(to, mode);
         return 0;
     } else {
-
+        print_file_information(std::cout, to, &s, mode);
     }
     return 0;
 }
