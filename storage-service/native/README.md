@@ -314,6 +314,8 @@ Outputs, for each file in the sub-tree, either the data specified by
 `data_override` or the following defaults if `data_override` is `0`.
 A value _must_ be provided for `data_override`.
 
+If the input is a file the file should be printed.
+
 Defaults:
 
 - `FILE_TYPE`
@@ -334,9 +336,7 @@ Always followed by a status code.
 
 - `ENOENT` if path does not exist
 - Relevant errno on IO errors
-- `EINVAL` if path is not a folder
-- `EACCESS` if no items were returned from this command
-  - If some items cannot be accessed then those are silently ignored
+- -1 if no items were returned in this query
 
 ### `make-dir`
 

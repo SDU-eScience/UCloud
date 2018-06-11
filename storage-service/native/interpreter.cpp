@@ -398,7 +398,7 @@ int main(int argc, char **argv) {
             auto mode = (uint64_t) NEXT_ARGUMENT_INT(1);
             verify_path_or_fatal(path);
 
-            tree_command(path, mode);
+            printf("%d\n", tree_command(path, mode));
         } else if (IS_COMMAND("make-dir")) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);

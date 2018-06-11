@@ -23,10 +23,17 @@ int remove_command(const char *path_inp) {
     FTSENT *node = nullptr;
     char *path = strdup(path_inp);
     uint64_t mode;
+    struct stat stat_buffer{};
 
     char *path_argv[2];
     path_argv[0] = path;
     path_argv[1] = nullptr;
+
+    status = lstat(path_inp, &stat_buffer);
+    if (status != 0) {
+        status = -errno;
+        goto cleanup;
+    }
 
     file_system = fts_open(
             path_argv,
@@ -39,6 +46,7 @@ int remove_command(const char *path_inp) {
 
     mode = FILE_TYPE | INODE | OWNER | GROUP | PATH;
 
+    status = -1;
     if (nullptr != file_system) {
         while ((node = fts_read(file_system)) != nullptr) {
             auto file_path = node->fts_path;
