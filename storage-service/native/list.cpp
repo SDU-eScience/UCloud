@@ -14,9 +14,11 @@ int favorites_command(const char *path) {
 }
 
 int list_command(const char *path, uint64_t mode) {
-    struct dirent **entries;
+    struct dirent **entries = nullptr;
     struct stat stat_buffer{};
     char resolve_buffer[PATH_MAX];
+    int status = 0;
+    int num_entries;
 
     if (mode == 0) {
         mode = FILE_TYPE |
@@ -32,12 +34,23 @@ int list_command(const char *path, uint64_t mode) {
                PATH;
     }
 
-    auto num_entries = scandir(path, &entries, one, alphasort);
+    status = stat(path, &stat_buffer);
+    if (status != 0) {
+        status = -errno;
+        goto cleanup;
+    }
+
+    num_entries = scandir(path, &entries, one, alphasort);
+    if (num_entries < 0) {
+        status = -errno;
+        goto cleanup;
+    }
+
     for (int i = 0; i < num_entries; i++) {
         auto ep = entries[i];
 
-        if (strcmp(ep->d_name, ".") == 0) continue;
-        if (strcmp(ep->d_name, "..") == 0) continue;
+        if (strcmp(ep->d_name, ".") == 0) goto loop_cleanup;
+        if (strcmp(ep->d_name, "..") == 0) goto loop_cleanup;
         if (strlen(ep->d_name) + strlen(resolve_buffer) > PATH_MAX - 1) FATAL("Path too long");
 
         // Construct full path
@@ -47,6 +60,12 @@ int list_command(const char *path, uint64_t mode) {
 
         lstat(resolve_buffer, &stat_buffer);
         print_file_information(std::cout, resolve_buffer, &stat_buffer, mode);
+
+        loop_cleanup:
+        free(ep);
     }
-    return 0;
+
+    cleanup:
+    free(entries);
+    return status;
 }

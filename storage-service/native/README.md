@@ -224,7 +224,7 @@ Returns 0 on success, otherwise a negative number.
 - If `directory` does not exist then `ENOENT` is returned
 - If the user is not allowed to read the directory `EACCESS` is returned
 - On IO errors the relevant code is returned
-- `EINVAL` if `directory` is not a directory
+- `ENOTDIR` if `directory` is not a directory
 
 ### `list-favorites`
 
