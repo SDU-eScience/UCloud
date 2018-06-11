@@ -26,6 +26,7 @@ export class List extends React.Component<any, ListState> {
             itemsPerPage: 10,
             loading: true
         };
+        // FIXME potentially move following to parent component
         if (!props.keepTitle)
             ctx.store.dispatch(updatePageTitle("Shares"))
     }

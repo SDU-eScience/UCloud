@@ -12,14 +12,14 @@
     "postinstall": "modernizr -c modernizr-config.json -d app/modernizr.js"
   },
   "dependencies": {
-    "@types/react": "^16.3.16",
+    "@types/react": "^16.3.17",
     "@types/react-dom": "^16.0.6",
     "@types/react-redux": "^6.0.2",
     "@types/react-router": "^4.0.26",
     "@types/react-router-dom": "^4.2.7",
     "avataaars": "^1.1.0",
     "font-awesome": "4.7.0",
-    "jsonwebtoken": "^8.2.1",
+    "jsonwebtoken": "^8.2.2",
     "loaders.css": "0.1.2",
     "modernizr": "3.6.0",
     "moment": "~2.22.2",
@@ -30,12 +30,12 @@
     "react-dropzone": "^4.2.11",
     "react-markdown": "^3.3.2",
     "react-redux": "^5.0.7",
-    "react-router": "4.2.0",
-    "react-router-dom": "4.2.2",
+    "react-router": "4.3.1",
+    "react-router-dom": "4.3.1",
     "redux": "4.0.0",
     "semantic-ui-css": "^2.3.1",
     "semantic-ui-react": "^0.81.1",
-    "sweetalert2": "7.22.0",
+    "sweetalert2": "7.22.2",
     "uppy": "0.23.3"
   },
   "devDependencies": {
