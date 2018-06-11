@@ -387,7 +387,8 @@ This is followed by the status code (always).
 
 0 on success, otherwise uses errno.
 
-- `ENOENT` if file does not exist or the attribute does not exist
+- `ENOENT` if file does not exist
+- `ENOATTR` if attribute does not exist
 - `EACCESS` if the user is not allowed to see the file
 - Relevant errno on IO errors
 

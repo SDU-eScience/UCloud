@@ -8,11 +8,15 @@
 
 int xattr_set_command(const char *path, const char *attribute, const char *value) {
     auto size = strlen(value);
-    return SETXATTR(path, attribute, value, size);
+    if (SETXATTR(path, attribute, value, size) != 0) {
+        return -errno;
+    }
+    return 0;
 }
 
 int xattr_get_command(const char *path, const char *attribute) {
     char buffer[XATTR_VAL_MAX_SIZE];
+    memset(buffer, 0, sizeof buffer);
     auto status = GETXATTR(path, attribute, buffer, XATTR_VAL_MAX_SIZE);
     if (status > 0) {
         printf("%s\n", buffer);
