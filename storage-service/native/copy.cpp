@@ -81,6 +81,14 @@ int last_index_of(const char *haystack, char needle) {
     return result;
 }
 
+static void remove_trailing_slashes(char *path) {
+    auto length = strlen(path);
+    for (ssize_t idx = length - 1; idx >= 0; idx--) {
+        if (path[idx] == '/') path[idx] = '\0';
+        else break;
+    }
+}
+
 int copy_command(char *from_inp, char *to_inp) {
     fprintf(stderr, "Copying file: %s -> %s\n", from_inp, to_inp);
     int status = 0;
@@ -88,17 +96,16 @@ int copy_command(char *from_inp, char *to_inp) {
     struct stat s{};
     bool is_supported_type;
 
-    // TODO Need to validate `to_inp` more. We don't want it to end in a slash
-
+    remove_trailing_slashes(from_inp);
     from = realpath(from_inp, nullptr);
 
     if (from == nullptr) {
-        status = ENOENT;
+        status = -ENOENT;
         goto clean_up;
     }
 
     if (stat(to_inp, &s) == 0) {
-        status = EEXIST;
+        status = -EEXIST;
         goto clean_up;
     }
     
@@ -106,7 +113,7 @@ int copy_command(char *from_inp, char *to_inp) {
     stat(from, &s);
     is_supported_type = S_ISREG(s.st_mode) || S_ISDIR(s.st_mode);
     if (!is_supported_type) {
-        status = EINVAL;
+        status = -EINVAL;
         goto clean_up;
     }
 
@@ -114,7 +121,7 @@ int copy_command(char *from_inp, char *to_inp) {
 
     // TODO Is this needed?
     if (starts_with(to_inp, from)) {
-        status = EINVAL;
+        status = -EINVAL;
         goto clean_up;
     }
 
@@ -122,7 +129,7 @@ int copy_command(char *from_inp, char *to_inp) {
         char parent_path[PATH_MAX];
         int i = last_index_of(to_inp, '/');
         if (i == -1) {
-            status = EINVAL;
+            status = -EINVAL;
             goto clean_up;
         }
 
@@ -134,14 +141,24 @@ int copy_command(char *from_inp, char *to_inp) {
     }
 
     if (S_ISREG(s.st_mode)) {
-        copy_file(from, to_inp);
-        stat(to_inp, &s);
+        status = copy_file(from, to_inp);
+        if (status != 0) {
+            status = -errno;
+            goto clean_up;
+        }
+
+        status = stat(to_inp, &s);
+        if (status != 0) {
+            status = -errno;
+            goto clean_up;
+        }
+
         print_file_information(std::cout, to_inp, &s, FILE_TYPE | INODE | PATH);
     } else if (S_ISDIR(s.st_mode)) {
         status = mkpath(to_inp, 0700);
     } else {
         assert(false);
-        status = EINVAL;
+        status = -EINVAL;
         goto clean_up;
     }
 
