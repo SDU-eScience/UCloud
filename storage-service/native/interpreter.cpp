@@ -22,10 +22,12 @@
 #include "mkdir.h"
 #include "move.h"
 
+#define FATAL(why)  { fprintf(stderr, "Fatal error: %s", why); exit(1); }
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
 #define IS_COMMAND(command) (strcmp(line, command) == 0)
 #define NEXT_ARGUMENT(idx) read_argument(line, args, idx)
+#define NEXT_ARGUMENT_INT(idx) read_integer_argument(line, args, idx)
 #define INTERNAL_BUFFER_CAPACITY (32 * 1024)
 
 uint64_t ms() {
@@ -62,6 +64,18 @@ char *read_argument(char *line, char args[MAX_ARGUMENTS][MAX_LINE_LENGTH], size_
 
     strncpy(args[arg_idx], line, MAX_LINE_LENGTH);
     return args[arg_idx];
+}
+
+long long read_integer_argument(char *line, char args[MAX_ARGUMENTS][MAX_LINE_LENGTH], size_t arg_idx) {
+    char *endptr;
+    auto arg = read_argument(line, args, arg_idx);
+    if (*line == '\0') FATAL("Bad argument, expected integer");
+    auto result = strtoll(arg, &endptr, 10);
+    if (*endptr != '\0') {
+        FATAL("Bad argument, expected integer.");
+    }
+
+    return result;
 }
 
 static void initialize_stdin_stream(char *token_inp) {
@@ -360,7 +374,8 @@ int main(int argc, char **argv) {
             printf("%d\n", move_command(from, to));
         } else if (IS_COMMAND("list-directory")) {
             auto dir = NEXT_ARGUMENT(0);
-            printf("%d\n", list_command(dir));
+            auto mode = NEXT_ARGUMENT_INT(1);
+            printf("%d\n", list_command(dir, (uint64_t) mode));
         } else if (IS_COMMAND("list-favorites")) {
             auto dir = NEXT_ARGUMENT(0);
             printf("%d\n", favorites_command(dir));
@@ -398,7 +413,8 @@ int main(int argc, char **argv) {
             printf("%d\n", xattr_delete_command(file, attribute));
         } else if (IS_COMMAND("stat")) {
             auto file = NEXT_ARGUMENT(0);
-            printf("%d\n", stat_command(file));
+            auto mode = (uint64_t) NEXT_ARGUMENT_INT(1);
+            printf("%d\n", stat_command(file, mode));
         } else if (IS_COMMAND("read")) {
             auto file = NEXT_ARGUMENT(0);
             read_command(file);

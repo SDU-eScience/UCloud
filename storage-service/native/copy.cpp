@@ -7,9 +7,10 @@
 #include <unistd.h>
 #include <cstdint>
 #include <sys/stat.h>
+
 #include "copy.h"
 #include "utils.h"
-
+#include "file_info.h"
 
 static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
@@ -136,7 +137,7 @@ int copy_command(char *from_inp, char *to_inp) {
     if (S_ISREG(s.st_mode)) {
         copy_file(from, to_inp);
         stat(to_inp, &s);
-        print_file_created(s.st_ino, to_inp, false);
+        print_file_information(std::cout, to_inp, &s, FILE_TYPE | INODE | PATH);
     } else if (S_ISDIR(s.st_mode)) {
         status = mkpath(to_inp, 0700);
     } else {

@@ -35,7 +35,5 @@ typedef struct {
 } tree_item_t;
 
 void tree_command(const char *root);
-std::vector<tree_item_t> tree_list(const char *root);
-void print_tree_item(const tree_item_t *item);
 
 #endif //NATIVE_TREE_H

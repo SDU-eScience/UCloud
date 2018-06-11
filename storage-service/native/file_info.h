@@ -23,6 +23,6 @@
 #define CHECKSUM        (1 << 12)
 #define SENSITIVITY     (1 << 13)
 
-int print_file_information(const char *path, const struct stat *stat_inp, uint64_t mode);
+int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode);
 
 #endif //NATIVE_FILE_INFO_H

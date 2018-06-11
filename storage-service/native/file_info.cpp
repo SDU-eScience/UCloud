@@ -1,7 +1,7 @@
 #include <grp.h>
 #include <pwd.h>
-#include <sys/acl.h>
 #include <vector>
+#include <sys/acl.h>
 #include "file_info.h"
 #include "utils.h"
 
@@ -14,16 +14,17 @@
 #include "libacl.h"
 #include "tree.h"
 
-int acl_get_perm(acl_permset_t perm, int value) {
+static int acl_get_perm(acl_permset_t perm, int value) {
     return 0;
 }
 
 #endif
 
 #define EMIT(id, stat) { if ((mode & (id)) != 0) EMIT_STAT(stat); }
-#define EMIT_STAT(stat) std::cout << (stat) << std::endl
+#define EMIT_STAT(stat) stream << (stat) << std::endl
 
-static int print_type_and_link_status(const char *path, const struct stat *stat_inp, uint64_t mode) {
+static int
+print_type_and_link_status(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode) {
     char file_type;
     bool is_link;
     link_t link{};
@@ -52,7 +53,7 @@ static int print_type_and_link_status(const char *path, const struct stat *stat_
     return 0;
 }
 
-static void print_basic(const char *path, const struct stat *stat_inp, uint64_t mode) {
+static void print_basic(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode) {
     auto uid = stat_inp->st_uid;
     auto gid = stat_inp->st_gid;
 
@@ -80,7 +81,7 @@ static void print_basic(const char *path, const struct stat *stat_inp, uint64_t 
     EMIT(SIZE, stat_inp->st_size);
 }
 
-static void print_shares(const char *path) {
+static void print_shares(std::ostream &stream, const char *path) {
     acl_type_t acl_type = ACL_TYPE_ACCESS;
     acl_entry_t entry{};
     acl_tag_t acl_tag;
@@ -154,15 +155,16 @@ static void print_shares(const char *path) {
         }
     }
 
-    std::cout << entry_count << ',';
+    EMIT_STAT(entry_count);
 
     for (const auto &e : shares) {
-        std::cout << e.name << ',' << (int) e.mode << ',';
+        EMIT_STAT(e.name);
+        EMIT_STAT(e.mode);
         free(e.name);
     }
 }
 
-static void print_annotations(const char *path) {
+static void print_annotations(std::ostream &stream, const char *path) {
     char xattr_buffer[32];
     size_t attr_name_buffer_size = 1024 * 32;
     char attr_name_buffer[attr_name_buffer_size];
@@ -177,17 +179,17 @@ static void print_annotations(const char *path) {
 
         if (strncmp(annotate_prefix, key, annotate_prefix_length) == 0) {
             GETXATTR(path, key, &xattr_buffer, 32);
-            std::cout << xattr_buffer;
+            stream << xattr_buffer;
         }
 
         size_t key_length = strlen(key) + 1;
         list_size -= key_length;
         key += key_length;
     }
-    std::cout << ',';
+    stream << std::endl;
 }
 
-static void print_sensitivity(const char *path) {
+static void print_sensitivity(std::ostream &stream, const char *path) {
     char xattr_buffer[32];
     memset(&xattr_buffer, 0, 32);
     GETXATTR(path, "user.sensitivity", &xattr_buffer, 32);
@@ -197,12 +199,14 @@ static void print_sensitivity(const char *path) {
         sensitivity_result = const_cast<char *>("CONFIDENTIAL");
     }
 
-    std::cout << sensitivity_result << ',';
+    EMIT_STAT(sensitivity_result);
 }
 
-static void print_checksum(const char *path) {
+static void print_checksum(std::ostream &stream, const char *path) {
     char checksum_buffer[CHECKSUM_MAX];
     char checksum_type_buffer[CHECKSUM_TYPE_MAX];
+    memset(checksum_buffer, 0, CHECKSUM_MAX);
+    memset(checksum_type_buffer, 0, CHECKSUM_TYPE_MAX);
 
     GETXATTR(path, "user.checksum", checksum_buffer, CHECKSUM_MAX);
     GETXATTR(path, "user.checksum_type", checksum_type_buffer, CHECKSUM_TYPE_MAX);
@@ -211,16 +215,16 @@ static void print_checksum(const char *path) {
     EMIT_STAT(checksum_type_buffer);
 }
 
-int print_file_information(const char *path, const struct stat *stat_inp, uint64_t mode) {
+int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode) {
     if ((mode & FILE_TYPE) != 0 || (mode & IS_LINK) != 0 || (mode & LINK_TARGET) != 0) {
-        int status = print_type_and_link_status(path, stat_inp, mode);
+        int status = print_type_and_link_status(stream, path, stat_inp, mode);
         if (status != 0) return status;
     }
 
-    print_basic(path, stat_inp, mode);
-    if ((mode & SHARES) != 0) print_shares(path);
-    if ((mode & ANNOTATIONS) != 0) print_annotations(path);
-    if ((mode & SENSITIVITY) != 0) print_sensitivity(path);
-    if ((mode & CHECKSUM) != 0) print_checksum(path);
+    print_basic(stream, path, stat_inp, mode);
+    if ((mode & SHARES) != 0) print_shares(stream, path);
+    if ((mode & ANNOTATIONS) != 0) print_annotations(stream, path);
+    if ((mode & SENSITIVITY) != 0) print_sensitivity(stream, path);
+    if ((mode & CHECKSUM) != 0) print_checksum(stream, path);
     return 0;
 }
