@@ -262,6 +262,8 @@ Following this the status code is emitted.
 
 Returns 0 if any file was deleted, otherwise a negative number.
 
+Returns `ENOENT` as appropriate
+
 ### `write`
 
 Performs an unsized write operation to a file.

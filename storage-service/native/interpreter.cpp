@@ -387,7 +387,7 @@ int main(int argc, char **argv) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);
 
-            remove_command(path);
+            printf("%d\n", remove_command(path));
         } else if (IS_COMMAND("write")) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);

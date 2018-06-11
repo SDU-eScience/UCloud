@@ -5,16 +5,13 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <sys/stat.h>
+
+#include "file_utils.h"
 
 #ifdef __linux__
 #include <linux/limits.h>
 #endif
-
-static void print_file_deleted(uint64_t inode, const char *path) {
-    printf("%llu,%s\n", inode, path);
-}
 
 static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
@@ -25,6 +22,7 @@ int remove_command(const char *path_inp) {
     FTS *file_system = nullptr;
     FTSENT *node = nullptr;
     char *path = strdup(path_inp);
+    uint64_t mode;
 
     char *path_argv[2];
     path_argv[0] = path;
@@ -39,9 +37,10 @@ int remove_command(const char *path_inp) {
             &compare
     );
 
+    mode = FILE_TYPE | INODE | OWNER | GROUP | PATH;
+
     if (nullptr != file_system) {
         while ((node = fts_read(file_system)) != nullptr) {
-            auto inode = node->fts_statp->st_ino;
             auto file_path = node->fts_path;
 
             switch (node->fts_info) {
@@ -54,13 +53,16 @@ int remove_command(const char *path_inp) {
                         fprintf(stderr, "%s: Failed to remove: %s\n", file_path, strerror(errno));
                     } else {
                         status = 0; // Status is successful if any file was deleted by the action
-                        print_file_deleted(inode, file_path);
+                        print_file_information(std::cout, file_path, node->fts_statp, mode);
                     }
                     break;
 
-                default:break;
+                default:
+                    break;
             }
         }
+    } else {
+        status = -errno;
     }
 
     cleanup:
