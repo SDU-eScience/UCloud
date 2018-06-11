@@ -2,8 +2,7 @@
 #include <pwd.h>
 #include <vector>
 #include <sys/acl.h>
-#include "file_info.h"
-#include "utils.h"
+#include "file_utils.h"
 
 #ifdef __linux__
 #include <acl/libacl.h>
@@ -60,7 +59,7 @@ static void print_basic(std::ostream &stream, const char *path, const struct sta
     auto unix_mode = (stat_inp->st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
 
     auto user = getpwuid(uid);
-    if (user == nullptr) fatal("Could not find user");
+    if (user == nullptr) FATAL("Could not find user");
 
     char *group_name;
     auto gr = getgrgid(gid);
@@ -91,7 +90,7 @@ static void print_shares(std::ostream &stream, const char *path) {
     auto acl = acl_get_file(path, acl_type);
 
 #ifdef __linux__
-    if (acl == nullptr && errno != ENOTSUP) fatal("acl_get_file");
+    if (acl == nullptr && errno != ENOTSUP) FATAL("acl_get_file");
 #endif
 
     std::vector<shared_with_t> shares;
@@ -103,7 +102,7 @@ static void print_shares(std::ostream &stream, const char *path) {
                 break;
             }
 
-            if (acl_get_tag_type(entry, &acl_tag) == -1) fatal("acl_get_tag_type");
+            if (acl_get_tag_type(entry, &acl_tag) == -1) FATAL("acl_get_tag_type");
             auto qualifier = acl_get_qualifier(entry);
             bool retrieve_permissions = false;
             bool is_user = false;
@@ -114,7 +113,7 @@ static void print_shares(std::ostream &stream, const char *path) {
 
                 auto acl_uid = (uid_t *) qualifier;
                 passwd *pPasswd = getpwuid(*acl_uid);
-                if (pPasswd == nullptr) fatal("acl uid");
+                if (pPasswd == nullptr) FATAL("acl uid");
 
                 share_name = pPasswd->pw_name;
 
@@ -122,7 +121,7 @@ static void print_shares(std::ostream &stream, const char *path) {
             } else if (acl_tag == ACL_GROUP) {
                 auto acl_uid = (gid_t *) qualifier;
                 group *pGroup = getgrgid(*acl_uid);
-                if (pGroup == nullptr) fatal("acl gid");
+                if (pGroup == nullptr) FATAL("acl gid");
 
                 share_name = pGroup->gr_name;
 
@@ -130,7 +129,7 @@ static void print_shares(std::ostream &stream, const char *path) {
             }
 
             if (retrieve_permissions) {
-                if (acl_get_permset(entry, &permset) == -1) fatal("permset");
+                if (acl_get_permset(entry, &permset) == -1) FATAL("permset");
                 bool has_read = acl_get_perm(permset, ACL_READ) == 1;
                 bool has_write = acl_get_perm(permset, ACL_WRITE) == 1;
                 bool has_execute = acl_get_perm(permset, ACL_EXECUTE) == 1;

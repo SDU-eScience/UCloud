@@ -8,8 +8,8 @@ add_executable(
 
         interpreter.cpp
 
-        utils.cpp
-        utils.h
+        file_utils.cpp
+        file_utils.h
 
         libacl.cpp
         libacl.h
@@ -31,7 +31,7 @@ add_executable(
 
         stat.cpp
         stat.h
-        mkdir.cpp mkdir.h move.cpp move.h file_info.cpp file_info.h)
+        mkdir.cpp mkdir.h move.cpp move.h file_info.cpp)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)

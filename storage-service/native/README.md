@@ -593,7 +593,7 @@ Contains the unix mode of the file, encoded as a base-10 integer (_not octal_)
 Contains the owner and group of the file.
 
 A lookup is always performed from UID and GID. If the GID lookup fails
-`"nobody"` is returned. A UID not resolving is a fatal error.
+`"nobody"` is returned. A UID not resolving is a FATAL error.
 
 #### `PATH`: Path
 

@@ -9,8 +9,7 @@
 #include <sys/stat.h>
 
 #include "copy.h"
-#include "utils.h"
-#include "file_info.h"
+#include "file_utils.h"
 
 static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));

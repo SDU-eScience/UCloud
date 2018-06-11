@@ -3,8 +3,7 @@
 #include <sstream>
 
 #include "list.h"
-#include "utils.h"
-#include "file_info.h"
+#include "file_utils.h"
 
 static int one(const struct dirent *unused) {
     return 1;
@@ -39,7 +38,7 @@ int list_command(const char *path, uint64_t mode) {
 
         if (strcmp(ep->d_name, ".") == 0) continue;
         if (strcmp(ep->d_name, "..") == 0) continue;
-        if (strlen(ep->d_name) + strlen(resolve_buffer) > PATH_MAX - 1) fatal("Path too long");
+        if (strlen(ep->d_name) + strlen(resolve_buffer) > PATH_MAX - 1) FATAL("Path too long");
 
         // Construct full path
         strncpy(resolve_buffer, path, PATH_MAX - 1);

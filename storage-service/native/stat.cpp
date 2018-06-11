@@ -1,6 +1,5 @@
 #include "stat.h"
-#include "utils.h"
-#include "file_info.h"
+#include "file_utils.h"
 
 int stat_command(const char *path, uint64_t mode) {
     struct stat s{};

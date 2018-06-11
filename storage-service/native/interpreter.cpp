@@ -21,8 +21,8 @@
 #include "stat.h"
 #include "mkdir.h"
 #include "move.h"
+#include "file_utils.h"
 
-#define FATAL(why)  { fprintf(stderr, "Fatal error: %s", why); exit(1); }
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
 #define IS_COMMAND(command) (strcmp(line, command) == 0)
@@ -241,17 +241,12 @@ ssize_t stdin_read_line(char *result, size_t size) {
     return ptr;
 }
 
-void write_command(char *file) {
+void write_command(char *path) {
     size_t write_buffer_size = INTERNAL_BUFFER_CAPACITY;
     auto write_buffer = (char *) malloc(write_buffer_size);
     assert(write_buffer != nullptr);
 
-    fprintf(stderr, "Writing to file '%s'. EOF token is '%s'\n", file, token);
-
-    fprintf(stderr, "Buffer at: %p\n", (void *) internal_buffer);
-    fprintf(stderr, "Word size is: %zu\n", sizeof(long));
-
-    auto out_file = open(file, O_WRONLY | O_CREAT, 0660);
+    auto out_file = open(path, O_WRONLY | O_CREAT, 0660);
     if (out_file >= 0) {
         ssize_t read;
         read = stdin_read(write_buffer, write_buffer_size);
@@ -262,7 +257,7 @@ void write_command(char *file) {
 
             do {
                 required_iterations++;
-                nwritten = write(out_file, out_ptr, read);
+                nwritten = write(out_file, out_ptr, (size_t) read);
 
                 if (nwritten >= 0) {
                     read -= nwritten;
@@ -282,13 +277,13 @@ void write_command(char *file) {
     free(write_buffer);
 }
 
-void read_command(char *file) {
+void read_command(char *path) {
     struct stat s{};
     int status;
 
     size_t read_buffer_size = INTERNAL_BUFFER_CAPACITY;
     auto read_buffer = (char *) malloc(read_buffer_size);
-    auto in_file = open(file, O_RDONLY);
+    auto in_file = open(path, O_RDONLY);
     auto out_file = STDOUT_FILENO;
 
     if (in_file > 0) {
@@ -362,62 +357,87 @@ int main(int argc, char **argv) {
         if (IS_COMMAND("copy")) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);
+            verify_path_or_fatal(from);
+            verify_path_or_fatal(to);
 
             status = copy_command(from, to);
             printf("%d\n", status);
         } else if (IS_COMMAND("copy-tree")) {
-            auto dir = NEXT_ARGUMENT(0);
-            printf("Dir: %s\n", dir);
+            auto path = NEXT_ARGUMENT(0);
+            printf("Dir: %s\n", path);
         } else if (IS_COMMAND("move")) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);
+            verify_path_or_fatal(from);
+            verify_path_or_fatal(to);
+
             printf("%d\n", move_command(from, to));
         } else if (IS_COMMAND("list-directory")) {
-            auto dir = NEXT_ARGUMENT(0);
+            auto path = NEXT_ARGUMENT(0);
             auto mode = NEXT_ARGUMENT_INT(1);
-            printf("%d\n", list_command(dir, (uint64_t) mode));
+            verify_path_or_fatal(path);
+
+            printf("%d\n", list_command(path, (uint64_t) mode));
         } else if (IS_COMMAND("list-favorites")) {
-            auto dir = NEXT_ARGUMENT(0);
-            printf("%d\n", favorites_command(dir));
+            auto path = NEXT_ARGUMENT(0);
+            verify_path_or_fatal(path);
+
+            printf("%d\n", favorites_command(path));
         } else if (IS_COMMAND("delete")) {
             auto path = NEXT_ARGUMENT(0);
+            verify_path_or_fatal(path);
+
             remove_command(path);
         } else if (IS_COMMAND("write")) {
-            auto file = NEXT_ARGUMENT(0);
-            write_command(file);
-        } else if (IS_COMMAND("tree")) {
-            auto root = NEXT_ARGUMENT(0);
-            tree_command(root);
-        } else if (IS_COMMAND("make-dir")) {
-            auto file = NEXT_ARGUMENT(0);
-            printf("%d\n", mkdir_command(file));
-        } else if (IS_COMMAND("get-xattr")) {
-            auto file = NEXT_ARGUMENT(0);
-            auto attribute = NEXT_ARGUMENT(1);
+            auto path = NEXT_ARGUMENT(0);
+            verify_path_or_fatal(path);
 
-            printf("%d\n", xattr_get_command(file, attribute));
+            write_command(path);
+        } else if (IS_COMMAND("tree")) {
+            auto path = NEXT_ARGUMENT(0);
+            verify_path_or_fatal(path);
+
+            tree_command(path);
+        } else if (IS_COMMAND("make-dir")) {
+            auto path = NEXT_ARGUMENT(0);
+            verify_path_or_fatal(path);
+
+            printf("%d\n", mkdir_command(path));
+        } else if (IS_COMMAND("get-xattr")) {
+            auto path = NEXT_ARGUMENT(0);
+            auto attribute = NEXT_ARGUMENT(1);
+            verify_path_or_fatal(path);
+
+            printf("%d\n", xattr_get_command(path, attribute));
         } else if (IS_COMMAND("set-xattr")) {
-            auto file = NEXT_ARGUMENT(0);
+            auto path = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
             auto value = NEXT_ARGUMENT(2);
+            verify_path_or_fatal(path);
 
-            printf("%d\n", xattr_set_command(file, attribute, value));
+            printf("%d\n", xattr_set_command(path, attribute, value));
         } else if (IS_COMMAND(("list-xattr"))) {
-            auto file = NEXT_ARGUMENT(0);
+            auto path = NEXT_ARGUMENT(0);
+            verify_path_or_fatal(path);
 
-            printf("%d\n", xattr_list_command(file));
+            printf("%d\n", xattr_list_command(path));
         } else if (IS_COMMAND("delete-xattr")) {
-            auto file = NEXT_ARGUMENT(0);
+            auto path = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
+            verify_path_or_fatal(path);
 
-            printf("%d\n", xattr_delete_command(file, attribute));
+            printf("%d\n", xattr_delete_command(path, attribute));
         } else if (IS_COMMAND("stat")) {
-            auto file = NEXT_ARGUMENT(0);
+            auto path = NEXT_ARGUMENT(0);
             auto mode = (uint64_t) NEXT_ARGUMENT_INT(1);
-            printf("%d\n", stat_command(file, mode));
+            verify_path_or_fatal(path);
+
+            printf("%d\n", stat_command(path, mode));
         } else if (IS_COMMAND("read")) {
-            auto file = NEXT_ARGUMENT(0);
-            read_command(file);
+            auto path = NEXT_ARGUMENT(0);
+            verify_path_or_fatal(path);
+
+            read_command(path);
         }
 
         if (strcmp("", line) != 0) {

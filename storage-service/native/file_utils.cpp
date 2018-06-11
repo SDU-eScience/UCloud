@@ -4,8 +4,7 @@
 #include <grp.h>
 #include <vector>
 
-#include "utils.h"
-#include "file_info.h"
+#include "file_utils.h"
 
 bool resolve_link(const char *path, link_t *link_out) {
     bool success = false;
@@ -22,7 +21,7 @@ bool resolve_link(const char *path, link_t *link_out) {
     } else if (S_ISREG(s.st_mode)) {
         type = 'F';
     } else {
-        fatal("Unexpected file type!");
+        FATAL("Unexpected file type!");
     }
 
     for (int j = 0; path[j] != '\0'; j++) {
@@ -103,4 +102,12 @@ int mkpath(const char *path, mode_t mode) {
     return (status);
 }
 
-
+void verify_path_or_fatal(const char *path) {
+    auto length = strlen(path);
+    if (length >= PATH_MAX) FATAL("Path too long");
+    for (int i = 0; i < length; i++) {
+        if (path[i] == '\n') {
+            FATAL("Invalid path");
+        }
+    }
+}

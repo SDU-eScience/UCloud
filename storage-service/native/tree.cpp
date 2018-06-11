@@ -10,16 +10,15 @@
 #include <sstream>
 #include <list>
 #include "tree.h"
-#include "utils.h"
-#include "file_info.h"
+#include "file_utils.h"
 
-#define fatal(f) { fprintf(stderr, "Fatal error! errno %d. Cause: %s\n", errno, f); exit(1); }
+#define FATAL(f) { fprintf(stderr, "Fatal error! errno %d. Cause: %s\n", errno, f); exit(1); }
 
 static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
 
-void tree_command(const char *root) {
+void tree_command(const char *path) {
     FTS *file_system = nullptr;
     FTSENT *node = nullptr;
     char *root_path = nullptr;
@@ -27,7 +26,7 @@ void tree_command(const char *root) {
     uint64_t matches = 0;
     int status = 0;
 
-    root_path = strdup(root);
+    root_path = strdup(path);
     char *path_argv[2];
     path_argv[0] = root_path;
     path_argv[1] = nullptr;

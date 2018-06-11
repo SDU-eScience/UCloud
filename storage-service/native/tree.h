@@ -34,6 +34,6 @@ typedef struct {
     char path[PATH_MAX];
 } tree_item_t;
 
-void tree_command(const char *root);
+void tree_command(const char *path);
 
 #endif //NATIVE_TREE_H
