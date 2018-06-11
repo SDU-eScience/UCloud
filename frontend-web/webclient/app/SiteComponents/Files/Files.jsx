@@ -187,20 +187,20 @@ class Files extends React.Component {
                     />
                     <Icon className="float-right" link circular name="sync" onClick={() => refetchFiles(path)} loading={loading} />
                     <FilesTable
-                        allowCopyAndMove
-                        handleKeyDown={this.handleKeyDown}
-                        projectNavigation={projectNavigation}
-                        creatingNewFolder={this.state.creatingNewFolder}
-                        editFolderIndex={this.state.editFolderIndex}
-                        renameFile={this.startEditFile}
-                        files={shownFiles}
-                        loading={loading}
-                        sortingIcon={(name) => uf.getSortingIcon(this.state.lastSorting, name)}
-                        checkFile={(checked, newFile) => checkFile(checked, files, newFile)}
-                        sortFiles={this.sortFilesBy}
-                        onFavoriteFile={(filePath) => updateFiles(uf.favorite(files, filePath, Cloud))}
-                        checkAllFiles={this.checkAllFiles}
-                        refetch={() => refetchFiles(path)}
+                        allowCopyAndMove // List
+                        handleKeyDown={this.handleKeyDown} // Neither (Mostly List)
+                        projectNavigation={projectNavigation} // List
+                        creatingNewFolder={this.state.creatingNewFolder} // Neither (Mostly List)
+                        editFolderIndex={this.state.editFolderIndex} // List
+                        renameFile={this.startEditFile} // List
+                        files={shownFiles} // List
+                        loading={loading} // Table
+                        sortingIcon={(name) => uf.getSortingIcon(this.state.lastSorting, name)} // Header
+                        checkFile={(checked, newFile) => checkFile(checked, files, newFile)} // Both (Header, List)
+                        sortFiles={this.sortFilesBy} // Header
+                        onFavoriteFile={(filePath) => updateFiles(uf.favorite(files, filePath, Cloud))} // List
+                        checkAllFiles={this.checkAllFiles} // Header
+                        refetch={() => refetchFiles(path)} // List (and Neither)
                         fetchFiles={fetchNewFiles}
                         showFileSelector={this.props.showFileSelector}
                         setFileSelectorCallback={this.props.setFileSelectorCallback}
@@ -410,10 +410,11 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }) => (
     ) : null
 );
 
-const PredicatedRating = ({ predicate, file, onClick, rating }) =>
+const PredicatedFavorite = ({ predicate, file, onClick }) =>
     predicate ? (
-        <Rating
-            rating={rating}
+        <Icon
+            color="blue"
+            name={file.favorited ? "star" : "star outline"}
             className={`${file.favorited ? "" : "file-data"} favorite-padding`}
             onClick={onClick}
         />
@@ -436,10 +437,9 @@ const FileRow = ({ file, onFavoriteFile, beingRenamed, checkFile, owner, ...prop
                 fetchFiles={props.fetchFiles}
             />
             <GroupIcon isProject={uf.isProject(file)} />
-            <PredicatedRating
+            <PredicatedFavorite
                 predicate={!!onFavoriteFile}
                 file={file}
-                rating={file.favorited ? 1 : 0}
                 className={`${file.favorited ? "" : "file-data"} favorite-padding`}
                 onClick={() => onFavoriteFile(file.path)}
             />

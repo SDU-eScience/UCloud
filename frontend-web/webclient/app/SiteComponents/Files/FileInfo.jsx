@@ -1,11 +1,10 @@
 import React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { getParentPath, shareFile, favorite, fileSizeToString, toLowerCaseAndCapitalize } from "../../UtilityFunctions";
+import { getParentPath, favorite, fileSizeToString, toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { SensitivityLevel, RightsNameMap } from "../../DefaultObjects"
-import { Container, Header, List, Button, Card, Icon, Rating } from "semantic-ui-react";
-import swal from "sweetalert2";
+import { SensitivityLevel } from "../../DefaultObjects"
+import { Container, Header, List, Card, Icon } from "semantic-ui-react";
 import { dateToString } from "../../Utilities/DateUtilities"
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
@@ -67,7 +66,11 @@ const FileView = ({ file, favorite }) =>
                             </List.Item>
                         <List.Item className="itemPadding">
                             <List.Content floated="right">
-                                <Rating rating={file.favorited ? 1 : 0} onClick={() => favorite(file.path)} />
+                                <Icon 
+                                    name={file.favorited ? "star" : "star outline"}
+                                    onClick={() => favorite(file.path)}
+                                    color="blue"
+                                />
                             </List.Content>
                             Favorite file:
                             </List.Item>

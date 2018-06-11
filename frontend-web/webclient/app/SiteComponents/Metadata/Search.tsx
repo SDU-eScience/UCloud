@@ -6,6 +6,7 @@ import { Page, emptyPage } from "../../types/types";
 import { withRouter } from "react-router-dom";
 import * as Pagination from "../Pagination";
 import { KeyCode } from "../../DefaultObjects";
+import { History } from "history";
 
 interface SearchState {
     query: string
@@ -14,9 +15,14 @@ interface SearchState {
 
 interface SearchProps {
     history: History
+    match: {
+        params: {
+            query?: string
+        }
+    }
 }
 
-class SearchComponent extends React.Component<any, SearchState> {
+class SearchComponent extends React.Component<SearchProps, SearchState> {
     constructor(props) {
         super(props);
         this.state = {

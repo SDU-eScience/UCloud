@@ -82,7 +82,7 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
         }
     }
 
-    // TODO - The .then()'s are the same
+    // TODO - The .then()'s are the same.
     startUpload(index: number) {
         const upload = this.state.uploads[index];
         upload.isUploading = true;
@@ -94,8 +94,9 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
                 this.setState({ uploads: this.state.uploads });
             }).then(xhr => {
                 xhr.onloadend = () => {
-                    if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads))
+                    if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads)) {
                         this.props.onFilesUploaded();
+                    }
                 }
                 upload.uploadXHR = xhr;
                 this.setState({ uploads: this.state.uploads });
@@ -106,8 +107,9 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
                 this.setState({ uploads: this.state.uploads });
             }).then(xhr => {
                 xhr.onloadend = () => {
-                    if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads))
+                    if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads)) {
                         this.props.onFilesUploaded();
+                    }
                 }
                 upload.uploadXHR = xhr;
                 this.setState({ uploads: this.state.uploads });
@@ -124,7 +126,6 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
     }
 
     removeUpload(index: number) {
-        console.log("Doing something!");
         const files = this.state.uploads.slice();
         if (index < files.length) {
             const remainderFiles = files.slice(0, index).concat(files.slice(index + 1));
