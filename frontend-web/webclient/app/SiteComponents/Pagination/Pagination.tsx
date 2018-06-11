@@ -9,15 +9,15 @@ interface PaginationButtons {
     className?: string
 }
 
-export const Buttons = ({ className, totalPages, toPage, currentPage, as }: PaginationButtons) => (
-    <Pagination
-        as={as}
-        className={className}
-        totalPages={Math.max(1, totalPages)}
-        activePage={currentPage + 1}
-        onPageChange={(e, u) => toPage(u.activePage as number - 1)}
-    />
-);
+export const Buttons = ({ className, totalPages, toPage, currentPage, as }: PaginationButtons) =>
+    totalPages > 1 ?
+        (<Pagination
+            as={as}
+            className={className}
+            totalPages={Math.max(1, totalPages)}
+            activePage={currentPage + 1}
+            onPageChange={(e, u) => toPage(u.activePage as number - 1)}
+        />) : null;
 
 const EntriesPerPageSelectorOptions = [
     { key: 1, text: "10", value: 10 },

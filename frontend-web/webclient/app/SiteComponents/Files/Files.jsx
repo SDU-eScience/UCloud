@@ -1,7 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import {
@@ -14,8 +13,7 @@ import {
     Input,
     Grid,
     Responsive,
-    Checkbox,
-    Rating
+    Checkbox
 } from "semantic-ui-react";
 import { dateToString } from "../../Utilities/DateUtilities";
 import * as Pagination from "../Pagination";
@@ -72,19 +70,19 @@ class Files extends React.Component {
             if (newFolder) {
                 if (uf.isInvalidPathName(name, fileNames)) { return }
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
-                name ? Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
+                Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                     if (uf.inSuccessRange(request.status)) {
                         this.resetFolderEditing();
                         refetchFiles(path);
                     }
                 }).catch((failure) =>
                     this.resetFolderEditing()
-                ) : this.resetFolderEditing();
+                );
             } else {
                 if (uf.isInvalidPathName(name, fileNames)) { return }
                 const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
                 const originalFilename = files[this.state.editFolderIndex].path;
-                name ? Cloud.post(`/files/move?path=${originalFilename}&newPath=${directoryPath}`)
+                Cloud.post(`/files/move?path=${originalFilename}&newPath=${directoryPath}`)
                     .then(({ request }) => {
                         if (uf.inSuccessRange(request.status)) {
                             // TODO Overwrite filename;
@@ -93,7 +91,7 @@ class Files extends React.Component {
                         }
                     }).catch((failure) =>
                         this.resetFolderEditing() // TODO Handle failure
-                    ) : this.resetFolderEditing();
+                    )
             }
         }
     }
@@ -178,14 +176,17 @@ class Files extends React.Component {
         return (
             <Grid>
                 <Grid.Column computer={13} tablet={16}>
-                    <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
-                    <Responsive
-                        as={ContextButtons}
-                        maxWidth={991}
-                        createFolder={() => this.createFolder()}
-                        currentPath={path}
-                    />
-                    <Icon className="float-right" link circular name="sync" onClick={() => refetchFiles(path)} loading={loading} />
+                    <Grid.Row>
+                        <Responsive
+                            as={ContextButtons}
+                            maxWidth={991}
+                            createFolder={() => this.createFolder()}
+                            currentPath={path}
+                        />
+                        <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
+                        <Icon className="float-right" link circular name="sync" onClick={() => refetchFiles(path)} loading={loading} />
+                    </Grid.Row>
+
                     <FilesTable
                         allowCopyAndMove // List
                         handleKeyDown={this.handleKeyDown} // Neither (Mostly List)
@@ -284,7 +285,7 @@ export function FilesTable({ allowCopyAndMove = false, refetch = () => null, ...
     const checkedFilesCount = props.files.filter(file => file.isChecked).length;
     const masterCheckboxChecked = props.files.length === checkedFilesCount && props.files.length > 0;
     const indeterminate = checkedFilesCount < props.files.length && checkedFilesCount > 0;
-    const masterCheckbox = (hasCheckbox) ? (
+    const masterCheckbox = (hasCheckbox) ? ( // FIXME: Use predicated checkbox
         <Checkbox
             className="hidden-checkbox checkbox-margin"
             onClick={(e, d) => props.checkAllFiles(d.checked)}

@@ -1,4 +1,4 @@
-import {CHANGE_UPPY_RUNAPP_OPEN, CHANGE_UPPY_FILES_OPEN, CLOSE_UPPY, UPDATE_UPPY} from "../Reducers/UppyReducers";
+import {CHANGE_UPPY_RUNAPP_OPEN, CHANGE_UPPY_FILES_OPEN, CLOSE_UPPY} from "../Reducers/UppyReducers";
 
 export const changeUppyFilesOpen = (open) => 
 ({

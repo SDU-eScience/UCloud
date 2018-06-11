@@ -1,10 +1,10 @@
 import * as React from "react";
-import { Search, Form, Header, Dropdown, Button } from "semantic-ui-react";
+import { Search, Form, Button } from "semantic-ui-react";
 import { identifierTypes } from "../../DefaultObjects";
-import { createRange } from "../../UtilityFunctions";
 import { allLicenses } from "./licenses";
-import { Creator, Grant, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
+import { Creator, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
 import { blankOrNull } from "../../UtilityFunctions";
+import { History } from "history";
 
 const newCollaborator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -33,11 +33,17 @@ const identifierHasValue = (identifier: RelatedIdentifier): boolean => {
     );
 };
 
-export class CreateUpdate extends React.Component<any, any> {
-    constructor(props: any) {
+interface CreateUpdateProps {
+    match: {
+        params: string[]
+    }
+    history: History
+}
+
+export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
+    constructor(props) {
         super(props);
         const urlPath = props.match.params[0];
-    
         this.state = {
             path: urlPath,
             title: "",

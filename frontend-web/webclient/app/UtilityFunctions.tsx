@@ -31,8 +31,8 @@ export const WebSocketSupport = () =>
         </h3>) : null;
 
 export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
-    const disallowedName = ["..", ".", "/"].some((it) => it === path);
-    if (disallowedName) { failureNotification("Folder name cannot be '.', '..' or '/'"); return true; }
+    const disallowedName = ["..", ".", "/", ""].some((it) => it === path);
+    if (disallowedName) { failureNotification("Folder name cannot be '.', '..' or '/' or empty"); return true; }
     const existingName = filePaths.some((it) => it === path);
     if (existingName) { failureNotification("File with that name already exists"); return true; }
     return false;
