@@ -4,6 +4,7 @@ export const UPDATE_STATUS = "UPDATE_STATUS";
 const status = (state = [], action) => {
     switch (action.type) {
         case UPDATE_PAGE_TITLE: {
+            document.title = `SDUCloud | ${action.title}`;
             return { ...state, title: action.title }
         }
         case UPDATE_STATUS: {

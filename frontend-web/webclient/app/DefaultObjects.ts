@@ -134,10 +134,7 @@ export const initObject = (cloud: SDUCloud) => ({
     },
     analyses: {
         loading: false,
-        analyses: [] as Analysis[],
-        analysesPerPage: 10,
-        pageNumber: 0,
-        totalPages: 0
+        page: emptyPage
     },
     zenodo: {
         connected: false,

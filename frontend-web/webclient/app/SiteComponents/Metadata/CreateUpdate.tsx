@@ -5,6 +5,8 @@ import { allLicenses } from "./licenses";
 import { Creator, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
 import { blankOrNull } from "../../UtilityFunctions";
 import { History } from "history";
+import { PropTypes } from "prop-types";
+import { updatePageTitle } from "../../Actions/Status";
 
 const newCollaborator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -41,7 +43,7 @@ interface CreateUpdateProps {
 }
 
 export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
-    constructor(props) {
+    constructor(props, ctx) {
         super(props);
         const urlPath = props.match.params[0];
         this.state = {
@@ -59,9 +61,13 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
             relatedIdentifiers: [newIdentifier()],
             errors: { contributors: {}, subjects: {}, relatedIdentifiers: {} }
         };
-
+        ctx.store.dispatch(updatePageTitle("Edit Project"));
         this.setStateEv = this.setStateEv.bind(this);
         this.setStateEvList = this.setStateEvList.bind(this);
+    }
+
+    static contextTypes = {
+        store: PropTypes.object
     }
 
     componentDidMount() {

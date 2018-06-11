@@ -45,6 +45,7 @@ class Files extends React.Component {
             creatingNewFolder: false,
             editFolderIndex: -1
         };
+        this.props.setPageTitle();
         this.checkAllFiles = this.checkAllFiles.bind(this);
         this.sortFilesBy = this.sortFilesBy.bind(this);
         this.handleKeyDown = this.handleKeyDown.bind(this);

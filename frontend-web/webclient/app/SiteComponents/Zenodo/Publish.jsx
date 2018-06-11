@@ -22,7 +22,7 @@ class ZenodoPublish extends React.Component {
         this.removeFile = this.removeFile.bind(this);
         this.updateName = this.updateName.bind(this);
         const { dispatch, connected } = props;
-        dispatch(updatePageTitle("Zenodo Publication"));
+        dispatch(updatePageTitle("Zenodo Publish"));
         if (!connected) {
             dispatch(setZenodoLoading(true));
             dispatch(fetchPublications(0, 10));
@@ -106,6 +106,7 @@ class ZenodoPublish extends React.Component {
                     <Form.Field>
                         <Button className="bottom-padding"
                             floated="left"
+                            color="green"
                             content="Add file"
                             type="button"
                             onClick={() => this.newFile()}

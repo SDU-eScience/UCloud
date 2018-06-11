@@ -9,12 +9,9 @@ export const fetchAnalyses = (analysesPerPage, currentPage) =>
             return setLoading(false);
         });
 
-const receiveAnalyses = ({ items, itemsPerPage, pageNumber, pagesInTotal }) => ({
+const receiveAnalyses = (page) => ({
     type: RECEIVE_ANALYSES,
-    analyses: items,
-    analysesPerPage: itemsPerPage,
-    pageNumber: pageNumber,
-    totalPages: pagesInTotal
+    page: page
 });
 
 export const setPageSize = (pageSize) => ({

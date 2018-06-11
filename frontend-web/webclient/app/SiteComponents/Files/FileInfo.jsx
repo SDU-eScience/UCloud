@@ -20,7 +20,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
     if (parentPath === props.filesPath) {
         const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
         file = files.find(file => file.path === filePath);
-    } else {
+    } else { // FIXME MapDispatchToProps
         dispatch(setLoading(true));
         dispatch(fetchFiles(parentPath));
         dispatch(updatePath(parentPath));
@@ -37,10 +37,10 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
                 <Header.Subheader>
                     {toLowerCaseAndCapitalize(file.type)}
                 </Header.Subheader>
-            </Header>
+            </Header>                               {/* MapDispatchToProps */}
             <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
             {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
-            <ShareList byPath={file.path} />
+            <ShareList keepTitle={false} byPath={file.path} />
             <DefaultLoading loading={loading} />
         </Container>
     );
@@ -66,7 +66,7 @@ const FileView = ({ file, favorite }) =>
                             </List.Item>
                         <List.Item className="itemPadding">
                             <List.Content floated="right">
-                                <Icon 
+                                <Icon
                                     name={file.favorited ? "star" : "star outline"}
                                     onClick={() => favorite(file.path)}
                                     color="blue"

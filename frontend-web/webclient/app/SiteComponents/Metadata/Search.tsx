@@ -4,9 +4,11 @@ import { Label, Icon, Card, Header, Responsive, Form, Input } from "semantic-ui-
 import { simpleSearch, ProjectMetadata } from "./api";
 import { Page, emptyPage } from "../../types/types";
 import { withRouter } from "react-router-dom";
+import { PropTypes } from "prop-types";
 import * as Pagination from "../Pagination";
 import { KeyCode } from "../../DefaultObjects";
 import { History } from "history";
+import { updatePageTitle } from "../../Actions/Status";
 
 interface SearchState {
     query: string
@@ -23,12 +25,17 @@ interface SearchProps {
 }
 
 class SearchComponent extends React.Component<SearchProps, SearchState> {
-    constructor(props) {
+    constructor(props, ctx) {
         super(props);
         this.state = {
             query: "",
             dataProvider: (page: number, itemsPerPage: number) => Promise.resolve(emptyPage)
         };
+        ctx.store.dispatch(updatePageTitle("Search"));
+    }
+
+    static contextTypes = {
+        store: PropTypes.object
     }
 
     componentDidMount() {

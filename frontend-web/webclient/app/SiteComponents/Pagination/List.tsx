@@ -82,9 +82,9 @@ export class List extends React.PureComponent<ListProps> {
                 return <div>
                     <Header as="h2">
                         No results.
-                        <a 
-                            href="#" 
-                            onClick={() => ifPresent(props.onRefresh, (c) => c())}
+                        <a
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, (c) => c()) }}
                         >
                             {" Try again?"}
                         </a>

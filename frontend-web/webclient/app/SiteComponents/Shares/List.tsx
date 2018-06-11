@@ -1,12 +1,12 @@
 import * as React from "react";
-import { Cloud } from "../../../authentication/SDUCloudObject"
-import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Image, Button, Popup, Feed, Icon, Divider, SemanticICONS, Label, Container, ButtonGroup } from 'semantic-ui-react';
-import { Redirect } from "react-router";
-import * as moment from "moment";
+import { Cloud } from "../../../authentication/SDUCloudObject";
+import PropTypes from "prop-types";
+import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from 'semantic-ui-react';
 import { AccessRight, Page } from "../../types/types";
 import { getFilenameFromPath, shareSwal } from "../../UtilityFunctions";
 import "./List.scss"
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
+import { updatePageTitle } from "../../Actions/Status";
 
 interface ListState {
     shares: SharesByPath[]
@@ -17,7 +17,7 @@ interface ListState {
 }
 
 export class List extends React.Component<any, ListState> {
-    constructor(props: any) {
+    constructor(props: any, ctx) {
         super(props);
         this.state = {
             shares: [],
@@ -26,6 +26,12 @@ export class List extends React.Component<any, ListState> {
             itemsPerPage: 10,
             loading: true
         };
+        if (!props.keepTitle)
+            ctx.store.dispatch(updatePageTitle("Shares"))
+    }
+
+    static contextTypes = {
+        store: PropTypes.object
     }
 
     public componentDidMount() {
@@ -368,3 +374,4 @@ function createShare(user: string, path: string, rights: AccessRight[]): Promise
 function updateShare(id: ShareId, rights: AccessRight[]): Promise<any> {
     return Cloud.post(`/shares/`, { id, rights }).then(e => e.response);
 }
+

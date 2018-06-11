@@ -5,7 +5,7 @@ export const SET_ANALYSES_PAGE_SIZE = "SET_ANALYSES_PAGE_SIZE";
 const analyses = (state = [], action) => {
     switch (action.type) {
         case RECEIVE_ANALYSES: {
-            return { ...state, analyses: action.analyses, analysesPerPage: action.analysesPerPage, pageNumber: action.pageNumber, totalPages: action.totalPages, loading: false };
+            return { ...state, page: action.page, loading: false };
         }
         case SET_ANALYSES_LOADING: {
             return { ...state, loading: action.loading };

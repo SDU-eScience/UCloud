@@ -19,7 +19,7 @@ class ZenodoHome extends React.Component {
             }
         };
         const { updatePageTitle, fetchPublications } = props;
-        updatePageTitle("Zenodo Overview");
+        updatePageTitle("Zenodo Publications");
         fetchPublications(0, 10);
     }
 
@@ -54,8 +54,6 @@ class ZenodoHome extends React.Component {
                         results={page}
                         onItemsPerPageChanged={(size) => fetchPublications(0, size)}
                         onPageChanged={(pageNumber) => fetchPublications(pageNumber, page.itemsPerPage)}
-                        onRefresh={() => null}
-                        onErrorDismiss={() => null}
                     />
                     <Link to="/zenodo/publish/">
                         <Button className="top-margin">Create new upload</Button>

@@ -380,6 +380,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
             return "volume up";
         case "gz":
         case "zip":
+        case "tar":
             return "file archive outline";
         default:
             if (getFilenameFromPath(filePath).split(".").length > 1)
