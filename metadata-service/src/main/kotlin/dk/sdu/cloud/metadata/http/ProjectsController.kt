@@ -65,7 +65,7 @@ class ProjectsController(
                     .collect(Collectors.toList())
 
                 val metadataFiles = initialFiles.map { FileDescriptionForMetadata(it.uniqueId, it.fileType, it.path.normalize()) }
-
+                println(metadataFiles)
                 val rootFile = initialFiles.find { it.path.normalize() == request.fsRoot.normalize() } ?: return@implement run {
                     log.info("Expected to find information about root file")
                     error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
