@@ -22,7 +22,6 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Test
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 
 private fun Application.configureMetadataServer(
@@ -81,7 +80,7 @@ class MetadataTest {
                                 """.trimIndent()
 
     @Test
-    fun testUpdate() {
+    fun `make update of metadata test`() {
         objectMockk(FileDescriptions).use {
             val user = "user1"
             withAuthMock {
@@ -141,7 +140,7 @@ class MetadataTest {
     }
 
     @Test
-    fun testFindById() {
+    fun `find by ID test`() {
         objectMockk(FileDescriptions).use {
             val user = "user1"
             withAuthMock {
@@ -189,7 +188,7 @@ class MetadataTest {
 
 
     @Test
-    fun testCantFindById() {
+    fun `find by ID - Nothing found - test`() {
         objectMockk(FileDescriptions).use {
             val user = "user1"
             withAuthMock {
@@ -220,7 +219,7 @@ class MetadataTest {
     }
 
     @Test
-    fun testFindByPath() {
+    fun `find by path test`() {
         objectMockk(FileDescriptions).use {
             val user = "user1"
             withAuthMock {
@@ -272,7 +271,7 @@ class MetadataTest {
 
 
     @Test
-    fun testFindByPathNoProject() {
+    fun `find By Path - Not existing project - test`() {
         objectMockk(FileDescriptions).use {
             val user = "user1"
             withAuthMock {
@@ -310,7 +309,7 @@ class MetadataTest {
     }
 
     @Test
-    fun testSimpleQuery() {
+    fun `simple query test`() {
         objectMockk(FileDescriptions).use {
             val user = "user1"
             withAuthMock {

@@ -76,7 +76,7 @@ private fun Application.configureProjectServer(
 
 class ProjectTest {
     @Test
-    fun createAndGetProjectTest() {
+    fun `Create and get project test`() {
         objectMockk(FileDescriptions).use {
             withAuthMock {
                 withTestApplication(
@@ -145,7 +145,7 @@ class ProjectTest {
     }
 
     @Test
-    fun createProjectAnnotationErr() {
+    fun `create project - annotation error - test`() {
         objectMockk(FileDescriptions).use {
             withAuthMock {
                 withTestApplication(
@@ -200,7 +200,7 @@ class ProjectTest {
     }
 
     @Test
-    fun createProjectWrongPathTest() {
+    fun `create project - wrong path - test`() {
         objectMockk(FileDescriptions).use {
             withAuthMock {
                 withTestApplication(
@@ -251,7 +251,7 @@ class ProjectTest {
     }
 
     @Test
-    fun createProjectNotOwnerTest() {
+    fun `create project - not owner - test`() {
         objectMockk(FileDescriptions).use {
             withAuthMock {
                 withTestApplication(
@@ -302,7 +302,7 @@ class ProjectTest {
     }
 
     @Test
-    fun createExistingProjectTest() {
+    fun `create project - already exists - test`() {
         objectMockk(FileDescriptions).use {
             withAuthMock {
                 withTestApplication(
@@ -373,7 +373,7 @@ class ProjectTest {
     }
 
     @Test
-    fun getNonexistingProjectTest() {
+    fun `get project - not existing - test`() {
         objectMockk(FileDescriptions).use {
             withAuthMock {
                 withTestApplication(
