@@ -28,6 +28,7 @@ import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import io.mockk.*
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Test
@@ -58,366 +59,388 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
     }
 }
 
-private fun Application.configureProjectServer(
-    producer: ProjectEventProducer = mockk(relaxed = true),
-    projectService: ProjectService = ProjectService(ProjectSQLDao())
-) {
+private fun withDatabase(closure: () -> Unit) {
     Database.connect(
         url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
         driver = "org.h2.Driver"
     )
 
     transaction {
-        create(Projects)
+        SchemaUtils.create(Projects)
     }
 
+    try {
+        closure()
+    } finally {
+        transaction {
+            SchemaUtils.drop(Projects)
+        }
+    }
+}
+
+private fun Application.configureProjectServer(
+    producer: ProjectEventProducer = mockk(relaxed = true),
+    projectService: ProjectService = ProjectService(ProjectSQLDao())
+) {
     configureBaseServer(ProjectsController(producer, projectService))
 }
 
 class ProjectTest {
     @Test
     fun `Create and get project test`() {
-        objectMockk(FileDescriptions).use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                            val response: HttpResponse = mockk(relaxed = true)
+        withDatabase {
+            objectMockk(FileDescriptions).use {
+                withAuthMock {
+                    withTestApplication(
+                        moduleFunction = {
+                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
+                                val response: HttpResponse = mockk(relaxed = true)
 
-                            every { response.content } answers {
-                                val payload = listOf(
-                                    SyncItem(
-                                        FileType.DIRECTORY,
-                                        "someid",
-                                        "user1",
-                                        0,
-                                        null,
-                                        null,
-                                        "/home/user1/folder/test1"
-                                    )
-                                ).joinToString("\n") { it.toString() }
+                                every { response.content } answers {
+                                    val payload = listOf(
+                                        SyncItem(
+                                            FileType.DIRECTORY,
+                                            "someid",
+                                            "user1",
+                                            0,
+                                            null,
+                                            null,
+                                            "/home/user1/folder/test1"
+                                        )
+                                    ).joinToString("\n") { it.toString() }
 
-                                payload.byteInputStream().toByteReadChannel()
+                                    payload.byteInputStream().toByteReadChannel()
+                                }
+                                RESTResponse.Ok(response, Unit)
                             }
-                            RESTResponse.Ok(response, Unit)
-                        }
 
-                        coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
-                            RESTResponse.Ok(mockk(relaxed = true), Unit)
-                        }
+                            coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
+                                RESTResponse.Ok(mockk(relaxed = true), Unit)
+                            }
 
-                        configureProjectServer()
-                    },
+                            configureProjectServer()
+                        },
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/projects") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser("user1")
-                                setBody(
-                                    """
+                        test = {
+                            val response =
+                                handleRequest(HttpMethod.Put, "/api/projects") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser("user1")
+                                    setBody(
+                                        """
                                 {
                                 "fsRoot" : "/home/user1/folder/test1"
                                 }
                                 """.trimIndent()
-                                )
-                            }.response
+                                    )
+                                }.response
 
-                        assertEquals(HttpStatusCode.OK, response.status())
+                            assertEquals(HttpStatusCode.OK, response.status())
 
-                        val response2 =
-                            handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/test1") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser("user1")
-                            }.response
+                            val response2 =
+                                handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/test1") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser("user1")
+                                }.response
 
-                        assertEquals(HttpStatusCode.OK, response2.status())
+                            assertEquals(HttpStatusCode.OK, response2.status())
 
-                        val mapper = jacksonObjectMapper()
-                        val obj = mapper.readTree(response2.content)
-                        assertEquals("\"/home/user1/folder/test1\"", obj["fsRoot"].toString())
-                        assertEquals("\"user1\"", obj["owner"].toString())
+                            val mapper = jacksonObjectMapper()
+                            val obj = mapper.readTree(response2.content)
+                            assertEquals("\"/home/user1/folder/test1\"", obj["fsRoot"].toString())
+                            assertEquals("\"user1\"", obj["owner"].toString())
 
-                    }
-                )
+                        }
+                    )
+                }
             }
         }
     }
 
     @Test
     fun `create project - annotation error - test`() {
-        objectMockk(FileDescriptions).use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                            val response: HttpResponse = mockk(relaxed = true)
+        withDatabase {
+            objectMockk(FileDescriptions).use {
+                withAuthMock {
+                    withTestApplication(
+                        moduleFunction = {
+                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
+                                val response: HttpResponse = mockk(relaxed = true)
 
-                            every { response.content } answers {
-                                val payload = listOf(
-                                    SyncItem(
-                                        FileType.DIRECTORY,
-                                        "someid",
-                                        "user1",
-                                        0,
-                                        null,
-                                        null,
-                                        "/home/user1/folder/"
-                                    )
-                                ).joinToString("\n") { it.toString() }
+                                every { response.content } answers {
+                                    val payload = listOf(
+                                        SyncItem(
+                                            FileType.DIRECTORY,
+                                            "someid",
+                                            "user1",
+                                            0,
+                                            null,
+                                            null,
+                                            "/home/user1/folder/"
+                                        )
+                                    ).joinToString("\n") { it.toString() }
 
-                                payload.byteInputStream().toByteReadChannel()
+                                    payload.byteInputStream().toByteReadChannel()
+                                }
+                                RESTResponse.Ok(response, Unit)
                             }
-                            RESTResponse.Ok(response, Unit)
-                        }
 
-                        coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
-                            RESTResponse.Err(mockk(relaxed = true))
-                        }
+                            coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
+                                RESTResponse.Err(mockk(relaxed = true))
+                            }
 
-                        configureProjectServer()
-                    },
+                            configureProjectServer()
+                        },
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/projects") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser("user1")
-                                setBody(
-                                    """
+                        test = {
+                            val response =
+                                handleRequest(HttpMethod.Put, "/api/projects") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser("user1")
+                                    setBody(
+                                        """
                                 {
                                 "fsRoot" : "/home/user1/folder"
                                 }
                                 """.trimIndent()
-                                )
-                            }.response
+                                    )
+                                }.response
 
-                        assertEquals(HttpStatusCode.InternalServerError, response.status())
-                    }
-                )
+                            assertEquals(HttpStatusCode.InternalServerError, response.status())
+                        }
+                    )
+                }
             }
         }
     }
 
     @Test
     fun `create project - wrong path - test`() {
-        objectMockk(FileDescriptions).use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                            val response: HttpResponse = mockk(relaxed = true)
+        withDatabase {
+            objectMockk(FileDescriptions).use {
+                withAuthMock {
+                    withTestApplication(
+                        moduleFunction = {
+                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
+                                val response: HttpResponse = mockk(relaxed = true)
 
-                            every { response.content } answers {
-                                val payload = listOf(
-                                    SyncItem(
-                                        FileType.DIRECTORY,
-                                        "someid",
-                                        "user",
-                                        0,
-                                        null,
-                                        null,
-                                        "/home/user1/folder/"
-                                    )
-                                ).joinToString("\n") { it.toString() }
+                                every { response.content } answers {
+                                    val payload = listOf(
+                                        SyncItem(
+                                            FileType.DIRECTORY,
+                                            "someid",
+                                            "user",
+                                            0,
+                                            null,
+                                            null,
+                                            "/home/user1/folder/"
+                                        )
+                                    ).joinToString("\n") { it.toString() }
 
-                                payload.byteInputStream().toByteReadChannel()
+                                    payload.byteInputStream().toByteReadChannel()
+                                }
+                                RESTResponse.Ok(response, Unit)
                             }
-                            RESTResponse.Ok(response, Unit)
-                        }
 
-                        configureProjectServer()
-                    },
+                            configureProjectServer()
+                        },
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/projects") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser("user1")
-                                setBody(
-                                    """
+                        test = {
+                            val response =
+                                handleRequest(HttpMethod.Put, "/api/projects") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser("user1")
+                                    setBody(
+                                        """
                                 {
                                 "fsRoot" : "/home/user1/folder/notThere"
                                 }
                                 """.trimIndent()
-                                )
-                            }.response
+                                    )
+                                }.response
 
-                        assertEquals(HttpStatusCode.Forbidden, response.status())
-                    }
-                )
+                            assertEquals(HttpStatusCode.Forbidden, response.status())
+                        }
+                    )
+                }
             }
         }
     }
 
     @Test
     fun `create project - not owner - test`() {
-        objectMockk(FileDescriptions).use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                            val response: HttpResponse = mockk(relaxed = true)
+        withDatabase {
+            objectMockk(FileDescriptions).use {
+                withAuthMock {
+                    withTestApplication(
+                        moduleFunction = {
+                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
+                                val response: HttpResponse = mockk(relaxed = true)
 
-                            every { response.content } answers {
-                                val payload = listOf(
-                                    SyncItem(
-                                        FileType.DIRECTORY,
-                                        "someid",
-                                        "user",
-                                        0,
-                                        null,
-                                        null,
-                                        "/home/user1/folder/"
-                                    )
-                                ).joinToString("\n") { it.toString() }
+                                every { response.content } answers {
+                                    val payload = listOf(
+                                        SyncItem(
+                                            FileType.DIRECTORY,
+                                            "someid",
+                                            "user",
+                                            0,
+                                            null,
+                                            null,
+                                            "/home/user1/folder/"
+                                        )
+                                    ).joinToString("\n") { it.toString() }
 
-                                payload.byteInputStream().toByteReadChannel()
+                                    payload.byteInputStream().toByteReadChannel()
+                                }
+                                RESTResponse.Ok(response, Unit)
                             }
-                            RESTResponse.Ok(response, Unit)
-                        }
 
-                        configureProjectServer()
-                    },
+                            configureProjectServer()
+                        },
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/projects") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser("user1")
-                                setBody(
-                                    """
+                        test = {
+                            val response =
+                                handleRequest(HttpMethod.Put, "/api/projects") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser("user1")
+                                    setBody(
+                                        """
                                 {
                                 "fsRoot" : "/home/user1/folder/"
                                 }
                                 """.trimIndent()
-                                )
-                            }.response
+                                    )
+                                }.response
 
-                        assertEquals(HttpStatusCode.Forbidden, response.status())
-                    }
-                )
+                            assertEquals(HttpStatusCode.Forbidden, response.status())
+                        }
+                    )
+                }
             }
         }
     }
 
     @Test
     fun `create project - already exists - test`() {
-        objectMockk(FileDescriptions).use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                            val response: HttpResponse = mockk(relaxed = true)
+        withDatabase {
+            objectMockk(FileDescriptions).use {
+                withAuthMock {
+                    withTestApplication(
+                        moduleFunction = {
+                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
+                                val response: HttpResponse = mockk(relaxed = true)
 
-                            every { response.content } answers {
-                                val payload = listOf(
-                                    SyncItem(
-                                        FileType.DIRECTORY,
-                                        "someid",
-                                        "user1",
-                                        0,
-                                        null,
-                                        null,
-                                        "/home/user1/folder/"
-                                    )
-                                ).joinToString("\n") { it.toString() }
+                                every { response.content } answers {
+                                    val payload = listOf(
+                                        SyncItem(
+                                            FileType.DIRECTORY,
+                                            "someid",
+                                            "user1",
+                                            0,
+                                            null,
+                                            null,
+                                            "/home/user1/folder/"
+                                        )
+                                    ).joinToString("\n") { it.toString() }
 
-                                payload.byteInputStream().toByteReadChannel()
+                                    payload.byteInputStream().toByteReadChannel()
+                                }
+                                RESTResponse.Ok(response, Unit)
                             }
-                            RESTResponse.Ok(response, Unit)
-                        }
 
-                        coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
-                            RESTResponse.Ok(mockk(relaxed = true), Unit)
-                        }
+                            coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
+                                RESTResponse.Ok(mockk(relaxed = true), Unit)
+                            }
 
-                        configureProjectServer()
-                    },
+                            configureProjectServer()
+                        },
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/projects") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser("user1")
-                                setBody(
-                                    """
+                        test = {
+                            val response =
+                                handleRequest(HttpMethod.Put, "/api/projects") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser("user1")
+                                    setBody(
+                                        """
                                 {
                                 "fsRoot" : "/home/user1/folder"
                                 }
                                 """.trimIndent()
-                                )
-                            }.response
+                                    )
+                                }.response
 
-                        assertEquals(HttpStatusCode.OK, response.status())
+                            assertEquals(HttpStatusCode.OK, response.status())
 
-                       val response2 =
-                            handleRequest(HttpMethod.Put, "/api/projects") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser("user1")
-                                setBody(
-                                    """
+                            val response2 =
+                                handleRequest(HttpMethod.Put, "/api/projects") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser("user1")
+                                    setBody(
+                                        """
                                 {
                                 "fsRoot" : "/home/user1/folder"
                                 }
                                 """.trimIndent()
-                                )
-                            }.response
-                        //TODO Should fail due to duplicate. Project creating does not check to se if fsroot have been used.
-                        //TODO If not handled, project dublicates will exisit and findByPath will fail due to singleOrNull
-                        assertEquals(HttpStatusCode.BadRequest, response2.status())
-                    }
-                )
+                                    )
+                                }.response
+                            //TODO Should fail due to duplicate. Project creating does not check to se if fsroot have been used.
+                            //TODO If not handled, project dublicates will exisit and findByPath will fail due to singleOrNull
+                            assertEquals(HttpStatusCode.BadRequest, response2.status())
+                        }
+                    )
+                }
             }
         }
     }
 
     @Test
     fun `get project - not existing - test`() {
-        objectMockk(FileDescriptions).use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                            val response: HttpResponse = mockk(relaxed = true)
+        withDatabase {
+            objectMockk(FileDescriptions).use {
+                withAuthMock {
+                    withTestApplication(
+                        moduleFunction = {
+                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
+                                val response: HttpResponse = mockk(relaxed = true)
 
-                            every { response.content } answers {
-                                val payload = listOf(
-                                    SyncItem(
-                                        FileType.DIRECTORY,
-                                        "someid",
-                                        "user1",
-                                        0,
-                                        null,
-                                        null,
-                                        "/home/user1/folder/test1"
-                                    )
-                                ).joinToString("\n") { it.toString() }
+                                every { response.content } answers {
+                                    val payload = listOf(
+                                        SyncItem(
+                                            FileType.DIRECTORY,
+                                            "someid",
+                                            "user1",
+                                            0,
+                                            null,
+                                            null,
+                                            "/home/user1/folder/test1"
+                                        )
+                                    ).joinToString("\n") { it.toString() }
 
-                                payload.byteInputStream().toByteReadChannel()
+                                    payload.byteInputStream().toByteReadChannel()
+                                }
+                                RESTResponse.Ok(response, Unit)
                             }
-                            RESTResponse.Ok(response, Unit)
+
+                            coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
+                                RESTResponse.Ok(mockk(relaxed = true), Unit)
+                            }
+
+                            configureProjectServer()
+                        },
+
+                        test = {
+
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/notthere") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser("user1")
+                                }.response
+
+                            assertEquals(HttpStatusCode.NotFound, response.status())
+
                         }
-
-                        coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
-                            RESTResponse.Ok(mockk(relaxed = true), Unit)
-                        }
-
-                        configureProjectServer()
-                    },
-
-                    test = {
-
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/notthere") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser("user1")
-                            }.response
-
-                        assertEquals(HttpStatusCode.NotFound, response.status())
-
-                    }
-                )
+                    )
+                }
             }
         }
     }

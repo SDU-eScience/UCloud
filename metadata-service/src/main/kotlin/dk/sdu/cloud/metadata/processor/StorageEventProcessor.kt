@@ -8,6 +8,7 @@ import dk.sdu.cloud.metadata.api.ProjectEventConsumer
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.services.MetadataCommandService
 import dk.sdu.cloud.metadata.services.Project
+import dk.sdu.cloud.metadata.services.ProjectException
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.MarkFileAsOpenAccessRequest
@@ -64,11 +65,12 @@ class StorageEventProcessor(
                     event.path
                 }
 
-                val project = projectService.findBestMatchingProjectByPath(path)
-                        ?: return@mapValues Pair<StorageEvent, Project?>(event, null)
-                project.id ?: return@mapValues Pair<StorageEvent, Project?>(event, null)
-
-                Pair(event, project)
+                try{
+                    val project = projectService.findBestMatchingProjectByPath(path)
+                    Pair(event, project)
+                } catch (e: ProjectException.NotFound) {
+                    return@mapValues Pair<StorageEvent, Project?>(event, null)
+                }
             }
             .filter { _, eventWithProject -> eventWithProject.second != null }
             .map { _, (event, project) -> project!! to event }

@@ -33,10 +33,10 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithProject(closure:
 }
 
 interface ProjectDAO {
-    fun findByFSRoot(path: String): Project?
+    fun findByFSRoot(path: String): Project
     fun findById(id: String): Project?
     fun createProject(project: Project): String
-    fun findBestMatchingProjectByPath(path: String): Project?
+    fun findBestMatchingProjectByPath(path: String): Project
     fun updateProjectRoot(id: String, newRoot: String)
     fun deleteProjectByRoot(root: String)
     fun deleteProjectById(id: String)

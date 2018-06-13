@@ -269,6 +269,55 @@ class MetadataTest {
         }
     }
 
+    @Test
+    fun `find by path - Not in Elastic - test`() {
+        objectMockk(FileDescriptions).use {
+            val user = "user1"
+            withAuthMock {
+                val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
+                val projectService: ProjectService = mockk(relaxed = true)
+                val elasticService = ElasticMetadataService(
+                    elasticClient = elasticClient,
+                    projectService = projectService
+                )
+
+                withTestApplication(
+                    moduleFunction = {
+                        configureMetadataServer(elasticService, projectService)
+
+                        every { projectService.findByFSRoot(any()) } returns Project(
+                            "2",
+                            "/home/",
+                            user,
+                            "This is my project"
+                        )
+
+                        every { elasticClient.get(any()) } answers {
+                            val getResponse = mockk<GetResponse>()
+                            every { getResponse.isExists } returns false
+                            getResponse
+                        }
+                    },
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Get, "/api/metadata/by-path?path=/home/") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(user)
+                            }.response
+
+                        assertEquals(HttpStatusCode.NotFound, response.status())
+
+                        verify { elasticClient.get(
+                            match {
+                                it.index() == "project_metadata" && it.id() == "2"
+                            }
+                        ) }
+
+                    }
+                )
+            }
+        }
+    }
 
     @Test
     fun `find By Path - Not existing project - test`() {

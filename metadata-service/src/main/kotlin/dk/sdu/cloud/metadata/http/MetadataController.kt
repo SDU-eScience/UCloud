@@ -44,19 +44,20 @@ class MetadataController(
         implement(MetadataDescriptions.findByPath) {
             logEntry(log, it)
 
-            val project = projectService.findByFSRoot(it.path) ?: return@implement run {
-                error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-            }
+            try {
+                val project = projectService.findByFSRoot(it.path)
+                val projectId = project.id!!
 
-            val projectId = project.id!!
-
-            // TODO Bad copy & paste
-            val result = metadataQueryService.getById(call.request.currentUsername, projectId)
-            if (result == null) {
+                // TODO Bad copy & paste
+                val result = metadataQueryService.getById(call.request.currentUsername, projectId)
+                if (result == null) {
+                    error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
+                } else {
+                    val canEdit = metadataCommandService.canEdit(call.request.currentUsername, projectId)
+                    ok(ProjectMetadataWithRightsInfo(result, canEdit = canEdit))
+                }
+            } catch (e: ProjectException.NotFound) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-            } else {
-                val canEdit = metadataCommandService.canEdit(call.request.currentUsername, projectId)
-                ok(ProjectMetadataWithRightsInfo(result, canEdit = canEdit))
             }
         }
 

@@ -8,7 +8,6 @@ import org.jetbrains.exposed.dao.IntIdTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.Function
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.io.File
 
 object Projects : IntIdTable() {
     val fsRoot = text("fs_root").uniqueIndex()
@@ -65,16 +64,16 @@ class ProjectSQLDao : ProjectDAO {
         }
     }
 
-    override fun findByFSRoot(path: String): Project? {
+    override fun findByFSRoot(path: String): Project {
         val normalizedPath = path.normalize()
         return transaction {
             ProjectEntity.find { Projects.fsRoot eq normalizedPath }.toList().singleOrNull()?.toProject()
-        }
+        } ?: throw ProjectException.NotFound()
     }
 
     override fun findById(id: String): Project? {
         val convertedId = id.toIntOrNull() ?: return null
-        return transaction { ProjectEntity.findById(convertedId)?.toProject() }
+        return transaction { ProjectEntity.findById(convertedId)?.toProject() } ?: throw ProjectException.NotFound()
     }
 
     override fun createProject(project: Project): String {
@@ -87,7 +86,7 @@ class ProjectSQLDao : ProjectDAO {
         }.id.value.toString()
     }
 
-    override fun findBestMatchingProjectByPath(path: String): Project? {
+    override fun findBestMatchingProjectByPath(path: String): Project {
         val normalizedPath = path.normalize()
         return transaction {
             ProjectEntity.wrapRows(
@@ -96,7 +95,7 @@ class ProjectSQLDao : ProjectDAO {
                     .orderBy(CharLength(Projects.fsRoot), isAsc = false)
                     .limit(1)
             ).toList().singleOrNull()?.toProject()
-        }
+        } ?: throw ProjectException.NotFound()
     }
 }
 
