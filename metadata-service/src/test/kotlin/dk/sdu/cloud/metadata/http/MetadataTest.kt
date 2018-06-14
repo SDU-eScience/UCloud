@@ -59,25 +59,25 @@ private fun Application.configureMetadataServer(
 class MetadataTest {
 
     private val source = """
-                                {
-                                    "sduCloudRoot" : "",
-                                    "title" : "I got a title",
-                                    "files" : [
-                                        {
-                                        "id" : "2",
-                                        "type" : "${FileType.FILE}",
-                                        "path" : "home"
-                                        }
-                                    ],
-                                    "creators" : [
-                                        {
-                                        "name" : "I. A. M. User"
-                                        }
-                                    ],
-                                    "description" : "Here is my new description",
-                                    "id" : "1"
-                                }
-                                """.trimIndent()
+        {
+            "sduCloudRoot" : "",
+            "title" : "I got a title",
+            "files" : [
+                {
+                "id" : "2",
+                "type" : "${FileType.FILE}",
+                "path" : "home"
+                }
+            ],
+            "creators" : [
+                {
+                "name" : "I. A. M. User"
+                }
+            ],
+            "description" : "Here is my new description",
+            "id" : "1"
+        }
+        """.trimIndent()
 
     @Test
     fun `make update of metadata test`() {
