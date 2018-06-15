@@ -1,10 +1,15 @@
 package dk.sdu.cloud.storage.services.cephfs
 
+import dk.sdu.cloud.service.GuardedOutputStream
+import dk.sdu.cloud.service.transferTo
 import dk.sdu.cloud.storage.util.BashEscaper
 import dk.sdu.cloud.storage.util.BoundaryContainedStream
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.*
+import java.io.Closeable
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.*
 
 private inline fun Logger.debug(closure: () -> String) {
@@ -125,11 +130,11 @@ class StreamingProcessRunner(
     private val clientBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
     private val serverBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
 
-    private val bashProcess = run {
+    private val interpreter: Process = run {
         val unixUser = cloudToCephFsDao.findUnixUser(user) ?: throw IllegalStateException("Could not find user")
         val prefix = if (isDevelopment) emptyList() else listOf("sudo", "-u", unixUser)
         val command = listOf(
-            "ceph-interpreter",
+            "/Users/dthrane/work/sdu-cloud/storage-service/native/cmake-build-release/ceph-interpreter",
             String(clientBoundary, Charsets.UTF_8),
             String(serverBoundary, Charsets.UTF_8)
         )
@@ -137,118 +142,131 @@ class StreamingProcessRunner(
         ProcessBuilder().apply { command(prefix + command) }.start()
     }
 
-    fun debug() {
-        bashProcess.outputStream.close()
-        bashProcess.waitFor()
-        println(bashProcess.inputStream.bufferedReader().readText())
-        println(bashProcess.errorStream.bufferedReader().readText())
-    }
+    private val wrappedStdout =
+        BoundaryContainedStream(serverBoundary, interpreter.inputStream)
+    private val wrappedStderr =
+        BoundaryContainedStream(serverBoundary, interpreter.errorStream)
 
-    private fun InputStream.withDebugging(timestamp: Long, name: String): InputStream =
-        if (isDevelopment) DebugInputStream(this, FileOutputStream(File(debugFolder, "$timestamp-$name")))
-        else this
-
-    fun run(vararg command: String): BoundaryContainedProcess {
-        log.debug("Bash process alive? ${bashProcess.isAlive}")
-        val out = bashProcess.outputStream
-        out.apply {
-            write(command.joinToString(" ").toByteArray())
-
-            // Always flush at end of command
-            flush()
-        }
-
-        val startTimestamp = System.currentTimeMillis()
-
-        val wrappedStdout =
-            BoundaryContainedStream(serverBoundary, bashProcess.inputStream.withDebugging(startTimestamp, "stdout.log"))
-        val wrappedStderr =
-            BoundaryContainedStream(serverBoundary, bashProcess.errorStream.withDebugging(startTimestamp, "stderr.log"))
-
-        val outputStream = StreamingOutputStream(out, onClose = {
-            out.write(clientBoundary)
-            out.flush()
+    private val outputStream =
+        StreamingOutputStream(interpreter.outputStream, onClose = {
+            log.debug("Writing the client boundary")
+            it.write(clientBoundary)
+            it.flush()
         })
 
-        return BoundaryContainedProcess(
-            wrappedStdout,
-            wrappedStderr,
-            outputStream
-        )
+    fun runCommand(
+        vararg command: String,
+        writer: (OutputStream) -> Unit = {},
+        consumer: (InputStream) -> Unit = {}
+    ) {
+        log.debug("Interpreter alive? ${interpreter.isAlive}")
+
+        if (!interpreter.isAlive) TODO("Handle interpreter not being alive")
+
+        outputStream.write((command.joinToString("\n") + "\n").toByteArray())
+        outputStream.flush()
+        outputStream.use {
+            writer(GuardedOutputStream(it))
+        }
+
+        consumer(wrappedStdout)
+
+        wrappedStdout.discardAndReset()
+        wrappedStderr.discardAndReset()
     }
 
     fun close() {
-        bashProcess.outputStream.close()
-        bashProcess.destroy()
+        interpreter.outputStream.close()
+        interpreter.destroy()
     }
 
     companion object {
         private val log = LoggerFactory.getLogger(StreamingProcessRunner::class.java)
+    }
+}
 
-        private val debugFolder = File("debug").also {
-            it.mkdirs()
+fun main(args: Array<String>) {
+    val runner = StreamingProcessRunner(CloudToCephFsDao(true), true, "jonas@hinchely.dk")
+    runner.runCommand("list-directory", "/tmp/", "0")
+    runner.runCommand("list-directory", "/tmp/", "0")
+
+    var sentBytes = 0L
+    var sentChecksum = 0L
+
+    var receivedBytes = 0L
+    var receivedChecksum = 0L
+
+    var controlBytes = 0L
+    var controlChecksum = 0L
+
+    runner.runCommand(
+        "write", "/tmp/my-file",
+        writer = { out ->
+            (0..255).forEach { a ->
+                (0..255).forEach { b ->
+                    out.write(a)
+                    out.write(b)
+                    sentChecksum += a.toByte()
+                    sentChecksum += b.toByte()
+
+                    sentBytes += 2
+                }
+            }
+        }
+    )
+
+    val debugOut = File("/tmp/debug").outputStream()
+    debugOut.use {
+        val buffer = ByteArray(8 * 1024)
+        runner.runCommand("read", "/tmp/my-file", consumer = {
+            var foundNewline = false
+            var byte = it.read(buffer)
+            while (byte != -1) {
+                debugOut.write(buffer, 0, byte)
+                for (i in 0 until byte) {
+                    if (foundNewline) {
+                        receivedChecksum += buffer[i]
+                    }
+
+                    if (buffer[i] == '\n'.toByte()) {
+                        foundNewline = true
+                    }
+                }
+
+                receivedBytes += byte
+                byte = it.read(buffer)
+            }
+//            }
+        })
+    }
+
+    File("/tmp/my-file").inputStream().use { ins ->
+        var byte = ins.read()
+        while (byte != -1) {
+            controlChecksum += byte.toByte()
+            byte = ins.read()
+            controlBytes++
         }
     }
+
+
+    println()
+    println("Sent bytes: $sentBytes, checksum: $sentChecksum")
+    println("Received bytes: $receivedBytes, checksum: $receivedChecksum")
+    println("Control bytes: $controlBytes, checksum: $controlChecksum")
+
+    File("/tmp/1g_copy").delete()
+    runner.runCommand("write", "/tmp/1g_copy", writer = {
+        File("/tmp/1g").inputStream().transferTo(it)
+    })
+
+    File("/tmp/1g_copy").delete()
+    File("/tmp/1g").inputStream().transferTo(File("/tmp/1g_copy").outputStream())
 }
 
-class BoundaryContainedProcess(
-    val inputStream: BoundaryContainedStream,
-    val errorStream: BoundaryContainedStream,
-    val outputStream: OutputStream
-) {
-    fun waitFor() {
-        inputStream.discardAll()
-        errorStream.discardAll()
-        outputStream.close()
-        // TODO
-    }
 
-    fun close() {
-        inputStream.discardAll()
-        errorStream.discardAll()
-        outputStream.close()
-    }
-}
-
-class DebugInputStream(private val delegate: InputStream, private val debugOutput: OutputStream) : InputStream() {
-    override fun skip(n: Long): Long {
-        return delegate.skip(n)
-    }
-
-    override fun available(): Int {
-        return delegate.available()
-    }
-
-    override fun reset() {
-        delegate.reset()
-    }
-
-    override fun close() {
-        delegate.close()
-    }
-
-    override fun mark(readlimit: Int) {
-        delegate.mark(readlimit)
-    }
-
-    override fun markSupported(): Boolean {
-        return delegate.markSupported()
-    }
-
-    override fun read(): Int {
-        return delegate.read().also { if (it != -1) debugOutput.write(it) }
-    }
-
-    override fun read(b: ByteArray?): Int {
-        return delegate.read(b).also { if (it != -1) debugOutput.write(b) }
-    }
-
-    override fun read(b: ByteArray?, off: Int, len: Int): Int {
-        return delegate.read(b, off, len).also { if (it != -1) debugOutput.write(b, off, it) }
-    }
-}
-
-class StreamingOutputStream(private val delegate: OutputStream, private val onClose: () -> Unit) : OutputStream() {
+class StreamingOutputStream(private val delegate: OutputStream, private val onClose: (OutputStream) -> Unit) :
+    OutputStream() {
     override fun write(b: Int) {
         delegate.write(b)
     }
@@ -266,6 +284,6 @@ class StreamingOutputStream(private val delegate: OutputStream, private val onCl
     }
 
     override fun close() {
-        onClose()
+        onClose(this)
     }
 }

@@ -322,19 +322,24 @@ void read_command(char *path) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
+    if (argc < 3) {
         fprintf(stderr, "incorrect usage");
         return 1;
     }
 
-    if (argc > 3) {
+    if (argc > 4) {
         fprintf(stderr, "Using input from file: %s\n", argv[3]);
-        stdin_no = open(argv[3], O_RDONLY);
+        stdin_no = open(argv[4], O_RDONLY);
     }
 
+    // Disable buffering of stdout and stderr (not only used for newline terminated messages)
+    setbuf(stdout, nullptr);
+    setbuf(stderr, nullptr);
+//
     // Initialize streams
-    auto token = argv[1];
-    initialize_stdin_stream(token);
+    auto client_boundary = argv[1];
+    initialize_stdin_stream(client_boundary);
+    auto server_boundary = argv[2];
 
     // Line buffers
     auto line = (char *) malloc(MAX_LINE_LENGTH);
@@ -443,7 +448,8 @@ int main(int argc, char **argv) {
 
         if (strcmp("", line) != 0) {
             bool did_reset = discard_and_reset_stream();
-            printf("DONE TOKEN\n");
+            printf("%s", server_boundary);
+            fprintf(stderr, "%s", server_boundary);
             if (!did_reset) break;
         }
     }

@@ -7,26 +7,15 @@ class BoundaryContainedStream(
     private val boundaryBytes: ByteArray,
     private val delegate: InputStream
 ) : InputStream() {
+    private val searcher = StreamSearcher(boundaryBytes)
     private var clearedBytes = 0
 
-    private val internalBuffer = ByteArray(8 * 1024)
+    private val internalBuffer = ByteArray(32 * 1024)
     private var internalPointer = -1
     private var internalBufferSize = -1
 
     private var boundaryFound = false
 
-    // We need to, at all times, be sure that we don't deliver data that is part of the boundary.
-    // This means we cannot deliver data if it might be part of the boundary.
-
-    // This might become complicated if the boundary is split across internal buffers.
-    // Given the boundary: "boundary" and the byte stream:
-    // buffer1: [abcdefqboun], buffer2: [ary\n0]
-    // it is important that we don't  return the 'boun' bytes, even if the client isn't requesting more data
-
-    /**
-     * Discards the remaining data in the stream. Boundary and anything after is left in the stream.
-     * See [readRemainingAfterBoundary]
-     */
     fun discardAll() {
         val discardBuffer = ByteArray(8 * 1024)
         while (true) {
@@ -34,35 +23,41 @@ class BoundaryContainedStream(
         }
     }
 
-    /**
-     * Includes the boundary bytes too.
-     */
-    fun readRemainingAfterBoundary(): ByteArray {
-        return internalBuffer.copyOfRange(internalPointer, internalBufferSize)
+    fun discardAndReset() {
+        discardAll()
+        resetStream()
     }
+
+    fun resetStream() {
+        assert(boundaryFound)
+        assert(clearedBytes == 0)
+
+        boundaryFound = false
+        internalPointer += boundaryBytes.size
+
+        if (internalPointer >= internalBufferSize) {
+            // No more data in buffer invalidate it
+            internalPointer = -1
+            internalBufferSize = -1
+        } else {
+            boundaryFound = clearAsMuchAsPossible()
+        }
+    }
+
 
     private fun clearAsMuchAsPossible(): Boolean {
         assert(clearedBytes == 0)
-        var boundaryPtr = 0
-        var internalPtr = internalPointer
-        while (internalPtr < internalBufferSize) {
-            if (boundaryPtr == boundaryBytes.size) {
-                // Full match
-                break
-            } else if (internalBuffer[internalPtr] != boundaryBytes[boundaryPtr]) {
-                // Not a match, reset the search. TODO Incorrect! Implement KMP
-                boundaryPtr = 0
-            } else {
-                // A match, continue the search
-                boundaryPtr++
-            }
+        assert(internalPointer >= 0)
 
-            internalPtr++
+        val offset = searcher.search(internalBuffer, internalPointer, internalBufferSize)
+        val len = internalBufferSize - internalPointer
+        return if (offset == -1) {
+            clearedBytes = if (boundaryBytes.size > len) len else len - (boundaryBytes.size - 1)
+            false
+        } else {
+            clearedBytes = offset
+            true
         }
-
-        // We don't clear bytes that could be a prefix (or a full match)
-        clearedBytes = (internalPtr - internalPointer) - boundaryPtr
-        return boundaryPtr == boundaryBytes.size
     }
 
     private fun readMoreData() {
@@ -71,6 +66,8 @@ class BoundaryContainedStream(
         if (internalPointer != -1 && internalPointer != internalBufferSize) {
             // Copy existing data and read remaining
             val remainingBufferSize = internalBufferSize - internalPointer
+            assert(remainingBufferSize >= 0)
+            assert(remainingBufferSize < internalBuffer.size)
             System.arraycopy(
                 internalBuffer,
                 internalPointer,
@@ -97,22 +94,10 @@ class BoundaryContainedStream(
     }
 
     override fun read(): Int {
-        return if (clearedBytes > 0) {
-            clearedBytes--
-            internalBuffer[internalPointer++].toInt()
-        } else if (!boundaryFound) {
-            readMoreData()
-            boundaryFound = clearAsMuchAsPossible()
-
-            if (clearedBytes == 0) {
-                -1
-            } else {
-                clearedBytes--
-                internalBuffer[internalPointer++].toInt()
-            }
-        } else {
-            -1
-        }
+        val buffer = ByteArray(1)
+        val result = read(buffer)
+        if (result != 1) return result
+        return buffer[0].toInt() and 0xFF
     }
 
     override fun read(b: ByteArray): Int {
@@ -126,7 +111,7 @@ class BoundaryContainedStream(
             readMoreData()
             boundaryFound = clearAsMuchAsPossible()
 
-            if (clearedBytes == 0) {
+            if (clearedBytes <= 0) {
                 -1
             } else {
                 val bytesToMove = min(b.size, clearedBytes)
@@ -151,7 +136,7 @@ class BoundaryContainedStream(
             readMoreData()
             boundaryFound = clearAsMuchAsPossible()
 
-            if (clearedBytes == 0) {
+            if (clearedBytes <= 0) {
                 -1
             } else {
                 val bytesToMove = min(len, clearedBytes)
