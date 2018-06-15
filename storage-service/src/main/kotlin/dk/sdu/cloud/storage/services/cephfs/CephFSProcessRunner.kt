@@ -144,21 +144,24 @@ class StreamingProcessRunner(
 
     private val wrappedStdout =
         BoundaryContainedStream(serverBoundary, interpreter.inputStream)
+
     private val wrappedStderr =
         BoundaryContainedStream(serverBoundary, interpreter.errorStream)
 
+    val stdout: InputStream = wrappedStdout
+    val stderr: InputStream = wrappedStdout
+
     private val outputStream =
         StreamingOutputStream(interpreter.outputStream, onClose = {
-            log.debug("Writing the client boundary")
             it.write(clientBoundary)
             it.flush()
         })
 
-    fun runCommand(
+    fun <T> runCommand(
         vararg command: String,
         writer: (OutputStream) -> Unit = {},
-        consumer: (InputStream) -> Unit = {}
-    ) {
+        consumer: (StreamingProcessRunner) -> T
+    ): T {
         log.debug("Interpreter alive? ${interpreter.isAlive}")
 
         if (!interpreter.isAlive) TODO("Handle interpreter not being alive")
@@ -169,10 +172,15 @@ class StreamingProcessRunner(
             writer(GuardedOutputStream(it))
         }
 
-        consumer(wrappedStdout)
+        return consumer(this).also {
+            wrappedStdout.discardAndReset()
+            wrappedStderr.discardAndReset()
+        }
+    }
 
-        wrappedStdout.discardAndReset()
-        wrappedStderr.discardAndReset()
+    fun clearBytes(numberOfBytes: Long) {
+        log.debug("Clearing $numberOfBytes from stdout")
+        wrappedStdout.manualClearNextBytes(numberOfBytes)
     }
 
     fun close() {
@@ -187,83 +195,79 @@ class StreamingProcessRunner(
 
 fun main(args: Array<String>) {
     val runner = StreamingProcessRunner(CloudToCephFsDao(true), true, "jonas@hinchely.dk")
-    runner.runCommand("list-directory", "/tmp/", "0")
-    runner.runCommand("list-directory", "/tmp/", "0")
 
-    var sentBytes = 0L
-    var sentChecksum = 0L
-
-    var receivedBytes = 0L
-    var receivedChecksum = 0L
-
-    var controlBytes = 0L
-    var controlChecksum = 0L
+    val attributes = setOf(
+        FileAttribute.FILE_TYPE,
+        FileAttribute.INODE,
+        FileAttribute.PATH,
+        FileAttribute.OWNER
+    )
 
     runner.runCommand(
-        "write", "/tmp/my-file",
-        writer = { out ->
-            (0..255).forEach { a ->
-                (0..255).forEach { b ->
-                    out.write(a)
-                    out.write(b)
-                    sentChecksum += a.toByte()
-                    sentChecksum += b.toByte()
-
-                    sentBytes += 2
-                }
-            }
+        "list-directory",
+        "/tmp",
+        attributes.asBitSet().toString(),
+        consumer = {
+            println("Number of files in /tmp/:")
+            println(parseFileAttributes(it.stdout.bufferedReader().lineSequence(), attributes).count())
         }
     )
 
-    val debugOut = File("/tmp/debug").outputStream()
-    debugOut.use {
-        val buffer = ByteArray(8 * 1024)
-        runner.runCommand("read", "/tmp/my-file", consumer = {
-            var foundNewline = false
-            var byte = it.read(buffer)
-            while (byte != -1) {
-                debugOut.write(buffer, 0, byte)
-                for (i in 0 until byte) {
-                    if (foundNewline) {
-                        receivedChecksum += buffer[i]
-                    }
+    val file = File("/tmp/output")
 
-                    if (buffer[i] == '\n'.toByte()) {
-                        foundNewline = true
-                    }
-                }
+    file.delete()
+    timed("with clearing") {
+        runner.runCommand(
+            "read",
+            "/tmp/1g",
 
-                receivedBytes += byte
-                byte = it.read(buffer)
+            consumer = {
+                it.clearBytes(it.stdout.safeReadLine().toLong())
+                it.stdout.transferTo(file.outputStream())
             }
-//            }
-        })
+        )
     }
 
-    File("/tmp/my-file").inputStream().use { ins ->
-        var byte = ins.read()
-        while (byte != -1) {
-            controlChecksum += byte.toByte()
-            byte = ins.read()
-            controlBytes++
-        }
+    file.delete()
+    timed("without clearing") {
+        runner.runCommand(
+            "read",
+            "/tmp/1g",
+
+            consumer = {
+                it.stdout.safeReadLine().toLong()
+                it.stdout.transferTo(file.outputStream())
+            }
+        )
     }
 
-
-    println()
-    println("Sent bytes: $sentBytes, checksum: $sentChecksum")
-    println("Received bytes: $receivedBytes, checksum: $receivedChecksum")
-    println("Control bytes: $controlBytes, checksum: $controlChecksum")
-
-    File("/tmp/1g_copy").delete()
-    runner.runCommand("write", "/tmp/1g_copy", writer = {
-        File("/tmp/1g").inputStream().transferTo(it)
-    })
-
-    File("/tmp/1g_copy").delete()
-    File("/tmp/1g").inputStream().transferTo(File("/tmp/1g_copy").outputStream())
+    file.delete()
+    timed("baseline") {
+        File("/tmp/1g").inputStream().transferTo(file.outputStream())
+    }
 }
 
+inline fun timed(name: String, closure: () -> Unit) {
+    val start = System.currentTimeMillis()
+    closure()
+    System.err.println("[Timing of $name] ${System.currentTimeMillis() - start} ms")
+}
+
+
+fun InputStream.safeReadLine(): String {
+    val lineBuilder = ArrayList<Byte>()
+    var next = read()
+    while (next != -1) {
+        if (next == '\n'.toInt()) {
+            break
+        } else {
+            lineBuilder.add(next.toByte())
+        }
+
+        next = read()
+    }
+    return String(lineBuilder.toByteArray())
+}
 
 class StreamingOutputStream(private val delegate: OutputStream, private val onClose: (OutputStream) -> Unit) :
     OutputStream() {

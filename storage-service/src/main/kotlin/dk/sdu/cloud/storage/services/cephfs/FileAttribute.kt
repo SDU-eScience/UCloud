@@ -4,8 +4,7 @@ import dk.sdu.cloud.storage.api.AccessEntry
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
-import java.util.Comparator
-import kotlin.collections.ArrayList
+import java.util.*
 
 enum class FileAttribute(val value: Long) {
     // File type and link operations
@@ -57,74 +56,97 @@ fun Set<FileAttribute>.asBitSet(): Long {
     return result
 }
 
-fun parseFileAttributes(input: Iterable<String>, attributes: Set<FileAttribute>): List<FileRow> {
-    val result = ArrayList<FileRow>()
+fun parseFileAttributes(sequence: Sequence<String>, attributes: Set<FileAttribute>): Sequence<FileRow> =
+    parseFileAttributes(sequence.iterator(), attributes)
+
+fun parseFileAttributes(iterator: Iterator<String>, attributes: Set<FileAttribute>): Sequence<FileRow> {
+    var line = 0
     val sortedAttributes = attributes.toSortedSet(Comparator.comparingLong { it.value })
 
-    val iterator = input.iterator()
+    fun next(): String {
+        line++
+        return iterator.next()
+    }
 
-    while (iterator.hasNext()) {
-        sortedAttributes.forEach { attribute ->
-            var fileType: FileType? = null
-            var isLink: Boolean? = null
-            var linkTarget: String? = null
-            var unixMode: Int? = null
-            var owner: String? = null
-            var group: String? = null
-            var timestamps: Timestamps? = null
-            var path: String? = null
-            var inode: String? = null
-            var size: Long? = null
-            var shares: List<AccessEntry>? = null
-            var annotations: Set<String>? = null
-            var checksum: FileChecksum? = null
-            var sensitivityLevel: SensitivityLevel? = null
+    fun parsingError(why: String): Nothing {
+        throw IllegalStateException("Parsing error in line: $line. $why")
+    }
 
+    return generateSequence {
+        if (!iterator.hasNext()) return@generateSequence null
+        var fileType: FileType? = null
+        var isLink: Boolean? = null
+        var linkTarget: String? = null
+        var unixMode: Int? = null
+        var owner: String? = null
+        var group: String? = null
+        var timestamps: Timestamps? = null
+        var path: String? = null
+        var inode: String? = null
+        var size: Long? = null
+        var shares: List<AccessEntry>? = null
+        var annotations: Set<String>? = null
+        var checksum: FileChecksum? = null
+        var sensitivityLevel: SensitivityLevel? = null
+
+        var attributesCovered = 0
+        for (attribute in sortedAttributes) {
+            val currentLine = next()
+
+            if (currentLine.startsWith("EXIT:")) {
+                val status = currentLine.split(":")[1].toInt()
+                if (status != 0) {
+                    TODO("Throw the correct exception based on status $status")
+                }
+                break
+            }
+
+            attributesCovered++
             when (attribute) {
                 null -> throw NullPointerException()
 
                 FileAttribute.FILE_TYPE -> {
-                    fileType = when (iterator.next()) {
+                    fileType = when (currentLine) {
                         "F" -> FileType.FILE
                         "D" -> FileType.DIRECTORY
-                        else -> throw IllegalStateException()
+                        else -> parsingError("$currentLine is to a recognized file type!")
                     }
                 }
 
                 FileAttribute.IS_LINK -> {
-                    isLink = when (iterator.next()) {
+                    isLink = when (next()) {
                         "1" -> true
                         "0" -> false
-                        else -> throw IllegalStateException()
+                        else -> parsingError("Not a valid boolean")
                     }
                 }
 
-                FileAttribute.LINK_TARGET -> linkTarget = iterator.next()
+                FileAttribute.LINK_TARGET -> linkTarget = currentLine
 
-                FileAttribute.UNIX_MODE -> unixMode = iterator.next().toInt()
+                FileAttribute.UNIX_MODE -> unixMode = currentLine.toInt()
 
-                FileAttribute.OWNER -> owner = iterator.next()
+                FileAttribute.OWNER -> owner = currentLine
 
-                FileAttribute.GROUP -> group = iterator.next()
+                FileAttribute.GROUP -> group = currentLine
 
                 FileAttribute.TIMESTAMPS -> {
-                    val accessed = iterator.next().toLong() * 1000
-                    val modified = iterator.next().toLong() * 1000
-                    val created = iterator.next().toLong() * 1000
+                    val accessed = next().toLong() * 1000
+                    val modified = next().toLong() * 1000
+                    val created = next().toLong() * 1000
 
                     timestamps = Timestamps(accessed, created, modified)
                 }
 
-                FileAttribute.PATH -> path = iterator.next()
+                FileAttribute.PATH -> path = currentLine
 
-                FileAttribute.INODE -> inode = iterator.next()
+                FileAttribute.INODE -> inode = currentLine
 
-                FileAttribute.SIZE -> size = iterator.next().toLong()
+                FileAttribute.SIZE -> size = currentLine.toLong()
 
                 FileAttribute.SHARES -> {
-                    shares = (0 until iterator.next().toInt()).map {
-                        val aclEntity = iterator.next()
-                        val mode = iterator.next().toInt()
+                    shares = (0 until currentLine.toInt()).map {
+                        val aclEntity = next()
+                        val mode = next().toInt()
 
                         val isGroup = (mode and SHARED_WITH_UTYPE) != 0
                         val hasRead = (mode and SHARED_WITH_READ) != 0
@@ -141,43 +163,44 @@ fun parseFileAttributes(input: Iterable<String>, attributes: Set<FileAttribute>)
                 }
 
                 FileAttribute.ANNOTATIONS -> {
-                    annotations = iterator.next().toCharArray().map { it.toString() }.toSet()
+                    annotations = currentLine.toCharArray().map { it.toString() }.toSet()
                 }
 
                 FileAttribute.CHECKSUM -> {
-                    val sum = iterator.next()
-                    val type = iterator.next()
+                    val sum = currentLine
+                    val type = next()
 
                     checksum = FileChecksum(sum, type)
                 }
 
                 FileAttribute.SENSITIVITY -> {
-                    sensitivityLevel = SensitivityLevel.valueOf(iterator.next())
+                    sensitivityLevel = SensitivityLevel.valueOf(currentLine)
                 }
             }
+        }
 
-            result.add(
-                FileRow(
-                    fileType,
-                    isLink,
-                    linkTarget,
-                    unixMode,
-                    owner,
-                    group,
-                    timestamps,
-                    path,
-                    inode,
-                    size,
-                    shares,
-                    annotations,
-                    checksum,
-                    sensitivityLevel
-                )
+        if (attributesCovered == attributes.size) {
+            FileRow(
+                fileType,
+                isLink,
+                linkTarget,
+                unixMode,
+                owner,
+                group,
+                timestamps,
+                path,
+                inode,
+                size,
+                shares,
+                annotations,
+                checksum,
+                sensitivityLevel
             )
+        } else {
+            if (attributesCovered != 0) parsingError("unexpected end of stream")
+            null
         }
     }
-
-    return result
 }
 
 private const val SHARED_WITH_UTYPE = 1

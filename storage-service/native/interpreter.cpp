@@ -382,7 +382,7 @@ int main(int argc, char **argv) {
             auto mode = NEXT_ARGUMENT_INT(1);
             verify_path_or_fatal(path);
 
-            printf("%d\n", list_command(path, (uint64_t) mode));
+            printf("EXIT:%d\n", list_command(path, (uint64_t) mode));
         } else if (IS_COMMAND("list-favorites")) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);

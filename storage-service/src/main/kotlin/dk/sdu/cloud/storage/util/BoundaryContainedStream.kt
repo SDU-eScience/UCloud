@@ -9,6 +9,7 @@ class BoundaryContainedStream(
 ) : InputStream() {
     private val searcher = StreamSearcher(boundaryBytes)
     private var clearedBytes = 0
+    private var preclearedBytes = 0L
 
     private val internalBuffer = ByteArray(32 * 1024)
     private var internalPointer = -1
@@ -44,19 +45,35 @@ class BoundaryContainedStream(
         }
     }
 
+    fun manualClearNextBytes(numberOfBytesToClear: Long) {
+        assert(preclearedBytes == 0L)
+        preclearedBytes = numberOfBytesToClear
+    }
 
     private fun clearAsMuchAsPossible(): Boolean {
         assert(clearedBytes == 0)
         assert(internalPointer >= 0)
 
-        val offset = searcher.search(internalBuffer, internalPointer, internalBufferSize)
         val len = internalBufferSize - internalPointer
-        return if (offset == -1) {
-            clearedBytes = if (boundaryBytes.size > len) len else len - (boundaryBytes.size - 1)
+        return if (preclearedBytes > 0) {
+            val min = min(preclearedBytes, len.toLong())
+            assert(min <= Int.MAX_VALUE)
+
+            preclearedBytes -= min
+            clearedBytes = min.toInt()
+
+            assert(preclearedBytes >= 0)
+            assert(clearedBytes >= 0)
             false
         } else {
-            clearedBytes = offset
-            true
+            val offset = searcher.search(internalBuffer, internalPointer, internalBufferSize)
+            if (offset == -1) {
+                clearedBytes = if (boundaryBytes.size > len) len else len - (boundaryBytes.size - 1)
+                false
+            } else {
+                clearedBytes = offset
+                true
+            }
         }
     }
 
