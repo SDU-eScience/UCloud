@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.stackTraceToString
 import mbuhot.eskotlin.query.compound.bool
+import mbuhot.eskotlin.query.fulltext.match
 import mbuhot.eskotlin.query.term.term
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
@@ -157,9 +158,7 @@ class ElasticMetadataService(
         val request = SearchRequest(index).apply {
             source(SearchSourceBuilder().apply {
                 val q = bool {
-                    must {
-                       term { "full_search" to query }
-                    }
+                       match { "full_search" to query }
                 }
 
                 from(paging.itemsPerPage * paging.page)
