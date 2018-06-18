@@ -60,7 +60,7 @@ data class ZenodoListPublicationsRequest(
 ) : WithPagination
 
 object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
-    private const val baseContext = "/api/zenodo"
+    const val baseContext = "/api/zenodo"
 
     val requestAccess = callDescription<ZenodoAccessRequest, ZenodoAccessRedirectURL, CommonErrorMessage> {
         method = HttpMethod.Post

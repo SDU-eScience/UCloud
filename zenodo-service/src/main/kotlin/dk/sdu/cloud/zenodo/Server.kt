@@ -3,6 +3,7 @@ package dk.sdu.cloud.zenodo
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
 import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
@@ -108,7 +109,14 @@ class Server(
                     }
                 }
 
-                ZenodoController(kafka, publicationService, zenodo).also { it.configure(this) }
+                route("/api/zenodo") {
+                    ZenodoController(
+                        kafka,
+                        publicationService,
+                        zenodo,
+                        kafka.producer.forStream(ZenodoCommandStreams.publishCommands)
+                    ).also { it.configure(this) }
+                }
             }
         }
 

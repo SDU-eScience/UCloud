@@ -29,7 +29,6 @@ import io.ktor.server.testing.withTestApplication
 import io.mockk.*
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.SchemaUtils.create
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Test
 import java.util.*

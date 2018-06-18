@@ -10,7 +10,6 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.stackTraceToString
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match
-import mbuhot.eskotlin.query.term.term
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.delete.DeleteRequest
