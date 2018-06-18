@@ -244,6 +244,9 @@ enum class InterpreterCommand(val command: String) {
     MKDIR("make-dir"),
     DELETE("delete"),
     MOVE("move"),
+    TREE("tree"),
+    SYMLINK("symlink"),
+
     WRITE("write"),
     WRITE_OPEN("write-open"),
 
@@ -252,7 +255,6 @@ enum class InterpreterCommand(val command: String) {
     LIST_XATTR("list-xattr"),
     DELETE_XATTR("delete-xattr"),
 
-    TREE("tree")
 }
 
 fun throwExceptionBasedOnStatus(status: Int): Nothing {

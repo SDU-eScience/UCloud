@@ -283,40 +283,15 @@ class CephFSFileSystemService(
         val absLinkPath = translateAndCheckFile(linkFile)
         val absPointsToPath = translateAndCheckFile(pointsTo)
 
-        // We only need to check target, the rest will be enforced. Ideally we wouldn't do this as two forks,
-        // but can work for prototypes. TODO Performance
+        ctx.runCommand(
+            InterpreterCommand.SYMLINK,
+            absPointsToPath,
+            absLinkPath,
 
-        // TODO Stat needs to not ls parent dir. Disabled for now
-        // TODO Stat needs to not ls parent dir. Disabled for now
-        // TODO Stat needs to not ls parent dir. Disabled for now
-        // TODO Stat needs to not ls parent dir. Disabled for now
-        if (false && stat(ctx, pointsTo) == null) {
-            throw IllegalArgumentException("Cannot point to target ($linkFile, $pointsTo)")
-        }
-
-        val process = ctx.run(listOf("ln", "-s", absPointsToPath, absLinkPath))
-        val status = process.waitFor()
-        if (status != 0) {
-            log.info("ln failed ${ctx.user}, $absLinkPath $absPointsToPath")
-            log.info(process.errorStream.reader().readText())
-            throw IllegalStateException()
-        } else {
-            launch {
-                val fileStat = stat(ctx, linkFile) ?: return@launch run {
-                    log.warn("Unable to stat file after soft link. path=$linkFile")
-                }
-
-                eventProducer.emit(
-                    StorageEvent.CreatedOrModified(
-                        id = fileStat.inode.toString(),
-                        path = fileStat.path,
-                        owner = fileStat.ownerName,
-                        timestamp = fileStat.createdAt,
-                        type = FileType.LINK
-                    )
-                )
+            consumer = {
+                assert(it.stdoutLineSequence().any { checkStatus(it) })
             }
-        }
+        )
     }
 
     override fun createFavorite(ctx: FSUserContext, fileToFavorite: String) {
@@ -469,8 +444,7 @@ class CephFSFileSystemService(
             value,
 
             consumer = {
-                val hasExitCode = it.stdoutLineSequence().any { checkStatus(it) }
-                if (!hasExitCode) throw IllegalStateException("Bad output from interpreter")
+                assert(it.stdoutLineSequence().any { checkStatus(it) })
             }
         )
     }

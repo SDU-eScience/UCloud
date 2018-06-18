@@ -22,6 +22,7 @@
 #include "mkdir.h"
 #include "move.h"
 #include "file_utils.h"
+#include "symlink.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -455,6 +456,13 @@ int main(int argc, char **argv) {
             verify_path_or_fatal(path);
 
             read_command(path);
+        } else if (IS_COMMAND("symlink")) {
+            auto target_path = NEXT_ARGUMENT(0);
+            auto link_path = NEXT_ARGUMENT(1);
+            verify_path_or_fatal(target_path);
+            verify_path_or_fatal(link_path);
+
+            printf("EXIT:%d\n", symlink_command(target_path, link_path));
         }
 
         if (strcmp("", line) != 0) {
