@@ -6,15 +6,14 @@ import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageFile
-import dk.sdu.cloud.storage.services.cephfs.FavoritedFile
-import dk.sdu.cloud.storage.services.cephfs.ProcessRunner
+import dk.sdu.cloud.storage.services.cephfs.*
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
-typealias FSUserContext = ProcessRunner
+typealias FSUserContext = StreamingProcessRunner
 
 interface FileSystemService {
     fun ls(
@@ -32,8 +31,10 @@ interface FileSystemService {
     fun move(ctx: FSUserContext, path: String, newPath: String)
     fun copy(ctx: FSUserContext, path: String, newPath: String)
 
-    fun read(ctx: FSUserContext, path: String): InputStream
-    fun write(ctx: FSUserContext, path: String, writer: OutputStream.() -> Unit)
+    suspend fun <T> coRead(ctx: FSUserContext, path: String, consumer: suspend InputStream.() -> T): T
+    fun <T> read(ctx: FSUserContext, path: String, consumer: InputStream.() -> T): T
+    suspend fun <T> coWrite(ctx: FSUserContext, path: String, writer: suspend OutputStream.() -> T): T
+    fun <T> write(ctx: FSUserContext, path: String, writer: OutputStream.() -> T): T
 
     fun createFavorite(ctx: FSUserContext, fileToFavorite: String)
     fun removeFavorite(ctx: FSUserContext, favoriteFileToRemove: String)
@@ -64,11 +65,11 @@ interface FileSystemService {
      *
      * Only file entries that have been modified since [modifiedSince] will be included.
      */
-    suspend fun syncList(
+    suspend fun tree(
         ctx: FSUserContext,
         path: String,
-        modifiedSince: Long = 0,
-        itemHandler: suspend (SyncItem) -> Unit
+        mode: Set<FileAttribute>,
+        itemHandler: suspend (FileRow) -> Unit
     )
 
     fun openContext(user: String): FSUserContext
@@ -91,12 +92,13 @@ data class SyncItem(
     val path: String
 )
 
-sealed class FileSystemException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
-    data class BadRequest(val why: String) : FileSystemException("Bad exception")
-    data class NotFound(val file: String) : FileSystemException("Not found: $file")
-    data class AlreadyExists(val file: String) : FileSystemException("Already exists: $file")
-    class PermissionException : FileSystemException("Permission denied")
-    class CriticalException(why: String) : FileSystemException("Critical exception: $why", true)
+sealed class FSException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
+    data class BadRequest(val why: String = "") : FSException("Bad request $why")
+    data class NotFound(val file: String? = null) : FSException("Not found ${file ?: ""}")
+    data class AlreadyExists(val file: String? = null) : FSException("Already exists ${file ?: ""}")
+    class PermissionException : FSException("Permission denied")
+    class CriticalException(why: String) : FSException("Critical exception: $why", true)
+    class IOException : FSException("Internal server error (IO)", true)
 }
 
 suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(body: () -> Unit) {
@@ -110,18 +112,18 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(body: () -> U
 
 suspend fun RESTHandler<*, *, CommonErrorMessage>.handleFSException(ex: Exception) {
     when (ex) {
-        is FileSystemException -> {
+        is FSException -> {
             // Enforce that we must handle all cases. Will cause a compiler error if we don't cover all
             @Suppress("UNUSED_VARIABLE")
             val ignored = when (ex) {
-                is FileSystemException.NotFound -> error(CommonErrorMessage(ex.message), HttpStatusCode.NotFound)
-                is FileSystemException.BadRequest -> error(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
-                is FileSystemException.AlreadyExists -> error(CommonErrorMessage(ex.message), HttpStatusCode.Conflict)
-                is FileSystemException.PermissionException -> error(
+                is FSException.NotFound -> error(CommonErrorMessage(ex.message), HttpStatusCode.NotFound)
+                is FSException.BadRequest -> error(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
+                is FSException.AlreadyExists -> error(CommonErrorMessage(ex.message), HttpStatusCode.Conflict)
+                is FSException.PermissionException -> error(
                     CommonErrorMessage(ex.message),
                     HttpStatusCode.Forbidden
                 )
-                is FileSystemException.CriticalException -> {
+                is FSException.CriticalException, is FSException.IOException -> {
                     fsLog.warn("Caught critical FS exception!")
                     fsLog.warn(ex.stackTraceToString())
                     error(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)

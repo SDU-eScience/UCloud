@@ -1,9 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.services.cephfs.CephFSProcessRunner
-import dk.sdu.cloud.storage.services.cephfs.InMemoryProcessResultAsString
-import dk.sdu.cloud.storage.services.cephfs.ProcessRunnerFactory
-import dk.sdu.cloud.storage.services.cephfs.XAttrService
+import dk.sdu.cloud.storage.services.cephfs.*
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -13,7 +10,7 @@ import org.junit.Test
 class XAttrTest {
     @Test
     fun testBasicXAttrParsing() {
-        val runner = mockk<CephFSProcessRunner>()
+        val runner = mockk<StreamingProcessRunner>()
         val factory: ProcessRunnerFactory = { runner }
         every { runner.runWithResultAsInMemoryString(any(), any()) } returns InMemoryProcessResultAsString(
             status = 0,

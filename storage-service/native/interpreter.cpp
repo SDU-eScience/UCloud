@@ -241,38 +241,52 @@ ssize_t stdin_read_line(char *result, size_t size) {
     return ptr;
 }
 
-void write_command(char *path) {
+static int file_opened_for_writing = -1;
+
+int write_open_command(char *path) {
+    struct stat s{};
+    if (file_opened_for_writing >= 0) FATAL("file already open")
+
+    file_opened_for_writing = open(path, O_WRONLY | O_CREAT, 0660);
+    if (file_opened_for_writing < 0) return -errno;
+
+    fstat(file_opened_for_writing, &s);
+    print_file_information(std::cout, path, &s, FILE_TYPE | INODE | PATH | TIMESTAMPS);
+    return 0;
+}
+
+void write_command() {
     size_t write_buffer_size = INTERNAL_BUFFER_CAPACITY;
     auto write_buffer = (char *) malloc(write_buffer_size);
     assert(write_buffer != nullptr);
 
-    auto out_file = open(path, O_WRONLY | O_CREAT, 0660);
-    if (out_file >= 0) {
-        ssize_t read;
+    auto out_file = file_opened_for_writing;
+    if (out_file < 0) FATAL("File not open");
+
+    ssize_t read;
+    read = stdin_read(write_buffer, write_buffer_size);
+    int required_iterations = 0;
+    while (read > 0) {
+        char *out_ptr = write_buffer;
+        ssize_t nwritten;
+
+        do {
+            required_iterations++;
+            nwritten = write(out_file, out_ptr, (size_t) read);
+
+            if (nwritten >= 0) {
+                read -= nwritten;
+                out_ptr += nwritten;
+            } else if (errno != EINTR) {
+                fprintf(stderr, "Unexpected error\n");
+                exit(1);
+            }
+
+        } while (read > 0);
+
         read = stdin_read(write_buffer, write_buffer_size);
-        int required_iterations = 0;
-        while (read > 0) {
-            char *out_ptr = write_buffer;
-            ssize_t nwritten;
-
-            do {
-                required_iterations++;
-                nwritten = write(out_file, out_ptr, (size_t) read);
-
-                if (nwritten >= 0) {
-                    read -= nwritten;
-                    out_ptr += nwritten;
-                } else if (errno != EINTR) {
-                    fprintf(stderr, "Unexpected error\n");
-                    exit(1);
-                }
-
-            } while (read > 0);
-
-            read = stdin_read(write_buffer, write_buffer_size);
-        }
-        close(out_file);
     }
+    close(out_file);
 
     free(write_buffer);
 }
@@ -366,7 +380,7 @@ int main(int argc, char **argv) {
             verify_path_or_fatal(to);
 
             status = copy_command(from, to);
-            printf("%d\n", status);
+            printf("EXIT:%d\n", status);
         } else if (IS_COMMAND("copy-tree")) {
             auto path = NEXT_ARGUMENT(0);
             printf("Dir: %s\n", path);
@@ -376,57 +390,54 @@ int main(int argc, char **argv) {
             verify_path_or_fatal(from);
             verify_path_or_fatal(to);
 
-            printf("%d\n", move_command(from, to));
+            printf("EXIT:%d\n", move_command(from, to));
         } else if (IS_COMMAND("list-directory")) {
             auto path = NEXT_ARGUMENT(0);
             auto mode = NEXT_ARGUMENT_INT(1);
             verify_path_or_fatal(path);
 
             printf("EXIT:%d\n", list_command(path, (uint64_t) mode));
-        } else if (IS_COMMAND("list-favorites")) {
-            auto path = NEXT_ARGUMENT(0);
-            verify_path_or_fatal(path);
-
-            printf("%d\n", favorites_command(path));
         } else if (IS_COMMAND("delete")) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);
 
-            printf("%d\n", remove_command(path));
+            printf("EXIT:%d\n", delete_command(path));
         } else if (IS_COMMAND("write")) {
+            write_command();
+        } else if (IS_COMMAND("write-open")) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);
 
-            write_command(path);
+            printf("EXIT:%d\n", write_open_command(path));
         } else if (IS_COMMAND("tree")) {
             auto path = NEXT_ARGUMENT(0);
             auto mode = (uint64_t) NEXT_ARGUMENT_INT(1);
             verify_path_or_fatal(path);
 
-            printf("%d\n", tree_command(path, mode));
+            printf("EXIT:%d\n", tree_command(path, mode));
         } else if (IS_COMMAND("make-dir")) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);
 
-            printf("%d\n", mkdir_command(path));
+            printf("EXIT:%d\n", mkdir_command(path));
         } else if (IS_COMMAND("get-xattr")) {
             auto path = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
             verify_path_or_fatal(path);
 
-            printf("%d\n", xattr_get_command(path, attribute));
+            printf("EXIT:%d\n", xattr_get_command(path, attribute));
         } else if (IS_COMMAND("set-xattr")) {
             auto path = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
             auto value = NEXT_ARGUMENT(2);
             verify_path_or_fatal(path);
 
-            printf("%d\n", xattr_set_command(path, attribute, value));
+            printf("EXIT:%d\n", xattr_set_command(path, attribute, value));
         } else if (IS_COMMAND(("list-xattr"))) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);
 
-            printf("%d\n", xattr_list_command(path));
+            printf("EXIT:%d\n", xattr_list_command(path));
         } else if (IS_COMMAND("delete-xattr")) {
             auto path = NEXT_ARGUMENT(0);
             auto attribute = NEXT_ARGUMENT(1);
@@ -438,7 +449,7 @@ int main(int argc, char **argv) {
             auto mode = (uint64_t) NEXT_ARGUMENT_INT(1);
             verify_path_or_fatal(path);
 
-            printf("%d\n", stat_command(path, mode));
+            printf("EXIT:%d\n", stat_command(path, mode));
         } else if (IS_COMMAND("read")) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);

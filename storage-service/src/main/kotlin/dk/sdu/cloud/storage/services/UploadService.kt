@@ -20,7 +20,7 @@ class UploadService(
     }
 
     fun upload(ctx: FSUserContext, path: String, writer: OutputStream.() -> Unit) {
-        if (path.contains("\n")) throw FileSystemException.BadRequest("Bad filename")
+        if (path.contains("\n")) throw FSException.BadRequest("Bad filename")
 
         fs.write(ctx, path, writer)
         checksumService.computeAndAttachChecksum(ctx, path)
@@ -35,7 +35,7 @@ class UploadService(
     ): List<String> {
         return when (format) {
             "tgz" -> bulkUploadTarGz(fs.openContext(user), path, policy, stream)
-            else -> throw FileSystemException.BadRequest("Unsupported format '$format'")
+            else -> throw FSException.BadRequest("Unsupported format '$format'")
         }
     }
 
@@ -48,7 +48,7 @@ class UploadService(
     ): List<String> {
         return when (format) {
             "tgz" -> bulkUploadTarGz(ctx, path, policy, stream)
-            else -> throw FileSystemException.BadRequest("Unsupported format '$format'")
+            else -> throw FSException.BadRequest("Unsupported format '$format'")
         }
     }
 
@@ -133,7 +133,7 @@ class UploadService(
 
                                 upload(ctx, targetPath) { cappedStream.copyTo(this) }
                             }
-                        } catch (ex: FileSystemException.PermissionException) {
+                        } catch (ex: FSException.PermissionException) {
                             rejectedFiles += initialTargetPath
                         }
                     } else {

@@ -3,7 +3,6 @@ package dk.sdu.cloud.storage.services
 import org.junit.Assert
 import org.junit.Test
 import java.io.File
-import java.nio.file.Files
 
 class MoveTest {
 
@@ -23,7 +22,7 @@ class MoveTest {
         Assert.assertTrue(existingFolder.exists())
     }
 
-    @Test(expected = FileSystemException.CriticalException::class)
+    @Test(expected = FSException.CriticalException::class)
     fun testMoveToSameLocation() {
         val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
@@ -36,7 +35,7 @@ class MoveTest {
         fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/folder/")
     }
 
-    @Test (expected = FileSystemException.CriticalException::class)
+    @Test (expected = FSException.CriticalException::class)
     fun testMoveToNonexistingLocation() {
         val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(

@@ -55,10 +55,7 @@ class Server(
                 cloudToCephFsDao,
                 processRunner,
                 fileAclService,
-                xattrService,
-                treeService,
                 copyService,
-                removeService,
                 fsRoot,
                 isDevelopment,
                 kafka.producer.forStream(StorageEvents.events)

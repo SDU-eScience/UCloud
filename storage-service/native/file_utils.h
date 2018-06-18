@@ -60,12 +60,9 @@ void verify_path_or_fatal(const char *path);
 // File information
 // ----------------------------------------------
 
-// File type and link operations
 #define FILE_TYPE       (1 << 0 )
 #define IS_LINK         (1 << 1 )
 #define LINK_TARGET     (1 << 2 )
-
-// Basic (directly available in stat)
 #define UNIX_MODE       (1 << 3 )
 #define OWNER           (1 << 4 )
 #define GROUP           (1 << 5 )
@@ -73,12 +70,11 @@ void verify_path_or_fatal(const char *path);
 #define PATH            (1 << 7 )
 #define INODE           (1 << 8 )
 #define SIZE            (1 << 9 )
-
-// Special (XAttr/ACL based)
 #define SHARES          (1 << 10)
 #define ANNOTATIONS     (1 << 11)
 #define CHECKSUM        (1 << 12)
 #define SENSITIVITY     (1 << 13)
+#define LINK_INODE      (1 << 14)
 
 int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode);
 

@@ -35,10 +35,7 @@ fun cephFSWithRelaxedMocks(
         cloudToCephFsDao,
         processRunner,
         fileACLService,
-        xAttrService,
-        treeService,
         copyService,
-        removeService,
         fsRoot,
         isDevelopment,
         eventProducer

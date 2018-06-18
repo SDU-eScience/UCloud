@@ -1,7 +1,6 @@
 package dk.sdu.cloud.storage.services
 
 import org.slf4j.LoggerFactory
-import java.io.InputStream
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -13,12 +12,12 @@ class ChecksumService(
         path: String,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ): ByteArray {
-        return fs.read(ctx, path).use<InputStream, ByteArray> {
+        return fs.read(ctx, path) {
             var bytesRead = 0L
             val digest = getMessageDigest(algorithm)
             val buffer = ByteArray(4096 * 1024)
             while (true) {
-                val read = it.read(buffer).takeIf { it != -1 } ?: break
+                val read = read(buffer).takeIf { it != -1 } ?: break
                 bytesRead += read
                 digest.update(buffer, 0, read)
             }
@@ -52,7 +51,7 @@ class ChecksumService(
             val checksum = fs.getMetaValue(ctx, path, CHECKSUM_KEY)
             val type = fs.getMetaValue(ctx, path, CHECKSUM_TYPE_KEY)
             FileChecksum(type, checksum)
-        } catch (ex: FileSystemException.NotFound) {
+        } catch (ex: FSException.NotFound) {
             log.info("Checksum did not already exist for ${ctx.user}, $path. Attempting to recompute")
             return computeAndAttachChecksum(ctx, path)
         }

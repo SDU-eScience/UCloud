@@ -1,10 +1,13 @@
 package dk.sdu.cloud.storage.http.files
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
@@ -21,22 +24,24 @@ import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.withTestApplication
 import io.mockk.mockk
 import org.junit.Test
+import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     addHeader(HttpHeaders.Authorization, "Bearer $username/$role")
 }
 
 class ListAtPathTests {
+    private val mapper = jacksonObjectMapper()
 
-    //Testing ls
     @Test
     fun listAtPathTest() {
         withAuthMock {
             withTestApplication(
                 moduleFunction = {
                     val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
+                        StorageServiceDescription.definition(),
                         "localhost",
                         42000
                     )
@@ -59,7 +64,12 @@ class ListAtPathTests {
                     }.response
 
                     assertEquals(HttpStatusCode.OK, response.status())
-
+                    val items = mapper.readValue<List<StorageFile>>(response.content!!)
+                    assertEquals(3, items.size)
+                    log.debug("Received items: $items")
+                    assertTrue("a file is contained in response") { items.any { it.path == "/home/user1/folder/a" } }
+                    assertTrue("b file is contained in response") { items.any { it.path == "/home/user1/folder/b" } }
+                    assertTrue("c file is contained in response") { items.any { it.path == "/home/user1/folder/c" } }
                 }
             )
         }
@@ -71,7 +81,7 @@ class ListAtPathTests {
             withTestApplication(
                 moduleFunction = {
                     val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
+                        StorageServiceDescription.definition(),
                         "localhost",
                         42000
                     )
@@ -125,5 +135,9 @@ class ListAtPathTests {
                 assertEquals(HttpStatusCode.Unauthorized, response.status())
             }
         )
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(ListAtPathTests::class.java)
     }
 }

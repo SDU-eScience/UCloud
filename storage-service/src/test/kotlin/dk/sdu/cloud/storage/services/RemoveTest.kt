@@ -9,7 +9,6 @@ import io.mockk.mockk
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.io.File
-import java.nio.file.Files
 
 class RemoveTest {
 
@@ -43,7 +42,7 @@ class RemoveTest {
         }
     }
 
-    @Test(expected = FileSystemException.PermissionException::class)
+    @Test(expected = FSException.PermissionException::class)
     fun testNonExistingPathRemove() {
         val emitter: StorageEventProducer = mockk()
         coEvery { emitter.emit(any()) } coAnswers {

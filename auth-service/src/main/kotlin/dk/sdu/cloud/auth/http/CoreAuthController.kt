@@ -8,18 +8,26 @@ import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.*
+import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.content.CachingOptions
 import io.ktor.content.files
 import io.ktor.content.static
+import io.ktor.features.CachingHeaders
 import io.ktor.html.respondHtml
+import io.ktor.http.CacheControl
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.request.ApplicationReceivePipeline
+import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.route
 import kotlinx.html.*
+import org.apache.http.client.methods.HttpHead
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -33,6 +41,16 @@ class CoreAuthController(
 
     fun configure(routing: Routing): Unit = with(routing) {
         route("auth") {
+            install(CachingHeaders) {
+                options {
+                    CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private))
+                }
+            }
+
+            intercept(ApplicationCallPipeline.Infrastructure) {
+                call.response.header(HttpHeaders.Pragma, "no-cache")
+            }
+
             static {
                 val folder = File("static")
                 files(folder)
@@ -99,6 +117,8 @@ class CoreAuthController(
                                                 }
                                             }
                                             form(classes = "card b0 form-validate") {
+                                                attributes["autocomplete"] = "off"
+
                                                 if (enablePasswords) {
                                                     method = FormMethod.post
                                                     action = "/auth/login"

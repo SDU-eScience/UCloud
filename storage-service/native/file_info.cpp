@@ -49,6 +49,7 @@ print_type_and_link_status(std::ostream &stream, const char *path, const struct 
     EMIT(FILE_TYPE, file_type);
     EMIT(IS_LINK, is_link);
     EMIT(LINK_TARGET, link.path_to);
+    EMIT(LINK_INODE, link.ino);
     return 0;
 }
 
@@ -215,7 +216,7 @@ static void print_checksum(std::ostream &stream, const char *path) {
 }
 
 int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode) {
-    if ((mode & FILE_TYPE) != 0 || (mode & IS_LINK) != 0 || (mode & LINK_TARGET) != 0) {
+    if ((mode & FILE_TYPE) != 0 || (mode & IS_LINK) != 0 || (mode & LINK_TARGET) != 0 || (mode & LINK_INODE) != 0) {
         int status = print_type_and_link_status(stream, path, stat_inp, mode);
         if (status != 0) return status;
     }

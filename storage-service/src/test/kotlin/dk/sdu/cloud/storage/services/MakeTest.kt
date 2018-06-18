@@ -6,11 +6,10 @@ import io.mockk.mockk
 import org.junit.Assert
 import org.junit.Test
 import java.io.File
-import java.nio.file.Files
 
 class MakeTest {
 
-    @Test (expected = FileSystemException.AlreadyExists::class)
+    @Test (expected = FSException.AlreadyExists::class)
     fun testNewDirAlreadyExists() {
         val emitter: StorageEventProducer = mockk()
         coEvery { emitter.emit(any()) } coAnswers {

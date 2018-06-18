@@ -79,7 +79,7 @@ class ShareServiceTest {
 
     @Test(expected = ShareException.PermissionException::class)
     fun testGrantShareWithLowLevelFailure() {
-        val processRunner = mockk<CephFSProcessRunner>()
+        val processRunner = mockk<StreamingProcessRunner>()
         val processRunnerFactory: ProcessRunnerFactory = { processRunner }
         every {
             processRunner.runWithResultAsInMemoryString(

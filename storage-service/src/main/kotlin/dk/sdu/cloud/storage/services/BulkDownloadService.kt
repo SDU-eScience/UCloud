@@ -7,7 +7,6 @@ import org.kamranzafar.jtar.TarHeader
 import org.kamranzafar.jtar.TarOutputStream
 import org.slf4j.LoggerFactory
 import java.io.OutputStream
-import java.util.*
 import java.util.zip.GZIPOutputStream
 
 class BulkDownloadService(private val fs: FileSystemService) {
@@ -35,10 +34,10 @@ class BulkDownloadService(private val fs: FileSystemService) {
                     )
 
                     // Write file contents
-                    fs.read(ctx, absPath).use { ins -> ins.copyTo(tarStream) }
-                } catch (ex: FileSystemException) {
+                    fs.read(ctx, absPath) { copyTo(tarStream) }
+                } catch (ex: FSException) {
                     when (ex) {
-                        is FileSystemException.NotFound, is FileSystemException.PermissionException -> {
+                        is FSException.NotFound, is FSException.PermissionException -> {
                             log.debug("Skipping file, caused by exception:")
                             log.debug(ex.stackTraceToString())
                         }

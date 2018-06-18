@@ -9,10 +9,6 @@ static int one(const struct dirent *unused) {
     return 1;
 }
 
-int favorites_command(const char *path) {
-    return list_command(path, FILE_TYPE | LINK_TARGET | PATH | INODE);
-}
-
 int list_command(const char *path, uint64_t mode) {
     struct dirent **entries = nullptr;
     struct stat stat_buffer{};

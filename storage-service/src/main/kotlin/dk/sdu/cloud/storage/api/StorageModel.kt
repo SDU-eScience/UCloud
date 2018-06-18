@@ -32,7 +32,7 @@ data class StorageFile(
     val sensitivityLevel: SensitivityLevel = SensitivityLevel.CONFIDENTIAL,
     val link: Boolean = false,
     val annotations: Set<String> = emptySet(),
-    @get:JsonIgnore val inode: Long = 0
+    @get:JsonIgnore val inode: String = ""
 )
 
 enum class SensitivityLevel {

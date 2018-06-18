@@ -67,7 +67,7 @@ int do_mkdir(const char *path, mode_t mode) {
             if (status != 0) {
                 fprintf(stderr, "stat failed for %s after successful mkdir! %s \n", path, strerror(errno));
             } else {
-                print_file_information(std::cout, path, &st, FILE_TYPE | INODE | PATH);
+                print_file_information(std::cout, path, &st, FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER);
             }
         }
     } else if (!S_ISDIR(st.st_mode)) {

@@ -12,16 +12,16 @@ import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.services.BulkDownloadService
 import dk.sdu.cloud.storage.services.FileSystemService
+import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import io.ktor.application.ApplicationCall
-import io.ktor.application.call
 import io.ktor.content.OutgoingContent
-import io.ktor.http.*
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.defaultForFilePath
 import io.ktor.response.header
 import io.ktor.response.respond
-import io.ktor.response.respondWrite
 import io.ktor.routing.Route
-import io.ktor.routing.get
-import io.ktor.routing.method
 import io.ktor.routing.route
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import kotlinx.coroutines.experimental.io.jvm.javaio.toOutputStream
@@ -61,18 +61,18 @@ class SimpleDownloadController(
 
                         call.respondDirectWrite(contentType = ContentType.Application.Zip, status = HttpStatusCode.OK) {
                             ZipOutputStream(toOutputStream()).use { os ->
-                                fs.syncList(ctx, request.path) { item ->
-                                    val filePath = item.path.substringAfter(stat.path).removePrefix("/")
+                                fs.tree(ctx, request.path, setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)) { item ->
+                                    val filePath = item.path!!.substringAfter(stat.path).removePrefix("/")
 
-                                    if (item.type == FileType.FILE) {
+                                    if (item.fileType == FileType.FILE) {
                                         os.putNextEntry(
                                             ZipEntry(
                                                 filePath
                                             )
                                         )
-                                        fs.read(ctx, item.path).copyTo(os)
+                                        fs.read(ctx, item.path) { copyTo(os) }
                                         os.closeEntry()
-                                    } else if (item.type == FileType.DIRECTORY) {
+                                    } else if (item.fileType == FileType.DIRECTORY) {
                                         os.putNextEntry(ZipEntry(filePath.removeSuffix("/") + "/"))
                                         os.closeEntry()
                                     }
@@ -93,9 +93,8 @@ class SimpleDownloadController(
                         val sizeForWorkaroundIssue185 = if (stat.size >= Int.MAX_VALUE) null else stat.size
 
                         call.respondDirectWrite(sizeForWorkaroundIssue185, contentType, HttpStatusCode.OK) {
-                            val stream = fs.read(ctx, request.path)
-
-                            stream.use {
+                            fs.coRead(ctx, request.path) {
+                                val stream = this
                                 var readSum = 0L
                                 var writeSum = 0L
                                 var iterations = 0
@@ -107,7 +106,7 @@ class SimpleDownloadController(
                                     var ptr = 0
                                     val startRead = System.nanoTime()
                                     while (ptr < buffer.size && hasMoreData) {
-                                        val read = it.read(buffer, ptr, buffer.size - ptr)
+                                        val read = stream.read(buffer, ptr, buffer.size - ptr)
                                         if (read <= 0) {
                                             hasMoreData = false
                                             break

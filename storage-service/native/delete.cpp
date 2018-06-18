@@ -17,7 +17,7 @@ static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
 
-int remove_command(const char *path_inp) {
+int delete_command(const char *path_inp) {
     int status = -1;
     FTS *file_system = nullptr;
     FTSENT *node = nullptr;

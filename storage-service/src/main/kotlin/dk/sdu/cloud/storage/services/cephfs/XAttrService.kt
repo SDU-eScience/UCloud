@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.storage.services.FSUserContext
-import dk.sdu.cloud.storage.services.FileSystemException
+import dk.sdu.cloud.storage.services.FSException
 import org.slf4j.LoggerFactory
 
 class XAttrService(
@@ -13,10 +13,10 @@ class XAttrService(
 
         if (status != 0) {
             if (stderr.contains("Permission denied")) {
-                throw FileSystemException.PermissionException()
+                throw FSException.PermissionException()
             }
             log.warn("getfattr failed! $status, $stdout, $stderr")
-            throw FileSystemException.CriticalException("getfattr failed")
+            throw FSException.CriticalException("getfattr failed")
         }
 
         return stdout
@@ -39,10 +39,10 @@ class XAttrService(
         val (status, stdout, stderr) = ctx.runWithResultAsInMemoryString(command)
         if (status != 0) {
             if (stderr.contains("Permission denied")) {
-                throw FileSystemException.PermissionException()
+                throw FSException.PermissionException()
             }
             log.warn("setfattr failed! $status, $stdout, $stderr")
-            throw FileSystemException.CriticalException("setfattr failed")
+            throw FSException.CriticalException("setfattr failed")
         }
     }
 

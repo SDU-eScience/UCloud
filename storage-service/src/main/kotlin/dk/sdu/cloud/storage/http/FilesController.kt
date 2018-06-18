@@ -5,14 +5,14 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.services.FileSystemException
+import dk.sdu.cloud.storage.services.FSException
 import dk.sdu.cloud.storage.services.FileSystemService
+import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.services.tryWithFS
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
-import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.io.writeStringUtf8
 import org.slf4j.LoggerFactory
 
@@ -36,7 +36,7 @@ class FilesController(private val fs: FileSystemService) {
 
                 tryWithFS {
                     ok(
-                        fs.stat(fs.openContext(principal.subject), request.path) ?: throw FileSystemException.NotFound(request.path)
+                        fs.stat(fs.openContext(principal.subject), request.path) ?: throw FSException.NotFound(request.path)
                     )
                 }
             }
@@ -133,34 +133,45 @@ class FilesController(private val fs: FileSystemService) {
                     append(',')
                 }
 
+                val attributes = setOf(
+                    FileAttribute.FILE_TYPE,
+                    FileAttribute.UNIX_MODE,
+                    FileAttribute.OWNER,
+                    FileAttribute.GROUP,
+                    FileAttribute.SIZE,
+                    FileAttribute.TIMESTAMPS,
+                    FileAttribute.INODE,
+                    FileAttribute.CHECKSUM,
+                    FileAttribute.PATH
+                )
+
                 tryWithFS {
                     call.respondDirectWrite(status = HttpStatusCode.OK, contentType = ContentType.Text.Plain) {
-                        fs.syncList(fs.openContext(call.request.validatedPrincipal.subject), req.path, req.modifiedSince ?: 0) {
+                        fs.tree(fs.openContext(call.request.validatedPrincipal.subject), req.path, attributes) {
                             writeStringUtf8(StringBuilder().apply {
                                 appendToken(
-                                    when (it.type) {
+                                    when (it.fileType) {
                                         FileType.FILE -> "F"
                                         FileType.DIRECTORY -> "D"
                                         else -> throw IllegalStateException()
                                     }
                                 )
 
-                                appendToken(it.uniqueId)
-                                appendToken(it.user)
-                                appendToken(it.modifiedAt)
+                                appendToken(it.inode!!)
+                                appendToken(it.owner!!)
+                                appendToken(it.timestamps!!.modified)
 
-                                val hasChecksum = it.checksum != null && it.checksumType != null
+                                val hasChecksum = it.checksum != null
                                 appendToken(if (hasChecksum) '1' else '0')
-                                if (hasChecksum) {
-                                    appendToken(it.checksum)
-                                    appendToken(it.checksumType)
+                                if (it.checksum != null) {
+                                    appendToken(it.checksum.checksum)
+                                    appendToken(it.checksum.type)
                                 }
 
                                 // Must be last entry (path may contain commas)
                                 append(it.path)
                                 append('\n')
 
-                                println(toString())
                                 toString()
                             })
                         }
