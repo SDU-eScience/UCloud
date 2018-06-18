@@ -7,7 +7,6 @@ import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
-import dk.sdu.cloud.storage.services.cephfs.RemoveService
 import dk.sdu.cloud.storage.services.createDummyFS
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.application.install
@@ -40,8 +39,7 @@ class DeletionTests {
                     install(JWTProtection)
                     val fsRoot = createDummyFS()
                     val fs = cephFSWithRelaxedMocks(
-                        fsRoot.absolutePath,
-                        removeService = RemoveService(true)
+                        fsRoot.absolutePath
                     )
 
                     routing {
@@ -96,8 +94,7 @@ class DeletionTests {
                     install(JWTProtection)
                     val fsRoot = createDummyFS()
                     val fs = cephFSWithRelaxedMocks(
-                        fsRoot.absolutePath,
-                        removeService = RemoveService(true)
+                        fsRoot.absolutePath
                     )
 
                     routing {

@@ -46,10 +46,7 @@ class Server(
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
         val fileAclService =
             FileACLService(cloudToCephFsDao, isDevelopment)
-        val xattrService = XAttrService(isDevelopment)
-        val treeService = TreeService(isDevelopment)
         val copyService = CopyService(isDevelopment)
-        val removeService = RemoveService(isDevelopment)
         val fs: FileSystemService =
             CephFSFileSystemService(
                 cloudToCephFsDao,

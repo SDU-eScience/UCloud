@@ -2,7 +2,6 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.api.StorageEventProducer
-import dk.sdu.cloud.storage.services.cephfs.RemoveService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -22,7 +21,6 @@ class RemoveTest {
         val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath,
-            removeService = RemoveService(true),
             eventProducer = emitter
         )
 
@@ -52,7 +50,6 @@ class RemoveTest {
         val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
             fsRoot.absolutePath,
-            removeService = RemoveService(true),
             eventProducer = emitter
         )
 

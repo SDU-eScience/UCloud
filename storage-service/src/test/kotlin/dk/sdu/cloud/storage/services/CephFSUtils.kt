@@ -24,10 +24,7 @@ fun cephFSWithRelaxedMocks(
     cloudToCephFsDao: CloudToCephFsDao = simpleCloudToCephFSDao(),
     processRunner: ProcessRunnerFactory = SimpleCephFSProcessRunnerFactory(cloudToCephFsDao, true),
     fileACLService: FileACLService = mockk(relaxed = true),
-    xAttrService: XAttrService = mockk(relaxed = true),
-    treeService: TreeService = mockk(relaxed = true),
     copyService: CopyService = mockk(relaxed = true),
-    removeService: RemoveService = mockk(relaxed = true),
     isDevelopment: Boolean = true,
     eventProducer: StorageEventProducer = mockk(relaxed = true)
 ): CephFSFileSystemService {

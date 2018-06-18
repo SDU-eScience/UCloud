@@ -307,14 +307,7 @@ class CephFSFileSystemService(
         val allFavorites = retrieveFavorites(ctx)
         val toRemove = allFavorites.filter { it.inode == stat.inode }
         if (toRemove.isEmpty()) return
-        val command = listOf("rm") + toRemove.map { it.from }
-        val process = ctx.run(command)
-        val status = process.waitFor()
-        if (status != 0) {
-            log.info("rm failed ${ctx.user}")
-            log.info(process.errorStream.reader().readText())
-            throw IllegalStateException()
-        }
+        toRemove.forEach { rmdir(ctx, it.from) }
     }
 
     override fun grantRights(ctx: FSUserContext, toUser: String, path: String, rights: Set<AccessRight>) {
@@ -468,7 +461,6 @@ class CephFSFileSystemService(
             }
         )
     }
-
 
     override fun annotateFiles(ctx: FSUserContext, path: String, annotation: String) {
         validateAnnotation(annotation)
