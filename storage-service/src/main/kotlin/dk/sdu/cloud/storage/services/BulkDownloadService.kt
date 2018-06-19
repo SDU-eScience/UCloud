@@ -11,12 +11,12 @@ import java.util.zip.GZIPOutputStream
 
 class BulkDownloadService(private val fs: FileSystemService) {
     fun downloadFiles(user: String, prefixPath: String, listOfFiles: List<String>, target: OutputStream) {
+        val ctx = fs.openContext(user)
         TarOutputStream(GZIPOutputStream(target)).use { tarStream ->
             for (path in listOfFiles) {
                 try {
                     // Calculate correct path, check if file exists and filter out bad files
                     val absPath = "${prefixPath.removeSuffix("/")}/${path.removePrefix("/")}"
-                    val ctx = fs.openContext(user)
                     val stat = fs.stat(ctx, absPath) ?: continue
 
                     // Write tar header

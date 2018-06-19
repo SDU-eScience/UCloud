@@ -10,6 +10,7 @@ class BoundaryContainedStream(
     private val searcher = StreamSearcher(boundaryBytes)
     private var clearedBytes = 0
     private var preclearedBytes = 0L
+    private var preclaredRecentlyEmptied = false
 
     private val internalBuffer = ByteArray(32 * 1024)
     private var internalPointer = -1
@@ -48,6 +49,11 @@ class BoundaryContainedStream(
     fun manualClearNextBytes(numberOfBytesToClear: Long) {
         assert(preclearedBytes == 0L)
         preclearedBytes = numberOfBytesToClear
+
+        // All bytes from now on should detract from preclared bytes, thus we need to reset clearedBytes
+        clearedBytes = 0
+        boundaryFound = false
+        clearAsMuchAsPossible()
     }
 
     private fun clearAsMuchAsPossible(): Boolean {
@@ -62,6 +68,8 @@ class BoundaryContainedStream(
             preclearedBytes -= min
             clearedBytes = min.toInt()
 
+            if (preclearedBytes == 0L) preclaredRecentlyEmptied = true
+
             assert(preclearedBytes >= 0)
             assert(clearedBytes >= 0)
             false
@@ -71,7 +79,7 @@ class BoundaryContainedStream(
                 clearedBytes = if (boundaryBytes.size > len) len else len - (boundaryBytes.size - 1)
                 false
             } else {
-                clearedBytes = offset
+                clearedBytes = offset - internalPointer
                 true
             }
         }
@@ -118,31 +126,15 @@ class BoundaryContainedStream(
     }
 
     override fun read(b: ByteArray): Int {
-        return if (clearedBytes > 0) {
-            val bytesToMove = min(b.size, clearedBytes)
-            System.arraycopy(internalBuffer, internalPointer, b, 0, bytesToMove)
-            internalPointer += bytesToMove
-            clearedBytes -= bytesToMove
-            return bytesToMove
-        } else if (!boundaryFound) {
-            readMoreData()
-            boundaryFound = clearAsMuchAsPossible()
-
-            if (clearedBytes <= 0) {
-                -1
-            } else {
-                val bytesToMove = min(b.size, clearedBytes)
-                System.arraycopy(internalBuffer, internalPointer, b, 0, bytesToMove)
-                internalPointer += bytesToMove
-                clearedBytes -= bytesToMove
-                return bytesToMove
-            }
-        } else {
-            -1
-        }
+        return read(b, 0, b.size)
     }
 
     override fun read(b: ByteArray, off: Int, len: Int): Int {
+        if (preclaredRecentlyEmptied && clearedBytes == 0) {
+            boundaryFound = clearAsMuchAsPossible()
+            preclaredRecentlyEmptied = false
+        }
+
         return if (clearedBytes > 0) {
             val bytesToMove = min(len, clearedBytes)
             System.arraycopy(internalBuffer, internalPointer, b, off, bytesToMove)

@@ -16,13 +16,13 @@ class MoveTest {
         val nonExistingFolder = File(fsRoot, "home/user1/another-one/a")
         Assert.assertFalse(nonExistingFolder.exists())
 
-        fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/another-one/")
+        fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/another-one/a")
 
         val existingFolder = File(fsRoot, "home/user1/another-one/a")
         Assert.assertTrue(existingFolder.exists())
     }
 
-    @Test(expected = FSException.CriticalException::class)
+    @Test(expected = FSException.AlreadyExists::class)
     fun testMoveToSameLocation() {
         val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
@@ -35,7 +35,7 @@ class MoveTest {
         fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/folder/")
     }
 
-    @Test (expected = FSException.CriticalException::class)
+    @Test (expected = FSException.NotFound::class)
     fun testMoveToNonexistingLocation() {
         val fsRoot = createDummyFS()
         val fs = cephFSWithRelaxedMocks(
@@ -56,9 +56,9 @@ class MoveTest {
             fsRoot.absolutePath
         )
 
-        fs.move(fs.openContext("user1"), "home/user1/folder", "home/user1/another-one")
+        fs.move(fs.openContext("user1"), "/home/user1/folder", "/home/user1/new-folder")
 
-        val existingFolder = File(fsRoot, "home/user1/another-one/folder/a")
+        val existingFolder = File(fsRoot, "home/user1/new-folder/a")
         Assert.assertTrue(existingFolder.exists())
     }
 }

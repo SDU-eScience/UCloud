@@ -252,7 +252,7 @@ int write_open_command(char *path) {
     if (file_opened_for_writing < 0) return -errno;
 
     fstat(file_opened_for_writing, &s);
-    print_file_information(std::cout, path, &s, FILE_TYPE | INODE | PATH | TIMESTAMPS);
+    print_file_information(std::cout, path, &s, FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER);
     return 0;
 }
 
@@ -374,6 +374,8 @@ int main(int argc, char **argv) {
             }
         }
 
+        fprintf(stderr, "Command is %s\n", line);
+
         if (IS_COMMAND("copy")) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);
@@ -448,6 +450,7 @@ int main(int argc, char **argv) {
         } else if (IS_COMMAND("stat")) {
             auto path = NEXT_ARGUMENT(0);
             auto mode = (uint64_t) NEXT_ARGUMENT_INT(1);
+            fprintf(stderr, "Running stat for %s with mode %llu\n", path, mode);
             verify_path_or_fatal(path);
 
             printf("EXIT:%d\n", stat_command(path, mode));
@@ -466,6 +469,7 @@ int main(int argc, char **argv) {
         }
 
         if (strcmp("", line) != 0) {
+            fprintf(stderr, "Done! Good luck...\n");
             bool did_reset = discard_and_reset_stream();
             printf("%s", server_boundary);
             fprintf(stderr, "%s", server_boundary);

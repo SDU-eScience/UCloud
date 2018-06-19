@@ -28,7 +28,7 @@ print_type_and_link_status(std::ostream &stream, const char *path, const struct 
     bool is_link;
     link_t link{};
     mode_t st_mode = stat_inp->st_mode;
-    is_link = S_ISLNK(mode);
+    is_link = S_ISLNK(st_mode);
 
     if (S_ISDIR(st_mode)) {
         file_type = 'D';
@@ -42,7 +42,7 @@ print_type_and_link_status(std::ostream &stream, const char *path, const struct 
             return -1;
         }
     } else {
-        fprintf(stderr, "Unsupported file at %s\n", path);
+        fprintf(stderr, "Unsupported file at %s. Mode is %d\n", path, st_mode);
         return -1;
     }
 

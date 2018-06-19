@@ -44,7 +44,7 @@ class FavoriteTest {
 
         val favoriteLink = "home/user1/Favorites/a"
         val fileToFavorite = "home/user1/folder/a"
-        fs.createFavorite(fs.openContext("user1"), fileToFavorite)
+        fs.createFavorite(fs.openContext("user1"), "/$fileToFavorite")
 
         Assert.assertTrue(File(fsRoot, favoriteLink).exists())
         fs.removeFavorite(fs.openContext("user1"), "/$favoriteLink")

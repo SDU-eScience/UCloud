@@ -1,8 +1,8 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.storage.api.*
-import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.FSException
+import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.FileSystemService
 import dk.sdu.cloud.storage.services.ShareException
 import kotlinx.coroutines.experimental.launch
@@ -13,7 +13,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.util.*
 
-data class FavoritedFile(val type: FileType, val from: String, val to: String, val inode: String)
+data class FavoritedFile(val type: FileType, val from: String, val to: String, val inode: String, val favInode: String)
 
 class CephFSFileSystemService(
     private val cloudToCephFsDao: CloudToCephFsDao,
@@ -78,43 +78,57 @@ class CephFSFileSystemService(
             FileAttribute.FILE_TYPE,
             FileAttribute.PATH,
             FileAttribute.LINK_TARGET,
-            FileAttribute.LINK_INODE
+            FileAttribute.LINK_INODE,
+            FileAttribute.INODE
         )
 
-        return ctx.runCommand(
-            InterpreterCommand.LIST_DIRECTORY,
-            dir,
-            attributes.asBitSet().toString(),
+        return try {
+            ctx.runCommand(
+                InterpreterCommand.LIST_DIRECTORY,
+                dir,
+                attributes.asBitSet().toString(),
 
-            consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), attributes).map {
-                    FavoritedFile(
-                        type = it.fileType!!,
-                        from = it.path!!,
-                        to = it.linkTarget!!,
-                        inode = it.linkInode!!
-                    )
-                }.toList()
-            }
-        )
+                consumer = {
+                    parseFileAttributes(it.stdoutLineSequence(), attributes).map {
+                        FavoritedFile(
+                            type = it.fileType!!,
+                            from = it.path!!,
+                            to = it.linkTarget!!,
+                            inode = it.linkInode!!,
+                            favInode = it.inode!!
+                        )
+                    }.toList()
+                }
+            )
+        } catch (ex: FSException.NotFound) {
+            return emptyList()
+        }
     }
 
     override fun stat(ctx: FSUserContext, path: String): StorageFile? {
         val favorites = retrieveFavoriteInodeSet(ctx)
         val mountedPath = translateAndCheckFile(path)
 
-        // TODO Catch not found exception
-        return ctx.runCommand(
-            InterpreterCommand.STAT,
-            mountedPath,
-            STORAGE_FILE_ATTRIBUTES.asBitSet().toString(),
+        return try {
+            ctx.runCommand(
+                InterpreterCommand.STAT,
+                mountedPath,
+                STORAGE_FILE_ATTRIBUTES.asBitSet().toString(),
 
-            consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), STORAGE_FILE_ATTRIBUTES).map {
-                    readStorageFile(it, favorites)
-                }.singleOrNull()
+                consumer = {
+                    parseFileAttributes(it.stdoutLineSequence(), STORAGE_FILE_ATTRIBUTES).map {
+                        readStorageFile(it, favorites)
+                    }.singleOrNull()
+                }
+            )
+        } catch (ex: FSException) {
+            when (ex) {
+                is FSException.NotFound, is FSException.BadRequest, is FSException.PermissionException -> {
+                    return null
+                }
+                else -> throw ex
             }
-        )
+        }
     }
 
     override fun mkdir(ctx: FSUserContext, path: String) {
@@ -148,6 +162,7 @@ class CephFSFileSystemService(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
             FileAttribute.OWNER,
+            FileAttribute.GROUP,
             FileAttribute.PATH
         )
 
@@ -155,7 +170,9 @@ class CephFSFileSystemService(
             InterpreterCommand.DELETE,
             absolutePath,
             consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), attributes).forEach {
+                val sequence = it.stdoutLineSequence().toList()
+                sequence.forEachIndexed { index, s -> log.debug("$index: $s") }
+                parseFileAttributes(sequence.iterator(), attributes).forEach {
                     launch {
                         eventProducer.emit(
                             StorageEvent.Deleted(
@@ -185,7 +202,8 @@ class CephFSFileSystemService(
         val attributes = setOf(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
-            FileAttribute.PATH
+            FileAttribute.PATH,
+            FileAttribute.OWNER
         )
 
         ctx.runCommand(
@@ -289,7 +307,8 @@ class CephFSFileSystemService(
             absLinkPath,
 
             consumer = {
-                assert(it.stdoutLineSequence().any { checkStatus(it) })
+                val row = parseFileAttributes(it.stdoutLineSequence(), CREATED_OR_MODIFIED_ATTRIBUTES).toList().single()
+                launch { eventProducer.emit(createdOrModifiedFromRow(row)) }
             }
         )
     }
@@ -305,7 +324,7 @@ class CephFSFileSystemService(
     override fun removeFavorite(ctx: FSUserContext, favoriteFileToRemove: String) {
         val stat = stat(ctx, favoriteFileToRemove) ?: throw IllegalStateException()
         val allFavorites = retrieveFavorites(ctx)
-        val toRemove = allFavorites.filter { it.inode == stat.inode }
+        val toRemove = allFavorites.filter { it.inode == stat.inode || it.favInode == stat.inode }
         if (toRemove.isEmpty()) return
         toRemove.forEach { rmdir(ctx, it.from) }
     }

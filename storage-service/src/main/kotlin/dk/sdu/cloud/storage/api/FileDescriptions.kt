@@ -44,6 +44,7 @@ fun validateAnnotation(annotation: String) {
         throw IllegalArgumentException("Illegal annotation")
     }
 
+    if (annotation.isEmpty()) throw IllegalArgumentException("Annotation cannot be empty")
     if (annotation.length > 1) {
         throw IllegalArgumentException("Annotation type reserved for future use")
     }

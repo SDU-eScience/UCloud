@@ -28,41 +28,17 @@ import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
-    addHeader(HttpHeaders.Authorization, "Bearer $username/$role")
-}
-
 class ListAtPathTests {
     private val mapper = jacksonObjectMapper()
 
     @Test
-    fun listAtPathTest() {
+    fun `list files at path`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Get, "/api/files?path=/home/user1/folder") {
-                        setUser("jonas@hinchely.dk", Role.USER)
-                    }.response
-
+                    val response = listDir("/home/user1/folder")
                     assertEquals(HttpStatusCode.OK, response.status())
                     val items = mapper.readValue<List<StorageFile>>(response.content!!)
                     assertEquals(3, items.size)
@@ -76,33 +52,14 @@ class ListAtPathTests {
     }
 
     @Test
-    fun listAtPathIncorrectPath() {
+    fun `list files at path which does not exist`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Get, "/api/files?path=/home/notThere") {
-                        setUser("jonas@hinchely.dk", Role.USER)
-                    }.response
-
+                    val path = "/home/notThere"
+                    val response = listDir(path)
                     assertEquals(HttpStatusCode.NotFound, response.status())
                 }
             )
@@ -110,28 +67,13 @@ class ListAtPathTests {
     }
 
     @Test
-    fun missingAuth() {
+    fun `missing permissions`() {
         withTestApplication(
-            moduleFunction = {
-                val instance = ServiceInstance(StorageServiceDescription.definition(), "localhost", 42000)
-                installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                install(JWTProtection)
-                val fsRoot = createDummyFS()
-                val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                routing {
-                    route("api") {
-                        FilesController(fs).configure(this)
-                    }
-                }
-
-            },
+            moduleFunction = { configureServerWithFileController() },
 
             test = {
-                val response = handleRequest(HttpMethod.Get, "/api/files?path=/home/user1") {
-                    setUser("jonas@hinchely.dk", Role.USER)
-                }.response
-
+                // TODO FIXME This test will not work on OSX. User also doesn't exist
+                val response = listDir("/home/user1", user = "user2")
                 assertEquals(HttpStatusCode.Unauthorized, response.status())
             }
         )

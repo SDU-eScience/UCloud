@@ -168,18 +168,31 @@ class StreamingProcessRunner(
         consumer: (StreamingProcessRunner) -> T
     ): T {
         log.debug("Running command: $command ${args.joinToString(" ")}")
-        log.debug("Interpreter alive? ${interpreter.isAlive}")
 
         if (!interpreter.isAlive) throw IllegalStateException("Unexpected EOF")
 
-        outputStream.write((command.command + " " + args.joinToString("\n") + "\n").toByteArray())
+        val serializedCommand = StringBuilder().apply {
+            append(command.command)
+            append("\n")
+            if (args.isNotEmpty()) {
+                append(args.joinToString("\n"))
+                append("\n")
+            }
+        }.toString().toByteArray()
+        outputStream.write(serializedCommand)
         outputStream.flush()
         outputStream.use {
             writer(GuardedOutputStream(it))
         }
 
-        return consumer(this).also {
+        return try {
+            consumer(this)
+        } finally {
             wrappedStdout.discardAndReset()
+
+            if (log.isDebugEnabled) {
+                wrappedStderr.bufferedReader().readText().lines().forEach { log.debug(it) }
+            }
             wrappedStderr.discardAndReset()
         }
     }

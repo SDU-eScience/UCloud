@@ -55,9 +55,8 @@ int do_mkdir(const char *path, mode_t mode) {
     int status = 0;
 
     if (stat(path, &st) != 0) {
-        /* Directory does not exist. EEXIST for race condition */
         int mkdir_status = mkdir(path, mode);
-        if (mkdir_status != 0 && errno != EEXIST) {
+        if (mkdir_status != 0) {
             status = -errno;
         }
 
@@ -70,9 +69,8 @@ int do_mkdir(const char *path, mode_t mode) {
                 print_file_information(std::cout, path, &st, FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER);
             }
         }
-    } else if (!S_ISDIR(st.st_mode)) {
-        errno = ENOTDIR;
-        status = -1;
+    } else {
+        status = -EEXIST;
     }
 
     return (status);
@@ -97,6 +95,7 @@ int mkpath(const char *path, mode_t mode) {
     }
     if (status == 0) {
         status = do_mkdir(path, mode);
+        if (status == -EEXIST) status = 0;
     }
     free(copypath);
     return (status);

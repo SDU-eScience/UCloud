@@ -40,7 +40,7 @@ class RemoveTest {
         }
     }
 
-    @Test(expected = FSException.PermissionException::class)
+    @Test(expected = FSException.NotFound::class)
     fun testNonExistingPathRemove() {
         val emitter: StorageEventProducer = mockk()
         coEvery { emitter.emit(any()) } coAnswers {
