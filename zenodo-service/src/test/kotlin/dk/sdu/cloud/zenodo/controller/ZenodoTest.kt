@@ -23,7 +23,6 @@ import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import io.mockk.*
-import org.jetbrains.exposed.sql.Database
 import org.junit.Test
 import java.net.URL
 import java.util.*
@@ -50,25 +49,6 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
                 controller.configure(this)
             }
         }
-    }
-}
-
-private fun withDatabase(closure: () -> Unit) {
-    Database.connect(
-        url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
-        driver = "org.h2.Driver"
-    )
-
-    /*transaction {
-        SchemaUtils.create(Projects)
-    }*/
-
-    try {
-        closure()
-    } finally {
-        /*transaction {
-            SchemaUtils.drop(Projects)
-        }*/
     }
 }
 
@@ -447,7 +427,7 @@ class ZenodoTest {
                         }.response
 
                     assertEquals(HttpStatusCode.OK, response.status())
-
+                    println(response.content)
                     assert(response.content.toString().contains(""""id":1,"name":"publication result""""))
                 }
             )
