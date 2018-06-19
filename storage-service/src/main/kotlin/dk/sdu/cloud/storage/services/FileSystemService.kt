@@ -80,6 +80,10 @@ interface FileSystemService {
     fun markAsOpenAccess(ctx: FSUserContext, path: String)
 }
 
+inline fun <T> FileSystemService.withContext(user: String, closure: (FSUserContext) -> T): T {
+    return openContext(user).use(closure)
+}
+
 data class SyncItem(
     val type: FileType,
     val unixMode: Int,
@@ -104,9 +108,24 @@ sealed class FSException(override val message: String, val isCritical: Boolean =
     class IOException : FSException("Internal server error (IO)", true)
 }
 
-suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(body: () -> Unit) {
+suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
+    body: () -> Unit
+) {
     try {
         body()
+    } catch (ex: Exception) {
+        fsLog.debug(ex.stackTraceToString())
+        handleFSException(ex)
+    }
+}
+
+suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
+    fs: FileSystemService,
+    user: String,
+    body: (FSUserContext) -> Unit
+) {
+    try {
+        fs.withContext(user) { body(it) }
     } catch (ex: Exception) {
         fsLog.debug(ex.stackTraceToString())
         handleFSException(ex)

@@ -25,8 +25,9 @@ class MakeTest {
         val existingFolder = File(fsRoot, "home/user1/folder")
         Assert.assertTrue(existingFolder.exists())
 
-        fs.mkdir(fs.openContext("user1"), "/home/user1/folder")
-
+        fs.withContext("user1") {
+            fs.mkdir(it, "/home/user1/folder")
+        }
     }
 
     @Test
@@ -45,7 +46,9 @@ class MakeTest {
         val existingFolder = File(fsRoot, "home/user1/folder/Weirdpath")
         Assert.assertFalse(existingFolder.exists())
 
-        fs.mkdir(fs.openContext("user1"), "/home/user1/folder/./../folder/./Weirdpath")
+        fs.withContext("user1") {
+            fs.mkdir(it, "/home/user1/folder/./../folder/./Weirdpath")
+        }
 
         val existingFolder2 = File(fsRoot, "home/user1/folder/Weirdpath")
         Assert.assertTrue(existingFolder2.exists())

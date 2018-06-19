@@ -6,7 +6,6 @@ import io.mockk.*
 import org.junit.Assert
 import org.junit.Test
 import java.io.File
-import java.nio.file.Files
 
 class FavoriteTest {
 
@@ -25,7 +24,7 @@ class FavoriteTest {
         val fileToFavorite = "home/user1/folder/a"
 
         Assert.assertFalse(File(fsRoot, favoriteLink).exists())
-        fs.createFavorite(fs.openContext("user1"), fileToFavorite)
+        fs.withContext("user1") { fs.createFavorite(it, fileToFavorite) }
         Assert.assertTrue(File(fsRoot, favoriteLink).exists())
 
         Thread.sleep(1000)
@@ -44,11 +43,12 @@ class FavoriteTest {
 
         val favoriteLink = "home/user1/Favorites/a"
         val fileToFavorite = "home/user1/folder/a"
-        fs.createFavorite(fs.openContext("user1"), "/$fileToFavorite")
+        fs.withContext("user1") { ctx ->
+            fs.createFavorite(ctx, "/$fileToFavorite")
 
-        Assert.assertTrue(File(fsRoot, favoriteLink).exists())
-        fs.removeFavorite(fs.openContext("user1"), "/$favoriteLink")
-        Assert.assertFalse(File(fsRoot, favoriteLink).exists())
-
+            Assert.assertTrue(File(fsRoot, favoriteLink).exists())
+            fs.removeFavorite(ctx, "/$favoriteLink")
+            Assert.assertFalse(File(fsRoot, favoriteLink).exists())
+        }
     }
 }

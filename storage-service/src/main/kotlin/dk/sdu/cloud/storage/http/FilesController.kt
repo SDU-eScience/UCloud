@@ -22,22 +22,18 @@ class FilesController(private val fs: FileSystemService) {
             implement(FileDescriptions.listAtPath) { request ->
                 logEntry(log, request)
                 if (!protect()) return@implement
-                val principal = call.request.validatedPrincipal
 
-                tryWithFS {
-                    ok(fs.ls(fs.openContext(principal.subject), request.path))
+                tryWithFS(fs, call.request.currentUsername) {
+                    ok(fs.ls(it, request.path))
                 }
             }
 
             implement(FileDescriptions.stat) { request ->
                 logEntry(log, request)
                 if (!protect()) return@implement
-                val principal = call.request.validatedPrincipal
 
-                tryWithFS {
-                    ok(
-                        fs.stat(fs.openContext(principal.subject), request.path) ?: throw FSException.NotFound(request.path)
-                    )
+                tryWithFS(fs, call.request.currentUsername) {
+                    ok(fs.stat(it, request.path) ?: throw FSException.NotFound(request.path))
                 }
             }
 
@@ -45,8 +41,8 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFS {
-                    fs.createFavorite(fs.openContext(call.request.validatedPrincipal.subject), req.path)
+                tryWithFS(fs, call.request.currentUsername) {
+                    fs.createFavorite(it, req.path)
                     ok(Unit)
                 }
             }
@@ -55,8 +51,8 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFS {
-                    fs.removeFavorite(fs.openContext(call.request.validatedPrincipal.subject), req.path)
+                tryWithFS(fs, call.request.currentUsername) {
+                    fs.removeFavorite(it, req.path)
                     ok(Unit)
                 }
             }
@@ -67,15 +63,15 @@ class FilesController(private val fs: FileSystemService) {
 
                 if (call.request.principalRole in setOf(Role.ADMIN, Role.SERVICE) && req.owner != null) {
                     log.debug("Authenticated as a privileged account. Using direct strategy")
-                    tryWithFS {
-                        fs.mkdir(fs.openContext(req.owner), req.path)
+                    tryWithFS(fs, req.owner) {
+                        fs.mkdir(it, req.path)
                         ok(Unit)
                     }
                 } else {
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
 
-                    tryWithFS {
-                        fs.mkdir(fs.openContext(call.request.validatedPrincipal.subject), req.path)
+                    tryWithFS(fs, call.request.currentUsername) {
+                        fs.mkdir(it, req.path)
                         ok(Unit)
                     }
                 }
@@ -85,8 +81,8 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFS {
-                    fs.rmdir(fs.openContext(call.request.validatedPrincipal.subject), req.path)
+                tryWithFS(fs, call.request.currentUsername) {
+                    fs.rmdir(it, req.path)
                     ok(Unit)
                 }
             }
@@ -94,8 +90,8 @@ class FilesController(private val fs: FileSystemService) {
             implement(FileDescriptions.move) { req ->
                 logEntry(log, req)
                 if (!protect()) return@implement
-                tryWithFS {
-                    fs.move(fs.openContext(call.request.validatedPrincipal.subject), req.path, req.newPath)
+                tryWithFS(fs, call.request.currentUsername) {
+                    fs.move(it, req.path, req.newPath)
                     ok(Unit)
                 }
             }
@@ -103,8 +99,8 @@ class FilesController(private val fs: FileSystemService) {
             implement(FileDescriptions.copy) { req ->
                 logEntry(log, req)
                 if (!protect()) return@implement
-                tryWithFS {
-                    fs.copy(fs.openContext(call.request.validatedPrincipal.subject), req.path, req.newPath)
+                tryWithFS(fs, call.request.currentUsername) {
+                    fs.copy(it, req.path, req.newPath)
                     ok(Unit)
                 }
             }
@@ -145,9 +141,9 @@ class FilesController(private val fs: FileSystemService) {
                     FileAttribute.PATH
                 )
 
-                tryWithFS {
+                tryWithFS(fs, call.request.currentUsername) {
                     call.respondDirectWrite(status = HttpStatusCode.OK, contentType = ContentType.Text.Plain) {
-                        fs.tree(fs.openContext(call.request.validatedPrincipal.subject), req.path, attributes) {
+                        fs.tree(it, req.path, attributes) {
                             writeStringUtf8(StringBuilder().apply {
                                 appendToken(
                                     when (it.fileType) {
@@ -183,8 +179,8 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect(listOf(Role.ADMIN, Role.SERVICE))) return@implement
 
-                tryWithFS {
-                    fs.annotateFiles(fs.openContext(req.proxyUser), req.path, req.annotatedWith)
+                tryWithFS(fs, req.proxyUser) {
+                    fs.annotateFiles(it, req.path, req.annotatedWith)
                     ok(Unit)
                 }
             }
@@ -193,8 +189,8 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect(listOf(Role.ADMIN, Role.SERVICE))) return@implement
 
-                tryWithFS {
-                    fs.markAsOpenAccess(fs.openContext(req.proxyUser), req.path)
+                tryWithFS(fs, req.proxyUser) {
+                    fs.markAsOpenAccess(it, req.path)
                     ok(Unit)
                 }
             }

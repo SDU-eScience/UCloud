@@ -24,7 +24,9 @@ class RemoveTest {
             eventProducer = emitter
         )
 
-        fs.rmdir(fs.openContext("user1"), "/home/user1/folder")
+        fs.withContext("user1") {
+            fs.rmdir(it, "/home/user1/folder")
+        }
         val existingFolder = File(fsRoot, "home/user1/folder")
         assertFalse(existingFolder.exists())
 
@@ -56,6 +58,6 @@ class RemoveTest {
         //Folder should not exists
         val nonExistingFolder = File(fsRoot, "home/user1/fold")
         assertFalse(nonExistingFolder.exists())
-        fs.rmdir(fs.openContext("user1"), "/home/user1/fold")
+        fs.withContext("user1") { fs.rmdir(it, "/home/user1/fold") }
     }
 }

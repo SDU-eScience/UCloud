@@ -19,9 +19,7 @@ class CephFSFileSystemService(
     private val cloudToCephFsDao: CloudToCephFsDao,
     private val processRunner: ProcessRunnerFactory,
     private val fileACLService: FileACLService,
-    private val copyService: CopyService,
     private val fsRoot: String,
-    private val isDevelopment: Boolean = false,
     private val eventProducer: StorageEventProducer
 ) : FileSystemService {
     override fun openContext(user: String): FSUserContext {
@@ -239,14 +237,17 @@ class CephFSFileSystemService(
         val absolutePath = translateAndCheckFile(path)
         val newAbsolutePath = translateAndCheckFile(newPath)
 
-        val copiedItems =
-            copyService.copy(ctx, absolutePath, newAbsolutePath).map { it.copy(path = it.path.toCloudPath()) }
+        ctx.runCommand(
+            InterpreterCommand.COPY_TREE,
+            absolutePath,
+            newAbsolutePath,
 
-        if (copiedItems.isEmpty()) {
-            throw FSException.PermissionException()
-        }
-
-        launch { copiedItems.forEach { eventProducer.emit(it) } }
+            consumer = {
+                parseFileAttributes(it.stdoutLineSequence(), CREATED_OR_MODIFIED_ATTRIBUTES).forEach {
+                    launch { eventProducer.emit(createdOrModifiedFromRow(it)) }
+                }
+            }
+        )
     }
 
     override suspend fun <T> coRead(ctx: FSUserContext, path: String, consumer: suspend InputStream.() -> T): T {
@@ -407,15 +408,6 @@ class CephFSFileSystemService(
         return "/home/${ctx.user}/"
     }
 
-    private fun checkStatus(line: String): Boolean {
-        if (line.startsWith("EXIT:")) {
-            val status = line.split(":")[1].toInt()
-            if (status != 0) throwExceptionBasedOnStatus(status)
-            return true
-        }
-        return false
-    }
-
     override fun listMetadataKeys(ctx: FSUserContext, path: String): List<String> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
@@ -524,7 +516,7 @@ class CephFSFileSystemService(
 
     private fun String.parents(): List<String> {
         val components = components().dropLast(1)
-        return components.mapIndexed { index, s ->
+        return components.mapIndexed { index, _ ->
             val path = "/" + components.subList(0, index + 1).joinToString("/").removePrefix("/")
             if (path == "/") path else "$path/"
         }
@@ -550,7 +542,7 @@ class CephFSFileSystemService(
     }
 
     private fun String.toCloudPath(): String {
-        return "/" + substringAfter(fsRoot).removePrefix("/")
+        return ("/" + substringAfter(fsRoot).removePrefix("/")).normalize()
     }
 
     private fun parseFileAttributes(sequence: Sequence<String>, attributes: Set<FileAttribute>): Sequence<FileRow> {
@@ -575,6 +567,7 @@ class CephFSFileSystemService(
         return copy(
             owner = owner?.let { cloudToCephFsDao.findCloudUser(it)!! },
             path = path?.toCloudPath(),
+            linkTarget = linkTarget?.toCloudPath(),
             shares = shares?.let { normalizeShares(it) }
         )
     }

@@ -11,38 +11,39 @@ import java.util.zip.GZIPOutputStream
 
 class BulkDownloadService(private val fs: FileSystemService) {
     fun downloadFiles(user: String, prefixPath: String, listOfFiles: List<String>, target: OutputStream) {
-        val ctx = fs.openContext(user)
-        TarOutputStream(GZIPOutputStream(target)).use { tarStream ->
-            for (path in listOfFiles) {
-                try {
-                    // Calculate correct path, check if file exists and filter out bad files
-                    val absPath = "${prefixPath.removeSuffix("/")}/${path.removePrefix("/")}"
-                    val stat = fs.stat(ctx, absPath) ?: continue
+        fs.withContext(user) { ctx ->
+            TarOutputStream(GZIPOutputStream(target)).use { tarStream ->
+                for (path in listOfFiles) {
+                    try {
+                        // Calculate correct path, check if file exists and filter out bad files
+                        val absPath = "${prefixPath.removeSuffix("/")}/${path.removePrefix("/")}"
+                        val stat = fs.stat(ctx, absPath) ?: continue
 
-                    // Write tar header
-                    log.debug("Writing tar header: ($path, $stat)")
-                    tarStream.putNextEntry(
-                        TarEntry(
-                            TarHeader.createHeader(
-                                path,
-                                stat.size,
-                                stat.modifiedAt,
-                                stat.type == FileType.DIRECTORY,
-                                511 // TODO! (0777)
+                        // Write tar header
+                        log.debug("Writing tar header: ($path, $stat)")
+                        tarStream.putNextEntry(
+                            TarEntry(
+                                TarHeader.createHeader(
+                                    path,
+                                    stat.size,
+                                    stat.modifiedAt,
+                                    stat.type == FileType.DIRECTORY,
+                                    511 // TODO! (0777)
+                                )
                             )
                         )
-                    )
 
-                    // Write file contents
-                    fs.read(ctx, absPath) { copyTo(tarStream) }
-                } catch (ex: FSException) {
-                    when (ex) {
-                        is FSException.NotFound, is FSException.PermissionException -> {
-                            log.debug("Skipping file, caused by exception:")
-                            log.debug(ex.stackTraceToString())
+                        // Write file contents
+                        fs.read(ctx, absPath) { copyTo(tarStream) }
+                    } catch (ex: FSException) {
+                        when (ex) {
+                            is FSException.NotFound, is FSException.PermissionException -> {
+                                log.debug("Skipping file, caused by exception:")
+                                log.debug(ex.stackTraceToString())
+                            }
+
+                            else -> throw ex
                         }
-
-                        else -> throw ex
                     }
                 }
             }

@@ -89,6 +89,7 @@ int mkpath(const char *path, mode_t mode) {
             /* Neither root nor double slash in path */
             *sp = '\0';
             status = do_mkdir(copypath, mode);
+            if (status == -EEXIST) status = 0;
             *sp = '/';
         }
         pp = sp + 1;

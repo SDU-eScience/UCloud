@@ -73,7 +73,7 @@ class CopyingTests {
                     assertEquals(HttpStatusCode.NotFound, response.status())
 
                     val response2 = copy(path, newPath)
-                    assertEquals(HttpStatusCode.Forbidden, response2.status())
+                    assertEquals(HttpStatusCode.NotFound, response2.status())
                 }
             )
         }

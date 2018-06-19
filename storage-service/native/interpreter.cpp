@@ -12,6 +12,7 @@
 #include <cmath>
 #include <string>
 #include <sys/stat.h>
+#include <sstream>
 
 #include "copy.h"
 #include "tree.h"
@@ -350,7 +351,7 @@ int main(int argc, char **argv) {
     // Disable buffering of stdout and stderr (not only used for newline terminated messages)
     setbuf(stdout, nullptr);
     setbuf(stderr, nullptr);
-//
+
     // Initialize streams
     auto client_boundary = argv[1];
     initialize_stdin_stream(client_boundary);
@@ -385,8 +386,10 @@ int main(int argc, char **argv) {
             status = copy_command(from, to);
             printf("EXIT:%d\n", status);
         } else if (IS_COMMAND("copy-tree")) {
-            auto path = NEXT_ARGUMENT(0);
-            printf("Dir: %s\n", path);
+            auto from = NEXT_ARGUMENT(0);
+            auto to = NEXT_ARGUMENT(1);
+
+            printf("EXIT:%d\n", copy_tree_command(from, to));
         } else if (IS_COMMAND("move")) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);
@@ -466,6 +469,14 @@ int main(int argc, char **argv) {
             verify_path_or_fatal(link_path);
 
             printf("EXIT:%d\n", symlink_command(target_path, link_path));
+        } else if (IS_COMMAND("setfacl")) {
+            // Arguments must be secured by client.
+            auto arguments = NEXT_ARGUMENT(0);
+            std::ostringstream command;
+            command << "setfacl ";
+            command << arguments;
+
+            printf("EXIT:%d\n", system(command.str().c_str()));
         }
 
         if (strcmp("", line) != 0) {

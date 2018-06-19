@@ -75,25 +75,12 @@ class ShareService(
     private val source: ShareDAO,
     private val fs: FileSystemService
 ) {
-    suspend fun list(
-        user: String,
-        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-    ): Page<SharesByPath> {
-        return list(fs.openContext(user), paging)
-    }
 
     suspend fun list(
         ctx: FSUserContext,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath> {
         return source.list(ctx.user, paging)
-    }
-
-    suspend fun retrieveShareForPath(
-        user: String,
-        path: String
-    ): SharesByPath {
-        return retrieveShareForPath(fs.openContext(user), path)
     }
 
     suspend fun retrieveShareForPath(
@@ -106,14 +93,6 @@ class ShareService(
         }
 
         return source.findSharesForPath(ctx.user, path)
-    }
-
-    suspend fun create(
-        user: String,
-        share: CreateShareRequest,
-        cloud: AuthenticatedCloud
-    ): ShareId {
-        return create(fs.openContext(user), share, cloud)
     }
 
     suspend fun create(
@@ -163,14 +142,6 @@ class ShareService(
     }
 
     suspend fun update(
-        user: String,
-        shareId: ShareId,
-        newRights: Set<AccessRight>
-    ) {
-        return update(fs.openContext(user), shareId, newRights)
-    }
-
-    suspend fun update(
         ctx: FSUserContext,
         shareId: ShareId,
         newRights: Set<AccessRight>
@@ -184,18 +155,12 @@ class ShareService(
         )
 
         if (existingShare.state == ShareState.ACCEPTED) {
-            fs.grantRights(fs.openContext(existingShare.owner), existingShare.sharedWith, existingShare.path, newRights)
+            fs.withContext(existingShare.owner) {
+                fs.grantRights(it, existingShare.sharedWith, existingShare.path, newRights)
+            }
         }
 
         source.update(ctx.user, shareId, newShare)
-    }
-
-    suspend fun updateState(
-        user: String,
-        shareId: ShareId,
-        newState: ShareState
-    ) {
-        updateState(fs.openContext(user), shareId, newState)
     }
 
     suspend fun updateState(
@@ -225,20 +190,25 @@ class ShareService(
         }
 
         if (newState == ShareState.ACCEPTED) {
-            fs.grantRights(
-                fs.openContext(existingShare.owner),
-                existingShare.sharedWith,
-                existingShare.path,
-                existingShare.rights
-            )
-            fs.createSoftSymbolicLink(
-                fs.openContext(existingShare.sharedWith),
-                fs.findFreeNameForNewFile(
-                    ctx,
-                    fs.joinPath(fs.homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
-                ),
-                existingShare.path
-            )
+            fs.withContext(existingShare.owner) {
+                fs.grantRights(
+                    it,
+                    existingShare.sharedWith,
+                    existingShare.path,
+                    existingShare.rights
+                )
+            }
+
+            fs.withContext(existingShare.sharedWith) {
+                fs.createSoftSymbolicLink(
+                    it,
+                    fs.findFreeNameForNewFile(
+                        ctx,
+                        fs.joinPath(fs.homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
+                    ),
+                    existingShare.path
+                )
+            }
         }
 
         log.debug("Updating state")
@@ -250,7 +220,9 @@ class ShareService(
         shareId: ShareId
     ) {
         val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
-        fs.revokeRights(fs.openContext(existingShare.owner), existingShare.sharedWith, existingShare.path)
+        fs.withContext(existingShare.owner) {
+            fs.revokeRights(it, existingShare.sharedWith, existingShare.path)
+        }
         source.deleteShare(user, shareId)
     }
 

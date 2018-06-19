@@ -16,7 +16,9 @@ class MoveTest {
         val nonExistingFolder = File(fsRoot, "home/user1/another-one/a")
         Assert.assertFalse(nonExistingFolder.exists())
 
-        fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/another-one/a")
+        fs.withContext("user1") {
+            fs.move(it, "home/user1/folder/a", "home/user1/another-one/a")
+        }
 
         val existingFolder = File(fsRoot, "home/user1/another-one/a")
         Assert.assertTrue(existingFolder.exists())
@@ -32,7 +34,9 @@ class MoveTest {
         val existingFolder = File(fsRoot, "home/user1/folder/a")
         Assert.assertTrue(existingFolder.exists())
 
-        fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/folder/")
+        fs.withContext("user1") {
+            fs.move(it, "home/user1/folder/a", "home/user1/folder/")
+        }
     }
 
     @Test (expected = FSException.NotFound::class)
@@ -45,7 +49,9 @@ class MoveTest {
         val nonexistingFolder = File(fsRoot, "home/user1/folder/newly/created/folder")
         Assert.assertFalse(nonexistingFolder.exists())
 
-        fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/folder/newly/created/folder")
+        fs.withContext("user1") {
+            fs.move(it, "home/user1/folder/a", "home/user1/folder/newly/created/folder")
+        }
 
     }
 
@@ -56,7 +62,9 @@ class MoveTest {
             fsRoot.absolutePath
         )
 
-        fs.move(fs.openContext("user1"), "/home/user1/folder", "/home/user1/new-folder")
+        fs.withContext("user1") {
+            fs.move(it, "/home/user1/folder", "/home/user1/new-folder")
+        }
 
         val existingFolder = File(fsRoot, "home/user1/new-folder/a")
         Assert.assertTrue(existingFolder.exists())

@@ -1,17 +1,15 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.storage.api.AccessRight
+import dk.sdu.cloud.storage.services.FSException
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.ShareException
 import org.slf4j.LoggerFactory
 import java.util.*
 
-class FileACLService(
-    private val cloudToCephFsDao: CloudToCephFsDao,
-    private val isDevelopment: Boolean
-) {
-    private val setfaclExecutable: String
-        get() = if (isDevelopment) "echo" else "setfacl"
+class FileACLService(private val cloudToCephFsDao: CloudToCephFsDao) {
+    // NOTE(Dan): The setfacl command is implemented by passing it directly to a shell. Care should be taken in
+    // here to ensure we don't pass unsafe arguments on CLI
 
     private fun internalCreateEntry(
         ctx: FSUserContext,
@@ -22,8 +20,6 @@ class FileACLService(
         recursive: Boolean = false
     ) {
         val command = ArrayList<String>().apply {
-            add(setfaclExecutable)
-
             if (defaultList) add("-d")
             if (recursive) add("-R")
 
@@ -41,13 +37,13 @@ class FileACLService(
             add(mountedPath)
         }.toList()
 
-        val result = ctx.runWithResultAsInMemoryString(command)
-        if (result.status != 0) {
-            log.info("createEntry failed with status ${result.status}!")
-            log.info("stderr: ${result.stderr}")
-            log.info("stdout: ${result.stdout}")
-            throw ShareException.PermissionException()
-        }
+        ctx.runCommand(
+            InterpreterCommand.SETFACL,
+            *command.toTypedArray(),
+            consumer = {
+                it.stdoutLineSequence().any { internalStatusCheck(it) }
+            }
+        )
     }
 
     fun createEntry(
@@ -89,7 +85,6 @@ class FileACLService(
             )
 
         val command = ArrayList<String>().apply {
-            add(setfaclExecutable)
             if (defaultList) add("-d")
             if (recursive) add("-R")
             add("-x")
@@ -97,17 +92,27 @@ class FileACLService(
             add(mountedPath)
         }.toList()
 
-        val result = ctx.runWithResultAsInMemoryString(command)
-        if (result.status != 0) {
-            log.info("removeEntry failed with status ${result.status}!")
-            log.info("stderr: ${result.stderr}")
-            log.info("stdout: ${result.stdout}")
-            throw ShareException.PermissionException()
+        ctx.runCommand(
+            InterpreterCommand.SETFACL,
+            *command.toTypedArray(),
+            consumer = {
+                it.stdoutLineSequence().any { internalStatusCheck(it) }
+            }
+        )
+    }
+
+    private fun internalStatusCheck(line: String): Boolean {
+        log.debug(line)
+
+        if (line.startsWith("EXIT:")) {
+            val status = line.split(":")[1].toInt()
+            if (status != 0) throw FSException.PermissionException()
+            return true
         }
+        return false
     }
 
     companion object {
-        private val log =
-            LoggerFactory.getLogger(FileACLService::class.java)
+        private val log = LoggerFactory.getLogger(FileACLService::class.java)
     }
 }

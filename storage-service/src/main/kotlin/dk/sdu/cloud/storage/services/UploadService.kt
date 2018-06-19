@@ -16,7 +16,9 @@ class UploadService(
     private val checksumService: ChecksumService
 ) {
     fun upload(user: String, path: String, writer: OutputStream.() -> Unit) {
-        upload(fs.openContext(user), path, writer)
+        fs.withContext(user) {
+            upload(it, path, writer)
+        }
     }
 
     fun upload(ctx: FSUserContext, path: String, writer: OutputStream.() -> Unit) {
@@ -33,9 +35,11 @@ class UploadService(
         policy: BulkUploadOverwritePolicy,
         stream: InputStream
     ): List<String> {
-        return when (format) {
-            "tgz" -> bulkUploadTarGz(fs.openContext(user), path, policy, stream)
-            else -> throw FSException.BadRequest("Unsupported format '$format'")
+        return fs.withContext(user) {
+            when (format) {
+                "tgz" -> bulkUploadTarGz(it, path, policy, stream)
+                else -> throw FSException.BadRequest("Unsupported format '$format'")
+            }
         }
     }
 

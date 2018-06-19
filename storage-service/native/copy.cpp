@@ -10,6 +10,7 @@
 
 #include "copy.h"
 #include "file_utils.h"
+#include "tree.h"
 
 static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
@@ -17,6 +18,8 @@ static int compare(const FTSENT **one, const FTSENT **two) {
 
 // Source: https://stackoverflow.com/a/2180788
 static int copy_file(const char *from, const char *to) {
+    fprintf(stderr, "Copying from %s to %s\n", from, to);
+
     int fd_to, fd_from;
     char buf[4096];
     ssize_t nread;
@@ -69,7 +72,7 @@ static int copy_file(const char *from, const char *to) {
     return -1;
 }
 
-int last_index_of(const char *haystack, char needle) {
+static int last_index_of(const char *haystack, char needle) {
     int result = -1;
     int index = 0;
     while (haystack[index] != '\0') {
@@ -87,6 +90,17 @@ static void remove_trailing_slashes(char *path) {
         if (path[idx] == '/') path[idx] = '\0';
         else break;
     }
+}
+
+static size_t add_trailing_slash(const char *path, char **out_buffer) {
+    auto length = strlen(path);
+    bool has_trailing_slash = path[length - 1] == '/';
+    if (!has_trailing_slash) length++;
+    *out_buffer = (char *) malloc(sizeof(char) * length);
+
+    strncpy(*out_buffer, path, length);
+    if (!has_trailing_slash) (*out_buffer)[length - 1] = '/';
+    return length;
 }
 
 int copy_command(char *from_inp, char *to_inp) {
@@ -108,7 +122,7 @@ int copy_command(char *from_inp, char *to_inp) {
         status = -EEXIST;
         goto clean_up;
     }
-    
+
     // Start by ensuring that file is not a link
     stat(from, &s);
     is_supported_type = S_ISREG(s.st_mode) || S_ISDIR(s.st_mode);
@@ -164,6 +178,83 @@ int copy_command(char *from_inp, char *to_inp) {
 
     clean_up:
     if (from != nullptr) free(from);
+    return status;
+}
+
+int copy_tree_command(char *from_inp, char *to_inp) {
+    auto path = from_inp;
+
+    char *from_path;
+    auto from_length = add_trailing_slash(from_inp, &from_path);
+
+    char *to_path;
+    auto to_length = add_trailing_slash(to_inp, &to_path);
+
+    FTS *file_system = nullptr;
+    FTSENT *node = nullptr;
+    int status = 0;
+    struct stat stat_buffer{};
+
+    char *path_argv[2];
+    path_argv[0] = from_path;
+    path_argv[1] = nullptr;
+
+    status = lstat(path, &stat_buffer);
+    if (status != 0) {
+        status = -errno;
+        goto cleanup;
+    }
+
+    file_system = fts_open(
+            path_argv,
+
+            FTS_LOGICAL | // Follow sym links
+            FTS_COMFOLLOW | // Immediately follow initial symlink
+            FTS_XDEV, // Don't leave file system (stay in CephFS)
+
+            &compare
+    );
+
+    if (file_system == nullptr) {
+        goto cleanup;
+    }
+
+    status = -1;
+    while ((node = fts_read(file_system)) != nullptr) {
+        switch (node->fts_info) {
+            case FTS_D:
+            case FTS_F: {
+                // This might happen when the root is being copied
+                if (!starts_with(from_path, node->fts_path)) continue;
+
+                auto for_testing = strdup(node->fts_path);
+                auto path_length = strlen(for_testing);
+                size_t base_name_length = path_length - from_length;
+
+                auto destination_path = (char *) calloc(base_name_length + to_length, sizeof(char));
+                strncpy(destination_path, to_path, to_length);
+                if (base_name_length != 0) {
+                    strncpy(destination_path + to_length, for_testing + from_length, base_name_length);
+                }
+
+                int copy_status = copy_command(for_testing, destination_path);
+                if (status != 0) status = copy_status;
+
+                free(destination_path);
+                free(for_testing);
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+
+    cleanup:
+    if (file_system != nullptr) fts_close(file_system);
+    if (from_path != nullptr) free(from_path);
+    if (to_path != nullptr) free(to_path);
+
     return status;
 }
 

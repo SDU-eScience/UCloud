@@ -45,16 +45,13 @@ class Server(
         val processRunner = SimpleCephFSProcessRunnerFactory(cloudToCephFsDao, isDevelopment)
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
         val fileAclService =
-            FileACLService(cloudToCephFsDao, isDevelopment)
-        val copyService = CopyService(isDevelopment)
+            FileACLService(cloudToCephFsDao)
         val fs: FileSystemService =
             CephFSFileSystemService(
                 cloudToCephFsDao,
                 processRunner,
                 fileAclService,
-                copyService,
                 fsRoot,
-                isDevelopment,
                 kafka.producer.forStream(StorageEvents.events)
             )
 
@@ -128,7 +125,7 @@ class Server(
                     FilesController(fs).configure(this)
                     SimpleDownloadController(cloud, fs, bulkDownloadService).configure(this)
                     MultiPartUploadController(uploadService).configure(this)
-                    ShareController(shareService).configure(this)
+                    ShareController(shareService, fs).configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")
