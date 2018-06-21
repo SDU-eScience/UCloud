@@ -60,7 +60,7 @@ class Server(
             install(JWTProtection)
 
             routing {
-                route("api") {
+                route("api/notifications") {
                     NotificationController(notificationDao).configure(this)
                 }
             }

@@ -14,35 +14,46 @@ import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
-class NotificationController(private val source: NotificationDAO) {
-    fun configure(routing: Route) = with(routing) {
-        route("notifications") {
-            protect()
+// TODO FIXME Move to service-common
+// TODO FIXME Move to service-common
+// TODO FIXME Move to service-common
+interface Controller {
+    val baseContext: String
+    fun configure(routing: Route)
+}
 
-            implement(NotificationDescriptions.list) {
-                logEntry(log, it)
-                ok(source.findNotifications(call.request.validatedPrincipal.subject, it.type, it.since, it.pagination))
-            }
+class NotificationController(private val source: NotificationDAO)
+    : Controller {
 
-            implement(NotificationDescriptions.markAsRead) {
-                logEntry(log, it)
-                val success = source.markAsRead(call.request.validatedPrincipal.subject, it.id)
-                if (success) ok(Unit) else error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-            }
+    override val baseContext = NotificationDescriptions.baseContext
 
-            implement(NotificationDescriptions.create) {
-                logEntry(log, it)
-                if (!protect(rolesAllowed = listOf(Role.SERVICE, Role.ADMIN))) return@implement
-                ok(FindByNotificationId(source.create(it.user, it.notification)))
-            }
+    override fun configure(routing: Route) : Unit = with(routing) {
+        protect()
 
-            implement(NotificationDescriptions.delete) {
-                logEntry(log, it)
-                if (!protect(rolesAllowed = listOf(Role.SERVICE, Role.ADMIN))) return@implement
-                val success = source.delete(it.id)
-                if (success) ok(Unit) else error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-            }
+        implement(NotificationDescriptions.list) {
+            logEntry(log, it)
+            ok(source.findNotifications(call.request.validatedPrincipal.subject, it.type, it.since, it.pagination))
         }
+
+        implement(NotificationDescriptions.markAsRead) {
+            logEntry(log, it)
+            val success = source.markAsRead(call.request.validatedPrincipal.subject, it.id)
+            if (success) ok(Unit) else error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
+        }
+
+        implement(NotificationDescriptions.create) {
+            logEntry(log, it)
+            if (!protect(rolesAllowed = listOf(Role.SERVICE, Role.ADMIN))) return@implement
+            ok(FindByNotificationId(source.create(it.user, it.notification)))
+        }
+
+        implement(NotificationDescriptions.delete) {
+            logEntry(log, it)
+            if (!protect(rolesAllowed = listOf(Role.SERVICE, Role.ADMIN))) return@implement
+            val success = source.delete(it.id)
+            if (success) ok(Unit) else error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
+        }
+
     }
 
     companion object {

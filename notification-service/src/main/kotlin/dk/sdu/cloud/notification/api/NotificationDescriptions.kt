@@ -20,7 +20,7 @@ data class ListNotificationRequest(
 data class CreateNotification(val user: String, val notification: Notification)
 
 object NotificationDescriptions : RESTDescriptions(NotificationServiceDescription) {
-    private const val baseContext = "/api/notifications"
+    const val baseContext = "/api/notifications"
 
     val list = callDescription<ListNotificationRequest, Page<Notification>, CommonErrorMessage> {
         prettyName = "list"
