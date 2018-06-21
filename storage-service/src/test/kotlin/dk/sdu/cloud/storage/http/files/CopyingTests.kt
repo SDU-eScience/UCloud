@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.http.files
 
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.withTestApplication
@@ -23,7 +24,7 @@ class CopyingTests {
                     val response1 = stat(newPath)
                     assertEquals(HttpStatusCode.NotFound, response1.status())
 
-                    val response2 = copy(path, newPath)
+                    val response2 = copy(path, newPath, WriteConflictPolicy.REJECT)
                     assertEquals(HttpStatusCode.OK, response2.status())
 
                     val response3 = stat(path)
@@ -37,7 +38,7 @@ class CopyingTests {
     }
 
     @Test
-    fun `attempt to override file via copy`() {
+    fun `attempt to overwrite file via copy - OVERWRITE`() {
         withAuthMock {
             withTestApplication(
                 moduleFunction = { configureServerWithFileController() },
@@ -52,8 +53,80 @@ class CopyingTests {
                     val response1 = stat(newPath)
                     assertEquals(HttpStatusCode.OK, response1.status())
 
-                    val response2 = copy(path, newPath)
+                    val response2 = copy(path, newPath, WriteConflictPolicy.OVERWRITE)
+                    assertEquals(HttpStatusCode.OK, response2.status())
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `attempt to overwrite file via copy - RENAME`() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = { configureServerWithFileController() },
+
+                test = {
+                    val path = "/home/user1/folder/a"
+                    val newPath = "/home/user1/folder/b"
+
+                    val response = stat(path)
+                    assertEquals(HttpStatusCode.OK, response.status())
+
+                    val response1 = stat(newPath)
+                    assertEquals(HttpStatusCode.OK, response1.status())
+
+                    val response2 = copy(path, newPath, WriteConflictPolicy.RENAME)
+                    assertEquals(HttpStatusCode.OK, response2.status())
+
+                    val response3 = stat("$newPath(1)")
+                    assertEquals(HttpStatusCode.OK, response3.status())
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `attempt to overwrite file via copy - REJECT`() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = { configureServerWithFileController() },
+
+                test = {
+                    val path = "/home/user1/folder/a"
+                    val newPath = "/home/user1/folder/b"
+
+                    val response = stat(path)
+                    assertEquals(HttpStatusCode.OK, response.status())
+
+                    val response1 = stat(newPath)
+                    assertEquals(HttpStatusCode.OK, response1.status())
+
+                    val response2 = copy(path, newPath, WriteConflictPolicy.REJECT)
                     assertEquals(HttpStatusCode.Conflict, response2.status())
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `copy a folder`() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = { configureServerWithFileController() },
+
+                test = {
+                    val path = "/home/user1/folder"
+                    val newPath = "/home/user1/new-folder"
+
+                    val response = stat(path)
+                    assertEquals(HttpStatusCode.OK, response.status())
+
+                    val response2 = copy(path, newPath, WriteConflictPolicy.REJECT)
+                    assertEquals(HttpStatusCode.OK, response2.status())
+
+                    val response3 = listDir(newPath)
+                    assertEquals(HttpStatusCode.OK, response3.status())
                 }
             )
         }
@@ -72,7 +145,7 @@ class CopyingTests {
                     val response = stat(path)
                     assertEquals(HttpStatusCode.NotFound, response.status())
 
-                    val response2 = copy(path, newPath)
+                    val response2 = copy(path, newPath, WriteConflictPolicy.OVERWRITE)
                     assertEquals(HttpStatusCode.NotFound, response2.status())
                 }
             )

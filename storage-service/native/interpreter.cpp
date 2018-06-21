@@ -380,16 +380,18 @@ int main(int argc, char **argv) {
         if (IS_COMMAND("copy")) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);
+            auto allow_overwrite = NEXT_ARGUMENT_INT(2) == 1;
             verify_path_or_fatal(from);
             verify_path_or_fatal(to);
 
-            status = copy_command(from, to);
+            status = copy_command(from, to, allow_overwrite);
             printf("EXIT:%d\n", status);
         } else if (IS_COMMAND("copy-tree")) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);
+            auto allow_overwrite = NEXT_ARGUMENT_INT(2) == 1;
 
-            printf("EXIT:%d\n", copy_tree_command(from, to));
+            printf("EXIT:%d\n", copy_tree_command(from, to, allow_overwrite));
         } else if (IS_COMMAND("move")) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);

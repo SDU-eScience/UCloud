@@ -5,12 +5,15 @@ import dk.sdu.cloud.storage.services.FSException
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.FileSystemService
 import dk.sdu.cloud.storage.services.ShareException
+import dk.sdu.cloud.storage.util.DebugTimer
+import dk.sdu.cloud.storage.util.timed
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.URI
 import java.util.*
 
 data class FavoritedFile(val type: FileType, val from: String, val to: String, val inode: String, val favInode: String)
@@ -129,6 +132,10 @@ class CephFSFileSystemService(
         }
     }
 
+    fun exists(ctx: FSUserContext, path: String): Boolean {
+        return stat(ctx, path) != null
+    }
+
     override fun mkdir(ctx: FSUserContext, path: String) {
         val absolutePath = translateAndCheckFile(path)
 
@@ -233,21 +240,100 @@ class CephFSFileSystemService(
         )
     }
 
-    override fun copy(ctx: FSUserContext, path: String, newPath: String) {
-        val absolutePath = translateAndCheckFile(path)
-        val newAbsolutePath = translateAndCheckFile(newPath)
+    override fun copy(ctx: FSUserContext, path: String, newPath: String, conflictPolicy: WriteConflictPolicy) {
+        val fromNormalized = path.normalize()
+        val toNormalized = newPath.normalize()
+        val allowOverwrite = conflictPolicy == WriteConflictPolicy.OVERWRITE
 
-        ctx.runCommand(
-            InterpreterCommand.COPY_TREE,
-            absolutePath,
-            newAbsolutePath,
+        fun renameAccordingToPolicy(desiredTargetPath: String): String? {
+            val targetExists = exists(ctx, desiredTargetPath)
+            return when (conflictPolicy) {
+                WriteConflictPolicy.OVERWRITE -> desiredTargetPath
 
-            consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), CREATED_OR_MODIFIED_ATTRIBUTES).forEach {
-                    launch { eventProducer.emit(createdOrModifiedFromRow(it)) }
+                WriteConflictPolicy.RENAME -> {
+                    if (targetExists) findFreeNameForNewFile(ctx, desiredTargetPath)
+                    else desiredTargetPath
+                }
+
+                WriteConflictPolicy.REJECT -> {
+                    if (targetExists) null
+                    else desiredTargetPath
                 }
             }
-        )
+        }
+
+        val fromStat = stat(ctx, fromNormalized) ?: throw FSException.NotFound()
+        if (fromStat.type != FileType.DIRECTORY) {
+            val absoluteSourcePath = translateAndCheckFile(fromNormalized)
+            val absoluteTargetPath = renameAccordingToPolicy(toNormalized)?.let { translateAndCheckFile(it) }
+                    ?: throw FSException.AlreadyExists()
+
+            ctx.runCommand(
+                InterpreterCommand.COPY,
+                absoluteSourcePath,
+                absoluteTargetPath,
+                if (allowOverwrite) "1" else "0",
+
+                consumer = {
+                    parseFileAttributes(it.stdoutLineSequence(), CREATED_OR_MODIFIED_ATTRIBUTES).forEach {
+                        launch { eventProducer.emit(createdOrModifiedFromRow(it)) }
+                    }
+                }
+            )
+        } else {
+            // toList() call is important, as we want to re-use the ctx (which can only run one command at a time)
+
+            val renamingTimer = DebugTimer("renaming")
+            val copyingTimer = DebugTimer("copying")
+            val parsingTimer = DebugTimer("parsing")
+
+            val toList = timed("tree") { tree(ctx, fromNormalized, CREATED_OR_MODIFIED_ATTRIBUTES).toList() }
+            toList.forEach {
+                val currentPath = it.path!!
+
+                val absoluteSourcePath = translateAndCheckFile(currentPath)
+                val absoluteTargetPath = run {
+                    // Compute desired (cloud) path
+                    val desiredTargetPath = joinPath(toNormalized, relativize(fromNormalized, currentPath))
+                    renamingTimer.time {
+                        renameAccordingToPolicy(desiredTargetPath)
+                    } ?: return@forEach
+                }.let {
+                    // Translate to mounted path
+                    translateAndCheckFile(it)
+                }
+
+                try {
+                    copyingTimer.time {
+                        ctx.runCommand(
+                            InterpreterCommand.COPY,
+                            absoluteSourcePath,
+                            absoluteTargetPath,
+                            if (allowOverwrite) "1" else "0",
+
+                            consumer = {
+                                parsingTimer.time {
+                                    parseFileAttributes(
+                                        it.stdoutLineSequence(),
+                                        CREATED_OR_MODIFIED_ATTRIBUTES
+                                    ).forEach {
+                                        launch { eventProducer.emit(createdOrModifiedFromRow(it)) }
+                                    }
+                                }
+                            }
+                        )
+                    }
+                } catch (ex: FSException.AlreadyExists) {
+                    // Race condition (file was created after "exists" call but before copy "call")
+                    // TODO For now we ignore these, but maybe we should retry?
+                    log.debug("$currentPath to $newPath file already exists at target")
+                }
+            }
+
+            parsingTimer.log()
+            renamingTimer.log()
+            copyingTimer.log()
+        }
     }
 
     override suspend fun <T> coRead(ctx: FSUserContext, path: String, consumer: suspend InputStream.() -> T): T {
@@ -453,22 +539,16 @@ class CephFSFileSystemService(
         )
     }
 
-    override suspend fun tree(
-        ctx: FSUserContext,
-        path: String,
-        mode: Set<FileAttribute>,
-        itemHandler: suspend (FileRow) -> Unit
-    ) {
+    override fun tree(ctx: FSUserContext, path: String, mode: Set<FileAttribute>): Sequence<FileRow> {
         val absolutePath = translateAndCheckFile(path)
-        ctx.runCommand(
+        return ctx.runCommand(
             InterpreterCommand.TREE,
             absolutePath,
             mode.asBitSet().toString(),
 
             consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), mode).map { it.normalize() }.forEach {
-                    runBlocking { itemHandler(it) }
-                }
+                val lines = it.stdoutLineSequence().toList() // TODO FIXME
+                parseFileAttributes(lines.iterator(), mode)
             }
         )
     }
@@ -527,6 +607,10 @@ class CephFSFileSystemService(
     private fun String.fileName(): String = File(this).name
 
     private fun String.normalize(): String = File(this).normalize().path
+
+    private fun relativize(rootPath: String, absolutePath: String): String {
+        return URI(rootPath).relativize(URI(absolutePath)).path
+    }
 
     private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
         val path = File(fsRoot, internalPath)

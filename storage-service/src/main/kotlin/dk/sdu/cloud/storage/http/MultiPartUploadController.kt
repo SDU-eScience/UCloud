@@ -8,7 +8,7 @@ import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.BulkUploadErrorMessage
-import dk.sdu.cloud.storage.api.BulkUploadOverwritePolicy
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.storage.api.SensitivityLevel
 import dk.sdu.cloud.storage.services.UploadService
@@ -89,7 +89,7 @@ class MultiPartUploadController(private val uploadService: UploadService) {
             implement(MultiPartUploadDescriptions.bulkUpload) {
                 logEntry(log, it)
 
-                var policy: BulkUploadOverwritePolicy? = null
+                var policy: WriteConflictPolicy? = null
                 var path: String? = null
                 var format: String? = null
                 var error = false
@@ -106,7 +106,7 @@ class MultiPartUploadController(private val uploadService: UploadService) {
                                 when (part.name) {
                                     "policy" -> {
                                         try {
-                                            policy = BulkUploadOverwritePolicy.valueOf(part.value)
+                                            policy = WriteConflictPolicy.valueOf(part.value)
                                         } catch (ex: Exception) {
                                             error(
                                                 CommonErrorMessage("Bad request"),

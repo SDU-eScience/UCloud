@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.storage.api.StorageServiceDescription
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
 import dk.sdu.cloud.storage.services.createDummyFS
@@ -194,13 +195,14 @@ fun TestApplicationEngine.sync(
 fun TestApplicationEngine.copy(
     path: String,
     newPath: String,
+    conflictPolicy: WriteConflictPolicy,
     user: String = "user1",
     role: Role = Role.USER
 ): TestApplicationResponse {
     return call(
         HttpMethod.Post,
         "/api/files/copy",
-        params = mapOf("path" to path, "newPath" to newPath),
+        params = mapOf("path" to path, "newPath" to newPath, "policy" to conflictPolicy.toString()),
         user = user,
         role = role
     )

@@ -5,6 +5,7 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.FSException
 import dk.sdu.cloud.storage.services.FileSystemService
 import dk.sdu.cloud.storage.services.cephfs.FileAttribute
@@ -100,7 +101,7 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect()) return@implement
                 tryWithFS(fs, call.request.currentUsername) {
-                    fs.copy(it, req.path, req.newPath)
+                    fs.copy(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
                     ok(Unit)
                 }
             }
@@ -143,7 +144,7 @@ class FilesController(private val fs: FileSystemService) {
 
                 tryWithFS(fs, call.request.currentUsername) {
                     call.respondDirectWrite(status = HttpStatusCode.OK, contentType = ContentType.Text.Plain) {
-                        fs.tree(it, req.path, attributes) {
+                        fs.tree(it, req.path, attributes).forEach {
                             writeStringUtf8(StringBuilder().apply {
                                 appendToken(
                                     when (it.fileType) {

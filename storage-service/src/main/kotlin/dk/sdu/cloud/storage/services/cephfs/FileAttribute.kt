@@ -34,6 +34,7 @@ enum class FileAttribute(val value: Long) {
             attributes: Set<FileAttribute>
         ): Sequence<FileRow> {
             var line = 0
+            var shouldTerminate = false
             val sortedAttributes = attributes.toSortedSet(Comparator.comparingLong { it.value })
 
             fun next(): String {
@@ -46,7 +47,8 @@ enum class FileAttribute(val value: Long) {
             }
 
             return generateSequence {
-                if (!iterator.hasNext()) return@generateSequence null
+                if (!iterator.hasNext() || shouldTerminate) return@generateSequence null
+
                 var fileType: FileType? = null
                 var isLink: Boolean? = null
                 var linkTarget: String? = null
@@ -70,6 +72,10 @@ enum class FileAttribute(val value: Long) {
                     if (currentLine.startsWith("EXIT:")) {
                         val status = currentLine.split(":")[1].toInt()
                         if (status != 0) throwExceptionBasedOnStatus(status)
+                        shouldTerminate = true
+                        break
+                    } else if (currentLine.startsWith("START:")) {
+                        shouldTerminate = true
                         break
                     }
 

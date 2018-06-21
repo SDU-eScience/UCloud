@@ -155,6 +155,7 @@ enum class InterpreterCommand(val command: String) {
     TREE("tree"),
     SYMLINK("symlink"),
     SETFACL("setfacl"),
+    COPY("copy"),
     COPY_TREE("copy-tree"),
 
     WRITE("write"),

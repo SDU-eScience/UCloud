@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.BulkUploadOverwritePolicy
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import io.mockk.mockk
 import junit.framework.Assert.*
 import org.junit.Test
@@ -76,7 +76,7 @@ class BulkUploadTest {
         val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
         val upload = UploadService(fs, mockk(relaxed = true))
-        upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.OVERWRITE, tarFile.inputStream())
+        upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
         val homeDir = File(fsRoot, "/home/user")
         assertTrue(homeDir.exists())
@@ -114,7 +114,7 @@ class BulkUploadTest {
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.RENAME, tarFile.inputStream())
+            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.RENAME, tarFile.inputStream())
 
         val homeDir = File(fsRoot, "/home/user")
         assertTrue(homeDir.exists())
@@ -159,7 +159,7 @@ class BulkUploadTest {
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.OVERWRITE, tarFile.inputStream())
+            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
         val homeDir = File(fsRoot, "/home/user")
         assertTrue(homeDir.exists())
@@ -199,7 +199,7 @@ class BulkUploadTest {
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.REJECT, tarFile.inputStream())
+            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.REJECT, tarFile.inputStream())
 
         val homeDir = File(fsRoot, "/home/user")
         assertTrue(homeDir.exists())
@@ -241,7 +241,7 @@ class BulkUploadTest {
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.OVERWRITE, tarFile.inputStream())
+            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
         val homeDir = File(fsRoot, "/home/user")
         assertTrue(homeDir.exists())
@@ -280,7 +280,7 @@ class BulkUploadTest {
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.OVERWRITE, tarFile.inputStream())
+            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
         val homeDir = File(fsRoot, "/home/user")
         assertTrue(homeDir.exists())
@@ -318,7 +318,7 @@ class BulkUploadTest {
 
         val upload = UploadService(fs, mockk(relaxed = true))
         val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", BulkUploadOverwritePolicy.OVERWRITE, tarFile.inputStream())
+            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
         val homeDir = File(fsRoot, "/home/user")
         assertTrue(homeDir.exists())

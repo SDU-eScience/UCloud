@@ -10,6 +10,8 @@
 
 #include <iostream>
 #include <sys/stat.h>
+#include <sstream>
+#include <string>
 
 #else
 #include <linux/limits.h>
@@ -36,10 +38,17 @@ typedef struct {
 } link_t;
 
 bool starts_with(const char *pre, const char *str);
+
 bool resolve_link(const char *path, link_t *link_out);
-int mkpath(const char *path, mode_t mode);
-int do_mkdir(const char *path, mode_t mode);
+
+int mkpath(std::ostream &stream, const char *path, mode_t mode, uint64_t file_info);
+
+int do_mkdir(std::ostream &stream, const char *path, mode_t mode, uint64_t file_info);
+
 void verify_path_or_fatal(const char *path);
+
+bool std_ends_with(const std::string &str, const std::string &suffix);
+bool std_starts_with(const std::string &str, const std::string &prefix);
 
 #ifdef __linux__
 #include <string.h>

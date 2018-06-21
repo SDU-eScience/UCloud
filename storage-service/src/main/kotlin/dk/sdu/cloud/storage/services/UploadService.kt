@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.BulkUploadOverwritePolicy
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.util.CappedInputStream
 import org.kamranzafar.jtar.TarEntry
@@ -32,7 +32,7 @@ class UploadService(
         user: String,
         path: String,
         format: String,
-        policy: BulkUploadOverwritePolicy,
+        policy: WriteConflictPolicy,
         stream: InputStream
     ): List<String> {
         return fs.withContext(user) {
@@ -47,7 +47,7 @@ class UploadService(
         ctx: FSUserContext,
         path: String,
         format: String,
-        policy: BulkUploadOverwritePolicy,
+        policy: WriteConflictPolicy,
         stream: InputStream
     ): List<String> {
         return when (format) {
@@ -59,7 +59,7 @@ class UploadService(
     private fun bulkUploadTarGz(
         ctx: FSUserContext,
         path: String,
-        policy: BulkUploadOverwritePolicy,
+        policy: WriteConflictPolicy,
         stream: InputStream
     ): List<String> {
         val rejectedFiles = ArrayList<String>()
@@ -96,12 +96,12 @@ class UploadService(
                                 null
                             } else {
                                 when (policy) {
-                                    BulkUploadOverwritePolicy.OVERWRITE -> {
+                                    WriteConflictPolicy.OVERWRITE -> {
                                         log.debug("Overwriting file")
                                         initialTargetPath
                                     }
 
-                                    BulkUploadOverwritePolicy.RENAME -> {
+                                    WriteConflictPolicy.RENAME -> {
                                         log.debug("Renaming file")
                                         fs.findFreeNameForNewFile(
                                             ctx,
@@ -109,7 +109,7 @@ class UploadService(
                                         )
                                     }
 
-                                    BulkUploadOverwritePolicy.REJECT -> {
+                                    WriteConflictPolicy.REJECT -> {
                                         log.debug("Rejecting file")
                                         null
                                     }

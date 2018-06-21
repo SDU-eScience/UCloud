@@ -33,8 +33,10 @@ bool resolve_link(const char *path, link_t *link_out) {
     }
 
     link_out->type = type;
-    strcpy(link_out->path_from, path);
-    strcpy(link_out->path_to, path_to);
+    assert(strlen(path) < PATH_MAX);
+    assert(strlen(path_to) < PATH_MAX);
+    strncpy(link_out->path_from, path, PATH_MAX);
+    strncpy(link_out->path_to, path_to, PATH_MAX);
     link_out->ino = s.st_ino;
 
     success = true;
@@ -50,7 +52,7 @@ bool starts_with(const char *pre, const char *str) {
 }
 
 // Source: https://stackoverflow.com/a/675193
-int do_mkdir(const char *path, mode_t mode) {
+int do_mkdir(std::ostream &stream, const char *path, mode_t mode, uint64_t file_info) {
     struct stat st{};
     int status = 0;
 
@@ -66,7 +68,7 @@ int do_mkdir(const char *path, mode_t mode) {
             if (status != 0) {
                 fprintf(stderr, "stat failed for %s after successful mkdir! %s \n", path, strerror(errno));
             } else {
-                print_file_information(std::cout, path, &st, FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER);
+                print_file_information(stream, path, &st, file_info);//FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER);
             }
         }
     } else {
@@ -76,7 +78,7 @@ int do_mkdir(const char *path, mode_t mode) {
     return (status);
 }
 
-int mkpath(const char *path, mode_t mode) {
+int mkpath(std::ostream &stream, const char *path, mode_t mode, uint64_t file_info) {
     char *pp;
     char *sp;
     int status;
@@ -88,14 +90,14 @@ int mkpath(const char *path, mode_t mode) {
         if (sp != pp) {
             /* Neither root nor double slash in path */
             *sp = '\0';
-            status = do_mkdir(copypath, mode);
+            status = do_mkdir(stream, copypath, mode, file_info);
             if (status == -EEXIST) status = 0;
             *sp = '/';
         }
         pp = sp + 1;
     }
     if (status == 0) {
-        status = do_mkdir(path, mode);
+        status = do_mkdir(stream, path, mode, file_info);
         if (status == -EEXIST) status = 0;
     }
     free(copypath);
@@ -110,4 +112,12 @@ void verify_path_or_fatal(const char *path) {
             FATAL("Invalid path");
         }
     }
+}
+
+bool std_ends_with(const std::string &str, const std::string &suffix) {
+    return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+}
+
+bool std_starts_with(const std::string &str, const std::string &prefix) {
+    return str.size() >= prefix.size() && 0 == str.compare(0, prefix.size(), prefix);
 }

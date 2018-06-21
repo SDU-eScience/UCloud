@@ -15,12 +15,6 @@ import java.util.*
 
 data class BulkUploadErrorMessage(val message: String, val rejectedUploads: List<String>)
 
-enum class BulkUploadOverwritePolicy {
-    OVERWRITE,
-    RENAME,
-    REJECT
-}
-
 object MultiPartUploadDescriptions : RESTDescriptions(StorageServiceDescription) {
     private const val baseContext = "/api/upload"
     private val client = OkHttpClient()

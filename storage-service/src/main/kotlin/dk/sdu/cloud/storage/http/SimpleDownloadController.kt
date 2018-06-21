@@ -69,7 +69,7 @@ class SimpleDownloadController(
                                         ctx,
                                         request.path,
                                         setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
-                                    ) { item ->
+                                    ).forEach { item ->
                                         val filePath = item.path!!.substringAfter(stat.path).removePrefix("/")
 
                                         if (item.fileType == FileType.FILE) {

@@ -17,7 +17,7 @@ data class CreateDirectoryRequest(
 data class DeleteFileRequest(val path: String)
 
 data class MoveRequest(val path: String, val newPath: String)
-data class CopyRequest(val path: String, val newPath: String)
+data class CopyRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
 data class BulkDownloadRequest(val prefix: String, val files: List<String>)
 data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null)
 
@@ -156,7 +156,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val copy = callDescription<MoveRequest, Unit, CommonErrorMessage> {
+    val copy = callDescription<CopyRequest, Unit, CommonErrorMessage> {
         prettyName = "copy"
         method = HttpMethod.Post
         path {
@@ -165,8 +165,9 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
 
         params {
-            +boundTo(MoveRequest::path)
-            +boundTo(MoveRequest::newPath)
+            +boundTo(CopyRequest::path)
+            +boundTo(CopyRequest::newPath)
+            +boundTo(CopyRequest::policy)
         }
     }
 

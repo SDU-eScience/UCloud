@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageFile
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.cephfs.FavoritedFile
 import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.services.cephfs.FileRow
@@ -32,7 +33,7 @@ interface FileSystemService {
     fun rmdir(ctx: FSUserContext, path: String)
 
     fun move(ctx: FSUserContext, path: String, newPath: String)
-    fun copy(ctx: FSUserContext, path: String, newPath: String)
+    fun copy(ctx: FSUserContext, path: String, newPath: String, conflictPolicy: WriteConflictPolicy)
 
     suspend fun <T> coRead(ctx: FSUserContext, path: String, consumer: suspend InputStream.() -> T): T
     fun <T> read(ctx: FSUserContext, path: String, consumer: InputStream.() -> T): T
@@ -61,19 +62,11 @@ interface FileSystemService {
 
     fun annotateFiles(ctx: FSUserContext, path: String, annotation: String)
 
-    /**
-     * Retrieves a "sync" list of files starting at [path].
-     *
-     * Given the length of these list items are streamed through the [itemHandler].
-     *
-     * Only file entries that have been modified since [modifiedSince] will be included.
-     */
-    suspend fun tree(
+    fun tree(
         ctx: FSUserContext,
         path: String,
-        mode: Set<FileAttribute>,
-        itemHandler: suspend (FileRow) -> Unit
-    )
+        mode: Set<FileAttribute>
+    ): Sequence<FileRow>
 
     fun openContext(user: String): FSUserContext
 
