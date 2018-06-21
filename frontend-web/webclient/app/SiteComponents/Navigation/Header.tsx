@@ -55,7 +55,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                 <Menu.Menu position="right">
                     <Menu.Item>
                         <Responsive minWidth={700}>
-                            <Form onSubmit={(e) => { e.preventDefault(); !!searchText ? history.push(`/metadata/search/${searchText}`) : null }} >
+                            <Form onSubmit={(e) => { e.preventDefault(); if (!!searchText) history.push(`/metadata/search/${searchText}`) }} >
                                 <Input value={searchText} onChange={(e, { value }) => this.updateSearchText(value)} className="header-search" fluid icon='search' placeholder='Search...' />
                             </Form>
                         </Responsive>

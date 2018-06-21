@@ -1,26 +1,26 @@
 import * as React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
-import { Button, Popup, Feed, Icon, Divider, SemanticICONS, Label } from 'semantic-ui-react';
+import { Popup, Feed, Icon, SemanticICONS, Label } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
+import { connect } from "react-redux";
 import "./index.scss";
 import { withRouter } from "react-router";
 import { Page } from "../../types/types";
+import { fetchNotifications, notificationRead } from "../../Actions/Notifications";
+import { History } from "history";
 
-export interface NotificationState {
-    currentPage: Number
-    items: Notification[]
-    redirectTo?: string
+interface NotificationProps {
+    page: Page<Notification>
+    redirectTo: string
+    fetchNotifications: Function,
+    notificationRead: Function,
+    history: History
 }
 
-class Notifications extends React.Component<any, NotificationState> {
+class Notifications extends React.Component<NotificationProps> {
     constructor(props: any) {
         super(props);
-        this.state = {
-            currentPage: 0,
-            items: [],
-            redirectTo: null
-        };
     }
 
     public componentDidMount() {
@@ -28,29 +28,13 @@ class Notifications extends React.Component<any, NotificationState> {
         setInterval(() => this.reload(), 30_000);
     }
 
-    // TODO We don't cancel any promises. This is technically okay since this component is never unmounted
     private reload() {
-        this.retrieveNotifications().then(e => {
-            this.setState({
-                currentPage: e.pageNumber,
-                items: e.items
-            })
-        });
-    }
-
-    private retrieveNotifications(): Promise<Page<Notification>> {
-        return Cloud.get("notifications").then(f => f.response);
+        this.props.fetchNotifications();
     }
 
     private onNotificationRead(notification: Notification) {
         // TODO This is not the "react" way
-        this.setState({
-            items: this.state.items.map(e => {
-                if (e.id == notification.id) e.read = true;
-                return e;
-            })
-        });
-
+        this.props.notificationRead(notification.id);
         Cloud.post(`notifications/read/${notification.id}`)
     }
 
@@ -69,21 +53,21 @@ class Notifications extends React.Component<any, NotificationState> {
     }
 
     public render() {
-        let entries: JSX.Element[] = this.state.items.map((notification, index) => {
-            return <NotificationEntry
+        let entries: JSX.Element[] = this.props.page.items.map((notification, index) =>
+            <NotificationEntry
                 key={index}
                 notification={notification}
                 onMarkAsRead={(it) => this.onNotificationRead(it)}
                 onAction={(it) => this.onNotificationAction(it)}
             />
-        });
+        );
 
-        if (this.state.redirectTo) {
-            let theRedirect = this.state.redirectTo;
+        if (this.props.redirectTo) {
+            let theRedirect = this.props.redirectTo;
             return <Redirect to={theRedirect} />
         }
 
-        let unreadLength = this.state.items.filter((e) => !e.read).length;
+        let unreadLength = this.props.page.items.filter((e) => !e.read).length;
 
         return (
             <div>
@@ -94,7 +78,7 @@ class Notifications extends React.Component<any, NotificationState> {
                         </Label>
                     }
                     content={<Feed>{entries.length ? entries : <NoNotifications />}</Feed>}
-                    
+
                     on="click"
                     position="bottom right"
                 />
@@ -110,7 +94,7 @@ const NoNotifications = () =>
         </Feed.Content>
     </Feed.Event>
 
-interface Notification {
+export interface Notification {
     type: string
     id: any
     message: string
@@ -160,4 +144,10 @@ class NotificationEntry extends React.Component<NotificationEntryProps, any> {
     }
 }
 
-export default withRouter(Notifications);
+const mapDispatchToProps = (dispatch) => ({
+    fetchNotifications: () => dispatch(fetchNotifications()),
+    notificationRead: (id) => dispatch(notificationRead(id))
+});
+const mapStateToProps = (state) => state.notifications;
+
+export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Notifications));

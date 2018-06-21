@@ -695,12 +695,6 @@ const mapStateToProps = (state) => {
     }
 };
 
-const listenForNewProject = () => {
-
-}
-
-
-
 const mapDispatchToProps = (dispatch) => ({
     fetchNewFiles: (path) => {
         dispatch(Actions.updatePath(path));
@@ -714,8 +708,7 @@ const mapDispatchToProps = (dispatch) => ({
     updatePath: (path) => dispatch(updatePath(path)),
     fetchSelectorFiles: (path) => dispatch(Actions.fetchFileselectorFiles(path)),
     showFileSelector: (open) => dispatch(Actions.fileSelectorShown(open)),
-    setFileSelectorCallback: (callback) =>
-        dispatch(Actions.setFileSelectorCallback(callback)),
+    setFileSelectorCallback: (callback) => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked, files, newFile) => {
         files.find(file => file.path === newFile.path).isChecked = checked;
         dispatch(Actions.updateFiles(files));

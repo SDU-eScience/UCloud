@@ -16,20 +16,19 @@ import { FileIcon } from "../UtilityComponents";
 class Dashboard extends React.Component {
     constructor(props) {
         super(props);
-        const { favoriteFiles, recentFiles, recentAnalyses, activity } = this.props;
-        this.props.updatePageTitle();
+        const { favoriteFiles, recentFiles, recentAnalyses, activity } = props;
+        props.updatePageTitle();
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
-            this.props.setAllLoading(true);
+            props.setAllLoading(true);
         }
-        this.props.fetchFavorites();
-        this.props.fetchRecentFiles();
-        this.props.fetchRecentAnalyses();
-        //this.props.fetchRecentActivity();
+        props.fetchFavorites();
+        props.fetchRecentFiles();
+        props.fetchRecentAnalyses();
     }
 
 
     render() {
-        const { favoriteFiles, recentFiles, recentAnalyses,
+        const { favoriteFiles, recentFiles, recentAnalyses, notifications,
             favoriteLoading, recentLoading, analysesLoading } = this.props;
         const favoriteOrUnfavorite = (filePath) =>
             this.props.receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited));
@@ -43,6 +42,7 @@ class Dashboard extends React.Component {
                     />
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
+                    <DashboardNotifications notifications={notifications} />
                 </Card.Group>
             </React.StrictMode>
         );
@@ -65,9 +65,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
     return (
         <Card>
             <Card.Content>
-                <Card.Header>
-                    Favorite files
-                </Card.Header>
+                <Card.Header content="Favorite files" />
                 <DefaultLoading loading={isLoading} />
                 {noFavorites}
                 <List divided size={"large"}>
@@ -104,9 +102,7 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
     return (
         <Card>
             <Card.Content>
-                <Card.Header>
-                    Recently used files
-                </Card.Header>
+                <Card.Header content="Recently used files" />
                 <DefaultLoading loading={isLoading} />
                 {noRecents}
                 <List divided size={"large"}>
@@ -119,21 +115,17 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
 const DashboardAnalyses = ({ analyses, isLoading }) => (
     <Card>
         <Card.Content>
-            <Card.Header>
-                Recent Analyses
-            </Card.Header>
+            <Card.Header content="Recent Analyses" />
             <DefaultLoading loading={isLoading} />
             {isLoading || analyses.length ? null :
-                (<h3 className="text-center">
+                (<h3>
                     <small>No analyses found</small>
                 </h3>)
             }
             <List divided size={"large"}>
                 {analyses.map((analysis, index) =>
                     <List.Item key={index} className="itemPadding">
-                        <List.Content floated="right">
-                            {toLowerCaseAndCapitalize(analysis.state)}
-                        </List.Content>
+                        <List.Content floated="right" content={toLowerCaseAndCapitalize(analysis.state)} />
                         <List.Icon name={statusToIconName(analysis.state)} color={statusToColor(analysis.state)} />
                         <List.Content>
                             <List.Header>
@@ -147,6 +139,40 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
     </Card>
 );
 
+const DashboardNotifications = ({ notifications }) => (
+    <Card>
+        <Card.Content>
+            <Card.Header content="Recent notifications" />
+            {notifications.length === 0 ? <h3><small>No notifications</small></h3> : null}
+            <List divided>
+                {notifications.slice(0, 10).map((n, i) =>
+                    <List.Item key={i}>
+                        <Notification notification={n} />
+                    </List.Item>
+                )}
+            </List>
+        </Card.Content>
+    </Card>
+);
+
+const Notification = ({ notification }) => {
+    switch (notification.type) {
+        case "SHARE_REQUEST":
+            return (
+                <React.Fragment>
+                    <List.Content floated="right">
+                        <List.Description content={moment(new Date(notification.ts)).fromNow()} />
+                    </List.Content>
+                    <List.Icon name="share alternate" color="blue" verticalAlign="middle" />
+                    <List.Content header="Share Request" description={notification.message} />
+                </React.Fragment>
+            )
+        default: {
+            return null;
+        }
+    }
+};
+
 const statusToIconName = (status) => status === "SUCCESS" ? "check" : "x";
 const statusToColor = (status) => status === "SUCCESS" ? "green" : "red";
 
@@ -156,7 +182,6 @@ const mapDispatchToProps = (dispatch) => ({
     fetchFavorites: () => dispatch(fetchFavorites()),
     fetchRecentFiles: () => dispatch(fetchRecentFiles()),
     fetchRecentAnalyses: () => dispatch(fetchRecentAnalyses()),
-    fetchRecentActivity: () => dispatch(fetchRecentActivity()),
     receiveFavorites: (files) => dispatch(receiveFavorites(files))
 });
 
@@ -169,7 +194,7 @@ const mapStateToProps = (state) => {
         favoriteLoading,
         recentLoading,
         analysesLoading,
-        activityLoading,
+        activityLoading
     } = state.dashboard;
     return {
         favoriteFiles,
@@ -180,8 +205,9 @@ const mapStateToProps = (state) => {
         recentLoading,
         analysesLoading,
         activityLoading,
+        notifications: state.notifications.page.items,
         favoriteFilesLength: favoriteFiles.length // Hack to ensure re-rendering
     };
 };
 
-export default connect(mapStateToProps, mapDispatchToProps)(Dashboard)
+export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);

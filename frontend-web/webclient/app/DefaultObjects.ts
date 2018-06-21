@@ -132,6 +132,10 @@ export const initObject = (cloud: SDUCloud) => ({
         applicationsPerPage: 10,
         currentApplicationsPage: 0
     },
+    notifications: {
+        page: emptyPage,
+        redirectTo: null
+    },
     analyses: {
         loading: false,
         page: emptyPage

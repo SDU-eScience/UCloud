@@ -13,6 +13,7 @@ import dashboard from "./Reducers/Dashboard";
 import zenodo from "./Reducers/Zenodo";
 import sidebar from "./Reducers/Sidebar";
 import analyses from "./Reducers/Analyses";
+import notifications from "./Reducers/Notifications";
 import { initObject } from "./DefaultObjects";
 import "semantic-ui-css/semantic.min.css"
 
@@ -31,7 +32,7 @@ const addPromiseSupportToDispatch = (store) => {
     };
 };
 
-const rootReducer = combineReducers({ files, dashboard, analyses, applications, uppy: uppyReducers, status, zenodo, sidebar });
+const rootReducer = combineReducers({ files, dashboard, analyses, applications, uppy: uppyReducers, status, zenodo, sidebar, notifications });
 
 const configureStore = (initialObject) => {
     let store = createStore(rootReducer, initialObject);
