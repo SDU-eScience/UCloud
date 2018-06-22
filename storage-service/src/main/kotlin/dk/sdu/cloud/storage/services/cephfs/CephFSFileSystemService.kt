@@ -51,6 +51,10 @@ class CephFSFileSystemService(
         includeImplicit: Boolean,
         includeFavorites: Boolean
     ): List<StorageFile> {
+        val key = lsCachingKey(path)
+        val cachedResult = ctx.retrieveOrNull(key)
+        if (cachedResult != null) return cachedResult
+
         val favorites = retrieveFavoriteInodeSet(ctx)
         val absolutePath = translateAndCheckFile(path)
 
@@ -64,7 +68,9 @@ class CephFSFileSystemService(
                     readStorageFile(it, favorites)
                 }.toList()
             }
-        )
+        ).also {
+            ctx.store(key, it)
+        }
     }
 
     private fun retrieveFavoriteInodeSet(ctx: FSUserContext): Set<String> =
@@ -73,6 +79,9 @@ class CephFSFileSystemService(
     override fun retrieveFavorites(
         ctx: FSUserContext
     ): List<FavoritedFile> {
+        val cachedResult = ctx.retrieveOrNull(FAVORITES_KEY)
+        if (cachedResult != null) return cachedResult
+
         val dir = translateAndCheckFile(favoritesDirectory(ctx), true)
 
         val attributes = setOf(
@@ -83,7 +92,7 @@ class CephFSFileSystemService(
             FileAttribute.INODE
         )
 
-        return try {
+        return (try {
             ctx.runCommand(
                 InterpreterCommand.LIST_DIRECTORY,
                 dir,
@@ -103,14 +112,20 @@ class CephFSFileSystemService(
             )
         } catch (ex: FSException.NotFound) {
             return emptyList()
+        }).also {
+            ctx.store(FAVORITES_KEY, it)
         }
     }
 
     override fun stat(ctx: FSUserContext, path: String): StorageFile? {
+        val key = statCachingKey(path)
+        val cachedResult = ctx.retrieveOrNull(key)
+        if (cachedResult != null) return cachedResult
+
         val favorites = retrieveFavoriteInodeSet(ctx)
         val mountedPath = translateAndCheckFile(path)
 
-        return try {
+        return (try {
             ctx.runCommand(
                 InterpreterCommand.STAT,
                 mountedPath,
@@ -129,6 +144,8 @@ class CephFSFileSystemService(
                 }
                 else -> throw ex
             }
+        }).also {
+            if (it != null) ctx.store(key, it)
         }
     }
 
@@ -148,6 +165,8 @@ class CephFSFileSystemService(
                 }
             }
         )
+
+        ctx.invalidate(lsCachingKey(path.normalize().parent()))
     }
 
     private fun createdOrModifiedFromRow(it: FileRow): StorageEvent.CreatedOrModified {
@@ -178,11 +197,16 @@ class CephFSFileSystemService(
                 val sequence = it.stdoutLineSequence().toList()
                 sequence.forEachIndexed { index, s -> log.debug("$index: $s") }
                 parseFileAttributes(sequence.iterator(), attributes).forEach {
+                    val parent = it.path!!.parent()
+                    ctx.invalidate(lsCachingKey(parent))
+                    ctx.invalidate(statCachingKey(parent))
+                    ctx.invalidate(statCachingKey(it.path))
+
                     launch {
                         eventProducer.emit(
                             StorageEvent.Deleted(
                                 id = it.inode!!,
-                                path = it.path!!,
+                                path = it.path,
                                 owner = it.owner!!,
                                 timestamp = timestamp
                             )
@@ -191,6 +215,7 @@ class CephFSFileSystemService(
                 }
             }
         )
+
     }
 
     override fun move(ctx: FSUserContext, path: String, newPath: String) {
@@ -224,6 +249,9 @@ class CephFSFileSystemService(
                         }
                         else path.normalize()
 
+                    ctx.invalidate(lsCachingKey(oldPath.parent()))
+                    ctx.invalidate(statCachingKey(oldPath))
+
                     launch {
                         eventProducer.emit(
                             StorageEvent.Moved(
@@ -246,6 +274,10 @@ class CephFSFileSystemService(
         val allowOverwrite = conflictPolicy == WriteConflictPolicy.OVERWRITE
 
         fun renameAccordingToPolicy(desiredTargetPath: String): String? {
+            if (conflictPolicy == WriteConflictPolicy.OVERWRITE) return desiredTargetPath
+
+            // Performance: This will cause a lot of stats, on items in the same folder, for the most part we could
+            // simply ls a common root and cache it. This should be a lot more efficient.
             val targetExists = exists(ctx, desiredTargetPath)
             return when (conflictPolicy) {
                 WriteConflictPolicy.OVERWRITE -> desiredTargetPath
@@ -280,6 +312,8 @@ class CephFSFileSystemService(
                     }
                 }
             )
+
+            ctx.invalidate(lsCachingKey(toNormalized.parent()))
         } else {
             // toList() call is important, as we want to re-use the ctx (which can only run one command at a time)
 
@@ -287,21 +321,17 @@ class CephFSFileSystemService(
             val copyingTimer = DebugTimer("copying")
             val parsingTimer = DebugTimer("parsing")
 
-            val toList = timed("tree") { tree(ctx, fromNormalized, CREATED_OR_MODIFIED_ATTRIBUTES).toList() }
+            val toList = timed("tree") { tree(ctx, fromNormalized, setOf(FileAttribute.PATH)).toList() }
             toList.forEach {
                 val currentPath = it.path!!
 
                 val absoluteSourcePath = translateAndCheckFile(currentPath)
-                val absoluteTargetPath = run {
-                    // Compute desired (cloud) path
-                    val desiredTargetPath = joinPath(toNormalized, relativize(fromNormalized, currentPath))
-                    renamingTimer.time {
-                        renameAccordingToPolicy(desiredTargetPath)
-                    } ?: return@forEach
-                }.let {
-                    // Translate to mounted path
-                    translateAndCheckFile(it)
+
+                val targetPath = run {
+                    val desired = joinPath(toNormalized, relativize(fromNormalized, currentPath))
+                    renamingTimer.time { renameAccordingToPolicy(desired) } ?: return@forEach
                 }
+                val absoluteTargetPath = translateAndCheckFile(targetPath)
 
                 try {
                     copyingTimer.time {
@@ -312,9 +342,11 @@ class CephFSFileSystemService(
                             if (allowOverwrite) "1" else "0",
 
                             consumer = {
+                                val sequence = it.stdoutLineSequence().toList()
+
                                 parsingTimer.time {
                                     parseFileAttributes(
-                                        it.stdoutLineSequence(),
+                                        sequence.iterator(),
                                         CREATED_OR_MODIFIED_ATTRIBUTES
                                     ).forEach {
                                         launch { eventProducer.emit(createdOrModifiedFromRow(it)) }
@@ -322,6 +354,8 @@ class CephFSFileSystemService(
                                 }
                             }
                         )
+
+                        ctx.invalidate(lsCachingKey(targetPath.parent()))
                     }
                 } catch (ex: FSException.AlreadyExists) {
                     // Race condition (file was created after "exists" call but before copy "call")
@@ -349,7 +383,7 @@ class CephFSFileSystemService(
             absolutePath,
 
             consumer = {
-                it.clearBytes(it.stdout.simpleReadLine().toLong())
+                it.clearBytes(it.stdout.readLineUnbuffered().toLong())
                 it.stdout.consumer()
             }
         )
@@ -381,6 +415,8 @@ class CephFSFileSystemService(
             consumer = {}
         )
 
+        ctx.invalidate(lsCachingKey(path.normalize().parent()))
+
         return result!!
     }
 
@@ -395,17 +431,25 @@ class CephFSFileSystemService(
 
             consumer = {
                 val row = parseFileAttributes(it.stdoutLineSequence(), CREATED_OR_MODIFIED_ATTRIBUTES).toList().single()
-                launch { eventProducer.emit(createdOrModifiedFromRow(row)) }
+                launch {
+                    val value = createdOrModifiedFromRow(row)
+                    ctx.invalidate(lsCachingKey(value.path.parent()))
+                    eventProducer.emit(value)
+                }
             }
         )
     }
 
     override fun createFavorite(ctx: FSUserContext, fileToFavorite: String) {
         // TODO Create retrieveFavorites folder if it does not exist yet
+        val favoritesDirectory = favoritesDirectory(ctx)
         val targetLocation =
-            findFreeNameForNewFile(ctx, joinPath(favoritesDirectory(ctx), fileToFavorite.fileName()))
+            findFreeNameForNewFile(ctx, joinPath(favoritesDirectory, fileToFavorite.fileName()))
 
         createSoftSymbolicLink(ctx, targetLocation, fileToFavorite)
+
+        ctx.invalidate(lsCachingKey(favoritesDirectory))
+        ctx.invalidate(FAVORITES_KEY)
     }
 
     override fun removeFavorite(ctx: FSUserContext, favoriteFileToRemove: String) {
@@ -414,6 +458,9 @@ class CephFSFileSystemService(
         val toRemove = allFavorites.filter { it.inode == stat.inode || it.favInode == stat.inode }
         if (toRemove.isEmpty()) return
         toRemove.forEach { rmdir(ctx, it.from) }
+
+        ctx.invalidate(lsCachingKey(favoritesDirectory(ctx)))
+        ctx.invalidate(FAVORITES_KEY)
     }
 
     override fun grantRights(ctx: FSUserContext, toUser: String, path: String, rights: Set<AccessRight>) {
@@ -432,6 +479,10 @@ class CephFSFileSystemService(
         val mountedPath = translateAndCheckFile(path)
         fileACLService.createEntry(ctx, toUser, mountedPath, rights, defaultList = true, recursive = true)
         fileACLService.createEntry(ctx, toUser, mountedPath, rights, defaultList = false, recursive = true)
+
+        val normalizedPath = path.normalize()
+        ctx.invalidate(lsCachingKey(normalizedPath.parent()))
+        ctx.invalidate(statCachingKey(normalizedPath))
     }
 
     override fun revokeRights(ctx: FSUserContext, toUser: String, path: String) {
@@ -439,6 +490,10 @@ class CephFSFileSystemService(
         val mountedPath = translateAndCheckFile(path)
         fileACLService.removeEntry(ctx, toUser, mountedPath, defaultList = true, recursive = true)
         fileACLService.removeEntry(ctx, toUser, mountedPath, defaultList = false, recursive = true)
+
+        val normalizedPath = path.normalize()
+        ctx.invalidate(lsCachingKey(normalizedPath.parent()))
+        ctx.invalidate(statCachingKey(normalizedPath))
     }
 
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
@@ -536,7 +591,11 @@ class CephFSFileSystemService(
             consumer = {
                 assert(it.stdoutLineSequence().any { checkStatus(it) })
             }
-        )
+        ).also {
+            val normalizedPath = path.normalize()
+            ctx.invalidate(lsCachingKey(normalizedPath.parent()))
+            ctx.invalidate(statCachingKey(normalizedPath))
+        }
     }
 
     override fun tree(ctx: FSUserContext, path: String, mode: Set<FileAttribute>): Sequence<FileRow> {
@@ -588,10 +647,15 @@ class CephFSFileSystemService(
             defaultList = false,
             recursive = true
         )
+
+        val normalizedPath = path.normalize()
+        ctx.invalidate(lsCachingKey(normalizedPath.parent()))
+        ctx.invalidate(statCachingKey(normalizedPath))
     }
 
     private fun favoritesDirectory(ctx: FSUserContext): String {
         return joinPath(homeDirectory(ctx), "Favorites", isDirectory = true)
+
     }
 
     private fun String.parents(): List<String> {
@@ -602,7 +666,15 @@ class CephFSFileSystemService(
         }
     }
 
-    private fun String.components(): List<String> = split("/")
+    private fun String.parent(): String {
+        val components = components().dropLast(1)
+        if (components.isEmpty()) return "/"
+
+        val path = "/" + components.joinToString("/").removePrefix("/")
+        return if (path == "/") path else "$path/"
+    }
+
+    private fun String.components(): List<String> = removeSuffix("/").split("/")
 
     private fun String.fileName(): String = File(this).name
 
@@ -680,5 +752,15 @@ class CephFSFileSystemService(
             FileAttribute.TIMESTAMPS,
             FileAttribute.OWNER
         )
+
+        private val FAVORITES_KEY = ProcessRunnerAttributeKey<List<FavoritedFile>>("favorites")
+
+        private fun lsCachingKey(path: String): ProcessRunnerAttributeKey<List<StorageFile>> {
+            return ProcessRunnerAttributeKey("ls:$path")
+        }
+
+        private fun statCachingKey(path: String): ProcessRunnerAttributeKey<StorageFile> {
+            return ProcessRunnerAttributeKey("stat:$path")
+        }
     }
 }

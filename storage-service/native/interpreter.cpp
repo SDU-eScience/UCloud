@@ -486,6 +486,10 @@ int main(int argc, char **argv) {
             bool did_reset = discard_and_reset_stream();
             printf("%s", server_boundary);
             fprintf(stderr, "%s", server_boundary);
+
+            fflush(stdout);
+            fflush(stderr);
+
             if (!did_reset) break;
         }
     }

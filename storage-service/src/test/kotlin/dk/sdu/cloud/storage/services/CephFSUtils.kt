@@ -29,7 +29,7 @@ fun cloudToCephFsDAOWithFixedAnswer(answer: String): CloudToCephFsDao {
 fun cephFSWithRelaxedMocks(
     fsRoot: String,
     cloudToCephFsDao: CloudToCephFsDao = simpleCloudToCephFSDao(),
-    processRunner: ProcessRunnerFactory = SimpleCephFSProcessRunnerFactory(
+    processRunner: ProcessRunnerFactory = CephFSProcessRunnerFactory(
         cloudToCephFsDao,
         true
     ),

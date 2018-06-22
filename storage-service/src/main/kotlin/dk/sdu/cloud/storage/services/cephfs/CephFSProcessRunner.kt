@@ -7,23 +7,30 @@ import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.charset.Charset
 import java.util.*
+import kotlin.NoSuchElementException
 import kotlin.math.absoluteValue
 
 typealias ProcessRunnerFactory = (user: String) -> StreamingProcessRunner
 
 @Suppress("FunctionName")
-fun SimpleCephFSProcessRunnerFactory(cloudToCephFsDao: CloudToCephFsDao, isDevelopment: Boolean): ProcessRunnerFactory {
+fun CephFSProcessRunnerFactory(cloudToCephFsDao: CloudToCephFsDao, isDevelopment: Boolean): ProcessRunnerFactory {
     return { user: String ->
         StreamingProcessRunner(cloudToCephFsDao, isDevelopment, user)
     }
 }
+
+@Suppress("unused")
+data class ProcessRunnerAttributeKey<T>(val name: String)
 
 class StreamingProcessRunner(
     private val cloudToCephFsDao: CloudToCephFsDao,
     private val isDevelopment: Boolean,
     val user: String
 ) : Closeable {
+    private val cache: MutableMap<ProcessRunnerAttributeKey<*>, Any> = hashMapOf()
+
     private val clientBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
     private val serverBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
 
@@ -55,6 +62,24 @@ class StreamingProcessRunner(
             it.write(clientBoundary)
             it.flush()
         })
+
+    fun <T : Any> store(key: ProcessRunnerAttributeKey<T>, value: T) {
+        cache[key] = value
+    }
+
+    fun <T : Any> retrieve(key: ProcessRunnerAttributeKey<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return (cache[key] ?: throw NoSuchElementException()) as T
+    }
+
+    fun <T : Any> retrieveOrNull(key: ProcessRunnerAttributeKey<T>): T? {
+        @Suppress("UNCHECKED_CAST")
+        return cache[key] as T?
+    }
+
+    fun invalidate(key: ProcessRunnerAttributeKey<*>) {
+        cache.remove(key)
+    }
 
     fun <T> runCommand(
         command: InterpreterCommand,
@@ -107,7 +132,7 @@ class StreamingProcessRunner(
     }
 }
 
-fun InputStream.simpleReadLine(): String {
+fun InputStream.readLineUnbuffered(charset: Charset = Charsets.UTF_8): String {
     val lineBuilder = ArrayList<Byte>()
     var next = read()
     while (next != -1) {
@@ -119,7 +144,7 @@ fun InputStream.simpleReadLine(): String {
 
         next = read()
     }
-    return String(lineBuilder.toByteArray())
+    return String(lineBuilder.toByteArray(), charset)
 }
 
 class StreamingOutputStream(private val delegate: OutputStream, private val onClose: (OutputStream) -> Unit) :
@@ -165,6 +190,7 @@ enum class InterpreterCommand(val command: String) {
     SET_XATTR("set-xattr"),
     LIST_XATTR("list-xattr"),
     DELETE_XATTR("delete-xattr"),
+    TEST("reading")
 
 }
 
