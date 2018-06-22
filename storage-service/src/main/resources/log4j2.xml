@@ -52,10 +52,10 @@
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>
-        <Logger name="dk.sdu.cloud.storage.services.cephfs.StreamingProcessRunner" level="info" additivity="false">
-            <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
-        </Logger>
+        <!--<Logger name="dk.sdu.cloud.storage.services.cephfs.StreamingProcessRunner" level="info" additivity="false">-->
+            <!--<AppenderRef ref="Console"/>-->
+            <!--<AppenderRef ref="RollingFile"/>-->
+        <!--</Logger>-->
         <Logger name="dk.sdu.cloud.service.EventProducer" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>

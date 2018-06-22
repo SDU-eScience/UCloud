@@ -32,13 +32,25 @@ interface FileSystemService {
     fun mkdir(ctx: FSUserContext, path: String)
     fun rmdir(ctx: FSUserContext, path: String)
 
-    fun move(ctx: FSUserContext, path: String, newPath: String)
+    fun move(ctx: FSUserContext, path: String, newPath: String, conflictPolicy: WriteConflictPolicy)
     fun copy(ctx: FSUserContext, path: String, newPath: String, conflictPolicy: WriteConflictPolicy)
 
     suspend fun <T> coRead(ctx: FSUserContext, path: String, consumer: suspend InputStream.() -> T): T
     fun <T> read(ctx: FSUserContext, path: String, consumer: InputStream.() -> T): T
-    suspend fun <T> coWrite(ctx: FSUserContext, path: String, writer: suspend OutputStream.() -> T): T
-    fun <T> write(ctx: FSUserContext, path: String, writer: OutputStream.() -> T): T
+
+    suspend fun <T> coWrite(
+        ctx: FSUserContext,
+        path: String,
+        conflictPolicy: WriteConflictPolicy,
+        writer: suspend OutputStream.() -> T
+    ): T
+
+    fun <T> write(
+        ctx: FSUserContext,
+        path: String,
+        conflictPolicy: WriteConflictPolicy,
+        writer: OutputStream.() -> T
+    ): T
 
     fun createFavorite(ctx: FSUserContext, fileToFavorite: String)
     fun removeFavorite(ctx: FSUserContext, favoriteFileToRemove: String)

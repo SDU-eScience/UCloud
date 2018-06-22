@@ -5,8 +5,6 @@ import dk.sdu.cloud.storage.services.FSException
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.FileSystemService
 import dk.sdu.cloud.storage.services.ShareException
-import dk.sdu.cloud.storage.util.DebugTimer
-import dk.sdu.cloud.storage.util.timed
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
@@ -218,11 +216,12 @@ class CephFSFileSystemService(
 
     }
 
-    override fun move(ctx: FSUserContext, path: String, newPath: String) {
+    override fun move(ctx: FSUserContext, path: String, newPath: String, conflictPolicy: WriteConflictPolicy) {
         val timestamp = System.currentTimeMillis()
         val absolutePath = translateAndCheckFile(path)
-        val newAbsolutePath = translateAndCheckFile(newPath)
-        if (absolutePath == newAbsolutePath) throw FSException.AlreadyExists(newPath)
+
+        val targetPath = renameAccordingToPolicy(ctx, newPath, conflictPolicy) ?: throw FSException.AlreadyExists()
+        val newAbsolutePath = translateAndCheckFile(targetPath)
 
         val stat = stat(ctx, newAbsolutePath)
         if (stat != null && stat.type != FileType.DIRECTORY) {
@@ -236,10 +235,13 @@ class CephFSFileSystemService(
             FileAttribute.OWNER
         )
 
+        val allowOverwrite = conflictPolicy == WriteConflictPolicy.OVERWRITE
+
         ctx.runCommand(
             InterpreterCommand.MOVE,
             absolutePath,
             newAbsolutePath,
+            if (allowOverwrite) "1" else "0",
 
             consumer = {
                 parseFileAttributes(it.stdoutLineSequence(), attributes).forEach {
@@ -268,37 +270,42 @@ class CephFSFileSystemService(
         )
     }
 
+    private fun renameAccordingToPolicy(
+        ctx: FSUserContext,
+        desiredTargetPath: String,
+        conflictPolicy: WriteConflictPolicy
+    ): String? {
+        if (conflictPolicy == WriteConflictPolicy.OVERWRITE) return desiredTargetPath
+
+        // Performance: This will cause a lot of stats, on items in the same folder, for the most part we could
+        // simply ls a common root and cache it. This should be a lot more efficient.
+        val targetExists = exists(ctx, desiredTargetPath)
+        return when (conflictPolicy) {
+            WriteConflictPolicy.OVERWRITE -> desiredTargetPath
+
+            WriteConflictPolicy.RENAME -> {
+                if (targetExists) findFreeNameForNewFile(ctx, desiredTargetPath)
+                else desiredTargetPath
+            }
+
+            WriteConflictPolicy.REJECT -> {
+                if (targetExists) null
+                else desiredTargetPath
+            }
+        }
+    }
+
     override fun copy(ctx: FSUserContext, path: String, newPath: String, conflictPolicy: WriteConflictPolicy) {
         val fromNormalized = path.normalize()
         val toNormalized = newPath.normalize()
         val allowOverwrite = conflictPolicy == WriteConflictPolicy.OVERWRITE
 
-        fun renameAccordingToPolicy(desiredTargetPath: String): String? {
-            if (conflictPolicy == WriteConflictPolicy.OVERWRITE) return desiredTargetPath
-
-            // Performance: This will cause a lot of stats, on items in the same folder, for the most part we could
-            // simply ls a common root and cache it. This should be a lot more efficient.
-            val targetExists = exists(ctx, desiredTargetPath)
-            return when (conflictPolicy) {
-                WriteConflictPolicy.OVERWRITE -> desiredTargetPath
-
-                WriteConflictPolicy.RENAME -> {
-                    if (targetExists) findFreeNameForNewFile(ctx, desiredTargetPath)
-                    else desiredTargetPath
-                }
-
-                WriteConflictPolicy.REJECT -> {
-                    if (targetExists) null
-                    else desiredTargetPath
-                }
-            }
-        }
-
         val fromStat = stat(ctx, fromNormalized) ?: throw FSException.NotFound()
         if (fromStat.type != FileType.DIRECTORY) {
             val absoluteSourcePath = translateAndCheckFile(fromNormalized)
-            val absoluteTargetPath = renameAccordingToPolicy(toNormalized)?.let { translateAndCheckFile(it) }
-                    ?: throw FSException.AlreadyExists()
+            val absoluteTargetPath =
+                renameAccordingToPolicy(ctx, toNormalized, conflictPolicy)?.let { translateAndCheckFile(it) }
+                        ?: throw FSException.AlreadyExists()
 
             ctx.runCommand(
                 InterpreterCommand.COPY,
@@ -316,57 +323,54 @@ class CephFSFileSystemService(
             ctx.invalidate(lsCachingKey(toNormalized.parent()))
         } else {
             // toList() call is important, as we want to re-use the ctx (which can only run one command at a time)
+            val treeList = tree(ctx, fromNormalized, setOf(FileAttribute.PATH)).toList()
 
-            val renamingTimer = DebugTimer("renaming")
-            val copyingTimer = DebugTimer("copying")
-            val parsingTimer = DebugTimer("parsing")
+            val suppressedExceptions = ArrayList<FSException>()
 
-            val toList = timed("tree") { tree(ctx, fromNormalized, setOf(FileAttribute.PATH)).toList() }
-            toList.forEach {
+            treeList.forEach {
                 val currentPath = it.path!!
 
                 val absoluteSourcePath = translateAndCheckFile(currentPath)
 
                 val targetPath = run {
                     val desired = joinPath(toNormalized, relativize(fromNormalized, currentPath))
-                    renamingTimer.time { renameAccordingToPolicy(desired) } ?: return@forEach
+                    renameAccordingToPolicy(ctx, desired, conflictPolicy) ?: return@forEach run {
+                        suppressedExceptions.add(FSException.AlreadyExists())
+                    }
                 }
                 val absoluteTargetPath = translateAndCheckFile(targetPath)
 
                 try {
-                    copyingTimer.time {
-                        ctx.runCommand(
-                            InterpreterCommand.COPY,
-                            absoluteSourcePath,
-                            absoluteTargetPath,
-                            if (allowOverwrite) "1" else "0",
+                    ctx.runCommand(
+                        InterpreterCommand.COPY,
+                        absoluteSourcePath,
+                        absoluteTargetPath,
+                        if (allowOverwrite) "1" else "0",
 
-                            consumer = {
-                                val sequence = it.stdoutLineSequence().toList()
+                        consumer = {
+                            val sequence = it.stdoutLineSequence().toList()
 
-                                parsingTimer.time {
-                                    parseFileAttributes(
-                                        sequence.iterator(),
-                                        CREATED_OR_MODIFIED_ATTRIBUTES
-                                    ).forEach {
-                                        launch { eventProducer.emit(createdOrModifiedFromRow(it)) }
-                                    }
-                                }
+                            parseFileAttributes(
+                                sequence.iterator(),
+                                CREATED_OR_MODIFIED_ATTRIBUTES
+                            ).forEach {
+                                launch { eventProducer.emit(createdOrModifiedFromRow(it)) }
                             }
-                        )
+                        }
+                    )
 
-                        ctx.invalidate(lsCachingKey(targetPath.parent()))
-                    }
+                    ctx.invalidate(lsCachingKey(targetPath.parent()))
                 } catch (ex: FSException.AlreadyExists) {
                     // Race condition (file was created after "exists" call but before copy "call")
                     // TODO For now we ignore these, but maybe we should retry?
                     log.debug("$currentPath to $newPath file already exists at target")
+                    suppressedExceptions.add(ex)
                 }
             }
 
-            parsingTimer.log()
-            renamingTimer.log()
-            copyingTimer.log()
+            if (suppressedExceptions.isNotEmpty() && suppressedExceptions.size == treeList.size) {
+                throw suppressedExceptions.first()
+            }
         }
     }
 
@@ -389,18 +393,34 @@ class CephFSFileSystemService(
         )
     }
 
-    override suspend fun <T> coWrite(ctx: FSUserContext, path: String, writer: suspend OutputStream.() -> T): T {
-        return write(ctx, path) {
+    override suspend fun <T> coWrite(
+        ctx: FSUserContext,
+        path: String,
+        conflictPolicy: WriteConflictPolicy,
+        writer: suspend OutputStream.() -> T
+    ): T {
+        return write(ctx, path, conflictPolicy) {
             runBlocking { writer() }
         }
     }
 
-    override fun <T> write(ctx: FSUserContext, path: String, writer: OutputStream.() -> T): T {
-        val absolutePath = translateAndCheckFile(path)
+    override fun <T> write(
+        ctx: FSUserContext,
+        path: String,
+        conflictPolicy: WriteConflictPolicy,
+        writer: OutputStream.() -> T
+    ): T {
+        val normalizedPath = path.normalize()
+        val allowOverwrite = conflictPolicy == WriteConflictPolicy.OVERWRITE
+
+        val targetPath =
+            renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy) ?: throw FSException.AlreadyExists()
+        val absolutePath = translateAndCheckFile(targetPath)
 
         ctx.runCommand(
             InterpreterCommand.WRITE_OPEN,
             absolutePath,
+            if (allowOverwrite) "1" else "0",
 
             consumer = {
                 val row = parseFileAttributes(it.stdoutLineSequence(), CREATED_OR_MODIFIED_ATTRIBUTES).toList().single()
@@ -415,7 +435,7 @@ class CephFSFileSystemService(
             consumer = {}
         )
 
-        ctx.invalidate(lsCachingKey(path.normalize().parent()))
+        ctx.invalidate(lsCachingKey(normalizedPath.parent()))
 
         return result!!
     }

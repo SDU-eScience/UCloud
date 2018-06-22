@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.util.CappedInputStream
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
@@ -15,16 +15,26 @@ class UploadService(
     private val fs: FileSystemService,
     private val checksumService: ChecksumService
 ) {
-    fun upload(user: String, path: String, writer: OutputStream.() -> Unit) {
+    fun upload(
+        user: String,
+        path: String,
+        conflictPolicy: WriteConflictPolicy = WriteConflictPolicy.OVERWRITE,
+        writer: OutputStream.() -> Unit
+    ) {
         fs.withContext(user) {
-            upload(it, path, writer)
+            upload(it, path, conflictPolicy, writer)
         }
     }
 
-    fun upload(ctx: FSUserContext, path: String, writer: OutputStream.() -> Unit) {
+    fun upload(
+        ctx: FSUserContext,
+        path: String,
+        conflictPolicy: WriteConflictPolicy = WriteConflictPolicy.OVERWRITE,
+        writer: OutputStream.() -> Unit
+    ) {
         if (path.contains("\n")) throw FSException.BadRequest("Bad filename")
 
-        fs.write(ctx, path, writer)
+        fs.write(ctx, path, conflictPolicy, writer)
         checksumService.computeAndAttachChecksum(ctx, path)
     }
 
@@ -59,7 +69,7 @@ class UploadService(
     private fun bulkUploadTarGz(
         ctx: FSUserContext,
         path: String,
-        policy: WriteConflictPolicy,
+        conflictPolicy: WriteConflictPolicy,
         stream: InputStream
     ): List<String> {
         val rejectedFiles = ArrayList<String>()
@@ -85,6 +95,7 @@ class UploadService(
                     val existing = fs.stat(ctx, initialTargetPath)
 
                     val targetPath: String? = if (existing != null) {
+                        // TODO This is technically handled by upload also
                         val existingIsDirectory = existing.type == FileType.DIRECTORY
                         if (entry.isDirectory != existingIsDirectory) {
                             log.debug("Type of existing and new does not match. Rejecting regardless of policy")
@@ -95,25 +106,7 @@ class UploadService(
                                 log.debug("Directory already exists. Skipping")
                                 null
                             } else {
-                                when (policy) {
-                                    WriteConflictPolicy.OVERWRITE -> {
-                                        log.debug("Overwriting file")
-                                        initialTargetPath
-                                    }
-
-                                    WriteConflictPolicy.RENAME -> {
-                                        log.debug("Renaming file")
-                                        fs.findFreeNameForNewFile(
-                                            ctx,
-                                            initialTargetPath
-                                        )
-                                    }
-
-                                    WriteConflictPolicy.REJECT -> {
-                                        log.debug("Rejecting file")
-                                        null
-                                    }
-                                }
+                                initialTargetPath // Renaming/rejection handled by upload
                             }
                         }
                     } else {
@@ -135,7 +128,7 @@ class UploadService(
                                     fs.mkdir(ctx, parentDir)
                                 }
 
-                                upload(ctx, targetPath) { cappedStream.copyTo(this) }
+                                upload(ctx, targetPath, conflictPolicy) { cappedStream.copyTo(this) }
                             }
                         } catch (ex: FSException.PermissionException) {
                             rejectedFiles += initialTargetPath

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import org.junit.Assert
 import org.junit.Test
 import java.io.File
@@ -17,7 +18,7 @@ class MoveTest {
         Assert.assertFalse(nonExistingFolder.exists())
 
         fs.withContext("user1") {
-            fs.move(it, "home/user1/folder/a", "home/user1/another-one/a")
+            fs.move(it, "home/user1/folder/a", "home/user1/another-one/a", WriteConflictPolicy.OVERWRITE)
         }
 
         val existingFolder = File(fsRoot, "home/user1/another-one/a")
@@ -35,7 +36,7 @@ class MoveTest {
         Assert.assertTrue(existingFolder.exists())
 
         fs.withContext("user1") {
-            fs.move(it, "home/user1/folder/a", "home/user1/folder/")
+            fs.move(it, "home/user1/folder/a", "home/user1/folder/", WriteConflictPolicy.REJECT)
         }
     }
 
@@ -50,7 +51,7 @@ class MoveTest {
         Assert.assertFalse(nonexistingFolder.exists())
 
         fs.withContext("user1") {
-            fs.move(it, "home/user1/folder/a", "home/user1/folder/newly/created/folder")
+            fs.move(it, "home/user1/folder/a", "home/user1/folder/newly/created/folder", WriteConflictPolicy.OVERWRITE)
         }
 
     }
@@ -63,7 +64,7 @@ class MoveTest {
         )
 
         fs.withContext("user1") {
-            fs.move(it, "/home/user1/folder", "/home/user1/new-folder")
+            fs.move(it, "/home/user1/folder", "/home/user1/new-folder", WriteConflictPolicy.OVERWRITE)
         }
 
         val existingFolder = File(fsRoot, "home/user1/new-folder/a")

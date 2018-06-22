@@ -68,7 +68,7 @@ int do_mkdir(std::ostream &stream, const char *path, mode_t mode, uint64_t file_
             if (status != 0) {
                 fprintf(stderr, "stat failed for %s after successful mkdir! %s \n", path, strerror(errno));
             } else {
-                print_file_information(stream, path, &st, file_info);//FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER);
+                print_file_information(stream, path, &st, file_info);
             }
         }
     } else {

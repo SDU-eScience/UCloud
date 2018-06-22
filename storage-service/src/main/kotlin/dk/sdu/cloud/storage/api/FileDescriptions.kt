@@ -16,7 +16,7 @@ data class CreateDirectoryRequest(
 
 data class DeleteFileRequest(val path: String)
 
-data class MoveRequest(val path: String, val newPath: String)
+data class MoveRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
 data class CopyRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
 data class BulkDownloadRequest(val prefix: String, val files: List<String>)
 data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null)
@@ -61,7 +61,6 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    // TODO Should stat the link and not the resolved entry
     val stat = callDescription<FindByPath, StorageFile, CommonErrorMessage> {
         prettyName = "stat"
         path {
@@ -153,6 +152,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         params {
             +boundTo(MoveRequest::path)
             +boundTo(MoveRequest::newPath)
+            +boundTo(MoveRequest::policy)
         }
     }
 
@@ -199,22 +199,6 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
      * Annotates a file with metadata. Privileged API.
      */
     val annotate = callDescription<AnnotateFileRequest, Unit, CommonErrorMessage> {
-        /*
-        Implementation strategies:
-
-          - Use XATTRs
-            + Fast to implement
-            + No concurrency guarantees (practically impossible in single field)
-            + Multiple fields with UUID is doable, but cannot guarantee we don't get duplicates
-              - UUIDs take up space
-          - Use a database
-            + Takes slightly longer to implement
-            + No limitations on what we can store
-            + Concurrency guarantees
-            + Cleaning up when files are deleted (Kafka stream)
-            + At this point we could (should?) maintain a reverse lookup for inodes and path
-            + Will need a correct stat API for this to work
-         */
         prettyName = "filesAnnotate"
         method = HttpMethod.Post
 

@@ -245,11 +245,15 @@ ssize_t stdin_read_line(char *result, size_t size) {
 
 static int file_opened_for_writing = -1;
 
-int write_open_command(char *path) {
+int write_open_command(char *path, bool allow_overwrite) {
     struct stat s{};
     if (file_opened_for_writing >= 0) FATAL("file already open")
 
-    file_opened_for_writing = open(path, O_WRONLY | O_CREAT, 0660);
+    int write_flags = O_WRONLY | O_CREAT;
+    if (allow_overwrite) write_flags |= O_TRUNC;
+    else write_flags |= O_EXCL;
+
+    file_opened_for_writing = open(path, write_flags, 0660);
     if (file_opened_for_writing < 0) return -errno;
 
     fstat(file_opened_for_writing, &s);
@@ -386,19 +390,14 @@ int main(int argc, char **argv) {
 
             status = copy_command(from, to, allow_overwrite);
             printf("EXIT:%d\n", status);
-        } else if (IS_COMMAND("copy-tree")) {
-            auto from = NEXT_ARGUMENT(0);
-            auto to = NEXT_ARGUMENT(1);
-            auto allow_overwrite = NEXT_ARGUMENT_INT(2) == 1;
-
-            printf("EXIT:%d\n", copy_tree_command(from, to, allow_overwrite));
         } else if (IS_COMMAND("move")) {
             auto from = NEXT_ARGUMENT(0);
             auto to = NEXT_ARGUMENT(1);
+            auto allow_overwrite = NEXT_ARGUMENT_INT(2) == 1;
             verify_path_or_fatal(from);
             verify_path_or_fatal(to);
 
-            printf("EXIT:%d\n", move_command(from, to));
+            printf("EXIT:%d\n", move_command(from, to, allow_overwrite));
         } else if (IS_COMMAND("list-directory")) {
             auto path = NEXT_ARGUMENT(0);
             auto mode = NEXT_ARGUMENT_INT(1);
@@ -414,9 +413,10 @@ int main(int argc, char **argv) {
             write_command();
         } else if (IS_COMMAND("write-open")) {
             auto path = NEXT_ARGUMENT(0);
+            auto allow_overwrite = NEXT_ARGUMENT_INT(1) == 1;
             verify_path_or_fatal(path);
 
-            printf("EXIT:%d\n", write_open_command(path));
+            printf("EXIT:%d\n", write_open_command(path, allow_overwrite));
         } else if (IS_COMMAND("tree")) {
             auto path = NEXT_ARGUMENT(0);
             auto mode = (uint64_t) NEXT_ARGUMENT_INT(1);

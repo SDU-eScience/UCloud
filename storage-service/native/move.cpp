@@ -6,11 +6,11 @@
 #include "tree.h"
 #include "file_utils.h"
 
-int move_command(const char *from, const char *to) {
+int move_command(const char *from, const char *to, bool allow_overwrite) {
     struct stat s{};
     int status;
     status = lstat(to, &s);
-    if (status == 0) return -EEXIST;
+    if (status == 0 && !allow_overwrite) return -EEXIST;
 
     status = rename(from, to);
     if (status != 0) {

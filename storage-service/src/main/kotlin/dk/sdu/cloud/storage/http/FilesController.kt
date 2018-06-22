@@ -92,7 +92,7 @@ class FilesController(private val fs: FileSystemService) {
                 logEntry(log, req)
                 if (!protect()) return@implement
                 tryWithFS(fs, call.request.currentUsername) {
-                    fs.move(it, req.path, req.newPath)
+                    fs.move(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
                     ok(Unit)
                 }
             }
