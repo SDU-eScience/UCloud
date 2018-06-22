@@ -7,7 +7,6 @@ import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
-import dk.sdu.cloud.storage.services.cephfs.FavoritedFile
 import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.services.cephfs.FileRow
 import dk.sdu.cloud.storage.services.cephfs.StreamingProcessRunner

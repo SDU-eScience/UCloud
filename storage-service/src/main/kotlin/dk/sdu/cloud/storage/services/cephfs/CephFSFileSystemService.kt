@@ -1,10 +1,7 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.storage.api.*
-import dk.sdu.cloud.storage.services.FSException
-import dk.sdu.cloud.storage.services.FSUserContext
-import dk.sdu.cloud.storage.services.FileSystemService
-import dk.sdu.cloud.storage.services.ShareException
+import dk.sdu.cloud.storage.services.*
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
@@ -13,8 +10,6 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
 import java.util.*
-
-data class FavoritedFile(val type: FileType, val from: String, val to: String, val inode: String, val favInode: String)
 
 class CephFSFileSystemService(
     private val cloudToCephFsDao: CloudToCephFsDao,
@@ -461,8 +456,11 @@ class CephFSFileSystemService(
     }
 
     override fun createFavorite(ctx: FSUserContext, fileToFavorite: String) {
-        // TODO Create retrieveFavorites folder if it does not exist yet
         val favoritesDirectory = favoritesDirectory(ctx)
+        if (!exists(ctx, favoritesDirectory)) {
+            mkdir(ctx, favoritesDirectory)
+        }
+
         val targetLocation =
             findFreeNameForNewFile(ctx, joinPath(favoritesDirectory, fileToFavorite.fileName()))
 
