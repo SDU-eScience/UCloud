@@ -1,6 +1,5 @@
 package dk.sdu.cloud.storage.processor
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
 import org.apache.kafka.streams.kstream.KStream
@@ -8,7 +7,6 @@ import org.slf4j.LoggerFactory
 
 class UserProcessor(
     private val stream: KStream<String, UserEvent>,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
     private val isDevelopment: Boolean,
     private val userDao: CephFSUserDao
 ) {

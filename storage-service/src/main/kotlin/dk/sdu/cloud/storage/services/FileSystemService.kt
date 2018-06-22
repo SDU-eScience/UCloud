@@ -88,21 +88,6 @@ inline fun <T> FileSystemService.withContext(user: String, closure: (FSUserConte
     return openContext(user).use(closure)
 }
 
-data class SyncItem(
-    val type: FileType,
-    val unixMode: Int,
-    val user: String,
-    val group: String,
-    val size: Long,
-    val createdAt: Long,
-    val modifiedAt: Long,
-    val accessedAt: Long,
-    val uniqueId: String,
-    val checksum: String?,
-    val checksumType: String?,
-    val path: String
-)
-
 sealed class FSException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
     data class BadRequest(val why: String = "") : FSException("Bad request $why")
     data class NotFound(val file: String? = null) : FSException("Not found ${file ?: ""}")

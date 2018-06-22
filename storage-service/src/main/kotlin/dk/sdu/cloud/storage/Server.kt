@@ -41,7 +41,7 @@ class Server(
         log.info("Creating core services")
         val isDevelopment = args.contains("--dev")
 
-        val cloudToCephFsDao = CloudToCephFsDao(isDevelopment)
+        val cloudToCephFsDao = CephFSUserDao(isDevelopment)
         val processRunner = CephFSProcessRunnerFactory(cloudToCephFsDao, isDevelopment)
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
         val fileAclService =

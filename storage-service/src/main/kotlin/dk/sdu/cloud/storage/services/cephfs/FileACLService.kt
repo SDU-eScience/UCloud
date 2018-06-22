@@ -7,7 +7,7 @@ import dk.sdu.cloud.storage.services.ShareException
 import org.slf4j.LoggerFactory
 import java.util.*
 
-class FileACLService(private val cloudToCephFsDao: CloudToCephFsDao) {
+class FileACLService(private val cephFSUserDao: CephFSUserDao) {
     // NOTE(Dan): The setfacl command is implemented by passing it directly to a shell. Care should be taken in
     // here to ensure we don't pass unsafe arguments on CLI
 
@@ -55,7 +55,7 @@ class FileACLService(private val cloudToCephFsDao: CloudToCephFsDao) {
         recursive: Boolean = false
     ) {
         val toUserUnix =
-            cloudToCephFsDao.findUnixUser(toUser) ?: throw ShareException.BadRequest(
+            cephFSUserDao.findUnixUser(toUser) ?: throw ShareException.BadRequest(
                 "$toUser does not exist"
             )
 
@@ -80,7 +80,7 @@ class FileACLService(private val cloudToCephFsDao: CloudToCephFsDao) {
         recursive: Boolean = false
     ) {
         val toUserUnix =
-            cloudToCephFsDao.findUnixUser(toUser) ?: throw ShareException.BadRequest(
+            cephFSUserDao.findUnixUser(toUser) ?: throw ShareException.BadRequest(
                 "$toUser does not exist"
             )
 

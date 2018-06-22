@@ -8,11 +8,7 @@ enum class AccessRight {
     EXECUTE
 }
 
-data class MetadataEntry(val key: String, val value: String)
-typealias Metadata = List<MetadataEntry>
-
 data class AccessEntry(val entity: String, val isGroup: Boolean, val rights: Set<AccessRight>)
-typealias AccessControlList = List<AccessEntry>
 
 enum class FileType {
     FILE,

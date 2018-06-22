@@ -12,7 +12,7 @@ import java.net.URI
 import java.util.*
 
 class CephFSFileSystemService(
-    private val cloudToCephFsDao: CloudToCephFsDao,
+    private val cephFSUserDao: CephFSUserDao,
     private val processRunner: ProcessRunnerFactory,
     private val fileACLService: FileACLService,
     private val fsRoot: String,
@@ -733,13 +733,13 @@ class CephFSFileSystemService(
                 if (it.isGroup) {
                     it
                 } else {
-                    it.copy(entity = cloudToCephFsDao.findCloudUser(it.entity)!!)
+                    it.copy(entity = cephFSUserDao.findCloudUser(it.entity)!!)
                 }
             }
         }
 
         return copy(
-            owner = owner?.let { cloudToCephFsDao.findCloudUser(it)!! },
+            owner = owner?.let { cephFSUserDao.findCloudUser(it)!! },
             path = path?.toCloudPath(),
             linkTarget = linkTarget?.toCloudPath(),
             shares = shares?.let { normalizeShares(it) }

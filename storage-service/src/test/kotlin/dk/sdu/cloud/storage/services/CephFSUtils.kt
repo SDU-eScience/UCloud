@@ -7,8 +7,8 @@ import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 
-fun simpleCloudToCephFSDao(): CloudToCephFsDao {
-    val dao = mockk<CloudToCephFsDao>()
+fun simpleCloudToCephFSDao(): CephFSUserDao {
+    val dao = mockk<CephFSUserDao>()
     every { dao.findUnixUser(any()) } answers {
         firstArg() as String
     }
@@ -19,8 +19,8 @@ fun simpleCloudToCephFSDao(): CloudToCephFsDao {
     return dao
 }
 
-fun cloudToCephFsDAOWithFixedAnswer(answer: String): CloudToCephFsDao {
-    val dao = mockk<CloudToCephFsDao>()
+fun cloudToCephFsDAOWithFixedAnswer(answer: String): CephFSUserDao {
+    val dao = mockk<CephFSUserDao>()
     every { dao.findUnixUser(any()) } returns answer
     every { dao.findCloudUser(any()) } returns answer
     return dao
@@ -28,16 +28,16 @@ fun cloudToCephFsDAOWithFixedAnswer(answer: String): CloudToCephFsDao {
 
 fun cephFSWithRelaxedMocks(
     fsRoot: String,
-    cloudToCephFsDao: CloudToCephFsDao = simpleCloudToCephFSDao(),
+    cephFSUserDao: CephFSUserDao = simpleCloudToCephFSDao(),
     processRunner: ProcessRunnerFactory = CephFSProcessRunnerFactory(
-        cloudToCephFsDao,
+        cephFSUserDao,
         true
     ),
     fileACLService: FileACLService = mockk(relaxed = true),
     eventProducer: StorageEventProducer = mockk(relaxed = true)
 ): CephFSFileSystemService {
     return CephFSFileSystemService(
-        cloudToCephFsDao,
+        cephFSUserDao,
         processRunner,
         fileACLService,
         fsRoot,

@@ -15,9 +15,9 @@ import kotlin.math.absoluteValue
 typealias ProcessRunnerFactory = (user: String) -> StreamingProcessRunner
 
 @Suppress("FunctionName")
-fun CephFSProcessRunnerFactory(cloudToCephFsDao: CloudToCephFsDao, isDevelopment: Boolean): ProcessRunnerFactory {
+fun CephFSProcessRunnerFactory(cephFSUserDao: CephFSUserDao, isDevelopment: Boolean): ProcessRunnerFactory {
     return { user: String ->
-        StreamingProcessRunner(cloudToCephFsDao, isDevelopment, user)
+        StreamingProcessRunner(cephFSUserDao, isDevelopment, user)
     }
 }
 
@@ -25,7 +25,7 @@ fun CephFSProcessRunnerFactory(cloudToCephFsDao: CloudToCephFsDao, isDevelopment
 data class ProcessRunnerAttributeKey<T>(val name: String)
 
 class StreamingProcessRunner(
-    private val cloudToCephFsDao: CloudToCephFsDao,
+    private val cephFSUserDao: CephFSUserDao,
     private val isDevelopment: Boolean,
     val user: String
 ) : Closeable {
@@ -35,7 +35,7 @@ class StreamingProcessRunner(
     private val serverBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
 
     private val interpreter: Process = run {
-        val unixUser = cloudToCephFsDao.findUnixUser(user) ?: throw IllegalStateException("Could not find user")
+        val unixUser = cephFSUserDao.findUnixUser(user) ?: throw IllegalStateException("Could not find user")
         val prefix = if (isDevelopment) emptyList() else listOf("sudo", "-u", unixUser)
         val command = listOf(
             "ceph-interpreter",

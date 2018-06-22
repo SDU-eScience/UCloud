@@ -59,7 +59,7 @@ class ShareTests {
                         val fsRoot = createDummyFS()
                         val fs = cephFSWithRelaxedMocks(
                             fsRoot.absolutePath,
-                            cloudToCephFsDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)
+                            cephFSUserDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)
                         )
 
                         val ss = ShareService(InMemoryShareDAO(), fs)
@@ -135,7 +135,7 @@ class ShareTests {
                     val fsRoot = createDummyFS()
                     val fs = cephFSWithRelaxedMocks(
                         fsRoot.absolutePath,
-                        cloudToCephFsDao = cloudToCephFsDAOWithFixedAnswer("user")
+                        cephFSUserDao = cloudToCephFsDAOWithFixedAnswer("user")
                     )
                     val ss = ShareService(InMemoryShareDAO(), fs)
 
@@ -185,7 +185,7 @@ class ShareTests {
                     val fsRoot = createDummyFS()
                     val fs = cephFSWithRelaxedMocks(
                         fsRoot.absolutePath,
-                        cloudToCephFsDao = cloudToCephFsDAOWithFixedAnswer("user")
+                        cephFSUserDao = cloudToCephFsDAOWithFixedAnswer("user")
                     )
                     val ss = ShareService(InMemoryShareDAO(), fs)
 
@@ -234,7 +234,7 @@ class ShareTests {
                     val fsRoot = createDummyFS()
                     val fs = cephFSWithRelaxedMocks(
                         fsRoot.absolutePath,
-                        cloudToCephFsDao = cloudToCephFsDAOWithFixedAnswer("user")
+                        cephFSUserDao = cloudToCephFsDAOWithFixedAnswer("user")
                     )
                     val ss = ShareService(InMemoryShareDAO(), fs)
 
@@ -309,7 +309,7 @@ class ShareTests {
                     val fsRoot = createDummyFS()
                     val fs = cephFSWithRelaxedMocks(
                         fsRoot.absolutePath,
-                        cloudToCephFsDao = cloudToCephFsDAOWithFixedAnswer("user")
+                        cephFSUserDao = cloudToCephFsDAOWithFixedAnswer("user")
                     )
                     val ss = ShareService(InMemoryShareDAO(), fs)
 
@@ -383,7 +383,7 @@ class ShareTests {
                     val fsRoot = createDummyFS()
                     val fs = cephFSWithRelaxedMocks(
                         fsRoot.absolutePath,
-                        cloudToCephFsDao = cloudToCephFsDAOWithFixedAnswer("user")
+                        cephFSUserDao = cloudToCephFsDAOWithFixedAnswer("user")
                     )
                     val ss = ShareService(InMemoryShareDAO(), fs)
 
@@ -472,7 +472,7 @@ class ShareTests {
                     val fsRoot = createDummyFS()
                     val fs = cephFSWithRelaxedMocks(
                         fsRoot.absolutePath,
-                        cloudToCephFsDao = cloudToCephFsDAOWithFixedAnswer("user")
+                        cephFSUserDao = cloudToCephFsDAOWithFixedAnswer("user")
                     )
                     val ss = ShareService(InMemoryShareDAO(), fs)
 

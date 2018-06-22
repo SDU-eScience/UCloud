@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 
-class CloudToCephFsDao(private val isDevelopment: Boolean) {
+class CephFSUserDao(private val isDevelopment: Boolean) {
     private val cloudToUser = HashMap<String, String>()
     private val userToCloud = HashMap<String, String>()
 
@@ -59,7 +59,7 @@ class CloudToCephFsDao(private val isDevelopment: Boolean) {
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(CloudToCephFsDao::class.java)
+        private val log = LoggerFactory.getLogger(CephFSUserDao::class.java)
 
         // We use a non-standard file-name and URL safe base64 encoding with '.' as the padding
         // character as opposed to '='. This makes the encoding Unix username safe

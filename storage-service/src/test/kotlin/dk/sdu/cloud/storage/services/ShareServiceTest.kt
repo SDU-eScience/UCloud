@@ -1,15 +1,15 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.AccessRight
-import dk.sdu.cloud.storage.services.cephfs.CloudToCephFsDao
+import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
 import dk.sdu.cloud.storage.services.cephfs.FileACLService
 import io.mockk.*
 import org.junit.Test
 import java.io.File
 
 class ShareServiceTest {
-    fun createUsers(): CloudToCephFsDao {
-        val dao = mockk<CloudToCephFsDao>()
+    fun createUsers(): CephFSUserDao {
+        val dao = mockk<CephFSUserDao>()
         (1..10).map { "user$it" }.forEach {
             every { dao.findUnixUser(it) } returns it
             every { dao.findCloudUser(it) } returns it
