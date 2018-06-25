@@ -32,9 +32,8 @@ enum class FileAttribute(val value: Long) {
         internal fun rawParse(
             iterator: Iterator<String>,
             attributes: Set<FileAttribute>
-        ): Sequence<FileRow> {
+        ): Sequence<StatusTerminatedItem<FileRow>> {
             var line = 0
-            var shouldTerminate = false
             val sortedAttributes = attributes.toSortedSet(Comparator.comparingLong { it.value })
 
             fun next(): String {
@@ -47,7 +46,7 @@ enum class FileAttribute(val value: Long) {
             }
 
             return generateSequence {
-                if (!iterator.hasNext() || shouldTerminate) return@generateSequence null
+                if (!iterator.hasNext()) return@generateSequence null
 
                 var fileType: FileType? = null
                 var isLink: Boolean? = null
@@ -71,12 +70,7 @@ enum class FileAttribute(val value: Long) {
 
                     if (currentLine.startsWith("EXIT:")) {
                         val status = currentLine.split(":")[1].toInt()
-                        if (status != 0) throwExceptionBasedOnStatus(status)
-                        shouldTerminate = true
-                        break
-                    } else if (currentLine.startsWith("START:")) {
-                        shouldTerminate = true
-                        break
+                        return@generateSequence StatusTerminatedItem.Exit<FileRow>(status)
                     }
 
                     attributesCovered++
@@ -162,22 +156,24 @@ enum class FileAttribute(val value: Long) {
                 }
 
                 if (attributesCovered == attributes.size) {
-                    FileRow(
-                        fileType,
-                        isLink,
-                        linkTarget,
-                        unixMode,
-                        owner,
-                        group,
-                        timestamps,
-                        path,
-                        inode,
-                        size,
-                        shares,
-                        annotations,
-                        checksum,
-                        sensitivityLevel,
-                        linkInode
+                    StatusTerminatedItem.Item(
+                        FileRow(
+                            fileType,
+                            isLink,
+                            linkTarget,
+                            unixMode,
+                            owner,
+                            group,
+                            timestamps,
+                            path,
+                            inode,
+                            size,
+                            shares,
+                            annotations,
+                            checksum,
+                            sensitivityLevel,
+                            linkInode
+                        )
                     )
                 } else {
                     if (attributesCovered != 0) parsingError("unexpected end of stream")
@@ -186,6 +182,11 @@ enum class FileAttribute(val value: Long) {
             }
         }
     }
+}
+
+sealed class StatusTerminatedItem<T> {
+    data class Exit<T>(val statusCode: Int) : StatusTerminatedItem<T>()
+    data class Item<T>(val item: T) : StatusTerminatedItem<T>()
 }
 
 data class FileRow(

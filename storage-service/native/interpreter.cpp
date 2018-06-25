@@ -297,14 +297,29 @@ void write_command() {
     free(write_buffer);
 }
 
-void read_command(char *path) {
+static int file_opened_for_reading = -1;
+
+int read_open_command(char *path) {
+    if (file_opened_for_reading >= 0) FATAL("file already open");
+    file_opened_for_reading = open(path, O_RDONLY);
+    if (file_opened_for_reading < 0) return -errno;
+    return 0;
+}
+
+void read_command(int64_t start, int64_t max) {
     struct stat s{};
     int status;
 
     size_t read_buffer_size = INTERNAL_BUFFER_CAPACITY;
     auto read_buffer = (char *) malloc(read_buffer_size);
-    auto in_file = open(path, O_RDONLY);
+    auto in_file = file_opened_for_reading;
     auto out_file = STDOUT_FILENO;
+
+    ssize_t remaining_bytes = -1;
+    if (start > 0 && max > 0) {
+        lseek(in_file, start, SEEK_CUR);
+        remaining_bytes = max - start;
+    }
 
     if (in_file > 0) {
         status = fstat(in_file, &s);
@@ -316,6 +331,7 @@ void read_command(char *path) {
         bytes_read = read(in_file, read_buffer, read_buffer_size);
         int required_iterations = 0;
         while (bytes_read > 0) {
+            assert(remaining_bytes >= 0);
             char *out_ptr = read_buffer;
             ssize_t nwritten;
 
@@ -333,7 +349,12 @@ void read_command(char *path) {
 
             } while (bytes_read > 0);
 
-            bytes_read = read(in_file, read_buffer, read_buffer_size);
+            size_t max_read = read_buffer_size;
+            if (remaining_bytes >= 0 && remaining_bytes < max_read) {
+                max_read = (size_t) remaining_bytes;
+            }
+            bytes_read = read(in_file, read_buffer, max_read);
+            remaining_bytes -= max_read;
         }
     }
 
@@ -459,11 +480,15 @@ int main(int argc, char **argv) {
             verify_path_or_fatal(path);
 
             printf("EXIT:%d\n", stat_command(path, mode));
-        } else if (IS_COMMAND("read")) {
+        } else if (IS_COMMAND("read-open")) {
             auto path = NEXT_ARGUMENT(0);
             verify_path_or_fatal(path);
 
-            read_command(path);
+            printf("EXIT:%d\n", read_open_command(path));
+        } else if (IS_COMMAND("read")) {
+            auto start = NEXT_ARGUMENT_INT(0);
+            auto end = NEXT_ARGUMENT_INT(1);
+            read_command(start, end);
         } else if (IS_COMMAND("symlink")) {
             auto target_path = NEXT_ARGUMENT(0);
             auto link_path = NEXT_ARGUMENT(1);

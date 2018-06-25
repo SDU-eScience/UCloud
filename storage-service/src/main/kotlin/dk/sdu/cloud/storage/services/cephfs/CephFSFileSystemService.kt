@@ -724,7 +724,18 @@ class CephFSFileSystemService(
     }
 
     private fun parseFileAttributes(iterator: Iterator<String>, attributes: Set<FileAttribute>): Sequence<FileRow> {
-        return FileAttribute.rawParse(iterator, attributes).map { it.normalize() }
+        return FileAttribute.rawParse(iterator, attributes).mapNotNull {
+            when (it) {
+                is StatusTerminatedItem.Item -> {
+                    it.item.normalize()
+                }
+
+                is StatusTerminatedItem.Exit -> {
+                    if (it.statusCode == 0) return@mapNotNull null
+                    throwExceptionBasedOnStatus(it.statusCode)
+                }
+            }
+        }
     }
 
     private fun FileRow.normalize(): FileRow {

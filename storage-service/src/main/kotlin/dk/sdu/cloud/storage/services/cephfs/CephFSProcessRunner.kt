@@ -173,6 +173,7 @@ class StreamingOutputStream(private val delegate: OutputStream, private val onCl
 enum class InterpreterCommand(val command: String) {
     LIST_DIRECTORY("list-directory"),
     READ("read"),
+    READ_OPEN("read-open"),
     STAT("stat"),
     MKDIR("make-dir"),
     DELETE("delete"),
