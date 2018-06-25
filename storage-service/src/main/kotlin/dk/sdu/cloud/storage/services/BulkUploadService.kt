@@ -3,56 +3,19 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.util.CappedInputStream
+import dk.sdu.cloud.storage.util.FSException
+import dk.sdu.cloud.storage.util.FSUserContext
+import dk.sdu.cloud.storage.util.joinPath
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
-import java.io.OutputStream
 import java.util.zip.GZIPInputStream
 
-class UploadService(
-    private val fs: FileSystemService,
-    private val checksumService: ChecksumService
+class BulkUploadService(
+    private val fs: CoreFileSystemService
 ) {
-    fun upload(
-        user: String,
-        path: String,
-        conflictPolicy: WriteConflictPolicy = WriteConflictPolicy.OVERWRITE,
-        writer: OutputStream.() -> Unit
-    ) {
-        fs.withContext(user) {
-            upload(it, path, conflictPolicy, writer)
-        }
-    }
-
-    fun upload(
-        ctx: FSUserContext,
-        path: String,
-        conflictPolicy: WriteConflictPolicy = WriteConflictPolicy.OVERWRITE,
-        writer: OutputStream.() -> Unit
-    ) {
-        if (path.contains("\n")) throw FSException.BadRequest("Bad filename")
-
-        fs.write(ctx, path, conflictPolicy, writer)
-        checksumService.computeAndAttachChecksum(ctx, path)
-    }
-
-    fun bulkUpload(
-        user: String,
-        path: String,
-        format: String,
-        policy: WriteConflictPolicy,
-        stream: InputStream
-    ): List<String> {
-        return fs.withContext(user) {
-            when (format) {
-                "tgz" -> bulkUploadTarGz(it, path, policy, stream)
-                else -> throw FSException.BadRequest("Unsupported format '$format'")
-            }
-        }
-    }
-
     fun bulkUpload(
         ctx: FSUserContext,
         path: String,
@@ -79,7 +42,7 @@ class UploadService(
             val createdDirectories = HashSet<String>()
             var entry: TarEntry? = it.nextEntry
             while (entry != null) {
-                val initialTargetPath = fs.joinPath(path, entry.name)
+                val initialTargetPath = joinPath(path, entry.name)
                 val cappedStream = CappedInputStream(it, entry.size)
                 if (entry.name.contains("PaxHeader/")) {
                     // This is some meta data stuff in the tarball. We don't want this
@@ -92,7 +55,7 @@ class UploadService(
                 } else {
                     log.debug("Downloading ${entry.name} isDir=${entry.isDirectory} (${entry.size} bytes)")
 
-                    val existing = fs.stat(ctx, initialTargetPath)
+                    val existing = fs.statOrNull(ctx, initialTargetPath)
 
                     val targetPath: String? = if (existing != null) {
                         // TODO This is technically handled by upload also
@@ -120,15 +83,15 @@ class UploadService(
                         try {
                             if (entry.isDirectory) {
                                 createdDirectories += targetPath
-                                fs.mkdir(ctx, targetPath)
+                                fs.makeDirectory(ctx, targetPath)
                             } else {
                                 val parentDir = File(targetPath).parentFile.path
                                 if (parentDir !in createdDirectories) {
                                     createdDirectories += parentDir
-                                    fs.mkdir(ctx, parentDir)
+                                    fs.makeDirectory(ctx, parentDir)
                                 }
 
-                                upload(ctx, targetPath, conflictPolicy) { cappedStream.copyTo(this) }
+                                fs.write(ctx, targetPath, conflictPolicy) { cappedStream.copyTo(this) }
                             }
                         } catch (ex: FSException.PermissionException) {
                             rejectedFiles += initialTargetPath
@@ -149,6 +112,6 @@ class UploadService(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(UploadService::class.java)
+        private val log = LoggerFactory.getLogger(BulkUploadService::class.java)
     }
 }

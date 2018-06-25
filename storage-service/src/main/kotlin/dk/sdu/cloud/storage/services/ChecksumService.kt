@@ -1,18 +1,38 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.util.FSException
+import dk.sdu.cloud.storage.util.FSUserContext
+import dk.sdu.cloud.storage.util.ticker
+import dk.sdu.cloud.storage.util.unwrap
+import kotlinx.coroutines.experimental.channels.*
+import kotlinx.coroutines.experimental.selects.select
 import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 
 class ChecksumService(
-    private val fs: FileSystemService
-) {
+    private val commandRunnerFactory: FSCommandRunnerFactory,
+    private val fs: LowLevelFileSystemInterface,
+    private val coreFs: CoreFileSystemService
+) : FileSystemListener {
+
+    override suspend fun attachToFSChannel(channel: ReceiveChannel<StorageEvent>) {
+        channel.windowed(500).filterIsInstance<StorageEvent.CreatedOrModified>().consumeEach {
+            commandRunnerFactory.withContext(it.owner) { ctx ->
+                computeAndAttachChecksum(ctx, it.path)
+            }
+        }
+    }
+
     fun computeChecksum(
         ctx: FSUserContext,
         path: String,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ): ByteArray {
-        return fs.read(ctx, path) {
+        return coreFs.read(ctx, path) {
             var bytesRead = 0L
             val digest = getMessageDigest(algorithm)
             val buffer = ByteArray(4096 * 1024)
@@ -42,14 +62,14 @@ class ChecksumService(
         checksum: ByteArray,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ) {
-        fs.setMetaValue(ctx, path, CHECKSUM_KEY, checksum.toHexString())
-        fs.setMetaValue(ctx, path, CHECKSUM_TYPE_KEY, algorithm)
+        fs.setExtendedAttribute(ctx, path, CHECKSUM_KEY, checksum.toHexString())
+        fs.setExtendedAttribute(ctx, path, CHECKSUM_TYPE_KEY, algorithm)
     }
 
     fun getChecksum(ctx: FSUserContext, path: String): FileChecksum {
         return try {
-            val checksum = fs.getMetaValue(ctx, path, CHECKSUM_KEY)
-            val type = fs.getMetaValue(ctx, path, CHECKSUM_TYPE_KEY)
+            val checksum = fs.getExtendedAttribute(ctx, path, CHECKSUM_KEY).unwrap()
+            val type = fs.getExtendedAttribute(ctx, path, CHECKSUM_TYPE_KEY).unwrap()
             FileChecksum(type, checksum)
         } catch (ex: FSException.NotFound) {
             log.info("Checksum did not already exist for ${ctx.user}, $path. Attempting to recompute")
@@ -85,3 +105,29 @@ private fun ByteArray.toHexString(): String {
 }
 
 data class FileChecksum(val algorithm: String, val checksum: String)
+
+fun <E> ReceiveChannel<E>.windowed(delay: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): ReceiveChannel<E> {
+    // TODO This is probably very bad
+    val dataChannel = this
+    val ticker = ticker(delay, unit)
+
+    return produce {
+        val buffered = ArrayList<E>()
+
+        select<Unit> {
+            dataChannel.onReceive {
+                buffered.add(it)
+            }
+
+            ticker.onReceive {
+                if (buffered.isNotEmpty()) {
+                    buffered.forEach { send(it) }
+                }
+            }
+        }
+    }
+}
+
+inline fun <reified S> ReceiveChannel<*>.filterIsInstance(): ReceiveChannel<S> {
+    return filter { it is S }.map { it as S }
+}

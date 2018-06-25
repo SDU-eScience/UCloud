@@ -75,7 +75,7 @@ class BulkUploadTest {
 
         val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val upload = UploadService(fs, mockk(relaxed = true))
+        val upload = BulkUploadService(fs, mockk(relaxed = true))
         upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
         val homeDir = File(fsRoot, "/home/user")
@@ -112,7 +112,7 @@ class BulkUploadTest {
 
         val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val upload = UploadService(fs, mockk(relaxed = true))
+        val upload = BulkUploadService(fs, mockk(relaxed = true))
         val result =
             upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.RENAME, tarFile.inputStream())
 
@@ -157,7 +157,7 @@ class BulkUploadTest {
 
         val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val upload = UploadService(fs, mockk(relaxed = true))
+        val upload = BulkUploadService(fs, mockk(relaxed = true))
         val result =
             upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
@@ -197,7 +197,7 @@ class BulkUploadTest {
 
         val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val upload = UploadService(fs, mockk(relaxed = true))
+        val upload = BulkUploadService(fs, mockk(relaxed = true))
         val result =
             upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.REJECT, tarFile.inputStream())
 
@@ -239,7 +239,7 @@ class BulkUploadTest {
 
         val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val upload = UploadService(fs, mockk(relaxed = true))
+        val upload = BulkUploadService(fs, mockk(relaxed = true))
         val result =
             upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
@@ -278,7 +278,7 @@ class BulkUploadTest {
         }
         val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val upload = UploadService(fs, mockk(relaxed = true))
+        val upload = BulkUploadService(fs, mockk(relaxed = true))
         val result =
             upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
@@ -316,7 +316,7 @@ class BulkUploadTest {
         }
         val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val upload = UploadService(fs, mockk(relaxed = true))
+        val upload = BulkUploadService(fs, mockk(relaxed = true))
         val result =
             upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 

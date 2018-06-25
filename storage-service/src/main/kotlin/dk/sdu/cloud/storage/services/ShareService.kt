@@ -10,6 +10,10 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.util.FSUserContext
+import dk.sdu.cloud.storage.util.homeDirectory
+import dk.sdu.cloud.storage.util.joinPath
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
@@ -73,7 +77,9 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithShareService(bod
 
 class ShareService(
     private val source: ShareDAO,
-    private val fs: FileSystemService
+    private val commandRunnerFactory: FSCommandRunnerFactory,
+    private val aclService: ACLService,
+    private val fs: CoreFileSystemService
 ) {
 
     suspend fun list(
@@ -87,7 +93,7 @@ class ShareService(
         ctx: FSUserContext,
         path: String
     ): SharesByPath {
-        val stat = fs.stat(ctx, path) ?: throw ShareException.NotFound()
+        val stat = fs.statOrNull(ctx, path) ?: throw ShareException.NotFound()
         if (stat.ownerName != ctx.user) {
             throw ShareException.NotAllowed()
         }
@@ -101,7 +107,7 @@ class ShareService(
         cloud: AuthenticatedCloud
     ): ShareId {
         // Check if user is allowed to share this file
-        val stat = fs.stat(ctx, share.path) ?: throw ShareException.NotFound()
+        val stat = fs.statOrNull(ctx, share.path) ?: throw ShareException.NotFound()
         if (stat.ownerName != ctx.user) {
             throw ShareException.NotAllowed()
         }
@@ -155,8 +161,8 @@ class ShareService(
         )
 
         if (existingShare.state == ShareState.ACCEPTED) {
-            fs.withContext(existingShare.owner) {
-                fs.grantRights(it, existingShare.sharedWith, existingShare.path, newRights)
+            commandRunnerFactory.withContext(existingShare.owner) {
+                aclService.grantRights(it, existingShare.path, FSACLEntity.User(existingShare.sharedWith), newRights)
             }
         }
 
@@ -190,22 +196,19 @@ class ShareService(
         }
 
         if (newState == ShareState.ACCEPTED) {
-            fs.withContext(existingShare.owner) {
-                fs.grantRights(
+            commandRunnerFactory.withContext(existingShare.owner) {
+                aclService.grantRights(
                     it,
-                    existingShare.sharedWith,
                     existingShare.path,
+                    FSACLEntity.User(existingShare.sharedWith),
                     existingShare.rights
                 )
             }
 
-            fs.withContext(existingShare.sharedWith) {
-                fs.createSoftSymbolicLink(
+            commandRunnerFactory.withContext(existingShare.sharedWith) {
+                fs.createSymbolicLink(
                     it,
-                    fs.findFreeNameForNewFile(
-                        ctx,
-                        fs.joinPath(fs.homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
-                    ),
+                    joinPath(homeDirectory(ctx), existingShare.path.substringAfterLast('/')),
                     existingShare.path
                 )
             }
@@ -220,8 +223,8 @@ class ShareService(
         shareId: ShareId
     ) {
         val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
-        fs.withContext(existingShare.owner) {
-            fs.revokeRights(it, existingShare.sharedWith, existingShare.path)
+        commandRunnerFactory.withContext(existingShare.owner) {
+            aclService.revokeRights(it, existingShare.path, FSACLEntity.User(existingShare.sharedWith))
         }
         source.deleteShare(user, shareId)
     }

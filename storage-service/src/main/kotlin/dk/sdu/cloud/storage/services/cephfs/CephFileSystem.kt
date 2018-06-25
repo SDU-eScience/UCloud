@@ -1,19 +1,19 @@
 package dk.sdu.cloud.storage.services.cephfs
 
-import dk.sdu.cloud.storage.api.AccessEntry
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.services.FSACLEntity
 import dk.sdu.cloud.storage.services.FSResult
-import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.storage.util.FSUserContext
+import dk.sdu.cloud.storage.util.joinPath
+import dk.sdu.cloud.storage.util.normalize
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import java.net.URI
 
-class CephLow(
+class CephFileSystem(
     private val userDao: CephFSUserDao,
     private val fsRoot: String
 ) : LowLevelFileSystemInterface {
@@ -21,8 +21,7 @@ class CephLow(
         ctx: FSUserContext,
         from: String,
         to: String,
-        allowOverwrite: Boolean,
-        writer: (OutputStream) -> Unit
+        allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrModified>> {
         val fromPath = translateAndCheckFile(from)
         val toPath = translateAndCheckFile(to)
@@ -51,7 +50,7 @@ class CephLow(
 
         val fromStat = stat(ctx, from, setOf(FileAttribute.FILE_TYPE))
         if (fromStat.statusCode != 0) return FSResult(fromStat.statusCode)
-        val fromType = fromStat.value.fileType!!
+        val fromType = fromStat.value.fileType
 
         val fromNormalized = from.normalize()
         val toNormalized = to.normalize()
@@ -68,7 +67,7 @@ class CephLow(
                 parseFileAttributes(it.stdoutLineSequence(), MOVED_ATTRIBUTES).asFSResult {
                     val oldPath =
                         if (fromType == FileType.DIRECTORY) {
-                            it.path!!.removePrefix(fromNormalized).removePrefix("/").let {
+                            it.path.removePrefix(fromNormalized).removePrefix("/").let {
                                 joinPath(
                                     toNormalized,
                                     it
@@ -78,7 +77,7 @@ class CephLow(
                             toNormalized
                         }
 
-                    StorageEvent.Moved(it.inode!!, it.path!!, it.owner!!, timestamp, oldPath)
+                    StorageEvent.Moved(it.inode, it.path, it.owner, timestamp, oldPath)
                 }
             }
         )
@@ -107,7 +106,7 @@ class CephLow(
             absolutePath,
             consumer = {
                 parseFileAttributes(it.stdoutLineSequence(), DELETED_ATTRIBUTES).asFSResult {
-                    StorageEvent.Deleted(it.inode!!, it.path!!, it.owner!!, timestamp)
+                    StorageEvent.Deleted(it.inode, it.path, it.owner, timestamp)
                 }
             }
         )
@@ -132,8 +131,10 @@ class CephLow(
         )
     }
 
-    override fun write(ctx: FSUserContext, writer: (OutputStream) -> Unit) {
-        ctx.runCommand(InterpreterCommand.WRITE, writer = { writer(it) }, consumer = {})
+    override fun <R> write(ctx: FSUserContext, writer: (OutputStream) -> R): R {
+        var result: R? = null
+        ctx.runCommand(InterpreterCommand.WRITE, writer = { result = writer(it) }, consumer = {})
+        return result!!
     }
 
     override fun tree(ctx: FSUserContext, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {
@@ -247,17 +248,17 @@ class CephLow(
         )
     }
 
-    override fun read(ctx: FSUserContext, range: IntRange?, consumer: (InputStream) -> Unit) {
+    override fun <R> read(ctx: FSUserContext, range: IntRange?, consumer: (InputStream) -> R): R {
         val start = range?.start ?: -1
         val end = range?.endInclusive ?: -1
 
-        ctx.runCommand(
+        return ctx.runCommand(
             InterpreterCommand.READ,
             start.toString(),
             end.toString(),
             consumer = {
                 it.clearBytes(it.stdout.readLineUnbuffered().toLong())
-                consumer(it.stdout)
+                return@runCommand consumer(it.stdout)
             }
         )
     }
@@ -360,7 +361,7 @@ class CephLow(
         }
     }
 
-    private fun consumeStatusCode(it: StreamingProcessRunner): FSResult<Unit> {
+    private fun consumeStatusCode(it: StreamingCommandRunner): FSResult<Unit> {
         var statusCode: Int? = null
         for (line in it.stdoutLineSequence()) {
             if (line.startsWith(EXIT)) {
@@ -373,61 +374,17 @@ class CephLow(
 
     private fun createdOrModifiedFromRow(it: FileRow): StorageEvent.CreatedOrModified {
         return StorageEvent.CreatedOrModified(
-            id = it.inode!!,
-            path = it.path!!,
-            owner = it.owner!!,
-            type = it.fileType!!,
-            timestamp = it.timestamps!!.modified
+            id = it.inode,
+            path = it.path,
+            owner = it.owner,
+            type = it.fileType,
+            timestamp = it.timestamps.modified
         )
     }
 
     //
-    //
-    //
-    //
     // File utility
-    // TODO Move some of this out
     //
-    //
-    //
-
-    fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
-        return File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path
-    }
-
-    fun homeDirectory(ctx: FSUserContext): String {
-        return "/home/${ctx.user}/"
-    }
-
-    fun favoritesDirectory(ctx: FSUserContext): String {
-        return joinPath(homeDirectory(ctx), "Favorites", isDirectory = true)
-    }
-
-    private fun String.parents(): List<String> {
-        val components = components().dropLast(1)
-        return components.mapIndexed { index, _ ->
-            val path = "/" + components.subList(0, index + 1).joinToString("/").removePrefix("/")
-            if (path == "/") path else "$path/"
-        }
-    }
-
-    private fun String.parent(): String {
-        val components = components().dropLast(1)
-        if (components.isEmpty()) return "/"
-
-        val path = "/" + components.joinToString("/").removePrefix("/")
-        return if (path == "/") path else "$path/"
-    }
-
-    private fun String.components(): List<String> = removeSuffix("/").split("/")
-
-    private fun String.fileName(): String = File(this).name
-
-    private fun String.normalize(): String = File(this).normalize().path
-
-    private fun relativize(rootPath: String, absolutePath: String): String {
-        return URI(rootPath).relativize(URI(absolutePath)).path
-    }
 
     private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
         val path = File(fsRoot, internalPath)
@@ -459,7 +416,13 @@ class CephLow(
     ): Sequence<StatusTerminatedItem<FileRow>> {
         return FileAttribute.rawParse(iterator, attributes).map {
             when (it) {
-                is StatusTerminatedItem.Item -> it.copy(item = it.item.normalize())
+                is StatusTerminatedItem.Item -> it.copy(
+                    item = it.item.convertToCloud(
+                        usernameConverter = { userDao.findCloudUser(it)!! },
+                        pathConverter = { it.toCloudPath() }
+                    )
+                )
+
                 else -> it
             }
         }
@@ -480,25 +443,6 @@ class CephLow(
         return FSResult(
             exit.statusCode,
             rows.subList(0, rows.size - 1).map { (it as StatusTerminatedItem.Item).item }
-        )
-    }
-
-    private fun FileRow.normalize(): FileRow {
-        fun normalizeShares(incoming: List<AccessEntry>): List<AccessEntry> {
-            return incoming.map {
-                if (it.isGroup) {
-                    it
-                } else {
-                    it.copy(entity = userDao.findCloudUser(it.entity)!!)
-                }
-            }
-        }
-
-        return copy(
-            owner = owner?.let { userDao.findCloudUser(it)!! },
-            path = path?.toCloudPath(),
-            linkTarget = linkTarget?.toCloudPath(),
-            shares = shares?.let { normalizeShares(it) }
         )
     }
 

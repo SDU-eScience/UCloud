@@ -1,8 +1,8 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.service.GuardedOutputStream
-import dk.sdu.cloud.storage.services.FSException
 import dk.sdu.cloud.storage.util.BoundaryContainedStream
+import dk.sdu.cloud.storage.util.throwExceptionBasedOnStatus
 import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.InputStream
@@ -10,21 +10,28 @@ import java.io.OutputStream
 import java.nio.charset.Charset
 import java.util.*
 import kotlin.NoSuchElementException
-import kotlin.math.absoluteValue
 
-typealias ProcessRunnerFactory = (user: String) -> StreamingProcessRunner
+abstract class FSCommandRunnerFactory {
+    abstract operator fun invoke(user: String): StreamingCommandRunner
 
-@Suppress("FunctionName")
-fun CephFSProcessRunnerFactory(cephFSUserDao: CephFSUserDao, isDevelopment: Boolean): ProcessRunnerFactory {
-    return { user: String ->
-        StreamingProcessRunner(cephFSUserDao, isDevelopment, user)
+    inline fun <R> withContext(user: String, consumer: (StreamingCommandRunner) -> R): R {
+        return invoke(user).use(consumer)
+    }
+}
+
+class CephFSCommandRunnerFactory(
+    private val userDao: CephFSUserDao,
+    private val isDevelopment: Boolean
+) : FSCommandRunnerFactory() {
+    override fun invoke(user: String): StreamingCommandRunner {
+        return StreamingCommandRunner(userDao, isDevelopment, user)
     }
 }
 
 @Suppress("unused")
 data class ProcessRunnerAttributeKey<T>(val name: String)
 
-class StreamingProcessRunner(
+class StreamingCommandRunner(
     private val cephFSUserDao: CephFSUserDao,
     private val isDevelopment: Boolean,
     val user: String
@@ -85,7 +92,7 @@ class StreamingProcessRunner(
         command: InterpreterCommand,
         vararg args: String,
         writer: (OutputStream) -> Unit = {},
-        consumer: (StreamingProcessRunner) -> T
+        consumer: (StreamingCommandRunner) -> T
     ): T {
         log.debug("Running command: $command ${args.joinToString(" ")}")
 
@@ -128,7 +135,7 @@ class StreamingProcessRunner(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(StreamingProcessRunner::class.java)
+        private val log = LoggerFactory.getLogger(StreamingCommandRunner::class.java)
     }
 }
 
@@ -195,17 +202,6 @@ enum class InterpreterCommand(val command: String) {
 
 }
 
-fun throwExceptionBasedOnStatus(status: Int): Nothing {
-    when (status.absoluteValue) {
-        1, 20, 21, 22 -> throw FSException.BadRequest()
-        2, 93 -> throw FSException.NotFound()
-        5, 6, 16, 19, 23, 24, 27, 28, 30, 31 -> throw FSException.IOException()
-        13 -> throw FSException.PermissionException()
-        17 -> throw FSException.AlreadyExists()
-
-        else -> throw FSException.CriticalException("Unknown status code $status")
-    }
-}
 
 fun checkStatus(line: String): Boolean {
     if (line.startsWith("EXIT:")) {

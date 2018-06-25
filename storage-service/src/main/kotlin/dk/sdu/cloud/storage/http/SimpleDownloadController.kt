@@ -11,9 +11,9 @@ import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.services.BulkDownloadService
-import dk.sdu.cloud.storage.services.FileSystemService
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.FileAttribute
-import dk.sdu.cloud.storage.services.withContext
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
@@ -26,18 +26,21 @@ import io.ktor.routing.Route
 import io.ktor.routing.route
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import kotlinx.coroutines.experimental.io.jvm.javaio.toOutputStream
+import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 class SimpleDownloadController(
     private val cloud: AuthenticatedCloud,
-    private val fs: FileSystemService,
+    private val commandRunnerFactory: FSCommandRunnerFactory,
+    private val fs: CoreFileSystemService,
     private val bulkDownloadService: BulkDownloadService
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
             implement(FileDescriptions.download) { request ->
+                // TODO Catch exceptions
                 logEntry(log, request)
 
                 val bearer = request.token
@@ -48,10 +51,8 @@ class SimpleDownloadController(
                                 HttpStatusCode.Unauthorized
                             )
 
-                fs.withContext(principal.subject) { ctx ->
-                    val stat = fs.stat(ctx, request.path) ?: return@implement run {
-                        error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-                    }
+                commandRunnerFactory.withContext(principal.subject) { ctx ->
+                    val stat = fs.stat(ctx, request.path)
 
                     when {
                         stat.type == FileType.DIRECTORY -> {
@@ -70,7 +71,7 @@ class SimpleDownloadController(
                                         request.path,
                                         setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
                                     ).forEach { item ->
-                                        val filePath = item.path!!.substringAfter(stat.path).removePrefix("/")
+                                        val filePath = item.path.substringAfter(stat.path).removePrefix("/")
 
                                         if (item.fileType == FileType.FILE) {
                                             os.putNextEntry(
@@ -101,42 +102,44 @@ class SimpleDownloadController(
                             val sizeForWorkaroundIssue185 = if (stat.size >= Int.MAX_VALUE) null else stat.size
 
                             call.respondDirectWrite(sizeForWorkaroundIssue185, contentType, HttpStatusCode.OK) {
-                                fs.coRead(ctx, request.path) {
+                                fs.read(ctx, request.path) {
                                     val stream = this
-                                    var readSum = 0L
-                                    var writeSum = 0L
-                                    var iterations = 0
-                                    var bytes = 0
+                                    runBlocking {
+                                        var readSum = 0L
+                                        var writeSum = 0L
+                                        var iterations = 0
+                                        var bytes = 0
 
-                                    val buffer = ByteArray(1024 * 1024)
-                                    var hasMoreData = true
-                                    while (hasMoreData) {
-                                        var ptr = 0
-                                        val startRead = System.nanoTime()
-                                        while (ptr < buffer.size && hasMoreData) {
-                                            val read = stream.read(buffer, ptr, buffer.size - ptr)
-                                            if (read <= 0) {
-                                                hasMoreData = false
-                                                break
+                                        val buffer = ByteArray(1024 * 1024)
+                                        var hasMoreData = true
+                                        while (hasMoreData) {
+                                            var ptr = 0
+                                            val startRead = System.nanoTime()
+                                            while (ptr < buffer.size && hasMoreData) {
+                                                val read = stream.read(buffer, ptr, buffer.size - ptr)
+                                                if (read <= 0) {
+                                                    hasMoreData = false
+                                                    break
+                                                }
+                                                ptr += read
+                                                bytes += read
                                             }
-                                            ptr += read
-                                            bytes += read
-                                        }
-                                        val startWrite = System.nanoTime()
-                                        readSum += startWrite - startRead
-                                        writeFully(buffer, 0, ptr)
-                                        writeSum += System.nanoTime() - startWrite
+                                            val startWrite = System.nanoTime()
+                                            readSum += startWrite - startRead
+                                            writeFully(buffer, 0, ptr)
+                                            writeSum += System.nanoTime() - startWrite
 
-                                        iterations++
-                                        if (iterations % 100 == 0) {
-                                            var rStr = (readSum / iterations).toString()
-                                            var wStr = (writeSum / iterations).toString()
+                                            iterations++
+                                            if (iterations % 100 == 0) {
+                                                var rStr = (readSum / iterations).toString()
+                                                var wStr = (writeSum / iterations).toString()
 
-                                            if (rStr.length > wStr.length) wStr = wStr.padStart(rStr.length, ' ')
-                                            if (wStr.length > rStr.length) rStr = rStr.padStart(rStr.length, ' ')
+                                                if (rStr.length > wStr.length) wStr = wStr.padStart(rStr.length, ' ')
+                                                if (wStr.length > rStr.length) rStr = rStr.padStart(rStr.length, ' ')
 
-                                            log.debug("Avg. read time:  $rStr")
-                                            log.debug("Avg. write time: $wStr")
+                                                log.debug("Avg. read time:  $rStr")
+                                                log.debug("Avg. write time: $wStr")
+                                            }
                                         }
                                     }
                                 }
@@ -154,13 +157,15 @@ class SimpleDownloadController(
             implement(FileDescriptions.bulkDownload) {
                 logEntry(log, it)
 
-                call.respondDirectWrite(contentType = ContentType.Application.GZip) {
-                    bulkDownloadService.downloadFiles(
-                        call.request.validatedPrincipal.subject,
-                        it.prefix,
-                        it.files,
-                        toOutputStream()
-                    )
+                commandRunnerFactory.withContext(call.request.validatedPrincipal.subject) { ctx ->
+                    call.respondDirectWrite(contentType = ContentType.Application.GZip) {
+                        bulkDownloadService.downloadFiles(
+                            ctx,
+                            it.prefix,
+                            it.files,
+                            toOutputStream()
+                        )
+                    }
                 }
             }
         }

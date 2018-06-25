@@ -9,7 +9,9 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.TusDescriptions
 import dk.sdu.cloud.storage.api.TusExtensions
 import dk.sdu.cloud.storage.api.TusHeaders
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -19,7 +21,6 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.header
-import io.ktor.request.receiveChannel
 import io.ktor.response.ApplicationResponse
 import io.ktor.response.header
 import io.ktor.response.respond
@@ -37,7 +38,8 @@ import java.util.*
 
 class TusController(
     private val tusState: TusStateService,
-    private val fs: UploadService
+    private val commandRunnerFactory: FSCommandRunnerFactory,
+    private val fs: CoreFileSystemService
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
@@ -281,19 +283,26 @@ class TusController(
             // Start reading some contents
             val channel = call.request.receiveChannel()
             val internalBuffer = ByteArray(1024 * 32)
-            fs.upload(initialState.user, initialState.targetCollection + "/" + initialState.targetName) {
-                runBlocking {
-                    var read = 0
-                    while (read != -1) {
-                        read = channel.readAvailable(internalBuffer)
+            commandRunnerFactory.withContext(initialState.user) { ctx ->
+                fs.write(
+                    ctx,
+                    initialState.targetCollection + "/" + initialState.targetName,
+                    WriteConflictPolicy.OVERWRITE
+                ) {
+                    runBlocking {
+                        var read = 0
+                        while (read != -1) {
+                            read = channel.readAvailable(internalBuffer)
 
-                        if (read != -1) {
-                            write(internalBuffer, 0, read)
-                            wrote += read
+                            if (read != -1) {
+                                write(internalBuffer, 0, read)
+                                wrote += read
+                            }
                         }
                     }
                 }
             }
+
         } else {
             log.info("Skipping upload. We are already done")
         }

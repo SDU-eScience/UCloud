@@ -4,6 +4,7 @@ import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.services.cephfs.FileRow
+import dk.sdu.cloud.storage.util.FSUserContext
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -36,8 +37,7 @@ interface LowLevelFileSystemInterface {
         ctx: FSUserContext,
         from: String,
         to: String,
-        allowOverwrite: Boolean,
-        writer: (OutputStream) -> Unit
+        allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrModified>>
     
     fun move(
@@ -64,10 +64,10 @@ interface LowLevelFileSystemInterface {
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrModified>>
     
-    fun write(
+    fun <R> write(
         ctx: FSUserContext,
-        writer: (OutputStream) -> Unit
-    )
+        writer: (OutputStream) -> R
+    ): R
     
     fun tree(
         ctx: FSUserContext,
@@ -115,11 +115,11 @@ interface LowLevelFileSystemInterface {
         path: String
     ): FSResult<Unit>
 
-    fun read(
+    fun <R> read(
         ctx: FSUserContext,
         range: IntRange? = null,
-        consumer: (InputStream) -> Unit
-    )
+        consumer: (InputStream) -> R
+    ): R
 
     fun createSymbolicLink(
         ctx: FSUserContext,
