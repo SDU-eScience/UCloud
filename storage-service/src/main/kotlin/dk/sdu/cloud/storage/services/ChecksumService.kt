@@ -20,9 +20,12 @@ class ChecksumService(
 ) : FileSystemListener {
 
     override suspend fun attachToFSChannel(channel: ReceiveChannel<StorageEvent>) {
-        channel.windowed(500).filterIsInstance<StorageEvent.CreatedOrModified>().consumeEach {
-            commandRunnerFactory.withContext(it.owner) { ctx ->
-                computeAndAttachChecksum(ctx, it.path)
+        // How will this implementation handle very frequent updates to a file?
+        channel.windowed(500).consumeEach {
+            it.filterIsInstance<StorageEvent.CreatedOrModified>().distinctBy { it.path }.forEach {
+                commandRunnerFactory.withContext(it.owner) { ctx ->
+                    computeAndAttachChecksum(ctx, it.path)
+                }
             }
         }
     }
@@ -106,7 +109,7 @@ private fun ByteArray.toHexString(): String {
 
 data class FileChecksum(val algorithm: String, val checksum: String)
 
-fun <E> ReceiveChannel<E>.windowed(delay: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): ReceiveChannel<E> {
+fun <E> ReceiveChannel<E>.windowed(delay: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): ReceiveChannel<List<E>> {
     // TODO This is probably very bad
     val dataChannel = this
     val ticker = ticker(delay, unit)
@@ -114,20 +117,23 @@ fun <E> ReceiveChannel<E>.windowed(delay: Long, unit: TimeUnit = TimeUnit.MILLIS
     return produce {
         val buffered = ArrayList<E>()
 
-        select<Unit> {
-            dataChannel.onReceive {
-                buffered.add(it)
-            }
+        try {
+            while (!dataChannel.isClosedForReceive) {
+                select<Unit> {
+                    dataChannel.onReceive {
+                        buffered.add(it)
+                    }
 
-            ticker.onReceive {
-                if (buffered.isNotEmpty()) {
-                    buffered.forEach { send(it) }
+                    ticker.onReceive {
+                        if (buffered.isNotEmpty()) {
+                            send(buffered.toList())
+                            buffered.clear()
+                        }
+                    }
                 }
             }
+        } finally {
+            ticker.cancel()
         }
     }
-}
-
-inline fun <reified S> ReceiveChannel<*>.filterIsInstance(): ReceiveChannel<S> {
-    return filter { it is S }.map { it as S }
 }

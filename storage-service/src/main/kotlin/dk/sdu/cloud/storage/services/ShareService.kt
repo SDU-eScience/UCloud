@@ -11,6 +11,7 @@ import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.homeDirectory
 import dk.sdu.cloud.storage.util.joinPath
@@ -93,8 +94,8 @@ class ShareService(
         ctx: FSUserContext,
         path: String
     ): SharesByPath {
-        val stat = fs.statOrNull(ctx, path) ?: throw ShareException.NotFound()
-        if (stat.ownerName != ctx.user) {
+        val stat = fs.statOrNull(ctx, path, setOf(FileAttribute.OWNER)) ?: throw ShareException.NotFound()
+        if (stat.owner != ctx.user) {
             throw ShareException.NotAllowed()
         }
 
@@ -107,8 +108,8 @@ class ShareService(
         cloud: AuthenticatedCloud
     ): ShareId {
         // Check if user is allowed to share this file
-        val stat = fs.statOrNull(ctx, share.path) ?: throw ShareException.NotFound()
-        if (stat.ownerName != ctx.user) {
+        val stat = fs.statOrNull(ctx, share.path, setOf(FileAttribute.OWNER)) ?: throw ShareException.NotFound()
+        if (stat.owner != ctx.user) {
             throw ShareException.NotAllowed()
         }
 

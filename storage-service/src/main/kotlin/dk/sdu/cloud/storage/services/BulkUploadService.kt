@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
+import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.util.CappedInputStream
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.FSUserContext
@@ -55,11 +56,11 @@ class BulkUploadService(
                 } else {
                     log.debug("Downloading ${entry.name} isDir=${entry.isDirectory} (${entry.size} bytes)")
 
-                    val existing = fs.statOrNull(ctx, initialTargetPath)
+                    val existing = fs.statOrNull(ctx, initialTargetPath, setOf(FileAttribute.FILE_TYPE))
 
                     val targetPath: String? = if (existing != null) {
                         // TODO This is technically handled by upload also
-                        val existingIsDirectory = existing.type == FileType.DIRECTORY
+                        val existingIsDirectory = existing.fileType == FileType.DIRECTORY
                         if (entry.isDirectory != existingIsDirectory) {
                             log.debug("Type of existing and new does not match. Rejecting regardless of policy")
                             rejectedDirectories += entry.name

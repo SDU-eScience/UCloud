@@ -189,25 +189,11 @@ enum class InterpreterCommand(val command: String) {
     SYMLINK("symlink"),
     SETFACL("setfacl"),
     COPY("copy"),
-    COPY_TREE("copy-tree"),
-
     WRITE("write"),
     WRITE_OPEN("write-open"),
-
     GET_XATTR("get-xattr"),
     SET_XATTR("set-xattr"),
     LIST_XATTR("list-xattr"),
     DELETE_XATTR("delete-xattr"),
-    TEST("reading")
-
 }
 
-
-fun checkStatus(line: String): Boolean {
-    if (line.startsWith("EXIT:")) {
-        val status = line.split(":")[1].toInt()
-        if (status != 0) throwExceptionBasedOnStatus(status)
-        return true
-    }
-    return false
-}

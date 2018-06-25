@@ -1,15 +1,21 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.currentUsername
+import dk.sdu.cloud.auth.api.principalRole
+import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FavoriteService
 import dk.sdu.cloud.storage.services.FileAnnotationService
 import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.FileAttribute
+import dk.sdu.cloud.storage.services.cephfs.FileRow
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -21,7 +27,8 @@ import org.slf4j.LoggerFactory
 class FilesController(
     private val commandRunnerFactory: FSCommandRunnerFactory,
     private val coreFs: CoreFileSystemService,
-    private val annotationService: FileAnnotationService
+    private val annotationService: FileAnnotationService,
+    private val favoriteService: FavoriteService
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
@@ -30,7 +37,10 @@ class FilesController(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    ok(coreFs.listDirectory(it, request.path))
+                    val favorites = favoriteService.retrieveFavoriteInodeSet(it)
+                    ok(coreFs.listDirectory(it, request.path, STORAGE_FILE_ATTRIBUTES).map {
+                        readStorageFile(it, favorites)
+                    })
                 }
             }
 
@@ -39,7 +49,8 @@ class FilesController(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    ok(coreFs.stat(it, request.path))
+                    val favorites = favoriteService.retrieveFavoriteInodeSet(it)
+                    ok(coreFs.stat(it, request.path, STORAGE_FILE_ATTRIBUTES).let { readStorageFile(it, favorites) })
                 }
             }
 
@@ -48,7 +59,7 @@ class FilesController(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    coreFs.markAsFavorite(it, req.path)
+                    favoriteService.markAsFavorite(it, req.path)
                     ok(Unit)
                 }
             }
@@ -58,7 +69,7 @@ class FilesController(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    coreFs.removeFavorite(it, req.path)
+                    favoriteService.removeFavorite(it, req.path)
                     ok(Unit)
                 }
             }
@@ -204,7 +215,37 @@ class FilesController(
         }
     }
 
+    private fun readStorageFile(row: FileRow, favorites: Set<String>): StorageFile =
+        StorageFile(
+            type = row.fileType,
+            path = row.path,
+            createdAt = row.timestamps.created,
+            modifiedAt = row.timestamps.modified,
+            ownerName = row.owner,
+            size = row.size,
+            acl = row.shares,
+            favorited = row.inode in favorites,
+            sensitivityLevel = row.sensitivityLevel,
+            link = row.isLink,
+            annotations = row.annotations,
+            inode = row.inode
+        )
+
+
     companion object {
         private val log = LoggerFactory.getLogger(FilesController::class.java)
+
+        private val STORAGE_FILE_ATTRIBUTES = setOf(
+            FileAttribute.FILE_TYPE,
+            FileAttribute.PATH,
+            FileAttribute.TIMESTAMPS,
+            FileAttribute.OWNER,
+            FileAttribute.SIZE,
+            FileAttribute.SHARES,
+            FileAttribute.SENSITIVITY,
+            FileAttribute.ANNOTATIONS,
+            FileAttribute.INODE,
+            FileAttribute.IS_LINK
+        )
     }
 }

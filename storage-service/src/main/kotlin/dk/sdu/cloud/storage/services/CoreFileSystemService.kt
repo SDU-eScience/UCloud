@@ -5,6 +5,7 @@ import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.services.cephfs.FileRow
 import dk.sdu.cloud.storage.util.*
 import kotlinx.coroutines.experimental.channels.BroadcastChannel
+import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
 import java.io.InputStream
@@ -46,8 +47,8 @@ class CoreFileSystemService(
         conflictPolicy: WriteConflictPolicy
     ) {
         val normalizedFrom = from.normalize()
-        val fromStat = stat(ctx, from)
-        if (fromStat.type != FileType.DIRECTORY) {
+        val fromStat = stat(ctx, from, setOf(FileAttribute.FILE_TYPE))
+        if (fromStat.fileType != FileType.DIRECTORY) {
             val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
             fs.copy(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
         } else {
@@ -77,21 +78,19 @@ class CoreFileSystemService(
 
     fun stat(
         ctx: FSUserContext,
-        path: String
-    ): StorageFile {
-        val favorites = retrieveFavoriteInodeSet(ctx)
-        return readStorageFile(
-            fs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES).unwrap(),
-            favorites
-        )
+        path: String,
+        mode: Set<FileAttribute>
+    ): FileRow {
+        return fs.stat(ctx, path, mode).unwrap()
     }
 
     fun statOrNull(
         ctx: FSUserContext,
-        path: String
-    ): StorageFile? {
+        path: String,
+        mode: Set<FileAttribute>
+    ): FileRow? {
         return try {
-            stat(ctx, path)
+            stat(ctx, path, mode)
         } catch (ex: FSException.AlreadyExists) {
             null
         }
@@ -99,50 +98,10 @@ class CoreFileSystemService(
 
     fun listDirectory(
         ctx: FSUserContext,
-        path: String
-    ): List<StorageFile> {
-        val favorites = retrieveFavoriteInodeSet(ctx)
-        return fs.listDirectory(ctx, path, STORAGE_FILE_ATTRIBUTES).unwrap().map { readStorageFile(it, favorites) }
-    }
-
-    private fun retrieveFavoriteInodeSet(ctx: FSUserContext): Set<String> =
-        retrieveFavorites(ctx).map { it.inode }.toSet()
-
-    fun retrieveFavorites(ctx: FSUserContext): List<FavoritedFile> {
-        return fs.listDirectory(
-            ctx, favoritesDirectory(ctx), setOf(
-                FileAttribute.FILE_TYPE,
-                FileAttribute.PATH,
-                FileAttribute.LINK_TARGET,
-                FileAttribute.LINK_INODE,
-                FileAttribute.INODE
-            )
-        ).unwrap().map {
-            FavoritedFile(
-                type = it.fileType,
-                from = it.path,
-                to = it.linkTarget,
-                inode = it.linkInode,
-                favInode = it.inode
-            )
-        }
-    }
-
-    fun markAsFavorite(ctx: FSUserContext, fileToFavorite: String) {
-        val favoritesDirectory = favoritesDirectory(ctx)
-        if (!exists(ctx, favoritesDirectory)) {
-            makeDirectory(ctx, favoritesDirectory)
-        }
-
-        createSymbolicLink(ctx, fileToFavorite, joinPath(favoritesDirectory, fileToFavorite.fileName()))
-    }
-
-    fun removeFavorite(ctx: FSUserContext, favoriteFileToRemove: String) {
-        val stat = stat(ctx, favoriteFileToRemove)
-        val allFavorites = retrieveFavorites(ctx)
-        val toRemove = allFavorites.filter { it.inode == stat.inode || it.favInode == stat.inode }
-        if (toRemove.isEmpty()) return
-        toRemove.forEach { delete(ctx, it.from) }
+        path: String,
+        mode: Set<FileAttribute>
+    ): List<FileRow> {
+        return fs.listDirectory(ctx, path, mode).unwrap()
     }
 
     fun tree(
@@ -175,7 +134,7 @@ class CoreFileSystemService(
         path: String
     ): Boolean {
         return try {
-            stat(ctx, path)
+            stat(ctx, path, setOf(FileAttribute.PATH))
             true
         } catch (ex: FSException.NotFound) {
             false
@@ -233,7 +192,7 @@ class CoreFileSystemService(
         val extension = findExtension(fileName)
 
         val parentPath = desiredPath.substringBeforeLast('/')
-        val names = listDirectory(ctx, parentPath).map { it.path.fileName() }
+        val names = listDirectory(ctx, parentPath, setOf(FileAttribute.PATH)).map { it.path.fileName() }
 
         return if (names.isEmpty()) {
             desiredPath
@@ -268,8 +227,8 @@ class CoreFileSystemService(
 
     private val eventBroadcastChannel = BroadcastChannel<StorageEvent>(512)
 
-    suspend fun attachListener(listener: FileSystemListener) {
-        listener.attachToFSChannel(eventBroadcastChannel.openSubscription())
+    fun openEventSubscription(): ReceiveChannel<StorageEvent> {
+        return eventBroadcastChannel.openSubscription()
     }
 
     private fun <T : StorageEvent> FSResult<List<T>>.emitAll() {
@@ -287,37 +246,11 @@ class CoreFileSystemService(
         }
     }
 
-    private fun readStorageFile(row: FileRow, favorites: Set<String>): StorageFile =
-        StorageFile(
-            type = row.fileType,
-            path = row.path,
-            createdAt = row.timestamps.created,
-            modifiedAt = row.timestamps.modified,
-            ownerName = row.owner,
-            size = row.size,
-            acl = row.shares,
-            favorited = row.inode in favorites,
-            sensitivityLevel = row.sensitivityLevel,
-            link = row.isLink,
-            annotations = row.annotations,
-            inode = row.inode
-        )
 
 
     companion object {
         private val log = LoggerFactory.getLogger(CoreFileSystemService::class.java)
 
-        private val STORAGE_FILE_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.PATH,
-            FileAttribute.TIMESTAMPS,
-            FileAttribute.OWNER,
-            FileAttribute.SIZE,
-            FileAttribute.SHARES,
-            FileAttribute.SENSITIVITY,
-            FileAttribute.ANNOTATIONS,
-            FileAttribute.INODE,
-            FileAttribute.IS_LINK
-        )
+
     }
 }

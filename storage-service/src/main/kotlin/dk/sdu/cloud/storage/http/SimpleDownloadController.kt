@@ -52,10 +52,11 @@ class SimpleDownloadController(
                             )
 
                 commandRunnerFactory.withContext(principal.subject) { ctx ->
-                    val stat = fs.stat(ctx, request.path)
+                    val stat =
+                        fs.stat(ctx, request.path, setOf(FileAttribute.PATH, FileAttribute.INODE, FileAttribute.SIZE))
 
                     when {
-                        stat.type == FileType.DIRECTORY -> {
+                        stat.fileType == FileType.DIRECTORY -> {
                             call.response.header(
                                 HttpHeaders.ContentDisposition,
                                 "attachment; filename=\"${stat.path.substringAfterLast('/')}.zip\""
@@ -90,7 +91,7 @@ class SimpleDownloadController(
                             }
                         }
 
-                        stat.type == FileType.FILE -> {
+                        stat.fileType == FileType.FILE -> {
                             val contentType = ContentType.defaultForFilePath(stat.path)
                             call.response.header(
                                 HttpHeaders.ContentDisposition,

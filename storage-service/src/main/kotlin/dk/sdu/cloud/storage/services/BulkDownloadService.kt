@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.FSUserContext
 import org.kamranzafar.jtar.TarEntry
@@ -20,7 +21,11 @@ class BulkDownloadService(
                 try {
                     // Calculate correct path, check if file exists and filter out bad files
                     val absPath = "${prefixPath.removeSuffix("/")}/${path.removePrefix("/")}"
-                    val stat = fs.statOrNull(ctx, absPath) ?: continue
+                    val stat = fs.statOrNull(
+                        ctx,
+                        absPath,
+                        setOf(FileAttribute.PATH, FileAttribute.SIZE, FileAttribute.TIMESTAMPS, FileAttribute.FILE_TYPE)
+                    ) ?: continue
 
                     // Write tar header
                     log.debug("Writing tar header: ($path, $stat)")
@@ -29,8 +34,8 @@ class BulkDownloadService(
                             TarHeader.createHeader(
                                 path,
                                 stat.size,
-                                stat.modifiedAt,
-                                stat.type == FileType.DIRECTORY,
+                                stat.timestamps.modified,
+                                stat.fileType == FileType.DIRECTORY,
                                 511 // TODO! (0777)
                             )
                         )
