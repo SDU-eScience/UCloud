@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { getParentPath, favorite, fileSizeToString, toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
@@ -6,7 +6,6 @@ import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { SensitivityLevel } from "../../DefaultObjects"
 import { Container, Header, List, Card, Icon } from "semantic-ui-react";
 import { dateToString } from "../../Utilities/DateUtilities"
-import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { updatePageTitle } from "../../Actions/Status";
 import { List as ShareList } from "../Shares/List";
@@ -103,13 +102,6 @@ const FileView = ({ file, favorite }) =>
             </Card>
         </Card.Group>
     );
-
-FileInfo.propTypes = {
-    loading: PropTypes.bool.isRequired,
-    files: PropTypes.array.isRequired,
-    filesPath: PropTypes.string.isRequired,
-    favoriteCount: PropTypes.number.isRequired,
-};
 
 const mapStateToProps = (state) => {
     const { loading, files, path } = state.files;

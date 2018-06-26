@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { getParentPath, iconFromFilePath } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
@@ -10,15 +10,35 @@ import { connect } from "react-redux";
 import "./Dashboard.scss";
 import "../Styling/Shared.scss";
 import { Card, List, Icon } from "semantic-ui-react";
-import moment from "moment";
+import * as moment from "moment";
 import { FileIcon } from "../UtilityComponents";
+import { File, Analysis } from "../../types/types";
 
-class Dashboard extends React.Component {
+interface DashboardProps {
+    // Redux store props
+    favoriteFiles: File[]
+    recentFiles: File[]
+    recentAnalyses: Analysis[]
+    notifications: any[]
+    favoriteLoading: boolean
+    analysesLoading: boolean
+    recentLoading: boolean
+    
+    // Redux operations
+    receiveFavorites: (files: File[]) => void
+    updatePageTitle: () => void
+    setAllLoading: (loading: boolean) => void
+    fetchFavorites: () => void
+    fetchRecentFiles: () => void
+    fetchRecentAnalyses: () => void
+}
+
+class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {
         super(props);
-        const { favoriteFiles, recentFiles, recentAnalyses, activity } = props;
+        const { favoriteFiles, recentFiles, recentAnalyses } = props;
         props.updatePageTitle();
-        if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length && !activity.length) {
+        if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length) {
             props.setAllLoading(true);
         }
         props.fetchFavorites();
@@ -78,7 +98,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
 const ListFileContent = ({ path, type, link }) =>
     <React.Fragment>
         <List.Content>
-            <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} link={link} color="grey" />
+            <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} size={null} link={link} color="grey" />
             <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
                 {getFilenameFromPath(path)}
             </Link>
