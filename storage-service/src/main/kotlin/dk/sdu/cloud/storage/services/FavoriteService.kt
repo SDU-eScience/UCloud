@@ -1,12 +1,11 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.favoritesDirectory
 import dk.sdu.cloud.storage.util.fileName
 import dk.sdu.cloud.storage.util.joinPath
 
-class FavoriteService(val fs: CoreFileSystemService) {
-     fun markAsFavorite(ctx: FSUserContext, fileToFavorite: String) {
+class FavoriteService<Ctx : FSUserContext>(val fs: CoreFileSystemService<Ctx>) {
+     fun markAsFavorite(ctx: Ctx, fileToFavorite: String) {
         val favoritesDirectory = favoritesDirectory(ctx)
         if (!fs.exists(ctx, favoritesDirectory)) {
             fs.makeDirectory(ctx, favoritesDirectory)
@@ -15,7 +14,7 @@ class FavoriteService(val fs: CoreFileSystemService) {
         fs.createSymbolicLink(ctx, fileToFavorite, joinPath(favoritesDirectory, fileToFavorite.fileName()))
     }
 
-    fun removeFavorite(ctx: FSUserContext, favoriteFileToRemove: String) {
+    fun removeFavorite(ctx: Ctx, favoriteFileToRemove: String) {
         val stat = fs.stat(ctx, favoriteFileToRemove, setOf(FileAttribute.INODE))
         val allFavorites = retrieveFavorites(ctx)
         val toRemove = allFavorites.filter { it.inode == stat.inode || it.favInode == stat.inode }
@@ -23,10 +22,10 @@ class FavoriteService(val fs: CoreFileSystemService) {
         toRemove.forEach { fs.delete(ctx, it.from) }
     }
 
-    fun retrieveFavoriteInodeSet(ctx: FSUserContext): Set<String> =
+    fun retrieveFavoriteInodeSet(ctx: Ctx): Set<String> =
         retrieveFavorites(ctx).map { it.inode }.toSet()
 
-    fun retrieveFavorites(ctx: FSUserContext): List<FavoritedFile> {
+    fun retrieveFavorites(ctx: Ctx): List<FavoritedFile> {
         return fs.listDirectory(
             ctx, favoritesDirectory(ctx), setOf(
                 FileAttribute.FILE_TYPE,

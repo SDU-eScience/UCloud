@@ -1,8 +1,9 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.service.GuardedOutputStream
+import dk.sdu.cloud.storage.services.CommandRunner
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.util.BoundaryContainedStream
-import dk.sdu.cloud.storage.util.throwExceptionBasedOnStatus
 import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.InputStream
@@ -11,19 +12,10 @@ import java.nio.charset.Charset
 import java.util.*
 import kotlin.NoSuchElementException
 
-// TODO Move this
-abstract class FSCommandRunnerFactory {
-    abstract operator fun invoke(user: String): StreamingCommandRunner
-
-    inline fun <R> withContext(user: String, consumer: (StreamingCommandRunner) -> R): R {
-        return invoke(user).use(consumer)
-    }
-}
-
 class CephFSCommandRunnerFactory(
     private val userDao: CephFSUserDao,
     private val isDevelopment: Boolean
-) : FSCommandRunnerFactory() {
+) : FSCommandRunnerFactory<StreamingCommandRunner>() {
     override fun invoke(user: String): StreamingCommandRunner {
         return StreamingCommandRunner(userDao, isDevelopment, user)
     }
@@ -35,8 +27,8 @@ data class ProcessRunnerAttributeKey<T>(val name: String)
 class StreamingCommandRunner(
     private val cephFSUserDao: CephFSUserDao,
     private val isDevelopment: Boolean,
-    val user: String
-) : Closeable {
+    override val user: String
+) : CommandRunner {
     private val cache: MutableMap<ProcessRunnerAttributeKey<*>, Any> = hashMapOf()
 
     private val clientBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)

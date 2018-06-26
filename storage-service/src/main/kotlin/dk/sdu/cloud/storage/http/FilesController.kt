@@ -11,7 +11,7 @@ import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -20,11 +20,11 @@ import io.ktor.routing.route
 import kotlinx.coroutines.experimental.io.writeStringUtf8
 import org.slf4j.LoggerFactory
 
-class FilesController(
-    private val commandRunnerFactory: FSCommandRunnerFactory,
-    private val coreFs: CoreFileSystemService,
-    private val annotationService: FileAnnotationService,
-    private val favoriteService: FavoriteService
+class FilesController<Ctx : FSUserContext>(
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val coreFs: CoreFileSystemService<Ctx>,
+    private val annotationService: FileAnnotationService<Ctx>,
+    private val favoriteService: FavoriteService<Ctx>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {

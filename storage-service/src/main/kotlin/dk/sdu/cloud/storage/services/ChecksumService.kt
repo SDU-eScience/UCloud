@@ -1,9 +1,7 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.StorageEvent
-import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.ticker
 import dk.sdu.cloud.storage.util.unwrap
 import kotlinx.coroutines.experimental.channels.*
@@ -13,10 +11,10 @@ import java.math.BigInteger
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
-class ChecksumService(
-    private val commandRunnerFactory: FSCommandRunnerFactory,
-    private val fs: LowLevelFileSystemInterface,
-    private val coreFs: CoreFileSystemService
+class ChecksumService<Ctx : FSUserContext>(
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: LowLevelFileSystemInterface<Ctx>,
+    private val coreFs: CoreFileSystemService<Ctx>
 ) : FileSystemListener {
 
     override suspend fun attachToFSChannel(channel: ReceiveChannel<StorageEvent>) {
@@ -31,7 +29,7 @@ class ChecksumService(
     }
 
     fun computeChecksum(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ): ByteArray {
@@ -50,7 +48,7 @@ class ChecksumService(
     }
 
     fun computeAndAttachChecksum(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ): FileChecksum {
@@ -60,7 +58,7 @@ class ChecksumService(
     }
 
     fun attachChecksumToObject(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         checksum: ByteArray,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
@@ -69,7 +67,7 @@ class ChecksumService(
         fs.setExtendedAttribute(ctx, path, CHECKSUM_TYPE_KEY, algorithm)
     }
 
-    fun getChecksum(ctx: FSUserContext, path: String): FileChecksum {
+    fun getChecksum(ctx: Ctx, path: String): FileChecksum {
         return try {
             val checksum = fs.getExtendedAttribute(ctx, path, CHECKSUM_KEY).unwrap()
             val type = fs.getExtendedAttribute(ctx, path, CHECKSUM_TYPE_KEY).unwrap()

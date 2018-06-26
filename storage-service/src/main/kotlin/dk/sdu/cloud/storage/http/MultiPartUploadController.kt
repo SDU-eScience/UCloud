@@ -13,7 +13,8 @@ import dk.sdu.cloud.storage.api.SensitivityLevel
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.BulkUploadService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
-import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.content.PartData
 import io.ktor.content.forEachPart
@@ -25,10 +26,10 @@ import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 
-class MultiPartUploadController(
-    private val commandRunnerFactory: FSCommandRunnerFactory,
-    private val fs: CoreFileSystemService,
-    private val bulkUploadService: BulkUploadService
+class MultiPartUploadController<Ctx : FSUserContext>(
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: CoreFileSystemService<Ctx>,
+    private val bulkUploadService: BulkUploadService<Ctx>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("upload") {

@@ -10,8 +10,6 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.*
-import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
-import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.homeDirectory
 import dk.sdu.cloud.storage.util.joinPath
 import io.ktor.http.HttpStatusCode
@@ -75,22 +73,22 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithShareService(bod
     }
 }
 
-class ShareService(
+class ShareService<Ctx : FSUserContext>(
     private val source: ShareDAO,
-    private val commandRunnerFactory: FSCommandRunnerFactory,
-    private val aclService: ACLService,
-    private val fs: CoreFileSystemService
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val aclService: ACLService<Ctx>,
+    private val fs: CoreFileSystemService<Ctx>
 ) {
 
     suspend fun list(
-        ctx: FSUserContext,
+        ctx: Ctx,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath> {
         return source.list(ctx.user, paging)
     }
 
     suspend fun retrieveShareForPath(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String
     ): SharesByPath {
         val stat = fs.statOrNull(ctx, path, setOf(FileAttribute.OWNER)) ?: throw ShareException.NotFound()
@@ -102,7 +100,7 @@ class ShareService(
     }
 
     suspend fun create(
-        ctx: FSUserContext,
+        ctx: Ctx,
         share: CreateShareRequest,
         cloud: AuthenticatedCloud
     ): ShareId {
@@ -148,7 +146,7 @@ class ShareService(
     }
 
     suspend fun update(
-        ctx: FSUserContext,
+        ctx: Ctx,
         shareId: ShareId,
         newRights: Set<AccessRight>
     ) {
@@ -170,7 +168,7 @@ class ShareService(
     }
 
     suspend fun updateState(
-        ctx: FSUserContext,
+        ctx: Ctx,
         shareId: ShareId,
         newState: ShareState
     ) {

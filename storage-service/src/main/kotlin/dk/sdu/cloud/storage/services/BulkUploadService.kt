@@ -4,7 +4,6 @@ import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.util.CappedInputStream
 import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.joinPath
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
@@ -13,11 +12,11 @@ import java.io.File
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
 
-class BulkUploadService(
-    private val fs: CoreFileSystemService
+class BulkUploadService<Ctx : FSUserContext>(
+    private val fs: CoreFileSystemService<Ctx>
 ) {
     fun bulkUpload(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         format: String,
         policy: WriteConflictPolicy,
@@ -30,7 +29,7 @@ class BulkUploadService(
     }
 
     private fun bulkUploadTarGz(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream

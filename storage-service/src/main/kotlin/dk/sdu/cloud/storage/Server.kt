@@ -46,7 +46,7 @@ class Server(
         val processRunner = CephFSCommandRunnerFactory(cloudToCephFsDao, isDevelopment)
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
 
-        val fs: LowLevelFileSystemInterface = CephFileSystem(cloudToCephFsDao, fsRoot)
+        val fs = CephFileSystem(cloudToCephFsDao, fsRoot)
         val coreFileSystem = CoreFileSystemService(fs, kafka.producer.forStream(StorageEvents.events))
 
         val aclService = ACLService(fs)

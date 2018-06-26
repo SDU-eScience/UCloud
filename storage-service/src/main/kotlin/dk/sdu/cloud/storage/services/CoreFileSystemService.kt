@@ -9,12 +9,12 @@ import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.io.OutputStream
 
-class CoreFileSystemService(
-    private val fs: LowLevelFileSystemInterface,
+class CoreFileSystemService<Ctx : FSUserContext>(
+    private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer
 ) {
     fun <R> write(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         writer: OutputStream.() -> R
@@ -29,7 +29,7 @@ class CoreFileSystemService(
     }
 
     fun <R> read(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         range: IntRange? = null,
         consumer: InputStream.() -> R
@@ -39,7 +39,7 @@ class CoreFileSystemService(
     }
 
     fun copy(
-        ctx: FSUserContext,
+        ctx: Ctx,
         from: String,
         to: String,
         conflictPolicy: WriteConflictPolicy
@@ -68,14 +68,14 @@ class CoreFileSystemService(
     }
 
     fun delete(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String
     ) {
         fs.delete(ctx, path).emitAll()
     }
 
     fun stat(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): FileRow {
@@ -83,7 +83,7 @@ class CoreFileSystemService(
     }
 
     fun statOrNull(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): FileRow? {
@@ -95,7 +95,7 @@ class CoreFileSystemService(
     }
 
     fun listDirectory(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): List<FileRow> {
@@ -103,7 +103,7 @@ class CoreFileSystemService(
     }
 
     fun tree(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): List<FileRow> {
@@ -111,14 +111,14 @@ class CoreFileSystemService(
     }
 
     fun makeDirectory(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String
     ) {
         fs.makeDirectory(ctx, path).emitAll()
     }
 
     fun move(
-        ctx: FSUserContext,
+        ctx: Ctx,
         from: String,
         to: String,
         conflictPolicy: WriteConflictPolicy
@@ -128,7 +128,7 @@ class CoreFileSystemService(
     }
 
     fun exists(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String
     ): Boolean {
         return try {
@@ -140,7 +140,7 @@ class CoreFileSystemService(
     }
 
     fun renameAccordingToPolicy(
-        ctx: FSUserContext,
+        ctx: Ctx,
         desiredTargetPath: String,
         conflictPolicy: WriteConflictPolicy
     ): String {
@@ -165,7 +165,7 @@ class CoreFileSystemService(
     }
 
     fun createSymbolicLink(
-        ctx: FSUserContext,
+        ctx: Ctx,
         targetPath: String,
         linkPath: String
     ) {
@@ -175,7 +175,7 @@ class CoreFileSystemService(
     }
 
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
-    private fun findFreeNameForNewFile(ctx: FSUserContext, desiredPath: String): String {
+    private fun findFreeNameForNewFile(ctx: Ctx, desiredPath: String): String {
         fun findFileNameNoExtension(fileName: String): String {
             return fileName.substringBefore('.')
         }

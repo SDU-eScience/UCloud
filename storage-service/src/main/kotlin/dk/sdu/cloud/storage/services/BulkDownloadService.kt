@@ -3,7 +3,6 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.FSUserContext
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarHeader
 import org.kamranzafar.jtar.TarOutputStream
@@ -11,10 +10,10 @@ import org.slf4j.LoggerFactory
 import java.io.OutputStream
 import java.util.zip.GZIPOutputStream
 
-class BulkDownloadService(
-    private val fs: CoreFileSystemService
+class BulkDownloadService<Ctx : FSUserContext>(
+    private val fs: CoreFileSystemService<Ctx>
 ) {
-    fun downloadFiles(ctx: FSUserContext, prefixPath: String, listOfFiles: List<String>, target: OutputStream) {
+    fun downloadFiles(ctx: Ctx, prefixPath: String, listOfFiles: List<String>, target: OutputStream) {
         TarOutputStream(GZIPOutputStream(target)).use { tarStream ->
             for (path in listOfFiles) {
                 try {

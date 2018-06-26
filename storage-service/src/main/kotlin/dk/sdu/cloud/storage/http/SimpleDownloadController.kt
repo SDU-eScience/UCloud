@@ -10,10 +10,7 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.services.BulkDownloadService
-import dk.sdu.cloud.storage.services.CoreFileSystemService
-import dk.sdu.cloud.storage.services.FileAttribute
-import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.*
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
@@ -31,11 +28,11 @@ import org.slf4j.LoggerFactory
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class SimpleDownloadController(
+class SimpleDownloadController<Ctx : FSUserContext>(
     private val cloud: AuthenticatedCloud,
-    private val commandRunnerFactory: FSCommandRunnerFactory,
-    private val fs: CoreFileSystemService,
-    private val bulkDownloadService: BulkDownloadService
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: CoreFileSystemService<Ctx>,
+    private val bulkDownloadService: BulkDownloadService<Ctx>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {

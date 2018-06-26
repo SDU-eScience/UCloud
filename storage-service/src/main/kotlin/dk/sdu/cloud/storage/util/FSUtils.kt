@@ -3,12 +3,12 @@ package dk.sdu.cloud.storage.util
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.StreamingCommandRunner
-import dk.sdu.cloud.storage.util.TooManyRetries
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import dk.sdu.cloud.storage.services.FSResult
+import dk.sdu.cloud.storage.services.FSUserContext
 import kotlin.math.absoluteValue
 import java.io.File
 import java.net.URI
@@ -75,7 +75,6 @@ fun throwExceptionBasedOnStatus(status: Int): Nothing {
 }
 
 
-typealias FSUserContext = StreamingCommandRunner
 
 sealed class FSException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
     data class BadRequest(val why: String = "") : FSException("Bad request $why")
@@ -97,10 +96,10 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
     }
 }
 
-suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
-    factory: FSCommandRunnerFactory,
+suspend inline fun <Ctx : FSUserContext> RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
+    factory: FSCommandRunnerFactory<Ctx>,
     user: String,
-    body: (FSUserContext) -> Unit
+    body: (Ctx) -> Unit
 ) {
     try {
         factory.withContext(user) { body(it) }

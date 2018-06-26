@@ -2,7 +2,6 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.StorageEvent
-import dk.sdu.cloud.storage.util.FSUserContext
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -30,103 +29,103 @@ sealed class FSACLEntity {
     }
 }
 
-interface LowLevelFileSystemInterface {
+interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     fun copy(
-        ctx: FSUserContext,
+        ctx: Ctx,
         from: String,
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrModified>>
     
     fun move(
-        ctx: FSUserContext,
+        ctx: Ctx,
         from: String,
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.Moved>>
     
     fun listDirectory(
-        ctx: FSUserContext,
+        ctx: Ctx,
         directory: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>>
 
     fun delete(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String
     ): FSResult<List<StorageEvent.Deleted>>
     
     fun openForWriting(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrModified>>
     
     fun <R> write(
-        ctx: FSUserContext,
+        ctx: Ctx,
         writer: (OutputStream) -> R
     ): R
     
     fun tree(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>>
     
     fun makeDirectory(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String
     ): FSResult<List<StorageEvent.CreatedOrModified>>
     
     fun getExtendedAttribute(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         attribute: String
     ): FSResult<String>
     
     fun setExtendedAttribute(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         attribute: String,
         value: String
     ): FSResult<Unit>
 
     fun listExtendedAttribute(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String
     ): FSResult<List<String>>
 
     fun deleteExtendedAttribute(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         attribute: String
     ): FSResult<Unit>
 
     fun stat(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): FSResult<FileRow>
 
     fun openForReading(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String
     ): FSResult<Unit>
 
     fun <R> read(
-        ctx: FSUserContext,
+        ctx: Ctx,
         range: IntRange? = null,
         consumer: (InputStream) -> R
     ): R
 
     fun createSymbolicLink(
-        ctx: FSUserContext,
+        ctx: Ctx,
         targetPath: String,
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrModified>>
 
     fun createACLEntry(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         entity: FSACLEntity,
         rights: Set<AccessRight>,
@@ -135,7 +134,7 @@ interface LowLevelFileSystemInterface {
     ): FSResult<Unit>
 
     fun removeACLEntry(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         entity: FSACLEntity,
         defaultList: Boolean = false,

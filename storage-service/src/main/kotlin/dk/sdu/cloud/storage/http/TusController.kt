@@ -11,7 +11,7 @@ import dk.sdu.cloud.storage.api.TusExtensions
 import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -36,10 +36,10 @@ import org.slf4j.LoggerFactory
 import java.lang.Math.ceil
 import java.util.*
 
-class TusController(
+class TusController<Ctx : FSUserContext>(
     private val tusState: TusStateService,
-    private val commandRunnerFactory: FSCommandRunnerFactory,
-    private val fs: CoreFileSystemService
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: CoreFileSystemService<Ctx>
 ) {
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {

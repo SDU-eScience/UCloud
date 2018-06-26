@@ -8,19 +8,16 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.FindByShareId
 import dk.sdu.cloud.storage.api.ShareDescriptions
 import dk.sdu.cloud.storage.api.ShareState
-import dk.sdu.cloud.storage.services.CoreFileSystemService
-import dk.sdu.cloud.storage.services.ShareService
-import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.tryWithShareService
+import dk.sdu.cloud.storage.services.*
 import io.ktor.application.ApplicationCall
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
-class ShareController(
-    private val shareService: ShareService,
-    private val commandRunnerFactory: FSCommandRunnerFactory,
-    private val fs: CoreFileSystemService
+class ShareController<Ctx : FSUserContext>(
+    private val shareService: ShareService<Ctx>,
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: CoreFileSystemService<Ctx>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("shares") {

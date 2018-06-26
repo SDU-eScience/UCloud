@@ -4,7 +4,6 @@ import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.joinPath
 import dk.sdu.cloud.storage.util.normalize
 import java.io.File
@@ -14,9 +13,9 @@ import java.io.OutputStream
 class CephFileSystem(
     private val userDao: CephFSUserDao,
     private val fsRoot: String
-) : LowLevelFileSystemInterface {
+) : LowLevelFileSystemInterface<StreamingCommandRunner> {
     override fun copy(
-        ctx: FSUserContext,
+        ctx: StreamingCommandRunner,
         from: String,
         to: String,
         allowOverwrite: Boolean
@@ -38,7 +37,7 @@ class CephFileSystem(
     }
 
     override fun move(
-        ctx: FSUserContext,
+        ctx: StreamingCommandRunner,
         from: String,
         to: String,
         allowOverwrite: Boolean
@@ -82,7 +81,7 @@ class CephFileSystem(
     }
 
     override fun listDirectory(
-        ctx: FSUserContext,
+        ctx: StreamingCommandRunner,
         directory: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>> {
@@ -95,7 +94,7 @@ class CephFileSystem(
         )
     }
 
-    override fun delete(ctx: FSUserContext, path: String): FSResult<List<StorageEvent.Deleted>> {
+    override fun delete(ctx: StreamingCommandRunner, path: String): FSResult<List<StorageEvent.Deleted>> {
         val timestamp = System.currentTimeMillis()
         val absolutePath = translateAndCheckFile(path)
 
@@ -111,7 +110,7 @@ class CephFileSystem(
     }
 
     override fun openForWriting(
-        ctx: FSUserContext,
+        ctx: StreamingCommandRunner,
         path: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrModified>> {
@@ -129,13 +128,13 @@ class CephFileSystem(
         )
     }
 
-    override fun <R> write(ctx: FSUserContext, writer: (OutputStream) -> R): R {
+    override fun <R> write(ctx: StreamingCommandRunner, writer: (OutputStream) -> R): R {
         var result: R? = null
         ctx.runCommand(InterpreterCommand.WRITE, writer = { result = writer(it) }, consumer = {})
         return result!!
     }
 
-    override fun tree(ctx: FSUserContext, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {
+    override fun tree(ctx: StreamingCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.TREE,
@@ -145,7 +144,7 @@ class CephFileSystem(
         )
     }
 
-    override fun makeDirectory(ctx: FSUserContext, path: String): FSResult<List<StorageEvent.CreatedOrModified>> {
+    override fun makeDirectory(ctx: StreamingCommandRunner, path: String): FSResult<List<StorageEvent.CreatedOrModified>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.MKDIR,
@@ -159,7 +158,7 @@ class CephFileSystem(
         )
     }
 
-    override fun getExtendedAttribute(ctx: FSUserContext, path: String, attribute: String): FSResult<String> {
+    override fun getExtendedAttribute(ctx: StreamingCommandRunner, path: String, attribute: String): FSResult<String> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.GET_XATTR,
@@ -184,7 +183,7 @@ class CephFileSystem(
     }
 
     override fun setExtendedAttribute(
-        ctx: FSUserContext,
+        ctx: StreamingCommandRunner,
         path: String,
         attribute: String,
         value: String
@@ -199,7 +198,7 @@ class CephFileSystem(
         )
     }
 
-    override fun listExtendedAttribute(ctx: FSUserContext, path: String): FSResult<List<String>> {
+    override fun listExtendedAttribute(ctx: StreamingCommandRunner, path: String): FSResult<List<String>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.LIST_XATTR,
@@ -214,7 +213,7 @@ class CephFileSystem(
         )
     }
 
-    override fun deleteExtendedAttribute(ctx: FSUserContext, path: String, attribute: String): FSResult<Unit> {
+    override fun deleteExtendedAttribute(ctx: StreamingCommandRunner, path: String, attribute: String): FSResult<Unit> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.DELETE_XATTR,
@@ -223,7 +222,7 @@ class CephFileSystem(
         )
     }
 
-    override fun stat(ctx: FSUserContext, path: String, mode: Set<FileAttribute>): FSResult<FileRow> {
+    override fun stat(ctx: StreamingCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.STAT,
@@ -237,7 +236,7 @@ class CephFileSystem(
         )
     }
 
-    override fun openForReading(ctx: FSUserContext, path: String): FSResult<Unit> {
+    override fun openForReading(ctx: StreamingCommandRunner, path: String): FSResult<Unit> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.READ_OPEN,
@@ -246,7 +245,7 @@ class CephFileSystem(
         )
     }
 
-    override fun <R> read(ctx: FSUserContext, range: IntRange?, consumer: (InputStream) -> R): R {
+    override fun <R> read(ctx: StreamingCommandRunner, range: IntRange?, consumer: (InputStream) -> R): R {
         val start = range?.start ?: -1
         val end = range?.endInclusive ?: -1
 
@@ -262,7 +261,7 @@ class CephFileSystem(
     }
 
     override fun createSymbolicLink(
-        ctx: FSUserContext,
+        ctx: StreamingCommandRunner,
         targetPath: String,
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrModified>> {
@@ -283,7 +282,7 @@ class CephFileSystem(
     }
 
     override fun createACLEntry(
-        ctx: FSUserContext,
+        ctx: StreamingCommandRunner,
         path: String,
         entity: FSACLEntity,
         rights: Set<AccessRight>,
@@ -321,7 +320,7 @@ class CephFileSystem(
     }
 
     override fun removeACLEntry(
-        ctx: FSUserContext,
+        ctx: StreamingCommandRunner,
         path: String,
         entity: FSACLEntity,
         defaultList: Boolean,

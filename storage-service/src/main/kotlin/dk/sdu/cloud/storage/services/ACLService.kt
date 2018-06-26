@@ -1,12 +1,11 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.AccessRight
-import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.parents
 
-class ACLService(private val fs: LowLevelFileSystemInterface) {
+class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterface<Ctx>) {
     fun grantRights(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         entity: FSACLEntity,
         rights: Set<AccessRight>
@@ -30,7 +29,7 @@ class ACLService(private val fs: LowLevelFileSystemInterface) {
     }
 
     fun revokeRights(
-        ctx: FSUserContext,
+        ctx: Ctx,
         path: String,
         entity: FSACLEntity
     ) {
