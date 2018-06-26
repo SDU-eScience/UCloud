@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { toLowerCaseAndCapitalize, shortUUID } from "../../UtilityFunctions"
 import { updatePageTitle } from "../../Actions/Status";
 import { Cloud } from "../../../authentication/SDUCloudObject";
@@ -8,19 +8,34 @@ import { List } from "../Pagination/List";
 import { connect } from "react-redux";
 import "../Styling/Shared.scss";
 import { setLoading, fetchAnalyses } from "../../Actions/Analyses";
+import { Page, Analysis } from "../../types/types";
 
-class Analyses extends React.Component {
+interface AnalysesProps {
+    // Redux Store
+    page: Page<Analysis>
+    loading: boolean
+    // Redux Operations
+    updatePageTitle: (title: string) => void
+    setLoading: (loading: boolean) => void
+    fetchAnalyses: (itemsPerPage: number, pageNumber: number) => void
+}
+
+interface AnalysesState {
+    reloadIntervalId: number
+}
+
+class Analyses extends React.Component<AnalysesProps, AnalysesState> {
     constructor(props) {
         super(props);
         this.state = {
             reloadIntervalId: -1
         };
-        this.props.dispatch(updatePageTitle("Results"));
+        this.props.updatePageTitle("Results");
     }
 
     componentDidMount() {
         this.getAnalyses(false);
-        let reloadIntervalId = setInterval(() => {
+        let reloadIntervalId = window.setInterval(() => {
             this.getAnalyses(true)
         }, 10000);
         this.setState({ reloadIntervalId });
@@ -31,15 +46,15 @@ class Analyses extends React.Component {
     }
 
     getAnalyses(silent) {
-        const { dispatch, page } = this.props;
+        const { page } = this.props;
         if (!silent) {
-            dispatch(setLoading(true))
+            this.props.setLoading(true)
         }
-        dispatch(fetchAnalyses(page.itemsPerPage, page.pageNumber));
+        this.props.fetchAnalyses(page.itemsPerPage, page.pageNumber);
     }
 
     render() {
-        const { dispatch, page, loading } = this.props;
+        const { page, loading } = this.props;
         return (
             <React.StrictMode>
                 <List
@@ -55,8 +70,8 @@ class Analyses extends React.Component {
                         </Table>
                     }
                     results={page}
-                    onItemsPerPageChanged={(size) => dispatch(fetchAnalyses(size, 0))}
-                    onPageChanged={(pageNumber) => dispatch(fetchAnalyses(page.itemsPerPage, pageNumber))}
+                    onItemsPerPageChanged={(size) => this.props.fetchAnalyses(size, 0)}
+                    onPageChanged={(pageNumber) => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
                     onRefresh={() => null}
                     onErrorDismiss={() => null}
                 />
@@ -108,5 +123,11 @@ const formatDate = (millis) => {
 
 const pad = (value, length) => (value.toString().length < length) ? pad("0" + value, length) : value;
 
-const mapStateToProps = ({ analyses }) => ({ loading, analyses, analysesPerPage, pageNumber, totalPages } = analyses);
-export default connect(mapStateToProps)(Analyses);
+const mapDispatchToProps = (dispatch) => ({
+    updatePageTitle: () => dispatch(updatePageTitle("Results")),
+    setLoading: (loading: boolean) => dispatch(setLoading(loading)),
+    fetchAnalyses: (itemsPerPage: number, pageNumber: number) => dispatch(fetchAnalyses(itemsPerPage, pageNumber))
+
+})
+const mapStateToProps = (state) => state.analyses;
+export default connect(mapStateToProps, mapDispatchToProps)(Analyses);

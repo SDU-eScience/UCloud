@@ -1,15 +1,40 @@
-import React from "react";
+import * as React from "react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Link } from "react-router-dom";
 import * as Pagination from "../Pagination";
-import { Table, Button, Icon, Container } from "semantic-ui-react";
+import { Table, Button, Icon } from "semantic-ui-react";
 import { getSortingIcon } from "../../UtilityFunctions";
 import { connect } from "react-redux";
 import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
 import { updatePageTitle } from "../../Actions/Status";
 import "../Styling/Shared.scss";
+import { Application } from "../../types/types";
 
-class Applications extends React.Component {
+
+interface ApplicationsState {
+    lastSorting: {
+        name: string
+        asc: boolean
+    }
+}
+
+interface ApplicationsProps {
+    // Redux Store
+    applications: Application[]
+    loading: boolean
+    applicationsPerPage: number
+    currentApplicationsPage: number
+
+    // Redux operations
+    updatePageTitle: () => void
+    setLoading: (loading: boolean) => void
+    fetchApplications: () => void
+    updateApplications: (applications: Application[]) => void
+    toPage: (pageNumber: number) => void
+    updateApplicationsPerPage: (applicationsPerPage: number) => void
+}
+
+class Applications extends React.Component<ApplicationsProps, ApplicationsState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -20,13 +45,12 @@ class Applications extends React.Component {
         };
         this.sortByString = this.sortByString.bind(this);
         this.sortByNumber = this.sortByNumber.bind(this);
-        const { dispatch } = this.props;
-        dispatch(updatePageTitle("Applications"));
-        dispatch(setLoading(true));
-        dispatch(fetchApplications());
+        props.updatePageTitle();
+        props.setLoading(true);
+        props.fetchApplications();
     }
 
-    sortByNumber(name) {
+    sortByNumber(name: string) {
         let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
@@ -39,10 +63,10 @@ class Applications extends React.Component {
                 asc
             }
         }));
-        this.props.dispatch(updateApplications(apps));
+        this.props.updateApplications(apps);
     }
 
-    sortByString(name) {
+    sortByString(name: string) {
         let apps = this.props.applications.slice();
         let asc = !this.state.lastSorting.asc;
         let order = asc ? 1 : -1;
@@ -55,11 +79,11 @@ class Applications extends React.Component {
                 asc
             }
         }));
-        this.props.dispatch(updateApplications(apps));
+        this.props.updateApplications(apps);
     }
 
     render() {
-        const { applications, loading, applicationsPerPage, currentApplicationsPage, dispatch } = this.props;
+        const { applications, loading, applicationsPerPage, currentApplicationsPage, toPage, updateApplicationsPerPage } = this.props;
         const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
         const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage), 0);
         return (
@@ -82,14 +106,13 @@ class Applications extends React.Component {
                         <Table.Row>
                             <Table.Cell>
                                 <Pagination.Buttons
-                                    loading={loading}
-                                    toPage={(page) => dispatch(toPage(page))}
+                                    toPage={(page) => toPage(page)}
                                     currentPage={currentApplicationsPage}
                                     totalPages={totalPages}
                                 />
                                 <Pagination.EntriesPerPageSelector
                                     entriesPerPage={applicationsPerPage}
-                                    onChange={(size) => dispatch(updateApplicationsPerPage(size))}
+                                    onChange={(size) => updateApplicationsPerPage(size)}
                                     content="Applications per page"
                                 />
                             </Table.Cell>
@@ -122,8 +145,15 @@ const SingleApplication = ({ app }) => (
     </Table.Row>
 );
 
-const mapStateToProps = ({ applications }) => {
-    return { applications, loading, applicationsPerPage, currentApplicationsPage } = applications;
-}
 
-export default connect(mapStateToProps)(Applications);
+const mapDispatchToProps = (dispatch) => ({
+    updatePageTitle: () => dispatch(updatePageTitle("Applications")),
+    setLoading: (loading: boolean) => dispatch(setLoading(loading)),
+    fetchApplications: () => dispatch(fetchApplications()),
+    updateApplications: (applications: Application[]) => dispatch(updateApplications(applications)),
+    toPage: (pageNumber: number) => dispatch(toPage(pageNumber)),
+    updateApplicationsPerPage: (applicationsPerPage: number) => dispatch(updateApplicationsPerPage(applicationsPerPage))
+})
+const mapStateToProps = ({ applications }) => applications;
+
+export default connect(mapStateToProps, mapDispatchToProps)(Applications);
