@@ -244,10 +244,10 @@ class Files extends React.Component<FilesProps, FilesState> {
                                 creatingNewFolder={this.state.creatingNewFolder}
                                 handleKeyDown={this.handleKeyDown}
                                 files={page.items}
-                                updateFiles={updateFiles}
                                 onCheckFile={checkFile}
                                 fetchFiles={fetchFiles}
                                 path={path}
+                                onFavoriteFile={(filePath) => updateFiles(uf.favorite(files, filePath, Cloud))}
                                 editFolderIndex={this.state.editFolderIndex}
                                 projectNavigation={projectNavigation}
                                 startEditFile={this.startEditFile}
@@ -293,8 +293,8 @@ class Files extends React.Component<FilesProps, FilesState> {
 
 export const FilesTable = ({
     files, masterCheckBox = null, showFileSelector, setFileSelectorCallback, setDisallowedPaths, startEditFile = null,
-    updateFiles, sortingIcon, editFolderIndex = -1, sortFiles, handleKeyDown, onCheckFile, fetchFiles,
-    projectNavigation = null, path, creatingNewFolder = false, allowCopyAndMove = false
+    sortingIcon, editFolderIndex = -1, sortFiles, handleKeyDown, onCheckFile, fetchFiles,
+    projectNavigation = null, path, creatingNewFolder = false, allowCopyAndMove = false, onFavoriteFile
 }) => {
     return (
         <Table unstackable basic="very" padded="very">
@@ -305,7 +305,7 @@ export const FilesTable = ({
                     <Table.Row className="file-row" key={i}>
                         <FilenameAndIcons
                             file={f}
-                            onFavoriteFile={(filePath) => updateFiles(uf.favorite(files, filePath, Cloud))}
+                            onFavoriteFile={(filePath) => onFavoriteFile(filePath)}
                             beingRenamed={editFolderIndex === i}
                             hasCheckbox={masterCheckBox !== null}
                             onKeyDown={handleKeyDown}
