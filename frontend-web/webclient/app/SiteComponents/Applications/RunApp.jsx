@@ -1,5 +1,5 @@
 import React from "react";
-import { Container, Header, Form, Input, Button } from "semantic-ui-react";
+import { Header, Form, Input, Button } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -9,8 +9,6 @@ import PromiseKeeper from "../../PromiseKeeper";
 import ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
 import { getFilenameFromPath } from "../../UtilityFunctions";
-import { initializeUppy } from "../../DefaultObjects";
-import { updateUppy } from "../../Actions/UppyActions";
 import { updatePageTitle } from "../../Actions/Status";
 import "../Styling/Shared.scss";
 

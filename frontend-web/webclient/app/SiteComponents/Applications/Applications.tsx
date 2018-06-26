@@ -85,40 +85,34 @@ class Applications extends React.Component<ApplicationsProps, ApplicationsState>
     render() {
         const { applications, loading, applicationsPerPage, currentApplicationsPage, toPage, updateApplicationsPerPage } = this.props;
         const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
-        const totalPages = Math.max(Math.ceil(applications.length / applicationsPerPage), 0);
         return (
             <React.Fragment>
-                <DefaultLoading loading={loading} />
-                <Table basic="very">
-                    <Table.Header>
-                        <Table.Row>
-                            <Table.HeaderCell onClick={() => this.sortByString("name")}>
-                                Application Name <Icon name={getSortingIcon(this.state.lastSorting, "name")} />
-                            </Table.HeaderCell>
-                            <Table.HeaderCell onClick={() => this.sortByString("version")}>
-                                Version <Icon name={getSortingIcon(this.state.lastSorting, "version")} />
-                            </Table.HeaderCell>
-                            <Table.HeaderCell />
-                        </Table.Row>
-                    </Table.Header>
-                    <ApplicationsList applications={currentlyShownApplications} />
-                    <Table.Footer>
-                        <Table.Row>
-                            <Table.Cell>
-                                <Pagination.Buttons
-                                    toPage={(page) => toPage(page)}
-                                    currentPage={currentApplicationsPage}
-                                    totalPages={totalPages}
-                                />
-                                <Pagination.EntriesPerPageSelector
-                                    entriesPerPage={applicationsPerPage}
-                                    onChange={(size) => updateApplicationsPerPage(size)}
-                                    content="Applications per page"
-                                />
-                            </Table.Cell>
-                        </Table.Row>
-                    </Table.Footer>
-                </Table>
+                <Pagination.List
+                    loading={loading}
+                    itemsPerPage={applicationsPerPage}
+                    currentPage={currentApplicationsPage}
+                    pageRenderer={(page) =>
+                        (<Table basic="very">
+                            <Table.Header>
+                                <Table.Row>
+                                    <Table.HeaderCell onClick={() => this.sortByString("name")}>
+                                        Application Name <Icon name={getSortingIcon(this.state.lastSorting, "name")} />
+                                    </Table.HeaderCell>
+                                    <Table.HeaderCell onClick={() => this.sortByString("version")}>
+                                        Version <Icon name={getSortingIcon(this.state.lastSorting, "version")} />
+                                    </Table.HeaderCell>
+                                    <Table.HeaderCell />
+                                </Table.Row>
+                            </Table.Header>
+                            <ApplicationsList applications={page.items} />
+                        </Table>)
+                    }
+                    results={{ items: currentlyShownApplications, itemsPerPage: applicationsPerPage, itemsInTotal: applications.length, pageNumber: currentApplicationsPage }} // Remove when pagination is introduced
+                    onItemsPerPageChanged={(size) => updateApplicationsPerPage(size)}
+                    onPageChanged={(page) => toPage(page)}
+                    onRefresh={() => null}
+                    onErrorDismiss={() => null}
+                />
             </React.Fragment>);
     }
 }

@@ -1,5 +1,5 @@
-import React from "react";
-import { Icon, Button } from "semantic-ui-react";
+import * as React from "react";
+import { Icon } from "semantic-ui-react";
 import "loaders.css/loaders.css";
 import "./colors.scss";
 
