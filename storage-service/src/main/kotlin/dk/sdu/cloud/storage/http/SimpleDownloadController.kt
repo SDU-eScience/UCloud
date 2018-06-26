@@ -12,8 +12,8 @@ import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.services.BulkDownloadService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FileAttribute
 import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType

@@ -11,7 +11,6 @@ import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.homeDirectory
 import dk.sdu.cloud.storage.util.joinPath

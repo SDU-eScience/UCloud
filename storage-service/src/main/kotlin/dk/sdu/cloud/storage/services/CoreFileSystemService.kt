@@ -1,8 +1,6 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.*
-import dk.sdu.cloud.storage.services.cephfs.FileAttribute
-import dk.sdu.cloud.storage.services.cephfs.FileRow
 import dk.sdu.cloud.storage.util.*
 import kotlinx.coroutines.experimental.channels.BroadcastChannel
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
@@ -246,11 +244,7 @@ class CoreFileSystemService(
         }
     }
 
-
-
     companion object {
         private val log = LoggerFactory.getLogger(CoreFileSystemService::class.java)
-
-
     }
 }

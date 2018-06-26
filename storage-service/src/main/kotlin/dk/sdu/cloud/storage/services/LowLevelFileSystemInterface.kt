@@ -2,8 +2,6 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.AccessRight
 import dk.sdu.cloud.storage.api.StorageEvent
-import dk.sdu.cloud.storage.services.cephfs.FileAttribute
-import dk.sdu.cloud.storage.services.cephfs.FileRow
 import dk.sdu.cloud.storage.util.FSUserContext
 import java.io.InputStream
 import java.io.OutputStream

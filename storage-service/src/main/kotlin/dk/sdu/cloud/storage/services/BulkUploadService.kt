@@ -2,7 +2,6 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
-import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.util.CappedInputStream
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.FSUserContext

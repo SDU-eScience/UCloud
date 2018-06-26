@@ -11,6 +11,7 @@ import java.nio.charset.Charset
 import java.util.*
 import kotlin.NoSuchElementException
 
+// TODO Move this
 abstract class FSCommandRunnerFactory {
     abstract operator fun invoke(user: String): StreamingCommandRunner
 

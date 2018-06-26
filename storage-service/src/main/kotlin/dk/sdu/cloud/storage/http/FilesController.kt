@@ -10,12 +10,8 @@ import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
-import dk.sdu.cloud.storage.services.CoreFileSystemService
-import dk.sdu.cloud.storage.services.FavoriteService
-import dk.sdu.cloud.storage.services.FileAnnotationService
+import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.services.cephfs.FSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.cephfs.FileAttribute
-import dk.sdu.cloud.storage.services.cephfs.FileRow
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -178,7 +174,7 @@ class FilesController(
                                 appendToken(if (hasChecksum) '1' else '0')
                                 if (hasChecksum) {
                                     appendToken(it.checksum.checksum)
-                                    appendToken(it.checksum.type)
+                                    appendToken(it.checksum.algorithm)
                                 }
 
                                 // Must be last entry (path may contain commas)

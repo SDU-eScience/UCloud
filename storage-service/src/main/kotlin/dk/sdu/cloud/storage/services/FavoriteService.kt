@@ -1,6 +1,5 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.services.cephfs.FileAttribute
 import dk.sdu.cloud.storage.util.FSUserContext
 import dk.sdu.cloud.storage.util.favoritesDirectory
 import dk.sdu.cloud.storage.util.fileName

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 
+// TODO Interface this
 class CephFSUserDao(private val isDevelopment: Boolean) {
     private val cloudToUser = HashMap<String, String>()
     private val userToCloud = HashMap<String, String>()
