@@ -47,7 +47,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string) => {
 };
 
 export function sortByNumber<T>(list: T[], name: string, asc: boolean): T[] {
-    list.sort((a: any, b: any) => (Number(a[name]) - (Number(b[name]))) * (asc ? -1 : 1));
+    list.sort((a: T, b: T) => (Number(a[name]) - (Number(b[name]))) * (asc ? -1 : 1));
     return list;
 }
 

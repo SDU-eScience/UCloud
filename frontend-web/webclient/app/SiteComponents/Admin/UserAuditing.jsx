@@ -1,5 +1,4 @@
 import React from "react";
-import LoadingIcon from "../LoadingIcon/LoadingIcon";
 import {Button} from "semantic-ui-react";
 
 class UserAuditing extends React.Component {

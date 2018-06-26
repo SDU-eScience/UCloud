@@ -16,6 +16,7 @@ import ZenodoPublish from "./Zenodo/Publish";
 import ZenodoHome from "./Zenodo/Zenodo";
 import ZenodoInfo from "./Zenodo/Info";
 import UppyWrapper from "./UppyWrapper";
+import UserCreation from "./Admin/UserCreation";
 import * as Share from "./Shares";
 import * as Metadata from "./Metadata";
 
@@ -43,6 +44,7 @@ const Core = () => (
                 <Route exact path="/metadata/edit/*" component={Metadata.CreateUpdate} />
                 <Route exact path="/metadata/search/:query?" component={Metadata.Search} />
                 <Route exact path="/metadata/*" component={Metadata.ManagedView} />
+                <Route exact path="/admin/usercreation" component={UserCreation} />
                 <Route component={NotFound} />
             </Switch>
             <div className="footer">
