@@ -420,6 +420,7 @@ export function FilenameAndIcons({ file, beingRenamed = null, size = "big", onKe
         <Link to={`/files/${file.path}`}>
             {fileName}
         </Link> : fileName);
+    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_e, { checked }) => onCheckFile(checked, file)} />
     const icon = (
         <FileIcon
             color={color}
@@ -430,6 +431,7 @@ export function FilenameAndIcons({ file, beingRenamed = null, size = "big", onKe
     );
     return beingRenamed ?
         <Table.Cell className="table-cell-padding-left">
+            {checkbox}
             {icon}
             <Input
                 defaultValue={fileName}
@@ -440,7 +442,7 @@ export function FilenameAndIcons({ file, beingRenamed = null, size = "big", onKe
             />
         </Table.Cell> :
         <Table.Cell className="table-cell-padding-left">
-            <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_e, { checked }) => onCheckFile(checked, file)} />
+            {checkbox}
             {icon}{nameLink}
             <PredicatedFavorite predicate={!!onFavoriteFile} file={file} onClick={() => onFavoriteFile(file.path)} />
             <GroupIcon isProject={uf.isProject(file)} />
