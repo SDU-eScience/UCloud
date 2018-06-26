@@ -87,7 +87,9 @@ class BulkUploadService<Ctx : FSUserContext>(
                                 val parentDir = File(targetPath).parentFile.path
                                 if (parentDir !in createdDirectories) {
                                     createdDirectories += parentDir
-                                    fs.makeDirectory(ctx, parentDir)
+                                    try {
+                                        fs.makeDirectory(ctx, parentDir)
+                                    } catch (ex: FSException.AlreadyExists) {}
                                 }
 
                                 fs.write(ctx, targetPath, conflictPolicy) { cappedStream.copyTo(this) }
