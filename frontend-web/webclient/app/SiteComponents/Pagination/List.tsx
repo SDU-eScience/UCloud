@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Grid, Message, Header, Pagination, Dropdown } from "semantic-ui-react";
+import { Grid, Message, Header } from "semantic-ui-react";
 import { Page } from "../../types/types";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import * as Self from ".";

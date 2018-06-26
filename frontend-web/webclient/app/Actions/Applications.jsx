@@ -1,5 +1,5 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { genericFailureNotification } from "../UtilityFunctions";
+import { failureNotification } from "../UtilityFunctions";
 import { RECEIVE_APPLICATIONS, SET_APPLICATIONS_LOADING, TO_APPLICATIONS_PAGE, UPDATE_APPLICATIONS_PER_PAGE, UPDATE_APPLICATIONS } from "../Reducers/Applications";
 
 const receiveApplications = (applications) => ({
@@ -13,7 +13,7 @@ export const fetchApplications = () =>
             a.prettyName.localeCompare(b.prettyName)
         );
         return receiveApplications(response);
-    }).catch(() => genericFailureNotification());
+    }).catch(() => failureNotification("An error occurred while retrieving applications."));
 
 export const setLoading = (loading) => ({
     type: SET_APPLICATIONS_LOADING,

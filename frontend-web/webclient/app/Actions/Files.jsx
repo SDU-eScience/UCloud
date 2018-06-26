@@ -93,7 +93,7 @@ export const fetchFileselectorFiles = (path) =>
         response.forEach(file => file.isChecked = false);
         response = sortFilesByTypeAndName(response, true);
         return receiveFileSelectorFiles(response, path);
-    }).catch(() => genericFailureNotification());
+    }).catch(() => failureNotification("An error occurred when fetching files for fileselection"));
 
 export const setFileSelectorLoading = () => ({
     type: SET_FILE_SELECTOR_LOADING

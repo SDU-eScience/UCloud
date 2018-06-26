@@ -140,7 +140,7 @@ export default class SDUCloud {
 
     get homeFolder() {
         let username = this.username;
-        return `/home/${username}`
+        return `/home/${username}/`
     }
 
     get jobFolder() {

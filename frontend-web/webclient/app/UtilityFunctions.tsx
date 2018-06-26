@@ -106,8 +106,6 @@ export const failureNotification = (title: string) => swal({
     title
 });
 
-export const genericFailureNotification = () => failureNotification("An error occurred, please try again later.");
-
 export const successNotification = (title: string) => swal({
     toast: true,
     position: "top-end",
@@ -405,6 +403,7 @@ const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) 
     });
 };
 
+export const canBeProject = (file: File, homeFolder: string) => isDirectory(file) && !isFixedFolder(file.path, homeFolder) && !isLink(file);
 export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
 
 export const toFileText = (selectedFiles: File[]): string =>

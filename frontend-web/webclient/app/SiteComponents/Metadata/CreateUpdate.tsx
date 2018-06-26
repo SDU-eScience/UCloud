@@ -45,9 +45,9 @@ interface CreateUpdateProps {
 export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     constructor(props, ctx) {
         super(props);
-        const urlPath = props.match.params[0];
+        const path = props.match.params[0];
         this.state = {
-            path: urlPath,
+            path,
             title: "",
             description: "",
             license: null,
@@ -71,29 +71,40 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     }
 
     componentDidMount() {
-        getByPath(this.state.path).then(it => {
-            const md = it.metadata;
-            const license = allLicenses.find(it => it.identifier == md.license);
-            const mappedLicense = license ? {
-                title: license.name,
-                link: license.link,
-                identifier: license.identifier
-            } : null;
+        getByPath(this.state.path).then(it => this.setMetadata(it, this.state.path));
+    }
 
-            this.setState({
-                id: md.id,
-                title: md.title,
-                description: md.description,
-                license: mappedLicense,
-                keywords: md.keywords ? md.keywords : [""],
-                notes: md.notes ? md.notes : "",
-                contributors: md.contributors ? md.contributors : [newCollaborator()],
-                references: md.references ? md.references : [""],
-                grants: md.grants ? md.grants.map(it => it ? it.id : "") : [""],
-                subjects: md.subjects ? md.subjects : [newSubject()],
-                relatedIdentifiers: md.relatedIdentifiers ? md.relatedIdentifiers : [newIdentifier()]
-            });
-        });
+    setMetadata(it, path) {
+        const md = it.metadata;
+        const license = allLicenses.find(it => it.identifier == md.license);
+        const mappedLicense = license ? {
+            title: license.name,
+            link: license.link,
+            identifier: license.identifier
+        } : null;
+
+        this.setState(() => ({
+            path,
+            id: md.id,
+            title: md.title,
+            description: md.description,
+            license: mappedLicense,
+            keywords: md.keywords ? md.keywords : [""],
+            notes: md.notes ? md.notes : "",
+            contributors: md.contributors ? md.contributors : [newCollaborator()],
+            references: md.references ? md.references : [""],
+            grants: md.grants ? md.grants.map(it => it ? it.id : "") : [""],
+            subjects: md.subjects ? md.subjects : [newSubject()],
+            relatedIdentifiers: md.relatedIdentifiers ? md.relatedIdentifiers : [newIdentifier()]
+        }));
+    };
+
+    shouldComponentUpdate(nextProps, _nextState) {
+        if (nextProps.match.params[0] !== this.state.path) {
+            const path = nextProps.match.params[0];
+            getByPath(path).then(it => this.setMetadata(it, path))
+        }
+        return true;
     }
 
     onSubmit(e) {

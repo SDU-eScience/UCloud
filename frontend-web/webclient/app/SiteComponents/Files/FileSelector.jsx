@@ -198,7 +198,7 @@ export const FileSelectorModal = (props) => (
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...props }) => {
     const files = (onlyAllowFolders ?
-        props.files.filter(f => uf.isDirectory(f)) : props.files)
+        props.files.filter(f => uf.isDirectory(f)) : props.files) // Rewrite. This is unreadable
         .filter((it) => !disallowedPaths.some((d) => d === it.path));
     // FIXME removetrailingslash usage needed?
     return (

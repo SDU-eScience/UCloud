@@ -5,9 +5,7 @@ import { Cloud } from "../../../authentication/SDUCloudObject";
 
 interface Breadcrumbs { currentPath: string, navigate: (path: string) => void }
 export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
-    if (!currentPath) {
-        return null;
-    }
+    if (!currentPath) return null;
     const pathsMapping = buildBreadCrumbs(currentPath);
     const activePathsMapping = pathsMapping.pop()
     const breadcrumbs = pathsMapping.map((path, index) => (
@@ -37,7 +35,7 @@ type BreadCrumbMapping = {
 
 export function buildBreadCrumbs(path: string) {
     const paths = path.split("/").filter((path: string) => path);
-    let pathsMapping = [];
+    let pathsMapping = [] as BreadCrumbMapping[];
     for (let i = 0; i < paths.length; i++) {
         let actualPath = "/";
         for (let j = 0; j <= i; j++) {

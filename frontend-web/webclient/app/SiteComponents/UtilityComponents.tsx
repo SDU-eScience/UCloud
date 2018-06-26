@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Icon } from "semantic-ui-react";
 
-export const FileIcon = ({ name, size, link = false, color }) =>
+export const FileIcon = ({ name, size, link = false, className, color }) =>
     link ?
-        <Icon.Group size={size}>
+        <Icon.Group className={className} size={size}>
             <Icon name={name} color={color} />
             <Icon corner color="grey" name="share" />
         </Icon.Group> :

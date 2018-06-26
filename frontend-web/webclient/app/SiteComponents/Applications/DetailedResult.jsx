@@ -169,7 +169,7 @@ class DetailedResult extends React.Component {
                 domEntries.push(
                     <List.Item key="app-info itemPadding" className="itemPadding">
                         <List.Content>
-                            Application has completed successfully.Click <Link
+                            Application has completed successfully. Click <Link
                                 to={`/files//home/${Cloud.username}/Jobs/${this.jobId}`}> here</Link> to go to the output.
                             </List.Content>
                     </List.Item >
@@ -258,7 +258,7 @@ class DetailedResult extends React.Component {
         return (
             <div>
                 <h4>Output Files</h4>
-                <FilesTable files={this.state.files} forceInlineButtons />
+                <FilesTable files={this.state.files} sortingIcon={() => null} />
             </div>
         );
     }
