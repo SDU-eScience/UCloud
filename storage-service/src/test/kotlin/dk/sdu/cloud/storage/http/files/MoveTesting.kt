@@ -48,7 +48,7 @@ class MoveTesting {
                     assertEquals(HttpStatusCode.OK, response.status())
 
                     val response2 = move(fileToMove, newLocation)
-                    assertEquals(HttpStatusCode.Conflict, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
                 }
             )

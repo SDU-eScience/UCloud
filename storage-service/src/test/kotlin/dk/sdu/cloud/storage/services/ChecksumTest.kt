@@ -1,35 +1,35 @@
 package dk.sdu.cloud.storage.services
 
-
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import io.mockk.mockk
 import org.junit.Assert
 import org.junit.Test
 
 class ChecksumTest {
+    private fun createService(root: String): Pair<CephFSCommandRunnerFactory, ChecksumService<CephFSCommandRunner>> {
+        val (runner, fs) = cephFSWithRelaxedMocks(root)
+        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
+        return Pair(runner, ChecksumService(runner, fs, coreFs))
+    }
 
     @Test
     fun testChecksumSHA1() {
-
         val fsRoot = createDummyFS()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath
-        )
-        val cs = ChecksumService(fs)
-        val checksum = fs.withContext("user1") {
-            cs.computeAndAttachChecksum(it, "home/user1/folder/a")
+        val (runner, service) = createService(fsRoot.absolutePath)
+        val checksum = runner.withContext("user1") {
+            service.computeAndAttachChecksum(it, "home/user1/folder/a")
         }
         Assert.assertTrue(checksum.checksum == "01C77500CC529C8D85A620C9FEF013496A702B83".toLowerCase())
     }
 
     @Test (expected = IllegalArgumentException::class)
     fun illegalAlgorithm() {
-
         val fsRoot = createDummyFS()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath
-        )
-        val cs = ChecksumService(fs)
-        val checksum = fs.withContext("user1") {
-            cs.computeAndAttachChecksum(it, "home/user1/folder/a", "BOGUS")
+        val (runner, service) = createService(fsRoot.absolutePath)
+
+        val checksum = runner.withContext("user1") {
+            service.computeAndAttachChecksum(it, "home/user1/folder/a", "BOGUS")
         }
         Assert.assertFalse(checksum.checksum == "01C77500CC529C8D85A620C9FEF013496A702B83".toLowerCase())
     }

@@ -4,7 +4,6 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.cephfs.StreamingCommandRunner
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import dk.sdu.cloud.storage.services.FSResult
@@ -51,8 +50,6 @@ fun relativize(rootPath: String, absolutePath: String): String {
     return URI(rootPath).relativize(URI(absolutePath)).path
 }
 
-
-
 fun <T> FSResult<T>.unwrap(): T {
     if (statusCode != 0) {
         throwExceptionBasedOnStatus(statusCode)
@@ -73,8 +70,6 @@ fun throwExceptionBasedOnStatus(status: Int): Nothing {
         else -> throw FSException.CriticalException("Unknown status code $status")
     }
 }
-
-
 
 sealed class FSException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
     data class BadRequest(val why: String = "") : FSException("Bad request $why")
@@ -146,4 +141,4 @@ suspend fun RESTHandler<*, *, CommonErrorMessage>.handleFSException(ex: Exceptio
     }
 }
 
-val fsLog = LoggerFactory.getLogger("dk.sdu.cloud.storage.services.FileSystemServiceKt")
+val fsLog = LoggerFactory.getLogger("dk.sdu.cloud.storage.services.FileSystemServiceKt")!!

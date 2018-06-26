@@ -4,7 +4,7 @@
 int stat_command(const char *path, uint64_t mode) {
     struct stat s{};
     auto result = lstat(path, &s);
-    if (result != 0) return result;
+    if (result != 0) return -errno;
 
     if (mode == 0) {
         mode = FILE_TYPE |

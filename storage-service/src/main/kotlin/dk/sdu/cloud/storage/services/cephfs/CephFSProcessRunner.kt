@@ -3,9 +3,9 @@ package dk.sdu.cloud.storage.services.cephfs
 import dk.sdu.cloud.service.GuardedOutputStream
 import dk.sdu.cloud.storage.services.CommandRunner
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.util.BoundaryContainedStream
 import org.slf4j.LoggerFactory
-import java.io.Closeable
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.Charset
@@ -13,19 +13,19 @@ import java.util.*
 import kotlin.NoSuchElementException
 
 class CephFSCommandRunnerFactory(
-    private val userDao: CephFSUserDao,
+    private val userDao: StorageUserDao,
     private val isDevelopment: Boolean
-) : FSCommandRunnerFactory<StreamingCommandRunner>() {
-    override fun invoke(user: String): StreamingCommandRunner {
-        return StreamingCommandRunner(userDao, isDevelopment, user)
+) : FSCommandRunnerFactory<CephFSCommandRunner>() {
+    override fun invoke(user: String): CephFSCommandRunner {
+        return CephFSCommandRunner(userDao, isDevelopment, user)
     }
 }
 
 @Suppress("unused")
 data class ProcessRunnerAttributeKey<T>(val name: String)
 
-class StreamingCommandRunner(
-    private val cephFSUserDao: CephFSUserDao,
+class CephFSCommandRunner(
+    private val cephFSUserDao: StorageUserDao,
     private val isDevelopment: Boolean,
     override val user: String
 ) : CommandRunner {
@@ -35,7 +35,7 @@ class StreamingCommandRunner(
     private val serverBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
 
     private val interpreter: Process = run {
-        val unixUser = cephFSUserDao.findUnixUser(user) ?: throw IllegalStateException("Could not find user")
+        val unixUser = cephFSUserDao.findStorageUser(user) ?: throw IllegalStateException("Could not find user")
         val prefix = if (isDevelopment) emptyList() else listOf("sudo", "-u", unixUser)
         val command = listOf(
             "ceph-interpreter",
@@ -85,7 +85,7 @@ class StreamingCommandRunner(
         command: InterpreterCommand,
         vararg args: String,
         writer: (OutputStream) -> Unit = {},
-        consumer: (StreamingCommandRunner) -> T
+        consumer: (CephFSCommandRunner) -> T
     ): T {
         log.debug("Running command: $command ${args.joinToString(" ")}")
 
@@ -128,7 +128,7 @@ class StreamingCommandRunner(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(StreamingCommandRunner::class.java)
+        private val log = LoggerFactory.getLogger(CephFSCommandRunner::class.java)
     }
 }
 

@@ -6,11 +6,11 @@ import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.storage.api.StorageEventProducer
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.http.FilesController
-import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
-import dk.sdu.cloud.storage.services.createDummyFS
+import dk.sdu.cloud.storage.services.*
 import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.http.HttpHeaders
@@ -29,12 +29,17 @@ fun Application.configureServerWithFileController() {
 
     installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
     install(JWTProtection)
+
     val fsRoot = createDummyFS()
-    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+    val (runner, fs) = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+    val eventProducer = mockk<StorageEventProducer>(relaxed = true)
+    val coreFs = CoreFileSystemService(fs, eventProducer)
+    val annotationService = FileAnnotationService(fs)
+    val favoriteService = FavoriteService(coreFs)
 
     routing {
         route("api") {
-            FilesController(fs).configure(this)
+            FilesController(runner, coreFs, annotationService, favoriteService).configure(this)
         }
     }
 }

@@ -1,15 +1,15 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.StorageEventProducer
-import dk.sdu.cloud.storage.services.cephfs.*
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
 import io.mockk.every
 import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 
-fun simpleCloudToCephFSDao(): CephFSUserDao {
-    val dao = mockk<CephFSUserDao>()
-    every { dao.findUnixUser(any()) } answers {
+fun simpleCloudToCephFSDao(): StorageUserDao {
+    val dao = mockk<StorageUserDao>()
+    every { dao.findStorageUser(any()) } answers {
         firstArg() as String
     }
 
@@ -19,29 +19,24 @@ fun simpleCloudToCephFSDao(): CephFSUserDao {
     return dao
 }
 
-fun cloudToCephFsDAOWithFixedAnswer(answer: String): CephFSUserDao {
-    val dao = mockk<CephFSUserDao>()
-    every { dao.findUnixUser(any()) } returns answer
+fun cloudToCephFsDAOWithFixedAnswer(answer: String): StorageUserDao {
+    val dao = mockk<StorageUserDao>()
+    every { dao.findStorageUser(any()) } returns answer
     every { dao.findCloudUser(any()) } returns answer
     return dao
 }
 
 fun cephFSWithRelaxedMocks(
     fsRoot: String,
-    cephFSUserDao: CephFSUserDao = simpleCloudToCephFSDao(),
-    FSCommandRunner: FSCommandRunnerFactory = CephFSCommandRunnerFactory(
-        cephFSUserDao,
-        true
-    ),
-    fileACLService: FileACLService = mockk(relaxed = true),
-    eventProducer: StorageEventProducer = mockk(relaxed = true)
-): CephFSFileSystemService {
-    return CephFSFileSystemService(
-        cephFSUserDao,
-        FSCommandRunner,
-        fileACLService,
-        fsRoot,
-        eventProducer
+    userDao: StorageUserDao = simpleCloudToCephFSDao()
+): Pair<CephFSCommandRunnerFactory, CephFileSystem> {
+    val commandRunner = CephFSCommandRunnerFactory(userDao, true)
+    return Pair(
+        commandRunner,
+        CephFileSystem(
+            userDao,
+            fsRoot
+        )
     )
 }
 
@@ -69,7 +64,7 @@ fun createDummyFS(): File {
                 mkdir("another-one") {
                     touch("file")
                 }
-                mkdir("Favorites"){}
+                mkdir("Favorites") {}
             }
         }
     }

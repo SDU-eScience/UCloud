@@ -89,7 +89,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     ): FileRow? {
         return try {
             stat(ctx, path, mode)
-        } catch (ex: FSException.AlreadyExists) {
+        } catch (ex: FSException.NotFound) {
             null
         }
     }
@@ -171,7 +171,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     ) {
         // TODO Automatic renaming... Not a good idea
         val targetLocation = findFreeNameForNewFile(ctx, linkPath)
-        fs.createSymbolicLink(ctx, targetPath, targetLocation).unwrap()
+        fs.createSymbolicLink(ctx, targetPath, targetLocation).emitAll()
     }
 
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")

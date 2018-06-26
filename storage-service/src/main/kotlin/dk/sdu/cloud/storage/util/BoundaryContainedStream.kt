@@ -67,6 +67,7 @@ class BoundaryContainedStream(
 
             preclearedBytes -= min
             clearedBytes = min.toInt()
+            assert(clearedBytes >= 0)
 
             if (preclearedBytes == 0L) preclaredRecentlyEmptied = true
 
@@ -77,9 +78,11 @@ class BoundaryContainedStream(
             val offset = searcher.search(internalBuffer, internalPointer, internalBufferSize)
             if (offset == -1) {
                 clearedBytes = if (boundaryBytes.size > len) len else len - (boundaryBytes.size - 1)
+                assert(clearedBytes >= 0)
                 false
             } else {
                 clearedBytes = offset - internalPointer
+                assert(clearedBytes >= 0)
                 true
             }
         }
@@ -115,6 +118,8 @@ class BoundaryContainedStream(
             // Do a complete read
             internalBufferSize = delegate.read(internalBuffer)
             internalPointer = 0
+
+            if (internalBufferSize == -1) throw IllegalStateException("Unexpected end of stream. Boundary not found")
         }
     }
 
@@ -140,10 +145,15 @@ class BoundaryContainedStream(
             System.arraycopy(internalBuffer, internalPointer, b, off, bytesToMove)
             internalPointer += bytesToMove
             clearedBytes -= bytesToMove
+            assert(clearedBytes >= 0)
             return bytesToMove
         } else if (!boundaryFound) {
             readMoreData()
-            boundaryFound = clearAsMuchAsPossible()
+            if (internalBufferSize == -1) {
+                throw IllegalStateException("Unexpected end of stream")
+            } else {
+                boundaryFound = clearAsMuchAsPossible()
+            }
 
             if (clearedBytes <= 0) {
                 -1
@@ -152,6 +162,7 @@ class BoundaryContainedStream(
                 System.arraycopy(internalBuffer, internalPointer, b, off, bytesToMove)
                 internalPointer += bytesToMove
                 clearedBytes -= bytesToMove
+                assert(clearedBytes >= 0)
                 return bytesToMove
             }
         } else {

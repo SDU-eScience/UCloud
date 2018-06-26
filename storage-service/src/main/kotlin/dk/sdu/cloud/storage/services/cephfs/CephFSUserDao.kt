@@ -3,12 +3,12 @@ package dk.sdu.cloud.storage.services.cephfs
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.storage.services.StorageUserDao
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
 
-// TODO Interface this
-class CephFSUserDao(private val isDevelopment: Boolean) {
+class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     private val cloudToUser = HashMap<String, String>()
     private val userToCloud = HashMap<String, String>()
 
@@ -37,7 +37,7 @@ class CephFSUserDao(private val isDevelopment: Boolean) {
         }
     }
 
-    fun findCloudUser(unixUser: String, verify: Boolean = false): String? {
+    override fun findCloudUser(unixUser: String, verify: Boolean): String? {
         if (verify) TODO("Username verification not yet implemented")
 
         if (unixUser.startsWith(B64_PREFIX)) {
@@ -49,7 +49,7 @@ class CephFSUserDao(private val isDevelopment: Boolean) {
         }
     }
 
-    fun findUnixUser(cloudUser: String, verify: Boolean = false): String? {
+    override fun findStorageUser(cloudUser: String, verify: Boolean): String? {
         if (verify) TODO("Username verification not yet implemented")
 
         return if (isDevelopment) {

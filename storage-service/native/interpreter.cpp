@@ -293,8 +293,9 @@ void write_command() {
         read = stdin_read(write_buffer, write_buffer_size);
     }
     close(out_file);
-
     free(write_buffer);
+
+    file_opened_for_writing = -1;
 }
 
 static int file_opened_for_reading = -1;
@@ -360,6 +361,8 @@ void read_command(int64_t start, int64_t max) {
 
     if (in_file > 0) close(in_file);
     free(read_buffer);
+
+    file_opened_for_reading = -1;
 }
 
 int main(int argc, char **argv) {

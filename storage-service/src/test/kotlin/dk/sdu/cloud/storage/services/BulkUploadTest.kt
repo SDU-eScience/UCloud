@@ -1,6 +1,8 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import io.mockk.mockk
 import junit.framework.Assert.*
 import org.junit.Test
@@ -58,6 +60,12 @@ class BulkUploadTest {
         }
     }
 
+    private fun createService(root: String): Pair<CephFSCommandRunnerFactory, BulkUploadService<CephFSCommandRunner>> {
+        val (runner, fs) = cephFSWithRelaxedMocks(root)
+        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
+        return Pair(runner, BulkUploadService(coreFs))
+    }
+
     @Test
     fun testSimpleUpload() {
         val fsRoot = createFileSystem {
@@ -73,10 +81,10 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-        val upload = BulkUploadService(fs, mockk(relaxed = true))
-        upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+        val (runner, service) = createService(fsRoot.absolutePath)
+        runner.withContext("user") {
+            service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+        }
 
         val homeDir = File(fsRoot, "/home/user")
         assertTrue(homeDir.exists())
@@ -110,30 +118,30 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+        val (runner, service) = createService(fsRoot.absolutePath)
+        runner.withContext("user") {
+            val result =
+                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.RENAME, tarFile.inputStream())
 
-        val upload = BulkUploadService(fs, mockk(relaxed = true))
-        val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.RENAME, tarFile.inputStream())
+            val homeDir = File(fsRoot, "/home/user")
+            assertTrue(homeDir.exists())
 
-        val homeDir = File(fsRoot, "/home/user")
-        assertTrue(homeDir.exists())
+            val testDir = File(homeDir, "test")
+            assertTrue(testDir.exists())
+            assertTrue(testDir.isDirectory)
 
-        val testDir = File(homeDir, "test")
-        assertTrue(testDir.exists())
-        assertTrue(testDir.isDirectory)
+            val origTestFile = File(testDir, "file")
+            assertTrue(origTestFile.exists())
+            assertFalse(origTestFile.isDirectory)
+            assertEquals(originalContents, origTestFile.readText())
 
-        val origTestFile = File(testDir, "file")
-        assertTrue(origTestFile.exists())
-        assertFalse(origTestFile.isDirectory)
-        assertEquals(originalContents, origTestFile.readText())
+            val testFile = File(testDir, "file(1)")
+            assertTrue(testFile.exists())
+            assertFalse(testFile.isDirectory)
+            assertEquals("hello!", testFile.readText())
 
-        val testFile = File(testDir, "file(1)")
-        assertTrue(testFile.exists())
-        assertFalse(testFile.isDirectory)
-        assertEquals("hello!", testFile.readText())
-
-        assertEquals(0, result.size)
+            assertEquals(0, result.size)
+        }
     }
 
     @Test
@@ -155,25 +163,25 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+        val (runner, service) = createService(fsRoot.absolutePath)
+        runner.withContext("user") {
+            val result =
+                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
-        val upload = BulkUploadService(fs, mockk(relaxed = true))
-        val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+            val homeDir = File(fsRoot, "/home/user")
+            assertTrue(homeDir.exists())
 
-        val homeDir = File(fsRoot, "/home/user")
-        assertTrue(homeDir.exists())
+            val testDir = File(homeDir, "test")
+            assertTrue(testDir.exists())
+            assertTrue(testDir.isDirectory)
 
-        val testDir = File(homeDir, "test")
-        assertTrue(testDir.exists())
-        assertTrue(testDir.isDirectory)
+            val origTestFile = File(testDir, "file")
+            assertTrue(origTestFile.exists())
+            assertFalse(origTestFile.isDirectory)
+            assertEquals("hello!", origTestFile.readText())
 
-        val origTestFile = File(testDir, "file")
-        assertTrue(origTestFile.exists())
-        assertFalse(origTestFile.isDirectory)
-        assertEquals("hello!", origTestFile.readText())
-
-        assertEquals(0, result.size)
+            assertEquals(0, result.size)
+        }
     }
 
     @Test
@@ -195,26 +203,26 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+        val (runner, service) = createService(fsRoot.absolutePath)
+        runner.withContext("user") {
+            val result =
+                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.REJECT, tarFile.inputStream())
 
-        val upload = BulkUploadService(fs, mockk(relaxed = true))
-        val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.REJECT, tarFile.inputStream())
+            val homeDir = File(fsRoot, "/home/user")
+            assertTrue(homeDir.exists())
 
-        val homeDir = File(fsRoot, "/home/user")
-        assertTrue(homeDir.exists())
+            val testDir = File(homeDir, "test")
+            assertTrue(testDir.exists())
+            assertTrue(testDir.isDirectory)
 
-        val testDir = File(homeDir, "test")
-        assertTrue(testDir.exists())
-        assertTrue(testDir.isDirectory)
+            val origTestFile = File(testDir, "file")
+            assertTrue(origTestFile.exists())
+            assertFalse(origTestFile.isDirectory)
+            assertEquals(originalContents, origTestFile.readText())
 
-        val origTestFile = File(testDir, "file")
-        assertTrue(origTestFile.exists())
-        assertFalse(origTestFile.isDirectory)
-        assertEquals(originalContents, origTestFile.readText())
-
-        assertEquals(1, result.size)
-        assertEquals(listOf("/home/user/test/file"), result)
+            assertEquals(1, result.size)
+            assertEquals(listOf("/home/user/test/file"), result)
+        }
     }
 
     @Test
@@ -237,26 +245,26 @@ class BulkUploadTest {
             putFile("test/file/foo", "contents")
         }
 
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+        val (runner, service) = createService(fsRoot.absolutePath)
+        runner.withContext("user") {
+            val result =
+                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
-        val upload = BulkUploadService(fs, mockk(relaxed = true))
-        val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+            val homeDir = File(fsRoot, "/home/user")
+            assertTrue(homeDir.exists())
 
-        val homeDir = File(fsRoot, "/home/user")
-        assertTrue(homeDir.exists())
+            val testDir = File(homeDir, "test")
+            assertTrue(testDir.exists())
+            assertTrue(testDir.isDirectory)
 
-        val testDir = File(homeDir, "test")
-        assertTrue(testDir.exists())
-        assertTrue(testDir.isDirectory)
+            val origTestFile = File(testDir, "file")
+            assertTrue(origTestFile.exists())
+            assertFalse(origTestFile.isDirectory)
+            assertEquals(originalContents, origTestFile.readText())
 
-        val origTestFile = File(testDir, "file")
-        assertTrue(origTestFile.exists())
-        assertFalse(origTestFile.isDirectory)
-        assertEquals(originalContents, origTestFile.readText())
-
-        assertEquals(1, result.size)
-        assertEquals(listOf("/home/user/test/file/foo"), result)
+            assertEquals(1, result.size)
+            assertEquals(listOf("/home/user/test/file/foo"), result)
+        }
     }
 
     @Test
@@ -276,36 +284,33 @@ class BulkUploadTest {
             putDirectory("test")
             putFile("test/file", "contents")
         }
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
 
-        val upload = BulkUploadService(fs, mockk(relaxed = true))
-        val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+        val (runner, service) = createService(fsRoot.absolutePath)
+        runner.withContext("user") {
+            val result =
+                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
-        val homeDir = File(fsRoot, "/home/user")
-        assertTrue(homeDir.exists())
+            val homeDir = File(fsRoot, "/home/user")
+            assertTrue(homeDir.exists())
 
-        val testDir = File(homeDir, "test")
-        assertTrue(testDir.exists())
-        assertTrue(testDir.isDirectory)
+            val testDir = File(homeDir, "test")
+            assertTrue(testDir.exists())
+            assertTrue(testDir.isDirectory)
 
-        val origTestFile = File(testDir, "file")
-        assertTrue(origTestFile.exists())
-        assertTrue(origTestFile.isDirectory)
+            val origTestFile = File(testDir, "file")
+            assertTrue(origTestFile.exists())
+            assertTrue(origTestFile.isDirectory)
 
-        assertEquals(1, result.size)
-        assertEquals(listOf("/home/user/test/file"), result)
+            assertEquals(1, result.size)
+            assertEquals(listOf("/home/user/test/file"), result)
+        }
     }
 
     @Test
     fun testShellInjection() {
         val fsRoot = createFileSystem {
             mkdir("home") {
-                mkdir("user") {
-                    mkdir("test") {
-                        mkdir("file") {}
-                    }
-                }
+                mkdir("user") {}
             }
         }
 
@@ -314,23 +319,23 @@ class BulkUploadTest {
             putDirectory("test")
             putFile("test/\$PWD", "contents")
         }
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+        val (runner, service) = createService(fsRoot.absolutePath)
+        runner.withContext("user") {
+            val result =
+                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
-        val upload = BulkUploadService(fs, mockk(relaxed = true))
-        val result =
-            upload.bulkUpload("user", "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+            val homeDir = File(fsRoot, "/home/user")
+            assertTrue(homeDir.exists())
 
-        val homeDir = File(fsRoot, "/home/user")
-        assertTrue(homeDir.exists())
+            val testDir = File(homeDir, "test")
+            assertTrue(testDir.exists())
+            assertTrue(testDir.isDirectory)
 
-        val testDir = File(homeDir, "test")
-        assertTrue(testDir.exists())
-        assertTrue(testDir.isDirectory)
+            val origTestFile = File(testDir, "\$PWD")
+            assertTrue(origTestFile.exists())
+            assertFalse(origTestFile.isDirectory)
 
-        val origTestFile = File(testDir, "\$PWD")
-        assertTrue(origTestFile.exists())
-        assertFalse(origTestFile.isDirectory)
-
-        assertEquals(0, result.size)
+            assertEquals(0, result.size)
+        }
     }
 }

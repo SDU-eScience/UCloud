@@ -1,5 +1,8 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.kamranzafar.jtar.TarEntry
@@ -37,14 +40,22 @@ class BulkDownloadTest {
         return fsRoot
     }
 
+    private fun createService(root: String):
+            Pair<CephFSCommandRunnerFactory, BulkDownloadService<CephFSCommandRunner>> {
+        val (runner, fs) = cephFSWithRelaxedMocks(root)
+        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
+
+        return Pair(runner, BulkDownloadService(coreFs))
+    }
+
     @Test
     fun testSimpleDownload() {
         val fsRoot = createFileSystem()
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-        val service = BulkDownloadService(fs)
+        val (runner, service) = createService(fsRoot.absolutePath)
         val out = ByteArrayOutputStream()
-        service.downloadFiles("user1", "/home/user1/PleaseShare", (1..10).map { "file$it.txt" }, out)
+        runner.withContext("user1") {
+            service.downloadFiles(it, "/home/user1/PleaseShare", (1..10).map { "file$it.txt" }, out)
+        }
 
         val readBuffer = ByteArray(1024 * 1024)
         TarInputStream(GZIPInputStream(ByteArrayInputStream(out.toByteArray()))).use {
@@ -64,15 +75,16 @@ class BulkDownloadTest {
     @Test
     fun testSimpleDownloadWithMissingFiles() {
         val fsRoot = createFileSystem()
-        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+        val (runner, service) = createService(fsRoot.absolutePath)
 
-        val service = BulkDownloadService(fs)
         val out = ByteArrayOutputStream()
-        service.downloadFiles(
-            "user1",
-            "/home/user1/PleaseShare",
-            (1..10).map { "file$it.txt" } + listOf("notafile.txt"),
-            out)
+        runner.withContext("user1") {
+            service.downloadFiles(
+                it,
+                "/home/user1/PleaseShare",
+                (1..10).map { "file$it.txt" } + listOf("notafile.txt"),
+                out)
+        }
 
         val readBuffer = ByteArray(1024 * 1024)
         TarInputStream(GZIPInputStream(ByteArrayInputStream(out.toByteArray()))).use {

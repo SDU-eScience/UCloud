@@ -1,6 +1,7 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.validateAnnotation
+import dk.sdu.cloud.storage.util.unwrap
 import java.util.*
 
 class FileAnnotationService<Ctx : FSUserContext>(
@@ -9,5 +10,6 @@ class FileAnnotationService<Ctx : FSUserContext>(
     fun annotateFiles(ctx: Ctx, path: String, annotation: String) {
         validateAnnotation(annotation)
         fs.setExtendedAttribute(ctx, path, "annotate${UUID.randomUUID().toString().replace("-", "")}", annotation)
+            .unwrap()
     }
 }

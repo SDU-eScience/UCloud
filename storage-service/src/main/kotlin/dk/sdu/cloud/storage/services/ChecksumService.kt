@@ -2,21 +2,19 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.ticker
 import dk.sdu.cloud.storage.util.unwrap
-import kotlinx.coroutines.experimental.channels.*
-import kotlinx.coroutines.experimental.selects.select
+import dk.sdu.cloud.storage.util.windowed
+import kotlinx.coroutines.experimental.channels.ReceiveChannel
+import kotlinx.coroutines.experimental.channels.consumeEach
 import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
 
 class ChecksumService<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>
 ) : FileSystemListener {
-
     override suspend fun attachToFSChannel(channel: ReceiveChannel<StorageEvent>) {
         // How will this implementation handle very frequent updates to a file?
         channel.windowed(500).consumeEach {
@@ -28,7 +26,7 @@ class ChecksumService<Ctx : FSUserContext>(
         }
     }
 
-    fun computeChecksum(
+    private fun computeChecksum(
         ctx: Ctx,
         path: String,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
@@ -57,7 +55,7 @@ class ChecksumService<Ctx : FSUserContext>(
         return FileChecksum(algorithm, checksum.toHexString())
     }
 
-    fun attachChecksumToObject(
+    private fun attachChecksumToObject(
         ctx: Ctx,
         path: String,
         checksum: ByteArray,
@@ -91,47 +89,18 @@ class ChecksumService<Ctx : FSUserContext>(
         const val CHECKSUM_TYPE_KEY = "checksum_type"
 
         private val log = LoggerFactory.getLogger(ChecksumService::class.java)
-    }
-}
 
-private fun ByteArray.toHexString(): String {
-    val bi = BigInteger(1, this)
-    val hex = bi.toString(16)
-    val paddingLength = this.size * 2 - hex.length
-    return if (paddingLength > 0) {
-        String.format("%0" + paddingLength + "d", 0) + hex
-    } else {
-        hex
+        private fun ByteArray.toHexString(): String {
+            val bi = BigInteger(1, this)
+            val hex = bi.toString(16)
+            val paddingLength = this.size * 2 - hex.length
+            return if (paddingLength > 0) {
+                String.format("%0" + paddingLength + "d", 0) + hex
+            } else {
+                hex
+            }
+        }
     }
 }
 
 data class FileChecksum(val algorithm: String, val checksum: String)
-
-fun <E> ReceiveChannel<E>.windowed(delay: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): ReceiveChannel<List<E>> {
-    // TODO This is probably very bad
-    val dataChannel = this
-    val ticker = ticker(delay, unit)
-
-    return produce {
-        val buffered = ArrayList<E>()
-
-        try {
-            while (!dataChannel.isClosedForReceive) {
-                select<Unit> {
-                    dataChannel.onReceive {
-                        buffered.add(it)
-                    }
-
-                    ticker.onReceive {
-                        if (buffered.isNotEmpty()) {
-                            send(buffered.toList())
-                            buffered.clear()
-                        }
-                    }
-                }
-            }
-        } finally {
-            ticker.cancel()
-        }
-    }
-}

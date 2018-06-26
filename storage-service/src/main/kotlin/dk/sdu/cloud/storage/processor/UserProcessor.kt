@@ -1,14 +1,14 @@
 package dk.sdu.cloud.storage.processor
 
 import dk.sdu.cloud.auth.api.UserEvent
-import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
+import dk.sdu.cloud.storage.services.StorageUserDao
 import org.apache.kafka.streams.kstream.KStream
 import org.slf4j.LoggerFactory
 
 class UserProcessor(
     private val stream: KStream<String, UserEvent>,
     private val isDevelopment: Boolean,
-    private val userDao: CephFSUserDao
+    private val userDao: StorageUserDao
 ) {
     private val log = LoggerFactory.getLogger(UserProcessor::class.java)
 
@@ -21,7 +21,7 @@ class UserProcessor(
             is UserEvent.Created -> {
                 log.info("Creating a matching user: $event")
                 val prefix = if (isDevelopment) emptyList() else listOf("sudo")
-                val command = listOf("sdu_cloud_add_user", userDao.findUnixUser(event.userId), event.userId)
+                val command = listOf("sdu_cloud_add_user", userDao.findStorageUser(event.userId), event.userId)
 
                 val process = ProcessBuilder().apply { command(prefix + command) }.start()
                 if (process.waitFor() != 0) {

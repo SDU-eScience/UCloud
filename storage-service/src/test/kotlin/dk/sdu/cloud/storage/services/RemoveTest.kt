@@ -2,6 +2,9 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.api.StorageEventProducer
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.storage.util.FSException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -10,6 +13,13 @@ import org.junit.Test
 import java.io.File
 
 class RemoveTest {
+    private fun createService(
+        root: String,
+        emitter: StorageEventProducer = mockk(relaxed = true)
+    ): Pair<CephFSCommandRunnerFactory, CoreFileSystemService<CephFSCommandRunner>> {
+        val (runner, fs) = cephFSWithRelaxedMocks(root)
+        return Pair(runner, CoreFileSystemService(fs, emitter))
+    }
 
     @Test
     fun testSimpleRemove() {
@@ -19,13 +29,10 @@ class RemoveTest {
         }
 
         val fsRoot = createDummyFS()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath,
-            eventProducer = emitter
-        )
+        val (runner, service) = createService(fsRoot.absolutePath, emitter)
 
-        fs.withContext("user1") {
-            fs.rmdir(it, "/home/user1/folder")
+        runner.withContext("user1") {
+            service.delete(it, "/home/user1/folder")
         }
         val existingFolder = File(fsRoot, "home/user1/folder")
         assertFalse(existingFolder.exists())
@@ -50,14 +57,11 @@ class RemoveTest {
         }
 
         val fsRoot = createDummyFS()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath,
-            eventProducer = emitter
-        )
+        val (runner, service) = createService(fsRoot.absolutePath, emitter)
 
         //Folder should not exists
         val nonExistingFolder = File(fsRoot, "home/user1/fold")
         assertFalse(nonExistingFolder.exists())
-        fs.withContext("user1") { fs.rmdir(it, "/home/user1/fold") }
+        runner.withContext("user1") { service.delete(it, "/home/user1/fold") }
     }
 }
