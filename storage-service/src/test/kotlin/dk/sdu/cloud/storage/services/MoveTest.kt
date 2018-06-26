@@ -1,65 +1,73 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.storage.util.FSException
+import io.mockk.mockk
 import org.junit.Assert
 import org.junit.Test
 import java.io.File
-import java.nio.file.Files
 
 class MoveTest {
+    private fun createService(root: String): Pair<CephFSCommandRunnerFactory, CoreFileSystemService<CephFSCommandRunner>> {
+        val (runner, fs) = cephFSWithRelaxedMocks(root)
+        return Pair(runner, CoreFileSystemService(fs, mockk(relaxed = true)))
+    }
 
     @Test
     fun testMove() {
         val fsRoot = createDummyFS()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath
-        )
+        val (runner, service) = createService(fsRoot.absolutePath)
 
         val nonExistingFolder = File(fsRoot, "home/user1/another-one/a")
         Assert.assertFalse(nonExistingFolder.exists())
 
-        fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/another-one/")
+        runner.withContext("user1") {
+            service.move(it, "home/user1/folder/a", "home/user1/another-one/a", WriteConflictPolicy.OVERWRITE)
+        }
 
         val existingFolder = File(fsRoot, "home/user1/another-one/a")
         Assert.assertTrue(existingFolder.exists())
     }
 
-    @Test(expected = FileSystemException.CriticalException::class)
+    @Test(expected = FSException.AlreadyExists::class)
     fun testMoveToSameLocation() {
         val fsRoot = createDummyFS()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath
-        )
+        val (runner, service) = createService(fsRoot.absolutePath)
 
         val existingFolder = File(fsRoot, "home/user1/folder/a")
         Assert.assertTrue(existingFolder.exists())
 
-        fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/folder/")
+        runner.withContext("user1") {
+            service.move(it, "home/user1/folder/a", "home/user1/folder/", WriteConflictPolicy.REJECT)
+        }
     }
 
-    @Test (expected = FileSystemException.CriticalException::class)
+    @Test(expected = FSException.NotFound::class)
     fun testMoveToNonexistingLocation() {
         val fsRoot = createDummyFS()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath
-        )
+        val (runner, service) = createService(fsRoot.absolutePath)
 
         val nonexistingFolder = File(fsRoot, "home/user1/folder/newly/created/folder")
         Assert.assertFalse(nonexistingFolder.exists())
 
-        fs.move(fs.openContext("user1"), "home/user1/folder/a", "home/user1/folder/newly/created/folder")
+        runner.withContext("user1") {
+            service.move(it, "home/user1/folder/a", "home/user1/folder/newly/created/folder", WriteConflictPolicy.OVERWRITE)
+        }
 
     }
 
     @Test
     fun testMoveDirectory() {
         val fsRoot = createDummyFS()
-        val fs = cephFSWithRelaxedMocks(
-            fsRoot.absolutePath
-        )
+        val (runner, service) = createService(fsRoot.absolutePath)
 
-        fs.move(fs.openContext("user1"), "home/user1/folder", "home/user1/another-one")
+        runner.withContext("user1") {
+            service.move(it, "/home/user1/folder", "/home/user1/new-folder", WriteConflictPolicy.OVERWRITE)
+        }
 
-        val existingFolder = File(fsRoot, "home/user1/another-one/folder/a")
+        val existingFolder = File(fsRoot, "home/user1/new-folder/a")
         Assert.assertTrue(existingFolder.exists())
     }
 }

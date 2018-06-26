@@ -1,15 +1,15 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.StorageEventProducer
-import dk.sdu.cloud.storage.services.cephfs.*
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
 import io.mockk.every
 import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 
-fun simpleCloudToCephFSDao(): CloudToCephFsDao {
-    val dao = mockk<CloudToCephFsDao>()
-    every { dao.findUnixUser(any()) } answers {
+fun simpleCloudToCephFSDao(): StorageUserDao {
+    val dao = mockk<StorageUserDao>()
+    every { dao.findStorageUser(any()) } answers {
         firstArg() as String
     }
 
@@ -19,36 +19,24 @@ fun simpleCloudToCephFSDao(): CloudToCephFsDao {
     return dao
 }
 
-fun cloudToCephFsDAOWithFixedAnswer(answer: String): CloudToCephFsDao {
-    val dao = mockk<CloudToCephFsDao>()
-    every { dao.findUnixUser(any()) } returns answer
+fun cloudToCephFsDAOWithFixedAnswer(answer: String): StorageUserDao {
+    val dao = mockk<StorageUserDao>()
+    every { dao.findStorageUser(any()) } returns answer
     every { dao.findCloudUser(any()) } returns answer
     return dao
 }
 
 fun cephFSWithRelaxedMocks(
     fsRoot: String,
-    cloudToCephFsDao: CloudToCephFsDao = simpleCloudToCephFSDao(),
-    processRunner: ProcessRunnerFactory = SimpleCephFSProcessRunnerFactory(cloudToCephFsDao, true),
-    fileACLService: FileACLService = mockk(relaxed = true),
-    xAttrService: XAttrService = mockk(relaxed = true),
-    treeService: TreeService = mockk(relaxed = true),
-    copyService: CopyService = mockk(relaxed = true),
-    removeService: RemoveService = mockk(relaxed = true),
-    isDevelopment: Boolean = true,
-    eventProducer: StorageEventProducer = mockk(relaxed = true)
-): CephFSFileSystemService {
-    return CephFSFileSystemService(
-        cloudToCephFsDao,
-        processRunner,
-        fileACLService,
-        xAttrService,
-        treeService,
-        copyService,
-        removeService,
-        fsRoot,
-        isDevelopment,
-        eventProducer
+    userDao: StorageUserDao = simpleCloudToCephFSDao()
+): Pair<CephFSCommandRunnerFactory, CephFileSystem> {
+    val commandRunner = CephFSCommandRunnerFactory(userDao, true)
+    return Pair(
+        commandRunner,
+        CephFileSystem(
+            userDao,
+            fsRoot
+        )
     )
 }
 
@@ -57,6 +45,7 @@ fun File.mkdir(name: String, closure: File.() -> Unit) {
     f.mkdir()
     f.closure()
 }
+
 fun File.touch(name: String, contents: String = "Hello!") {
     File(this, name).writeText(contents)
 }
@@ -75,7 +64,7 @@ fun createDummyFS(): File {
                 mkdir("another-one") {
                     touch("file")
                 }
-                mkdir("Favorites"){}
+                mkdir("Favorites") {}
             }
         }
     }

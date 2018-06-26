@@ -8,14 +8,17 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.FindByShareId
 import dk.sdu.cloud.storage.api.ShareDescriptions
 import dk.sdu.cloud.storage.api.ShareState
-import dk.sdu.cloud.storage.services.ShareService
-import dk.sdu.cloud.storage.services.tryWithShareService
+import dk.sdu.cloud.storage.services.*
 import io.ktor.application.ApplicationCall
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
-class ShareController(private val shareService: ShareService) {
+class ShareController<Ctx : FSUserContext>(
+    private val shareService: ShareService<Ctx>,
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: CoreFileSystemService<Ctx>
+) {
     fun configure(routing: Route) = with(routing) {
         route("shares") {
             protect()
@@ -23,7 +26,9 @@ class ShareController(private val shareService: ShareService) {
             implement(ShareDescriptions.list) {
                 logEntry(log, it)
                 tryWithShareService {
-                    ok(shareService.list(call.user, it.pagination))
+                    commandRunnerFactory.withContext(call.user) { ctx ->
+                        ok(shareService.list(ctx, it.pagination))
+                    }
                 }
             }
 
@@ -31,7 +36,16 @@ class ShareController(private val shareService: ShareService) {
                 logEntry(log, it)
 
                 tryWithShareService {
-                    ok(shareService.updateState(call.user, it.id, ShareState.ACCEPTED))
+                    commandRunnerFactory.withContext(call.user) { ctx ->
+                        ok(
+                            shareService.updateState(
+                                ctx,
+                                it.id,
+                                ShareState.ACCEPTED
+                            )
+                        )
+                    }
+
                 }
             }
 
@@ -55,7 +69,9 @@ class ShareController(private val shareService: ShareService) {
                 logEntry(log, it)
 
                 tryWithShareService {
-                    ok(shareService.update(call.user, it.id, it.rights))
+                    commandRunnerFactory.withContext(call.user) { ctx ->
+                        ok(shareService.update(ctx, it.id, it.rights))
+                    }
                 }
             }
 
@@ -63,7 +79,9 @@ class ShareController(private val shareService: ShareService) {
                 logEntry(log, it)
 
                 tryWithShareService {
-                    ok(FindByShareId(shareService.create(call.user, it, call.cloudClient)))
+                    commandRunnerFactory.withContext(call.user) { ctx ->
+                        ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
+                    }
                 }
             }
         }

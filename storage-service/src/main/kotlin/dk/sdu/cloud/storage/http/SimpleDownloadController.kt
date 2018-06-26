@@ -10,8 +10,8 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.services.BulkDownloadService
-import dk.sdu.cloud.storage.services.FileSystemService
+import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall
 import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
@@ -20,19 +20,20 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.defaultForFilePath
 import io.ktor.response.header
 import io.ktor.response.respond
-import io.ktor.response.respondWrite
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import kotlinx.coroutines.experimental.io.jvm.javaio.toOutputStream
+import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class SimpleDownloadController(
+class SimpleDownloadController<Ctx : FSUserContext>(
     private val cloud: AuthenticatedCloud,
-    private val fs: FileSystemService,
-    private val bulkDownloadService: BulkDownloadService
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: CoreFileSystemService<Ctx>,
+    private val bulkDownloadService: BulkDownloadService<Ctx>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
@@ -47,111 +48,126 @@ class SimpleDownloadController(
                                 HttpStatusCode.Unauthorized
                             )
 
-                val ctx = fs.openContext(principal.subject)
-                val stat = fs.stat(ctx, request.path) ?: return@implement run {
-                    error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-                }
-
-                when {
-                    stat.type == FileType.DIRECTORY -> {
-                        call.response.header(
-                            HttpHeaders.ContentDisposition,
-                            "attachment; filename=\"${stat.path.substringAfterLast('/')}.zip\""
+                tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
+                    val stat =
+                        fs.stat(
+                            ctx,
+                            request.path,
+                            setOf(FileAttribute.PATH, FileAttribute.INODE, FileAttribute.SIZE, FileAttribute.FILE_TYPE)
                         )
 
-                        call.respondDirectWrite(contentType = ContentType.Application.Zip, status = HttpStatusCode.OK) {
-                            ZipOutputStream(toOutputStream()).use { os ->
-                                fs.syncList(ctx, request.path) { item ->
-                                    val filePath = item.path.substringAfter(stat.path).removePrefix("/")
+                    when {
+                        stat.fileType == FileType.DIRECTORY -> {
+                            call.response.header(
+                                HttpHeaders.ContentDisposition,
+                                "attachment; filename=\"${stat.path.substringAfterLast('/')}.zip\""
+                            )
 
-                                    if (item.type == FileType.FILE) {
-                                        os.putNextEntry(
-                                            ZipEntry(
-                                                filePath
+                            call.respondDirectWrite(
+                                contentType = ContentType.Application.Zip,
+                                status = HttpStatusCode.OK
+                            ) {
+                                ZipOutputStream(toOutputStream()).use { os ->
+                                    fs.tree(
+                                        ctx,
+                                        request.path,
+                                        setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
+                                    ).forEach { item ->
+                                        val filePath = item.path.substringAfter(stat.path).removePrefix("/")
+
+                                        if (item.fileType == FileType.FILE) {
+                                            os.putNextEntry(
+                                                ZipEntry(
+                                                    filePath
+                                                )
                                             )
-                                        )
-                                        fs.read(ctx, item.path).copyTo(os)
-                                        os.closeEntry()
-                                    } else if (item.type == FileType.DIRECTORY) {
-                                        os.putNextEntry(ZipEntry(filePath.removeSuffix("/") + "/"))
-                                        os.closeEntry()
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    stat.type == FileType.FILE -> {
-                        val contentType = ContentType.defaultForFilePath(stat.path)
-                        call.response.header(
-                            HttpHeaders.ContentDisposition,
-                            "attachment; filename=\"${stat.path.substringAfterLast('/')}\""
-                        )
-
-                        // See #185
-                        // ktor unable to send files larger than 2GB
-                        val sizeForWorkaroundIssue185 = if (stat.size >= Int.MAX_VALUE) null else stat.size
-
-                        call.respondDirectWrite(sizeForWorkaroundIssue185, contentType, HttpStatusCode.OK) {
-                            val stream = fs.read(ctx, request.path)
-
-                            stream.use {
-                                var readSum = 0L
-                                var writeSum = 0L
-                                var iterations = 0
-                                var bytes = 0
-
-                                val buffer = ByteArray(1024 * 1024)
-                                var hasMoreData = true
-                                while (hasMoreData) {
-                                    var ptr = 0
-                                    val startRead = System.nanoTime()
-                                    while (ptr < buffer.size && hasMoreData) {
-                                        val read = it.read(buffer, ptr, buffer.size - ptr)
-                                        if (read <= 0) {
-                                            hasMoreData = false
-                                            break
+                                            fs.read(ctx, item.path) { copyTo(os) }
+                                            os.closeEntry()
+                                        } else if (item.fileType == FileType.DIRECTORY) {
+                                            os.putNextEntry(ZipEntry(filePath.removeSuffix("/") + "/"))
+                                            os.closeEntry()
                                         }
-                                        ptr += read
-                                        bytes += read
-                                    }
-                                    val startWrite = System.nanoTime()
-                                    readSum += startWrite - startRead
-                                    writeFully(buffer, 0, ptr)
-                                    writeSum += System.nanoTime() - startWrite
-
-                                    iterations++
-                                    if (iterations % 100 == 0) {
-                                        var rStr = (readSum / iterations).toString()
-                                        var wStr = (writeSum / iterations).toString()
-
-                                        if (rStr.length > wStr.length) wStr = wStr.padStart(rStr.length, ' ')
-                                        if (wStr.length > rStr.length) rStr = rStr.padStart(rStr.length, ' ')
-
-                                        log.debug("Avg. read time:  $rStr")
-                                        log.debug("Avg. write time: $wStr")
                                     }
                                 }
                             }
                         }
+
+                        stat.fileType == FileType.FILE -> {
+                            val contentType = ContentType.defaultForFilePath(stat.path)
+                            call.response.header(
+                                HttpHeaders.ContentDisposition,
+                                "attachment; filename=\"${stat.path.substringAfterLast('/')}\""
+                            )
+
+                            // See #185
+                            // ktor unable to send files larger than 2GB
+                            val sizeForWorkaroundIssue185 = if (stat.size >= Int.MAX_VALUE) null else stat.size
+
+                            call.respondDirectWrite(sizeForWorkaroundIssue185, contentType, HttpStatusCode.OK) {
+                                fs.read(ctx, request.path) {
+                                    val stream = this
+                                    runBlocking {
+                                        var readSum = 0L
+                                        var writeSum = 0L
+                                        var iterations = 0
+                                        var bytes = 0
+
+                                        val buffer = ByteArray(1024 * 1024)
+                                        var hasMoreData = true
+                                        while (hasMoreData) {
+                                            var ptr = 0
+                                            val startRead = System.nanoTime()
+                                            while (ptr < buffer.size && hasMoreData) {
+                                                val read = stream.read(buffer, ptr, buffer.size - ptr)
+                                                if (read <= 0) {
+                                                    hasMoreData = false
+                                                    break
+                                                }
+                                                ptr += read
+                                                bytes += read
+                                            }
+                                            val startWrite = System.nanoTime()
+                                            readSum += startWrite - startRead
+                                            writeFully(buffer, 0, ptr)
+                                            writeSum += System.nanoTime() - startWrite
+
+                                            iterations++
+                                            if (iterations % 100 == 0) {
+                                                var rStr = (readSum / iterations).toString()
+                                                var wStr = (writeSum / iterations).toString()
+
+                                                if (rStr.length > wStr.length) wStr = wStr.padStart(rStr.length, ' ')
+                                                if (wStr.length > rStr.length) rStr = rStr.padStart(rStr.length, ' ')
+
+                                                log.debug("Avg. read time:  $rStr")
+                                                log.debug("Avg. write time: $wStr")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        else -> error(
+                            CommonErrorMessage("Bad request. Unsupported file type"),
+                            HttpStatusCode.BadRequest
+                        )
                     }
-
-                    else -> error(CommonErrorMessage("Bad request. Unsupported file type"), HttpStatusCode.BadRequest)
                 }
-
-
             }
 
             implement(FileDescriptions.bulkDownload) {
                 logEntry(log, it)
 
-                call.respondDirectWrite(contentType = ContentType.Application.GZip) {
-                    bulkDownloadService.downloadFiles(
-                        call.request.validatedPrincipal.subject,
-                        it.prefix,
-                        it.files,
-                        toOutputStream()
-                    )
+                commandRunnerFactory.withContext(call.request.validatedPrincipal.subject) { ctx ->
+                    call.respondDirectWrite(contentType = ContentType.Application.GZip) {
+                        bulkDownloadService.downloadFiles(
+                            ctx,
+                            it.prefix,
+                            it.files,
+                            toOutputStream()
+                        )
+                    }
                 }
             }
         }

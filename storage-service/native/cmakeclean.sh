@@ -1,1 +1,1 @@
-rm -rf CMakeFiles/ CMakeCache.txt
+rm -rf CMakeFiles/ CMakeCache.txt cmake_install.cmake

@@ -18,6 +18,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
+import kotlinx.coroutines.experimental.launch
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
@@ -41,38 +42,25 @@ class Server(
         log.info("Creating core services")
         val isDevelopment = args.contains("--dev")
 
-        val cloudToCephFsDao = CloudToCephFsDao(isDevelopment)
-        val processRunner = SimpleCephFSProcessRunnerFactory(cloudToCephFsDao, isDevelopment)
+        val cloudToCephFsDao = CephFSUserDao(isDevelopment)
+        val processRunner = CephFSCommandRunnerFactory(cloudToCephFsDao, isDevelopment)
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
-        val fileAclService =
-            FileACLService(cloudToCephFsDao, isDevelopment)
-        val xattrService = XAttrService(isDevelopment)
-        val treeService = TreeService(isDevelopment)
-        val copyService = CopyService(isDevelopment)
-        val removeService = RemoveService(isDevelopment)
-        val fs: FileSystemService =
-            CephFSFileSystemService(
-                cloudToCephFsDao,
-                processRunner,
-                fileAclService,
-                xattrService,
-                treeService,
-                copyService,
-                removeService,
-                fsRoot,
-                isDevelopment,
-                kafka.producer.forStream(StorageEvents.events)
-            )
 
-        val checksumService = ChecksumService(fs)
-        val uploadService = UploadService(fs, checksumService)
+        val fs = CephFileSystem(cloudToCephFsDao, fsRoot)
+        val coreFileSystem = CoreFileSystemService(fs, kafka.producer.forStream(StorageEvents.events))
 
-        val bulkDownloadService = BulkDownloadService(fs)
-
+        val aclService = ACLService(fs)
+        val annotationService = FileAnnotationService(fs)
+        val checksumService = ChecksumService(processRunner, fs, coreFileSystem).also {
+            launch { it.attachToFSChannel(coreFileSystem.openEventSubscription()) }
+        }
+        val favoriteService = FavoriteService(coreFileSystem)
+        val uploadService = BulkUploadService(coreFileSystem)
+        val bulkDownloadService = BulkDownloadService(coreFileSystem)
         val transferState = TusStateService()
 
         val shareDAO: ShareDAO = InMemoryShareDAO()
-        val shareService = ShareService(shareDAO, fs)
+        val shareService = ShareService(shareDAO, processRunner, aclService, coreFileSystem)
         log.info("Core services constructed!")
 
         kStreams = run {
@@ -80,7 +68,7 @@ class Server(
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), cloud).init()
+            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), isDevelopment, cloudToCephFsDao).init()
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {
@@ -126,15 +114,15 @@ class Server(
 
             routing {
                 route("api/tus") {
-                    val tus = TusController(transferState, uploadService)
+                    val tus = TusController(transferState, processRunner, coreFileSystem)
                     tus.registerTusEndpoint(this, "/api/tus")
                 }
 
                 route("api") {
-                    FilesController(fs).configure(this)
-                    SimpleDownloadController(cloud, fs, bulkDownloadService).configure(this)
-                    MultiPartUploadController(uploadService).configure(this)
-                    ShareController(shareService).configure(this)
+                    FilesController(processRunner, coreFileSystem, annotationService, favoriteService).configure(this)
+                    SimpleDownloadController(cloud, processRunner, coreFileSystem, bulkDownloadService).configure(this)
+                    MultiPartUploadController(processRunner, coreFileSystem, uploadService).configure(this)
+                    ShareController(shareService, processRunner, coreFileSystem).configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")

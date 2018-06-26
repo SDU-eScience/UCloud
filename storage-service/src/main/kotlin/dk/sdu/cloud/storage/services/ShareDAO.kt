@@ -141,5 +141,4 @@ class InMemoryShareDAO : ShareDAO {
             if (!success) throw ShareException.NotFound()
         }
     }
-
 }

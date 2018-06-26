@@ -1,70 +1,25 @@
 package dk.sdu.cloud.storage.http.files
 
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.service.ServiceInstance
-import dk.sdu.cloud.service.definition
-import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.storage.http.FilesController
-import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
-import dk.sdu.cloud.storage.services.createDummyFS
 import dk.sdu.cloud.storage.util.withAuthMock
-import io.ktor.application.install
-import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.route
-import io.ktor.routing.routing
-import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
 
-
 class CreateDirectoryTests {
-
     @Test
-    fun makeDirectoryTest() {
+    fun `make directory valid`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Post, "/api/files/directory") {
-                        setUser("user1", Role.USER)
-                        setBody(
-                            """
-                            {
-                            "path" : "/home/user1/newDir"
-                            }
-                            """.trimIndent()
-                        )
-                    }.response
+                    val path = "/home/user1/newDir"
 
+                    val response = makeDir(path)
                     assertEquals(HttpStatusCode.OK, response.status())
 
-                    val response2 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/newDir") {
-                        setUser("user1", Role.USER)
-                    }.response
-
+                    val response2 = stat(path)
                     assertEquals(HttpStatusCode.OK, response2.status())
                 }
             )
@@ -72,40 +27,28 @@ class CreateDirectoryTests {
     }
 
     @Test
-    fun makeExistingDirectoryTest() {
+    fun `make folder that already exists`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Post, "/api/files/directory") {
-                        setUser("user1", Role.USER)
-                        setBody(
-                            """
-                            {
-                            "path" : "/home/user1/folder"
-                            }
-                            """.trimIndent()
-                        )
-                    }.response
+                    val response = makeDir("/home/user1/folder")
+                    assertEquals(HttpStatusCode.Conflict, response.status())
 
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `make directory with missing permissions`() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = { configureServerWithFileController() },
+
+                test = {
+                    val response = makeDir("/home/newdir")
                     assertEquals(HttpStatusCode.Forbidden, response.status())
 
                 }
@@ -114,95 +57,22 @@ class CreateDirectoryTests {
     }
 
     @Test
-    fun makeDirectoryInHomeTest() {
+    fun `test if directories are created recursively`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Post, "/api/files/directory") {
-                        setUser("user1", Role.USER)
-                        setBody(
-                            """
-                            {
-                            "path" : "/home/newdir"
-                            }
-                            """.trimIndent()
-                        )
-                    }.response
+                    val path = "/home/user1/folder/newDir/newnew"
 
-                    assertEquals(HttpStatusCode.Forbidden, response.status())
+                    val response = makeDir(path)
+                    assertEquals(HttpStatusCode.NotFound, response.status())
 
-                }
-            )
-        }
-    }
+                    val response2 = stat(path)
+                    assertEquals(HttpStatusCode.NotFound, response2.status())
 
-    @Test
-    fun makeDirectoryInNonexistingDirectoryTest() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
-
-                test = {
-                    val response = handleRequest(HttpMethod.Post, "/api/files/directory") {
-                        setUser("user1", Role.USER)
-                        setBody(
-                            """
-                            {
-                            "path" : "/home/user1/folder/newDir/newnew"
-                            }
-                            """.trimIndent()
-                        )
-                    }.response
-
-                    assertEquals(HttpStatusCode.OK, response.status())
-
-                    val response2 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/folder/newDir/newnew") {
-                        setUser("user1", Role.USER)
-                    }.response
-
-                    assertEquals(HttpStatusCode.OK, response2.status())
-
-                    val response3 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/folder/newDir") {
-                        setUser("user1", Role.USER)
-                    }.response
-
-                    assertEquals(HttpStatusCode.OK, response3.status())
+                    val response3 = stat("/home/user1/folder/newDir")
+                    assertEquals(HttpStatusCode.NotFound, response3.status())
                 }
             )
         }

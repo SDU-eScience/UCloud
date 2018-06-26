@@ -1,10 +1,13 @@
 package dk.sdu.cloud.storage.http.files
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.storage.api.StorageFile
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
@@ -21,78 +24,42 @@ import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.withTestApplication
 import io.mockk.mockk
 import org.junit.Test
+import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
-
-fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
-    addHeader(HttpHeaders.Authorization, "Bearer $username/$role")
-}
+import kotlin.test.assertTrue
 
 class ListAtPathTests {
+    private val mapper = jacksonObjectMapper()
 
-    //Testing ls
     @Test
-    fun listAtPathTest() {
+    fun `list files at path`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Get, "/api/files?path=/home/user1/folder") {
-                        setUser("jonas@hinchely.dk", Role.USER)
-                    }.response
-
+                    val response = listDir("/home/user1/folder")
                     assertEquals(HttpStatusCode.OK, response.status())
-
+                    val items = mapper.readValue<List<StorageFile>>(response.content!!)
+                    assertEquals(3, items.size)
+                    log.debug("Received items: $items")
+                    assertTrue("a file is contained in response") { items.any { it.path == "/home/user1/folder/a" } }
+                    assertTrue("b file is contained in response") { items.any { it.path == "/home/user1/folder/b" } }
+                    assertTrue("c file is contained in response") { items.any { it.path == "/home/user1/folder/c" } }
                 }
             )
         }
     }
 
     @Test
-    fun listAtPathIncorrectPath() {
+    fun `list files at path which does not exist`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Get, "/api/files?path=/home/notThere") {
-                        setUser("jonas@hinchely.dk", Role.USER)
-                    }.response
-
+                    val path = "/home/notThere"
+                    val response = listDir(path)
                     assertEquals(HttpStatusCode.NotFound, response.status())
                 }
             )
@@ -100,30 +67,19 @@ class ListAtPathTests {
     }
 
     @Test
-    fun missingAuth() {
+    fun `missing permissions`() {
         withTestApplication(
-            moduleFunction = {
-                val instance = ServiceInstance(StorageServiceDescription.definition(), "localhost", 42000)
-                installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                install(JWTProtection)
-                val fsRoot = createDummyFS()
-                val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-
-                routing {
-                    route("api") {
-                        FilesController(fs).configure(this)
-                    }
-                }
-
-            },
+            moduleFunction = { configureServerWithFileController() },
 
             test = {
-                val response = handleRequest(HttpMethod.Get, "/api/files?path=/home/user1") {
-                    setUser("jonas@hinchely.dk", Role.USER)
-                }.response
-
+                // TODO FIXME This test will not work on OSX. User also doesn't exist
+                val response = listDir("/home/user1", user = "user2")
                 assertEquals(HttpStatusCode.Unauthorized, response.status())
             }
         )
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(ListAtPathTests::class.java)
     }
 }

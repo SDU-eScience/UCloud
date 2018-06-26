@@ -1,261 +1,192 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.service.GuardedOutputStream
-import dk.sdu.cloud.storage.util.BashEscaper
+import dk.sdu.cloud.storage.services.CommandRunner
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.util.BoundaryContainedStream
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.Closeable
-import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.charset.Charset
 import java.util.*
+import kotlin.NoSuchElementException
 
-private inline fun Logger.debug(closure: () -> String) {
-    if (isDebugEnabled) debug(closure())
-}
-
-data class InMemoryProcessResultAsString(val status: Int, val stdout: String, val stderr: String)
-
-interface IProcess : Closeable {
-    val inputStream: InputStream
-    val errorStream: InputStream
-    val outputStream: OutputStream
-    fun waitFor(): Int
-}
-
-class JavaProcess(private val realProcess: Process) : IProcess {
-    override val inputStream: InputStream
-        get() = realProcess.inputStream
-    override val errorStream: InputStream
-        get() = realProcess.errorStream
-    override val outputStream: OutputStream
-        get() = realProcess.outputStream
-
-    override fun waitFor(): Int {
-        return realProcess.waitFor()
-    }
-
-    override fun close() {
-        realProcess.destroy()
+class CephFSCommandRunnerFactory(
+    private val userDao: StorageUserDao,
+    private val isDevelopment: Boolean
+) : FSCommandRunnerFactory<CephFSCommandRunner>() {
+    override fun invoke(user: String): CephFSCommandRunner {
+        return CephFSCommandRunner(userDao, isDevelopment, user)
     }
 }
 
-typealias ProcessRunnerFactory = (user: String) -> ProcessRunner
+@Suppress("unused")
+data class ProcessRunnerAttributeKey<T>(val name: String)
 
-interface ProcessRunner : Closeable {
-    val user: String
-
-    fun run(command: List<String>, directory: String? = null, noEscape: Boolean = false): IProcess
-
-    fun runWithResultAsInMemoryString(
-        command: List<String>,
-        directory: String? = null
-    ): InMemoryProcessResultAsString {
-        val process = run(command, directory)
-
-        process.outputStream.close()
-        val stdout = process.inputStream.bufferedReader().readText()
-        log.debug { "stdout: $stdout" }
-        val stderr = process.errorStream.bufferedReader().readText()
-        log.debug { "stderr: $stderr" }
-        val status = process.waitFor()
-        log.debug { "status: $status" }
-
-        return InMemoryProcessResultAsString(status, stdout, stderr)
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(ProcessRunner::class.java)
-    }
-}
-
-@Suppress("FunctionName")
-fun SimpleCephFSProcessRunnerFactory(cloudToCephFsDao: CloudToCephFsDao, isDevelopment: Boolean): ProcessRunnerFactory {
-    return { user: String ->
-        CephFSProcessRunner(cloudToCephFsDao, isDevelopment, user)
-    }
-}
-
-@Suppress("FunctionName")
-fun StreamingProcessRunnerFactory(cloudToCephFsDao: CloudToCephFsDao, isDevelopment: Boolean): ProcessRunnerFactory {
-    return { StreamingProcessRunner(cloudToCephFsDao, isDevelopment, it) }
-}
-
-class CephFSProcessRunner(
-    private val cloudToCephFsDao: CloudToCephFsDao,
+class CephFSCommandRunner(
+    private val cephFSUserDao: StorageUserDao,
     private val isDevelopment: Boolean,
     override val user: String
-) : ProcessRunner {
-    private fun asUser(cloudUser: String): List<String> {
-        val user = cloudToCephFsDao.findUnixUser(cloudUser) ?: throw IllegalStateException("Could not find user")
-        return if (!isDevelopment) listOf("sudo", "-u", user) else emptyList()
-    }
+) : CommandRunner {
+    private val cache: MutableMap<ProcessRunnerAttributeKey<*>, Any> = hashMapOf()
 
-    override fun run(command: List<String>, directory: String?, noEscape: Boolean): IProcess {
-        return ProcessBuilder().apply {
-            val prefix = asUser(user)
+    private val clientBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
+    private val serverBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
 
-            val bashCommand = if (directory == null) {
-                command.joinToString(" ") {
-                    if (noEscape) it
-                    else BashEscaper.safeBashArgument(it)
-                }
-            } else {
-                // TODO We need to ensure directory exists. We cannot do this with File(directory)
-                "cd ${BashEscaper.safeBashArgument(directory)} && " +
-                        command.joinToString(" ") {
-                            if (noEscape) it
-                            else BashEscaper.safeBashArgument(it)
-                        }
-            }
-            log.debug("Running command (user=$user): $bashCommand [$command]")
-
-            val wrappedCommand = listOf("bash", "-c", bashCommand)
-            command(prefix + wrappedCommand)
-        }.start().let { JavaProcess(it) }
-    }
-
-    override fun close() {
-        // No-op
-    }
-
-    companion object {
-        private val log =
-            LoggerFactory.getLogger(CephFSProcessRunner::class.java)
-    }
-}
-
-class StreamingProcessRunner(
-    private val cloudToCephFsDao: CloudToCephFsDao,
-    private val isDevelopment: Boolean,
-    override val user: String
-) : ProcessRunner {
-    private val bashProcess = run {
-        val unixUser = cloudToCephFsDao.findUnixUser(user) ?: throw IllegalStateException("Could not find user")
-        val command = if (isDevelopment) listOf("bash") else listOf("sudo", "-u", unixUser, "bash")
-
-        ProcessBuilder().apply { command(command) }.start()
-    }
-
-    private fun generateNewBoundary(): String {
-        return "process-runner-boundary-${UUID.randomUUID()}"
-    }
-
-    fun debug() {
-        bashProcess.outputStream.close()
-        bashProcess.waitFor()
-        println(bashProcess.inputStream.bufferedReader().readText())
-        println(bashProcess.errorStream.bufferedReader().readText())
-    }
-
-    override fun run(command: List<String>, directory: String?, noEscape: Boolean): IProcess {
-        val boundary = generateNewBoundary()
-
-        val bashCommand = if (directory == null) {
-            command.joinToString(" ") {
-                if (noEscape) it
-                else BashEscaper.safeBashArgument(it)
-            }
-        } else {
-            "cd ${BashEscaper.safeBashArgument(directory)} && " +
-                    command.joinToString(" ") {
-                        if (noEscape) it
-                        else BashEscaper.safeBashArgument(it)
-                    }
-        }
-
-        log.debug("Running command (user=$user): $bashCommand")
-
-        log.debug("Bash process alive? ${bashProcess.isAlive}")
-        val out = bashProcess.outputStream
-        out.apply {
-            fun w(str: String) {
-                log.debug(str)
-                write(str.toByteArray())
-            }
-
-            w(("$bashCommand;"))
-
-            // Save status, mark end of process, write status
-            // NOTE(Dan): Do not use new-lines, as these will leak into the output stream of sub-processes
-            w("STATUS=$?;")
-            w("echo $boundary;")
-            w("echo $boundary >&2;")
-            w("echo \$STATUS\n")
-
-            // Always flush at end of command
-            flush()
-        }
-
-        val boundaryBytes = (boundary + '\n').toByteArray()
-        val wrappedStdout = BoundaryContainedStream(boundaryBytes, bashProcess.inputStream)
-        val wrappedStderr = BoundaryContainedStream(boundaryBytes, bashProcess.errorStream)
-        val outputStream = GuardedOutputStream(out)
-
-        return BoundaryContainedProcess(
-            wrappedStdout,
-            wrappedStderr,
-            outputStream,
-            bashProcess.inputStream,
-            boundaryBytes
+    private val interpreter: Process = run {
+        val unixUser = cephFSUserDao.findStorageUser(user) ?: throw IllegalStateException("Could not find user")
+        val prefix = if (isDevelopment) emptyList() else listOf("sudo", "-u", unixUser)
+        val command = listOf(
+            "ceph-interpreter",
+            String(clientBoundary, Charsets.UTF_8),
+            String(serverBoundary, Charsets.UTF_8)
         )
+
+        ProcessBuilder().apply { command(prefix + command) }.start()
+    }
+
+    private val wrappedStdout =
+        BoundaryContainedStream(serverBoundary, interpreter.inputStream)
+
+    private val wrappedStderr =
+        BoundaryContainedStream(serverBoundary, interpreter.errorStream)
+
+    val stdout: InputStream = wrappedStdout
+    val stderr: InputStream = wrappedStdout
+
+    fun stdoutLineSequence(): Sequence<String> = stdout.bufferedReader().lineSequence()
+
+    private val outputStream =
+        StreamingOutputStream(interpreter.outputStream, onClose = {
+            it.write(clientBoundary)
+            it.flush()
+        })
+
+    fun <T : Any> store(key: ProcessRunnerAttributeKey<T>, value: T) {
+        cache[key] = value
+    }
+
+    fun <T : Any> retrieve(key: ProcessRunnerAttributeKey<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return (cache[key] ?: throw NoSuchElementException()) as T
+    }
+
+    fun <T : Any> retrieveOrNull(key: ProcessRunnerAttributeKey<T>): T? {
+        @Suppress("UNCHECKED_CAST")
+        return cache[key] as T?
+    }
+
+    fun invalidate(key: ProcessRunnerAttributeKey<*>) {
+        cache.remove(key)
+    }
+
+    fun <T> runCommand(
+        command: InterpreterCommand,
+        vararg args: String,
+        writer: (OutputStream) -> Unit = {},
+        consumer: (CephFSCommandRunner) -> T
+    ): T {
+        log.debug("Running command: $command ${args.joinToString(" ")}")
+
+        if (!interpreter.isAlive) throw IllegalStateException("Unexpected EOF")
+
+        val serializedCommand = StringBuilder().apply {
+            append(command.command)
+            append("\n")
+            if (args.isNotEmpty()) {
+                append(args.joinToString("\n"))
+                append("\n")
+            }
+        }.toString().toByteArray()
+        outputStream.write(serializedCommand)
+        outputStream.flush()
+        outputStream.use {
+            writer(GuardedOutputStream(it))
+        }
+
+        return try {
+            consumer(this)
+        } finally {
+            wrappedStdout.discardAndReset()
+
+            if (log.isDebugEnabled) {
+                wrappedStderr.bufferedReader().readText().lines().forEach { log.debug(it) }
+            }
+            wrappedStderr.discardAndReset()
+        }
+    }
+
+    fun clearBytes(numberOfBytes: Long) {
+        log.debug("Clearing $numberOfBytes from stdout")
+        wrappedStdout.manualClearNextBytes(numberOfBytes)
     }
 
     override fun close() {
-        bashProcess.outputStream.close()
-        bashProcess.destroy()
+        interpreter.outputStream.close()
+        interpreter.destroy()
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(StreamingProcessRunner::class.java)
+        private val log = LoggerFactory.getLogger(CephFSCommandRunner::class.java)
     }
 }
 
-class BoundaryContainedProcess(
-    override val inputStream: BoundaryContainedStream,
-    override val errorStream: BoundaryContainedStream,
-    override val outputStream: OutputStream,
-
-    private val originalStream: InputStream,
-    private val boundaryBytes: ByteArray
-) : IProcess {
-    override fun waitFor(): Int {
-        inputStream.discardAll()
-        errorStream.discardAll()
-        outputStream.close()
-
-        val remaining = inputStream.readRemainingAfterBoundary()
-
-        val buffer = ByteArray(256)
-        System.arraycopy(remaining, 0, buffer, 0, remaining.size)
-        var ptr = remaining.size
-
-        if (ptr > boundaryBytes.size) {
-            for (i in boundaryBytes.size until ptr) {
-                if (buffer[i] == '\n'.toByte()) {
-                    return String(buffer, boundaryBytes.size, i - boundaryBytes.size).toInt()
-                }
-            }
+fun InputStream.readLineUnbuffered(charset: Charset = Charsets.UTF_8): String {
+    val lineBuilder = ArrayList<Byte>()
+    var next = read()
+    while (next != -1) {
+        if (next == '\n'.toInt()) {
+            break
+        } else {
+            lineBuilder.add(next.toByte())
         }
 
-        while (true) {
-            val read = originalStream.read()
-            if (ptr < boundaryBytes.size) {
-                buffer[ptr++] = read.toByte()
-            } else {
-                when (read) {
-                    -1 -> throw IllegalStateException("Unexpected end of stream. Boundary not found")
-                    '\n'.toInt() -> return String(buffer, boundaryBytes.size, ptr - boundaryBytes.size).toInt()
-                    else -> buffer[ptr++] = read.toByte()
-                }
-            }
-        }
+        next = read()
+    }
+    return String(lineBuilder.toByteArray(), charset)
+}
+
+class StreamingOutputStream(private val delegate: OutputStream, private val onClose: (OutputStream) -> Unit) :
+    OutputStream() {
+    override fun write(b: Int) {
+        delegate.write(b)
+    }
+
+    override fun write(b: ByteArray?) {
+        delegate.write(b)
+    }
+
+    override fun write(b: ByteArray?, off: Int, len: Int) {
+        delegate.write(b, off, len)
+    }
+
+    override fun flush() {
+        delegate.flush()
     }
 
     override fun close() {
-        inputStream.discardAll()
-        errorStream.discardAll()
-        outputStream.close()
+        onClose(this)
     }
 }
+
+enum class InterpreterCommand(val command: String) {
+    LIST_DIRECTORY("list-directory"),
+    READ("read"),
+    READ_OPEN("read-open"),
+    STAT("stat"),
+    MKDIR("make-dir"),
+    DELETE("delete"),
+    MOVE("move"),
+    TREE("tree"),
+    SYMLINK("symlink"),
+    SETFACL("setfacl"),
+    COPY("copy"),
+    WRITE("write"),
+    WRITE_OPEN("write-open"),
+    GET_XATTR("get-xattr"),
+    SET_XATTR("set-xattr"),
+    LIST_XATTR("list-xattr"),
+    DELETE_XATTR("delete-xattr"),
+}
+

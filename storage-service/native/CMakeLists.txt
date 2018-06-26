@@ -3,10 +3,35 @@ project(native)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(dirlisting main.cpp libacl.cpp libacl.h)
-add_executable(ceph-tree tree.cpp libacl.cpp libacl.h)
-add_executable(ceph-copy copy.cpp libacl.cpp libacl.h)
-add_executable(ceph-remove remove.cpp libacl.cpp libacl.h)
+add_executable(
+        ceph-interpreter
+
+        interpreter.cpp
+
+        file_utils.cpp
+        file_utils.h
+
+        libacl.cpp
+        libacl.h
+
+        copy.cpp
+        copy.h
+
+        tree.cpp
+        tree.h
+
+        xattr.cpp
+        xattr.h
+
+        list.cpp
+        list.h
+
+        delete.cpp
+        delete.h
+
+        stat.cpp
+        stat.h
+        mkdir.cpp mkdir.h move.cpp move.h file_info.cpp symlink.cpp symlink.h)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)

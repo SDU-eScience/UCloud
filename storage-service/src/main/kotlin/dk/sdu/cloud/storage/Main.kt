@@ -12,7 +12,6 @@ import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 
 data class Configuration(
-    val storage: StorageConfiguration,
     private val connection: RawConnectionConfig,
     val appDatabaseUser: String,
     val appDatabasePassword: String,
@@ -29,18 +28,9 @@ data class Configuration(
     }
 
     override fun toString(): String {
-        return "Configuration(storage=$storage, connection=$connection, appDatabaseUser='$appDatabaseUser', consulHostname='$consulHostname')"
+        return "Configuration(connection=$connection, appDatabaseUser='$appDatabaseUser', consulHostname='$consulHostname')"
     }
 }
-
-data class StorageConfiguration(
-    val host: String,
-    val port: Int,
-    val zone: String,
-    val resource: String,
-    val authScheme: String?,
-    val sslPolicy: String?
-)
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.storage.MainKt")
 

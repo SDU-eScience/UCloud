@@ -8,45 +8,36 @@
 #include <grp.h>
 #include <cassert>
 #include <sstream>
-#include <sys/xattr.h>
+#include <list>
+#include "tree.h"
+#include "file_utils.h"
 
-#ifdef __linux__
-#include <string.h>
-#define GETXATTR(path, name, value, size) getxattr(path, name, value, size)
-#endif
+#define FATAL(f) { fprintf(stderr, "Fatal error! errno %d. Cause: %s\n", errno, f); exit(1); }
 
-#ifdef __APPLE__
-#define GETXATTR(path, name, value, size) getxattr(path, name, value, size, 0, 0)
-#endif
-
-#define SHARED_WITH_UTYPE 1
-#define SHARED_WITH_READ 2
-#define SHARED_WITH_WRITE 4
-#define SHARED_WITH_EXECUTE 8
-
-#define fatal(f) { fprintf(stderr, "Fatal error! errno %d. Cause: %s\n", errno, f); exit(1); }
-
-
-int compare(const FTSENT **one, const FTSENT **two) {
+static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
 
-int main(int argc, char **argv) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage %s <mtime> <path>\n", argv[0]);
-        exit(255);
-    }
-
-    if (strlen(argv[1]) <= 0) fatal("Bad mtime");
-    char *endptr;
-    auto mtime = strtol(argv[1], &endptr, 10);
-    if (*endptr != '\0') fatal("Bad mtime");
-
+int tree_command(const char *path, uint64_t mode) {
     FTS *file_system = nullptr;
     FTSENT *node = nullptr;
+    char *root_path = nullptr;
+    int status = 0;
+    struct stat stat_buffer{};
+
+    root_path = strdup(path);
+    char *path_argv[2];
+    path_argv[0] = root_path;
+    path_argv[1] = nullptr;
+
+    status = lstat(path, &stat_buffer);
+    if (status != 0) {
+        status = -errno;
+        goto cleanup;
+    }
 
     file_system = fts_open(
-            argv + 2, // argv[argc] is always nullptr
+            path_argv,
 
             FTS_LOGICAL | // Follow sym links
             FTS_COMFOLLOW | // Immediately follow initial symlink
@@ -55,60 +46,46 @@ int main(int argc, char **argv) {
             &compare
     );
 
-    char checksum_buffer[256];
-
-    if (nullptr != file_system) {
-        while ((node = fts_read(file_system)) != nullptr) {
-            switch (node->fts_info) {
-                case FTS_D:
-                case FTS_F: {
-                    if (node->fts_statp->st_mtime < mtime) continue;
-
-                    char file_type = 0;
-
-                    if (node->fts_info == FTS_D) file_type = 'D';
-                    else if (node->fts_info == FTS_F) file_type = 'F';
-                    assert(file_type != 0);
-
-                    auto stat_buffer = *node->fts_statp;
-                    auto uid = stat_buffer.st_uid;
-                    auto gid = stat_buffer.st_gid;
-
-                    auto unix_mode = (stat_buffer.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
-
-                    auto user = getpwuid(uid);
-                    if (user == nullptr) fatal("Could not find user");
-
-                    char *group_name;
-                    auto gr = getgrgid(gid);
-
-                    if (gr == nullptr) group_name = const_cast<char *>("nobody");
-                    else group_name = gr->gr_name;
-
-
-                    std::cout << file_type << ',' << unix_mode << ','
-                              << user->pw_name << ',' << group_name << ','
-                              << stat_buffer.st_size << ',' << stat_buffer.st_ctime << ','
-                              << stat_buffer.st_mtime << ',' << stat_buffer.st_atime << ','
-                              << stat_buffer.st_ino << ',';
-
-                    memset(&checksum_buffer, 0, 256);
-                    GETXATTR(node->fts_path, "user.checksum", &checksum_buffer, 256);
-                    std::cout << checksum_buffer << ',';
-
-                    memset(&checksum_buffer, 0, 256);
-                    GETXATTR(node->fts_path, "user.checksum_type", &checksum_buffer, 256);
-                    std::cout << checksum_buffer << ',';
-
-                    std::cout << node->fts_path << std::endl;
-                    break;
-                }
-
-                default:
-                    break;
-            }
-        }
-        fts_close(file_system);
+    if (mode == 0) {
+        mode = FILE_TYPE |
+                UNIX_MODE |
+                OWNER |
+                GROUP |
+                SIZE |
+                TIMESTAMPS |
+                INODE |
+                CHECKSUM |
+                PATH;
     }
-    return 0;
+
+    if (file_system == nullptr) {
+        goto cleanup;
+    }
+
+    status = -1;
+    while ((node = fts_read(file_system)) != nullptr) {
+        switch (node->fts_info) {
+            case FTS_D:
+            case FTS_F: {
+                status = 0;
+
+                print_file_information(
+                        std::cout,
+                        node->fts_path,
+                        node->fts_statp,
+                        mode
+                );
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+
+    cleanup:
+    if (file_system != nullptr) fts_close(file_system);
+    if (root_path != nullptr) free(root_path);
+
+    return status;
 }

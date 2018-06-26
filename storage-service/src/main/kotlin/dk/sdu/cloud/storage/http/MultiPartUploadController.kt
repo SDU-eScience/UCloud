@@ -8,11 +8,14 @@ import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.BulkUploadErrorMessage
-import dk.sdu.cloud.storage.api.BulkUploadOverwritePolicy
 import dk.sdu.cloud.storage.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.storage.api.SensitivityLevel
-import dk.sdu.cloud.storage.services.UploadService
-import dk.sdu.cloud.storage.services.tryWithFS
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
+import dk.sdu.cloud.storage.services.BulkUploadService
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.content.PartData
 import io.ktor.content.forEachPart
 import io.ktor.http.HttpStatusCode
@@ -23,7 +26,11 @@ import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 
-class MultiPartUploadController(private val uploadService: UploadService) {
+class MultiPartUploadController<Ctx : FSUserContext>(
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val fs: CoreFileSystemService<Ctx>,
+    private val bulkUploadService: BulkUploadService<Ctx>
+) {
     fun configure(routing: Route) = with(routing) {
         route("upload") {
             protect()
@@ -37,59 +44,62 @@ class MultiPartUploadController(private val uploadService: UploadService) {
                 var sensitivity: SensitivityLevel = SensitivityLevel.CONFIDENTIAL
                 var owner: String = call.request.validatedPrincipal.subject
 
-                multipart.forEachPart { part ->
-                    log.debug("Received part ${part.name}")
-                    when (part) {
-                        is PartData.FormItem -> {
-                            when (part.name) {
-                                "location" -> location = part.value
+                commandRunnerFactory.withContext(owner) { ctx ->
+                    multipart.forEachPart { part ->
+                        log.debug("Received part ${part.name}")
+                        when (part) {
+                            is PartData.FormItem -> {
+                                when (part.name) {
+                                    "location" -> location = part.value
 
-                                "sensitivity" -> {
-                                    // If we can parse it, set it
-                                    SensitivityLevel.values().find { it.name == part.value }?.let { sensitivity = it }
-                                }
+                                    "sensitivity" -> {
+                                        // If we can parse it, set it
+                                        SensitivityLevel.values().find { it.name == part.value }
+                                            ?.let { sensitivity = it }
+                                    }
 
-                                "owner" -> {
-                                    if (call.request.principalRole.isPrivileged()) {
-                                        owner = part.value
+                                    "owner" -> {
+                                        if (call.request.principalRole.isPrivileged()) {
+                                            owner = part.value
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        is PartData.FileItem -> {
-                            if (part.name == "upload") {
-                                if (location == null) {
-                                    error(
-                                        CommonErrorMessage("Bad request. Missing location or upload"),
-                                        HttpStatusCode.BadRequest
+                            is PartData.FileItem -> {
+                                if (part.name == "upload") {
+                                    if (location == null) {
+                                        error(
+                                            CommonErrorMessage("Bad request. Missing location or upload"),
+                                            HttpStatusCode.BadRequest
+                                        )
+                                        return@forEachPart
+                                    }
+
+                                    assert(
+                                        owner == call.request.validatedPrincipal.subject ||
+                                                call.request.principalRole.isPrivileged()
                                     )
-                                    return@forEachPart
+
+                                    fs.write(ctx, location!!, WriteConflictPolicy.OVERWRITE) {
+                                        val out = this
+                                        part.streamProvider().use { it.copyTo(out) }
+                                    }
+
+                                    ok(Unit)
                                 }
-
-                                assert(
-                                    owner == call.request.validatedPrincipal.subject ||
-                                            call.request.principalRole.isPrivileged()
-                                )
-
-                                uploadService.upload(owner, location!!) {
-                                    val out = this
-                                    part.streamProvider().use { it.copyTo(out) }
-                                }
-
-                                ok(Unit)
                             }
                         }
-                    }
 
-                    part.dispose()
+                        part.dispose()
+                    }
                 }
             }
 
             implement(MultiPartUploadDescriptions.bulkUpload) {
                 logEntry(log, it)
 
-                var policy: BulkUploadOverwritePolicy? = null
+                var policy: WriteConflictPolicy? = null
                 var path: String? = null
                 var format: String? = null
                 var error = false
@@ -106,7 +116,7 @@ class MultiPartUploadController(private val uploadService: UploadService) {
                                 when (part.name) {
                                     "policy" -> {
                                         try {
-                                            policy = BulkUploadOverwritePolicy.valueOf(part.value)
+                                            policy = WriteConflictPolicy.valueOf(part.value)
                                         } catch (ex: Exception) {
                                             error(
                                                 CommonErrorMessage("Bad request"),
@@ -145,10 +155,19 @@ class MultiPartUploadController(private val uploadService: UploadService) {
                                     val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
                                     part.streamProvider().copyTo(outputFile.outputStream())
                                     launch {
-                                        uploadService.bulkUpload(user, path, format, policy, outputFile.inputStream())
+                                        commandRunnerFactory.withContext(user) {
+                                            bulkUploadService.bulkUpload(
+                                                it,
+                                                path,
+                                                format,
+                                                policy,
+                                                outputFile.inputStream()
+                                            )
+                                        }
                                         try {
                                             outputFile.delete()
-                                        } catch (_: Exception) {}
+                                        } catch (_: Exception) {
+                                        }
                                     }
 
                                     ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)

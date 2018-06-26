@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -e
+
+USER=$1
+PRETTY=$2
+
+useradd -d / -G sftponly -s /bin/false "${USER}"
+
+# User initialization
+mkdir -m700 "/mnt/cephfs/home/${PRETTY}/"
+mkdir -m700 "/mnt/cephfs/home/${PRETTY}/Favorites"
+mkdir -m700 "/mnt/cephfs/home/${PRETTY}/Jobs"
+mkdir -m700 "/mnt/cephfs/home/${PRETTY}/Uploads"
+echo "README STUFF!" > "/mnt/cephfs/home/${PRETTY}/README.txt"
+chmod 600 "/mnt/cephfs/home/${PRETTY}/README.txt"
+
+chown -R "${USER}:" "/mnt/cephfs/home/${PRETTY}"
+
+# If not running as root (non-container) these are required
+# storage ALL=(%sftponly) NOPASSWD: ALL
+# storage ALL=(root) NOPASSWD: /usr/bin/sdu_cloud_add_user

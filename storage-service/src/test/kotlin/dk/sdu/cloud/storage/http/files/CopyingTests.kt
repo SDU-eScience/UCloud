@@ -1,86 +1,36 @@
 package dk.sdu.cloud.storage.http.files
 
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.service.ServiceInstance
-import dk.sdu.cloud.service.definition
-import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.storage.http.FilesController
-import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
-import dk.sdu.cloud.storage.services.cephfs.CopyService
-import dk.sdu.cloud.storage.services.createDummyFS
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.util.withAuthMock
-import io.ktor.application.install
-import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.route
-import io.ktor.routing.routing
-import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.withTestApplication
-import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
 
 class CopyingTests {
-    //Testing copy file
     @Test
-    fun copyFileTest() {
+    fun `test copying of file`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(
-                        fsRoot.absolutePath,
-                        copyService = CopyService(true)
-                    )
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/folder/a") {
-                        setUser("user1", Role.USER)
-                    }.response
+                    val path = "/home/user1/folder/a"
+                    val newPath = "/home/user1/a"
 
+                    val response = stat(path)
                     assertEquals(HttpStatusCode.OK, response.status())
 
-                    val response1 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/a") {
-                        setUser("user1", Role.USER)
-                    }.response
-
+                    val response1 = stat(newPath)
                     assertEquals(HttpStatusCode.NotFound, response1.status())
 
-                    val response2 = handleRequest(
-                        HttpMethod.Post,
-                        "/api/files/copy?path=/home/user1/folder/a&newPath=/home/user1/a"
-                    ) {
-                        setUser("user1", Role.USER)
-                    }.response
-
+                    val response2 = copy(path, newPath, WriteConflictPolicy.REJECT)
                     assertEquals(HttpStatusCode.OK, response2.status())
 
-                    val response3 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/folder/a") {
-                        setUser("user1", Role.USER)
-                    }.response
-
+                    val response3 = stat(path)
                     assertEquals(HttpStatusCode.OK, response3.status())
 
-                    val response4 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/a") {
-                        setUser("user1", Role.USER)
-                    }.response
-
+                    val response4 = stat(newPath)
                     assertEquals(HttpStatusCode.OK, response4.status())
                 }
             )
@@ -88,100 +38,115 @@ class CopyingTests {
     }
 
     @Test
-    fun copyFileToAlreadyExistingDirectoryPathTest() {
+    fun `attempt to overwrite file via copy - OVERWRITE`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(
-                        fsRoot.absolutePath,
-                        copyService = CopyService(true)
-                    )
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/folder/a") {
-                        setUser("user1", Role.USER)
-                    }.response
+                    val path = "/home/user1/folder/a"
+                    val newPath = "/home/user1/folder/b"
 
+                    val response = stat(path)
                     assertEquals(HttpStatusCode.OK, response.status())
 
-                    val response1 = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/a") {
-                        setUser("user1", Role.USER)
-                    }.response
+                    val response1 = stat(newPath)
+                    assertEquals(HttpStatusCode.OK, response1.status())
 
-                    assertEquals(HttpStatusCode.NotFound, response1.status())
-
-                    val response2 = handleRequest(
-                        HttpMethod.Post,
-                        "/api/files/copy?path=/home/user1/folder/a&newPath=/home/user1"
-                    ) {
-                        setUser("user1", Role.USER)
-                    }.response
-
-                    assertEquals(HttpStatusCode.Conflict, response2.status())
-
+                    val response2 = copy(path, newPath, WriteConflictPolicy.OVERWRITE)
+                    assertEquals(HttpStatusCode.OK, response2.status())
                 }
             )
         }
     }
 
     @Test
-    fun copyFileFromNonExistingPath() {
+    fun `attempt to overwrite file via copy - RENAME`() {
         withAuthMock {
             withTestApplication(
-                moduleFunction = {
-                    val instance = ServiceInstance(
-                        dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                        "localhost",
-                        42000
-                    )
-                    installDefaultFeatures(mockk(relaxed = true), mockk(relaxed = true), instance, requireJobId = false)
-                    install(JWTProtection)
-                    val fsRoot = createDummyFS()
-                    val fs = cephFSWithRelaxedMocks(
-                        fsRoot.absolutePath,
-                        copyService = CopyService(true)
-                    )
-
-                    routing {
-                        route("api") {
-                            FilesController(fs).configure(this)
-                        }
-                    }
-                },
+                moduleFunction = { configureServerWithFileController() },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Get, "/api/files/stat?path=/home/user1/folder/notHere/a") {
-                        setUser("user1", Role.USER)
-                    }.response
+                    val path = "/home/user1/folder/a"
+                    val newPath = "/home/user1/folder/b"
 
+                    val response = stat(path)
+                    assertEquals(HttpStatusCode.OK, response.status())
+
+                    val response1 = stat(newPath)
+                    assertEquals(HttpStatusCode.OK, response1.status())
+
+                    val response2 = copy(path, newPath, WriteConflictPolicy.RENAME)
+                    assertEquals(HttpStatusCode.OK, response2.status())
+
+                    val response3 = stat("$newPath(1)")
+                    assertEquals(HttpStatusCode.OK, response3.status())
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `attempt to overwrite file via copy - REJECT`() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = { configureServerWithFileController() },
+
+                test = {
+                    val path = "/home/user1/folder/a"
+                    val newPath = "/home/user1/folder/b"
+
+                    val response = stat(path)
+                    assertEquals(HttpStatusCode.OK, response.status())
+
+                    val response1 = stat(newPath)
+                    assertEquals(HttpStatusCode.OK, response1.status())
+
+                    val response2 = copy(path, newPath, WriteConflictPolicy.REJECT)
+                    assertEquals(HttpStatusCode.Conflict, response2.status())
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `copy a folder`() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = { configureServerWithFileController() },
+
+                test = {
+                    val path = "/home/user1/folder"
+                    val newPath = "/home/user1/new-folder"
+
+                    val response = stat(path)
+                    assertEquals(HttpStatusCode.OK, response.status())
+
+                    val response2 = copy(path, newPath, WriteConflictPolicy.REJECT)
+                    assertEquals(HttpStatusCode.OK, response2.status())
+
+                    val response3 = listDir(newPath)
+                    assertEquals(HttpStatusCode.OK, response3.status())
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `copy file which does not exist`() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = { configureServerWithFileController() },
+
+                test = {
+                    val path = "/home/user1/folder/notHere"
+                    val newPath = "/home/user1/notHere"
+
+                    val response = stat(path)
                     assertEquals(HttpStatusCode.NotFound, response.status())
 
-
-                    val response2 = handleRequest(
-                        HttpMethod.Post,
-                        "/api/files/copy?path=/home/user1/folder/notHere/a&newPath=/home/user1/a"
-                    ) {
-                        setUser("user1", Role.USER)
-                    }.response
-
-                    assertEquals(HttpStatusCode.Forbidden, response2.status())
-
+                    val response2 = copy(path, newPath, WriteConflictPolicy.OVERWRITE)
+                    assertEquals(HttpStatusCode.NotFound, response2.status())
                 }
             )
         }

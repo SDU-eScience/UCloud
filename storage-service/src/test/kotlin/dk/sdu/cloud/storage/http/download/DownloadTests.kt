@@ -1,26 +1,23 @@
 package dk.sdu.cloud.storage.http.download
 
-import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.definition
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.storage.http.SimpleDownloadController
+import dk.sdu.cloud.storage.http.files.configureServerWithFileController
 import dk.sdu.cloud.storage.http.files.setUser
-import dk.sdu.cloud.storage.services.cephFSWithRelaxedMocks
-import dk.sdu.cloud.storage.services.createDummyFS
+import dk.sdu.cloud.storage.services.BulkDownloadService
 import dk.sdu.cloud.storage.util.mockedUser
 import dk.sdu.cloud.storage.util.withAuthMock
-import io.ktor.application.install
+import io.ktor.application.Application
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.route
-import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.staticMockk
+import io.mockk.use
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -29,28 +26,9 @@ class DownloadTests {
     fun downloadFileTest() {
         staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
             withAuthMock {
+
                 withTestApplication(
-                    moduleFunction = {
-                        val user = mockedUser()
-                        coEvery { TokenValidation.validateAndClaim(any(), any(), any()) } returns user
-
-                        val instance = ServiceInstance(
-                            dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                            "localhost",
-                            42000
-                        )
-                        val cloud: AuthenticatedCloud = mockk(relaxed = true)
-                        installDefaultFeatures(cloud, mockk(relaxed = true), instance, requireJobId = false)
-                        install(JWTProtection)
-
-                        val fsRoot = createDummyFS()
-                        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-                        routing {
-                            route("api") {
-                                SimpleDownloadController(cloud, fs, mockk(relaxed = true)).configure(this)
-                            }
-                        }
-                    },
+                    moduleFunction = configureWithDownloadController(),
 
                     test = {
                         val response =
@@ -60,10 +38,25 @@ class DownloadTests {
 
                         println(response.headers.allValues())
                         assertEquals(HttpStatusCode.OK, response.status())
-                        assertEquals("""[attachment; filename="a"]""", response.headers.values("Content-Disposition").toString())
+                        assertEquals(
+                            """[attachment; filename="a"]""",
+                            response.headers.values("Content-Disposition").toString()
+                        )
                         assertEquals("[6]", response.headers.values("Content-Length").toString())
                     }
                 )
+            }
+        }
+    }
+
+    private fun configureWithDownloadController(): Application.() -> Unit {
+        return {
+            configureServerWithFileController {
+                val user = mockedUser()
+                coEvery { TokenValidation.validateAndClaim(any(), any(), any()) } returns user
+
+                val bulk = BulkDownloadService(it.coreFs)
+                SimpleDownloadController(it.cloud, it.runner, it.coreFs, bulk).configure(this)
             }
         }
     }
@@ -73,27 +66,7 @@ class DownloadTests {
         staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
             withAuthMock {
                 withTestApplication(
-                    moduleFunction = {
-                        val user = mockedUser()
-                        coEvery { TokenValidation.validateAndClaim(any(), any(), any()) } returns user
-
-                        val instance = ServiceInstance(
-                            dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                            "localhost",
-                            42000
-                        )
-                        val cloud: AuthenticatedCloud = mockk(relaxed = true)
-                        installDefaultFeatures(cloud, mockk(relaxed = true), instance, requireJobId = false)
-                        install(JWTProtection)
-
-                        val fsRoot = createDummyFS()
-                        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-                        routing {
-                            route("api") {
-                                SimpleDownloadController(cloud, fs, mockk(relaxed = true)).configure(this)
-                            }
-                        }
-                    },
+                    moduleFunction = configureWithDownloadController(),
 
                     test = {
                         val response =
@@ -103,7 +76,10 @@ class DownloadTests {
 
 
                         assertEquals(HttpStatusCode.OK, response.status())
-                        assertEquals("""[attachment; filename="folder.zip"]""", response.headers.values("Content-Disposition").toString())
+                        assertEquals(
+                            """[attachment; filename="folder.zip"]""",
+                            response.headers.values("Content-Disposition").toString()
+                        )
                     }
                 )
             }
@@ -115,36 +91,19 @@ class DownloadTests {
         staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
             withAuthMock {
                 withTestApplication(
-                    moduleFunction = {
-                        val user = mockedUser()
-                        coEvery { TokenValidation.validateAndClaim(any(), any(), any()) } returns user
-
-                        val instance = ServiceInstance(
-                            dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                            "localhost",
-                            42000
-                        )
-                        val cloud: AuthenticatedCloud = mockk(relaxed = true)
-                        installDefaultFeatures(cloud, mockk(relaxed = true), instance, requireJobId = false)
-                        install(JWTProtection)
-
-                        val fsRoot = createDummyFS()
-                        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-                        routing {
-                            route("api") {
-                                SimpleDownloadController(cloud, fs, mockk(relaxed = true)).configure(this)
-                            }
-                        }
-                    },
+                    moduleFunction = configureWithDownloadController(),
 
                     test = {
                         val response =
-                            handleRequest(HttpMethod.Get, "/api/files/download?path=/home/user1/folder/notThere/a&token=token") {
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/files/download?path=/home/user1/folder/notThere/a&token=token"
+                            ) {
                                 setUser("User", Role.USER)
                             }.response
 
 
-                        assertEquals(HttpStatusCode.BadRequest, response.status())
+                        assertEquals(HttpStatusCode.NotFound, response.status())
                     }
                 )
             }
@@ -156,38 +115,20 @@ class DownloadTests {
         staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
             withAuthMock {
                 withTestApplication(
-                    moduleFunction = {
-                        val user = mockedUser()
-                        coEvery { TokenValidation.validateAndClaim(any(), any(), any()) } returns user
-
-                        val instance = ServiceInstance(
-                            dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                            "localhost",
-                            42000
-                        )
-                        val cloud: AuthenticatedCloud = mockk(relaxed = true)
-                        installDefaultFeatures(cloud, mockk(relaxed = true), instance, requireJobId = false)
-                        install(JWTProtection)
-
-                        val fsRoot = createDummyFS()
-                        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-                        routing {
-                            route("api") {
-                                SimpleDownloadController(cloud, fs, mockk(relaxed = true)).configure(this)
-                            }
-                        }
-                    },
+                    moduleFunction = configureWithDownloadController(),
 
                     test = {
                         val response =
                             handleRequest(HttpMethod.Post, "/api/files/bulk") {
                                 setUser("User", Role.USER)
-                                setBody("""
+                                setBody(
+                                    """
                                     {
                                     "prefix" : "/home/user1/folder/",
                                     "files" : ["a", "b", "c"]
                                     }
-                                    """.trimIndent())
+                                    """.trimIndent()
+                                )
                             }.response
 
                         println(response.headers.allValues())
@@ -204,38 +145,20 @@ class DownloadTests {
         staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
             withAuthMock {
                 withTestApplication(
-                    moduleFunction = {
-                        val user = mockedUser()
-                        coEvery { TokenValidation.validateAndClaim(any(), any(), any()) } returns user
-
-                        val instance = ServiceInstance(
-                            dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                            "localhost",
-                            42000
-                        )
-                        val cloud: AuthenticatedCloud = mockk(relaxed = true)
-                        installDefaultFeatures(cloud, mockk(relaxed = true), instance, requireJobId = false)
-                        install(JWTProtection)
-
-                        val fsRoot = createDummyFS()
-                        val fs = cephFSWithRelaxedMocks(fsRoot.absolutePath)
-                        routing {
-                            route("api") {
-                                SimpleDownloadController(cloud, fs, mockk(relaxed = true)).configure(this)
-                            }
-                        }
-                    },
+                    moduleFunction = configureWithDownloadController(),
 
                     test = {
                         val response =
                             handleRequest(HttpMethod.Post, "/api/files/bulk") {
                                 setUser("User", Role.USER)
-                                setBody("""
+                                setBody(
+                                    """
                                     {
                                     "prefix" : "/home/user1/folder/",
                                     "files" : ["a", "b", "c", "d"]
                                     }
-                                    """.trimIndent())
+                                    """.trimIndent()
+                                )
                             }.response
 
                         //Should be OK since non existing files are filtered away.
