@@ -209,21 +209,6 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
         body { bindEntireRequestFromBody() }
     }
-
-    /**
-     * Marks a file as open access. Privileged API.
-     */
-    val markAsOpenAccess = callDescription<MarkFileAsOpenAccessRequest, Unit, CommonErrorMessage> {
-        prettyName = "filesMarkAsOpenAccess"
-        method = HttpMethod.Post
-
-        path {
-            using(baseContext)
-            +"open"
-        }
-
-        body { bindEntireRequestFromBody() }
-    }
 }
 
 const val DOWNLOAD_FILE_SCOPE = "downloadFile"

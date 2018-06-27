@@ -103,22 +103,6 @@ class StorageEventProcessor(
 
             when (event) {
                 is ProjectEvent.Created -> {
-                    val markResult = runBlocking {
-                        FileDescriptions.markAsOpenAccess.call(
-                            MarkFileAsOpenAccessRequest(
-                                path = event.project.fsRoot,
-                                proxyUser = event.project.owner
-                            ),
-                            cloud
-                        )
-                    }
-
-                    if (markResult !is RESTResponse.Ok) {
-                        log.warn("Could not mark project as open access. Not creating internal project!")
-                        log.warn("Response was: ${markResult.status} ${markResult.rawResponseBody}")
-                        return@forEach
-                    }
-
                     metadataCommandService.create(
                         ProjectMetadata(
                             sduCloudRoot = event.project.fsRoot,

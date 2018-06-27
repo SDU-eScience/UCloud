@@ -197,17 +197,6 @@ class FilesController<Ctx : FSUserContext>(
                     ok(Unit)
                 }
             }
-
-            implement(FileDescriptions.markAsOpenAccess) { req ->
-                logEntry(log, req)
-                if (!protect(listOf(Role.ADMIN, Role.SERVICE))) return@implement
-
-                tryWithFS(commandRunnerFactory, req.proxyUser) {
-                    TODO()
-//                    coreFs.markAsOpenAccess(it, req.path)
-                    ok(Unit)
-                }
-            }
         }
     }
 
