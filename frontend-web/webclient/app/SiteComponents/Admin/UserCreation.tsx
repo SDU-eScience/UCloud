@@ -1,14 +1,13 @@
 import * as React from "react";
-import { Form, Button, Input, Message } from "semantic-ui-react";
-
+import { Form, Button, Input } from "semantic-ui-react";
+import { Cloud } from "../../../authentication/SDUCloudObject";
 
 interface UserCreationState {
     submitted: boolean
     username: string
     password: string
     repeatedPassword: string
-    passwordError: boolean
-    usernameError: boolean
+    error: boolean
 }
 
 type UserCreationField = keyof UserCreationState;
@@ -21,30 +20,27 @@ class UserCreation extends React.Component<{}, UserCreationState> {
             username: "",
             password: "",
             repeatedPassword: "",
-            passwordError: false,
-            usernameError: false
+            error: false
         }
     }
 
     updateFields(field: UserCreationField, value: string) {
         const state = { ...this.state }
         state[field] = value;
-        state.usernameError = false;
-        state.passwordError = false;
+        state.error = false;
         this.setState(() => state);
     }
 
     submit() {
         let error = false;
-        const {username, password, repeatedPassword } = this.state;
-        if (!username) {
-            this.setState(() => ({ usernameError: true }));
+        const { username, password, repeatedPassword } = this.state;
+        if (!username || !password || !repeatedPassword) {
             error = true;
         }
-        if (!password || password !== repeatedPassword) {
-            this.setState(() => ({ passwordError: true }));
+        if (password !== repeatedPassword) {
             error = true;
         }
+        this.setState(() => ({ error }));
         if (!error) {
             // submit
         }
@@ -53,22 +49,24 @@ class UserCreation extends React.Component<{}, UserCreationState> {
     }
 
     render() {
+        if (!Cloud.userIsAdmin) return null;
+        const { error, username, password, repeatedPassword, submitted } = this.state;
         return (
             <React.StrictMode>
                 <Form>
-                    <Form.Field error={this.state.usernameError}>
+                    <Form.Field error={error}>
                         <label>Username</label>
-                        <Input value={this.state.username} onChange={(_e, { value }) => this.updateFields("username", value)} placeholder="Username..." />
+                        <Input value={username} onChange={(_e, { value }) => this.updateFields("username", value)} placeholder="Username..." />
                     </Form.Field>
-                    <Form.Field error={this.state.passwordError}>
+                    <Form.Field error={error}>
                         <label>Password</label>
-                        <Input value={this.state.password} type="password" onChange={(_e, { value }) => this.updateFields("password", value)} placeholder="Password..." />
+                        <Input value={password} type="password" onChange={(_e, { value }) => this.updateFields("password", value)} placeholder="Password..." />
                     </Form.Field>
-                    <Form.Field error={this.state.passwordError}>
+                    <Form.Field error={error}>
                         <label>Repeat Password</label>
-                        <Input value={this.state.repeatedPassword} type="password" onChange={(_e, { value }) => this.updateFields("repeatedPassword", value)} placeholder="Repeat password..." />
+                        <Input value={repeatedPassword} type="password" onChange={(_e, { value }) => this.updateFields("repeatedPassword", value)} placeholder="Repeat password..." />
                     </Form.Field>
-                    <Button type="button" content="Create" color="blue" onClick={() => this.submit()} loading={this.state.submitted} />
+                    <Button type="button" content="Create" color="blue" onClick={() => this.submit()} loading={submitted} />
                 </Form>
             </React.StrictMode>
         );

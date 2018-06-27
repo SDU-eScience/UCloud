@@ -125,7 +125,7 @@ export default class SDUCloud {
      * Opens up a new page which contains the login page at the auth service. This login page will automatically
      * redirect back to the correct service (using serviceName).
      */
-    openBrowserLoginPage() {
+    openBrowserLoginPage() { 
         window.location.href = this.authContext + "/login?service=" + encodeURIComponent(this.serviceName);
     }
 
@@ -145,6 +145,16 @@ export default class SDUCloud {
 
     get jobFolder() {
         return `${this.homeFolder}/Jobs`
+    }
+
+    get userRole() {
+        const info = this.userInfo;
+        if (info) return info.role;
+        return null;
+    }
+
+    get userIsAdmin() {
+        return this.userRole === "ADMIN";
     }
 
     /**

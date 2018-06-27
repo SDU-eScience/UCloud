@@ -68,6 +68,9 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                     </Menu.Item>
                     <Dropdown item icon="settings">
                         <Dropdown.Menu>
+                            <Dropdown.Item as={Link} to={"/usersettings/settings"}>
+                                Settings
+                            </Dropdown.Item>
                             <Dropdown.Item onClick={() => Cloud.logout()}>Logout</Dropdown.Item>
                         </Dropdown.Menu>
                     </Dropdown>
