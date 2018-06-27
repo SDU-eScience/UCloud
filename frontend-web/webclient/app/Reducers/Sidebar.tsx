@@ -3,7 +3,7 @@ export const RECEIVE_SIDEBAR_OPTIONS = "RECEIVE_SIDEBAR_OPTIONS";
 export const SET_SIDEBAR_OPEN = "SET_SIDEBAR_OPEN";
 export const SET_SIDEBAR_CLOSED = "SET_SIDEBAR_CLOSED";
 
-const sidebar = (state:any = { }, action) => {
+const sidebar = (state: any = {}, action) => {
     switch (action.type) {
         case SET_SIDEBAR_LOADING:
             return { ...state, loading: action.loading }

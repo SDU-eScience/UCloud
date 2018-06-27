@@ -458,12 +458,11 @@ function FileOptions({ selectedFiles, rename, ...props }) {
     return (
         <div>
             <Header as="h3">{fileText}</Header>
-            <Link to={`/fileInfo/${selectedFiles[0].path}/`}>
-                <Button className="context-button-margin" color="blue" fluid basic
-                    disabled={selectedFiles.length !== 1}
-                    icon="settings" content="Properties"
-                />
-            </Link>
+            <Button className="context-button-margin" color="blue" fluid basic
+                disabled={selectedFiles.length !== 1}
+                icon="settings" content="Properties"
+                as={Link} to={`/fileInfo/${selectedFiles[0].path}/`}
+            />
             <Button className="context-button-margin" fluid basic
                 onClick={() => uf.shareFiles(selectedFiles.map(f => f.path), Cloud)}
                 icon="share alternate" content="Share"
