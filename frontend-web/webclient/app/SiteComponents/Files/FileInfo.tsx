@@ -21,7 +21,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
         file = files.find(file => file.path === filePath);
     } else { // FIXME MapDispatchToProps
         dispatch(setLoading(true));
-        dispatch(fetchFiles(parentPath));
+        dispatch(fetchFiles(parentPath, false, false));
         dispatch(updatePath(parentPath));
     }
 
