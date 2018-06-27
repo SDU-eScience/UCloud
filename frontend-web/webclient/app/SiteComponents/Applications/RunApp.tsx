@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { Header, Form, Input, Button } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
@@ -6,13 +6,44 @@ import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
-import ReactMarkdown from "react-markdown";
+import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
 import { getFilenameFromPath } from "../../UtilityFunctions";
 import { updatePageTitle } from "../../Actions/Status";
 import "../Styling/Shared.scss";
+import { History } from "history";
 
-class RunApp extends React.Component {
+interface RunAppState {
+    promises: PromiseKeeper
+    loading: boolean
+    appName: string
+    displayAppName: string
+    appVersion: string
+    appDescription: string
+    appAuthor: string
+    parameters: any[] // FIXME
+    parameterValues: {}
+    jobInfo: {
+        maxTime?: {
+            hours: number | null
+            minutes: number | null
+            seconds: number | null
+        }
+        numberOfNodes: number | null
+        tasksPerNode: number | null
+    }
+    tool: {} // ???
+    comment: string
+    jobSubmitted: boolean
+}
+
+interface RunAppProps {
+    uppy: any
+    history: History
+    updatePageTitle: () => void
+}
+
+class RunApp extends React.Component<RunAppProps, RunAppState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -43,8 +74,13 @@ class RunApp extends React.Component {
         this.handleInputChange = this.handleInputChange.bind(this);
         this.onCommentChange = this.onCommentChange.bind(this);
         this.onJobSchedulingParamsChange = this.onJobSchedulingParamsChange.bind(this);
-        this.props.dispatch(updatePageTitle("Run App"));
+        this.props.updatePageTitle();
     };
+
+    static propTypes = {
+        uppy: PropTypes.object.isRequired,
+        uppyOpen: PropTypes.bool.isRequired
+    }
 
     componentDidMount() {
         this.retrieveApplication();
@@ -145,33 +181,33 @@ class RunApp extends React.Component {
     render() {
         return (
             <React.Fragment>
-                    <DefaultLoading loading={this.state.loading}/>
+                <DefaultLoading loading={this.state.loading} />
 
-                    <ApplicationHeader
-                        name={this.state.displayAppName}
-                        version={this.state.appVersion}
-                        description={this.state.appDescription}
-                        authors={this.state.appAuthor}
-                    />
+                <ApplicationHeader
+                    name={this.state.displayAppName}
+                    version={this.state.appVersion}
+                    description={this.state.appDescription}
+                    authors={this.state.appAuthor}
+                />
 
-                    <Parameters
-                        values={this.state.parameterValues}
-                        parameters={this.state.parameters}
-                        handleSubmit={this.handleSubmit}
-                        onChange={this.handleInputChange}
-                        comment={this.state.comment}
-                        onCommentChange={this.onCommentChange}
-                        uppy={this.props.uppy}
-                        jobInfo={this.state.jobInfo}
-                        onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                        tool={this.state.tool}
-                        jobSubmitted={this.state.jobSubmitted}
-                    />
-                </React.Fragment>)
+                <Parameters
+                    values={this.state.parameterValues}
+                    parameters={this.state.parameters}
+                    handleSubmit={this.handleSubmit}
+                    onChange={this.handleInputChange}
+                    comment={this.state.comment}
+                    onCommentChange={this.onCommentChange}
+                    uppy={this.props.uppy}
+                    jobInfo={this.state.jobInfo}
+                    onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
+                    tool={this.state.tool}
+                    jobSubmitted={this.state.jobSubmitted}
+                />
+            </React.Fragment>)
     }
 }
 
-const ApplicationHeader = ({ authors, name, description }) => {
+const ApplicationHeader = ({ authors, name, description, version }) => {
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!authors) ? authors.join(", ") : "";
@@ -180,6 +216,7 @@ const ApplicationHeader = ({ authors, name, description }) => {
         <Header as="h1">
             <Header.Content>
                 {name}
+                <h4>{version}</h4>
                 <h4>{pluralize(authors, "Author")}: {authorString}</h4>
             </Header.Content>
             <Header.Subheader>
@@ -238,13 +275,13 @@ const JobSchedulingParams = (props) => {
                     label="Number of nodes"
                     type="number" step="1"
                     placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
-                    onChange={e => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(e.target.value), null)}
+                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
                 <Form.Input
                     label="Tasks per node"
                     type="number" step="1"
                     placeholder={"Default value: " + props.tool.defaultTasksPerNode}
-                    onChange={e => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(e.target.value), null)}
+                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
                 />
             </Form.Group>
             <label>Maximum time allowed</label>
@@ -255,7 +292,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.hours}
                     type="number" step="1" min="0"
                     value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
-                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "hours")}
+                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
                 />
                 <Form.Input
                     fluid
@@ -263,7 +300,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.minutes}
                     type="number" step="1" min="0" max="59"
                     value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
-                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "minutes")}
+                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
                 />
                 <Form.Input
                     fluid
@@ -271,7 +308,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.seconds}
                     type="number" step="1" min="0" max="59"
                     value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
-                    onChange={e => props.onJobSchedulingParamsChange("maxTime", parseInt(e.target.value), "seconds")}
+                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
                 />
             </Form.Group>
         </React.Fragment>)
@@ -314,7 +351,6 @@ const InputFileParameter = (props) => {
         <GenericParameter parameter={props.parameter}>
             <FileSelector
                 onFileSelect={(file) => internalOnChange(file)}
-                uppyOpen={props.uppyOpen}
                 uppy={props.uppy}
                 path={path}
                 isRequired={!props.parameter.optional}
@@ -468,14 +504,14 @@ const GenericParameter = ({ parameter, children }) => (
 const OptionalText = ({ optional }) =>
     optional ? (<span className="help-block"><b>Optional</b></span>) : null;
 
+
+const mapDispatchToProps = (dispatch) => ({
+    updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
+});
+
 const mapStateToProps = ({ uppy }) => {
     const { uppyRunApp, uppyRunAppOpen } = uppy;
     return { uppy: uppyRunApp, uppyOpen: uppyRunAppOpen };
 }
 
-RunApp.propTypes = {
-    uppy: PropTypes.object.isRequired,
-    uppyOpen: PropTypes.bool.isRequired
-};
-
-export default connect(mapStateToProps)(RunApp);
+export default connect(mapStateToProps, mapDispatchToProps)(RunApp);

@@ -15,14 +15,14 @@ import "../Styling/Shared.scss";
 import { File } from "../../types/types";
 
 interface FileSelectorProps {
-    allowUpload: boolean
+    allowUpload?: boolean
     onFileSelect: Function
-    uppy: any
+    uppy?: any
     path: string
     isRequired: boolean
-    canSelectFolders: boolean
-    onlyAllowFolders: boolean
-    remove: Function
+    canSelectFolders?: boolean
+    onlyAllowFolders?: boolean
+    remove?: Function
 }
 
 interface FileSelectorState {
@@ -55,17 +55,17 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         store: PropTypes.object.isRequired
     }
 
-    startCreateNewFolder() {
+    startCreateNewFolder = () => {
         if (!this.state.creatingFolder) {
             this.setState(() => ({ creatingFolder: true }));
         }
     }
 
-    resetCreateFolder() {
+    resetCreateFolder = () => {
         this.setState(() => ({ creatingFolder: false }));
     }
 
-    handleKeyDown(key, name) {
+    handleKeyDown = (key, name) => {
         if (key === KeyCode.ESC) {
             this.resetCreateFolder();
         } else if (key === KeyCode.ENTER) {
@@ -86,7 +86,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         }
     }
 
-    uppyOnUploadSuccess(file, resp, uploadURL) {
+    uppyOnUploadSuccess = (file, resp, uploadURL) => {
         if (!this.props.allowUpload) return;
         // TODO This is a hack.
         let apiIndex = uploadURL.indexOf("/api/");
@@ -109,7 +109,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     };
 
     // FIXME: Merge two following functions into one
-    openModal(open) {
+    openModal = (open) => {
         this.setState(() => ({ modalShown: open }));
     }
 
@@ -121,14 +121,14 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.state.promises.cancelPromises();
     }
 
-    onUppyClose() {
+    onUppyClose = () => {
         this.props.uppy.off("upload-success", this.state.uppyOnUploadSuccess);
         this.setState(() => ({
             uppyOnUploadSuccess: null,
         }));
     }
 
-    setSelectedFile(file) {
+    setSelectedFile = (file) => {
         let fileCopy = { path: file.path };
         this.setState(() => ({
             modalShown: false,
@@ -137,7 +137,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.props.onFileSelect(fileCopy);
     }
 
-    fetchFiles(path) {
+    fetchFiles = (path) => {
         this.setState(() => ({ loading: true, creatingFolder: false }));
         this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(req => {
             this.setState(() => ({
