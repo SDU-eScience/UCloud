@@ -518,9 +518,7 @@ const MobileButtons = ({ file, rename, allowCopyAndMove = false, ...props }) => 
                     content="Delete file"
                     onClick={() => uf.showFileDeletionPrompt(file.path, Cloud, props.refetch)}
                 />
-                <Dropdown.Item>
-                    <Link to={`/fileInfo/${file.path}/`} className="black-text">Properties</Link>
-                </Dropdown.Item>
+                <Dropdown.Item content="Properties" as={Link} to={`/fileInfo/${file.path}/`} className="black-text"/>
                 <EditOrCreateProject projectNavigation={props.projectNavigation} file={file} />
             </Dropdown.Menu>
         </Dropdown>

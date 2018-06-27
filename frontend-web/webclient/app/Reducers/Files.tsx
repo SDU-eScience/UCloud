@@ -13,7 +13,7 @@ export const SET_FILE_SELECTOR_LOADING = "SET_FILE_SELECTOR_LOADING";
 export const SET_FILE_SELECTOR_CALLBACK = "SET_FILE_SELECTOR_CALLBACK";
 export const SET_DISALLOWED_PATHS = "SET_DISALLOWED_PATHS";
 
-const files = (state, action) => {
+const files = (state: any = {}, action) => {
     switch (action.type) {
         case RECEIVE_FILES: {
             return { ...state, files: action.files, loading: false, currentFilesPage: 0, fileSelectorFiles: action.files, fileSelectorPath: action.path };
@@ -32,14 +32,6 @@ const files = (state, action) => {
         }
         case TO_FILES_PAGE: {
             return { ...state, currentFilesPage: action.pageNumber };
-        }
-        case SET_FILES_SORTING_COLUMN: {
-            return {
-                ...state,
-                sortingColumns: state.files.sortingColumns.map((sc) =>
-                    sc.index === action.index ? { ...sc, name: action.name } : sc
-                )
-            };
         }
         case FILE_SELECTOR_SHOWN: {
             return { ...state, fileSelectorShown: action.state };
