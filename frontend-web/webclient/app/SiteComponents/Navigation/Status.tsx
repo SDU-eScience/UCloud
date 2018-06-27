@@ -1,13 +1,13 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Button } from "semantic-ui-react";
+import { Button, SemanticCOLORS } from "semantic-ui-react";
 import { connect } from "react-redux";
 import { Status } from "../../types/types";
 
 interface StatusProps { status: Status }
 const Status = ({ status }: StatusProps) => (
-    <Button 
-        className={`btn btn-info center-text ${statusToButton(status)}`}
+    <Button
+        className={`btn btn-info center-text ${statusToButton(status.level)}`}
         fluid
         as={Link}
         to={"/status"}
@@ -16,8 +16,8 @@ const Status = ({ status }: StatusProps) => (
     />
 );
 
-const statusToButton = (status: Status) => {
-    switch (status.level) {
+const statusToButton = (level: string): SemanticCOLORS => {
+    switch (level) {
         case "NO ISSUES":
             return "green";
         case "MAINTENANCE":

@@ -1,17 +1,13 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { updatePageTitle } from "../../Actions/Status";
-import { SemanticCOLORS, Segment, Header } from "semantic-ui-react";
+import { SemanticCOLORS, Segment } from "semantic-ui-react";
 
 const Status = ({ status, updatePageTitle }) => {
     updatePageTitle();
     return (
         <React.StrictMode>
-            <Segment color={levelToColor(status.level)}>
-                <Header as="h2">
-                    {status.title} 
-                </Header>
-            </Segment>
+            <Segment size="huge" content={status.title} color={levelToColor(status.level)} />
             <Segment padded="very" content={status.body} />
         </React.StrictMode>
     );

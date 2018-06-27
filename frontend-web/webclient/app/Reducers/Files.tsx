@@ -13,7 +13,7 @@ export const SET_FILE_SELECTOR_LOADING = "SET_FILE_SELECTOR_LOADING";
 export const SET_FILE_SELECTOR_CALLBACK = "SET_FILE_SELECTOR_CALLBACK";
 export const SET_DISALLOWED_PATHS = "SET_DISALLOWED_PATHS";
 
-const files = (state = [], action) => {
+const files = (state, action) => {
     switch (action.type) {
         case RECEIVE_FILES: {
             return { ...state, files: action.files, loading: false, currentFilesPage: 0, fileSelectorFiles: action.files, fileSelectorPath: action.path };
