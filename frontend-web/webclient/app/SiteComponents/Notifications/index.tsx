@@ -9,6 +9,7 @@ import { withRouter } from "react-router";
 import { Page } from "../../types/types";
 import { fetchNotifications, notificationRead } from "../../Actions/Notifications";
 import { History } from "history";
+import Status from "../Navigation/Status";
 
 interface NotificationProps {
     page: Page<Notification>
@@ -19,7 +20,7 @@ interface NotificationProps {
 }
 
 class Notifications extends React.Component<NotificationProps> {
-    constructor(props: any) {
+    constructor(props) {
         super(props);
     }
 
@@ -77,7 +78,7 @@ class Notifications extends React.Component<NotificationProps> {
                             <Icon name='bell' />{unreadLength}
                         </Label>
                     }
-                    content={<Feed>{entries.length ? entries : <NoNotifications />}</Feed>}
+                    content={<Feed>{entries.length ? entries : <NoNotifications />}<Status/></Feed>}
 
                     on="click"
                     position="bottom right"

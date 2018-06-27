@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { Switch, Route } from "react-router-dom";
 import Files from "./Files/Files";
 import FileInfo from "./Files/FileInfo";
@@ -11,7 +11,6 @@ import DetailedResult from "./Applications/DetailedResult";
 import Notifications from "./Activity/Notifications";
 import Header from "./Navigation/Header";
 import Sidebar from "../SiteComponents/Navigation/Sidebar";
-import UserAuditing from "./Admin/UserAuditing";
 import ZenodoPublish from "./Zenodo/Publish";
 import ZenodoHome from "./Zenodo/Zenodo";
 import ZenodoInfo from "./Zenodo/Info";
@@ -36,7 +35,6 @@ const Core = () => (
                 <Route exact path="/applications/:appName/:appVersion" component={RunApp} />
                 <Route exact path="/analyses" component={Analyses} />
                 <Route exact path="/analyses/:jobId" component={DetailedResult} />
-                <Route exact path="/audit/user/:id" component={UserAuditing} />
                 <Route exact path="/notifications" component={Notifications} />
                 <Route exact path="/zenodo/" component={ZenodoHome} />
                 <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo} />
@@ -57,4 +55,4 @@ const Core = () => (
     </React.Fragment >
 );
 
-export default (Core);
+export default Core;

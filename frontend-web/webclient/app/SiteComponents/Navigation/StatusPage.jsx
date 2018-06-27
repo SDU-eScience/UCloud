@@ -2,13 +2,13 @@ import React from "react";
 import { connect } from "react-redux";
 import { updatePageTitle } from "../../Actions/Status";
 
-const Status = ({ status, dispatch }) => {
-    dispatch(updatePageTitle("System Status"));
+const Status = ({ status, updatePageTitle }) => {
+    updatePageTitle();
     return (
         <section>
             <div className={"container-overlap " + statusToButton(status)}>
                 <div className="media m0 pv">
-                    <div className="media-left"><a href="#"/></div>
+                    <div className="media-left"><a href="#" /></div>
                     <div className="media-body media-middle">
                         <h4 className="media-heading">{status.title}</h4>
                     </div>
@@ -40,5 +40,6 @@ const statusToButton = (status) => {
     }
 }
 
-const mapStateToProps = (state) => ({ status: state.status.status })
-export default connect(mapStateToProps)(Status);
+const mapDispatchToProps = (dispatch) => ({ updatePageTitle: () => dispatch(updatePageTitle("System Status")) });
+const mapStateToProps = (state) => ({ status: state.status.status });
+export default connect(mapStateToProps, mapDispatchToProps)(Status);

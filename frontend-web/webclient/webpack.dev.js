@@ -10,7 +10,7 @@ module.exports = webpackMerge(commonConfig, {
 
     entry: {
         vendor: './app/Vendor.tsx',
-        app: './app/App.jsx'
+        app: './app/App.tsx'
     },
 
     output: {

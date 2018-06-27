@@ -10,7 +10,7 @@ module.exports = {
 
     entry: {
         vendor: './app/Vendor.tsx',
-        app: './app/App.jsx'
+        app: './app/App.tsx'
     },
 
     resolve: {

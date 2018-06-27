@@ -4,11 +4,16 @@ import { Button } from "semantic-ui-react";
 import { connect } from "react-redux";
 import { Status } from "../../types/types";
 
-interface StatusBarProps { status: Status }
-const StatusBar = ({ status }: StatusBarProps) => (
-    <Link to={"/status"}>
-        <Button className={`btn btn-info center-text ${statusToButton(status)}`} title={status.body}>{status.title}</Button>
-    </Link>
+interface StatusProps { status: Status }
+const Status = ({ status }: StatusProps) => (
+    <Button 
+        className={`btn btn-info center-text ${statusToButton(status)}`}
+        fluid
+        as={Link}
+        to={"/status"}
+        content={status.title}
+        title={status.body}
+    />
 );
 
 const statusToButton = (status: Status) => {
@@ -23,5 +28,5 @@ const statusToButton = (status: Status) => {
     }
 }
 
-const mapStateToProps = (state: any) => ({ status: state.status.status });
-export default connect(mapStateToProps)(StatusBar);
+const mapStateToProps = (state) => ({ status: state.status.status });
+export default connect(mapStateToProps)(Status);
