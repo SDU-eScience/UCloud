@@ -8,8 +8,7 @@
     "clean": "rm -rf dist/",
     "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
     "test": "jest",
-    "install": "napa",
-    "postinstall": "modernizr -c modernizr-config.json -d app/modernizr.js"
+    "install": "napa"
   },
   "dependencies": {
     "@types/react": "^16.4.2",
@@ -21,7 +20,6 @@
     "font-awesome": "4.7.0",
     "jsonwebtoken": "8.3.0",
     "loaders.css": "0.1.2",
-    "modernizr": "3.6.0",
     "moment": "~2.22.2",
     "npm": "6.1.0",
     "prop-types": "15.6.2",
