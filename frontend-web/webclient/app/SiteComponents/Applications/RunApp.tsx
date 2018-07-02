@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Header, Form, Input, Button } from "semantic-ui-react";
+import { Grid, Header, Form, Input, Button } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -70,8 +70,8 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             jobSubmitted: false
         };
         this.props.uppy.run();
-        this.handleSubmit = this.handleSubmit.bind(this);
-        this.handleInputChange = this.handleInputChange.bind(this);
+        this.onSubmit = this.onSubmit.bind(this);
+        this.onInputChange = this.onInputChange.bind(this);
         this.onCommentChange = this.onCommentChange.bind(this);
         this.onJobSchedulingParamsChange = this.onJobSchedulingParamsChange.bind(this);
         this.props.updatePageTitle();
@@ -103,7 +103,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 
 
-    handleSubmit(event) {
+    onSubmit(event) {
         event.preventDefault();
 
         let maxTime = this.state.jobInfo.maxTime;
@@ -137,7 +137,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.setState(() => ({ jobSubmitted: true }));
     }
 
-    handleInputChange(parameterName, value) {
+    onInputChange(parameterName, value) {
         this.setState(() => {
             let result = {
                 parameterValues: { ...this.state.parameterValues },
@@ -177,33 +177,35 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         });
     }
 
-
     render() {
         return (
-            <React.Fragment>
-                <DefaultLoading loading={this.state.loading} />
+            <Grid container columns={16}>
+                <Grid.Column width={16}>
+                    <DefaultLoading loading={this.state.loading} />
 
-                <ApplicationHeader
-                    name={this.state.displayAppName}
-                    version={this.state.appVersion}
-                    description={this.state.appDescription}
-                    authors={this.state.appAuthor}
-                />
+                    <ApplicationHeader
+                        name={this.state.displayAppName}
+                        version={this.state.appVersion}
+                        description={this.state.appDescription}
+                        authors={this.state.appAuthor}
+                    />
 
-                <Parameters
-                    values={this.state.parameterValues}
-                    parameters={this.state.parameters}
-                    handleSubmit={this.handleSubmit}
-                    onChange={this.handleInputChange}
-                    comment={this.state.comment}
-                    onCommentChange={this.onCommentChange}
-                    uppy={this.props.uppy}
-                    jobInfo={this.state.jobInfo}
-                    onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                    tool={this.state.tool}
-                    jobSubmitted={this.state.jobSubmitted}
-                />
-            </React.Fragment>)
+                    <Parameters
+                        values={this.state.parameterValues}
+                        parameters={this.state.parameters}
+                        onSubmit={this.onSubmit}
+                        onChange={this.onInputChange}
+                        comment={this.state.comment}
+                        onCommentChange={this.onCommentChange}
+                        uppy={this.props.uppy}
+                        jobInfo={this.state.jobInfo}
+                        onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
+                        tool={this.state.tool}
+                        jobSubmitted={this.state.jobSubmitted}
+                    />
+                </Grid.Column>
+            </Grid>
+        );
     }
 }
 
@@ -249,18 +251,19 @@ const Parameters = (props) => {
     });
 
     return (
-        <Form>
+        <Form onSubmit={props.onSubmit}>
             {parametersList}
             <JobSchedulingParams
                 onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
                 jobInfo={props.jobInfo}
                 tool={props.tool}
             />
+
             <Button
                 color="blue"
                 loading={props.jobSubmitted}
                 content={"Submit"}
-                onClick={props.handleSubmit} />
+            />
         </Form>
     )
 };
@@ -275,13 +278,13 @@ const JobSchedulingParams = (props) => {
                     label="Number of nodes"
                     type="number" step="1"
                     placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
-                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
+                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
                 <Form.Input
                     label="Tasks per node"
                     type="number" step="1"
                     placeholder={"Default value: " + props.tool.defaultTasksPerNode}
-                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
+                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
                 />
             </Form.Group>
             <label>Maximum time allowed</label>
@@ -292,7 +295,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.hours}
                     type="number" step="1" min="0"
                     value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
-                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
+                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
                 />
                 <Form.Input
                     fluid
@@ -300,7 +303,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.minutes}
                     type="number" step="1" min="0" max="59"
                     value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
-                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
+                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
                 />
                 <Form.Input
                     fluid
@@ -308,7 +311,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.seconds}
                     type="number" step="1" min="0" max="59"
                     value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
-                    onChange={(e, {value}) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
+                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
                 />
             </Form.Group>
         </React.Fragment>)

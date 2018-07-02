@@ -426,3 +426,29 @@ export const blankOrNull = (value: string): boolean => {
 export const ifPresent = (f, handler: (f: any) => void) => {
     if (f) handler(f)
 };
+
+export function defaultErrorHandler(error: any): number {
+    let request: XMLHttpRequest = error.req;
+    let why: string = null;
+
+    if (!!error.response && !!error.repsonse.why) {
+        why = error.response.why;
+    }
+
+    if (!!request) {
+        if (request.status == 400) {
+            if (!!why) why = "Bad request";
+        } else if (request.status == 403) {
+            if (!!why) why = "Permission denied";
+            failureNotification(why);
+        } else {
+            if (!!why) {
+                why = "Internal Server Error. Try again later.";
+            }
+        }
+
+        failureNotification(why);
+        return request.status;
+    }
+    return 500;
+}
