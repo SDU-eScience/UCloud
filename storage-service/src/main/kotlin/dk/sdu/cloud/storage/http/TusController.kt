@@ -12,6 +12,7 @@ import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.UploadDescriptions.savedAs
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -271,6 +272,7 @@ class TusController<Ctx : FSUserContext>(
             return call.respond(HttpStatusCode.Conflict)
         }
 
+        val path = initialState.targetCollection + "/" + initialState.targetName
         var wrote = 0L
         if (claimedOffset != initialState.length) {
             if (claimedOffset != 0L) {
@@ -286,7 +288,7 @@ class TusController<Ctx : FSUserContext>(
             commandRunnerFactory.withContext(initialState.user) { ctx ->
                 fs.write(
                     ctx,
-                    initialState.targetCollection + "/" + initialState.targetName,
+                    path,
                     WriteConflictPolicy.OVERWRITE
                 ) {
                     runBlocking {
@@ -319,6 +321,10 @@ class TusController<Ctx : FSUserContext>(
         transaction {
             UploadProgress.update({ UploadProgress.id eq id }) {
                 it[numChunksVerified] = block
+            }
+
+            UploadDescriptions.update({ UploadDescriptions.id eq id }) {
+                it[savedAs] = path
             }
         }
 

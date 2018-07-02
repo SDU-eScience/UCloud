@@ -104,7 +104,7 @@ class ProjectsController(
             logEntry(log, it)
 
             tryWithProject {
-                ok(projectService.findByFSRoot(it.path) ?: throw ProjectException.NotFound())
+                ok(projectService.findByFSRoot(it.path))
             }
         }
     }
