@@ -13,7 +13,10 @@ export const fetchApplications = () =>
             a.prettyName.localeCompare(b.prettyName)
         );
         return receiveApplications(response);
-    }).catch(() => failureNotification("An error occurred while retrieving applications."));
+    }).catch(() => {
+        failureNotification("An error occurred while retrieving applications.")
+        return receiveApplications([]);
+    });
 
 export const setLoading = (loading) => ({
     type: SET_APPLICATIONS_LOADING,

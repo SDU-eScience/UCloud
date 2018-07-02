@@ -40,7 +40,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         const sidebarIcon = open ? "triangle left" : "triangle right";
         const { searchText } = this.state;
         return (
-            <Menu className="menu-padding" inverted>
+            <Menu className="menu-padding" inverted attached borderless>
                 <Responsive maxWidth={1024}>
                     <Menu.Item onClick={() => dispatch(setSidebarOpen())} className="sidebar-button-padding">
                         <Icon.Group size="large">
