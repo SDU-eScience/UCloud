@@ -44,43 +44,43 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 var sensitivity: SensitivityLevel = SensitivityLevel.CONFIDENTIAL
                 var owner: String = call.request.validatedPrincipal.subject
 
-                commandRunnerFactory.withContext(owner) { ctx ->
-                    multipart.forEachPart { part ->
-                        log.debug("Received part ${part.name}")
-                        when (part) {
-                            is PartData.FormItem -> {
-                                when (part.name) {
-                                    "location" -> location = part.value
+                multipart.forEachPart { part ->
+                    log.debug("Received part ${part.name}")
+                    when (part) {
+                        is PartData.FormItem -> {
+                            when (part.name) {
+                                "location" -> location = part.value
 
-                                    "sensitivity" -> {
-                                        // If we can parse it, set it
-                                        SensitivityLevel.values().find { it.name == part.value }
-                                            ?.let { sensitivity = it }
-                                    }
+                                "sensitivity" -> {
+                                    // If we can parse it, set it
+                                    SensitivityLevel.values().find { it.name == part.value }
+                                        ?.let { sensitivity = it }
+                                }
 
-                                    "owner" -> {
-                                        if (call.request.principalRole.isPrivileged()) {
-                                            owner = part.value
-                                        }
+                                "owner" -> {
+                                    if (call.request.principalRole.isPrivileged()) {
+                                        owner = part.value
                                     }
                                 }
                             }
+                        }
 
-                            is PartData.FileItem -> {
-                                if (part.name == "upload") {
-                                    if (location == null) {
-                                        error(
-                                            CommonErrorMessage("Bad request. Missing location or upload"),
-                                            HttpStatusCode.BadRequest
-                                        )
-                                        return@forEachPart
-                                    }
-
-                                    assert(
-                                        owner == call.request.validatedPrincipal.subject ||
-                                                call.request.principalRole.isPrivileged()
+                        is PartData.FileItem -> {
+                            if (part.name == "upload") {
+                                if (location == null) {
+                                    error(
+                                        CommonErrorMessage("Bad request. Missing location or upload"),
+                                        HttpStatusCode.BadRequest
                                     )
+                                    return@forEachPart
+                                }
 
+                                assert(
+                                    owner == call.request.validatedPrincipal.subject ||
+                                            call.request.principalRole.isPrivileged()
+                                )
+
+                                commandRunnerFactory.withContext(owner) { ctx ->
                                     fs.write(ctx, location!!, WriteConflictPolicy.OVERWRITE) {
                                         val out = this
                                         part.streamProvider().use { it.copyTo(out) }
@@ -90,9 +90,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                                 }
                             }
                         }
-
-                        part.dispose()
                     }
+                    part.dispose()
                 }
             }
 
