@@ -49,7 +49,7 @@ class UserCreation extends React.Component<{}, UserCreationState> {
         this.setState(() => state);
     }
 
-    submit(e: React.FormEvent) {
+    submit(e: React.SyntheticEvent) {
         e.preventDefault();
 
         let usernameError = false;

@@ -428,22 +428,25 @@ export const ifPresent = (f, handler: (f: any) => void) => {
 };
 
 export function defaultErrorHandler(error: any): number {
-    let request: XMLHttpRequest = error.req;
+    let request: XMLHttpRequest = error.request;
     let why: string = null;
 
-    if (!!error.response && !!error.repsonse.why) {
+    if (!!error.response && !!error.response.why) {
         why = error.response.why;
     }
 
     if (!!request) {
-        if (request.status == 400) {
-            if (!!why) why = "Bad request";
-        } else if (request.status == 403) {
-            if (!!why) why = "Permission denied";
-            failureNotification(why);
-        } else {
-            if (!!why) {
-                why = "Internal Server Error. Try again later.";
+        if (!why) {
+            switch (request.status) {
+                case 400:
+                    why = "Bad request";
+                    break;
+                case 403:
+                    why = "Permission denied";
+                    break;
+                default:
+                    why = "Internal Server Error. Try again later.";
+                    break;
             }
         }
 
