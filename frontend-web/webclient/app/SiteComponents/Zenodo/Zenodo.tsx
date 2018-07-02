@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { Button, Table, Header, Responsive, Icon } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
@@ -8,8 +8,24 @@ import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
 import { dateToString } from "../../Utilities/DateUtilities";
 import { List } from "../Pagination/List";
+import { Page, Publication } from "../../types/types";
 
-class ZenodoHome extends React.Component {
+interface ZenodoHomeProps {
+    connected: boolean
+    loading: boolean
+    page: Page<Publication>
+    fetchPublications: (pageNo: Number, pageSize: number) => void
+    updatePageTitle: () => void
+}
+
+interface ZenodoHomeState {
+    sorting: {
+        lastSorting: string
+        asc: boolean
+    }
+}
+
+class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -93,7 +109,7 @@ const PublicationRow = ({ publication }) => {
             <Table.Cell>{toLowerCaseAndCapitalize(publication.status)}</Table.Cell>
             <Table.Cell>{actionButton}</Table.Cell>
             <Table.Cell>
-                <Link to={`/zenodo/info/${window.encodeURIComponent(publication.id)}`}>
+                <Link to={`/zenodo/info/${encodeURIComponent(publication.id)}`}>
                     <Button>Show More</Button>
                 </Link>
             </Table.Cell>
@@ -109,5 +125,5 @@ const mapDispatchToProps = (dispatch) => ({
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Overview"))
 });
 
-const mapStateToProps = (state) => ({ connected, loading, page } = state.zenodo);
+const mapStateToProps = (state) => state.zenodo;
 export default connect(mapStateToProps, mapDispatchToProps)(ZenodoHome);

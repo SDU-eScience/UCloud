@@ -1,5 +1,5 @@
-import React from "react";
-import { Button, Container, Header, Form } from "semantic-ui-react";
+import * as React from "react";
+import { Button, Header, Form } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
@@ -8,8 +8,21 @@ import { updatePageTitle } from "../../Actions/Status";
 import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
 import "./Zenodo.scss";
+import { History } from "history";
 
-class ZenodoPublish extends React.Component {
+interface ZenodoPublishState {
+    files: string[]
+    name: string
+    requestSent: boolean
+}
+
+interface ZenodoPublishProps {
+    loading: boolean
+    connected: boolean
+    history: History
+}
+
+class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -72,7 +85,6 @@ class ZenodoPublish extends React.Component {
     }
 
     render() {
-        const filesSelected = this.state.files.filter(filePath => filePath).length > 0;
         const { name } = this.state;
         if (this.props.loading) {
             return (<DefaultLoading loading={true} />);
@@ -87,10 +99,9 @@ class ZenodoPublish extends React.Component {
                     </Header.Content>
                 </Header>
                 <Form onSubmit={(e) => this.submit(e)}>
-                    <FileSelections className="mobile-padding"
+                    <FileSelections
                         handleFileSelection={this.handleFileSelection}
                         files={this.state.files}
-                        newFile={this.newFile}
                         removeFile={this.removeFile}
                     />
                     <Form.Field className="mobile-padding">
@@ -98,9 +109,9 @@ class ZenodoPublish extends React.Component {
                             fluid
                             label="Publication Name"
                             required={true}
-                            value={this.state.name}
+                            value={name}
                             type="text"
-                            onChange={e => this.updateName(e.target.value)}
+                            onChange={(_, {value}) => this.updateName(value)}
                         />
                     </Form.Field>
                     <Form.Field>
@@ -112,7 +123,7 @@ class ZenodoPublish extends React.Component {
                             onClick={() => this.newFile()}
                         />
                         <Button className="bottom-padding"
-                            disabled={!this.state.name || this.state.files.filter(p => p).length === 0}
+                            disabled={!name || this.state.files.filter(p => p).length === 0}
                             floated="right"
                             color="blue"
                             loading={this.state.requestSent}
@@ -131,14 +142,15 @@ const FileSelections = ({ files, handleFileSelection, removeFile }) => (
         {files.map((file, index) =>
             (<Form.Field key={index}>
                 <FileSelector
+                    isRequired={files.length === 1}
                     path={file}
                     onFileSelect={chosenFile => handleFileSelection(chosenFile, index)}
                     allowUpload={false}
-                    remove={files.length > 1 ? () => removeFile(index) : false}
+                    remove={files.length > 1 ? () => removeFile(index) : null}
                 />
             </Form.Field>))}
     </React.Fragment>
 );
 
-const mapStateToProps = ({ zenodo }) => ({ connected, loading } = zenodo);
+const mapStateToProps = ({ zenodo }) => ({ connected: zenodo.connected, loading: zenodo.loading });
 export default connect(mapStateToProps)(ZenodoPublish);
