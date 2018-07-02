@@ -160,7 +160,7 @@ static void print_shares(std::ostream &stream, const char *path) {
 
     for (const auto &e : shares) {
         EMIT_STAT(e.name);
-        EMIT_STAT(e.mode);
+        printf("%d\n", e.mode);
         free(e.name);
     }
 }
