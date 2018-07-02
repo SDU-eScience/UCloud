@@ -4,15 +4,18 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.AuthStreams
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
+import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.processors.OneTimeTokenProcessor
 import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
 import dk.sdu.cloud.auth.processors.UserProcessor
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
+import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.experimental.runBlocking
@@ -72,15 +75,24 @@ class AuthServer(
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
 
             log.info("Creating HTTP controllers")
-            val coreController = CoreAuthController(tokenService, config.enablePasswords, config.enableWayf)
+            val coreController = CoreAuthController(
+                tokenService,
+                config.enablePasswords,
+                config.enableWayf
+            )
             val samlController = SAMLController(authSettings, tokenService)
             val passwordController = PasswordController(tokenService)
+            val userController = UserController(kafka.producer.forStream(AuthStreams.UserUpdateStream))
             log.info("HTTP controllers configured!")
 
             routing {
                 coreController.configure(this)
                 if (config.enableWayf) samlController.configure(this)
                 if (config.enablePasswords) passwordController.configure(this)
+
+                route(UserDescriptions.baseContext) {
+                    userController.configure(this)
+                }
             }
 
             log.info("HTTP server successfully configured!")

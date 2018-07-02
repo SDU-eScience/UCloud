@@ -4,6 +4,9 @@ import dk.sdu.cloud.client.RESTDescriptions
 import io.ktor.http.HttpMethod
 
 data class OneTimeAccessToken(val accessToken: String, val jti: String)
+data class RequestOneTimeToken(val audience: String)
+data class ClaimOneTimeToken(val jti: String)
+
 object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
     private const val baseContext = "/auth"
 
@@ -52,7 +55,3 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
         }
     }
 }
-
-data class RequestOneTimeToken(val audience: String)
-
-data class ClaimOneTimeToken(val jti: String)

@@ -8,15 +8,15 @@ import org.h2.jdbc.JdbcSQLException
 import org.slf4j.LoggerFactory
 
 class UserProcessor(
-        private val stream: KStream<String, UserEvent>
+    private val stream: KStream<String, UserEvent>
 ) {
     private val log = LoggerFactory.getLogger(UserProcessor::class.java)
 
     fun init() {
         // We can probably create something better for this
         val branches = stream.branch(
-                Predicate { _, value -> value is UserEvent.Created },
-                Predicate { _, value -> value is UserEvent.Updated }
+            Predicate { _, value -> value is UserEvent.Created },
+            Predicate { _, value -> value is UserEvent.Updated }
         )
 
         val createdStream = branches[0].mapValues { it as UserEvent.Created }

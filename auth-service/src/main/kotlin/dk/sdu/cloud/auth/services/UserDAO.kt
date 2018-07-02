@@ -25,48 +25,50 @@ internal object PersonUtils {
     private val ITERATIONS = 10000
     private val KEY_LENGTH = 256
 
-    fun createUserByPassword(firstNames: String, lastName: String, email: String, role: Role,
-                             password: String): Person.ByPassword {
+    fun createUserByPassword(
+        firstNames: String, lastName: String, email: String, role: Role,
+        password: String
+    ): Person.ByPassword {
         val (hashed, salt) = hashPassword(password)
         return Person.ByPassword(
-                id = email,
-                role = role,
-                title = null,
-                firstNames = firstNames,
-                lastName = lastName,
-                phoneNumber = null,
-                orcId = null,
-                emailAddresses = listOf(email),
-                preferredEmailAddress = email,
-                password = hashed,
-                salt = salt
+            id = email,
+            role = role,
+            title = null,
+            firstNames = firstNames,
+            lastName = lastName,
+            phoneNumber = null,
+            orcId = null,
+            emailAddresses = listOf(email),
+            preferredEmailAddress = email,
+            password = hashed,
+            salt = salt
         )
     }
 
     fun createUserByWAYF(authenticatedUser: Auth): Person.ByWAYF {
         if (!authenticatedUser.authenticated) throw IllegalStateException("User is not authenticated")
-        val id = authenticatedUser.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull() ?:
-                throw IllegalArgumentException("Missing EduPersonTargetedId")
-        val firstNames = authenticatedUser.attributes["gn"]?.firstOrNull() ?:
-                throw IllegalArgumentException("Missing gn")
-        val lastNames = authenticatedUser.attributes["sn"]?.firstOrNull() ?:
-                throw IllegalArgumentException("Missing sn")
-        val organization = authenticatedUser.attributes["schacHomeOrganization"]?.firstOrNull() ?:
-                throw IllegalArgumentException("Missing schacHomeOrganization")
+        val id = authenticatedUser.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
+                ?: throw IllegalArgumentException("Missing EduPersonTargetedId")
+        val firstNames =
+            authenticatedUser.attributes["gn"]?.firstOrNull() ?: throw IllegalArgumentException("Missing gn")
+        val lastNames =
+            authenticatedUser.attributes["sn"]?.firstOrNull() ?: throw IllegalArgumentException("Missing sn")
+        val organization = authenticatedUser.attributes["schacHomeOrganization"]?.firstOrNull()
+                ?: throw IllegalArgumentException("Missing schacHomeOrganization")
 
         val role = Role.USER
 
         return Person.ByWAYF(
-                id = id,
-                firstNames = firstNames,
-                lastName = lastNames,
-                role = role,
-                title = null,
-                phoneNumber = null,
-                orcId = null,
-                emailAddresses = emptyList(),
-                preferredEmailAddress = null,
-                organizationId = organization
+            id = id,
+            firstNames = firstNames,
+            lastName = lastNames,
+            role = role,
+            title = null,
+            phoneNumber = null,
+            orcId = null,
+            emailAddresses = emptyList(),
+            preferredEmailAddress = null,
+            organizationId = organization
         )
     }
 
@@ -159,72 +161,85 @@ object UserDAO {
 
         log.debug("Returned ${users.size} rows")
 
-        return users.singleOrNull()?.let {
-            val rowId = it[Principals.id]
-            val role = Role.valueOf(it[Principals.role])
-            val loginType = LoginType.valueOf(it[Principals.loginType])
+        return users.singleOrNull()?.let(this::mapPrincipalRow).also {
+            log.debug("Result is: $it")
+        }
+    }
 
-            when (loginType) {
-                LoginType.WAYF, LoginType.PASSWORD -> {
-                    log.debug("Login is person: loginType=$loginType")
-                    val title = it[Principals.title]
-                    val firstNames = it[Principals.firstNames]!!
-                    val lastName = it[Principals.lastName]!!
-                    val phoneNumber = it[Principals.phoneNumber]
-                    val orcId = it[Principals.orcId]
+    fun findAllByIds(ids: List<String>): Map<String, Principal?> {
+        val usersWeFound = transaction { Principals.select { Principals.id inList ids }.toList() }
+            .map(this::mapPrincipalRow)
+            .associateBy { it.id }
 
-                    when (loginType) {
-                        LoginType.WAYF -> {
-                            val organizationId = it[Principals.orgId]!!
+        val usersWeDidntFind = ids.filter { it !in usersWeFound }
+        val nullEntries = usersWeDidntFind.map { it to null as Principal? }.toMap()
 
-                            Person.ByWAYF(
-                                    id = rowId,
-                                    title = title,
-                                    role = role,
-                                    firstNames = firstNames,
-                                    lastName = lastName,
-                                    phoneNumber = phoneNumber,
-                                    orcId = orcId,
-                                    organizationId = organizationId,
+        return usersWeFound + nullEntries
+    }
 
-                                    // TODO
-                                    emailAddresses = emptyList(),
-                                    preferredEmailAddress = null
-                            )
-                        }
+    private fun mapPrincipalRow(it: ResultRow): Principal {
+        val rowId = it[Principals.id]
+        val role = Role.valueOf(it[Principals.role])
+        val loginType = LoginType.valueOf(it[Principals.loginType])
 
-                        LoginType.PASSWORD -> {
-                            val password = it[Principals.hashed]!!
-                            val salt = it[Principals.salt]!!
+        return when (loginType) {
+            LoginType.WAYF, LoginType.PASSWORD -> {
+                log.debug("Login is person: loginType=$loginType")
+                val title = it[Principals.title]
+                val firstNames = it[Principals.firstNames]!!
+                val lastName = it[Principals.lastName]!!
+                val phoneNumber = it[Principals.phoneNumber]
+                val orcId = it[Principals.orcId]
 
-                            Person.ByPassword(
-                                    id = rowId,
-                                    title = title,
-                                    role = role,
-                                    firstNames = firstNames,
-                                    lastName = lastName,
-                                    phoneNumber = phoneNumber,
-                                    orcId = orcId,
-                                    password = password,
-                                    salt = salt,
+                when (loginType) {
+                    LoginType.WAYF -> {
+                        val organizationId = it[Principals.orgId]!!
 
-                                    // TODO
-                                    emailAddresses = emptyList(),
-                                    preferredEmailAddress = null
-                            )
-                        }
+                        Person.ByWAYF(
+                            id = rowId,
+                            title = title,
+                            role = role,
+                            firstNames = firstNames,
+                            lastName = lastName,
+                            phoneNumber = phoneNumber,
+                            orcId = orcId,
+                            organizationId = organizationId,
 
-                        else -> throw IllegalStateException()
+                            // TODO
+                            emailAddresses = emptyList(),
+                            preferredEmailAddress = null
+                        )
                     }
-                }
 
-                LoginType.SERVICE -> {
-                    log.debug("Login type is service")
-                    ServicePrincipal(rowId, role)
+                    LoginType.PASSWORD -> {
+                        val password = it[Principals.hashed]!!
+                        val salt = it[Principals.salt]!!
+
+                        Person.ByPassword(
+                            id = rowId,
+                            title = title,
+                            role = role,
+                            firstNames = firstNames,
+                            lastName = lastName,
+                            phoneNumber = phoneNumber,
+                            orcId = orcId,
+                            password = password,
+                            salt = salt,
+
+                            // TODO
+                            emailAddresses = emptyList(),
+                            preferredEmailAddress = null
+                        )
+                    }
+
+                    else -> throw IllegalStateException()
                 }
             }
-        }.also {
-            log.debug("Result is: $it")
+
+            LoginType.SERVICE -> {
+                log.debug("Login type is service")
+                ServicePrincipal(rowId, role)
+            }
         }
     }
 
@@ -280,12 +295,12 @@ object UserDAO {
         log.debug("update(user=$user)")
         return transaction {
             Principals.update(
-                    limit = 1,
-                    where = { Principals.id eq user.id },
-                    body = {
-                        mapFieldsIntoStatement(it, user)
-                        Principals.common.setValuesForUpdate(it)
-                    }
+                limit = 1,
+                where = { Principals.id eq user.id },
+                body = {
+                    mapFieldsIntoStatement(it, user)
+                    Principals.common.setValuesForUpdate(it)
+                }
             )
         } == 1
     }

@@ -51,7 +51,6 @@ suspend fun RESTHandler<*, *, *>.protect(rolesAllowed: List<Role> = Role.values(
     return true
 }
 
-
 suspend fun PipelineContext<Unit, ApplicationCall>.protect(rolesAllowed: List<Role> = Role.values().toList()): Boolean {
     if (call.attributes.getOrNull(jwtKey) == null) {
         log.debug("Could not find JWT")
@@ -122,6 +121,9 @@ private val roleKey = AttributeKey<Role>("role")
 var ApplicationRequest.principalRole: Role
     get() = call.attributes[roleKey]
     private set(value) = call.attributes.put(roleKey, value)
+
+fun Role.isPrivileged(): Boolean = this in PRIVILEGED_ROLES
+val PRIVILEGED_ROLES = listOf(Role.SERVICE, Role.ADMIN)
 
 typealias SecurityPrincipal = DecodedJWT
 

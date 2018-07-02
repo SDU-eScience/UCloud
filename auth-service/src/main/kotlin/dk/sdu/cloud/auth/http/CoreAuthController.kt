@@ -1,11 +1,7 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.bearer
-import dk.sdu.cloud.auth.services.OneTimeTokenDAO
-import dk.sdu.cloud.auth.services.ServiceDAO
-import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.*
 import io.ktor.application.ApplicationCallPipeline
@@ -19,7 +15,6 @@ import io.ktor.html.respondHtml
 import io.ktor.http.CacheControl
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.request.ApplicationReceivePipeline
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
@@ -27,7 +22,6 @@ import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.route
 import kotlinx.html.*
-import org.apache.http.client.methods.HttpHead
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -358,6 +352,8 @@ class CoreAuthController(
                     call.respond(ex.httpCode)
                 }
             }
+
+
         }
     }
 }
