@@ -192,7 +192,7 @@ class CephFileSystem(
         return ctx.runCommand(
             InterpreterCommand.SET_XATTR,
             absolutePath,
-            attribute,
+            attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it" },
             value,
             consumer = this::consumeStatusCode
         )
@@ -447,6 +447,7 @@ class CephFileSystem(
         const val PATH_MAX = 1024
 
         private const val EXIT = "EXIT:"
+        private const val ATTRIBUTE_PREFIX = "user."
 
         private val CREATED_OR_MODIFIED_ATTRIBUTES = setOf(
             FileAttribute.FILE_TYPE,
