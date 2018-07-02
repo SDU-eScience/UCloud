@@ -11,7 +11,7 @@
     "install": "napa"
   },
   "dependencies": {
-    "@types/react": "^16.4.2",
+    "@types/react": "^16.4.6",
     "@types/react-dom": "^16.0.6",
     "@types/react-redux": "^6.0.3",
     "@types/react-router": "^4.0.27",
@@ -32,8 +32,8 @@
     "react-router-dom": "4.3.1",
     "redux": "4.0.0",
     "semantic-ui-css": "^2.3.2",
-    "semantic-ui-react": "^0.81.2",
-    "sweetalert2": "7.24.2",
+    "semantic-ui-react": "^0.81.3",
+    "sweetalert2": "7.24.4",
     "uppy": "0.23.3"
   },
   "devDependencies": {
