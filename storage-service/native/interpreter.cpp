@@ -333,7 +333,7 @@ void read_command(int64_t start, int64_t max) {
         bytes_read = read(in_file, read_buffer, read_buffer_size);
         int required_iterations = 0;
         while (bytes_read > 0) {
-            assert(remaining_bytes >= 0);
+            assert(remaining_bytes == -1 || remaining_bytes >= 0);
             char *out_ptr = read_buffer;
             ssize_t nwritten;
 
