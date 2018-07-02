@@ -170,8 +170,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         linkPath: String
     ) {
         // TODO Automatic renaming... Not a good idea
-        val targetLocation = findFreeNameForNewFile(ctx, linkPath)
-        fs.createSymbolicLink(ctx, targetPath, targetLocation).emitAll()
+        val linkRenamedPath = findFreeNameForNewFile(ctx, linkPath)
+        fs.createSymbolicLink(ctx, targetPath, linkRenamedPath).emitAll()
     }
 
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
