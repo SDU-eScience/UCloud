@@ -13,6 +13,7 @@
 #include <string>
 #include <sys/stat.h>
 #include <sstream>
+#include <iostream>
 
 #include "copy.h"
 #include "tree.h"
@@ -363,6 +364,7 @@ void read_command(int64_t start, int64_t max) {
     free(read_buffer);
 
     file_opened_for_reading = -1;
+
 }
 
 int main(int argc, char **argv) {

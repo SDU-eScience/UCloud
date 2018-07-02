@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <sys/stat.h>
+#include <iostream>
 
 int symlink_command(const char *target_path, const char *link_path) {
     struct stat s{};

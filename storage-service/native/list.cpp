@@ -1,6 +1,7 @@
 #include <dirent.h>
 #include <string>
 #include <sstream>
+#include <iostream>
 
 #include "list.h"
 #include "file_utils.h"

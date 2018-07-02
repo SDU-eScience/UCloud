@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <sys/stat.h>
 
+#include "file_utils.h"
+
 #if defined(__APPLE__) || defined(__FreeBSD__)
 
 #include <iostream>
@@ -12,12 +14,6 @@
 #else
 #include <linux/limits.h>
 #endif
-
-
-#define USER_MAX 256
-#define GROUP_MAX 256
-#define CHECKSUM_MAX 256
-#define CHECKSUM_TYPE_MAX 256
 
 typedef struct {
     char file_type;

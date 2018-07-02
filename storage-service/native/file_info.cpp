@@ -2,6 +2,7 @@
 #include <pwd.h>
 #include <vector>
 #include <sys/acl.h>
+#include <ostream>
 #include "file_utils.h"
 
 #ifdef __linux__

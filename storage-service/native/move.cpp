@@ -1,6 +1,7 @@
 #include <sys/stat.h>
 #include <cerrno>
 #include <cstdio>
+#include <iostream>
 
 #include "move.h"
 #include "tree.h"

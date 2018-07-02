@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <sys/stat.h>
 #include <sstream>
+#include <iostream>
 
 #include "copy.h"
 #include "file_utils.h"

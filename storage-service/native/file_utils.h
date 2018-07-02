@@ -5,6 +5,8 @@
 #include <cstring>
 #include <sys/xattr.h>
 #include <sys/stat.h>
+#include <cassert>
+#include <ostream>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 
@@ -84,6 +86,11 @@ bool std_starts_with(const std::string &str, const std::string &prefix);
 #define ANNOTATIONS     (1 << 12)
 #define CHECKSUM        (1 << 13)
 #define SENSITIVITY     (1 << 14)
+
+#define USER_MAX 256
+#define GROUP_MAX 256
+#define CHECKSUM_MAX 256
+#define CHECKSUM_TYPE_MAX 256
 
 int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode);
 
