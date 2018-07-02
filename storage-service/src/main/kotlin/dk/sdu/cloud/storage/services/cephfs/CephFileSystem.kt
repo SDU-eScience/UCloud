@@ -310,11 +310,11 @@ class CephFileSystem(
             add("${unixEntity.value.serializedEntity}:$permissions")
 
             add(absolutePath)
-        }.toList()
+        }.toList().joinToString(" ")
 
         return ctx.runCommand(
             InterpreterCommand.SETFACL,
-            *command.toTypedArray(),
+            command,
             consumer = this::consumeStatusCode
         )
     }
@@ -337,11 +337,11 @@ class CephFileSystem(
             add("-x")
             add(unixEntity.value.serializedEntity)
             add(absolutePath)
-        }.toList()
+        }.toList().joinToString(" ")
 
         return ctx.runCommand(
             InterpreterCommand.SETFACL,
-            *command.toTypedArray(),
+            command,
             consumer = this::consumeStatusCode
         )
     }
