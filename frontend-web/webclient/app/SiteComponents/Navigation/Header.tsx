@@ -11,7 +11,7 @@ import { setSidebarOpen } from "../../Actions/Sidebar";
 import { History } from "history";
 
 interface HeaderProps {
-    open: boolean
+    open?: boolean
     dispatch: Dispatch
     history: History
 }
@@ -32,7 +32,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         router: PropTypes.object
     }
 
-    updateSearchText = (searchText) => this.setState(() => ({ searchText }));
+    updateSearchText = (searchText: string) => this.setState(() => ({ searchText }));
 
     public render() {
         const { open, dispatch } = this.props;
@@ -40,12 +40,12 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         const sidebarIcon = open ? "triangle left" : "triangle right";
         const { searchText } = this.state;
         return (
-            <Menu className="menu-padding">
+            <Menu className="menu-padding" inverted>
                 <Responsive maxWidth={1024}>
                     <Menu.Item onClick={() => dispatch(setSidebarOpen())} className="sidebar-button-padding">
                         <Icon.Group size="large">
                             <Icon name="sidebar" />
-                            <Icon corner color="grey" size="massive" name={sidebarIcon} />
+                            <Icon corner color="grey" size="huge" name={sidebarIcon} />
                         </Icon.Group>
                     </Menu.Item>
                 </Responsive>

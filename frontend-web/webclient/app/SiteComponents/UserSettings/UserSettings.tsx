@@ -50,15 +50,15 @@ class UserSettings extends React.Component<{}, UserSettingsState> {
                 <Form>
                     <Form.Field error={error && !currentPassword}>
                         <label>Current password</label>
-                        <Input value={currentPassword} onChange={(e, { value }) => this.updateField("currentPassword", value)} placeholder="Old password" />
+                        <Input value={currentPassword} type="password" onChange={(e, { value }) => this.updateField("currentPassword", value)} placeholder="Old password" />
                     </Form.Field>
                     <Form.Field error={error && (!newPassword || newPassword !== repeatedPassword)}>
                         <label>New password</label>
-                        <Input value={newPassword} onChange={(e, { value }) => this.updateField("newPassword", value)} placeholder="New password" />
+                        <Input value={newPassword} type="password" onChange={(e, { value }) => this.updateField("newPassword", value)} placeholder="New password" />
                     </Form.Field>
                     <Form.Field error={error && (!repeatedPassword || newPassword !== repeatedPassword)}>
                         <label>Repeat password</label>
-                        <Input value={repeatedPassword} onChange={(e, { value }) => this.updateField("repeatedPassword", value)} placeholder="Repeat password" />
+                        <Input value={repeatedPassword} type="password" onChange={(e, { value }) => this.updateField("repeatedPassword", value)} placeholder="Repeat password" />
                     </Form.Field>
                     <Button type="button" color="blue" onClick={() => this.validateAndSubmit()} content="Submit" />
                 </Form>

@@ -1,16 +1,16 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Menu, Sidebar, Icon, Accordion, List, Responsive } from "semantic-ui-react";
+import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { connect } from "react-redux";
 import { fetchSidebarOptions, setSidebarLoading, setSidebarClosed } from "../../Actions/Sidebar";
 import Avatar from "avataaars";
 
 interface SidebarProps {
-    open: boolean
-    fetchSidebarOptions: () => void
-    setSidebarLoading: (boolean) => void
-    setSidebarClosed: () => void
+    open?: boolean
+    fetchSidebarOptions?: () => void
+    setSidebarLoading?: (loading: boolean) => void
+    setSidebarClosed?: () => void
 }
 
 interface SidebarState {
@@ -18,18 +18,16 @@ interface SidebarState {
 }
 
 class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
-    constructor(props) {
+    constructor(props: SidebarProps) {
         super(props);
         this.state = {
             activeIndices: [false, false, false]
         };
         props.setSidebarLoading(true);
         props.fetchSidebarOptions();
-        this.handleClick = this.handleClick.bind(this);
     }
 
-    handleClick(e, titleProps) {
-        const { index } = titleProps;
+    handleClick = (e: React.MouseEvent<HTMLDivElement>, { index }: { index: number }) => {
         const { activeIndices } = this.state;
         activeIndices[index] = !activeIndices[index]
         this.setState({ activeIndices });
@@ -42,7 +40,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
             <React.Fragment>
                 <Sidebar.Pushable className="sidebar-height">
                     <Responsive minWidth={1025}>
-                        <Accordion as={Menu} vertical borderless={true} fixed="left" className="my-sidebar">
+                        <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
                             <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={setSidebarClosed} />
                         </Accordion>
                     </Responsive>
@@ -66,7 +64,9 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
     }
 }
 
-const AdminOptions = ({ menuActive, handleClick, closeSidebar }) => Cloud.userIsAdmin ? (
+type HandleClick = (e: React.MouseEvent<HTMLDivElement>, d: AccordionTitleProps) => void;
+interface AdminOptionsProps { menuActive: boolean, handleClick: HandleClick, closeSidebar: Function }
+const AdminOptions = ({ menuActive, handleClick, closeSidebar }:AdminOptionsProps) => Cloud.userIsAdmin ? (
     <Menu.Item>
         <Accordion.Title content="Admin" onClick={handleClick} index={2} active={menuActive} />
         <Accordion.Content active={menuActive}>
@@ -78,7 +78,8 @@ const AdminOptions = ({ menuActive, handleClick, closeSidebar }) => Cloud.userIs
         </Accordion.Content>
     </Menu.Item>) : null;
 
-const MobileSidebar = ({ handleClick, activeIndices, visible, closeSidebar }) => (
+interface MobileSidebarProps { handleClick: HandleClick, activeIndices: boolean[], visible: boolean, closeSidebar: Function}
+const MobileSidebar = ({ handleClick, activeIndices, visible, closeSidebar }:MobileSidebarProps) => (
     <Sidebar animation="overlay" visible={visible}>
         <Accordion as={Menu} vertical fixed="left" className="my-sidebar">
             <SidebarMenuItems closeSidebar={closeSidebar} handleClick={handleClick} activeIndices={activeIndices} />

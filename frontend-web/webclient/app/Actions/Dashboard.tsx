@@ -8,11 +8,9 @@ export const setAllLoading = (loading) => ({
 });
 
 export const fetchFavorites = () =>
-    Cloud.get(`/files?path=${Cloud.homeFolder}/Favorites`).then(({ response }) => {
-        let actualFavorites = response.filter(file => file.favorited);
-        const subsetFavorites = actualFavorites.slice(0, 10);
-        return receiveFavorites(subsetFavorites);
-    }).catch(() => {
+    Cloud.get(`/files?path=${Cloud.homeFolder}/Favorites`).then(({ response }) =>
+        receiveFavorites(response.slice(0, 10))
+    ).catch(() => {
         failureNotification("Failed to fetch favorites. Please try again later.")
         return receiveFavorites([])
     });
@@ -23,10 +21,9 @@ export const receiveFavorites = (favorites) => ({
 });
 
 export const fetchRecentFiles = () =>
-    Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) => {
-        const recentSubset = response.slice(0, 10);
-        return receiveRecentFiles(recentSubset);
-    }).catch(() => {
+    Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) =>
+        receiveRecentFiles(response.slice(0, 10))
+    ).catch(() => {
         failureNotification("Failed to fetch recent files. Please try again later.");
         return receiveRecentAnalyses([]);
     });
@@ -37,7 +34,7 @@ const receiveRecentFiles = (recentFiles) => ({
 });
 
 export const fetchRecentAnalyses = () =>
-    Cloud.get("/hpc/jobs/?itemsPerPage=10&page=0").then(({ response }) => 
+    Cloud.get(`/hpc/jobs/?itemsPerPage=${10}&page=${0}`).then(({ response }) =>
         receiveRecentAnalyses(response.items)
     ).catch(() => {
         failureNotification("Failed to fetch recent analyses. Please try again later.")

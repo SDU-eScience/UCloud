@@ -444,8 +444,8 @@ export function FilenameAndIcons({ file, beingRenamed = null, size = "big", onKe
         <Table.Cell className="table-cell-padding-left">
             {checkbox}
             {icon}{nameLink}
-            <PredicatedFavorite predicate={!!onFavoriteFile} file={file} onClick={() => onFavoriteFile(file.path)} />
             <GroupIcon isProject={uf.isProject(file)} />
+            <PredicatedFavorite predicate={!!onFavoriteFile} file={file} onClick={() => onFavoriteFile(file.path)} />
         </Table.Cell>
 };
 

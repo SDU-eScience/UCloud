@@ -1,7 +1,13 @@
 div.ui.menu-padding.menu {
     margin-top: 0px;
     margin-bottom: 0px;
-    background-color: rgb(0, 160, 220);
+    background-color: #2185d0;
+    color: white;
+}
+
+div.ui.inverted.menu-padding.menu div.item a h1.ui.header {
+    color: white;
+    font-weight: 200;
 }
 
 .header-search {
