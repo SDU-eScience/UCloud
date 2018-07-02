@@ -23,7 +23,7 @@ interface DashboardProps {
     favoriteLoading: boolean
     analysesLoading: boolean
     recentLoading: boolean
-    
+
     // Redux operations
     receiveFavorites: (files: File[]) => void
     updatePageTitle: () => void
@@ -107,9 +107,6 @@ const ListFileContent = ({ path, type, link }) =>
 
 
 const DashboardRecentFiles = ({ files, isLoading }) => {
-    const noRecents = files.length || isLoading ? "" : (<h3 className="text-center">
-        <small>No recent files found</small>
-    </h3>);
     const filesList = files.sort((a, b) => b.modifiedAt - a.modifiedAt).map((file, i) => (
         <List.Item key={i} className="itemPadding">
             <List.Content floated="right">
@@ -123,8 +120,12 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
         <Card>
             <Card.Content>
                 <Card.Header content="Recently used files" />
+                {isLoading || files.length ? null :
+                    (<h3>
+                        <small>No analyses found</small>
+                    </h3>)
+                }
                 <DefaultLoading loading={isLoading} />
-                {noRecents}
                 <List divided size={"large"}>
                     {filesList}
                 </List>
