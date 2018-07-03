@@ -7,9 +7,7 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.storage.api.StorageEventProducer
-import dk.sdu.cloud.storage.api.StorageServiceDescription
-import dk.sdu.cloud.storage.api.WriteConflictPolicy
+import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
@@ -24,6 +22,7 @@ import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.testing.*
 import io.mockk.mockk
+import java.io.File
 
 data class FileControllerContext(
     val cloud: AuthenticatedCloud,
@@ -33,10 +32,14 @@ data class FileControllerContext(
     val coreFs: CoreFileSystemService<CephFSCommandRunner>,
     val annotationService: FileAnnotationService<CephFSCommandRunner>,
     val favoriteService: FavoriteService<CephFSCommandRunner>,
-    val eventProducer: StorageEventProducer
+    val eventProducer: StorageEventProducer,
+    val lookupService: FileLookupService<CephFSCommandRunner>
 )
 
-fun Application.configureServerWithFileController(additional: Route.(FileControllerContext) -> Unit = {}) {
+fun Application.configureServerWithFileController(
+    fsRootInitializer: () -> File = { createDummyFS() },
+    additional: Route.(FileControllerContext) -> Unit = {}
+) {
     val instance = ServiceInstance(
         StorageServiceDescription.definition(),
         "localhost",
@@ -47,10 +50,11 @@ fun Application.configureServerWithFileController(additional: Route.(FileControl
     installDefaultFeatures(cloud, mockk(relaxed = true), instance, requireJobId = false)
     install(JWTProtection)
 
-    val fsRoot = createDummyFS()
+    val fsRoot = fsRootInitializer()
     val (runner, fs) = cephFSWithRelaxedMocks(fsRoot.absolutePath)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(fs, eventProducer)
+    val favoriteService = FavoriteService(coreFs)
 
     val fileController = FileControllerContext(
         cloud = cloud,
@@ -60,14 +64,15 @@ fun Application.configureServerWithFileController(additional: Route.(FileControl
         eventProducer = eventProducer,
         coreFs = coreFs,
         annotationService = FileAnnotationService(fs),
-        favoriteService = FavoriteService(coreFs)
+        favoriteService = favoriteService,
+        lookupService = FileLookupService(coreFs, favoriteService)
     )
 
     routing {
         route("api") {
             val routing = this
             with(fileController) {
-                FilesController(runner, coreFs, annotationService, favoriteService).configure(routing)
+                FilesController(runner, coreFs, annotationService, favoriteService, lookupService).configure(routing)
             }
             additional(fileController)
         }
@@ -198,16 +203,23 @@ fun TestApplicationEngine.listDir(
     )
 }
 
-fun TestApplicationEngine.makeOpen(
+fun TestApplicationEngine.lookupFileInDirectory(
     path: String,
-    proxyUser: String,
+    itemsPerPage: Int,
+    sortBy: FileSortBy,
+    order: SortOrder,
     user: String = "user1",
     role: Role = Role.USER
 ): TestApplicationResponse {
     return call(
-        HttpMethod.Post,
-        "/api/files/open",
-        rawBody = """{ "path": "$path", "proxyUser": "$proxyUser" }""",
+        HttpMethod.Get,
+        "/api/files/lookup",
+        params = mapOf(
+            "path" to path,
+            "itemsPerPage" to itemsPerPage.toString(),
+            "sortBy" to sortBy.toString(),
+            "order" to order.toString()
+        ),
         user = user,
         role = role
     )

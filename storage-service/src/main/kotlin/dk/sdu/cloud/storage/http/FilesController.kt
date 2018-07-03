@@ -21,7 +21,8 @@ class FilesController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
     private val annotationService: FileAnnotationService<Ctx>,
-    private val favoriteService: FavoriteService<Ctx>
+    private val favoriteService: FavoriteService<Ctx>,
+    private val fileLookupService: FileLookupService<Ctx>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
@@ -30,49 +31,28 @@ class FilesController<Ctx : FSUserContext>(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    val favorites = favoriteService.retrieveFavoriteInodeSet(it)
+                    ok(fileLookupService.listDirectory(
+                        it,
+                        request.path,
+                        request.pagination,
+                        request.sortBy ?: FileSortBy.TYPE,
+                        request.order ?: SortOrder.ASCENDING
+                    ))
+                }
+            }
 
-                    val allResults = coreFs.listDirectory(it, request.path, STORAGE_FILE_ATTRIBUTES).map {
-                        readStorageFile(it, favorites)
-                    }
+            implement(FileDescriptions.lookupFileInDirectory) { request ->
+                logEntry(log, request)
+                if (!protect()) return@implement
 
-                    val sortedResults = allResults.let { results ->
-                        val order = request.order ?: SortOrder.ASCENDING
-                        val sortBy = request.sortBy ?: FileSortBy.TYPE
-
-                        val naturalComparator: Comparator<StorageFile> = when (sortBy) {
-                            FileSortBy.ACL -> Comparator.comparingInt { it.acl.size }
-                            FileSortBy.ANNOTATION -> Comparator.comparing<StorageFile, String> {
-                                it.annotations.sorted().joinToString("").toLowerCase()
-                            }
-                            FileSortBy.CREATED_AT -> Comparator.comparingLong { it.createdAt }
-                            FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.modifiedAt }
-
-                            FileSortBy.TYPE -> Comparator.comparing<StorageFile, String> {
-                                it.type.name
-                            }.thenComparing(Comparator.comparing<StorageFile, String> {
-                                it.path.fileName().toLowerCase()
-                            })
-
-                            FileSortBy.PATH -> Comparator.comparing<StorageFile, String> {
-                                it.path.fileName().toLowerCase()
-                            }
-                            FileSortBy.SIZE -> Comparator.comparingLong { it.size }
-                            FileSortBy.FAVORITED -> Comparator.comparing<StorageFile, Boolean> { it.favorited }
-                            FileSortBy.SENSITIVITY -> Comparator.comparing<StorageFile, String> {
-                                it.sensitivityLevel.name.toLowerCase()
-                            }
-                        }
-
-                        val comparator = when (order) {
-                            SortOrder.ASCENDING -> naturalComparator
-                            SortOrder.DESCENDING -> naturalComparator.reversed()
-                        }
-
-                        results.sortedWith(comparator)
-                    }
-
-                    ok(sortedResults.paginate(request.pagination))
+                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+                    ok(fileLookupService.lookupFileInDirectory(
+                        it,
+                        request.path,
+                        request.itemsPerPage,
+                        request.sortBy,
+                        request.order
+                    ))
                 }
             }
 
@@ -81,8 +61,7 @@ class FilesController<Ctx : FSUserContext>(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    val favorites = favoriteService.retrieveFavoriteInodeSet(it)
-                    ok(coreFs.stat(it, request.path, STORAGE_FILE_ATTRIBUTES).let { readStorageFile(it, favorites) })
+                    ok(fileLookupService.stat(it, request.path))
                 }
             }
 
@@ -236,37 +215,7 @@ class FilesController<Ctx : FSUserContext>(
         }
     }
 
-    private fun readStorageFile(row: FileRow, favorites: Set<String>): StorageFile =
-        StorageFile(
-            type = row.fileType,
-            path = row.path,
-            createdAt = row.timestamps.created,
-            modifiedAt = row.timestamps.modified,
-            ownerName = row.owner,
-            size = row.size,
-            acl = row.shares,
-            favorited = row.inode in favorites,
-            sensitivityLevel = row.sensitivityLevel,
-            link = row.isLink,
-            annotations = row.annotations,
-            inode = row.inode
-        )
-
-
     companion object {
         private val log = LoggerFactory.getLogger(FilesController::class.java)
-
-        private val STORAGE_FILE_ATTRIBUTES = setOf(
-            FileAttribute.FILE_TYPE,
-            FileAttribute.PATH,
-            FileAttribute.TIMESTAMPS,
-            FileAttribute.OWNER,
-            FileAttribute.SIZE,
-            FileAttribute.SHARES,
-            FileAttribute.SENSITIVITY,
-            FileAttribute.ANNOTATIONS,
-            FileAttribute.INODE,
-            FileAttribute.IS_LINK
-        )
     }
 }

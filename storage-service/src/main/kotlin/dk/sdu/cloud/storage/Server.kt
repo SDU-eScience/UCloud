@@ -57,6 +57,7 @@ class Server(
         val favoriteService = FavoriteService(coreFileSystem)
         val uploadService = BulkUploadService(coreFileSystem)
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
+        val lookupService = FileLookupService(coreFileSystem, favoriteService)
         val transferState = TusStateService()
 
         val shareDAO: ShareDAO = InMemoryShareDAO()
@@ -119,10 +120,32 @@ class Server(
                 }
 
                 route("api") {
-                    FilesController(processRunner, coreFileSystem, annotationService, favoriteService).configure(this)
-                    SimpleDownloadController(cloud, processRunner, coreFileSystem, bulkDownloadService).configure(this)
-                    MultiPartUploadController(processRunner, coreFileSystem, uploadService).configure(this)
-                    ShareController(shareService, processRunner, coreFileSystem).configure(this)
+                    FilesController(
+                        processRunner,
+                        coreFileSystem,
+                        annotationService,
+                        favoriteService,
+                        lookupService
+                    ).configure(this)
+
+                    SimpleDownloadController(
+                        cloud,
+                        processRunner,
+                        coreFileSystem,
+                        bulkDownloadService
+                    ).configure(this)
+
+                    MultiPartUploadController(
+                        processRunner,
+                        coreFileSystem,
+                        uploadService
+                    ).configure(this)
+
+                    ShareController(
+                        shareService,
+                        processRunner,
+                        coreFileSystem
+                    ).configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")

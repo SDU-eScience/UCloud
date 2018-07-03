@@ -41,6 +41,13 @@ data class ListDirectoryRequest(
     val sortBy: FileSortBy?
 ) : WithPagination
 
+data class LookupFileInDirectoryRequest(
+    val path: String,
+    val itemsPerPage: Int,
+    val order: SortOrder,
+    val sortBy: FileSortBy
+)
+
 data class DeleteFileRequest(val path: String)
 
 data class MoveRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
@@ -92,6 +99,22 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
             +boundTo(ListDirectoryRequest::page)
             +boundTo(ListDirectoryRequest::order)
             +boundTo(ListDirectoryRequest::sortBy)
+        }
+    }
+
+    val lookupFileInDirectory = callDescription<LookupFileInDirectoryRequest, Page<StorageFile>, CommonErrorMessage> {
+        prettyName = "lookupFileInDirectory"
+
+        path {
+            using(baseContext)
+            +"lookup"
+        }
+
+        params {
+            +boundTo(LookupFileInDirectoryRequest::path)
+            +boundTo(LookupFileInDirectoryRequest::itemsPerPage)
+            +boundTo(LookupFileInDirectoryRequest::sortBy)
+            +boundTo(LookupFileInDirectoryRequest::order)
         }
     }
 

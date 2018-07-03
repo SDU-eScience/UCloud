@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
@@ -40,12 +41,12 @@ class ListAtPathTests {
                 test = {
                     val response = listDir("/home/user1/folder")
                     assertEquals(HttpStatusCode.OK, response.status())
-                    val items = mapper.readValue<List<StorageFile>>(response.content!!)
-                    assertEquals(3, items.size)
+                    val items = mapper.readValue<Page<StorageFile>>(response.content!!)
+                    assertEquals(3, items.items.size)
                     log.debug("Received items: $items")
-                    assertTrue("a file is contained in response") { items.any { it.path == "/home/user1/folder/a" } }
-                    assertTrue("b file is contained in response") { items.any { it.path == "/home/user1/folder/b" } }
-                    assertTrue("c file is contained in response") { items.any { it.path == "/home/user1/folder/c" } }
+                    assertTrue("a file is contained in response") { items.items.any { it.path == "/home/user1/folder/a" } }
+                    assertTrue("b file is contained in response") { items.items.any { it.path == "/home/user1/folder/b" } }
+                    assertTrue("c file is contained in response") { items.items.any { it.path == "/home/user1/folder/c" } }
                 }
             )
         }
