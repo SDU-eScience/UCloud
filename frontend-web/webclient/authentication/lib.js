@@ -6,8 +6,8 @@ export default class SDUCloud {
         this.context = context;
         this.serviceName = serviceName;
 
-        this.apiContext = context + "/api";
-        this.authContext = context + "/auth";
+        this.apiContext = "/api";
+        this.authContext = "/auth";
 
         this.decodedToken = null;
         this.redirectOnInvalidTokens = true;
@@ -33,12 +33,13 @@ export default class SDUCloud {
      * @param path the path, should not contain context or /api/
      * @param body the request body, assumed to be a JS object to be encoded as JSON.
      */
-    call(method, path, body) {
+    call(method, path, body, context = this.apiContext) {
         if (path.indexOf("/") !== 0) path = "/" + path;
+        let baseContext = this.context;
         return this.receiveAccessTokenOrRefreshIt().then((token) => {
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
-                req.open(method, this.apiContext + path);
+                req.open(method, baseContext + context + path);
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("contentType", "application/json");
                 req.responseType = "text"; // Explicitely set, otherwise issues with empty response
@@ -75,50 +76,50 @@ export default class SDUCloud {
     /**
      * Calls with the GET HTTP method. See call(method, path, body)
      */
-    get(path) {
-        return this.call("GET", path, null);
+    get(path, context = this.apiContext) {
+        return this.call("GET", path, null, context);
     }
 
     /**
      * Calls with the POST HTTP method. See call(method, path, body)
      */
-    post(path, body) {
-        return this.call("POST", path, body);
+    post(path, body, context = this.apiContext) {
+        return this.call("POST", path, body, context);
     }
 
     /**
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
-    put(path, body) {
-        return this.call("PUT", path, body);
+    put(path, body, context = this.apiContext) {
+        return this.call("PUT", path, body, context);
     }
 
     /**
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
-    delete(path, body) {
-        return this.call("DELETE", path, body);
+    delete(path, body, context = this.apiContext) {
+        return this.call("DELETE", path, body, context);
     }
 
     /**
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
-    patch(path, body) {
-        return this.call("PATCH", path, body);
+    patch(path, body, context = this.apiContext) {
+        return this.call("PATCH", path, body, context);
     }
 
     /**
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
-    options(path, body) {
-        return this.call("OPTIONS", path, body);
+    options(path, body, context = this.apiContext) {
+        return this.call("OPTIONS", path, body, context);
     }
 
     /**
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
-    head(path) {
-        return this.call("HEAD", path, null);
+    head(path, context = this.apiContext) {
+        return this.call("HEAD", path, null, context);
     }
 
     /**
@@ -126,7 +127,7 @@ export default class SDUCloud {
      * redirect back to the correct service (using serviceName).
      */
     openBrowserLoginPage() { 
-        window.location.href = this.authContext + "/login?service=" + encodeURIComponent(this.serviceName);
+        window.location.href = this.context + this.authContext + "/login?service=" + encodeURIComponent(this.serviceName);
     }
 
     /**
@@ -191,7 +192,7 @@ export default class SDUCloud {
     createOneTimeTokenWithPermission(permission) {
         return this.receiveAccessTokenOrRefreshIt()
             .then((token) => {
-                let oneTimeToken = `${this.authContext}/request/?audience=${permission}`;
+                let oneTimeToken = `${this.context}${this.authContext}/request/?audience=${permission}`;
                 return new Promise((resolve, reject) => {
                     let req = new XMLHttpRequest();
                     req.open("POST", oneTimeToken);
@@ -221,7 +222,7 @@ export default class SDUCloud {
             });
         }
         ;
-        let refreshPath = this.authContext + "/refresh";
+        let refreshPath = this.context + this.authContext + "/refresh";
         return new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
             req.open("POST", refreshPath);
@@ -272,7 +273,7 @@ export default class SDUCloud {
     logout() {
         new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
-            req.open("POST", `${this.authContext}/logout`);
+            req.open("POST", `${this.context}${this.authContext}/logout`);
             req.setRequestHeader("Authorization", `Bearer ${SDUCloud.storedRefreshToken}`);
             req.setRequestHeader("contentType", "application/json");
             req.onload = () => {

@@ -5,8 +5,6 @@ const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
 var commonConfig = require('./webpack.config.js');
 var path = require('path');
 
-console.warn("Running Development")
-
 module.exports = webpackMerge(commonConfig, {
     devtool: "inline-source-map",
 
@@ -47,9 +45,9 @@ module.exports = webpackMerge(commonConfig, {
         },
         inline: true,
         proxy: [{
-            context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout",
-                "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png",
-                "/auth/saml/"],
+            context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout", 
+                      "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png", 
+                      "/auth/saml/", "/auth/users/"],
             target: "https://cloud.sdu.dk",
             secure: false,
         }, {
