@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
@@ -65,13 +66,6 @@ data class AnnotateFileRequest(val path: String, val annotatedWith: String, val 
     }
 }
 
-data class MarkFileAsOpenAccessRequest(val path: String, val proxyUser: String) {
-    init {
-        if (path.isBlank()) throw IllegalArgumentException("path cannot be empty")
-        if (proxyUser.isBlank()) throw IllegalArgumentException("proxyUser cannot be blank")
-    }
-}
-
 fun validateAnnotation(annotation: String) {
     if (annotation.contains(Regex("[0-9]"))) {
         throw IllegalArgumentException("Annotation reserved for future use")
@@ -85,6 +79,46 @@ fun validateAnnotation(annotation: String) {
     if (annotation.length > 1) {
         throw IllegalArgumentException("Annotation type reserved for future use")
     }
+}
+
+const val DOWNLOAD_FILE_SCOPE = "downloadFile"
+
+data class DownloadByURI(val path: String, val token: String)
+
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = FavoriteCommand.Grant::class, name = "grant"),
+    JsonSubTypes.Type(value = FavoriteCommand.Revoke::class, name = "revoke")
+)
+sealed class FavoriteCommand {
+    abstract val path: String
+
+    data class Grant(override val path: String) : FavoriteCommand()
+    data class Revoke(override val path: String) : FavoriteCommand()
+}
+
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = LongRunningResponse.Timeout::class, name = "timeout"),
+    JsonSubTypes.Type(value = LongRunningResponse.Result::class, name = "result")
+)
+sealed class LongRunningResponse<T> {
+    data class Timeout<T>(
+        val why: String = "The operation has timed out and will continue in the background"
+    ) : LongRunningResponse<T>()
+
+    data class Result<T>(
+        @get:JsonUnwrapped
+        val item: T
+    ) : LongRunningResponse<T>()
 }
 
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
@@ -130,7 +164,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val markAsFavorite = callDescription<FavoriteCommand.Grant, Unit, CommonErrorMessage> {
+    val markAsFavorite = callDescription<FavoriteCommand.Grant, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "filesMarkAsFavorite"
         method = HttpMethod.Post
 
@@ -144,7 +178,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val removeFavorite = callDescription<FavoriteCommand.Revoke, Unit, CommonErrorMessage> {
+    val removeFavorite = callDescription<FavoriteCommand.Revoke, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "filesRemoveAsFavorite"
         method = HttpMethod.Delete
 
@@ -158,7 +192,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val createDirectory = callDescription<CreateDirectoryRequest, Unit, CommonErrorMessage> {
+    val createDirectory = callDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "createDirectory"
         method = HttpMethod.Post
 
@@ -172,7 +206,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val deleteFile = callDescription<DeleteFileRequest, Unit, CommonErrorMessage> {
+    val deleteFile = callDescription<DeleteFileRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "deleteFile"
         method = HttpMethod.Delete
 
@@ -198,7 +232,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val move = callDescription<MoveRequest, Unit, CommonErrorMessage> {
+    val move = callDescription<MoveRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "move"
         method = HttpMethod.Post
         path {
@@ -213,7 +247,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val copy = callDescription<CopyRequest, Unit, CommonErrorMessage> {
+    val copy = callDescription<CopyRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "copy"
         method = HttpMethod.Post
         path {
@@ -266,24 +300,4 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
         body { bindEntireRequestFromBody() }
     }
-}
-
-const val DOWNLOAD_FILE_SCOPE = "downloadFile"
-
-data class DownloadByURI(val path: String, val token: String)
-
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = FavoriteCommand.Grant::class, name = "grant"),
-    JsonSubTypes.Type(value = FavoriteCommand.Revoke::class, name = "revoke")
-)
-sealed class FavoriteCommand {
-    abstract val path: String
-
-    data class Grant(override val path: String) : FavoriteCommand()
-    data class Revoke(override val path: String) : FavoriteCommand()
 }

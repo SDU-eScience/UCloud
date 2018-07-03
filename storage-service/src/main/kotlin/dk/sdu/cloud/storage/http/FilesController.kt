@@ -8,8 +8,9 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.util.fileName
+import dk.sdu.cloud.storage.util.CallResult
 import dk.sdu.cloud.storage.util.tryWithFS
+import dk.sdu.cloud.storage.util.tryWithFSAndTimeout
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
@@ -31,13 +32,15 @@ class FilesController<Ctx : FSUserContext>(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    ok(fileLookupService.listDirectory(
-                        it,
-                        request.path,
-                        request.pagination,
-                        request.sortBy ?: FileSortBy.TYPE,
-                        request.order ?: SortOrder.ASCENDING
-                    ))
+                    ok(
+                        fileLookupService.listDirectory(
+                            it,
+                            request.path,
+                            request.pagination,
+                            request.sortBy ?: FileSortBy.TYPE,
+                            request.order ?: SortOrder.ASCENDING
+                        )
+                    )
                 }
             }
 
@@ -46,13 +49,15 @@ class FilesController<Ctx : FSUserContext>(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    ok(fileLookupService.lookupFileInDirectory(
-                        it,
-                        request.path,
-                        request.itemsPerPage,
-                        request.sortBy,
-                        request.order
-                    ))
+                    ok(
+                        fileLookupService.lookupFileInDirectory(
+                            it,
+                            request.path,
+                            request.itemsPerPage,
+                            request.sortBy,
+                            request.order
+                        )
+                    )
                 }
             }
 
@@ -69,9 +74,9 @@ class FilesController<Ctx : FSUserContext>(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                     favoriteService.markAsFavorite(it, req.path)
-                    ok(Unit)
+                    CallResult.Success(Unit, HttpStatusCode.NoContent)
                 }
             }
 
@@ -79,9 +84,9 @@ class FilesController<Ctx : FSUserContext>(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                     favoriteService.removeFavorite(it, req.path)
-                    ok(Unit)
+                    CallResult.Success(Unit, HttpStatusCode.NoContent)
                 }
             }
 
@@ -91,16 +96,16 @@ class FilesController<Ctx : FSUserContext>(
 
                 if (call.request.principalRole in setOf(Role.ADMIN, Role.SERVICE) && req.owner != null) {
                     log.debug("Authenticated as a privileged account. Using direct strategy")
-                    tryWithFS(commandRunnerFactory, req.owner) {
+                    tryWithFSAndTimeout(commandRunnerFactory, req.owner) {
                         coreFs.makeDirectory(it, req.path)
-                        ok(Unit)
+                        CallResult.Success(Unit, HttpStatusCode.NoContent)
                     }
                 } else {
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
 
-                    tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+                    tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                         coreFs.makeDirectory(it, req.path)
-                        ok(Unit)
+                        CallResult.Success(Unit, HttpStatusCode.NoContent)
                     }
                 }
             }
@@ -109,27 +114,28 @@ class FilesController<Ctx : FSUserContext>(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                     coreFs.delete(it, req.path)
-                    ok(Unit)
+                    CallResult.Success(Unit, HttpStatusCode.NoContent)
                 }
             }
 
             implement(FileDescriptions.move) { req ->
                 logEntry(log, req)
                 if (!protect()) return@implement
-                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                     coreFs.move(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
-                    ok(Unit)
+                    CallResult.Success(Unit, HttpStatusCode.NoContent)
                 }
             }
 
             implement(FileDescriptions.copy) { req ->
                 logEntry(log, req)
                 if (!protect()) return@implement
-                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+
+                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                     coreFs.copy(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
-                    ok(Unit)
+                    CallResult.Success(Unit, HttpStatusCode.NoContent)
                 }
             }
 
