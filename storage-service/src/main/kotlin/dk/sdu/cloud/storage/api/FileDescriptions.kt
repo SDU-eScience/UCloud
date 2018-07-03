@@ -16,10 +16,29 @@ data class CreateDirectoryRequest(
     val owner: String?
 )
 
+enum class FileSortBy {
+    TYPE,
+    PATH,
+    CREATED_AT,
+    MODIFIED_AT,
+    SIZE,
+    ACL,
+    FAVORITED,
+    SENSITIVITY,
+    ANNOTATION
+}
+
+enum class SortOrder {
+    ASCENDING,
+    DESCENDING
+}
+
 data class ListDirectoryRequest(
     val path: String,
     override val itemsPerPage: Int?,
-    override val page: Int?
+    override val page: Int?,
+    val order: SortOrder?,
+    val sortBy: FileSortBy?
 ) : WithPagination
 
 data class DeleteFileRequest(val path: String)
@@ -71,6 +90,8 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
             +boundTo(ListDirectoryRequest::path)
             +boundTo(ListDirectoryRequest::itemsPerPage)
             +boundTo(ListDirectoryRequest::page)
+            +boundTo(ListDirectoryRequest::order)
+            +boundTo(ListDirectoryRequest::sortBy)
         }
     }
 

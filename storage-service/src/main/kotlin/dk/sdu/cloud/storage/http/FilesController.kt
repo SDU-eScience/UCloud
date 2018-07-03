@@ -6,12 +6,9 @@ import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.StorageFile
-import dk.sdu.cloud.storage.api.WriteConflictPolicy
+import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.util.fileName
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -34,9 +31,48 @@ class FilesController<Ctx : FSUserContext>(
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
                     val favorites = favoriteService.retrieveFavoriteInodeSet(it)
-                    ok(coreFs.listDirectory(it, request.path, STORAGE_FILE_ATTRIBUTES).map {
+
+                    val allResults = coreFs.listDirectory(it, request.path, STORAGE_FILE_ATTRIBUTES).map {
                         readStorageFile(it, favorites)
-                    }.paginate(request.pagination))
+                    }
+
+                    val sortedResults = allResults.let { results ->
+                        val order = request.order ?: SortOrder.ASCENDING
+                        val sortBy = request.sortBy ?: FileSortBy.TYPE
+
+                        val naturalComparator: Comparator<StorageFile> = when (sortBy) {
+                            FileSortBy.ACL -> Comparator.comparingInt { it.acl.size }
+                            FileSortBy.ANNOTATION -> Comparator.comparing<StorageFile, String> {
+                                it.annotations.sorted().joinToString("").toLowerCase()
+                            }
+                            FileSortBy.CREATED_AT -> Comparator.comparingLong { it.createdAt }
+                            FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.modifiedAt }
+
+                            FileSortBy.TYPE -> Comparator.comparing<StorageFile, String> {
+                                it.type.name
+                            }.thenComparing(Comparator.comparing<StorageFile, String> {
+                                it.path.fileName().toLowerCase()
+                            })
+
+                            FileSortBy.PATH -> Comparator.comparing<StorageFile, String> {
+                                it.path.fileName().toLowerCase()
+                            }
+                            FileSortBy.SIZE -> Comparator.comparingLong { it.size }
+                            FileSortBy.FAVORITED -> Comparator.comparing<StorageFile, Boolean> { it.favorited }
+                            FileSortBy.SENSITIVITY -> Comparator.comparing<StorageFile, String> {
+                                it.sensitivityLevel.name.toLowerCase()
+                            }
+                        }
+
+                        val comparator = when (order) {
+                            SortOrder.ASCENDING -> naturalComparator
+                            SortOrder.DESCENDING -> naturalComparator.reversed()
+                        }
+
+                        results.sortedWith(comparator)
+                    }
+
+                    ok(sortedResults.paginate(request.pagination))
                 }
             }
 

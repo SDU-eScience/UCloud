@@ -46,7 +46,7 @@ class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
             String(decoder.decode(encodedName), USERNAME_CHARSET)
         } else {
             if (isDevelopment) userToCloud[unixUser]
-            throw IllegalArgumentException("Unsupported unix user")
+            else throw IllegalArgumentException("Unsupported unix user")
         }.also { log.debug("  Result is $it") }
     }
 
