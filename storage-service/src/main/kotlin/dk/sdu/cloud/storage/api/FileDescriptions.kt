@@ -6,19 +6,30 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
+import dk.sdu.cloud.service.Page
 import io.ktor.http.HttpMethod
 
 data class FindByPath(val path: String)
+
 data class CreateDirectoryRequest(
     val path: String,
     val owner: String?
 )
 
+data class ListDirectoryRequest(
+    val path: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPagination
+
 data class DeleteFileRequest(val path: String)
 
 data class MoveRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
+
 data class CopyRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
+
 data class BulkDownloadRequest(val prefix: String, val files: List<String>)
+
 data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null)
 
 data class AnnotateFileRequest(val path: String, val annotatedWith: String, val proxyUser: String) {
@@ -53,11 +64,13 @@ fun validateAnnotation(annotation: String) {
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
 
-    val listAtPath = callDescription<FindByPath, List<StorageFile>, CommonErrorMessage> {
+    val listAtPath = callDescription<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage> {
         prettyName = "filesListAtPath"
         path { using(baseContext) }
         params {
-            +boundTo(FindByPath::path)
+            +boundTo(ListDirectoryRequest::path)
+            +boundTo(ListDirectoryRequest::itemsPerPage)
+            +boundTo(ListDirectoryRequest::page)
         }
     }
 

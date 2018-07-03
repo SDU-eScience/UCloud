@@ -36,7 +36,7 @@ class FilesController<Ctx : FSUserContext>(
                     val favorites = favoriteService.retrieveFavoriteInodeSet(it)
                     ok(coreFs.listDirectory(it, request.path, STORAGE_FILE_ATTRIBUTES).map {
                         readStorageFile(it, favorites)
-                    })
+                    }.paginate(request.pagination))
                 }
             }
 
