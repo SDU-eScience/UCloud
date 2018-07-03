@@ -50,7 +50,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             creatingFolder: false
         };
     }
-    
+
     static contextTypes = {
         store: PropTypes.object.isRequired
     }
@@ -222,8 +222,7 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...p
                     handleKeyDown={props.handleKeyDown}
                 />
                 <ReturnFolder
-                    currentPath={props.currentPath}
-                    parentPath={removeTrailingSlash(getParentPath(props.currentPath))}
+                    path={props.currentPath}
                     fetchFiles={props.fetchFiles}
                     setSelectedFile={props.setSelectedFile}
                     canSelectFolders={props.canSelectFolders}
@@ -258,16 +257,19 @@ const CurrentFolder = ({ currentPath, onlyAllowFolders, setSelectedFile }) =>
     ) : null;
 
 
-const ReturnFolder = ({ currentPath, parentPath, fetchFiles, setSelectedFile, canSelectFolders }) =>
-    !(uf.removeTrailingSlash(currentPath) !== uf.removeTrailingSlash(Cloud.homeFolder)) || !(currentPath !== "/home") ? (
+function ReturnFolder({ path, fetchFiles, setSelectedFile, canSelectFolders }) {
+    const parentPath = removeTrailingSlash(getParentPath(path));
+    const folderSelection = canSelectFolders ? (
+        <List.Content floated="right">
+            <Button onClick={() => setSelectedFile({ path: parentPath })}>Select</Button>
+        </List.Content>) : null;
+    return uf.removeTrailingSlash(path) !== uf.removeTrailingSlash(Cloud.homeFolder) ? (
         <List.Item className="pointer-cursor itemPadding" onClick={() => fetchFiles(parentPath)}>
-            {canSelectFolders ? (
-                <List.Content floated="right">
-                    <Button onClick={() => setSelectedFile({ path: getParentPath(currentPath) })}>Select</Button>
-                </List.Content>) : null}
+            {folderSelection}
             <List.Icon name="folder" color="blue" />
             <List.Content content=".." />
         </List.Item>) : null;
+}
 
 const CreatingFolder = ({ creatingFolder, handleKeyDown }) => (
     (!creatingFolder) ? null : (
