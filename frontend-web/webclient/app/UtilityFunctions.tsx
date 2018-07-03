@@ -38,11 +38,11 @@ export const isInvalidPathName = (path: string, filePaths: string[]): boolean =>
     return false;
 };
 
-export const isFixedFolder = (filePath: string, homeFolder: string) => {
-    return [
-        `${homeFolder}/Favorites`,
-        `${homeFolder}/Jobs`,
-        `${homeFolder}/Trash bin`
+export const isFixedFolder = (filePath: string, homeFolder: string):boolean => {
+    return [ // homeFolder contains trailing slash
+        `${homeFolder}Favorites`,
+        `${homeFolder}Jobs`,
+        `${homeFolder}Trash bin`
     ].some((it) => it === filePath)
 };
 
