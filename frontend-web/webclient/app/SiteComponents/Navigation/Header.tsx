@@ -39,7 +39,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         const { history } = this.context.router;
         const sidebarIcon = open ? "triangle left" : "triangle right";
         const { searchText } = this.state;
-        return (
+        return ( // fixed="top" (remove attached, borderless)
             <Menu className="menu-padding" inverted attached borderless>
                 <Responsive maxWidth={1024}>
                     <Menu.Item onClick={() => dispatch(setSidebarOpen())} className="sidebar-button-padding">
@@ -56,7 +56,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                     <Menu.Item>
                         <Responsive minWidth={700}>
                             <Form onSubmit={(e) => { e.preventDefault(); if (!!searchText) history.push(`/metadata/search/${searchText}`) }} >
-                                <Input value={searchText} onChange={(e, { value }) => this.updateSearchText(value)} className="header-search" fluid icon='search' placeholder='Search...' />
+                                <Input value={searchText} onChange={(_, { value }) => this.updateSearchText(value)} className="header-search" fluid icon='search' placeholder='Search...' />
                             </Form>
                         </Responsive>
                         <Responsive maxWidth={699} as={Link} to={"/metadata/search/"}>

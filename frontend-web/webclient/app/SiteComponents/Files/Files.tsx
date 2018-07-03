@@ -20,9 +20,7 @@ interface FilesProps {
     // Redux Props
     path: string
     files: File[]
-    match: {
-        params: string[]
-    }
+    match: { params: string[] }
     filesPerPage: number // FIXME Remove when serverside pagination is introduced
     currentFilesPage: number // FIXME Remove when serverside pagination is introduced
     loading: boolean
@@ -74,57 +72,43 @@ class Files extends React.Component<FilesProps, FilesState> {
             editFolderIndex: -1
         };
         this.props.setPageTitle();
-        this.checkAllFiles = this.checkAllFiles.bind(this);
-        this.sortFilesBy = this.sortFilesBy.bind(this);
-        this.handleKeyDown = this.handleKeyDown.bind(this);
-        this.resetFolderEditing = this.resetFolderEditing.bind(this);
-        this.startEditFile = this.startEditFile.bind(this);
     }
 
-    resetFolderEditing(): void {
+    resetFolderEditing = (): void =>
         this.setState(() => ({
             creatingNewFolder: false,
             editFolderIndex: -1
         }));
-    }
 
     componentDidMount() {
         this.props.fetchFiles(this.props.match.params[0], false);
     }
 
-    // FIXME Break down into smaller functions
-    handleKeyDown(value: number, newFolder: boolean, name: string): void {
+    handleKeyDown = (value: number, newFolder: boolean, name: string): void => {
         if (value === KeyCode.ESC) {
             this.resetFolderEditing();
         } else if (value === KeyCode.ENTER) {
             const { path, fetchFiles, files } = this.props;
             const fileNames = files.map((it) => uf.getFilenameFromPath(it.path))
+            if (uf.isInvalidPathName(name, fileNames)) return;
+            const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
             if (newFolder) {
-                if (uf.isInvalidPathName(name, fileNames)) { return }
-                const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
                 Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                     if (uf.inSuccessRange(request.status)) {
                         this.resetFolderEditing();
                         fetchFiles(path, true);
                     }
-                }).catch((failure) =>
-                    this.resetFolderEditing()
-                );
+                }).catch(() => this.resetFolderEditing());
             } else {
-                if (uf.isInvalidPathName(name, fileNames)) { return }
-                const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
                 // FIXME When transitioned to server-side pagination, remove offset below
                 const originalFilename = files[this.state.editFolderIndex + this.props.filesPerPage * this.props.currentFilesPage].path;
                 Cloud.post(`/files/move?path=${originalFilename}&newPath=${directoryPath}`)
                     .then(({ request }) => {
                         if (uf.inSuccessRange(request.status)) {
-                            // TODO Overwrite filename;
                             this.resetFolderEditing();
                             fetchFiles(this.props.path, true);
                         }
-                    }).catch((failure) =>
-                        this.resetFolderEditing() // TODO Handle failure
-                    )
+                    }).catch(() => this.resetFolderEditing())
             }
         }
     }
@@ -136,7 +120,7 @@ class Files extends React.Component<FilesProps, FilesState> {
         return true;
     }
 
-    checkAllFiles(checked: boolean) {
+    checkAllFiles = (checked: boolean) => {
         const { currentFilesPage, filesPerPage, files, updateFiles } = this.props;
         files.forEach(file => file.isChecked = false);
         if (checked) {
@@ -146,7 +130,7 @@ class Files extends React.Component<FilesProps, FilesState> {
         updateFiles(files);
     }
 
-    sortFilesBy(name: string, type: string) {
+    sortFilesBy = (name: string, type: string) => {
         const { files, updateFiles, filesPerPage } = this.props;
         let sortedFiles = [];
         const asc = (this.state.lastSorting.name === name) ? !this.state.lastSorting.asc : true;
@@ -180,12 +164,12 @@ class Files extends React.Component<FilesProps, FilesState> {
         }));
     }
 
-    createFolder() {
+    createFolder = () => {
         this.resetFolderEditing();
         this.setState(() => ({ creatingNewFolder: true }));
     }
 
-    startEditFile(index: number) {
+    startEditFile = (index: number) => {
         this.resetFolderEditing();
         this.setState(() => ({ editFolderIndex: index }));
     }
@@ -517,7 +501,7 @@ const MobileButtons = ({ file, rename, allowCopyAndMove = false, ...props }) => 
                     content="Delete file"
                     onClick={() => uf.showFileDeletionPrompt(file.path, Cloud, props.refetch)}
                 />
-                <Dropdown.Item content="Properties" as={Link} to={`/fileInfo/${file.path}/`} className="black-text"/>
+                <Dropdown.Item content="Properties" as={Link} to={`/fileInfo/${file.path}/`} className="black-text" />
                 <EditOrCreateProject projectNavigation={props.projectNavigation} file={file} />
             </Dropdown.Menu>
         </Dropdown>
@@ -629,7 +613,7 @@ const mapDispatchToProps = (dispatch) => ({
         files.find(file => file.path === newFile.path).isChecked = checked;
         dispatch(Actions.updateFiles(files));
     },
-    goToPage: (pageNumber, files) => {
+    goToPage: (pageNumber, files) => { // FIXME Can be reduced in complexity when pagination is server side
         files.forEach(f => f.isChecked = false);
         dispatch(Actions.updateFiles(files));
         dispatch(Actions.toPage(pageNumber));
