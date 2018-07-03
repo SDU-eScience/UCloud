@@ -2,9 +2,7 @@ package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.auth.services.PersonUtils
-import dk.sdu.cloud.auth.services.UserDAO
-import dk.sdu.cloud.auth.services.checkPassword
+import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import io.ktor.application.install
@@ -13,7 +11,7 @@ import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 
 class UserController(
-    private val userEventProducer: UserEventProducer
+    private val userCreationService: UserCreationService
 ) {
     fun configure(routing: Route): Unit = with(routing) {
         install(JWTProtection)
@@ -30,7 +28,16 @@ class UserController(
                 password = it.password
             )
 
-            userEventProducer.emit(UserEvent.Created(person.id, person))
+            try {
+                userCreationService.createUser(person)
+            } catch (ex: UserException) {
+                return@implement when (ex) {
+                    is UserException.AlreadyExists -> {
+                        error(CommonErrorMessage(ex.why), HttpStatusCode.Conflict)
+                    }
+                }
+            }
+
             ok(Unit)
         }
 

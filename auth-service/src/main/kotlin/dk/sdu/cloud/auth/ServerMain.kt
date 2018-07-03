@@ -169,50 +169,5 @@ fun main(args: Array<String>) {
             }
             log.info("OK")
         }
-
-        "create-user" -> {
-            val userEvents = kafka.producer.forStream(AuthStreams.UserUpdateStream)
-
-            val console = System.console()
-            val firstNames = console.readLine("First names: ")
-            val lastName = console.readLine("Last name: ")
-
-            val role = console.readLine("Role (String): ").let { Role.valueOf(it) }
-
-            val email = console.readLine("Email: ")
-            val password = String(console.readPassword("Password: "))
-
-            val person = PersonUtils.createUserByPassword(firstNames, lastName, email, role, password)
-
-            log.info("Creating user: ")
-            log.info(person.toString())
-
-            runBlocking {
-                userEvents.emit(UserEvent.Created(person.id, person))
-            }
-
-            log.info("OK")
-        }
-
-        "create-api-token" -> {
-            val userEvents = kafka.producer.forStream(AuthStreams.UserUpdateStream)
-            val tokenEvents = kafka.producer.forStream(AuthStreams.RefreshTokenStream)
-
-            val scanner = Scanner(System.`in`)
-            print("Service name: ")
-            val serviceName = scanner.nextLine()
-
-            val token = UUID.randomUUID().toString()
-            val principal = ServicePrincipal("_$serviceName", Role.SERVICE)
-
-            runBlocking {
-                userEvents.emit(UserEvent.Created(principal.id, principal))
-                val event = RefreshTokenEvent.Created(token, principal.id)
-                tokenEvents.emit(event)
-            }
-
-            log.info("Created a service user: ${principal.id}")
-            log.info("Active refresh token: $token")
-        }
     }
 }

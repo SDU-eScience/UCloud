@@ -11,14 +11,13 @@ import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.processors.OneTimeTokenProcessor
 import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
-import dk.sdu.cloud.auth.processors.UserProcessor
 import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
@@ -46,6 +45,7 @@ class AuthServer(
             kafka.producer.forStream(AuthStreams.RefreshTokenStream),
             kafka.producer.forStream(AuthStreams.OneTimeTokenStream)
         )
+        val userCreationService = UserCreationService(kafka.producer.forStream(AuthStreams.UserUpdateStream))
         log.info("Core services constructed!")
 
         kStreams = run {
@@ -55,7 +55,6 @@ class AuthServer(
             log.info("Configuring stream processors...")
 
             RefreshTokenProcessor(kBuilder.stream(AuthStreams.RefreshTokenStream)).also { it.init() }
-            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream)).also { it.init() }
             OneTimeTokenProcessor(kBuilder.stream(AuthStreams.OneTimeTokenStream)).also { it.init() }
 
             kafka.build(kBuilder.build()).also {
@@ -82,7 +81,7 @@ class AuthServer(
             )
             val samlController = SAMLController(authSettings, tokenService)
             val passwordController = PasswordController(tokenService)
-            val userController = UserController(kafka.producer.forStream(AuthStreams.UserUpdateStream))
+            val userController = UserController(userCreationService)
             log.info("HTTP controllers configured!")
 
             routing {
