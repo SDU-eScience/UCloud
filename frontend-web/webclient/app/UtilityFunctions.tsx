@@ -1,25 +1,11 @@
 import * as React from "react";
 import swal from "sweetalert2";
-import { RightsMap, RightsNameMap, SensitivityLevelMap } from "./DefaultObjects";
-import { File, Acl } from "./types/types";
+import { RightsMap, SensitivityLevelMap } from "./DefaultObjects";
+import { File, Acl, Page } from "./types/types";
 import Cloud from "../authentication/lib";
 import { AccessRight } from "./types/types";
 import { SemanticICONS } from "semantic-ui-react";
-
-interface Type { type: string }
-export const NotificationIcon = ({ type }: Type) => {
-    if (type === "Complete") {
-        return (<div className="initial32 bg-green-500">✓</div>)
-    } else if (type === "In Progress") {
-        return (<div className="initial32 bg-blue-500">...</div>)
-    } else if (type === "Pending") {
-        return (<div className="initial32 bg-blue-500" />)
-    } else if (type === "Failed") {
-        return (<div className="initial32 bg-red-500">&times;</div>)
-    } else {
-        return (<div>Unknown type</div>)
-    }
-};
+import { SortBy, SortOrder } from "./SiteComponents/Files/Files";
 
 export const toLowerCaseAndCapitalize = (str: string): string => !str ? "" : str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 
@@ -38,7 +24,7 @@ export const isInvalidPathName = (path: string, filePaths: string[]): boolean =>
     return false;
 };
 
-export const isFixedFolder = (filePath: string, homeFolder: string):boolean => {
+export const isFixedFolder = (filePath: string, homeFolder: string): boolean => {
     return [ // homeFolder contains trailing slash
         `${homeFolder}Favorites`,
         `${homeFolder}Jobs`,
@@ -78,16 +64,19 @@ export const sortFilesBySensitivity = (files: File[], asc: boolean) => {
     return files;
 };
 
-export const favorite = (files: File[], path: string, cloud: Cloud) => {
-    let file = files.find((file: File) => file.path === path);
-    file.favorited = !file.favorited;
-    if (file.favorited) {
-        cloud.post(`/files/favorite?path=${file.path}`);
-    } else {
-        cloud.delete(`/files/favorite?path=${file.path}`);
-    }
-    return files;
+export const favorite = (page: Page<File>, path: string, cloud: Cloud): Page<File> => {
+    let file = page.items.find((file: File) => file.path === path);
+    favoriteFile(file, cloud);
+    return page;
 };
+
+export const favoriteFile = (file: File, cloud: Cloud): void => {
+    file.favorited = !file.favorited;
+    if (file.favorited)
+        cloud.post(`/files/favorite?path=${file.path}`);
+    else
+        cloud.delete(`/files/favorite?path=${file.path}`);
+}
 
 export const getOwnerFromAcls = (acls: Acl[]) => {
     if (acls.length > 0) {
@@ -177,39 +166,18 @@ export const inputSwal = (inputName: string) => ({
         (!value && `${toLowerCaseAndCapitalize(inputName)} missing`)
 });
 
-export const renameFile = (filePath: string) =>
-    swal({
-        title: "Rename file",
-        text: `The file ${getFilenameFromPath(filePath)} will be renamed`,
-        confirmButtonText: "Rename",
-        input: "text",
+const deletionSwal = (filePaths: string[]) => {
+    const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :
+         `Delete file ${getFilenameFromPath(filePaths[0])}`;
+    return swal({
+        title: "Delete files",
+        text: deletionText,
+        confirmButtonText: "Delete files",
+        type: "warning",
         showCancelButton: true,
         showCloseButton: true,
-    }).then((result: any) => {
-        if (result.dismiss) {
-            return;
-        }
-    });
-
-
-const deletionSwal = (filePaths: string[]) =>
-    filePaths.length > 1 ?
-        swal({
-            title: "Delete files",
-            text: `Delete ${filePaths.length} files?`,
-            confirmButtonText: "Delete files",
-            type: "warning",
-            showCancelButton: true,
-            showCloseButton: true,
-        })
-        : swal({
-            title: "Delete file",
-            text: `Delete file ${getFilenameFromPath(filePaths[0])}`,
-            confirmButtonText: "Delete file",
-            type: "warning",
-            showCancelButton: true,
-            showCloseButton: true,
-        });
+    })
+};
 
 export const batchDeleteFiles = (filePaths: string[], cloud: Cloud, callback: () => void) => {
     deletionSwal(filePaths).then((result: any) => {
@@ -296,10 +264,9 @@ export const getCurrentRights = (files: File[], cloud: Cloud) => {
     }
 };
 
-interface LastSorting { name: string, asc: boolean }
-export const getSortingIcon = (lastSorting: LastSorting, name: string): SemanticICONS => {
-    if (lastSorting.name === name) {
-        return lastSorting.asc ? "chevron down" : "chevron up";
+export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy): SemanticICONS => {
+    if (sortBy === name) {
+        return sortOrder === SortOrder.DESCENDING ? "chevron down" : "chevron up";
     }
     return null;
 };

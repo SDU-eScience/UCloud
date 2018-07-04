@@ -1,7 +1,7 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
 import { SET_ALL_LOADING, RECEIVE_FAVORITES, RECEIVE_RECENT_ANALYSES, RECEIVE_RECENT_FILES } from "../Reducers/Dashboard";
 import { failureNotification } from "../UtilityFunctions";
-import { Analysis } from "../types/types";
+import { Analysis, File } from "../types/types";
 
 type Action = { type: string }
 
@@ -13,7 +13,7 @@ export const setAllLoading = (loading: boolean): SetLoading => ({
 
 export const fetchFavorites = () =>
     Cloud.get(`/files?path=${Cloud.homeFolder}/Favorites`).then(({ response }) =>
-        receiveFavorites(response.slice(0, 10))
+        receiveFavorites(response.items.slice(0, 10))
     ).catch(() => {
         failureNotification("Failed to fetch favorites. Please try again later.")
         return receiveFavorites([])
@@ -27,7 +27,7 @@ export const receiveFavorites = (favorites: File[]) => ({
 interface ReceiveRecentFilesAction extends Action { recentFiles: File[] }
 export const fetchRecentFiles = (): Promise<ReceiveRecentFilesAction> =>
     Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) =>
-        receiveRecentFiles(response.slice(0, 10))
+        receiveRecentFiles(response.items.slice(0, 10))
     ).catch(() => {
         failureNotification("Failed to fetch recent files. Please try again later.");
         return receiveRecentFiles([]);

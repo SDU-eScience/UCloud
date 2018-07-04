@@ -72,11 +72,14 @@ module.exports = {
     },
 
     plugins: [
+        // Simplifies creation of HTML files to serve your webpack bundles. 
+        // Useful for webpack bundles including a hash in the filename which changes every compilation. 
         new HtmlWebpackPlugin({
             template: 'app/index.html',
             baseUrl: baseHref
         }),
         new MiniCSSExtractPlugin("[name].[hash:6].css"),
+        // Allows overriding inferred information.
         // https://github.com/moment/moment/issues/2979#issuecomment-189899510
         new webpack.ContextReplacementPlugin(/\.\/locale$/, 'empty-module', false, /js$/),
         new webpack.DefinePlugin({ REACT_BASE_HREF: JSON.stringify(baseHref) })

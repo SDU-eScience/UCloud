@@ -18,12 +18,14 @@ module.exports = webpackMerge(commonConfig, {
 
     plugins: [
         new webpack.NoEmitOnErrorsPlugin(),
+        // Minifies JavaScript
         new UglifyJSPlugin({
             uglifyOptions: { 
                 warnings: false,
                 keep_fnames: true
             }
         }),
+        // Allows creation of global constants which can be configured at compile time. 
         new webpack.DefinePlugin({
             'process.env': {
                 NODE_ENV: JSON.stringify('production')

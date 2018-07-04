@@ -1,5 +1,4 @@
 import * as React from "react";
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Link } from "react-router-dom";
 import * as Pagination from "../Pagination";
 import { Table, Button, Icon } from "semantic-ui-react";
@@ -9,12 +8,13 @@ import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updat
 import { updatePageTitle } from "../../Actions/Status";
 import "../Styling/Shared.scss";
 import { Application } from "../../types/types";
+import { SortBy, SortOrder } from "../Files/Files";
 
 
 interface ApplicationsState {
     lastSorting: {
-        name: string
-        asc: boolean
+        name: SortBy
+        asc: SortOrder
     }
 }
 
@@ -39,47 +39,13 @@ class Applications extends React.Component<ApplicationsProps, ApplicationsState>
         super(props);
         this.state = {
             lastSorting: {
-                name: "name",
-                asc: true,
+                name: SortBy.PATH,
+                asc: SortOrder.ASCENDING,
             }
         };
-        this.sortByString = this.sortByString.bind(this);
-        this.sortByNumber = this.sortByNumber.bind(this);
         props.updatePageTitle();
         props.setLoading(true);
         props.fetchApplications();
-    }
-
-    sortByNumber(name: string) {
-        let apps = this.props.applications.slice();
-        let asc = !this.state.lastSorting.asc;
-        let order = asc ? 1 : -1;
-        apps.sort((a, b) => {
-            return (a[name] - b[name]) * order;
-        });
-        this.setState(() => ({
-            lastSorting: {
-                name,
-                asc
-            }
-        }));
-        this.props.updateApplications(apps);
-    }
-
-    sortByString(name: string) {
-        let apps = this.props.applications.slice();
-        let asc = !this.state.lastSorting.asc;
-        let order = asc ? 1 : -1;
-        apps.sort((a, b) => {
-            return a.info[name].localeCompare(b.info[name]) * order;
-        });
-        this.setState(() => ({
-            lastSorting: {
-                name,
-                asc
-            }
-        }));
-        this.props.updateApplications(apps);
     }
 
     render() {
@@ -95,11 +61,11 @@ class Applications extends React.Component<ApplicationsProps, ApplicationsState>
                         (<Table basic="very">
                             <Table.Header>
                                 <Table.Row>
-                                    <Table.HeaderCell onClick={() => this.sortByString("name")}>
-                                        Application Name <Icon name={getSortingIcon(this.state.lastSorting, "name")} />
+                                    <Table.HeaderCell>
+                                        Application Name/>
                                     </Table.HeaderCell>
-                                    <Table.HeaderCell onClick={() => this.sortByString("version")}>
-                                        Version <Icon name={getSortingIcon(this.state.lastSorting, "version")} />
+                                    <Table.HeaderCell>
+                                        Version
                                     </Table.HeaderCell>
                                     <Table.HeaderCell />
                                 </Table.Row>

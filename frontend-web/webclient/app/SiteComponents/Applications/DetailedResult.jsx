@@ -104,9 +104,9 @@ class DetailedResult extends React.Component {
         if (!this.state.complete) return;
         if (this.state.files || this.state.loading) return;
         this.setState({ loading: true });
-
+        // FIXME add pagination
         Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}`).then(({ response }) => {
-            this.setState({ files: response, loading: false });
+            this.setState({ files: response.items, loading: false });
         });
     }
 

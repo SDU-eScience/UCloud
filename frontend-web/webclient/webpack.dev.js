@@ -11,7 +11,7 @@ module.exports = webpackMerge(commonConfig, {
     mode: "development",
 
     entry: {
-        //vendor: './app/Vendor.tsx',
+        vendor: './app/Vendor.tsx',
         app: './app/App.tsx'
     },
 
@@ -22,13 +22,14 @@ module.exports = webpackMerge(commonConfig, {
     },
 
     plugins: [
+        // Enables Hot Module Replacement, otherwise known as HMR.
+        // Note: HMR should never be used in production. 
         new webpack.HotModuleReplacementPlugin(),
         new MiniCSSExtractPlugin({
-            // Options similar to the same options in webpackOptions.output
-            // both options are optional
             filename: "[name].css",
             chunkFilename: "[id].css"
         }),
+        // Copies individual files or entire directories to the build directory
         new CopyWebpackPlugin([{
             from: 'mock-api',
             to: 'mock-api',

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { getParentPath, favorite, fileSizeToString, toLowerCaseAndCapitalize } from "../../UtilityFunctions";
-import { fetchFiles, updatePath, updateFiles, setLoading } from "../../Actions/Files";
+import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "../../Actions/Files";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { SensitivityLevel } from "../../DefaultObjects"
 import { Container, Header, List, Card, Icon } from "semantic-ui-react";
@@ -10,19 +10,18 @@ import { connect } from "react-redux";
 import { updatePageTitle } from "../../Actions/Status";
 import { List as ShareList } from "../Shares/List";
 
-
-const FileInfo = ({ dispatch, files, loading, ...props }) => {
+const FileInfo = ({ dispatch, page, loading, ...props }) => {
     dispatch(updatePageTitle("File Info"));
     let file;
     const path = props.match.params[0];
-    const parentPath = getParentPath(path);
-    if (parentPath === props.filesPath) {
+    if (path === props.filesPath) {
         const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
-        file = files.find(file => file.path === filePath);
+        file = page.items.find(file => file.path === filePath);
     } else { // FIXME MapDispatchToProps
         dispatch(setLoading(true));
-        dispatch(fetchFiles(parentPath, false, false));
-        dispatch(updatePath(parentPath));
+        if (loading) return null;
+        dispatch(fetchPageFromPath(path, page.itemsPerPage, props.sortOrder, props.sortBy));
+        dispatch(updatePath(path));
     }
 
     if (!file) { return (<DefaultLoading loading={true} />) }
@@ -37,7 +36,7 @@ const FileInfo = ({ dispatch, files, loading, ...props }) => {
                     {toLowerCaseAndCapitalize(file.type)}
                 </Header.Subheader>
             </Header>                               {/* MapDispatchToProps */}
-            <FileView file={file} favorite={() => dispatch(updateFiles(favorite(files, file.path, Cloud)))} />
+            <FileView file={file} favorite={() => dispatch(updateFiles(favorite(page, file.path, Cloud)))} />
             {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
             <ShareList keepTitle={false} byPath={file.path} />
             <DefaultLoading loading={loading} />
@@ -104,12 +103,14 @@ const FileView = ({ file, favorite }) =>
     );
 
 const mapStateToProps = (state) => {
-    const { loading, files, path } = state.files;
+    const { loading, page, path, sortOrder, sortBy } = state.files;
     return {
         loading,
-        files,
+        page,
+        sortBy,
+        sortOrder,
         filesPath: path,
-        favoriteCount: files.filter(file => file.favorited).length // Hack to ensure rerender
+        favoriteCount: page.items.filter(file => file.favorited).length // Hack to ensure rerender
     }
 }
 

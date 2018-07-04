@@ -1,9 +1,9 @@
 import * as React from "react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { getParentPath, iconFromFilePath } from "../../UtilityFunctions";
+import { getParentPath, iconFromFilePath, favorite } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
-import { favorite, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
+import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
 import { updatePageTitle } from "../../Actions/Status";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../../Actions/Dashboard";
 import { connect } from "react-redux";
@@ -51,15 +51,17 @@ class Dashboard extends React.Component<DashboardProps> {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications,
             favoriteLoading, recentLoading, analysesLoading } = this.props;
         favoriteFiles.forEach((f) => f.favorited = true);
-        const favoriteOrUnfavorite = (filePath) =>
-            this.props.receiveFavorites(favorite(favoriteFiles, filePath, Cloud).filter(file => file.favorited));
+        const favoriteOrUnfavorite = (file) => { 
+            favoriteFile(file, Cloud);
+            this.props.receiveFavorites(favoriteFiles.filter(f => f.favorited)); 
+        };
         return (
             <React.StrictMode>
                 <Card.Group className="mobile-padding">
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
-                        favorite={(filePath) => favoriteOrUnfavorite(filePath)}
+                        favorite={(filePath) =>  favoriteOrUnfavorite(filePath)}
                     />
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
@@ -77,7 +79,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
     const filesList = files.map((file, i) =>
         (<List.Item key={i} className="itemPadding">
             <List.Content floated="right">
-                <Icon name="star" color="blue" onClick={() => favorite(file.path)} />
+                <Icon name="star" color="blue" onClick={() => favorite(file)} />
             </List.Content>
             <ListFileContent path={file.path} type={file.type} link={false} />
         </List.Item>)

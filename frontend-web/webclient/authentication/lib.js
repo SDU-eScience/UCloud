@@ -1,7 +1,15 @@
 import jwt from "jsonwebtoken";
 import { failureNotification } from "../app/UtilityFunctions";
 
+/**
+ * Represents an instance of the SDUCloud object used for contacting the backend, implicitly using JWTs.
+ */
 export default class SDUCloud {
+    /**
+     * @constructor
+     * @param {string} - context 
+     * @param {string} - serviceName 
+     */
     constructor(context, serviceName) {
         this.context = context;
         this.serviceName = serviceName;
@@ -29,9 +37,10 @@ export default class SDUCloud {
      *
      * The body argument is assumed to be JSON.
      *
-     * @param method the HTTP method
-     * @param path the path, should not contain context or /api/
-     * @param body the request body, assumed to be a JS object to be encoded as JSON.
+     * @param {string} method - the HTTP method
+     * @param {string} path - the path, should not contain context or /api/
+     * @param {object} body - the request body, assumed to be a JS object to be encoded as JSON.
+     * @return {Promise} promise
      */
     call(method, path, body, context = this.apiContext) {
         if (path.indexOf("/") !== 0) path = "/" + path;
@@ -45,7 +54,7 @@ export default class SDUCloud {
                 req.responseType = "text"; // Explicitely set, otherwise issues with empty response
                 req.onload = () => {
                     let responseContentType = req.getResponseHeader("content-type");
-                    let parsedResponse = req.response;
+                    let parsedResponse = req.response.length === 0 ? "{}" : req.response;
 
                     // JSON Parsing
                     if (responseContentType !== null) {
@@ -131,7 +140,7 @@ export default class SDUCloud {
     }
 
     /**
-     * Returns the username of the authenticated user or null
+     * @returns the username of the authenticated user or null
      */
     get username() {
         let info = this.userInfo;
@@ -139,21 +148,34 @@ export default class SDUCloud {
         else return null
     }
 
+    /**
+     * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
+     */
     get homeFolder() {
         let username = this.username;
         return `/home/${username}/`
     }
 
+    /**
+     * @returns {string} the location of the jobs folder for the currently logged in user (with trailing slash)
+     */
     get jobFolder() {
-        return `${this.homeFolder}/Jobs`
+        return `${this.homeFolder}/Jobs/`
     }
 
+
+    /**
+     * @returns {string} the userrole. Null if none available in the JWT
+     */
     get userRole() {
         const info = this.userInfo;
         if (info) return info.role;
         return null;
     }
 
+    /**
+     * @returns {boolean} whether or not the user is listed as an admin.
+     */
     get userIsAdmin() {
         return this.userRole === "ADMIN";
     }
@@ -175,7 +197,7 @@ export default class SDUCloud {
      * indicate the user no longer has valid credentials. At this point it would make sense to present the user with
      * the login page.
      *
-     * @return a promise of an access token
+     * @return {Promise} a promise of an access token
      */
     receiveAccessTokenOrRefreshIt() {
         let tokenPromise = null;
@@ -200,7 +222,8 @@ export default class SDUCloud {
                     req.setRequestHeader("contentType", "application/json");
                     req.onload = () => {
                         if (req.status >= 200 && req.status <= 299) {
-                            resolve({ response: JSON.parse(req.response), request: req });
+                            const response = req.response.length === 0 ? "{}" : req.response;
+                            resolve({ response: JSON.parse(response), request: req });
                         } else {
                             reject(req.response);
                         }

@@ -1,10 +1,7 @@
 export const RECEIVE_FILES = "RECEIVE_FILES";
-export const SET_FAVORITE = "SET_FAVORITE";
-export const UPDATE_FILES_PER_PAGE = "UPDATE_FILES_PER_PAGE";
 export const UPDATE_FILES = "UPDATE_FILES";
 export const SET_FILES_LOADING = "SET_FILES_LOADING";
 export const UPDATE_PATH = "UPDATE_PATH";
-export const TO_FILES_PAGE = "TO_FILES_PAGE";
 export const UPDATE_FILES_INFO_PATH = "UPDATE_FILES_INFO_PATH";
 export const SET_FILES_SORTING_COLUMN = "SET_FILES_SORTING_COLUMN";
 export const FILE_SELECTOR_SHOWN = "FILE_SELECTOR_SHOWN";
@@ -16,22 +13,16 @@ export const SET_DISALLOWED_PATHS = "SET_DISALLOWED_PATHS";
 const files = (state: any = {}, action) => {
     switch (action.type) {
         case RECEIVE_FILES: {
-            return { ...state, files: action.files, loading: false, currentFilesPage: 0, fileSelectorFiles: action.files, fileSelectorPath: action.path };
-        }
-        case UPDATE_FILES_PER_PAGE: {
-            return { ...state, files: action.files, filesPerPage: action.filesPerPage, currentFilesPage: 0 };
+            return { ...state, page: action.page, loading: false, fileSelectorFiles: action.page.items, fileSelectorPath: action.path, sortOrder: action.sortOrder, sortBy: action.sortBy };
         }
         case UPDATE_FILES: {
-            return { ...state, files: action.files };
+            return { ...state, page: action.page };
         }
         case SET_FILES_LOADING: {
             return { ...state, loading: action.loading };
         }
         case UPDATE_PATH: {
             return { ...state, path: action.path };
-        }
-        case TO_FILES_PAGE: {
-            return { ...state, currentFilesPage: action.pageNumber };
         }
         case FILE_SELECTOR_SHOWN: {
             return { ...state, fileSelectorShown: action.state };

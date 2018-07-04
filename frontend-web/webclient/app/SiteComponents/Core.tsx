@@ -8,7 +8,6 @@ import Applications from "./Applications/Applications";
 import RunApp from "./Applications/RunApp";
 import Analyses from "./Applications/Analyses";
 import DetailedResult from "./Applications/DetailedResult";
-import Notifications from "./Activity/Notifications";
 import Header from "./Navigation/Header";
 import Sidebar from "../SiteComponents/Navigation/Sidebar";
 import ZenodoPublish from "./Zenodo/Publish";
@@ -35,7 +34,6 @@ const Core = () => (
                 <Route exact path="/applications/:appName/:appVersion" component={RunApp} />
                 <Route exact path="/analyses" component={Analyses} />
                 <Route exact path="/analyses/:jobId" component={DetailedResult} />
-                <Route exact path="/notifications" component={Notifications} />
                 <Route exact path="/zenodo/" component={ZenodoHome} />
                 <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo} />
                 <Route exact path="/zenodo/publish/" component={ZenodoPublish} />

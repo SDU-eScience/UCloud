@@ -1,11 +1,9 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
 import {
     RECEIVE_FILES,
-    UPDATE_FILES_PER_PAGE,
     UPDATE_FILES,
     SET_FILES_LOADING,
     UPDATE_PATH,
-    TO_FILES_PAGE,
     SET_FILES_SORTING_COLUMN,
     FILE_SELECTOR_SHOWN,
     SET_FILE_SELECTOR_LOADING,
@@ -14,62 +12,70 @@ import {
     SET_DISALLOWED_PATHS
 } from "../Reducers/Files";
 import { sortFilesByTypeAndName, failureNotification } from "../UtilityFunctions";
+import { Page, emptyPage, File } from "../types/types";
+import { SortOrder, SortBy } from "../SiteComponents/Files/Files";
 
 /**
-** Creates a promise to fetch files. Sorts the files based on sorting function passed,
-** and implicitly sets @filesLoading to false in the reducer when the files are fetched.
-** Additionally sets files for the file selector as well as 
-**/
-export const fetchFiles = (path, sorting, sortAscending) =>
-    Cloud.get(`files?path=${path}`).then(({ response }) => {
-        response.forEach(file => file.isChecked = false);
-        if (sorting) {
-            response = sorting(response, sortAscending);
-        }
-        return receiveFiles(response, path);
-    }).catch(() => {
+* Creates a promise to fetch files. Sorts the files based on sorting function passed,
+* and implicitly sets {filesLoading} to false in the reducer when the files are fetched.
+* @param {string} path is the path of the folder being queried
+* @param {number} itemsPerPage number of items to be fetched
+* @param {Page<File>} page number of the page to be fetched
+*/
+export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy) =>
+    Cloud.get(`files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`).then(({ response }) =>
+        receiveFiles(response, path, order, sortBy)
+    ).catch(() => {
         failureNotification("An error occurred fetching files for this folder.");
-        return receiveFiles([], path);
+        return receiveFiles(emptyPage, path, order, sortBy);
     });
 
-export const toPage = (pageNumber) => ({
-    type: TO_FILES_PAGE,
-    pageNumber: pageNumber
-});
-
-/*
+/**
 * Updates the files stored. 
 * Intended for use when sorting the files, checking or favoriting, for instance.
+* @param {Page<File>} page contains the currently held page with modifications made to the files client-side
 */
-export const updateFiles = (files) => ({
+export const updateFiles = (page: Page<File>) => ({
     type: UPDATE_FILES,
-    files
+    page
 });
 
-export const setLoading = (loading) => ({
+/**
+ * Sets whether or not the component is loading
+ * @param {boolean} loading 
+ */
+export const setLoading = (loading: boolean) => ({
     type: SET_FILES_LOADING,
     loading
 });
 
-export const updatePath = (newPath) => ({
+/**
+ * Updates the path currently held intended for the files/fileinfo components.
+ * @param {string} path - The path to store
+ */
+export const updatePath = (path: string) => ({
     type: UPDATE_PATH,
-    path: newPath
+    path
 });
 
-export const updateFilesPerPage = (filesPerPage, files) => {
-    files.forEach(file => file.isChecked = false);
+/**
+ * The function used for the actual receiving the files, rather than the promise
+ * @param {Page<File>} page - Contains the page
+ * @param {string} path - The path the files were retrieved from
+ * @param {SortOrder} sortOrder - The order in which the files were sorted
+ * @param {SortBy} sortBy - the value the sorting was based on
+ */
+const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy) => {
+    page.items.forEach((f) => f.isChecked = false);
     return {
-        type: UPDATE_FILES_PER_PAGE,
-        filesPerPage,
-        files
+        type: RECEIVE_FILES,
+        page,
+        path,
+        sortOrder,
+        sortBy
     }
 };
 
-const receiveFiles = (files, path) => ({
-    type: RECEIVE_FILES,
-    files,
-    path
-});
 
 export const setSortingColumn = (index, name) => ({
     type: SET_FILES_SORTING_COLUMN,
@@ -86,14 +92,27 @@ export const receiveFileSelectorFiles = (files, path) => ({
     type: RECEIVE_FILE_SELECTOR_FILES,
     files,
     path
-})
+});
 
-export const fetchFileselectorFiles = (path) =>
-    Cloud.get(`files?path=${path}`).then(({ response }) => {
-        response.forEach(file => file.isChecked = false);
-        response = sortFilesByTypeAndName(response, true);
-        return receiveFileSelectorFiles(response, path);
-    }).catch(() => failureNotification("An error occurred when fetching files for fileselection"));
+export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy) =>
+    Cloud.get(`files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`)
+        .then(({ response }) => receiveFiles(response, path, order, sortBy)).catch(() => {
+            failureNotification(`An error occured fetching the page for file ${path}`);
+            return { type: "ERROR" };
+        }
+    );
+
+// FIXME add pagination to FileSelector and rewrite this:
+export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number) =>
+    Cloud.get(`files?path=${path}&page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
+        let files = response.items;
+        files.forEach(file => file.isChecked = false);
+        files = sortFilesByTypeAndName(files, true);
+        return receiveFileSelectorFiles(files, path);
+    }).catch(() => {
+        failureNotification("An error occurred when fetching files for fileselection");
+        return { type: "ERROR" }; // FIXME Will end up in default. Should have case for this
+    });
 
 export const setFileSelectorLoading = () => ({
     type: SET_FILE_SELECTOR_LOADING

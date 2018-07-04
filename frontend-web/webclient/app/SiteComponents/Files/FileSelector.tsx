@@ -73,16 +73,16 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             const fileNames = files.map((it) => getFilenameFromPath(it.path));
             if (isInvalidPathName(name, fileNames)) { return }
             const directoryPath = `${currentPath.endsWith("/") ? currentPath + name : currentPath + "/" + name}`;
-            !!name ? Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
+            Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                 if (inSuccessRange(request.status)) {
                     // TODO Push mock folder
                     this.resetCreateFolder();
                     this.fetchFiles(currentPath);
                 }
-            }).catch((failure) => {
+            }).catch((_) => {
                 uf.failureNotification("Folder could not be created.")
                 this.resetCreateFolder() // TODO Handle failure
-            }) : this.resetCreateFolder();
+            });
         }
     }
 
@@ -108,8 +108,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         });
     };
 
-    // FIXME: Merge two following functions into one
-    openModal = (open) => {
+    openModal = (open: boolean): void => {
         this.setState(() => ({ modalShown: open }));
     }
 
@@ -121,7 +120,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.state.promises.cancelPromises();
     }
 
-    onUppyClose = () => {
+    onUppyClose = (): void => {
         this.props.uppy.off("upload-success", this.state.uppyOnUploadSuccess);
         this.setState(() => ({
             uppyOnUploadSuccess: null,
@@ -139,9 +138,10 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 
     fetchFiles = (path) => {
         this.setState(() => ({ loading: true, creatingFolder: false }));
-        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}`)).promise.then(req => {
+        // FIXME  Introduce Pagination instead
+        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}&page=0&itemsPerPage=100`)).promise.then(req => {
             this.setState(() => ({
-                files: uf.sortFilesByTypeAndName(req.response, true),
+                files: uf.sortFilesByTypeAndName(req.response.items, true),
                 loading: false,
                 currentPath: path
             }));
@@ -210,7 +210,6 @@ export const FileSelectorModal = (props) => (
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...props }) => {
     let f = onlyAllowFolders ? props.files.filter(f => uf.isDirectory(f)) : props.files;
     const files = f.filter((it) => !disallowedPaths.some((d) => d === it.path));
-    // FIXME removetrailingslash usage needed?
     return (
         <React.Fragment>
             <List divided size="large">
@@ -291,7 +290,7 @@ const CreatingFolder = ({ creatingFolder, handleKeyDown }) => (
 const UploadButton = ({ onClick }) => (<Button type="button" content="Upload File" onClick={() => onClick()} />);
 const RemoveButton = ({ onClick }) => (<Button type="button" content="✗" onClick={() => onClick()} />);
 const FolderSelection = ({ canSelectFolders, setSelectedFile }) => canSelectFolders ?
-    (<Button onClick={setSelectedFile} floated="right">Select</Button>) : null;
+    (<Button onClick={setSelectedFile} floated="right" content="Select"/>) : null;
 
 const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }) =>
     !files.length ? null :

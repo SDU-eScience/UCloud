@@ -2,6 +2,7 @@ import { tusConfig } from "./Configurations";
 import * as Uppy from "uppy";
 import { File, Analysis, Application, Status, Publication, SidebarOption, DropdownOption, emptyPage } from "./types/types"
 import SDUCloud from "../authentication/lib";
+import { SortOrder, SortBy } from "./SiteComponents/Files/Files";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -101,9 +102,9 @@ export const initObject = (cloud: SDUCloud) => ({
         activityLoading: false
     },
     files: {
-        files: [] as File[],
-        filesPerPage: 10,
-        currentFilesPage: 0,
+        page: emptyPage,
+        sortOrder: SortOrder.ASCENDING,
+        sortBy: SortBy.PATH,
         loading: false,
         path: "",
         filesInfoPath: "",
