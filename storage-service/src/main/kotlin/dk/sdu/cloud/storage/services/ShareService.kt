@@ -126,7 +126,6 @@ class ShareService<Ctx : FSUserContext>(
         lookup.result.results[share.sharedWith] ?:
             throw ShareException.BadRequest("The user you are attempting to share with does not exist")
 
-        // TODO Need to verify sharedWith exists!
         val rewritten = Share(
             owner = ctx.user,
             createdAt = System.currentTimeMillis(),

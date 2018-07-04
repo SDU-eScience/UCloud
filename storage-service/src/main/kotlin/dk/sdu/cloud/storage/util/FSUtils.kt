@@ -15,6 +15,7 @@ import kotlinx.coroutines.experimental.selects.select
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URI
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 
@@ -53,7 +54,7 @@ fun String.fileName(): String = File(this).name
 fun String.normalize(): String = File(this).normalize().path
 
 fun relativize(rootPath: String, absolutePath: String): String {
-    return URI(rootPath).relativize(URI(absolutePath)).path
+    return File(rootPath).toURI().relativize(File(absolutePath).toURI()).normalize().path
 }
 
 fun <T> FSResult<T>.unwrap(): T {
