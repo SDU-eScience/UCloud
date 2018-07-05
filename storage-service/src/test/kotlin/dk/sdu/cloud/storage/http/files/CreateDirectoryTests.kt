@@ -17,7 +17,7 @@ class CreateDirectoryTests {
                     val path = "/home/user1/newDir"
 
                     val response = makeDir(path)
-                    assertEquals(HttpStatusCode.OK, response.status())
+                    assertEquals(HttpStatusCode.NoContent, response.status())
 
                     val response2 = stat(path)
                     assertEquals(HttpStatusCode.OK, response2.status())

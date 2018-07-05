@@ -8,7 +8,6 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 
 data class Configuration(
@@ -52,13 +51,6 @@ fun main(args: Array<String>) {
     val cloud = RefreshingJWTAuthenticatedCloud(
         defaultServiceClient(args, serviceRegistry),
         configuration.refreshToken
-    )
-
-    Database.connect(
-        url = configuration.appDatabaseUrl,
-        driver = "org.postgresql.Driver",
-        user = configuration.appDatabaseUser,
-        password = configuration.appDatabasePassword
     )
 
     val engine = Netty

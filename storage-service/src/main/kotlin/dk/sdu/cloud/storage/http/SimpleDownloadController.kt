@@ -1,7 +1,6 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.currentUsername
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.AuthenticatedCloud

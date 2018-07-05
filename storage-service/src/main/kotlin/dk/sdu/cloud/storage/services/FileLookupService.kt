@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.storage.api.FileSortBy
 import dk.sdu.cloud.storage.api.SortOrder
 import dk.sdu.cloud.storage.api.StorageFile
