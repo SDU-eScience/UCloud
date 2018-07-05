@@ -19,7 +19,7 @@ class DeletionTests {
                     assertEquals(HttpStatusCode.OK, response.status())
 
                     val response2 = delete(path)
-                    assertEquals(HttpStatusCode.OK, response2.status())
+                    assertEquals(HttpStatusCode.NoContent, response2.status())
 
                     val response3 = stat(path)
                     assertEquals(HttpStatusCode.NotFound, response3.status())
@@ -40,7 +40,7 @@ class DeletionTests {
                     assertEquals(HttpStatusCode.OK, response.status())
 
                     val response2 = delete(path)
-                    assertEquals(HttpStatusCode.OK, response2.status())
+                    assertEquals(HttpStatusCode.NoContent, response2.status())
 
                     val response3 = stat(path)
                     assertEquals(HttpStatusCode.NotFound, response3.status())
