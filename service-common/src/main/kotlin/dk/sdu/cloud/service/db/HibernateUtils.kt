@@ -363,7 +363,7 @@ inline fun <reified T> Session.paginatedCriteria(
     )
 }
 
-inline fun <reified T> Session.countByPredicate(
+inline fun <reified T> Session.countWithPredicate(
     distinct: Boolean = false,
     selection: CriteriaBuilderContext<*, T>.() -> Expression<*> = { entity },
     predicate: CriteriaBuilderContext<*, T>.() -> Predicate

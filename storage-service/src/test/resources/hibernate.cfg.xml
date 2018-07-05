@@ -29,7 +29,8 @@
         <property name="hbm2ddl.auto">create</property>
 
         <!-- Names the annotated entity class -->
-        <mapping class="dk.sdu.cloud.storage.ShareEntity"/>
+        <mapping class="dk.sdu.cloud.storage.services.ShareEntity"/>
+        <mapping class="dk.sdu.cloud.storage.services.TusUploadEntity"/>
 
     </session-factory>
 
