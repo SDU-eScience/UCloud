@@ -65,7 +65,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         val itemsInTotal = session.countByPredicate<ShareEntity>(
             distinct = true,
             selection = { entity[ShareEntity::path] },
-            builder = { isAuthorized(user, requireOwnership = false) }
+            predicate = { isAuthorized(user, requireOwnership = false) }
         )
 
         val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
