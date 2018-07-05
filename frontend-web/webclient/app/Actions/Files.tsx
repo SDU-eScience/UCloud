@@ -45,7 +45,7 @@ export const updateFiles = (page: Page<File>) => ({
 
 /**
  * Sets whether or not the component is loading
- * @param {boolean} loading 
+ * @param {boolean} loading - whether or not it is loading
  */
 export const setLoading = (loading: boolean) => ({
     type: SET_FILES_LOADING,
@@ -54,7 +54,7 @@ export const setLoading = (loading: boolean) => ({
 
 /**
  * Updates the path currently held intended for the files/fileinfo components.
- * @param {string} path - The path to store
+ * @param {string} path - The current path for the component
  */
 export const updatePath = (path: string) => ({
     type: UPDATE_PATH,
@@ -80,10 +80,18 @@ const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sort
 };
 
 
-export const setSortingColumn = (index, name) => ({
+
+/**
+ * Sets the selected 
+ * @param index - the index of the sorting colum (0 or 1)
+ * @param {SortBy} sortBy - what field the row should show
+ */
+type SortingColumn = 0 | 1;
+export const setSortingColumn = (index: SortingColumn, asc: SortOrder, sortBy: SortBy) => ({
     type: SET_FILES_SORTING_COLUMN,
     index,
-    name
+    asc,
+    sortBy
 });
 
 export const fileSelectorShown = (state) => ({
@@ -117,30 +125,54 @@ export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage:
         return { type: "ERROR" }; // FIXME Will end up in default. Should have case for this
     });
 
+/**
+ * Sets the fileselector as loading. Intended for when retrieving files.
+ */
 export const setFileSelectorLoading = () => ({
     type: SET_FILE_SELECTOR_LOADING
-})
+});
 
+/**
+ * Sets paths for the file selector to omit.
+ * @param {string[]} paths - the list of paths which shouldn't be displayed on
+ * the fileselector modal.
+ */
 export const setDisallowedPaths = (paths) => ({
     type: SET_DISALLOWED_PATHS,
     paths
 });
 
+/**
+ * Callback to be executed on fileselection in FileSelector
+ * @param callback - callback to be being executed
+ */
 export const setFileSelectorCallback = (callback) => ({
     type: SET_FILE_SELECTOR_CALLBACK,
     callback
 });
 
+/**
+ * Sets the index of the file being edited.
+ * @param editFileIndex - the index of the file in the current page being edited
+ */
 export const setEditingFile = (editFileIndex: number) => ({
     type: SET_EDITING_FILE,
     editFileIndex
 });
 
+/**
+ * Sets the value of whether or not the user is creating a folder
+ * @param {boolean} creatingFolder - whether or not the user is creating a folder
+ */
 export const setCreatingFolder = (creatingFolder: boolean) => ({
     type: SET_CREATING_FOLDER,
     creatingFolder
 });
 
+/**
+ * Sets the editing folder index to -1 (Meaning not currently editing a file), 
+ * and sets creating folder to false.
+ */
 export const resetFolderEditing = () => ({
     type: RESET_FOLDER_EDITING
 })
