@@ -62,7 +62,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         paging: NormalizedPaginationRequest
     ): Page<SharesByPath> {
         // Query number of paths and retrieve for current page
-        val itemsInTotal = session.countByPredicate<ShareEntity>(
+        val itemsInTotal = session.countWithPredicate<ShareEntity>(
             distinct = true,
             selection = { entity[ShareEntity::path] },
             predicate = { isAuthorized(user, requireOwnership = false) }
