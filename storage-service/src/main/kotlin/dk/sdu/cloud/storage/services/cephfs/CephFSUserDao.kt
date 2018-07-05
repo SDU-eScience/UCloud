@@ -38,25 +38,27 @@ class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     }
 
     override fun findCloudUser(unixUser: String, verify: Boolean): String? {
+        log.debug("findCloudUser($unixUser, $verify)")
         if (verify) TODO("Username verification not yet implemented")
 
-        if (unixUser.startsWith(B64_PREFIX)) {
+        return if (unixUser.startsWith(B64_PREFIX)) {
             val encodedName = unixUser.substring(B64_PREFIX.length).replace('.', '=')
-            return String(decoder.decode(encodedName), USERNAME_CHARSET)
+            String(decoder.decode(encodedName), USERNAME_CHARSET)
         } else {
-            if (isDevelopment) return userToCloud[unixUser]
-            throw IllegalArgumentException("Unsupported unix user")
-        }
+            if (isDevelopment) userToCloud[unixUser]
+            else throw IllegalArgumentException("Unsupported unix user")
+        }.also { log.debug("  Result is $it") }
     }
 
     override fun findStorageUser(cloudUser: String, verify: Boolean): String? {
+        log.debug("findStorageUser($cloudUser, $verify)")
         if (verify) TODO("Username verification not yet implemented")
 
         return if (isDevelopment) {
             cloudToUser[cloudUser]
         } else {
             B64_PREFIX + encoder.encodeToString(cloudUser.toByteArray(USERNAME_CHARSET)).replace('=', '.')
-        }
+        }.also { log.debug("  Result is $it") }
     }
 
     companion object {

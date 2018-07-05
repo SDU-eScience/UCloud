@@ -2,35 +2,66 @@ package dk.sdu.cloud.storage.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
+import dk.sdu.cloud.service.Page
 import io.ktor.http.HttpMethod
 
 data class FindByPath(val path: String)
+
 data class CreateDirectoryRequest(
     val path: String,
     val owner: String?
 )
 
+enum class FileSortBy {
+    TYPE,
+    PATH,
+    CREATED_AT,
+    MODIFIED_AT,
+    SIZE,
+    ACL,
+    FAVORITED,
+    SENSITIVITY,
+    ANNOTATION
+}
+
+enum class SortOrder {
+    ASCENDING,
+    DESCENDING
+}
+
+data class ListDirectoryRequest(
+    val path: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?,
+    val order: SortOrder?,
+    val sortBy: FileSortBy?
+) : WithPagination
+
+data class LookupFileInDirectoryRequest(
+    val path: String,
+    val itemsPerPage: Int,
+    val order: SortOrder,
+    val sortBy: FileSortBy
+)
+
 data class DeleteFileRequest(val path: String)
 
 data class MoveRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
+
 data class CopyRequest(val path: String, val newPath: String, val policy: WriteConflictPolicy? = null)
+
 data class BulkDownloadRequest(val prefix: String, val files: List<String>)
+
 data class SyncFileListRequest(val path: String, val modifiedSince: Long? = null)
 
 data class AnnotateFileRequest(val path: String, val annotatedWith: String, val proxyUser: String) {
     init {
         validateAnnotation(annotatedWith)
-        if (proxyUser.isBlank()) throw IllegalArgumentException("proxyUser cannot be blank")
-    }
-}
-
-data class MarkFileAsOpenAccessRequest(val path: String, val proxyUser: String) {
-    init {
-        if (path.isBlank()) throw IllegalArgumentException("path cannot be empty")
         if (proxyUser.isBlank()) throw IllegalArgumentException("proxyUser cannot be blank")
     }
 }
@@ -50,14 +81,74 @@ fun validateAnnotation(annotation: String) {
     }
 }
 
+const val DOWNLOAD_FILE_SCOPE = "downloadFile"
+
+data class DownloadByURI(val path: String, val token: String)
+
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = FavoriteCommand.Grant::class, name = "grant"),
+    JsonSubTypes.Type(value = FavoriteCommand.Revoke::class, name = "revoke")
+)
+sealed class FavoriteCommand {
+    abstract val path: String
+
+    data class Grant(override val path: String) : FavoriteCommand()
+    data class Revoke(override val path: String) : FavoriteCommand()
+}
+
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = KafkaRequest.TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = LongRunningResponse.Timeout::class, name = "timeout"),
+    JsonSubTypes.Type(value = LongRunningResponse.Result::class, name = "result")
+)
+sealed class LongRunningResponse<T> {
+    data class Timeout<T>(
+        val why: String = "The operation has timed out and will continue in the background"
+    ) : LongRunningResponse<T>()
+
+    data class Result<T>(
+        @get:JsonUnwrapped
+        val item: T
+    ) : LongRunningResponse<T>()
+}
+
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     private val baseContext = "/api/files"
 
-    val listAtPath = callDescription<FindByPath, List<StorageFile>, CommonErrorMessage> {
+    val listAtPath = callDescription<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage> {
         prettyName = "filesListAtPath"
         path { using(baseContext) }
         params {
-            +boundTo(FindByPath::path)
+            +boundTo(ListDirectoryRequest::path)
+            +boundTo(ListDirectoryRequest::itemsPerPage)
+            +boundTo(ListDirectoryRequest::page)
+            +boundTo(ListDirectoryRequest::order)
+            +boundTo(ListDirectoryRequest::sortBy)
+        }
+    }
+
+    val lookupFileInDirectory = callDescription<LookupFileInDirectoryRequest, Page<StorageFile>, CommonErrorMessage> {
+        prettyName = "lookupFileInDirectory"
+
+        path {
+            using(baseContext)
+            +"lookup"
+        }
+
+        params {
+            +boundTo(LookupFileInDirectoryRequest::path)
+            +boundTo(LookupFileInDirectoryRequest::itemsPerPage)
+            +boundTo(LookupFileInDirectoryRequest::sortBy)
+            +boundTo(LookupFileInDirectoryRequest::order)
         }
     }
 
@@ -73,7 +164,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val markAsFavorite = callDescription<FavoriteCommand.Grant, Unit, CommonErrorMessage> {
+    val markAsFavorite = callDescription<FavoriteCommand.Grant, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "filesMarkAsFavorite"
         method = HttpMethod.Post
 
@@ -87,7 +178,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val removeFavorite = callDescription<FavoriteCommand.Revoke, Unit, CommonErrorMessage> {
+    val removeFavorite = callDescription<FavoriteCommand.Revoke, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "filesRemoveAsFavorite"
         method = HttpMethod.Delete
 
@@ -101,7 +192,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val createDirectory = callDescription<CreateDirectoryRequest, Unit, CommonErrorMessage> {
+    val createDirectory = callDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "createDirectory"
         method = HttpMethod.Post
 
@@ -115,7 +206,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val deleteFile = callDescription<DeleteFileRequest, Unit, CommonErrorMessage> {
+    val deleteFile = callDescription<DeleteFileRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "deleteFile"
         method = HttpMethod.Delete
 
@@ -141,7 +232,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val move = callDescription<MoveRequest, Unit, CommonErrorMessage> {
+    val move = callDescription<MoveRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "move"
         method = HttpMethod.Post
         path {
@@ -156,7 +247,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val copy = callDescription<CopyRequest, Unit, CommonErrorMessage> {
+    val copy = callDescription<CopyRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         prettyName = "copy"
         method = HttpMethod.Post
         path {
@@ -209,24 +300,4 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
 
         body { bindEntireRequestFromBody() }
     }
-}
-
-const val DOWNLOAD_FILE_SCOPE = "downloadFile"
-
-data class DownloadByURI(val path: String, val token: String)
-
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = FavoriteCommand.Grant::class, name = "grant"),
-    JsonSubTypes.Type(value = FavoriteCommand.Revoke::class, name = "revoke")
-)
-sealed class FavoriteCommand {
-    abstract val path: String
-
-    data class Grant(override val path: String) : FavoriteCommand()
-    data class Revoke(override val path: String) : FavoriteCommand()
 }
