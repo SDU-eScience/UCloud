@@ -9,7 +9,10 @@ import {
     SET_FILE_SELECTOR_LOADING,
     RECEIVE_FILE_SELECTOR_FILES,
     SET_FILE_SELECTOR_CALLBACK,
-    SET_DISALLOWED_PATHS
+    SET_DISALLOWED_PATHS,
+    SET_CREATING_FOLDER,
+    SET_EDITING_FILE,
+    RESET_FOLDER_EDITING
 } from "../Reducers/Files";
 import { sortFilesByTypeAndName, failureNotification } from "../UtilityFunctions";
 import { Page, emptyPage, File } from "../types/types";
@@ -127,3 +130,17 @@ export const setFileSelectorCallback = (callback) => ({
     type: SET_FILE_SELECTOR_CALLBACK,
     callback
 });
+
+export const setEditingFile = (editFileIndex: number) => ({
+    type: SET_EDITING_FILE,
+    editFileIndex
+});
+
+export const setCreatingFolder = (creatingFolder: boolean) => ({
+    type: SET_CREATING_FOLDER,
+    creatingFolder
+});
+
+export const resetFolderEditing = () => ({
+    type: RESET_FOLDER_EDITING
+})
