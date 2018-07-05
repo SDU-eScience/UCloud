@@ -102,6 +102,8 @@ export const initObject = (cloud: SDUCloud) => ({
         activityLoading: false
     },
     files: {
+        creatingFolder: false,
+        editFileIndex: -1,
         page: emptyPage,
         sortOrder: SortOrder.ASCENDING,
         sortBy: SortBy.PATH,

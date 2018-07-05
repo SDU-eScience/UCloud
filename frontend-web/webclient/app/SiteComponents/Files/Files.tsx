@@ -16,9 +16,10 @@ import { Uploader } from "../Uploader";
 import { File, Page } from "../../types/types";
 import { History } from "history";
 
+// FIXME Wrong file placement for SortOrder/SortBy
 export enum SortOrder {
     ASCENDING = "ASCENDING",
-    DESCENDING = "DESCENDING"  
+    DESCENDING = "DESCENDING"
 }
 
 export enum SortBy {
@@ -33,11 +34,14 @@ export enum SortBy {
     ANNOTATION = "ANNOTATION"
 }
 
-interface FilesProps {
-    // Redux Props
+interface FilesProps extends FilesStateProps, FilesOperations { 
+    match: { params: string[] }
+    history: History
+}
+
+interface FilesStateProps { // Redux Props
     path: string
     page: Page<File>
-    match: { params: string[] }
     loading: boolean
     fileSelectorShown: boolean
     fileSelectorLoading: boolean
@@ -45,28 +49,29 @@ interface FilesProps {
     fileSelectorCallback: Function
     fileSelectorPath: string
     fileSelectorFiles: File[]
-    history: History
     sortBy: SortBy
     sortOrder: SortOrder
+    creatingFolder: boolean
+    editFileIndex: number
+    // Ignore, used to ensure rerender.
+    checkedFilesCount, favFilesCount: number
+}
 
-    // Redux operations
+interface FilesOperations { // Redux operations
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => void
     fetchSelectorFiles: (path: string) => void
-    showFilesSelector: (open: boolean) => void
     setFileSelectorCallback: (callback: Function) => void
     checkFile: (checked: boolean, page: Page<File>, newFile: File) => void
     setPageTitle: () => void
     updateFiles: (files: Page<File>) => void
     showFileSelector: (open: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
+    setCreatingFolder: (creating: boolean) => void
+    setEditingFileIndex: (index: number) => void
+    resetFolderEditing: () => void
 }
 
-interface FilesState { // FIXME Remove this by adding state to props
-    creatingNewFolder: boolean
-    editFolderIndex: number
-}
-
-class Files extends React.Component<FilesProps, FilesState> {
+class Files extends React.Component<FilesProps> {
     constructor(props) {
         super(props);
         const urlPath = props.match.params[0];
@@ -74,18 +79,8 @@ class Files extends React.Component<FilesProps, FilesState> {
         if (!urlPath) {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
-        this.state = {
-            creatingNewFolder: false,
-            editFolderIndex: -1
-        };
         this.props.setPageTitle();
     }
-
-    resetFolderEditing = (): void =>
-        this.setState(() => ({
-            creatingNewFolder: false,
-            editFolderIndex: -1
-        }));
 
     componentDidMount() {
         this.props.fetchFiles(this.props.match.params[0], this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy);
@@ -93,7 +88,7 @@ class Files extends React.Component<FilesProps, FilesState> {
 
     handleKeyDown = (value: number, newFolder: boolean, name: string): void => {
         if (value === KeyCode.ESC) {
-            this.resetFolderEditing();
+            this.props.resetFolderEditing();
         } else if (value === KeyCode.ENTER) {
             const { path, fetchFiles, page } = this.props;
             const fileNames = page.items.map((it) => uf.getFilenameFromPath(it.path))
@@ -102,19 +97,19 @@ class Files extends React.Component<FilesProps, FilesState> {
             if (newFolder) {
                 Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                     if (uf.inSuccessRange(request.status)) {
-                        this.resetFolderEditing();
+                        this.props.resetFolderEditing();
                         fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
                     }
-                }).catch(() => this.resetFolderEditing());
+                }).catch(() => this.props.resetFolderEditing());
             } else {
-                const originalFilename = page.items[this.state.editFolderIndex].path;
+                const originalFilename = page.items[this.props.editFileIndex].path;
                 Cloud.post(`/files/move?path=${originalFilename}&newPath=${directoryPath}`)
                     .then(({ request }) => {
                         if (uf.inSuccessRange(request.status)) {
-                            this.resetFolderEditing();
+                            this.props.resetFolderEditing();
                             fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
                         }
-                    }).catch(() => this.resetFolderEditing())
+                    }).catch(() => this.props.resetFolderEditing())
             }
         }
     }
@@ -134,13 +129,13 @@ class Files extends React.Component<FilesProps, FilesState> {
     }
 
     createFolder = () => {
-        this.resetFolderEditing();
-        this.setState(() => ({ creatingNewFolder: true }));
+        this.props.resetFolderEditing();
+        this.props.setCreatingFolder(true);
     }
 
     startEditFile = (index: number) => {
-        this.resetFolderEditing();
-        this.setState(() => ({ editFolderIndex: index }));
+        this.props.resetFolderEditing();
+        this.props.setEditingFileIndex(index);
     }
 
     render() {
@@ -153,7 +148,7 @@ class Files extends React.Component<FilesProps, FilesState> {
         // Lambdas
         const goTo = (pageNumber) => {
             this.props.fetchFiles(path, page.itemsPerPage, pageNumber, this.props.sortOrder, this.props.sortBy);
-            this.resetFolderEditing();
+            this.props.resetFolderEditing();
         };
         const fetch = () => this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
         const selectedFiles = page.items.filter(file => file.isChecked);
@@ -193,14 +188,14 @@ class Files extends React.Component<FilesProps, FilesState> {
                                         onChange={(e) => e.stopPropagation()}
                                     />}
                                 allowCopyAndMove
-                                creatingNewFolder={this.state.creatingNewFolder}
+                                creatingNewFolder={this.props.creatingFolder}
                                 handleKeyDown={this.handleKeyDown}
                                 files={page.items}
                                 onCheckFile={(checked, file) => checkFile(checked, page, file)}
                                 fetchFiles={fetchFiles}
                                 path={path}
                                 onFavoriteFile={(filePath: string) => updateFiles(uf.favorite(page, filePath, Cloud))}
-                                editFolderIndex={this.state.editFolderIndex}
+                                editFolderIndex={this.props.editFileIndex}
                                 projectNavigation={projectNavigation}
                                 startEditFile={this.startEditFile}
                                 setDisallowedPaths={this.props.setDisallowedPaths}
@@ -208,7 +203,7 @@ class Files extends React.Component<FilesProps, FilesState> {
                                 showFileSelector={this.props.showFileSelector}
                             />
                         )}
-                        onItemsPerPageChanged={(pageSize) => { this.resetFolderEditing(); fetchFiles(path, pageSize, page.pageNumber, this.props.sortOrder, this.props.sortBy);; }}
+                        onItemsPerPageChanged={(pageSize) => { this.props.resetFolderEditing(); fetchFiles(path, pageSize, page.pageNumber, this.props.sortOrder, this.props.sortBy);; }}
                         results={page}
                         onPageChanged={(pageNumber) => goTo(pageNumber)}
                     />
@@ -557,18 +552,18 @@ function move(files, operations) {
     })
 }
 
-const mapStateToProps = (state) => {
-    const { page, loading, path, fileSelectorFiles, fileSelectorPath, sortBy, sortOrder,
-        fileSelectorShown, fileSelectorCallback, disallowedPaths } = state.files;
+const mapStateToProps = (state): FilesStateProps => {
+    const { page, loading, path, fileSelectorFiles, fileSelectorPath, sortBy, sortOrder, editFileIndex, creatingFolder,
+        fileSelectorShown, fileSelectorCallback, disallowedPaths, fileSelectorLoading } = state.files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = page.items.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
-        page, loading, path, favFilesCount, checkedFilesCount, fileSelectorFiles, fileSelectorPath, fileSelectorShown,
-        fileSelectorCallback, disallowedPaths, sortOrder, sortBy
+        page, loading, path, checkedFilesCount, favFilesCount, fileSelectorFiles, fileSelectorPath, fileSelectorShown,
+        fileSelectorCallback, disallowedPaths, sortOrder, sortBy, editFileIndex, creatingFolder, fileSelectorLoading
     }
 };
 
-const mapDispatchToProps = (dispatch) => ({
+const mapDispatchToProps = (dispatch): FilesOperations => ({
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => {
         dispatch(Actions.updatePath(path));
         dispatch(Actions.setLoading(true));
@@ -583,7 +578,10 @@ const mapDispatchToProps = (dispatch) => ({
     },
     setPageTitle: () => dispatch(updatePageTitle("Files")),
     updateFiles: (page: Page<File>) => dispatch(Actions.updateFiles(page)),
-    setDisallowedPaths: (disallowedPaths: string[]) => dispatch(Actions.setDisallowedPaths(disallowedPaths))
+    setDisallowedPaths: (disallowedPaths: string[]) => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
+    setCreatingFolder: (creating) => dispatch(Actions.setCreatingFolder(creating)),
+    setEditingFileIndex: (index) => dispatch(Actions.setEditingFile(index)),
+    resetFolderEditing: () => dispatch(Actions.resetFolderEditing())
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);
