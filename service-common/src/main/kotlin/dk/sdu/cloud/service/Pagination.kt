@@ -1,5 +1,7 @@
 package dk.sdu.cloud.service
 
+import kotlin.math.min
+
 data class Page<out T>(
     val itemsInTotal: Int,
     val itemsPerPage: Int,
@@ -32,4 +34,23 @@ class NormalizedPaginationRequest(
     }
 
     val page = page?.takeIf { it >= 0 } ?: 0
+}
+
+inline fun <T, R> Page<T>.mapItems(mapper: (T) -> R): Page<R> {
+    val newItems = items.map(mapper)
+    return Page(
+        itemsInTotal,
+        itemsPerPage,
+        pageNumber,
+        newItems
+    )
+}
+
+fun <T> List<T>.paginate(request: NormalizedPaginationRequest): Page<T> {
+    val startIndex = request.itemsPerPage * request.page
+    val items =
+        if (startIndex > size) emptyList()
+        else subList(startIndex, min(startIndex + request.itemsPerPage, size))
+
+    return Page(size, request.itemsPerPage, request.page, items)
 }

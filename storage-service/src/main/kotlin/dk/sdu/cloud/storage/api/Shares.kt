@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.api
 
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.FindByStringId
 
 enum class ShareState {
@@ -7,8 +8,8 @@ enum class ShareState {
     ACCEPTED
 }
 
-typealias ShareId = String
-typealias FindByShareId = FindByStringId
+typealias ShareId = Long
+typealias FindByShareId = FindByLongId
 
 data class Share(
     val owner: String,

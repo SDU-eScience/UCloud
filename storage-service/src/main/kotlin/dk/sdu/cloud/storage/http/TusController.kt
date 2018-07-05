@@ -1,18 +1,13 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.principalRole
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.service.KafkaHttpRouteLogger
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.TusDescriptions
-import dk.sdu.cloud.storage.api.TusExtensions
-import dk.sdu.cloud.storage.api.TusHeaders
-import dk.sdu.cloud.storage.api.WriteConflictPolicy
+import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.UploadDescriptions.savedAs
+import dk.sdu.cloud.storage.util.joinPath
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -30,15 +25,17 @@ import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
 import kotlinx.coroutines.experimental.runBlocking
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
-import java.lang.Math.ceil
 import java.util.*
 
-class TusController<Ctx : FSUserContext>(
-    private val tusState: TusStateService,
+// TODO FIXME HANDLE EXCEPTIONS
+// TODO FIXME HANDLE EXCEPTIONS
+// TODO FIXME HANDLE EXCEPTIONS
+// TODO FIXME HANDLE EXCEPTIONS
+class TusController<DBSession, Ctx : FSUserContext>(
+    private val db: DBSessionFactory<DBSession>,
+    private val tusDao: TusDAO<DBSession>,
+
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>
 ) {
@@ -78,22 +75,19 @@ class TusController<Ctx : FSUserContext>(
 
                     handle {
                         logEntry(log, parameterIncludeFilter = { it == "id" })
-                        val id = call.parameters["id"] ?: return@handle call.respond(HttpStatusCode.BadRequest)
-                        val ownerParamForState =
-                            if (call.isPrivileged) null
-                            else call.request.validatedPrincipal.subject
+                        val id = call.parameters["id"]?.toLongOrNull()
+                                ?: return@handle call.respond(HttpStatusCode.BadRequest)
 
-                        val summary = tusState.retrieveSummary(id, ownerParamForState)
-                                ?: return@handle call.respond(HttpStatusCode.NotFound)
+                        val summary = db.withTransaction { tusDao.findUpload(it, call.request.currentUsername, id) }
 
                         // Disable cache
                         call.response.header(HttpHeaders.CacheControl, "no-store")
 
                         // Write current transfer state
                         call.response.tusVersion(serverConfiguration.tusVersion)
-                        call.response.tusLength(summary.length)
-                        call.response.tusOffset(summary.offset)
-                        call.response.tusFileLocation(summary.savedAs)
+                        call.response.tusLength(summary.sizeInBytes)
+                        call.response.tusOffset(summary.progress)
+                        call.response.tusFileLocation(summary.uploadPath)
 
                         // Response contains no body
                         call.respond(HttpStatusCode.NoContent)
@@ -108,7 +102,7 @@ class TusController<Ctx : FSUserContext>(
                     handle {
                         logEntry(log, parameterIncludeFilter = { it == "id" })
                         if (call.request.header("X-HTTP-Method-Override").equals("PATCH", ignoreCase = true)) {
-                            upload(tusState)
+                            upload()
                         } else {
                             call.respond(HttpStatusCode.MethodNotAllowed)
                         }
@@ -122,7 +116,7 @@ class TusController<Ctx : FSUserContext>(
 
                     handle {
                         logEntry(log, parameterIncludeFilter = { it == "id" })
-                        upload(tusState)
+                        upload()
                     }
                 }
             }
@@ -134,11 +128,9 @@ class TusController<Ctx : FSUserContext>(
 
                 handle {
                     logEntry(log, headerIncludeFilter = { it in TusHeaders.KnownHeaders })
-
                     if (!protect()) return@handle
 
-                    val principal = call.request.validatedPrincipal
-                    val isPrivileged = call.isPrivileged
+                    val user = call.request.currentUsername
 
                     val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?: return@handle run {
                         log.debug("Missing upload length")
@@ -179,33 +171,21 @@ class TusController<Ctx : FSUserContext>(
                         call.respond(HttpStatusCode.BadRequest)
                     }
 
-                    val owner = metadata["owner"]?.takeIf { isPrivileged } ?: principal.subject
-                    val location = metadata["location"]?.takeIf { isPrivileged }?.let { it }
-                            ?: "/home/${principal.subject}/Uploads"
+                    val location = metadata["location"] ?: "/home/$user/Uploads"
+                    val fileName = metadata["filename"] ?: metadata["name"] ?:
+                        return@handle call.respond(HttpStatusCode.BadRequest)
 
-                    // TODO We should check if we are allowed to write?
-
-                    val id = UUID.randomUUID().toString()
-                    val fileName = metadata["filename"] ?: metadata["name"] ?: id
-
-                    transaction {
-                        UploadDescriptions.insert {
-                            it[UploadDescriptions.id] = id
-                            it[UploadDescriptions.sizeInBytes] = length
-                            it[UploadDescriptions.owner] = owner
-                            it[UploadDescriptions.zone] = "" // TODO Remove this
-                            it[UploadDescriptions.targetCollection] = location
-                            it[UploadDescriptions.targetName] = fileName
-                            it[UploadDescriptions.doChecksum] = false
-                            it[UploadDescriptions.sensitive] = sensitive
-                        }
-
-                        UploadProgress.insert {
-                            it[UploadProgress.id] = id
-                            it[UploadProgress.numChunksVerified] = 0
-                        }
+                    val id = db.withTransaction {
+                        tusDao.create(
+                            it, user, TusUploadCreationCommand(
+                                length,
+                                joinPath(location, fileName),
+                                if (sensitive) SensitivityLevel.SENSITIVE else SensitivityLevel.CONFIDENTIAL
+                            )
+                        )
                     }
 
+                    // TODO We should check if we are allowed to write?
                     call.response.header(HttpHeaders.Location, "${serverConfiguration.prefix}/$id")
                     call.respond(HttpStatusCode.Created)
                 }
@@ -236,18 +216,17 @@ class TusController<Ctx : FSUserContext>(
             return principalRole == Role.SERVICE || principalRole == Role.ADMIN
         }
 
-    private suspend fun PipelineContext<Unit, ApplicationCall>.upload(tusStateService: TusStateService) {
+    private suspend fun PipelineContext<Unit, ApplicationCall>.upload() {
         log.debug("Handling incoming upload request")
         // Check and retrieve transfer state
-        val id = call.parameters["id"] ?: return run {
+        val id = call.parameters["id"]?.toLongOrNull() ?: return run {
             log.debug("Missing ID parameter")
             call.respond(HttpStatusCode.BadRequest)
         }
 
-        val ownerParamForState = if (call.isPrivileged) null else call.request.validatedPrincipal.subject
-        val initialState = tusState.retrieveState(id, ownerParamForState) ?: return run {
-            log.debug("Missing upload state for transfer with id: $id")
-            call.respond(HttpStatusCode.NotFound)
+        val owner = call.request.currentUsername
+        val initialState = db.withTransaction {
+            tusDao.findUpload(it, owner, id)
         }
 
         // Check content type
@@ -267,14 +246,13 @@ class TusController<Ctx : FSUserContext>(
             call.respond(HttpStatusCode.BadRequest)
         }
 
-        if (claimedOffset != initialState.offset) {
-            log.debug("Claimed offset was $claimedOffset but expected ${initialState.offset}")
+        if (claimedOffset != initialState.progress) {
+            log.debug("Claimed offset was $claimedOffset but expected ${initialState.progress}")
             return call.respond(HttpStatusCode.Conflict)
         }
 
-        val path = initialState.targetCollection + "/" + initialState.targetName
         var wrote = 0L
-        if (claimedOffset != initialState.length) {
+        if (claimedOffset != initialState.sizeInBytes) {
             if (claimedOffset != 0L) {
                 log.info("Not yet implemented (offset != 0)")
                 call.respond(HttpStatusCode.InternalServerError)
@@ -285,10 +263,10 @@ class TusController<Ctx : FSUserContext>(
             // Start reading some contents
             val channel = call.request.receiveChannel()
             val internalBuffer = ByteArray(1024 * 32)
-            commandRunnerFactory.withContext(initialState.user) { ctx ->
+            commandRunnerFactory.withContext(initialState.owner) { ctx ->
                 fs.write(
                     ctx,
-                    path,
+                    initialState.uploadPath,
                     WriteConflictPolicy.OVERWRITE
                 ) {
                     runBlocking {
@@ -311,24 +289,14 @@ class TusController<Ctx : FSUserContext>(
 
         // TODO Make resumable
         val offset = when {
-            initialState.offset == initialState.length -> initialState.offset
-            wrote == initialState.length -> initialState.length
+            initialState.progress == initialState.sizeInBytes -> initialState.progress
+            wrote == initialState.sizeInBytes -> initialState.sizeInBytes
             else -> 0L
         }
 
-        val block = if (offset == initialState.length) ceil(initialState.length / BLOCK_SIZE.toDouble()).toLong() else 0
+        db.withTransaction { tusDao.updateProgress(it, owner, id, offset) }
 
-        transaction {
-            UploadProgress.update({ UploadProgress.id eq id }) {
-                it[numChunksVerified] = block
-            }
-
-            UploadDescriptions.update({ UploadDescriptions.id eq id }) {
-                it[savedAs] = path
-            }
-        }
-
-        log.info("Upload complete! Offset is: $offset $wrote. ${initialState.length}")
+        log.info("Upload complete! Offset is: $offset $wrote. ${initialState.sizeInBytes}")
 
         call.response.tusOffset(offset)
         call.response.tusVersion(SimpleSemanticVersion(1, 0, 0))

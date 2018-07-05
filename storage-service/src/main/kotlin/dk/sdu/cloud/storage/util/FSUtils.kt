@@ -3,21 +3,14 @@ package dk.sdu.cloud.storage.util
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.storage.api.LongRunningResponse
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import io.ktor.http.HttpStatusCode
+import org.slf4j.LoggerFactory
 import dk.sdu.cloud.storage.services.FSResult
 import dk.sdu.cloud.storage.services.FSUserContext
-import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.selects.select
-import org.slf4j.LoggerFactory
+import kotlin.math.absoluteValue
 import java.io.File
 import java.net.URI
-import java.net.URLEncoder
-import java.util.concurrent.TimeUnit
-import kotlin.math.absoluteValue
 
 fun homeDirectory(ctx: FSUserContext): String {
     return "/home/${ctx.user}/"
@@ -54,7 +47,7 @@ fun String.fileName(): String = File(this).name
 fun String.normalize(): String = File(this).normalize().path
 
 fun relativize(rootPath: String, absolutePath: String): String {
-    return File(rootPath).toURI().relativize(File(absolutePath).toURI()).normalize().path
+    return URI(rootPath).relativize(URI(absolutePath)).path
 }
 
 fun <T> FSResult<T>.unwrap(): T {
@@ -94,8 +87,7 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
         body()
     } catch (ex: Exception) {
         fsLog.debug(ex.stackTraceToString())
-        val (msg, status) = handleFSException(ex)
-        error(msg, status)
+        handleFSException(ex)
     }
 }
 
@@ -108,68 +100,33 @@ suspend inline fun <Ctx : FSUserContext> RESTHandler<*, *, CommonErrorMessage>.t
         factory.withContext(user) { body(it) }
     } catch (ex: Exception) {
         fsLog.debug(ex.stackTraceToString())
-        val (msg, status) = handleFSException(ex)
-        error(msg, status)
+        handleFSException(ex)
     }
 }
 
-sealed class CallResult<S, E>(val status: HttpStatusCode) {
-    class Success<S, E>(val item: S, status: HttpStatusCode = HttpStatusCode.OK) : CallResult<S, E>(status)
-    class Error<S, E>(val item: E, status: HttpStatusCode) : CallResult<S, E>(status)
-}
-
-suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, CommonErrorMessage>.tryWithFSAndTimeout(
-    factory: FSCommandRunnerFactory<Ctx>,
-    user: String,
-    job: suspend (Ctx) -> CallResult<S, CommonErrorMessage>
-) {
-    val result: Deferred<CallResult<S, CommonErrorMessage>> = async {
-        try {
-            factory.withContext(user) { job(it) }
-        } catch (ex: Exception) {
-            val (msg, status) = handleFSException(ex)
-            CallResult.Error<S, CommonErrorMessage>(msg, status)
-        }
-    }
-
-    val timeout = async { delay(10, TimeUnit.SECONDS) }
-
-    select<Unit> {
-        result.onAwait {
-            when (it) {
-                is CallResult.Success -> ok(LongRunningResponse.Result(it.item), it.status)
-                is CallResult.Error -> error(it.item, it.status)
-            }
-        }
-
-        timeout.onAwait {
-            ok(LongRunningResponse.Timeout(), HttpStatusCode.Accepted)
-        }
-    }
-}
-
-fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
-    return when (ex) {
+suspend fun RESTHandler<*, *, CommonErrorMessage>.handleFSException(ex: Exception) {
+    when (ex) {
         is FSException -> {
             // Enforce that we must handle all cases. Will cause a compiler error if we don't cover all
-            when (ex) {
-                is FSException.NotFound -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.NotFound)
-                is FSException.BadRequest -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
-                is FSException.AlreadyExists -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.Conflict)
-                is FSException.PermissionException -> Pair(
+            @Suppress("UNUSED_VARIABLE")
+            val ignored = when (ex) {
+                is FSException.NotFound -> error(CommonErrorMessage(ex.message), HttpStatusCode.NotFound)
+                is FSException.BadRequest -> error(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
+                is FSException.AlreadyExists -> error(CommonErrorMessage(ex.message), HttpStatusCode.Conflict)
+                is FSException.PermissionException -> error(
                     CommonErrorMessage(ex.message),
                     HttpStatusCode.Forbidden
                 )
                 is FSException.CriticalException, is FSException.IOException -> {
                     fsLog.warn("Caught critical FS exception!")
                     fsLog.warn(ex.stackTraceToString())
-                    Pair(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
+                    error(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
                 }
             }
         }
 
         is IllegalArgumentException -> {
-            Pair(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+            error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
         }
 
         is TooManyRetries -> {
@@ -179,7 +136,7 @@ fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
         else -> {
             fsLog.warn("Unknown FS exception!")
             fsLog.warn(ex.stackTraceToString())
-            Pair(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
+            error(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
         }
     }
 }

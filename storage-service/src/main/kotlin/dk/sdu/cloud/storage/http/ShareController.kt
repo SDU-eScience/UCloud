@@ -15,7 +15,7 @@ import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
 class ShareController<Ctx : FSUserContext>(
-    private val shareService: ShareService<Ctx>,
+    private val shareService: ShareService<*, Ctx>,
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>
 ) {
@@ -70,7 +70,7 @@ class ShareController<Ctx : FSUserContext>(
 
                 tryWithShareService {
                     commandRunnerFactory.withContext(call.user) { ctx ->
-                        ok(shareService.update(ctx, it.id, it.rights))
+                        ok(shareService.updateRights(ctx, it.id, it.rights))
                     }
                 }
             }

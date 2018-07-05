@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.storage.api.StorageEvents
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.api.TusHeaders
@@ -42,6 +43,8 @@ class Server(
         log.info("Creating core services")
         val isDevelopment = args.contains("--dev")
 
+        val db = HibernateSessionFactory.create()
+
         val cloudToCephFsDao = CephFSUserDao(isDevelopment)
         val processRunner = CephFSCommandRunnerFactory(cloudToCephFsDao, isDevelopment)
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
@@ -57,11 +60,10 @@ class Server(
         val favoriteService = FavoriteService(coreFileSystem)
         val uploadService = BulkUploadService(coreFileSystem)
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
-        val lookupService = FileLookupService(coreFileSystem, favoriteService)
-        val transferState = TusStateService()
+        val transferState = TusHibernateDAO()
 
-        val shareDAO: ShareDAO = InMemoryShareDAO()
-        val shareService = ShareService(shareDAO, processRunner, aclService, coreFileSystem)
+        val shareDAO = ShareHibernateDAO()
+        val shareService = ShareService(db, shareDAO, processRunner, aclService, coreFileSystem)
         log.info("Core services constructed!")
 
         kStreams = run {
@@ -115,37 +117,15 @@ class Server(
 
             routing {
                 route("api/tus") {
-                    val tus = TusController(transferState, processRunner, coreFileSystem)
+                    val tus = TusController(db, transferState, processRunner, coreFileSystem)
                     tus.registerTusEndpoint(this, "/api/tus")
                 }
 
                 route("api") {
-                    FilesController(
-                        processRunner,
-                        coreFileSystem,
-                        annotationService,
-                        favoriteService,
-                        lookupService
-                    ).configure(this)
-
-                    SimpleDownloadController(
-                        cloud,
-                        processRunner,
-                        coreFileSystem,
-                        bulkDownloadService
-                    ).configure(this)
-
-                    MultiPartUploadController(
-                        processRunner,
-                        coreFileSystem,
-                        uploadService
-                    ).configure(this)
-
-                    ShareController(
-                        shareService,
-                        processRunner,
-                        coreFileSystem
-                    ).configure(this)
+                    FilesController(processRunner, coreFileSystem, annotationService, favoriteService).configure(this)
+                    SimpleDownloadController(cloud, processRunner, coreFileSystem, bulkDownloadService).configure(this)
+                    MultiPartUploadController(processRunner, coreFileSystem, uploadService).configure(this)
+                    ShareController(shareService, processRunner, coreFileSystem).configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")

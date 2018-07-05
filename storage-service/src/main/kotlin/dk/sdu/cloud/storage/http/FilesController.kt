@@ -6,11 +6,13 @@ import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.api.StorageFile
+import dk.sdu.cloud.storage.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.util.CallResult
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.util.tryWithFS
-import dk.sdu.cloud.storage.util.tryWithFSAndTimeout
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
@@ -22,8 +24,7 @@ class FilesController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
     private val annotationService: FileAnnotationService<Ctx>,
-    private val favoriteService: FavoriteService<Ctx>,
-    private val fileLookupService: FileLookupService<Ctx>
+    private val favoriteService: FavoriteService<Ctx>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("files") {
@@ -32,32 +33,10 @@ class FilesController<Ctx : FSUserContext>(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    ok(
-                        fileLookupService.listDirectory(
-                            it,
-                            request.path,
-                            request.pagination,
-                            request.sortBy ?: FileSortBy.TYPE,
-                            request.order ?: SortOrder.ASCENDING
-                        )
-                    )
-                }
-            }
-
-            implement(FileDescriptions.lookupFileInDirectory) { request ->
-                logEntry(log, request)
-                if (!protect()) return@implement
-
-                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    ok(
-                        fileLookupService.lookupFileInDirectory(
-                            it,
-                            request.path,
-                            request.itemsPerPage,
-                            request.sortBy,
-                            request.order
-                        )
-                    )
+                    val favorites = favoriteService.retrieveFavoriteInodeSet(it)
+                    ok(coreFs.listDirectory(it, request.path, STORAGE_FILE_ATTRIBUTES).map {
+                        readStorageFile(it, favorites)
+                    })
                 }
             }
 
@@ -66,7 +45,8 @@ class FilesController<Ctx : FSUserContext>(
                 if (!protect()) return@implement
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                    ok(fileLookupService.stat(it, request.path))
+                    val favorites = favoriteService.retrieveFavoriteInodeSet(it)
+                    ok(coreFs.stat(it, request.path, STORAGE_FILE_ATTRIBUTES).let { readStorageFile(it, favorites) })
                 }
             }
 
@@ -74,9 +54,9 @@ class FilesController<Ctx : FSUserContext>(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
                     favoriteService.markAsFavorite(it, req.path)
-                    CallResult.Success(Unit, HttpStatusCode.NoContent)
+                    ok(Unit)
                 }
             }
 
@@ -84,9 +64,9 @@ class FilesController<Ctx : FSUserContext>(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
                     favoriteService.removeFavorite(it, req.path)
-                    CallResult.Success(Unit, HttpStatusCode.NoContent)
+                    ok(Unit)
                 }
             }
 
@@ -96,16 +76,16 @@ class FilesController<Ctx : FSUserContext>(
 
                 if (call.request.principalRole in setOf(Role.ADMIN, Role.SERVICE) && req.owner != null) {
                     log.debug("Authenticated as a privileged account. Using direct strategy")
-                    tryWithFSAndTimeout(commandRunnerFactory, req.owner) {
+                    tryWithFS(commandRunnerFactory, req.owner) {
                         coreFs.makeDirectory(it, req.path)
-                        CallResult.Success(Unit, HttpStatusCode.NoContent)
+                        ok(Unit)
                     }
                 } else {
                     log.debug("Authenticated as a normal user. Using Jargon strategy")
 
-                    tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                    tryWithFS(commandRunnerFactory, call.request.currentUsername) {
                         coreFs.makeDirectory(it, req.path)
-                        CallResult.Success(Unit, HttpStatusCode.NoContent)
+                        ok(Unit)
                     }
                 }
             }
@@ -114,28 +94,27 @@ class FilesController<Ctx : FSUserContext>(
                 logEntry(log, req)
                 if (!protect()) return@implement
 
-                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
                     coreFs.delete(it, req.path)
-                    CallResult.Success(Unit, HttpStatusCode.NoContent)
+                    ok(Unit)
                 }
             }
 
             implement(FileDescriptions.move) { req ->
                 logEntry(log, req)
                 if (!protect()) return@implement
-                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
                     coreFs.move(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
-                    CallResult.Success(Unit, HttpStatusCode.NoContent)
+                    ok(Unit)
                 }
             }
 
             implement(FileDescriptions.copy) { req ->
                 logEntry(log, req)
                 if (!protect()) return@implement
-
-                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFS(commandRunnerFactory, call.request.currentUsername) {
                     coreFs.copy(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
-                    CallResult.Success(Unit, HttpStatusCode.NoContent)
+                    ok(Unit)
                 }
             }
 
@@ -221,7 +200,37 @@ class FilesController<Ctx : FSUserContext>(
         }
     }
 
+    private fun readStorageFile(row: FileRow, favorites: Set<String>): StorageFile =
+        StorageFile(
+            type = row.fileType,
+            path = row.path,
+            createdAt = row.timestamps.created,
+            modifiedAt = row.timestamps.modified,
+            ownerName = row.owner,
+            size = row.size,
+            acl = row.shares,
+            favorited = row.inode in favorites,
+            sensitivityLevel = row.sensitivityLevel,
+            link = row.isLink,
+            annotations = row.annotations,
+            inode = row.inode
+        )
+
+
     companion object {
         private val log = LoggerFactory.getLogger(FilesController::class.java)
+
+        private val STORAGE_FILE_ATTRIBUTES = setOf(
+            FileAttribute.FILE_TYPE,
+            FileAttribute.PATH,
+            FileAttribute.TIMESTAMPS,
+            FileAttribute.OWNER,
+            FileAttribute.SIZE,
+            FileAttribute.SHARES,
+            FileAttribute.SENSITIVITY,
+            FileAttribute.ANNOTATIONS,
+            FileAttribute.INODE,
+            FileAttribute.IS_LINK
+        )
     }
 }

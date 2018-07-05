@@ -50,7 +50,7 @@ class BoundaryContainedStream(
         assert(preclearedBytes == 0L)
         preclearedBytes = numberOfBytesToClear
 
-        // All bytes from now on should detract from pre-cleared bytes, thus we need to reset clearedBytes
+        // All bytes from now on should detract from preclared bytes, thus we need to reset clearedBytes
         clearedBytes = 0
         boundaryFound = false
         clearAsMuchAsPossible()

@@ -1,16 +1,15 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.LookupUsersRequest
-import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RESTHandler
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.util.homeDirectory
@@ -25,7 +24,6 @@ sealed class ShareException(override val message: String) : RuntimeException(mes
     class DuplicateException : ShareException("Already exists")
     class PermissionException : ShareException("Not allowed")
     class BadRequest(why: String) : ShareException("Bad request: $why")
-    class InternalError(val why: String) : ShareException("Internal error")
 }
 
 private val log = LoggerFactory.getLogger(ShareService::class.java)
@@ -52,10 +50,6 @@ suspend fun RESTHandler<*, *, CommonErrorMessage>.handleShareException(ex: Excep
                 is ShareException.BadRequest -> {
                     error(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
                 }
-                is ShareException.InternalError -> {
-                    log.warn("Internal error! Why: ${ex.why}")
-                    error(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
-                }
             }
         }
 
@@ -81,21 +75,23 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithShareService(bod
     }
 }
 
-class ShareService<Ctx : FSUserContext>(
-    private val source: ShareDAO,
+class ShareService<DBSession, Ctx : FSUserContext>(
+    private val db: DBSessionFactory<DBSession>,
+    private val shareDAO: ShareDAO<DBSession>,
+
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val aclService: ACLService<Ctx>,
     private val fs: CoreFileSystemService<Ctx>
 ) {
 
-    suspend fun list(
+    fun list(
         ctx: Ctx,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath> {
-        return source.list(ctx.user, paging)
+        return db.withTransaction { shareDAO.list(it, ctx.user, paging) }
     }
 
-    suspend fun retrieveShareForPath(
+    fun retrieveShareForPath(
         ctx: Ctx,
         path: String
     ): SharesByPath {
@@ -104,13 +100,13 @@ class ShareService<Ctx : FSUserContext>(
             throw ShareException.NotAllowed()
         }
 
-        return source.findSharesForPath(ctx.user, path)
+        return db.withTransaction { shareDAO.findSharesForPath(it, ctx.user, path) }
     }
 
-    suspend fun create(
+    fun create(
         ctx: Ctx,
         share: CreateShareRequest,
-        serviceCloud: AuthenticatedCloud
+        cloud: AuthenticatedCloud
     ): ShareId {
         // Check if user is allowed to share this file
         val stat = fs.statOrNull(ctx, share.path, setOf(FileAttribute.OWNER)) ?: throw ShareException.NotFound()
@@ -118,14 +114,7 @@ class ShareService<Ctx : FSUserContext>(
             throw ShareException.NotAllowed()
         }
 
-        val lookup = UserDescriptions.lookupUsers.call(
-            LookupUsersRequest(listOf(share.sharedWith)),
-            serviceCloud
-        ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
-
-        lookup.result.results[share.sharedWith] ?:
-            throw ShareException.BadRequest("The user you are attempting to share with does not exist")
-
+        // TODO Need to verify sharedWith exists!
         val rewritten = Share(
             owner = ctx.user,
             createdAt = System.currentTimeMillis(),
@@ -136,7 +125,7 @@ class ShareService<Ctx : FSUserContext>(
             rights = share.rights
         )
 
-        val result = source.create(ctx.user, rewritten)
+        val result = db.withTransaction { shareDAO.create(it, ctx.user, rewritten) }
 
         launch {
             NotificationDescriptions.create.call(
@@ -153,93 +142,91 @@ class ShareService<Ctx : FSUserContext>(
                         )
                     )
                 ),
-                serviceCloud
+                cloud
             )
         }
 
         return result
     }
 
-    suspend fun update(
+    fun updateRights(
         ctx: Ctx,
         shareId: ShareId,
         newRights: Set<AccessRight>
     ) {
-        val existingShare = source.find(ctx.user, shareId) ?: throw ShareException.NotFound()
-        if (existingShare.owner != ctx.user) throw ShareException.NotAllowed()
-
-        val newShare = existingShare.copy(
-            modifiedAt = System.currentTimeMillis(),
-            rights = newRights
-        )
+        val existingShare = db.withTransaction {
+            shareDAO.updateRights(it, ctx.user, shareId, newRights)
+        }
 
         if (existingShare.state == ShareState.ACCEPTED) {
             commandRunnerFactory.withContext(existingShare.owner) {
                 aclService.grantRights(it, existingShare.path, FSACLEntity.User(existingShare.sharedWith), newRights)
             }
         }
-
-        source.update(ctx.user, shareId, newShare)
     }
 
-    suspend fun updateState(
+    fun updateState(
         ctx: Ctx,
         shareId: ShareId,
         newState: ShareState
     ) {
-        log.debug("Updating state ${ctx.user} $shareId $newState")
-        val existingShare = source.find(ctx.user, shareId) ?: throw ShareException.NotFound()
-        log.debug("Existing share: $existingShare")
+        db.withTransaction { session ->
+            val existingShare = shareDAO.find(session, ctx.user, shareId)
 
-        when (ctx.user) {
-            existingShare.sharedWith -> when (newState) {
-                ShareState.ACCEPTED -> {
-                    // This is okay
+            when (ctx.user) {
+                existingShare.sharedWith -> when (newState) {
+                    ShareState.ACCEPTED -> {
+                        // This is okay
+                    }
+
+                    else -> throw ShareException.NotAllowed()
                 }
 
-                else -> throw ShareException.NotAllowed()
+                existingShare.owner -> throw ShareException.NotAllowed()
+
+                else -> {
+                    log.warn(
+                        "ShareDAO returned a result but user is not owner or " +
+                                "being sharedWith! $existingShare ${ctx.user}"
+                    )
+                    throw IllegalStateException()
+                }
             }
 
-            existingShare.owner -> throw ShareException.NotAllowed()
+            if (newState == ShareState.ACCEPTED) {
+                commandRunnerFactory.withContext(existingShare.owner) {
+                    aclService.grantRights(
+                        it,
+                        existingShare.path,
+                        FSACLEntity.User(existingShare.sharedWith),
+                        existingShare.rights
+                    )
+                }
 
-            else -> {
-                log.warn("ShareDAO returned a result but user is not owner or being sharedWith! $existingShare ${ctx.user}")
-                throw IllegalStateException()
+                commandRunnerFactory.withContext(existingShare.sharedWith) {
+                    fs.createSymbolicLink(
+                        it,
+                        joinPath(homeDirectory(ctx), existingShare.path.substringAfterLast('/')),
+                        existingShare.path
+                    )
+                }
             }
+
+            log.debug("Updating state")
+            shareDAO.updateState(session, ctx.user, shareId, newState)
         }
-
-        if (newState == ShareState.ACCEPTED) {
-            commandRunnerFactory.withContext(existingShare.owner) {
-                aclService.grantRights(
-                    it,
-                    existingShare.path,
-                    FSACLEntity.User(existingShare.sharedWith),
-                    existingShare.rights
-                )
-            }
-
-            commandRunnerFactory.withContext(existingShare.sharedWith) {
-                fs.createSymbolicLink(
-                    it,
-                    existingShare.path,
-                    joinPath(homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
-                )
-            }
-        }
-
-        log.debug("Updating state")
-        source.updateState(ctx.user, shareId, newState)
     }
 
-    suspend fun deleteShare(
+    fun deleteShare(
         user: String,
         shareId: ShareId
     ) {
-        val existingShare = source.find(user, shareId) ?: throw ShareException.NotFound()
-        commandRunnerFactory.withContext(existingShare.owner) {
-            aclService.revokeRights(it, existingShare.path, FSACLEntity.User(existingShare.sharedWith))
+        db.withTransaction {
+            val existingShare = shareDAO.deleteShare(it, user, shareId)
+            commandRunnerFactory.withContext(existingShare.owner) {
+                aclService.revokeRights(it, existingShare.path, FSACLEntity.User(existingShare.sharedWith))
+            }
         }
-        source.deleteShare(user, shareId)
     }
 
     companion object {

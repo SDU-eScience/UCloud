@@ -123,21 +123,8 @@ class CephFSCommandRunner(
     }
 
     override fun close() {
-        try {
-            interpreter.inputStream.close()
-        } catch (ignored: Exception) {}
-
-        try {
-            interpreter.errorStream.close()
-        } catch (ignored: Exception) {}
-
-        try {
-            interpreter.outputStream.close()
-        } catch (ignored: Exception) {}
-
-        try {
-            interpreter.destroy()
-        } catch (ignored: Exception) {}
+        interpreter.outputStream.close()
+        interpreter.destroy()
     }
 
     companion object {
