@@ -1,6 +1,7 @@
 import * as React from "react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { Modal, Button, List, Input } from "semantic-ui-react";
+import { Modal, Button, List, Input, Pagination } from "semantic-ui-react";
+import { List as PaginationList } from "../Pagination/List";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import PropTypes from "prop-types";
@@ -12,7 +13,7 @@ import { KeyCode } from "../../DefaultObjects";
 import { FileIcon } from "../UtilityComponents";
 import "./Files.scss";
 import "../Styling/Shared.scss";
-import { File } from "../../types/types";
+import { File, emptyPage, Page } from "../../types/types";
 
 interface FileSelectorProps {
     allowUpload?: boolean
@@ -27,9 +28,9 @@ interface FileSelectorProps {
 
 interface FileSelectorState {
     promises: PromiseKeeper
-    currentPath: string
+    path: string
     loading: boolean
-    files: File[]
+    page: Page<File>
     modalShown: boolean
     breadcrumbs: { path: string, actualPath: string }[]
     uppyOnUploadSuccess: Function
@@ -41,9 +42,9 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         super(props, context);
         this.state = {
             promises: new PromiseKeeper(),
-            currentPath: `${Cloud.homeFolder}`,
+            path: `${Cloud.homeFolder}`,
             loading: false,
-            files: [] as File[],
+            page: emptyPage,
             modalShown: false,
             breadcrumbs: [],
             uppyOnUploadSuccess: null,
@@ -69,15 +70,15 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         if (key === KeyCode.ESC) {
             this.resetCreateFolder();
         } else if (key === KeyCode.ENTER) {
-            const { currentPath, files } = this.state;
-            const fileNames = files.map((it) => getFilenameFromPath(it.path));
+            const { path, page } = this.state;
+            const fileNames = page.items.map((it) => getFilenameFromPath(it.path));
             if (isInvalidPathName(name, fileNames)) { return }
-            const directoryPath = `${currentPath.endsWith("/") ? currentPath + name : currentPath + "/" + name}`;
+            const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
             Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                 if (inSuccessRange(request.status)) {
                     // TODO Push mock folder
                     this.resetCreateFolder();
-                    this.fetchFiles(currentPath);
+                    this.fetchFiles(path, page.pageNumber, page.itemsPerPage);
                 }
             }).catch((_) => {
                 uf.failureNotification("Folder could not be created.")
@@ -113,7 +114,8 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     }
 
     componentDidMount() {
-        this.fetchFiles(Cloud.homeFolder);
+        const { page } = this.state;
+        this.fetchFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
     }
 
     componentWillUnmount() {
@@ -136,14 +138,13 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.props.onFileSelect(fileCopy);
     }
 
-    fetchFiles = (path) => {
+    fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
         this.setState(() => ({ loading: true, creatingFolder: false }));
-        // FIXME  Introduce Pagination instead
-        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}&page=0&itemsPerPage=100`)).promise.then(req => {
+        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`)).promise.then(({ response }) => {
             this.setState(() => ({
-                files: uf.sortFilesByTypeAndName(req.response.items, true),
+                page: response,
                 loading: false,
-                currentPath: path
+                path
             }));
         });
     }
@@ -176,9 +177,9 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 <FileSelectorModal
                     show={this.state.modalShown}
                     onHide={() => this.openModal(false)}
-                    currentPath={this.state.currentPath}
+                    path={this.state.path}
                     navigate={this.fetchFiles}
-                    files={this.state.files}
+                    page={this.state.page}
                     loading={this.state.loading}
                     creatingFolder={this.state.creatingFolder}
                     setSelectedFile={this.setSelectedFile}
@@ -197,18 +198,31 @@ export const FileSelectorModal = (props) => (
         <Modal.Header>
             File selector
             <Button circular floated="right" icon="cancel" type="button" onClick={props.onHide} />
-            <Button icon="redo" loading={props.loading} floated="right" circular onClick={() => props.fetchFiles(props.currentPath)} />
+            <Button icon="redo" loading={props.loading} floated="right" circular onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />
         </Modal.Header>
         <Modal.Content scrolling>
-            <BreadCrumbs currentPath={props.currentPath} navigate={props.fetchFiles} />
-            <DefaultLoading size="big" loading={props.loading} />
-            <FileSelectorBody {...props} />
+            <BreadCrumbs currentPath={props.path} navigate={(path) => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />
+            <PaginationList
+                pageRenderer={(page) =>
+                    <FileSelectorBody
+                        {...props}
+                        page={page}
+                        fetchFiles={(path) => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
+                    />
+                }
+                results={props.page}
+                currentPage={props.page.pageNumber}
+                itemsPerPage={props.page.itemsPerPage}
+                onPageChanged={(pageNumber) => props.fetchFiles(props.path, pageNumber, props.page.itemsPerPage)}
+                onItemsPerPageChanged={(itemsPerPage) => props.fetchFiles(props.path, props.page.pageNumber, itemsPerPage)}
+                loading={props.loading}
+            />
         </Modal.Content>
     </Modal>
 );
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...props }) => {
-    let f = onlyAllowFolders ? props.files.filter(f => uf.isDirectory(f)) : props.files;
+    let f = onlyAllowFolders ? props.page.items.filter(f => uf.isDirectory(f)) : props.page.items;
     const files = f.filter((it) => !disallowedPaths.some((d) => d === it.path));
     return (
         <React.Fragment>
@@ -221,13 +235,13 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, ...p
                     handleKeyDown={props.handleKeyDown}
                 />
                 <ReturnFolder
-                    path={props.currentPath}
+                    path={props.path}
                     fetchFiles={props.fetchFiles}
                     setSelectedFile={props.setSelectedFile}
                     canSelectFolders={props.canSelectFolders}
                 />
                 <CurrentFolder
-                    currentPath={removeTrailingSlash(props.currentPath)}
+                    currentPath={removeTrailingSlash(props.path)}
                     onlyAllowFolders={onlyAllowFolders}
                     setSelectedFile={props.setSelectedFile}
                 />
@@ -250,7 +264,7 @@ const CurrentFolder = ({ currentPath, onlyAllowFolders, setSelectedFile }) =>
             </List.Content>
             <List.Icon name="folder" color="blue" />
             <List.Content>
-                {`${getFilenameFromPath(uf.replaceHomeFolder(currentPath, Cloud.homeFolder))} (Current folder)`}
+                {`${uf.replaceHomeFolder(uf.getFilenameFromPath(currentPath), Cloud.homeFolder)} (Current folder)`}
             </List.Content>
         </List.Item>
     ) : null;
@@ -290,7 +304,7 @@ const CreatingFolder = ({ creatingFolder, handleKeyDown }) => (
 const UploadButton = ({ onClick }) => (<Button type="button" content="Upload File" onClick={() => onClick()} />);
 const RemoveButton = ({ onClick }) => (<Button type="button" content="✗" onClick={() => onClick()} />);
 const FolderSelection = ({ canSelectFolders, setSelectedFile }) => canSelectFolders ?
-    (<Button onClick={setSelectedFile} floated="right" content="Select"/>) : null;
+    (<Button onClick={setSelectedFile} floated="right" content="Select" />) : null;
 
 const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }) =>
     !files.length ? null :
@@ -305,16 +319,16 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }) =>
                         className="itemPadding pointer-cursor"
                     />
                 ) : (
-                        <List.Item key={index} className="itemPadding pointer-cursor">
-                            <List.Content floated="right">
-                                <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
-                            </List.Content>
-                            <List.Content onClick={() => fetchFiles(file.path)}>
-                                <FileIcon size={null} name="folder" link={file.link} color="blue" />
-                                {getFilenameFromPath(file.path)}
-                            </List.Content>
-                        </List.Item>
-                    ))}
+                    <List.Item key={index} className="itemPadding pointer-cursor">
+                        <List.Content floated="right">
+                            <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
+                        </List.Content>
+                        <List.Content onClick={() => fetchFiles(file.path)}>
+                            <FileIcon size={null} name="folder" link={file.link} color="blue" />
+                            {getFilenameFromPath(file.path)}
+                        </List.Content>
+                    </List.Item>
+                ))}
         </React.Fragment>);
 
 export default FileSelector;

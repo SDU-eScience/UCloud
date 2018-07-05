@@ -35,7 +35,7 @@ type BreadCrumbMapping = {
 
 export function buildBreadCrumbs(path: string) {
     const paths = path.split("/").filter((path: string) => path);
-    let pathsMapping = [] as BreadCrumbMapping[];
+    let pathsMapping:BreadCrumbMapping[] = [];
     for (let i = 0; i < paths.length; i++) {
         let actualPath = "/";
         for (let j = 0; j <= i; j++) {

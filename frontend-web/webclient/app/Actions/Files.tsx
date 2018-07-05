@@ -99,9 +99,9 @@ export const fileSelectorShown = (state) => ({
     state
 });
 
-export const receiveFileSelectorFiles = (files, path) => ({
+export const receiveFileSelectorFiles = (page, path) => ({
     type: RECEIVE_FILE_SELECTOR_FILES,
-    files,
+    page,
     path
 });
 
@@ -116,10 +116,8 @@ export const fetchPageFromPath = (path: string, itemsPerPage: number, order: Sor
 // FIXME add pagination to FileSelector and rewrite this:
 export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number) =>
     Cloud.get(`files?path=${path}&page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
-        let files = response.items;
-        files.forEach(file => file.isChecked = false);
-        files = sortFilesByTypeAndName(files, true);
-        return receiveFileSelectorFiles(files, path);
+        response.items.forEach(file => file.isChecked = false);
+        return receiveFileSelectorFiles(response, path);
     }).catch(() => {
         failureNotification("An error occurred when fetching files for fileselection");
         return { type: "ERROR" }; // FIXME Will end up in default. Should have case for this

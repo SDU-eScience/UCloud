@@ -28,7 +28,7 @@ export enum SortBy {
     CREATED_AT = "CREATED_AT",
     MODIFIED_AT = "MODIFIED_AT",
     SIZE = "SIZE",
-    ACL = "ACL",
+ACL = "ACL",
     FAVORITED = "FAVORITED",
     SENSITIVITY = "SENSITIVITY",
     ANNOTATION = "ANNOTATION"
@@ -48,7 +48,7 @@ interface FilesStateProps { // Redux Props
     disallowedPaths: string[]
     fileSelectorCallback: Function
     fileSelectorPath: string
-    fileSelectorFiles: File[]
+    fileSelectorPage: Page<File>
     sortBy: SortBy
     sortOrder: SortOrder
     creatingFolder: boolean
@@ -59,7 +59,7 @@ interface FilesStateProps { // Redux Props
 
 interface FilesOperations { // Redux operations
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => void
-    fetchSelectorFiles: (path: string) => void
+    fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
     checkFile: (checked: boolean, page: Page<File>, newFile: File) => void
     setPageTitle: () => void
@@ -83,13 +83,15 @@ class Files extends React.Component<FilesProps> {
     }
 
     componentDidMount() {
-        this.props.fetchFiles(this.props.match.params[0], this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy);
+        const {match, page, fetchFiles, fetchSelectorFiles, sortBy, sortOrder } = this.props;
+        fetchFiles(match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
+        fetchSelectorFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
     }
 
-    handleKeyDown = (value: number, newFolder: boolean, name: string): void => {
-        if (value === KeyCode.ESC) {
+    handleKeyDown = (key: number, newFolder: boolean, name: string): void => {
+        if (key === KeyCode.ESC) {
             this.props.resetFolderEditing();
-        } else if (value === KeyCode.ENTER) {
+        } else if (key === KeyCode.ENTER) {
             const { path, fetchFiles, page } = this.props;
             const fileNames = page.items.map((it) => uf.getFilenameFromPath(it.path))
             if (uf.isInvalidPathName(name, fileNames)) return;
@@ -225,12 +227,12 @@ class Files extends React.Component<FilesProps> {
                 <FileSelectorModal
                     show={this.props.fileSelectorShown}
                     onHide={() => this.props.showFileSelector(false)}
-                    currentPath={this.props.fileSelectorPath}
-                    fetchFiles={(path) => this.props.fetchSelectorFiles(path)}
+                    path={this.props.fileSelectorPath}
+                    fetchFiles={(path, pageNumber, itemsPerPage) => this.props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
                     loading={this.props.fileSelectorLoading}
                     onlyAllowFolders
                     canSelectFolders
-                    files={this.props.fileSelectorFiles}
+                    page={this.props.fileSelectorPage}
                     setSelectedFile={this.props.fileSelectorCallback}
                     disallowedPaths={this.props.disallowedPaths}
                 />
@@ -553,12 +555,12 @@ function move(files, operations) {
 }
 
 const mapStateToProps = (state): FilesStateProps => {
-    const { page, loading, path, fileSelectorFiles, fileSelectorPath, sortBy, sortOrder, editFileIndex, creatingFolder,
+    const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, editFileIndex, creatingFolder,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, fileSelectorLoading } = state.files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = page.items.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
-        page, loading, path, checkedFilesCount, favFilesCount, fileSelectorFiles, fileSelectorPath, fileSelectorShown,
+        page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath, fileSelectorShown,
         fileSelectorCallback, disallowedPaths, sortOrder, sortBy, editFileIndex, creatingFolder, fileSelectorLoading
     }
 };
@@ -569,7 +571,7 @@ const mapDispatchToProps = (dispatch): FilesOperations => ({
         dispatch(Actions.setLoading(true));
         dispatch(Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy))
     },
-    fetchSelectorFiles: (path: string) => dispatch(Actions.fetchFileselectorFiles(path, 0, 100)),
+    fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => dispatch(Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
     showFileSelector: (open: boolean) => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: (callback) => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked: boolean, page: Page<File>, newFile: File) => {

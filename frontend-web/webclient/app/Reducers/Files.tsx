@@ -31,7 +31,7 @@ const files = (state: any = {}, action) => {
             return { ...state, fileSelectorShown: action.state };
         }
         case RECEIVE_FILE_SELECTOR_FILES: {
-            return { ...state, fileSelectorFiles: action.files, fileSelectorPath: action.path, fileSelectorLoading: false };
+            return { ...state, fileSelectorPage: action.page, fileSelectorPath: action.path, fileSelectorLoading: false };
         }
         case SET_FILE_SELECTOR_LOADING: {
             return { ...state, fileSelectorLoading: true };

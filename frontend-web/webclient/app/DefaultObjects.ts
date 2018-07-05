@@ -114,7 +114,7 @@ export const initObject = (cloud: SDUCloud) => ({
         sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
         fileSelectorLoading: false,
         fileSelectorShown: false,
-        fileSelectorFiles: [] as File[],
+        fileSelectorPage: emptyPage,
         fileSelectorPath: cloud.homeFolder,
         fileSelectorCallback: Function,
         disallowedPaths: []
