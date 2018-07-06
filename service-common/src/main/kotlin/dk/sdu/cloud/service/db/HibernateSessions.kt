@@ -2,14 +2,22 @@ package dk.sdu.cloud.service.db
 
 import eu.infomas.annotation.AnnotationDetector
 import org.hibernate.SessionFactory
+import org.hibernate.boot.Metadata
 import org.hibernate.boot.MetadataSources
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder
+import org.hibernate.tool.hbm2ddl.SchemaExport
 import org.slf4j.LoggerFactory
 import javax.persistence.Entity
 
 typealias HibernateSession = org.hibernate.Session
 
-class HibernateSessionFactory(private val factory: SessionFactory) : DBSessionFactory<HibernateSession> {
+class HibernateSessionFactory(
+    @PublishedApi
+    internal val factory: SessionFactory,
+
+    @PublishedApi
+    internal val metadata: Metadata
+) : DBSessionFactory<HibernateSession> {
     override fun <R> withSession(closure: HibernateSession.() -> R): R {
         val session = factory.openSession()
         return session.use(closure)
@@ -56,6 +64,7 @@ class HibernateSessionFactory(private val factory: SessionFactory) : DBSessionFa
                     if (dialect != null) applySetting("hibernate.dialect", dialect)
                     if (showSQLInStdout) applySetting("hibernate.show_sql", true.toString())
                     if (recreateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "create")
+                    applySetting("hibernate.default_schema", config.defaultSchema)
 
                     applySetting(
                         "hibernate.physical_naming_strategy",
@@ -74,12 +83,11 @@ class HibernateSessionFactory(private val factory: SessionFactory) : DBSessionFa
                             addAnnotatedClass(it)
                         }
                     }
-
-                }.buildMetadata().buildSessionFactory()
+                }.buildMetadata()
             } catch (ex: Exception) {
                 StandardServiceRegistryBuilder.destroy(registry)
                 throw ex
-            }).let { HibernateSessionFactory(it) }
+            }).let { HibernateSessionFactory(it.buildSessionFactory(), it) }
         }
     }
 }
@@ -91,6 +99,7 @@ data class HibernateDatabaseConfig(
     val username: String?,
     val password: String?,
     val poolSize: Int? = 10,
+    val defaultSchema: String = "public",
     val skipXml: Boolean = true,
     val showSQLInStdout: Boolean = false,
     val recreateSchemaOnStartup: Boolean = false,

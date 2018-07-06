@@ -4,7 +4,11 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import org.hibernate.Session
 import org.hibernate.query.Query
+import org.hibernate.tool.hbm2ddl.SchemaExport
+import org.hibernate.tool.schema.TargetType
 import java.io.Serializable
+import java.nio.file.Files
+import java.util.*
 import javax.persistence.criteria.*
 import kotlin.reflect.KProperty1
 
@@ -376,4 +380,16 @@ inline fun <reified T> Session.countWithPredicate(
 
 fun <T> CriteriaQuery<T>.createQuery(session: Session): Query<T> {
     return session.createQuery(this)
+}
+
+inline fun <reified E> HibernateEntity<E>.generateDDL(sessionFactory: HibernateSessionFactory): String {
+    val file = Files.createTempFile("table", ".sql").toFile()
+    val schemaExport = SchemaExport().apply {
+        setHaltOnError(true)
+        setOutputFile(file.absolutePath)
+        setFormat(true)
+    }
+
+    schemaExport.execute(EnumSet.of(TargetType.SCRIPT), SchemaExport.Action.CREATE, sessionFactory.metadata)
+    return file.readText()
 }
