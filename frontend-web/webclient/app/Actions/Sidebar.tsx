@@ -25,7 +25,6 @@ export const setSidebarLoading = (loading: boolean): SetLoadingAction => ({
 });
 
 interface ReceiveSidebarOptionsActions extends Action { options: SidebarOption[] }
-
 /**
  * The action for receiving sidebar options
  * @param {SidebarOption[]} options The sidebar options to be rendered

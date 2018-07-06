@@ -4,26 +4,40 @@ import { failureNotification } from "../UtilityFunctions";
 import { Analysis, File, SetLoadingAction, Action } from "../types/types";
 
 interface Fetch<T> extends Action { content: T[] }
-
+/**
+ * Sets all dashboard lists as either loading or not loading
+ * @param {loading} loading whether or not everything is loading or not
+ */
 export const setAllLoading = (loading: boolean): SetLoadingAction => ({
     type: SET_ALL_LOADING,
     loading
 });
 
-export const fetchFavorites = ():Promise<Fetch<File>> =>
-    Cloud.get(`/files?path=${Cloud.homeFolder}/Favorites`).then(({ response }) =>
+/**
+ * Fetches the contents of the favorites folder and provides the initial 10 items
+ */
+export const fetchFavorites = (): Promise<Fetch<File>> =>
+    Cloud.get(`/files?path=${Cloud.homeFolder}Favorites`).then(({ response }) =>
         receiveFavorites(response.items.slice(0, 10))
     ).catch(() => {
         failureNotification("Failed to fetch favorites. Please try again later.")
         return receiveFavorites([])
     });
 
-export const receiveFavorites = (content: File[]):Fetch<File> => ({
+/**
+ * Returns an action containing favorites
+ * @param {File[]} content The list of favorites retrieved
+ */
+export const receiveFavorites = (content: File[]): Fetch<File> => ({
     type: RECEIVE_FAVORITES,
     content
 });
 
-export const fetchRecentFiles = ():Promise<Fetch<File>> =>
+/**
+ * Fetches the contents of the users homefolder and returns 10 of them.
+ */
+// FIXME Should limit to ten items, should sort by modified_at, desc
+export const fetchRecentFiles = (): Promise<Fetch<File>> =>
     Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) =>
         receiveRecentFiles(response.items.slice(0, 10))
     ).catch(() => {
@@ -31,12 +45,19 @@ export const fetchRecentFiles = ():Promise<Fetch<File>> =>
         return receiveRecentFiles([]);
     });
 
-const receiveRecentFiles = (content):Fetch<File> => ({
+/**
+* Returns an action containing recently used files
+* @param {File[]} content The list of recently used files retrieved
+*/
+const receiveRecentFiles = (content): Fetch<File> => ({
     type: RECEIVE_RECENT_FILES,
     content
 });
 
-export const fetchRecentAnalyses = ():Promise<Fetch<Analysis>> =>
+/**
+ * Fetches the 10 latest updated analyses
+ */
+export const fetchRecentAnalyses = (): Promise<Fetch<Analysis>> =>
     Cloud.get(`/hpc/jobs/?itemsPerPage=${10}&page=${0}`).then(({ response }) =>
         receiveRecentAnalyses(response.items)
     ).catch(() => {
@@ -44,7 +65,11 @@ export const fetchRecentAnalyses = ():Promise<Fetch<Analysis>> =>
         return receiveRecentAnalyses([]);
     });
 
-const receiveRecentAnalyses = (content: Analysis[]):Fetch<Analysis> => ({
+/**
+* Returns an action containing most recently updated analyses
+* @param {Analyses[]} content The list of recently updated analyses
+*/
+const receiveRecentAnalyses = (content: Analysis[]): Fetch<Analysis> => ({
     type: RECEIVE_RECENT_ANALYSES,
     content
 });
