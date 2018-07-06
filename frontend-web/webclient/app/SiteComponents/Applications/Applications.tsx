@@ -2,7 +2,6 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "../Pagination";
 import { Table, Button, Icon } from "semantic-ui-react";
-import { getSortingIcon } from "../../UtilityFunctions";
 import { connect } from "react-redux";
 import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
 import { updatePageTitle } from "../../Actions/Status";
@@ -10,22 +9,9 @@ import "../Styling/Shared.scss";
 import { Application } from "../../types/types";
 import { SortBy, SortOrder } from "../Files/Files";
 
+interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
 
-interface ApplicationsState {
-    lastSorting: {
-        name: SortBy
-        asc: SortOrder
-    }
-}
-
-interface ApplicationsProps {
-    // Redux Store
-    applications: Application[]
-    loading: boolean
-    applicationsPerPage: number
-    currentApplicationsPage: number
-
-    // Redux operations
+interface ApplicationsOperations {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchApplications: () => void
@@ -34,35 +20,37 @@ interface ApplicationsProps {
     updateApplicationsPerPage: (applicationsPerPage: number) => void
 }
 
-class Applications extends React.Component<ApplicationsProps, ApplicationsState> {
-    constructor(props) {
+interface ApplicationsStateProps {
+    applications: Application[]
+    loading: boolean
+    itemsPerPage, pageNumber: number
+    sortBy: SortBy
+    sortOrder: SortOrder
+}
+
+class Applications extends React.Component<ApplicationsProps> {
+    constructor(props: ApplicationsProps) {
         super(props);
-        this.state = {
-            lastSorting: {
-                name: SortBy.PATH,
-                asc: SortOrder.ASCENDING,
-            }
-        };
         props.updatePageTitle();
         props.setLoading(true);
         props.fetchApplications();
     }
 
     render() {
-        const { applications, loading, applicationsPerPage, currentApplicationsPage, toPage, updateApplicationsPerPage } = this.props;
-        const currentlyShownApplications = applications.slice(currentApplicationsPage * applicationsPerPage, currentApplicationsPage * applicationsPerPage + applicationsPerPage);
+        const { applications, loading, itemsPerPage, pageNumber, toPage, updateApplicationsPerPage } = this.props;
+        const currentlyShownApplications = applications.slice(pageNumber * itemsPerPage, pageNumber * itemsPerPage + itemsPerPage);
         return (
             <React.Fragment>
                 <Pagination.List
                     loading={loading}
-                    itemsPerPage={applicationsPerPage}
-                    currentPage={currentApplicationsPage}
+                    itemsPerPage={itemsPerPage}
+                    currentPage={pageNumber}
                     pageRenderer={(page) =>
                         (<Table basic="very">
                             <Table.Header>
                                 <Table.Row>
                                     <Table.HeaderCell>
-                                        Application Name/>
+                                        Application Name
                                     </Table.HeaderCell>
                                     <Table.HeaderCell>
                                         Version
@@ -73,7 +61,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationsState>
                             <ApplicationsList applications={page.items} />
                         </Table>)
                     }
-                    results={{ items: currentlyShownApplications, itemsPerPage: applicationsPerPage, itemsInTotal: applications.length, pageNumber: currentApplicationsPage }} // Remove when pagination is introduced
+                    results={{ items: currentlyShownApplications, itemsPerPage: itemsPerPage, itemsInTotal: applications.length, pageNumber: pageNumber }} // Remove when pagination is introduced
                     onItemsPerPageChanged={(size) => updateApplicationsPerPage(size)}
                     onPageChanged={(page) => toPage(page)}
                     onRefresh={() => null}
@@ -106,7 +94,7 @@ const SingleApplication = ({ app }) => (
 );
 
 
-const mapDispatchToProps = (dispatch) => ({
+const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
     fetchApplications: () => dispatch(fetchApplications()),
@@ -114,6 +102,6 @@ const mapDispatchToProps = (dispatch) => ({
     toPage: (pageNumber: number) => dispatch(toPage(pageNumber)),
     updateApplicationsPerPage: (applicationsPerPage: number) => dispatch(updateApplicationsPerPage(applicationsPerPage))
 })
-const mapStateToProps = ({ applications }) => applications;
+const mapStateToProps = ({ applications }): ApplicationsStateProps => applications;
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

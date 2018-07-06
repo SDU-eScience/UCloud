@@ -10,13 +10,13 @@ const dashboard = (state = [], action) => {
             return { ...state, favoriteLoading: loading, recentLoading: loading, analysesLoading: loading, activityLoading: loading };
         }
         case RECEIVE_FAVORITES: {
-            return { ...state, favoriteFiles: action.favorites, favoriteLoading: false }; 
+            return { ...state, favoriteFiles: action.content, favoriteLoading: false }; 
         }
         case RECEIVE_RECENT_ANALYSES: {
-            return { ...state, recentAnalyses: action.recentAnalyses, analysesLoading: false };
+            return { ...state, recentAnalyses: action.content, analysesLoading: false };
         }
         case RECEIVE_RECENT_FILES: {
-            return { ...state, recentFiles: action.recentFiles, recentLoading: false };
+            return { ...state, recentFiles: action.content, recentLoading: false };
         }
         default: {
             return state;

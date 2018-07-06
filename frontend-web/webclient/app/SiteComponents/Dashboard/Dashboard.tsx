@@ -14,16 +14,18 @@ import * as moment from "moment";
 import { FileIcon } from "../UtilityComponents";
 import { File, Analysis } from "../../types/types";
 
-interface DashboardProps {
+interface DashboardProps extends DashboardOperations, DashboardStateProps {}
+
+interface DashboardStateProps {
     // Redux store props
-    favoriteFiles: File[]
-    recentFiles: File[]
+    favoriteFiles, recentFiles: File[]
     recentAnalyses: Analysis[]
     notifications: any[]
-    favoriteLoading: boolean
-    analysesLoading: boolean
-    recentLoading: boolean
+    favoriteLoading, analysesLoading, recentLoading: boolean
+    favoriteFilesLength: number
+}
 
+interface DashboardOperations {
     // Redux operations
     receiveFavorites: (files: File[]) => void
     updatePageTitle: () => void
@@ -200,7 +202,7 @@ const Notification = ({ notification }) => {
 const statusToIconName = (status) => status === "SUCCESS" ? "check" : "x";
 const statusToColor = (status) => status === "SUCCESS" ? "green" : "red";
 
-const mapDispatchToProps = (dispatch) => ({
+const mapDispatchToProps = (dispatch):DashboardOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
     setAllLoading: (loading) => dispatch(setAllLoading(loading)),
     fetchFavorites: () => dispatch(fetchFavorites()),
@@ -209,26 +211,22 @@ const mapDispatchToProps = (dispatch) => ({
     receiveFavorites: (files) => dispatch(receiveFavorites(files))
 });
 
-const mapStateToProps = (state) => {
+const mapStateToProps = (state): DashboardStateProps => {
     const {
         favoriteFiles,
         recentFiles,
         recentAnalyses,
-        activity,
         favoriteLoading,
         recentLoading,
         analysesLoading,
-        activityLoading
     } = state.dashboard;
     return {
         favoriteFiles,
         recentFiles,
         recentAnalyses,
-        activity,
         favoriteLoading,
         recentLoading,
         analysesLoading,
-        activityLoading,
         notifications: state.notifications.page.items,
         favoriteFilesLength: favoriteFiles.length // Hack to ensure re-rendering
     };

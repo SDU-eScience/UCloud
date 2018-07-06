@@ -1,17 +1,16 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
 import { SET_ALL_LOADING, RECEIVE_FAVORITES, RECEIVE_RECENT_ANALYSES, RECEIVE_RECENT_FILES } from "../Reducers/Dashboard";
 import { failureNotification } from "../UtilityFunctions";
-import { Analysis, File } from "../types/types";
+import { Analysis, File, SetLoadingAction, Action } from "../types/types";
 
-type Action = { type: string }
+interface Fetch<T> extends Action { content: T[] }
 
-interface SetLoading extends Action { loading: boolean }
-export const setAllLoading = (loading: boolean): SetLoading => ({
+export const setAllLoading = (loading: boolean): SetLoadingAction => ({
     type: SET_ALL_LOADING,
     loading
 });
 
-export const fetchFavorites = () =>
+export const fetchFavorites = ():Promise<Fetch<File>> =>
     Cloud.get(`/files?path=${Cloud.homeFolder}/Favorites`).then(({ response }) =>
         receiveFavorites(response.items.slice(0, 10))
     ).catch(() => {
@@ -19,13 +18,12 @@ export const fetchFavorites = () =>
         return receiveFavorites([])
     });
 
-export const receiveFavorites = (favorites: File[]) => ({
+export const receiveFavorites = (content: File[]):Fetch<File> => ({
     type: RECEIVE_FAVORITES,
-    favorites
+    content
 });
 
-interface ReceiveRecentFilesAction extends Action { recentFiles: File[] }
-export const fetchRecentFiles = (): Promise<ReceiveRecentFilesAction> =>
+export const fetchRecentFiles = ():Promise<Fetch<File>> =>
     Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) =>
         receiveRecentFiles(response.items.slice(0, 10))
     ).catch(() => {
@@ -33,13 +31,12 @@ export const fetchRecentFiles = (): Promise<ReceiveRecentFilesAction> =>
         return receiveRecentFiles([]);
     });
 
-const receiveRecentFiles = (recentFiles): ReceiveRecentFilesAction => ({
+const receiveRecentFiles = (content):Fetch<File> => ({
     type: RECEIVE_RECENT_FILES,
-    recentFiles
+    content
 });
 
-interface ReceiveRecentAnaylses extends Action { recentAnalyses: Analysis[] }
-export const fetchRecentAnalyses = (): Promise<ReceiveRecentAnaylses> =>
+export const fetchRecentAnalyses = ():Promise<Fetch<Analysis>> =>
     Cloud.get(`/hpc/jobs/?itemsPerPage=${10}&page=${0}`).then(({ response }) =>
         receiveRecentAnalyses(response.items)
     ).catch(() => {
@@ -47,7 +44,7 @@ export const fetchRecentAnalyses = (): Promise<ReceiveRecentAnaylses> =>
         return receiveRecentAnalyses([]);
     });
 
-const receiveRecentAnalyses = (recentAnalyses: Analysis[]): ReceiveRecentAnaylses => ({
+const receiveRecentAnalyses = (content: Analysis[]):Fetch<Analysis> => ({
     type: RECEIVE_RECENT_ANALYSES,
-    recentAnalyses
+    content
 });

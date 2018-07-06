@@ -130,10 +130,11 @@ export const initObject = (cloud: SDUCloud) => ({
         title: ""
     },
     applications: {
+        // FIXME Should be a Page
         applications: [] as Application[],
         loading: false,
-        applicationsPerPage: 10,
-        currentApplicationsPage: 0
+        itemsPerPage: 10,
+        pageNumber: 0
     },
     notifications: {
         page: emptyPage,

@@ -13,10 +13,10 @@ const applications = (state = [], action) => {
             return { ...state, loading: action.loading };
         }
         case TO_APPLICATIONS_PAGE: {
-            return { ...state, currentApplicationsPage: action.pageNumber };
+            return { ...state, pageNumber: action.pageNumber };
         }
         case UPDATE_APPLICATIONS_PER_PAGE: {
-            return { ...state, applicationsPerPage: action.applicationsPerPage, currentApplicationsPage: 0 };
+            return { ...state, itemsPerPage: action.itemsPerPage, pageNumber: 0 };
         }
         case UPDATE_APPLICATIONS: {
             return { ...state, applications: action.applications };

@@ -103,3 +103,10 @@ export interface DropdownOption {
     name: string
     value: string
 }
+
+export type Action = { type: String }
+export interface SetLoadingAction extends Action { loading: boolean }
+export interface ReceivePage<T> extends Action { page: Page<T> }
+// FIXME Redundant? Ultimately, every page fetching accomplishes the same
+export interface ToPageAction extends Action { pageNumber: number }
+export interface SetItemsPerPage extends Action { itemsPerPage: number }

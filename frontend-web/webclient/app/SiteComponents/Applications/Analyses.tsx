@@ -10,11 +10,14 @@ import "../Styling/Shared.scss";
 import { setLoading, fetchAnalyses } from "../../Actions/Analyses";
 import { Page, Analysis } from "../../types/types";
 
-interface AnalysesProps {
-    // Redux Store
+interface AnalysesProps extends AnalysesStateProps, AnalysesOperations {}
+
+interface AnalysesStateProps {
     page: Page<Analysis>
     loading: boolean
-    // Redux Operations
+}
+
+interface AnalysesOperations {
     updatePageTitle: (title: string) => void
     setLoading: (loading: boolean) => void
     fetchAnalyses: (itemsPerPage: number, pageNumber: number) => void
@@ -37,7 +40,7 @@ class Analyses extends React.Component<AnalysesProps, AnalysesState> {
         this.getAnalyses(false);
         let reloadIntervalId = window.setInterval(() => {
             this.getAnalyses(true)
-        }, 10000);
+        }, 10_000);
         this.setState({ reloadIntervalId });
     }
 
@@ -47,9 +50,7 @@ class Analyses extends React.Component<AnalysesProps, AnalysesState> {
 
     getAnalyses(silent) {
         const { page } = this.props;
-        if (!silent) {
-            this.props.setLoading(true)
-        }
+        if (!silent) this.props.setLoading(true);
         this.props.fetchAnalyses(page.itemsPerPage, page.pageNumber);
     }
 
@@ -121,13 +122,15 @@ const formatDate = (millis) => {
     return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`
 };
 
-const pad = (value, length) => (value.toString().length < length) ? pad("0" + value, length) : value;
+const pad = (value, length) =>
+    (value.toString().length < length) ? pad("0" + value, length) : value;
 
-const mapDispatchToProps = (dispatch) => ({
+const mapDispatchToProps = (dispatch):AnalysesOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Results")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    fetchAnalyses: (itemsPerPage: number, pageNumber: number) => dispatch(fetchAnalyses(itemsPerPage, pageNumber))
+    fetchAnalyses: (itemsPerPage: number, pageNumber: number) =>
+        dispatch(fetchAnalyses(itemsPerPage, pageNumber))
 
 })
-const mapStateToProps = (state) => state.analyses;
+const mapStateToProps = (state):AnalysesStateProps => state.analyses;
 export default connect(mapStateToProps, mapDispatchToProps)(Analyses);

@@ -11,7 +11,7 @@ const analyses = (state = [], action) => {
             return { ...state, loading: action.loading };
         }
         case SET_ANALYSES_PAGE_SIZE: {
-            return { ...state, analysesPerPage: action.analysesPerPage };
+            return { ...state, itemsPerPage: action.itemsPerPage };
         }
         default: {
             return state;
