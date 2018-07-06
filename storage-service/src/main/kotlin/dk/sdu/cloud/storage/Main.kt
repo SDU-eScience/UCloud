@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import org.flywaydb.core.Flyway
 import org.slf4j.LoggerFactory
 
 data class Configuration(
@@ -30,6 +31,9 @@ data class Configuration(
 }
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.storage.MainKt")
+
+private const val ARG_GENERATE_DDL = "--generate-ddl"
+private const val ARG_MIGRATE = "--migrate"
 
 fun main(args: Array<String>) {
     log.info("Starting storage service")
@@ -62,25 +66,38 @@ fun main(args: Array<String>) {
     val isDevelopment = args.contains("--dev")
 
     log.info("Initializing database")
+
+    val jdbcUrl = with(configuration.connConfig.database!!) { postgresJdbcUrl(host, database) }
     val db = with(configuration.connConfig.database!!) {
         HibernateSessionFactory.create(
             HibernateDatabaseConfig(
                 POSTGRES_DRIVER,
-                postgresJdbcUrl(host, database),
+                jdbcUrl,
                 POSTGRES_9_5_DIALECT,
                 username,
                 password,
                 defaultSchema = serviceDescription.name,
-                validateSchemaOnStartup = !args.contains("--generate-ddl")
+                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.contains(ARG_MIGRATE)
             )
         )
     }
     log.info("Database initialized")
 
-    if (args.contains("--generate-ddl")) {
-        println(db.generateDDL())
-        db.close()
-    } else {
-        Server(configuration, kafka, serverProvider, db, serviceRegistry, cloud, args).start()
+    when {
+        args.contains("--generate-ddl") -> {
+            println(db.generateDDL())
+            db.close()
+        }
+
+        args.contains("--migrate") -> {
+            val flyway = Flyway()
+            with(configuration.connConfig.database!!) {
+                flyway.setDataSource(jdbcUrl, username, password)
+            }
+            flyway.setSchemas(serviceDescription.name)
+            flyway.migrate()
+        }
+
+        else -> Server(configuration, kafka, serverProvider, db, serviceRegistry, cloud, args).start()
     }
 }

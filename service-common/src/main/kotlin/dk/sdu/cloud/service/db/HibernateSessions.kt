@@ -68,7 +68,10 @@ class HibernateSessionFactory(
                     else if (validateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "validate")
                     applySetting("hibernate.default_schema", config.defaultSchema)
                     applySetting("hibernate.temp.use_jdbc_metadata_defaults", "false")
-                    applySetting("hibernate.connection.provider_class", "org.hibernate.hikaricp.internal.HikariCPConnectionProvider")
+                    applySetting(
+                        "hibernate.connection.provider_class",
+                        "org.hibernate.hikaricp.internal.HikariCPConnectionProvider"
+                    )
 
                     applySetting(
                         "hibernate.physical_naming_strategy",
