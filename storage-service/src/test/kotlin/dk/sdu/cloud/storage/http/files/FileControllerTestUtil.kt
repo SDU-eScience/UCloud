@@ -38,6 +38,7 @@ data class FileControllerContext(
 
 fun Application.configureServerWithFileController(
     fsRootInitializer: () -> File = { createDummyFS() },
+    userDao: StorageUserDao = simpleCloudToCephFSDao(),
     additional: Route.(FileControllerContext) -> Unit = {}
 ) {
     val instance = ServiceInstance(
@@ -51,7 +52,7 @@ fun Application.configureServerWithFileController(
     install(JWTProtection)
 
     val fsRoot = fsRootInitializer()
-    val (runner, fs) = cephFSWithRelaxedMocks(fsRoot.absolutePath)
+    val (runner, fs) = cephFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(fs, eventProducer)
     val favoriteService = FavoriteService(coreFs)

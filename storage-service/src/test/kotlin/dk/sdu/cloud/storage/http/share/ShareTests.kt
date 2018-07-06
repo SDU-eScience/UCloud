@@ -2,31 +2,26 @@ package dk.sdu.cloud.storage.http.share
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.ServiceInstance
-import dk.sdu.cloud.service.definition
-import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.storage.api.FindByShareId
 import dk.sdu.cloud.storage.api.SharesByPath
-import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.ShareController
+import dk.sdu.cloud.storage.http.files.configureServerWithFileController
 import dk.sdu.cloud.storage.http.files.setUser
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.ACLService
+import dk.sdu.cloud.storage.services.ShareHibernateDAO
+import dk.sdu.cloud.storage.services.ShareService
+import dk.sdu.cloud.storage.services.cloudToCephFsDAOWithFixedAnswer
 import dk.sdu.cloud.storage.util.withAuthMock
-import io.ktor.application.install
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.route
-import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.coEvery
-import io.mockk.mockk
 import io.mockk.objectMockk
 import io.mockk.use
 import org.junit.Test
@@ -34,7 +29,6 @@ import kotlin.test.assertEquals
 
 class ShareTests {
     // Possible problem when tests are run on other computer. Schulz is not the owner of the filesystem.
-    /*
     @Test
     fun createListAndAcceptTest() {
         objectMockk(NotificationDescriptions).use {
@@ -44,40 +38,21 @@ class ShareTests {
 
                 withTestApplication(
                     moduleFunction = {
-                        val instance = ServiceInstance(
-                            dk.sdu.cloud.storage.api.StorageServiceDescription.definition(),
-                            "localhost",
-                            42000
-                        )
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            instance,
-                            requireJobId = false
-                        )
-                        install(JWTProtection)
+                        configureServerWithFileController(userDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)) {
+                            val db = HibernateSessionFactory.create(
+                                H2_TEST_CONFIG.copy(
+                                    usePool = false,
+                                    showSQLInStdout = true
+                                )
+                            )
+                            val aclService = ACLService(it.fs)
+                            val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
 
-                        val fsRoot = createDummyFS()
-                        val fs = cephFSWithRelaxedMocks(
-                            fsRoot.absolutePath,
-                            userDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)
-                        )
-
-                        val ss = ShareService(InMemoryShareDAO(), fs)
-                        coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
-                            RESTResponse.Ok(mockk(relaxed = true), mockk(relaxed = true))
-                        }
-
-                        routing {
-                            route("api") {
-                                ShareController(ss, fs).configure(this)
-                                FilesController(fs).configure(this)
-                            }
+                            ShareController(shareService, it.runner, it.coreFs).configure(this)
                         }
                     },
 
                     test = {
-
                         val response = handleRequest(HttpMethod.Put, "/api/shares") {
                             setUser(userToRunAs, Role.USER)
                             setBody(
@@ -121,6 +96,7 @@ class ShareTests {
         }
     }
 
+    /*
     @Test
     fun createNotOwnerOfFilesTest() {
         withAuthMock {

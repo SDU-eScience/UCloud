@@ -2,7 +2,7 @@ group 'dk.sdu.cloud'
 version '0.3.1-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.2.41'
+    ext.kotlin_version = '1.2.51'
 
     repositories {
         mavenCentral()
@@ -46,9 +46,9 @@ dependencies {
     compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.9.2'
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
 
-    compile "io.ktor:ktor-client-core:0.9.2"
-    compile "io.ktor:ktor-client-apache:0.9.2"
-    compile "io.ktor:ktor-client-json:0.9.2"
+    compile "io.ktor:ktor-client-core:0.9.3"
+    compile "io.ktor:ktor-client-apache:0.9.3"
+    compile "io.ktor:ktor-client-json:0.9.3"
 
     // Testing
     testCompile group: "junit", name: "junit", version: "4.12"

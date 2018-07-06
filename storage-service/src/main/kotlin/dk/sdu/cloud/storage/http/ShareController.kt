@@ -9,6 +9,7 @@ import dk.sdu.cloud.storage.api.FindByShareId
 import dk.sdu.cloud.storage.api.ShareDescriptions
 import dk.sdu.cloud.storage.api.ShareState
 import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall
 import io.ktor.routing.Route
 import io.ktor.routing.route
@@ -25,8 +26,8 @@ class ShareController<Ctx : FSUserContext>(
 
             implement(ShareDescriptions.list) {
                 logEntry(log, it)
-                tryWithShareService {
-                    commandRunnerFactory.withContext(call.user) { ctx ->
+                tryWithFS(commandRunnerFactory, call.user) { ctx ->
+                    tryWithShareService {
                         ok(shareService.list(ctx, it.pagination))
                     }
                 }
@@ -36,7 +37,7 @@ class ShareController<Ctx : FSUserContext>(
                 logEntry(log, it)
 
                 tryWithShareService {
-                    commandRunnerFactory.withContext(call.user) { ctx ->
+                    tryWithFS(commandRunnerFactory, call.user) { ctx ->
                         ok(
                             shareService.updateState(
                                 ctx,
@@ -45,7 +46,6 @@ class ShareController<Ctx : FSUserContext>(
                             )
                         )
                     }
-
                 }
             }
 
@@ -69,7 +69,7 @@ class ShareController<Ctx : FSUserContext>(
                 logEntry(log, it)
 
                 tryWithShareService {
-                    commandRunnerFactory.withContext(call.user) { ctx ->
+                    tryWithFS(commandRunnerFactory, call.user) { ctx ->
                         ok(shareService.updateRights(ctx, it.id, it.rights))
                     }
                 }
@@ -79,7 +79,7 @@ class ShareController<Ctx : FSUserContext>(
                 logEntry(log, it)
 
                 tryWithShareService {
-                    commandRunnerFactory.withContext(call.user) { ctx ->
+                    tryWithFS(commandRunnerFactory, call.user) { ctx ->
                         ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
                     }
                 }

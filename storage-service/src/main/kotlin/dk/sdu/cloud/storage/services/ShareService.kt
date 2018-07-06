@@ -206,8 +206,8 @@ class ShareService<DBSession, Ctx : FSUserContext>(
                 commandRunnerFactory.withContext(existingShare.sharedWith) {
                     fs.createSymbolicLink(
                         it,
-                        joinPath(homeDirectory(ctx), existingShare.path.substringAfterLast('/')),
-                        existingShare.path
+                        existingShare.path,
+                        joinPath(homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
                     )
                 }
             }

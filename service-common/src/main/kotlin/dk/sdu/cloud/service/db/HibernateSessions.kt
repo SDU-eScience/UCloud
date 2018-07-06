@@ -68,7 +68,7 @@ class HibernateSessionFactory(
                     else if (validateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "validate")
                     applySetting("hibernate.default_schema", config.defaultSchema)
                     applySetting("hibernate.temp.use_jdbc_metadata_defaults", "false")
-                    applySetting(
+                    if (usePool) applySetting(
                         "hibernate.connection.provider_class",
                         "org.hibernate.hikaricp.internal.HikariCPConnectionProvider"
                     )
@@ -108,6 +108,7 @@ data class HibernateDatabaseConfig(
     val dialect: String?,
     val username: String?,
     val password: String?,
+    val usePool: Boolean = true,
     val poolSize: Int? = 10,
     val defaultSchema: String = "public",
     val skipXml: Boolean = true,
@@ -128,6 +129,7 @@ val H2_TEST_CONFIG = HibernateDatabaseConfig(
     dialect = H2_DIALECT,
     username = "sa",
     password = "",
+    usePool = false,
     poolSize = 1,
     recreateSchemaOnStartup = true
 )
