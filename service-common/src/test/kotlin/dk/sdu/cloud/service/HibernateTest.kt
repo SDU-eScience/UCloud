@@ -28,7 +28,7 @@ fun main(args: Array<String>) {
             println(SimpleEntity.list(session))
         }
 
-        println(SimpleEntity.generateDDL(factory))
+        println(factory.generateDDL())
     }
 
 }

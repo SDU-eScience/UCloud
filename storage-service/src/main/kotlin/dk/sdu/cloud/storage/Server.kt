@@ -30,6 +30,7 @@ class Server(
     private val configuration: Configuration,
     private val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
+    private val db: HibernateSessionFactory,
     private val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val args: Array<String>
@@ -42,8 +43,6 @@ class Server(
 
         log.info("Creating core services")
         val isDevelopment = args.contains("--dev")
-
-        val db = HibernateSessionFactory.create()
 
         val cloudToCephFsDao = CephFSUserDao(isDevelopment)
         val processRunner = CephFSCommandRunnerFactory(cloudToCephFsDao, isDevelopment)
@@ -170,6 +169,7 @@ class Server(
     fun stop() {
         httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
         kStreams.close(30, TimeUnit.SECONDS)
+        db.close()
     }
 
     companion object {

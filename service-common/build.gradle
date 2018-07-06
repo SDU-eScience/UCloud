@@ -67,7 +67,9 @@ dependencies {
 
     // db
     compile group: 'org.postgresql', name: 'postgresql', version: '42.2.2'
-    compile group: 'org.hibernate', name: 'hibernate-core', version: '5.3.1.Final'
+    compile group: 'org.hibernate', name: 'hibernate-core', version: '5.3.2.Final'
+    compile group: 'org.hibernate', name: 'hibernate-hikaricp', version: '5.3.2.Final'
+
     compile 'eu.infomas:annotation-detector:3.0.5'
 
     // Service discovery

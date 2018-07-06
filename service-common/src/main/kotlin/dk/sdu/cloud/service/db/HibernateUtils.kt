@@ -382,7 +382,7 @@ fun <T> CriteriaQuery<T>.createQuery(session: Session): Query<T> {
     return session.createQuery(this)
 }
 
-inline fun <reified E> HibernateEntity<E>.generateDDL(sessionFactory: HibernateSessionFactory): String {
+fun HibernateSessionFactory.generateDDL(): String {
     val file = Files.createTempFile("table", ".sql").toFile()
     val schemaExport = SchemaExport().apply {
         setHaltOnError(true)
@@ -390,6 +390,6 @@ inline fun <reified E> HibernateEntity<E>.generateDDL(sessionFactory: HibernateS
         setFormat(true)
     }
 
-    schemaExport.execute(EnumSet.of(TargetType.SCRIPT), SchemaExport.Action.CREATE, sessionFactory.metadata)
+    schemaExport.execute(EnumSet.of(TargetType.SCRIPT), SchemaExport.Action.CREATE, metadata)
     return file.readText()
 }

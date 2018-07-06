@@ -14,13 +14,13 @@ data class KafkaHostConfig(
 }
 
 data class DatabaseConfiguration(
-    val url: String,
-    val driver: String,
+    val host: String,
+    val database: String,
     val username: String,
     val password: String
 ) {
     override fun toString(): String {
-        return "DatabaseConfiguration(url='$url', driver='$driver', username='$username')"
+        return "DatabaseConfiguration(host='$host', database='$database', username='$username')"
     }
 }
 

@@ -5,7 +5,6 @@ import org.hibernate.SessionFactory
 import org.hibernate.boot.Metadata
 import org.hibernate.boot.MetadataSources
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder
-import org.hibernate.tool.hbm2ddl.SchemaExport
 import org.slf4j.LoggerFactory
 import javax.persistence.Entity
 
@@ -16,7 +15,9 @@ class HibernateSessionFactory(
     internal val factory: SessionFactory,
 
     @PublishedApi
-    internal val metadata: Metadata
+    internal val metadata: Metadata,
+
+    val autoDetectedEntities: List<Class<*>> = emptyList()
 ) : DBSessionFactory<HibernateSession> {
     override fun <R> withSession(closure: HibernateSession.() -> R): R {
         val session = factory.openSession()
@@ -64,7 +65,10 @@ class HibernateSessionFactory(
                     if (dialect != null) applySetting("hibernate.dialect", dialect)
                     if (showSQLInStdout) applySetting("hibernate.show_sql", true.toString())
                     if (recreateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "create")
+                    else if (validateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "validate")
                     applySetting("hibernate.default_schema", config.defaultSchema)
+                    applySetting("hibernate.temp.use_jdbc_metadata_defaults", "false")
+                    applySetting("hibernate.connection.provider_class", "org.hibernate.hikaricp.internal.HikariCPConnectionProvider")
 
                     applySetting(
                         "hibernate.physical_naming_strategy",
@@ -76,18 +80,21 @@ class HibernateSessionFactory(
                     }
                 }
             }.build()
+
+            val entities = if (config?.autoDetectEntities == true) {
+                detectEntities(*config.detectEntitiesInPackages.toTypedArray())
+            } else {
+                emptyList()
+            }
+
             return (try {
                 MetadataSources(registry).apply {
-                    if (config?.autoDetectEntities == true) {
-                        detectEntities(*config.detectEntitiesInPackages.toTypedArray()).forEach {
-                            addAnnotatedClass(it)
-                        }
-                    }
+                    entities.forEach { addAnnotatedClass(it) }
                 }.buildMetadata()
             } catch (ex: Exception) {
                 StandardServiceRegistryBuilder.destroy(registry)
                 throw ex
-            }).let { HibernateSessionFactory(it.buildSessionFactory(), it) }
+            }).let { HibernateSessionFactory(it.buildSessionFactory(), it, entities) }
         }
     }
 }
@@ -103,6 +110,7 @@ data class HibernateDatabaseConfig(
     val skipXml: Boolean = true,
     val showSQLInStdout: Boolean = false,
     val recreateSchemaOnStartup: Boolean = false,
+    val validateSchemaOnStartup: Boolean = false,
     val autoDetectEntities: Boolean = true,
     val detectEntitiesInPackages: List<String> = listOf("dk.sdu.cloud")
 )
@@ -126,8 +134,8 @@ const val POSTGRES_9_5_DIALECT = "org.hibernate.dialect.PostgreSQL95Dialect"
 
 fun postgresJdbcUrl(host: String, database: String, port: Int? = null): String {
     return StringBuilder().apply {
-        append("jdbc:postgresql:")
-        append(database)
+        append("jdbc:postgresql://")
+        append(host)
         if (port != null) {
             append(':')
             append(port)
