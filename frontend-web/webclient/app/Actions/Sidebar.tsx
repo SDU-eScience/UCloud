@@ -1,26 +1,50 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
 import * as Types from "../Reducers/Sidebar";
-import { failureNotification } from "../UtilityFunctions"; 
+import { failureNotification } from "../UtilityFunctions";
+import { SetLoadingAction, Action, SidebarOption } from "../types/types";
 
-export const fetchSidebarOptions = () => 
+/**
+ * Intended to fetch sidebar options for the sidebar, currently fetched from a
+ * mock API. Sets the loading variable to false in the redux store when fetched.
+ */
+export const fetchSidebarOptions = ():Promise<ReceiveSidebarOptionsActions> =>
     Cloud.get("/../mock-api/mock_sidebar_options.json").then(({ response }) => {
         return receiveSidebarOptions(response);
-    }).catch(() => failureNotification("An error occurred while trying to populate sidebar options"));;
+    }).catch(() => {
+        failureNotification("An error occurred while trying to populate sidebar options");
+        return receiveSidebarOptions([])
+    });
 
-export const setSidebarLoading = (loading) => ({
+/**
+ * Sets the sidebar loading state for the sidebar.
+ * @param {boolean} loading - sets whether or not the sidebar displays a loading icon
+ */
+export const setSidebarLoading = (loading: boolean): SetLoadingAction => ({
     type: Types.SET_SIDEBAR_LOADING,
     loading
 });
 
-const receiveSidebarOptions = (options) => ({
+interface ReceiveSidebarOptionsActions extends Action { options: SidebarOption[] }
+
+/**
+ * The action for receiving sidebar options
+ * @param {SidebarOption[]} options The sidebar options to be rendered
+ */
+const receiveSidebarOptions = (options: SidebarOption[]): ReceiveSidebarOptionsActions => ({
     type: Types.RECEIVE_SIDEBAR_OPTIONS,
     options
 });
 
-export const setSidebarOpen = () => ({
+/**
+ * Sets the sidebar as open. Only relevant for mobile
+ */
+export const setSidebarOpen = (): Action => ({
     type: Types.SET_SIDEBAR_OPEN
 });
 
-export const setSidebarClosed = () => ({
+/**
+ * Sets the sidebar as closed. Only relevant for mobile
+ */
+export const setSidebarClosed = (): Action => ({
     type: Types.SET_SIDEBAR_CLOSED
 })

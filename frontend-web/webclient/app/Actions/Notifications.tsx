@@ -1,33 +1,31 @@
 import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT } from "../Reducers/Notifications";
 import { Cloud } from "../../authentication/SDUCloudObject";
-import { Page } from "../types/types";
+import { Page, ReceivePage, Action } from "../types/types";
 import { failureNotification } from "../UtilityFunctions";
 
 const ERROR = "ERROR";
 
-type Action = { type: string }
-interface ReceiveAction extends Action { page: Page<Notification> }
-interface ReadAction extends Action { id: Number }
-
-const receiveNotifications = (page: Page<Notification>): ReceiveAction => ({
+const receiveNotifications = (page: Page<Notification>): ReceivePage<Notification> => ({
     type: RECEIVE_NOTIFICATIONS,
     page
 })
 
-export const fetchNotifications = () =>
+export const fetchNotifications = ():Promise<ReceivePage<File> | Action> =>
     Cloud.get("/notifications")
-        .then(({ response }: { response: Page<Notification> }) => receiveNotifications(response))
+        .then(({ response }) => receiveNotifications(response))
         .catch(() => {
             failureNotification("Failed to retrieve notifications, please try again later");
             return NoAction();
         });;
 
+interface ReadAction extends Action { id: Number }
 export const notificationRead = (id: Number): ReadAction => ({
     type: NOTIFICATION_READ,
     id
 });
 
-export const setRedirectTo = (redirectTo: string) => ({
+interface SetRedirectToAction extends Action { redirectTo: string }
+export const setRedirectTo = (redirectTo: string):SetRedirectToAction => ({
     type: SET_REDIRECT,
     redirectTo
 });
