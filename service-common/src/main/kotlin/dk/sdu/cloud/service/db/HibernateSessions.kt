@@ -56,7 +56,11 @@ class HibernateSessionFactory(private val factory: SessionFactory) : DBSessionFa
                     if (dialect != null) applySetting("hibernate.dialect", dialect)
                     if (showSQLInStdout) applySetting("hibernate.show_sql", true.toString())
                     if (recreateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "create")
-                    if (autoDetectEntities) applySetting("hibernate.archive.autodetection", "class")
+
+                    applySetting(
+                        "hibernate.physical_naming_strategy",
+                        SnakeCasePhysicalNamingStrategy::class.qualifiedName
+                    )
 
                     if (skipXml && !autoDetectEntities) {
                         log.warn("Skipping XML configuration but also not auto detecting entities")
@@ -65,7 +69,12 @@ class HibernateSessionFactory(private val factory: SessionFactory) : DBSessionFa
             }.build()
             return (try {
                 MetadataSources(registry).apply {
-                    if (config?.autoDetectEntities == true) detectEntities().forEach { addAnnotatedClass(it) }
+                    if (config?.autoDetectEntities == true) {
+                        detectEntities(*config.detectEntitiesInPackages.toTypedArray()).forEach {
+                            addAnnotatedClass(it)
+                        }
+                    }
+
                 }.buildMetadata().buildSessionFactory()
             } catch (ex: Exception) {
                 StandardServiceRegistryBuilder.destroy(registry)
@@ -81,11 +90,12 @@ data class HibernateDatabaseConfig(
     val dialect: String?,
     val username: String?,
     val password: String?,
-    val poolSize: Int?,
+    val poolSize: Int? = 10,
     val skipXml: Boolean = true,
     val showSQLInStdout: Boolean = false,
     val recreateSchemaOnStartup: Boolean = false,
-    val autoDetectEntities: Boolean = true
+    val autoDetectEntities: Boolean = true,
+    val detectEntitiesInPackages: List<String> = listOf("dk.sdu.cloud")
 )
 
 const val H2_DRIVER = "org.h2.Driver"
@@ -118,7 +128,7 @@ fun postgresJdbcUrl(host: String, database: String, port: Int? = null): String {
     }.toString()
 }
 
-fun detectEntities(where: String = "dk.sdu.cloud"): List<Class<*>> {
+private fun detectEntities(vararg where: String): List<Class<*>> {
     val entities = mutableListOf<Class<*>>()
     AnnotationDetector(object : AnnotationDetector.TypeReporter {
         override fun reportTypeAnnotation(annotation: Class<out Annotation>?, className: String?) {
@@ -126,6 +136,6 @@ fun detectEntities(where: String = "dk.sdu.cloud"): List<Class<*>> {
         }
 
         override fun annotations(): Array<out Class<out Annotation>> = arrayOf(Entity::class.java)
-    }).detect(where)
+    }).detect(*where)
     return entities
 }

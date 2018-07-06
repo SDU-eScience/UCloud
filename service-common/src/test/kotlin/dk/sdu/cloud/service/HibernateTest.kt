@@ -1,7 +1,10 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.service.db.*
-import javax.persistence.*
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Table
 
 @Entity
 @Table(name = "simple_entity")
