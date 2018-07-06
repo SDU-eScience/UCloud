@@ -1,7 +1,10 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -24,6 +27,7 @@ sealed class ShareException(override val message: String) : RuntimeException(mes
     class DuplicateException : ShareException("Already exists")
     class PermissionException : ShareException("Not allowed")
     class BadRequest(why: String) : ShareException("Bad request: $why")
+    class InternalError(val why: String) : ShareException("Internal error")
 }
 
 private val log = LoggerFactory.getLogger(ShareService::class.java)
@@ -49,6 +53,10 @@ suspend fun RESTHandler<*, *, CommonErrorMessage>.handleShareException(ex: Excep
                 }
                 is ShareException.BadRequest -> {
                     error(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
+                }
+                is ShareException.InternalError -> {
+                    log.warn(ex.why)
+                    error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
                 }
             }
         }
@@ -103,7 +111,7 @@ class ShareService<DBSession, Ctx : FSUserContext>(
         return db.withTransaction { shareDAO.findSharesForPath(it, ctx.user, path) }
     }
 
-    fun create(
+    suspend fun create(
         ctx: Ctx,
         share: CreateShareRequest,
         cloud: AuthenticatedCloud
@@ -114,7 +122,14 @@ class ShareService<DBSession, Ctx : FSUserContext>(
             throw ShareException.NotAllowed()
         }
 
-        // TODO Need to verify sharedWith exists!
+        val lookup = UserDescriptions.lookupUsers.call(
+            LookupUsersRequest(listOf(share.sharedWith)),
+            cloud
+        ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
+
+        lookup.result.results[share.sharedWith] ?:
+        throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+
         val rewritten = Share(
             owner = ctx.user,
             createdAt = System.currentTimeMillis(),
