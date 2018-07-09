@@ -65,7 +65,7 @@ interface JobDAO<Session> {
         session: Session,
         user: String,
         systemId: String,
-        appDescription: ApplicationDescription
+        appDescription: NormalizedApplicationDescription
     )
 
     fun updateJobWithSlurmInformation(

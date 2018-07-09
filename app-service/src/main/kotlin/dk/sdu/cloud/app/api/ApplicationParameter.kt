@@ -3,23 +3,30 @@ package dk.sdu.cloud.app.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
+private const val TYPE_INPUT_FILE = "input_file"
+private const val TYPE_INPUT_DIRECTORY = "input_directory"
+private const val TYPE_TEXT = "text"
+private const val TYPE_INTEGER = "integer"
+private const val TYPE_BOOLEAN = "boolean"
+private const val TYPE_FLOATING_POINT = "floating_point"
+
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
     property = "type"
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(value = ApplicationParameter.InputFile::class, name = "input_file"),
-    JsonSubTypes.Type(value = ApplicationParameter.InputDirectory::class, name = "input_directory"),
-    JsonSubTypes.Type(value = ApplicationParameter.Text::class, name = "text"),
-    JsonSubTypes.Type(value = ApplicationParameter.Integer::class, name = "integer"),
-    JsonSubTypes.Type(value = ApplicationParameter.Bool::class, name = "boolean"),
-    JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = "floating_point")
+    JsonSubTypes.Type(value = ApplicationParameter.InputFile::class, name = TYPE_INPUT_FILE),
+    JsonSubTypes.Type(value = ApplicationParameter.InputDirectory::class, name = TYPE_INPUT_DIRECTORY),
+    JsonSubTypes.Type(value = ApplicationParameter.Text::class, name = TYPE_TEXT),
+    JsonSubTypes.Type(value = ApplicationParameter.Integer::class, name = TYPE_INTEGER),
+    JsonSubTypes.Type(value = ApplicationParameter.Bool::class, name = TYPE_BOOLEAN),
+    JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT)
 )
-sealed class ApplicationParameter<V : Any> {
-    abstract val name: String
+sealed class ApplicationParameter<V : Any>(val type: String) {
+    abstract var name: String
     abstract val optional: Boolean
-    abstract val prettyName: String
+    abstract val title: String
     abstract val description: String
     abstract val defaultValue: V?
 
@@ -39,12 +46,12 @@ sealed class ApplicationParameter<V : Any> {
     }
 
     data class InputFile(
-        override val name: String,
-        override val optional: Boolean,
+        override var name: String = "",
+        override val optional: Boolean = false,
         override val defaultValue: FileTransferDescription? = null,
-        override val prettyName: String = name,
+        override val title: String = name,
         override val description: String = ""
-    ) : ApplicationParameter<FileTransferDescription>() {
+    ) : ApplicationParameter<FileTransferDescription>(TYPE_INPUT_FILE) {
         override fun internalMap(inputParameter: Any): FileTransferDescription {
             @Suppress("UNCHECKED_CAST")
             val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
@@ -59,12 +66,12 @@ sealed class ApplicationParameter<V : Any> {
     }
 
     data class InputDirectory(
-        override val name: String,
-        override val optional: Boolean,
+        override var name: String = "",
+        override val optional: Boolean = false,
         override val defaultValue: FileTransferDescription? = null,
-        override val prettyName: String = name,
+        override val title: String = name,
         override val description: String = ""
-    ) : ApplicationParameter<FileTransferDescription>() {
+    ) : ApplicationParameter<FileTransferDescription>(TYPE_INPUT_DIRECTORY) {
         override fun internalMap(inputParameter: Any): FileTransferDescription {
             @Suppress("UNCHECKED_CAST")
             val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
@@ -80,28 +87,28 @@ sealed class ApplicationParameter<V : Any> {
     }
 
     data class Text(
-        override val name: String,
-        override val optional: Boolean,
+        override var name: String = "",
+        override val optional: Boolean = false,
         override val defaultValue: String? = null,
-        override val prettyName: String = name,
+        override val title: String = name,
         override val description: String = ""
-    ) : ApplicationParameter<String>() {
+    ) : ApplicationParameter<String>(TYPE_TEXT) {
         override fun internalMap(inputParameter: Any): String = inputParameter.toString()
 
         override fun toInvocationArgument(entry: String): String = entry
     }
 
     data class Integer(
-        override val name: String,
-        override val optional: Boolean,
+        override var name: String = "",
+        override val optional: Boolean = false,
         override val defaultValue: Int? = null,
-        override val prettyName: String = name,
+        override val title: String = name,
         override val description: String = "",
         val min: Int? = null,
         val max: Int? = null,
         val step: Int? = null,
         val unitName: String? = null
-    ) : ApplicationParameter<Int>() {
+    ) : ApplicationParameter<Int>(TYPE_INTEGER) {
         override fun internalMap(inputParameter: Any): Int =
             (inputParameter as? Int) ?: inputParameter.toString().toInt()
 
@@ -109,16 +116,16 @@ sealed class ApplicationParameter<V : Any> {
     }
 
     data class FloatingPoint(
-        override val name: String,
-        override val optional: Boolean,
+        override var name: String = "",
+        override val optional: Boolean = false,
         override val defaultValue: Double? = null,
-        override val prettyName: String = name,
+        override val title: String = name,
         override val description: String = "",
         val min: Double? = null,
         val max: Double? = null,
         val step: Double? = null,
         val unitName: String? = null
-    ) : ApplicationParameter<Double>() {
+    ) : ApplicationParameter<Double>(TYPE_FLOATING_POINT) {
         override fun internalMap(inputParameter: Any): Double =
             (inputParameter as? Double) ?: inputParameter.toString().toDouble()
 
@@ -126,14 +133,14 @@ sealed class ApplicationParameter<V : Any> {
     }
 
     data class Bool(
-        override val name: String,
-        override val optional: Boolean,
+        override var name: String = "",
+        override val optional: Boolean = false,
         override val defaultValue: Boolean? = null,
-        override val prettyName: String = name,
+        override val title: String = name,
         override val description: String = "",
         val trueValue: String = "true",
         val falseValue: String = "false"
-    ) : ApplicationParameter<Boolean>() {
+    ) : ApplicationParameter<Boolean>(TYPE_BOOLEAN) {
         override fun internalMap(inputParameter: Any): Boolean =
             (inputParameter as? Boolean) ?: inputParameter.toString().toBoolean()
 

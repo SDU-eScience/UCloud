@@ -1,13 +1,13 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.AppRequest
-import dk.sdu.cloud.app.api.ApplicationDescription
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 
 class SBatchGenerator {
     fun generate(
-        description: ApplicationDescription,
+        description: NormalizedApplicationDescription,
         startRequest: AppRequest.Start,
         workDir: String
     ): String {

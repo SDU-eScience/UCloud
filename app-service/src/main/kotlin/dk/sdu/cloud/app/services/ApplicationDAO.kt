@@ -1,13 +1,17 @@
 package dk.sdu.cloud.app.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.util.yamlMapper
+import java.io.File
 
 object ApplicationDAO {
-    val inMemoryDB: MutableMap<String, List<ApplicationDescription>> = mutableMapOf(
+    val inMemoryDB: MutableMap<String, List<NormalizedApplicationDescription>> = mutableMapOf(
         "figlet" to listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 prettyName = "Figlet",
                 createdAt = 1519910207000L,
@@ -21,7 +25,7 @@ object ApplicationDAO {
                         name = "text",
                         optional = false,
                         defaultValue = null,
-                        prettyName = "Text",
+                        title = "Text",
                         description = "Some text to render with figlet"
                     )
                 ),
@@ -30,7 +34,7 @@ object ApplicationDAO {
         ),
 
         "figlet-count" to listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 prettyName = "Figlet Counter",
                 createdAt = 1519910207000L,
@@ -44,7 +48,7 @@ object ApplicationDAO {
                         name = "n",
                         optional = true,
                         defaultValue = 100,
-                        prettyName = "Count",
+                        title = "Count",
                         description = "How much should we count to?"
                     )
                 ),
@@ -53,7 +57,7 @@ object ApplicationDAO {
         ),
 
         "parms" to listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 prettyName = "PALMS",
                 createdAt = 1519910207000L,
@@ -190,13 +194,13 @@ object ApplicationDAO {
                         name = "input",
                         optional = false,
                         defaultValue = null,
-                        prettyName = "Input File",
+                        title = "Input File",
                         description = ""
                     ),
 
                     ApplicationParameter.Integer(
                         name = "interval",
-                        prettyName = "Interval",
+                        title = "Interval",
                         description = "duration of interval between results in seconds",
                         optional = true,
                         unitName = "seconds"
@@ -204,28 +208,28 @@ object ApplicationDAO {
 
                     ApplicationParameter.Bool(
                         name = "insert_missing",
-                        prettyName = "Insert missing",
+                        title = "Insert missing",
                         description = "if true, gaps in GPS fixes are replaced by the last valid fix",
                         optional = true
                     ),
 
                     ApplicationParameter.Bool(
                         name = "insert_until",
-                        prettyName = "Insert until",
+                        title = "Insert until",
                         description = "if true, inserts until a max time is reached",
                         optional = true
                     ),
 
                     ApplicationParameter.Bool(
                         name = "insert_max_seconds",
-                        prettyName = "Insert max seconds",
+                        title = "Insert max seconds",
                         description = "max number of seconds to replace missing fixes with last valid fix",
                         optional = true
                     ),
 
                     ApplicationParameter.Integer(
                         name = "los_max_duration",
-                        prettyName = "Loss of Signal (Max duration)",
+                        title = "Loss of Signal (Max duration)",
                         description = "max amount of time allowed to pass before Loss of Signal is declared",
                         optional = true,
                         unitName = "seconds"
@@ -233,21 +237,21 @@ object ApplicationDAO {
 
                     ApplicationParameter.Bool(
                         name = "remove_lone",
-                        prettyName = "Remove lone",
+                        title = "Remove lone",
                         description = "if true, removes lone fixes",
                         optional = true
                     ),
 
                     ApplicationParameter.Bool(
                         name = "filter_invalid",
-                        prettyName = "Filter invalid",
+                        title = "Filter invalid",
                         description = "if true, removes invalid fixes",
                         optional = true
                     ),
 
                     ApplicationParameter.Integer(
                         name = "max_speed",
-                        prettyName = "Max speed",
+                        title = "Max speed",
                         description = "Consider fix invalid if speed is greater than this value (in km/hr)",
                         optional = true,
                         unitName = "km/hr"
@@ -255,7 +259,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.Integer(
                         name = "max_ele_change",
-                        prettyName = "Maximum elevation change",
+                        title = "Maximum elevation change",
                         description = "Consider fix invalid if elevation change is greater than this value (in meters)",
                         optional = true,
                         unitName = "meters"
@@ -270,7 +274,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.Bool(
                         name = "detect_indoors",
-                        prettyName = "Detect indoors",
+                        title = "Detect indoors",
                         description = "If true, mark position as indoors, outdoors or in-vehicle",
                         optional = true
                     ),
@@ -281,7 +285,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.Integer(
                         name = "min_distance",
-                        prettyName = "Minimum distance",
+                        title = "Minimum distance",
                         description = "minimum distance (in meters) that must be travelled over one minute to " +
                                 "indicate the start of a trip. Default chosen to be 34 meters which is equal to " +
                                 "a typical walking speed of 2KM/hr.",
@@ -291,7 +295,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.Integer(
                         name = "min_trip_length",
-                        prettyName = "Minimum trip length",
+                        title = "Minimum trip length",
                         description = "trips less than this distance (in meters) are not considered trips.",
                         optional = true,
                         unitName = "meters"
@@ -299,7 +303,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.Integer(
                         name = "min_trip_duration",
-                        prettyName = "Minimum trip duration",
+                        title = "Minimum trip duration",
                         description = "trips less than this duration (in seconds) are not considered trips.",
                         optional = true,
                         unitName = "seconds"
@@ -307,7 +311,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.Integer(
                         name = "min_pause_duration",
-                        prettyName = "Minimum pause duration",
+                        title = "Minimum pause duration",
                         description = "trips less than this duration (in seconds) are not considered trips.",
                         optional = true,
                         unitName = "seconds"
@@ -315,7 +319,7 @@ object ApplicationDAO {
 
                     ApplicationParameter.Integer(
                         name = "max_pause_duration",
-                        prettyName = "Maximum pause duration",
+                        title = "Maximum pause duration",
                         description = " when the duration of a pause exceeds this value, the point is marked as an " +
                                 "end point.",
                         optional = true
@@ -432,7 +436,7 @@ object ApplicationDAO {
         ),
 
         "tqdist_triplet" to listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 tool = NameAndVersion("tqdist", "1.0.1"),
                 info = NameAndVersion("tqdist_triplet", "1.0.1"),
                 prettyName = "tqDist: Triplet Distance",
@@ -464,13 +468,13 @@ object ApplicationDAO {
                     VariableInvocationParameter(listOf("tree_one", "tree_two"))
                 ),
                 parameters = listOf(
-                    ApplicationParameter.InputFile(name = "tree_one", optional = false, prettyName = "Tree One"),
-                    ApplicationParameter.InputFile(name = "tree_two", optional = false, prettyName = "Tree Two"),
+                    ApplicationParameter.InputFile(name = "tree_one", optional = false, title = "Tree One"),
+                    ApplicationParameter.InputFile(name = "tree_two", optional = false, title = "Tree Two"),
                     ApplicationParameter.Bool(
                         name = "verbose",
                         optional = true,
                         defaultValue = true,
-                        prettyName = "Verbose",
+                        title = "Verbose",
                         description = """
                         If the -v option is used, the following numbers will be reported (in this order):
 
@@ -490,7 +494,7 @@ object ApplicationDAO {
         ),
 
         "tqdist_quartet" to listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 tool = NameAndVersion("tqdist", "1.0.1"),
                 info = NameAndVersion("tqdist_quartet", "1.0.1"),
                 prettyName = "tqDist: Quartet Distance",
@@ -522,13 +526,13 @@ object ApplicationDAO {
                     VariableInvocationParameter(listOf("tree_one", "tree_two"))
                 ),
                 parameters = listOf(
-                    ApplicationParameter.InputFile(name = "tree_one", optional = false, prettyName = "Tree One"),
-                    ApplicationParameter.InputFile(name = "tree_two", optional = false, prettyName = "Tree Two"),
+                    ApplicationParameter.InputFile(name = "tree_one", optional = false, title = "Tree One"),
+                    ApplicationParameter.InputFile(name = "tree_two", optional = false, title = "Tree Two"),
                     ApplicationParameter.Bool(
                         name = "verbose",
                         optional = true,
                         defaultValue = true,
-                        prettyName = "Verbose",
+                        title = "Verbose",
                         description = """
                             If the -v option is used, the following numbers will be reported (in this order):
 
@@ -548,7 +552,7 @@ object ApplicationDAO {
         ),
 
         "rapidnj" to listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 tool = NameAndVersion("rapidnj", "2.3.2"),
                 info = NameAndVersion("rapidnj", "2.3.2"),
                 prettyName = "RapidNJ",
@@ -572,11 +576,11 @@ object ApplicationDAO {
                 ),
 
                 parameters = listOf(
-                    ApplicationParameter.InputFile("file", optional = false, prettyName = "Input File"),
+                    ApplicationParameter.InputFile("file", optional = false, title = "Input File"),
                     ApplicationParameter.Text(
                         "format",
                         optional = true,
-                        prettyName = "Input Format",
+                        title = "Input Format",
                         description = "The program can usually guess the input format, otherwise this option can be " +
                                 "used to choose between different formats. To infer a tree from an alignment in " +
                                 "Stockholm format use 'sth'."
@@ -588,7 +592,7 @@ object ApplicationDAO {
         ),
 
         "searchgui_msgf" to listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 tool = NameAndVersion("searchgui", "3.3.0"),
                 info = NameAndVersion("searchgui_msgf", "3.3.0"),
                 prettyName = "SearchCLI: MS-GF+",
@@ -645,9 +649,9 @@ object ApplicationDAO {
                 ),
 
                 parameters = listOf(
-                    ApplicationParameter.InputFile("id_params", optional = false, prettyName = ".par file"),
-                    ApplicationParameter.InputFile("fasta", optional = false, prettyName = ".fasta file"),
-                    ApplicationParameter.InputFile("mgf", optional = false, prettyName = ".mgf file")
+                    ApplicationParameter.InputFile("id_params", optional = false, title = ".par file"),
+                    ApplicationParameter.InputFile("fasta", optional = false, title = ".fasta file"),
+                    ApplicationParameter.InputFile("mgf", optional = false, title = ".mgf file")
                 ),
 
                 outputFileGlobs = listOf("stdout.txt", "stderr.txt", "*.html", "*.zip")
@@ -655,7 +659,7 @@ object ApplicationDAO {
         ),
 
         "bwa-mem" to listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 tool = NameAndVersion("bwa-sambamba", "1.0.0"),
                 info = NameAndVersion("bwa-mem", "1.0.0"),
                 prettyName = "BWA-MEM",
@@ -666,16 +670,16 @@ object ApplicationDAO {
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
 
                 parameters = listOf(
-                    ApplicationParameter.InputFile("index_base_main", optional = false, prettyName = "Index Resources"),
-                    ApplicationParameter.InputFile("base_dict", optional = false, prettyName = ".fasta.dict"),
-                    ApplicationParameter.InputFile("base_amb", optional = false, prettyName = ".fasta.amb"),
-                    ApplicationParameter.InputFile("base_ann", optional = false, prettyName = ".fasta.ann"),
-                    ApplicationParameter.InputFile("base_bwt", optional = false, prettyName = ".fasta.bwt"),
-                    ApplicationParameter.InputFile("base_fai", optional = false, prettyName = ".fasta.fai"),
-                    ApplicationParameter.InputFile("base_pac", optional = false, prettyName = ".fasta.pac"),
-                    ApplicationParameter.InputFile("base_sa", optional = false, prettyName = ".fasta.sa"),
-                    ApplicationParameter.InputFile("R1", optional = false, prettyName = "R1"),
-                    ApplicationParameter.InputFile("R2", optional = false, prettyName = "R2")
+                    ApplicationParameter.InputFile("index_base_main", optional = false, title = "Index Resources"),
+                    ApplicationParameter.InputFile("base_dict", optional = false, title = ".fasta.dict"),
+                    ApplicationParameter.InputFile("base_amb", optional = false, title = ".fasta.amb"),
+                    ApplicationParameter.InputFile("base_ann", optional = false, title = ".fasta.ann"),
+                    ApplicationParameter.InputFile("base_bwt", optional = false, title = ".fasta.bwt"),
+                    ApplicationParameter.InputFile("base_fai", optional = false, title = ".fasta.fai"),
+                    ApplicationParameter.InputFile("base_pac", optional = false, title = ".fasta.pac"),
+                    ApplicationParameter.InputFile("base_sa", optional = false, title = ".fasta.sa"),
+                    ApplicationParameter.InputFile("R1", optional = false, title = "R1"),
+                    ApplicationParameter.InputFile("R2", optional = false, title = "R2")
                 ),
 
                 invocation = listOf(
@@ -688,10 +692,15 @@ object ApplicationDAO {
         )
     )
 
-    fun findByNameAndVersion(name: String, version: String): ApplicationDescription? =
+    fun findByNameAndVersion(name: String, version: String): NormalizedApplicationDescription? =
         inMemoryDB[name]?.find { it.info.version == version }
 
-    fun findAllByName(name: String): List<ApplicationDescription> = inMemoryDB[name] ?: emptyList()
+    fun findAllByName(name: String): List<NormalizedApplicationDescription> = inMemoryDB[name] ?: emptyList()
 
-    fun all(): List<ApplicationDescription> = inMemoryDB.values.flatten()
+    fun all(): List<NormalizedApplicationDescription> = inMemoryDB.values.flatten()
+}
+
+fun main(args: Array<String>) {
+    val parsed = yamlMapper.readValue<ApplicationDescription>(File("/tmp/searchgui.yml"))
+    println("foo")
 }

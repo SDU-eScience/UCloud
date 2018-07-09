@@ -27,7 +27,7 @@ class SBatchGeneratorTest {
         )
 
         ApplicationDAO.inMemoryDB["app"] = listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 prettyName = "Figlet",
                 createdAt = 1519910207000L,
@@ -77,7 +77,7 @@ class SBatchGeneratorTest {
         )
 
         ApplicationDAO.inMemoryDB["hello"] = listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 prettyName = "Figlet",
                 createdAt = 1519910207000L,
@@ -145,7 +145,7 @@ class SBatchGeneratorTest {
         )
 
         ApplicationDAO.inMemoryDB["hello"] = listOf(
-            ApplicationDescription(
+            NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 prettyName = "Figlet",
                 createdAt = 1519910207000L,

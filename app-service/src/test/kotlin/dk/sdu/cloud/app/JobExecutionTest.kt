@@ -22,7 +22,6 @@ import io.ktor.http.HttpStatusCode
 import io.mockk.*
 import io.mockk.impl.annotations.RelaxedMockK
 import kotlinx.coroutines.experimental.io.ByteReadChannel
-import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
@@ -111,8 +110,8 @@ class JobExecutionTest {
         invocation: List<InvocationParameter>,
         parameters: List<ApplicationParameter<*>>,
         fileGlobs: List<String> = emptyList()
-    ): ApplicationDescription {
-        return ApplicationDescription(
+    ): NormalizedApplicationDescription {
+        return NormalizedApplicationDescription(
             tool = dummyTool.info,
             info = NameAndVersion(name, "1.0.0"),
             authors = listOf("Author"),
@@ -142,7 +141,7 @@ class JobExecutionTest {
         )
     }
 
-    private fun createTemporaryApplication(application: ApplicationDescription) {
+    private fun createTemporaryApplication(application: NormalizedApplicationDescription) {
         ApplicationDAO.inMemoryDB[application.info.name] = listOf(application)
     }
 
@@ -505,7 +504,7 @@ class JobExecutionTest {
         }
     }
 
-    private fun verifyJobStarted(result: String, app: ApplicationDescription) {
+    private fun verifyJobStarted(result: String, app: NormalizedApplicationDescription) {
         assertNotEquals("", result)
 
         verify { jobsDao.createJob(any(), result, dummyTokenSubject, app) }

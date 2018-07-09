@@ -310,7 +310,7 @@ class JobExecutionService<DBSession>(
     }
 
     private suspend fun validateAndCollectInputFiles(
-        app: ApplicationDescription,
+        app: NormalizedApplicationDescription,
         applicationParameters: Map<String, Any>,
         workDir: URI,
         cloud: AuthenticatedCloud

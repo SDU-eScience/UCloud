@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.AppState
-import dk.sdu.cloud.app.api.ApplicationDescription
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -78,7 +78,7 @@ class JobHibernateDAO : JobDAO<HibernateSession> {
         session: HibernateSession,
         user: String,
         systemId: String,
-        appDescription: ApplicationDescription
+        appDescription: NormalizedApplicationDescription
     ) {
         session.save(
             JobEntity(
