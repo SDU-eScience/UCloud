@@ -8,27 +8,15 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import org.flywaydb.core.Flyway
 import org.slf4j.LoggerFactory
-
-data class DatabaseConfiguration(
-    val url: String,
-    val driver: String,
-    val username: String,
-    val password: String
-) {
-    override fun toString(): String {
-        return "DatabaseConfiguration(url='$url', driver='$driver', username='$username')"
-    }
-}
-
 
 data class HPCConfig(
     private val connection: RawConnectionConfig,
     val ssh: SimpleSSHConfig,
     val storage: StorageConfiguration,
     val rpc: RPCConfiguration,
-    val refreshToken: String,
-    val database: DatabaseConfiguration
+    val refreshToken: String
 ) : ServerConfiguration {
     @get:JsonIgnore
     override val connConfig: ConnectionConfig
@@ -39,7 +27,7 @@ data class HPCConfig(
     }
 
     override fun toString(): String {
-        return "HPCConfig(connection=$connection, ssh=$ssh, storage=$storage, rpc=$rpc, database=$database)"
+        return "HPCConfig(connection=$connection, ssh=$ssh, storage=$storage, rpc=$rpc)"
     }
 }
 
@@ -88,7 +76,25 @@ fun main(args: Array<String>) {
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
-    val server = Server(kafka, serviceRegistry, cloud, configuration, serverProvider, db)
-    server.start()
+    when {
+        args.contains(ARG_GENERATE_DDL) -> {
+            println(db.generateDDL())
+            db.close()
+        }
+
+        args.contains(ARG_MIGRATE) -> {
+            val flyway = Flyway()
+            with(configuration.connConfig.database!!) {
+                flyway.setDataSource(jdbcUrl, username, password)
+            }
+            flyway.setSchemas(serviceDescription.name)
+            flyway.migrate()
+        }
+
+        else -> {
+            val server = Server(kafka, serviceRegistry, cloud, configuration, serverProvider, db)
+            server.start()
+        }
+    }
 }
 
