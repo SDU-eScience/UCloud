@@ -1,6 +1,5 @@
 import * as React from "react";
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { Modal, Button, List, Input, Pagination, ButtonProps, ModalProps } from "semantic-ui-react";
+import { Modal, Button, List, Input, ButtonProps, ModalProps } from "semantic-ui-react";
 import { List as PaginationList } from "../Pagination/List";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
@@ -209,7 +208,7 @@ interface FileSelectorModalProps {
     navigate?: (path, pageNumber, itemsPerPage) => void
 }
 
-export const FileSelectorModal = (props:FileSelectorModalProps) => (
+export const FileSelectorModal = (props: FileSelectorModalProps) => (
     <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick size="large">
         <Modal.Header>
             File selector
@@ -245,7 +244,7 @@ interface FileSelectorBodyProps {
     page: Page<File>
     fetchFiles: (path: string) => void
     handleKeyDown?: Function
-    setSelectedFile:Function
+    setSelectedFile: Function
     createFolder?: Function
     path: string
 }
@@ -253,6 +252,7 @@ interface FileSelectorBodyProps {
 const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => uf.isDirectory(f)) : props.page.items;
     const files = f.filter((it) => !disallowedPaths.some((d) => d === it.path));
+    const { path } = props;
     return (
         <React.Fragment>
             <List divided size="large">
@@ -263,16 +263,21 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
                     creatingFolder={props.creatingFolder}
                     handleKeyDown={props.handleKeyDown}
                 />
-                <ReturnFolder
-                    path={props.path}
-                    fetchFiles={props.fetchFiles}
-                    setSelectedFile={props.setSelectedFile}
+                <MockFolder // Return folder
+                    predicate={uf.removeTrailingSlash(path) !== uf.removeTrailingSlash(Cloud.homeFolder)}
+                    folderName=".."
+                    path={removeTrailingSlash(getParentPath(path))}
                     canSelectFolders={props.canSelectFolders}
-                />
-                <CurrentFolder
-                    currentPath={removeTrailingSlash(props.path)}
-                    onlyAllowFolders={onlyAllowFolders}
                     setSelectedFile={props.setSelectedFile}
+                    fetchFiles={props.fetchFiles}
+                />
+                <MockFolder // Current folder
+                    predicate={onlyAllowFolders}
+                    path={path}
+                    setSelectedFile={props.setSelectedFile}
+                    canSelectFolders
+                    folderName={`${getFilenameFromPath(uf.replaceHomeFolder(path, Cloud.homeFolder))} (Current folder)`}
+                    fetchFiles={() => null}
                 />
                 <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
             </List>
@@ -286,32 +291,19 @@ const CreateFolderButton = ({ createFolder }: CreateFolderButton) =>
         (<Button onClick={() => createFolder()} className="create-folder-button" content="Create new folder" />) : null;
 
 
-const CurrentFolder = ({ currentPath, onlyAllowFolders, setSelectedFile }) =>
-    onlyAllowFolders ? (
-        <List.Item className="pointer-cursor itemPadding">
-            <List.Content floated="right">
-                <Button onClick={() => setSelectedFile({ path: currentPath })}>Select</Button>
-            </List.Content>
-            <List.Icon name="folder" color="blue" />
-            <List.Content>
-                {`${uf.replaceHomeFolder(uf.getFilenameFromPath(currentPath), Cloud.homeFolder)} (Current folder)`}
-            </List.Content>
-        </List.Item>
-    ) : null;
-
-
-function ReturnFolder({ path, fetchFiles, setSelectedFile, canSelectFolders }) {
-    const parentPath = uf.addTrailingSlash(getParentPath(path));
+function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, canSelectFolders }) {
     const folderSelection = canSelectFolders ? (
         <List.Content floated="right">
-            <Button onClick={() => setSelectedFile({ path: parentPath })}>Select</Button>
-        </List.Content>) : null;
-    return path !== Cloud.homeFolder ? (
-        <List.Item className="pointer-cursor itemPadding" onClick={() => fetchFiles(parentPath)}>
+            <Button onClick={() => setSelectedFile({ path })} content="Select" />
+        </List.Content>
+    ) : null;
+    return predicate ? (
+        <List.Item className="pointer-cursor itemPadding" onClick={() => fetchFiles(path)}>
             {folderSelection}
             <List.Icon name="folder" color="blue" />
-            <List.Content content=".." />
-        </List.Item>) : null;
+            <List.Content content={folderName} />
+        </List.Item>
+    ) : null;
 }
 
 const CreatingFolder = ({ creatingFolder, handleKeyDown }) => (
@@ -335,7 +327,6 @@ const UploadButton = ({ onClick }) => (<Button type="button" content="Upload Fil
 const RemoveButton = ({ onClick }) => (<Button type="button" content="✗" onClick={() => onClick()} />);
 const FolderSelection = ({ canSelectFolders, setSelectedFile }) => canSelectFolders ?
     (<Button onClick={setSelectedFile} floated="right" content="Select" />) : null;
-
 
 interface FileList {
     files: File[]

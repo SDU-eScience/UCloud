@@ -152,7 +152,7 @@ class Files extends React.Component<FilesProps> {
             this.props.fetchFiles(path, page.itemsPerPage, pageNumber, this.props.sortOrder, this.props.sortBy);
             this.props.resetFolderEditing();
         };
-        const fetch = () => this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
+        const fetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
         const selectedFiles = page.items.filter(file => file.isChecked);
         const rename = () => {
             const firstSelectedFile = selectedFiles[0];
@@ -194,7 +194,7 @@ class Files extends React.Component<FilesProps> {
                                 handleKeyDown={this.handleKeyDown}
                                 files={page.items}
                                 onCheckFile={(checked, file) => checkFile(checked, page, file)}
-                                fetchFiles={fetchFiles}
+                                fetchFiles={(path) => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy)}
                                 path={path}
                                 onFavoriteFile={(filePath: string) => updateFiles(uf.favorite(page, filePath, Cloud))}
                                 editFolderIndex={this.props.editFileIndex}
@@ -267,7 +267,7 @@ export const FilesTable = ({
                             allowCopyAndMove={allowCopyAndMove}
                             file={f}
                             rename={!!startEditFile ? () => startEditFile(i) : null}
-                            refetch={() => fetchFiles(path)}
+                            refetch={(path) => fetchFiles(path)}
                             showFileSelector={showFileSelector}
                             setFileSelectorCallback={setFileSelectorCallback}
                             setDisallowedPaths={setDisallowedPaths}

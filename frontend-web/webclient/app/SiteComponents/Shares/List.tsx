@@ -7,6 +7,7 @@ import { getFilenameFromPath, shareSwal } from "../../UtilityFunctions";
 import "./List.scss"
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "../../Actions/Status";
+import { Store } from "redux";
 
 interface ListState {
     shares: SharesByPath[]
@@ -16,8 +17,17 @@ interface ListState {
     loading: boolean
 }
 
-export class List extends React.Component<any, ListState> {
-    constructor(props: any, ctx) {
+interface ListProps {
+    keepTitle: boolean
+    byPath?: string
+}
+
+interface ListContext {
+    store: Store
+}
+
+export class List extends React.Component<ListProps, ListState> {
+    constructor(props: ListProps, ctx: ListContext) {
         super(props);
         this.state = {
             shares: [],
