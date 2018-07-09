@@ -5,7 +5,10 @@ import org.hibernate.SessionFactory
 import org.hibernate.boot.Metadata
 import org.hibernate.boot.MetadataSources
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder
+import org.hibernate.dialect.H2Dialect
+import org.hibernate.dialect.PostgreSQL95Dialect
 import org.slf4j.LoggerFactory
+import java.sql.Types
 import javax.persistence.Entity
 
 typealias HibernateSession = org.hibernate.Session
@@ -92,7 +95,9 @@ class HibernateSessionFactory(
 
             return (try {
                 MetadataSources(registry).apply {
+                    metadataBuilder.applyBasicType(JsonbType(), "jsonb")
                     entities.forEach { addAnnotatedClass(it) }
+
                 }.buildMetadata()
             } catch (ex: Exception) {
                 StandardServiceRegistryBuilder.destroy(registry)
@@ -121,7 +126,19 @@ data class HibernateDatabaseConfig(
 
 const val H2_DRIVER = "org.h2.Driver"
 const val H2_TEST_JDBC_URL = "jdbc:h2:mem:db1;DB_CLOSE_DELAY=-1;MVCC=TRUE"
-const val H2_DIALECT = "org.hibernate.dialect.H2Dialect"
+const val H2_DIALECT = "dk.sdu.cloud.service.db.H2DialectWithJson"
+
+class H2DialectWithJson : H2Dialect() {
+    init {
+        registerColumnType(Types.JAVA_OBJECT, "varchar(${Int.MAX_VALUE})")
+    }
+}
+
+class PostgresDialectWithJson : PostgreSQL95Dialect() {
+    init {
+        registerColumnType(Types.JAVA_OBJECT, "jsonb")
+    }
+}
 
 val H2_TEST_CONFIG = HibernateDatabaseConfig(
     driver = H2_DRIVER,
@@ -135,7 +152,7 @@ val H2_TEST_CONFIG = HibernateDatabaseConfig(
 )
 
 const val POSTGRES_DRIVER = "org.postgresql.Driver"
-const val POSTGRES_9_5_DIALECT = "org.hibernate.dialect.PostgreSQL95Dialect"
+const val POSTGRES_9_5_DIALECT = "dk.sdu.cloud.service.db.PostgresDialectWithJson"
 
 fun postgresJdbcUrl(host: String, database: String, port: Int? = null): String {
     return StringBuilder().apply {

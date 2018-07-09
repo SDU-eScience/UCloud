@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.service.db.*
+import org.hibernate.annotations.Type
 import javax.persistence.Entity
 import javax.persistence.GeneratedValue
 import javax.persistence.Id
@@ -18,8 +19,30 @@ data class SimpleEntity(
     companion object : HibernateEntity<SimpleEntity>, WithId<Long>
 }
 
+@Entity
+@Table
+data class SimpleWithJson(
+    @Id
+    @GeneratedValue
+    var id: Long = 0,
+
+    var text: String,
+
+    @Type(type = JSONB_TYPE)
+    var json: LetMeBeJson
+) {
+    companion object : HibernateEntity<SimpleWithJson>, WithId<Long>
+}
+
+
+data class LetMeBeJson(
+    val list: List<Pair<String, Int>>,
+    val map: Map<String, Any>
+)
+
 fun main(args: Array<String>) {
     HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = true)).use { factory ->
+        /*
         factory.withTransaction { session ->
             repeat(10) {
                 session.save(SimpleEntity(someValue = "Testing $it"))
@@ -29,6 +52,29 @@ fun main(args: Array<String>) {
         }
 
         println(factory.generateDDL())
+        */
+
+        println(factory.generateDDL())
+
+        factory.withTransaction { session ->
+            val id = session.save(
+                SimpleWithJson(
+                    text = "Hello!",
+                    json = LetMeBeJson(
+                        listOf("good" to 42, "bad" to 0),
+                        mapOf(
+                            "alsoGood" to 1337,
+                            "alsoBad" to 3
+                        )
+                    )
+                )
+            ) as Long
+
+            val result = SimpleWithJson[session, id]
+            repeat(10) { println() }
+            println("Result is: $result")
+            repeat(10) { println() }
+        }
     }
 
 }
