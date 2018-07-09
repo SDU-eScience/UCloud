@@ -57,8 +57,6 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                     </Header>
                     <List
                         loading={loading}
-                        itemsPerPage={page.itemsPerPage}
-                        currentPage={page.pageNumber}
                         pageRenderer={(page) =>
                             <Table basic="very">
                                 <TableHeader />
@@ -67,7 +65,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                                 </Table.Body>
                             </Table>
                         }
-                        results={page}
+                        page={page}
                         onItemsPerPageChanged={(size) => fetchPublications(0, size)}
                         onPageChanged={(pageNumber) => fetchPublications(pageNumber, page.itemsPerPage)}
                     />

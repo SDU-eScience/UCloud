@@ -1,18 +1,49 @@
-import React from "react";
+import * as React from "react";
 import { Spinner } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { shortUUID } from "../../UtilityFunctions";
+import { shortUUID, failureNotification } from "../../UtilityFunctions";
 import { Container, List, Card, Icon, Popup } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { FilesTable } from "../Files/Files";
+import { List as PaginationList } from "../Pagination/index";
 import "./wizard.scss";
 import "./Applications.scss";
 import { connect } from "react-redux";
 import "../Styling/Shared.scss";
 import { updatePageTitle } from "../../Actions/Status";
+import { emptyPage, Page, File } from "../../types/types";
 
-class DetailedResult extends React.Component {
+interface DetailedResultProps {
+
+}
+
+type Any = any
+
+interface DetailedResultState {
+    page: Page<File>
+    loading: boolean
+    complete: boolean
+    appState: string
+    status: string
+    app: {
+        name: string
+        version: string
+    }
+    stdout: string
+    stderr: string
+    stdoutLine: number
+    stderrLine: number
+    stdoutOldTop: number,
+    stderrOldTop: number,
+    reloadIntervalId: number
+    promises: PromiseKeeper
+}
+
+class DetailedResult extends React.Component<any, DetailedResultState> {
+    private stdoutEl: any; // FIXME Find more specific type
+    private stderrEl: any; // FIXME Find more specific type
+
     constructor(props) {
         super(props);
         this.state = {
@@ -20,30 +51,32 @@ class DetailedResult extends React.Component {
             complete: false,
             appState: "VALIDATED",
             status: "",
-            app: { "name": "", "version": "" },
+            app: { name: "", version: "" },
             stdout: "",
             stderr: "",
             stdoutLine: 0,
             stderrLine: 0,
             stdoutOldTop: -1,
             stderrOldTop: -1,
+            reloadIntervalId: -1,
+            page: emptyPage,
             promises: new PromiseKeeper()
         };
         this.props.dispatch(updatePageTitle(`Results for Job: ${shortUUID(this.jobId)}`));
     }
 
-    get jobId() {
+    get jobId(): string {
         return this.props.match.params.jobId;
     }
 
     componentDidMount() {
         this.retrieveStdStreams();
-        let reloadIntervalId = setInterval(() => this.retrieveStdStreams(), 1000);
+        let reloadIntervalId = window.setInterval(() => this.retrieveStdStreams(), 1000);
         this.setState({ reloadIntervalId: reloadIntervalId });
     }
 
     componentWillUnmount() {
-        if (this.state.reloadIntervalId) clearInterval(this.state.reloadIntervalId);
+        if (this.state.reloadIntervalId) window.clearInterval(this.state.reloadIntervalId);
         this.state.promises.cancelPromises();
     }
 
@@ -94,19 +127,24 @@ class DetailedResult extends React.Component {
                 },
 
                 failure => {
+                    failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
                     console.log(failure);
-                }
-            ).finally(() => this.setState({ loading: false }))
+                }).then(() => this.setState({ loading: false }))
+            // Initially this: .finally(() => this.setState({ loading: false }))
+            // However, Finally is TC-39, not part of the standard yet. (https://github.com/tc39/proposal-promise-finally)
         );
     }
 
     retrieveStateWhenCompleted() {
         if (!this.state.complete) return;
-        if (this.state.files || this.state.loading) return;
+        if (this.state.page.items.length || this.state.loading) return;
         this.setState({ loading: true });
-        // FIXME add pagination
-        Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}`).then(({ response }) => {
-            this.setState({ files: response.items, loading: false });
+        this.retrieveFilesPage(this.state.page.pageNumber, this.state.page.itemsPerPage)
+    }
+
+    retrieveFilesPage(pageNumber, itemsPerPage) {
+        Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
+            this.setState({ page: response, loading: false });
         });
     }
 
@@ -229,7 +267,7 @@ class DetailedResult extends React.Component {
                         inverted
                         trigger={<Icon name="info circle" />}
                         content={<span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>}
-                        on='hover'
+                        on="hover"
                     />
                 </h4>
                 <div className="card">
@@ -254,11 +292,25 @@ class DetailedResult extends React.Component {
     }
 
     renderFilePanel() {
-        if (!this.state.files) return null;
+        const { page } = this.state;
+        if (!this.state.page.items.length) return null;
         return (
             <div>
                 <h4>Output Files</h4>
-                <FilesTable files={this.state.files} sortingIcon={() => null} />
+                <PaginationList
+                    page={page}
+                    pageRenderer={(page) =>
+                        <FilesTable
+                            files={page.items}
+                            sortingIcon={() => null}
+                            onCheckFile={() => null}
+                            setFileSelectorCallback={() => null}
+                            fetchFiles={() => null}
+                            onFavoriteFile={() => null}
+                        />}
+                    onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
+                    onItemsPerPageChanged={itemsPerPage => this.retrieveFilesPage(0, itemsPerPage)}
+                />
             </div>
         );
     }
@@ -302,8 +354,8 @@ class DetailedResult extends React.Component {
     }
 }
 
-const ProgressTracker = (props) => (
-    <ul className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{props.children}</ul>
+const ProgressTracker = ({ children }) => (
+    <ul className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{children}</ul>
 );
 const ProgressTrackerItem = (props) => (
     <li

@@ -69,9 +69,7 @@ export class ManagedList extends React.Component<ManagedListProps, ManagedListSt
         const props = this.props;
         return <Self.List
             loading={state.loading}
-            currentPage={state.currentPage}
-            itemsPerPage={state.itemsPerPage}
-            results={state.results}
+            page={state.results}
             errorMessage={state.errorMessage}
             pageRenderer={props.pageRenderer}
             onItemsPerPageChanged={itemsPerPage => this.retrieveData(0, itemsPerPage)}

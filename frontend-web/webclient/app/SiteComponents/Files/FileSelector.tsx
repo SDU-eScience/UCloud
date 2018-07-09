@@ -225,11 +225,9 @@ export const FileSelectorModal = (props: FileSelectorModalProps) => (
                         fetchFiles={(path) => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
                     />
                 }
-                results={props.page}
-                currentPage={props.page.pageNumber}
-                itemsPerPage={props.page.itemsPerPage}
+                page={props.page}
                 onPageChanged={(pageNumber) => props.fetchFiles(props.path, pageNumber, props.page.itemsPerPage)}
-                onItemsPerPageChanged={(itemsPerPage) => props.fetchFiles(props.path, props.page.pageNumber, itemsPerPage)}
+                onItemsPerPageChanged={(itemsPerPage) => props.fetchFiles(props.path, 0, itemsPerPage)}
                 loading={props.loading}
             />
         </Modal.Content>

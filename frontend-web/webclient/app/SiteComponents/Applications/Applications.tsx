@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "../Pagination";
-import { Table, Button, Icon } from "semantic-ui-react";
+import { Table, Button } from "semantic-ui-react";
 import { connect } from "react-redux";
 import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
 import { updatePageTitle } from "../../Actions/Status";
@@ -43,8 +43,6 @@ class Applications extends React.Component<ApplicationsProps> {
             <React.Fragment>
                 <Pagination.List
                     loading={loading}
-                    itemsPerPage={itemsPerPage}
-                    currentPage={pageNumber}
                     pageRenderer={(page) =>
                         (<Table basic="very">
                             <Table.Header>
@@ -61,7 +59,7 @@ class Applications extends React.Component<ApplicationsProps> {
                             <ApplicationsList applications={page.items} />
                         </Table>)
                     }
-                    results={{ items: currentlyShownApplications, itemsPerPage: itemsPerPage, itemsInTotal: applications.length, pageNumber: pageNumber }} // Remove when pagination is introduced
+                    page={{ items: currentlyShownApplications, itemsPerPage: itemsPerPage, itemsInTotal: applications.length, pageNumber: pageNumber }} // Remove when pagination is introduced
                     onItemsPerPageChanged={(size) => updateApplicationsPerPage(size)}
                     onPageChanged={(page) => toPage(page)}
                     onRefresh={() => null}

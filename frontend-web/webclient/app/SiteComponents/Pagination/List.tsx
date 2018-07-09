@@ -13,16 +13,14 @@ interface ListProps {
     loading?: boolean
 
     // Page results
-    currentPage?: number
-    itemsPerPage?: number
-    results?: Page<any>
+    page: Page<any>
 
-    // Error properties
+    // Error properties  
     errorMessage?: string | (() => React.ReactNode | null)
 
     // Callbacks
-    onItemsPerPageChanged?: (itemsPerPage: number) => void
-    onPageChanged?: (newPage: number) => void
+    onItemsPerPageChanged: (itemsPerPage: number) => void
+    onPageChanged: (newPage: number) => void
     onRefresh?: () => void
     onErrorDismiss?: () => void
 }
@@ -38,7 +36,7 @@ export class List extends React.PureComponent<ListProps> {
 
         let errorComponent = null;
         if (typeof props.errorMessage == "string") {
-            errorComponent = <Message color='red' onDismiss={props.onErrorDismiss}>{props.errorMessage}</Message>;
+            errorComponent = <Message color="red" onDismiss={props.onErrorDismiss}>{props.errorMessage}</Message>;
         } else if (typeof props.errorMessage == "function") {
             errorComponent = props.errorMessage();
         }
@@ -52,15 +50,15 @@ export class List extends React.PureComponent<ListProps> {
                 <div>
                     <Self.Buttons
                         as="span"
-                        currentPage={props.currentPage}
+                        currentPage={props.page.pageNumber}
                         toPage={(page) => ifPresent(props.onPageChanged, (c) => c(page))}
-                        totalPages={Math.ceil(props.results.itemsInTotal / props.itemsPerPage)}
+                        totalPages={Math.ceil(props.page.itemsInTotal / props.page.itemsPerPage)}
                     />
 
                     <Self.EntriesPerPageSelector
                         content="Items per page"
                         className="pagination-items-per-page"
-                        entriesPerPage={props.itemsPerPage}
+                        entriesPerPage={props.page.itemsPerPage}
                         onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
                     />
                 </div>
@@ -78,7 +76,7 @@ export class List extends React.PureComponent<ListProps> {
                 </div>
             </Grid>
         } else {
-            if (props.results == null || props.results.items.length == 0) {
+            if (props.page == null || props.page.items.length == 0) {
                 return <div>
                     <Header as="h2">
                         No results.
@@ -91,7 +89,7 @@ export class List extends React.PureComponent<ListProps> {
                     </Header>
                 </div>;
             } else {
-                return props.pageRenderer(props.results);
+                return props.pageRenderer(props.page);
             }
         }
     }

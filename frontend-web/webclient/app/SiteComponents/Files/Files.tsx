@@ -35,7 +35,7 @@ export enum SortBy {
 }
 // FIXME END
 
-interface FilesProps extends FilesStateProps, FilesOperations { 
+interface FilesProps extends FilesStateProps, FilesOperations {
     match: { params: string[] }
     history: History
 }
@@ -84,7 +84,7 @@ class Files extends React.Component<FilesProps> {
     }
 
     componentDidMount() {
-        const {match, page, fetchFiles, fetchSelectorFiles, sortBy, sortOrder } = this.props;
+        const { match, page, fetchFiles, fetchSelectorFiles, sortBy, sortOrder } = this.props;
         fetchFiles(match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         fetchSelectorFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
     }
@@ -175,8 +175,6 @@ class Files extends React.Component<FilesProps> {
                         <Icon className="float-right" link circular name="sync" onClick={() => fetch()} loading={loading} />
                     </Grid.Row>
                     <Pagination.List
-                        currentPage={page.pageNumber}
-                        itemsPerPage={page.itemsPerPage}
                         loading={loading}
                         pageRenderer={(page) => (
                             <FilesTable
@@ -196,7 +194,6 @@ class Files extends React.Component<FilesProps> {
                                 files={page.items}
                                 onCheckFile={(checked, file) => checkFile(checked, page, file)}
                                 fetchFiles={(path) => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy)}
-                                path={path}
                                 onFavoriteFile={(filePath: string) => updateFiles(uf.favorite(page, filePath, Cloud))}
                                 editFolderIndex={this.props.editFileIndex}
                                 projectNavigation={projectNavigation}
@@ -206,8 +203,8 @@ class Files extends React.Component<FilesProps> {
                                 showFileSelector={this.props.showFileSelector}
                             />
                         )}
-                        onItemsPerPageChanged={(pageSize) => { this.props.resetFolderEditing(); fetchFiles(path, pageSize, page.pageNumber, this.props.sortOrder, this.props.sortBy);; }}
-                        results={page}
+                        onItemsPerPageChanged={(pageSize) => { this.props.resetFolderEditing(); fetchFiles(path, pageSize, 0, this.props.sortOrder, this.props.sortBy)}}
+                        page={page}
                         onPageChanged={(pageNumber) => goTo(pageNumber)}
                     />
                 </Grid.Column>
@@ -241,10 +238,11 @@ class Files extends React.Component<FilesProps> {
     }
 }
 
+// FIXME Cleanup
 export const FilesTable = ({
-    files, masterCheckBox = null, showFileSelector, setFileSelectorCallback, setDisallowedPaths, startEditFile = null,
-    sortingIcon, editFolderIndex = -1, sortFiles = null, handleKeyDown, onCheckFile, fetchFiles,
-    projectNavigation = null, path, creatingNewFolder = false, allowCopyAndMove = false, onFavoriteFile
+    files, masterCheckBox = null, showFileSelector = (b) => null, setFileSelectorCallback = (c) => null, setDisallowedPaths = (p) => null,
+    sortingIcon, editFolderIndex = -1, sortFiles = null, handleKeyDown = (k, f, n) => null, onCheckFile, fetchFiles, startEditFile = null,
+    projectNavigation = null, creatingNewFolder = false, allowCopyAndMove = false, onFavoriteFile
 }) => {
     return (
         <Table unstackable basic="very" padded="very">

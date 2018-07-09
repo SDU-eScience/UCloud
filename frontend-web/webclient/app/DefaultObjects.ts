@@ -1,6 +1,7 @@
+// TODO: Find better name for File
 import { tusConfig } from "./Configurations";
 import * as Uppy from "uppy";
-import { File, Analysis, Application, Status, Publication, SidebarOption, DropdownOption, emptyPage } from "./types/types"
+import { File, Analysis, Application, Status, SidebarOption, emptyPage } from "./types/types"
 import SDUCloud from "../authentication/lib";
 import { SortOrder, SortBy } from "./SiteComponents/Files/Files";
 
@@ -76,15 +77,16 @@ const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>
     }).use(Uppy.Tus, tusConfig);
 
 
-const getFilesSortingColumnOrDefault = (index: number): string => {
-    const sortingColumn = window.localStorage.getItem(`filesSorting${index}`);
+// FIXME Shouldn't return string
+const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy | string => {
+    const sortingColumn: SortBy | string = window.localStorage.getItem(`filesSorting${columnIndex}`);
     if (!sortingColumn) {
-        if (index === 0) {
+        if (columnIndex === 0) {
             window.localStorage.setItem("filesSorting0", "lastModified");
-            return "lastModified";
-        } else if (index === 1) {
+            return SortBy.MODIFIED_AT;
+        } else if (columnIndex === 1) {
             window.localStorage.setItem("filesSorting1", "acl");
-            return "acl";
+            return SortBy.ACL;
         }
     }
     return sortingColumn;

@@ -60,8 +60,6 @@ class Analyses extends React.Component<AnalysesProps, AnalysesState> {
             <React.StrictMode>
                 <List
                     loading={loading}
-                    itemsPerPage={page.itemsPerPage}
-                    currentPage={page.pageNumber}
                     pageRenderer={(page) =>
                         <Table basic="very" unstackable className="mobile-padding">
                             <TableHeader />
@@ -70,7 +68,7 @@ class Analyses extends React.Component<AnalysesProps, AnalysesState> {
                             </Table.Body>
                         </Table>
                     }
-                    results={page}
+                    page={page}
                     onItemsPerPageChanged={(size) => this.props.fetchAnalyses(size, 0)}
                     onPageChanged={(pageNumber) => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
                     onRefresh={() => null}
