@@ -28,11 +28,12 @@ export enum SortBy {
     CREATED_AT = "CREATED_AT",
     MODIFIED_AT = "MODIFIED_AT",
     SIZE = "SIZE",
-ACL = "ACL",
+    ACL = "ACL",
     FAVORITED = "FAVORITED",
     SENSITIVITY = "SENSITIVITY",
     ANNOTATION = "ANNOTATION"
 }
+// FIXME END
 
 interface FilesProps extends FilesStateProps, FilesOperations { 
     match: { params: string[] }
