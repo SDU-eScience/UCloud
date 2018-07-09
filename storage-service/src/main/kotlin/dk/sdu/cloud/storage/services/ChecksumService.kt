@@ -17,6 +17,7 @@ class ChecksumService<Ctx : FSUserContext>(
 ) : FileSystemListener {
     override suspend fun attachToFSChannel(channel: ReceiveChannel<StorageEvent>) {
         // How will this implementation handle very frequent updates to a file?
+        // TODO We still open a new context for each file. Group by owner and re-use
         channel.windowed(500).consumeEach {
             it.filterIsInstance<StorageEvent.CreatedOrModified>().distinctBy { it.path }.forEach {
                 commandRunnerFactory.withContext(it.owner) { ctx ->

@@ -10,26 +10,24 @@ import dk.sdu.cloud.app.services.ssh.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.OneTimeAccessToken
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.storage.api.*
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpStatusCode
 import io.mockk.*
 import io.mockk.impl.annotations.RelaxedMockK
-import io.tus.java.client.TusUploader
+import kotlinx.coroutines.experimental.io.ByteReadChannel
 import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.experimental.runBlocking
-import org.asynchttpclient.Response
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.io.OutputStream
+import java.io.*
 import java.net.URI
 import java.util.*
 
@@ -44,7 +42,7 @@ class JobExecutionTest {
     lateinit var producer: MappedEventProducer<String, AppEvent>
 
     @RelaxedMockK
-    lateinit var jobsDao: JobsDAO
+    lateinit var jobsDao: JobDAO<Any>
 
     @RelaxedMockK
     lateinit var slurmPollAgent: SlurmPollAgent
@@ -55,7 +53,10 @@ class JobExecutionTest {
     @RelaxedMockK
     lateinit var sshConnection: SSHConnection
 
-    lateinit var service: JobExecutionService
+    @RelaxedMockK
+    lateinit var db: DBSessionFactory<Any>
+
+    lateinit var service: JobExecutionService<Any>
 
     val emitSlot = ArrayList<AppEvent>()
 
@@ -158,11 +159,10 @@ class JobExecutionTest {
         }
     }
 
-    private fun tusHelperScope() = staticMockk("dk.sdu.cloud.storage.api.TusServiceHelpersKt")
     private fun scpScope() = staticMockk("dk.sdu.cloud.app.services.ssh.SCPKt")
     private fun sftpScope() = staticMockk("dk.sdu.cloud.app.services.ssh.SFTPKt")
     private fun zipScope() = staticMockk("dk.sdu.cloud.app.services.ssh.ZIPKt")
-    private fun tusScope() = objectMockk(TusDescriptions)
+    private fun uploadScope() = objectMockk(MultiPartUploadDescriptions)
 
     // =========================================
     // TESTS
@@ -174,8 +174,12 @@ class JobExecutionTest {
 
         coEvery { producer.emit(capture(emitSlot)) } just Runs
 
-        every { jobsDao.transaction<Any>(captureLambda()) } answers {
-            lambda<JobsDAO.() -> Any>().invoke(jobsDao)
+        every { db.withSession<Any>(captureLambda()) } answers {
+            lambda<(Any) -> Any>().invoke(Any())
+        }
+
+        every { db.withTransaction<Any>(any(), any(), captureLambda()) } answers {
+            lambda<(Any) -> Any>().invoke(Any())
         }
 
         every { sshPool.borrowConnection() } answers {
@@ -186,6 +190,7 @@ class JobExecutionTest {
             cloud,
             producer,
             sBatchGenerator,
+            db,
             jobsDao,
             slurmPollAgent,
             sshPool,
@@ -503,7 +508,7 @@ class JobExecutionTest {
     private fun verifyJobStarted(result: String, app: ApplicationDescription) {
         assertNotEquals("", result)
 
-        verify { jobsDao.createJob(result, dummyTokenSubject, app) }
+        verify { jobsDao.createJob(any(), result, dummyTokenSubject, app) }
 
         coVerify {
             producer.emit(
@@ -690,8 +695,8 @@ class JobExecutionTest {
                     else {
                         val command = call.invocation.args.find { it is DownloadByURI } as DownloadByURI
                         val response: HttpResponse = mockk(relaxed = true)
-                        every { response.content.toInputStream() } answers {
-                            ByteArrayInputStream(command.path.substringAfterLast('/').toByteArray())
+                        every { response.content } answers {
+                            ByteReadChannel(command.path.substringAfterLast('/').toByteArray())
                         }
 
                         RESTResponse.Ok(response, Unit)
@@ -957,7 +962,7 @@ class JobExecutionTest {
 
         verify {
             slurmPollAgent.startTracking(slurmId)
-            jobsDao.updateJobWithSlurmInformation(systemId, sshUser, jobDirectiory, workingDirectory, slurmId)
+            jobsDao.updateJobWithSlurmInformation(any(), systemId, sshUser, jobDirectiory, workingDirectory, slurmId)
         }
 
         assertEquals(0, emitSlot.size)
@@ -1026,9 +1031,8 @@ class JobExecutionTest {
                 mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
             }
 
-            val creationCommands = mockTusUploadCreationAndGetCommands()
+            mockUpload()
             val remoteFiles = mockScpDownloadAndGetFileList()
-            val (_, _, tusUploader) = mockTusUploaderAndGetLocationsAndSizes()
 
             // Run tests
             service.handleAppEvent(completedInSlurmEvent)
@@ -1042,11 +1046,6 @@ class JobExecutionTest {
             completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
             }
-
-            verify(exactly = 1) { tusUploader.start(any()) }
-
-            assertEquals(1, creationCommands.size)
-            assertEquals(singleFileGlob, creationCommands.first().fileName)
 
             assertEquals(1, remoteFiles.size)
             assertEquals(workingDirectory + singleFileGlob, remoteFiles.first())
@@ -1070,9 +1069,8 @@ class JobExecutionTest {
                 }
             }
 
-            val creationCommands = mockTusUploadCreationAndGetCommands()
+            mockUpload()
             val remoteFiles = mockScpDownloadAndGetFileList()
-            val (_, _, tusUploader) = mockTusUploaderAndGetLocationsAndSizes()
 
             // Run tests
             service.handleAppEvent(completedInSlurmEvent)
@@ -1085,12 +1083,6 @@ class JobExecutionTest {
             completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
             }
-
-            verify(exactly = fileNames.size) { tusUploader.start(any()) }
-
-            assertEquals(fileNames.size, creationCommands.size)
-            val createdFiles = creationCommands.map { it.fileName!! }.sorted()
-            assertEquals(fileNames.sorted(), createdFiles)
 
             assertEquals(fileNames.size, remoteFiles.size)
             val expectedRemotes = fileNames.map { workingDirectory + it }.sorted()
@@ -1116,9 +1108,8 @@ class JobExecutionTest {
                 }
             }
 
-            val creationCommands = mockTusUploadCreationAndGetCommands()
+            mockUpload()
             val remoteFiles = mockScpDownloadAndGetFileList()
-            val (_, _, tusUploader) = mockTusUploaderAndGetLocationsAndSizes()
             val (zipOutputs, zipInputs) = mockZipCall(commandFailure = false)
             val expectedZipOutput = workingDirectory + "c.zip"
             mockStatForRemoteFile(expectedZipOutput, 10L, false)
@@ -1136,11 +1127,6 @@ class JobExecutionTest {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
             }
 
-            verify(exactly = 1) { tusUploader.start(any()) }
-
-            assertEquals(1, creationCommands.size)
-            assertEquals(expectedZipOutput.substringAfterLast('/'), creationCommands.first().fileName)
-
             assertEquals(1, remoteFiles.size)
             assertEquals(expectedZipOutput, remoteFiles.first())
 
@@ -1152,8 +1138,7 @@ class JobExecutionTest {
         }
     }
 
-    // TODO Is this a good idea?
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun testShippingResultWithSingleFileUploadCreationFailure() {
         withAllShippingScopes {
             mockCreateDirectoryCall(success = true)
@@ -1168,12 +1153,14 @@ class JobExecutionTest {
                 mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
             }
 
-            mockTusUploadCreationAndGetCommands(commandFailure = true)
+            mockUpload(commandFailure = true)
             mockScpDownloadAndGetFileList()
-            mockTusUploaderAndGetLocationsAndSizes()
 
             // Run tests
             service.handleAppEvent(completedInSlurmEvent)
+
+            val outputEvent = emitSlot.single() as AppEvent.ExecutionCompleted
+            assertFalse(outputEvent.successful)
         }
     }
 
@@ -1192,9 +1179,8 @@ class JobExecutionTest {
                 mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
             }
 
-            mockTusUploadCreationAndGetCommands()
+            mockUpload()
             mockScpDownloadAndGetFileList(commandFailure = true)
-            mockTusUploaderAndGetLocationsAndSizes()
 
             // Run tests
             service.handleAppEvent(completedInSlurmEvent)
@@ -1211,8 +1197,7 @@ class JobExecutionTest {
         withMockScopes(
             objectMockk(FileDescriptions),
 
-            tusScope(),
-            tusHelperScope(),
+            uploadScope(),
 
             sftpScope(),
             scpScope(),
@@ -1248,47 +1233,31 @@ class JobExecutionTest {
         return directoryCall
     }
 
-    private fun mockTusUploadCreationAndGetCommands(commandFailure: Boolean = false): List<UploadCreationCommand> {
-        // Upload creation
-        val commands = ArrayList<UploadCreationCommand>()
-        val createMock = mockk<RESTCallDescription<UploadCreationCommand, Unit, Unit>>()
-        every { TusDescriptions.create } returns createMock
-
-        if (!commandFailure) {
-            val response = mockk<HttpResponse>(relaxed = true)
-            every { response.headers["Location"] } returns "https://cloud.sdu.dk/api/tus/upload-id"
-            coEvery { createMock.call(capture(commands), any()) } returns RESTResponse.Ok(
-                response,
-                Unit
-            )
-        } else {
-            coEvery { createMock.call(capture(commands), any()) } returns RESTResponse.Err(
-                mockk(relaxed = true),
-                Unit
-            )
+    private fun mockUpload(commandFailure: Boolean = false) {
+        fun answer() {
+            if (commandFailure) throw IOException()
         }
 
-        return commands
-    }
-
-    data class TusUploaderMock(val locations: List<String>, val sizes: List<Int>, val uploader: TusUploader)
-
-    private fun mockTusUploaderAndGetLocationsAndSizes(): TusUploaderMock {
-        val uploadLocations = ArrayList<String>()
-        val uploadSizes = ArrayList<Int>()
-        val tusUploader = mockk<TusUploader>(relaxed = true)
         every {
-            TusDescriptions.uploader(
+            MultiPartUploadDescriptions.callUpload(any(), any(), any(), any(), any(), any(), any())
+        } answers { answer() }
+
+        every {
+            MultiPartUploadDescriptions.callUpload(
                 any(),
-                capture(uploadLocations),
-                capture(uploadSizes),
+                any<RefreshingJWTAuthenticator>(),
+                any(),
+                any(),
+                any(),
+                any(),
                 any(),
                 any()
             )
-        } returns tusUploader
+        } answers { answer() }
 
-        every { tusUploader.start(any()) } just Runs
-        return TusUploaderMock(uploadLocations, uploadSizes, tusUploader)
+        every {
+            MultiPartUploadDescriptions.callUpload(any(), any<String>(), any(), any(), any(), any(), any(), any())
+        } answers { answer() }
     }
 
     private fun mockScpDownloadAndGetFileList(commandFailure: Boolean = false): List<String> {

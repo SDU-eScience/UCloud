@@ -11,6 +11,7 @@ import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import io.ktor.application.install
 import io.ktor.routing.route
 import io.ktor.routing.routing
@@ -27,7 +28,8 @@ class Server(
     private val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: HPCConfig,
-    private val ktor: HttpServerProvider
+    private val ktor: HttpServerProvider,
+    private val db: HibernateSessionFactory
 ) {
     private var initialized = false
 
@@ -49,17 +51,18 @@ class Server(
         val sbatchGenerator = SBatchGenerator()
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
-        val jobDao = JobsDAO()
+        val jobDao = JobHibernateDAO()
         val jobExecutionService = JobExecutionService(
             cloud,
             kafka.producer.forStream(HPCStreams.appEvents),
             sbatchGenerator,
+            db,
             jobDao,
             slurmPollAgent,
             sshPool,
             config.ssh.user
         )
-        val jobService = JobService(jobDao, sshPool, jobExecutionService)
+        val jobService = JobService(db, jobDao, sshPool, jobExecutionService)
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")

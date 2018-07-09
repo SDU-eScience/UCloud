@@ -7,22 +7,25 @@ import dk.sdu.cloud.app.services.ssh.linesInRange
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import java.io.File
 import kotlin.math.min
 
-class JobService(
-    private val dao: JobsDAO,
+class JobService<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val dao: JobDAO<DBSession>,
     private val sshPool: SSHConnectionPool,
-    private val jobExecutionService: JobExecutionService
+    private val jobExecutionService: JobExecutionService<DBSession>
 ) {
     fun recentJobs(who: DecodedJWT, paginationRequest: PaginationRequest): Page<JobWithStatus> =
-        dao.transaction { findAllJobsWithStatus(who.subject, paginationRequest.normalize()) }
+        db.withTransaction { dao.findAllJobsWithStatus(it, who.subject, paginationRequest.normalize()) }
 
     fun findJobById(who: DecodedJWT, jobId: String): JobWithStatus? =
-        dao.transaction { findJobById(who.subject, jobId) }
+        db.withTransaction { dao.findJobById(it, who.subject, jobId) }
 
     fun findJobForInternalUseById(who: DecodedJWT, jobId: String): JobInformation? =
-        dao.transaction { findJobInformationByJobId(who.subject, jobId) }
+        db.withTransaction { dao.findJobInformationByJobId(it, who.subject, jobId) }
 
     fun followStdStreams(lines: FollowStdStreamsRequest, job: JobInformation): FollowStdStreamsResponse {
         fun respond(stdout: String = "", stdoutNext: Int = 0, stderr: String = "", stderrNext: Int = 0) =

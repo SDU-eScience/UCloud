@@ -81,12 +81,15 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
 
         // Retrieve all shares for these paths and group
         val groupedByPath = session
-            .criteria<ShareEntity> { entity[ShareEntity::path] isInCollection distinctPaths }
+            .criteria<ShareEntity> {
+                allOf(
+                    entity[ShareEntity::path] isInCollection distinctPaths,
+                    isAuthorized(user, requireOwnership = false)
+                )
+            }
             .list()
             .map { it.toModel() }
             .let { groupByPath(user, it) }
-
-        assert(distinctPaths.size == groupedByPath.size)
 
         return Page(
             itemsInTotal.toInt(),
@@ -108,12 +111,12 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             )
         }.list()
             .map { it.toModel() }
-            .let { groupByPath(user, it).single() }
+            .takeIf { it.isNotEmpty() }
+            ?.let { groupByPath(user, it).single() }
+        ?: throw ShareException.NotFound()
     }
 
     private fun groupByPath(user: String, shares: List<Share>): List<SharesByPath> {
-        if (shares.isEmpty()) throw ShareException.NotFound()
-
         val byPath = shares.groupBy { it.path }
         return byPath.map { (path, sharesForPath) ->
             val owner = sharesForPath.first().owner

@@ -236,7 +236,8 @@ class CriteriaBuilderContext<R, T>(
     }
 
     infix fun <E> Expression<E>.isInCollection(expression: Collection<E>): Predicate {
-        return this.`in`(expression)
+        return if (expression.isEmpty()) builder.isFalse(literal(false))
+        else this.`in`(expression)
     }
 
     infix fun <E> Expression<E>.isInCollection(expression: Expression<Collection<E>>): Predicate {
@@ -338,26 +339,37 @@ inline fun <reified Result, reified Root> Session.createCriteriaBuilder(): Crite
     return CriteriaBuilderContext<Result, Root>(criteriaBuilder, criteria, root)
 }
 
+// The "noinline"s are working around what seems to be a kotlin bug. For some reason it fails inlining for the
+// orderBy lambda.
 inline fun <reified T> Session.criteria(
-    builder: CriteriaBuilderContext<T, T>.() -> Predicate
+    distinct: Boolean = false,
+    noinline orderBy: CriteriaBuilderContext<T, T>.() -> List<Order>? = { null },
+    noinline predicate: CriteriaBuilderContext<T, T>.() -> Predicate
 ): Query<T> {
     return createCriteriaBuilder<T, T>().run {
         criteria.select(entity)
-        criteria.where(builder())
+        criteria.where(predicate())
+        criteria.distinct(distinct)
+        val order = orderBy()
+        if (order != null) criteria.orderBy(order)
         criteria
     }.createQuery(this)
 }
 
+// The "noinline"s are working around what seems to be a kotlin bug. For some reason it fails inlining for the
+// orderBy lambda.
 inline fun <reified T> Session.paginatedCriteria(
     pagination: NormalizedPaginationRequest,
-    builder: CriteriaBuilderContext<*, T>.() -> Predicate
+    distinct: Boolean = false,
+    noinline orderBy: CriteriaBuilderContext<*, T>.() -> List<Order>? = { null },
+    noinline predicate: CriteriaBuilderContext<*, T>.() -> Predicate
 ): Page<T> {
     val itemsInTotal = createCriteriaBuilder<Long, T>().run {
-        criteria.where(builder())
+        criteria.where(predicate())
         criteria.select(count(entity))
     }.createQuery(this).uniqueResult()
 
-    val pageItems = criteria(builder).paginatedList(pagination)
+    val pageItems = criteria(distinct, orderBy, predicate).paginatedList(pagination)
 
     return Page(
         itemsInTotal.toInt(),

@@ -12,7 +12,12 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.withCausedBy
 import dk.sdu.cloud.storage.api.*
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
@@ -25,11 +30,12 @@ import java.net.URI
 import java.nio.file.Files
 import java.util.*
 
-class JobExecutionService(
+class JobExecutionService<DBSession>(
     cloud: RefreshingJWTAuthenticatedCloud,
     private val producer: MappedEventProducer<String, AppEvent>,
     private val sBatchGenerator: SBatchGenerator,
-    private val dao: JobsDAO,
+    private val db: DBSessionFactory<DBSession>,
+    private val dao: JobDAO<DBSession>,
     private val slurmPollAgent: SlurmPollAgent,
     private val sshConnectionPool: SSHConnectionPool,
     private val sshUser: String // TODO This won't be needed in final version
@@ -53,12 +59,12 @@ class JobExecutionService(
 
     private fun handleSlurmEvent(event: SlurmEvent) {
         val slurmId = event.jobId
-        val job = dao.transaction {
+        val job = db.withTransaction {
             var jobToSlurm: JobInformation? = null
             for (i in 0..3) {
                 if (i > 0) Thread.sleep(150)
 
-                jobToSlurm = findJobInformationBySlurmId(slurmId)
+                jobToSlurm = dao.findJobInformationBySlurmId(it, slurmId)
                 if (jobToSlurm != null) break
             }
 
@@ -74,8 +80,8 @@ class JobExecutionService(
             is SlurmEventRunning -> {
                 if (job.state == AppState.RUNNING) return
 
-                dao.transaction {
-                    updateJobBySystemId(job.systemId, AppState.RUNNING, "Running...")
+                db.withTransaction {
+                    dao.updateJobBySystemId(it, job.systemId, AppState.RUNNING, "Running...")
                 }
             }
 
@@ -148,7 +154,14 @@ class JobExecutionService(
                     else -> null
                 }
 
-                if (nextState != null) dao.transaction { updateJobBySystemId(event.systemId, nextState, message) }
+                if (nextState != null) db.withTransaction {
+                    dao.updateJobBySystemId(
+                        it,
+                        event.systemId,
+                        nextState,
+                        message
+                    )
+                }
 
                 // Then we handle the event (and potentially emit new events)
                 val eventToEmit: AppEvent? = when (event) {
@@ -227,8 +240,9 @@ class JobExecutionService(
     // TODO We shouldn't require the JWT of user, but rather rely entirely on pre-authenticated messages
     suspend fun startJob(req: AppRequest.Start, principal: DecodedJWT, cloud: AuthenticatedCloud): String {
         val validatedJob = validateJob(req, principal, cloud)
-        dao.transaction {
-            createJob(
+        db.withTransaction {
+            dao.createJob(
+                it,
                 validatedJob.systemId,
                 principal.subject,
                 validatedJob.appWithDependencies.application
@@ -541,8 +555,9 @@ class JobExecutionService(
 
     private fun handleScheduledEvent(event: AppEvent.ScheduledAtSlurm): AppEvent? {
         slurmPollAgent.startTracking(event.slurmId)
-        dao.transaction {
-            updateJobWithSlurmInformation(
+        db.withTransaction {
+            dao.updateJobWithSlurmInformation(
+                it,
                 event.systemId,
                 event.sshUser,
                 event.jobDirectory,

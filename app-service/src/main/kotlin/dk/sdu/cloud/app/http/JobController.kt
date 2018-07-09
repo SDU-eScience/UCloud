@@ -15,7 +15,7 @@ import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
 class JobController(
-    private val jobService: JobService
+    private val jobService: JobService<*>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("jobs") {
