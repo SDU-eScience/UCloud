@@ -45,9 +45,6 @@ const Core = () => (
                 <Route exact path="/usersettings/settings" component={UserSettings} />
                 <Route component={NotFound} />
             </Switch>
-            <div className="footer">
-                {new Date().getFullYear()} - SDUCloud
-            </div>
         </Sidebar>
         <UppyWrapper />
     </React.Fragment >

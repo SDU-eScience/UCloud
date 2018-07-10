@@ -132,9 +132,7 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
                         <List.Content floated="right" content={toLowerCaseAndCapitalize(analysis.state)} />
                         <List.Icon name={statusToIconName(analysis.state)} color={statusToColor(analysis.state)} />
                         <List.Content>
-                            <List.Header>
-                                <Link to={`/analyses/${analysis.jobId}`}>{analysis.appName}</Link>
-                            </List.Header>
+                            <Link to={`/analyses/${analysis.jobId}`}>{analysis.appName}</Link>
                         </List.Content>
                     </List.Item>
                 )}

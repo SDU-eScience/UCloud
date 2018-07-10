@@ -18,11 +18,12 @@ export const BreadCrumbs = ({ currentPath, navigate }: BreadCrumbsList) => {
     ));
 
     return (
-        <Breadcrumb className="breadcrumb-margin">
+        <Breadcrumb size="large" className="breadcrumb-margin">
             {breadcrumbs}
             <Breadcrumb.Section active>
                 {activePathsMapping.local}
             </Breadcrumb.Section>
+            <Breadcrumb.Divider />
         </Breadcrumb>
     );
 

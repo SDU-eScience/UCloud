@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
-import { Popup, Feed, Icon, SemanticICONS, Label } from 'semantic-ui-react';
+import { Popup, Feed, Icon, SemanticICONS, Label, Button } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
@@ -68,22 +68,24 @@ class Notifications extends React.Component<NotificationProps> {
             return <Redirect to={theRedirect} />
         }
 
-        let unreadLength = this.props.page.items.filter((e) => !e.read).length;
-
+        const unreadLength = this.props.page.items.filter((e) => !e.read).length;
+        const label = unreadLength > 0 ? (
+            <Label color='red' circular floating>
+                {unreadLength}
+            </Label>
+        ) : null;
         return (
-            <div>
-                <Popup
-                    trigger={
-                        <Label color='blue' circular size='large' className='notification-trigger'>
-                            <Icon name='bell' />{unreadLength}
-                        </Label>
-                    }
-                    content={<Feed>{entries.length ? entries : <NoNotifications />}<Status/></Feed>}
-
-                    on="click"
-                    position="bottom right"
-                />
-            </div>
+            <Popup
+                trigger={
+                    <Button color='blue' circular>
+                        <Icon name="bell" />
+                        {label}
+                    </Button>
+                }
+                content={<Feed>{entries.length ? entries : <NoNotifications />}<Status /></Feed>}
+                on="click"
+                position="bottom right"
+            />
         );
     }
 }
