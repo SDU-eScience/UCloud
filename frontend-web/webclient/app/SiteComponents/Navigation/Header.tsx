@@ -9,7 +9,9 @@ import PropTypes from "prop-types";
 import { Dispatch } from "redux";
 import Notifications from "../Notifications";
 import { setSidebarOpen } from "../../Actions/Sidebar";
+import Avatar from "avataaars";
 import { History } from "history";
+import { infoNotification } from "../../UtilityFunctions";
 
 interface HeaderProps {
     open?: boolean
@@ -50,20 +52,39 @@ class Header extends React.Component<HeaderProps, HeaderState> {
 
         return ( // fixed="top" (remove attached, borderless)
             <Menu className="menu-padding" inverted attached borderless size="tiny" >
-                <Responsive maxWidth={1024}>
-                    <Menu.Item onClick={() => dispatch(setSidebarOpen())} className="sidebar-button-padding">
-                        <Icon.Group size="large">
-                            <Icon name="sidebar" />
-                            <Icon corner color="grey" size="huge" name={sidebarIcon} />
-                        </Icon.Group>
-                    </Menu.Item>
+                <Responsive maxWidth={999} as={Menu.Item} onClick={() => dispatch(setSidebarOpen())}>
+                    <Icon.Group size="large">
+                        <Icon name="sidebar" />
+                        <Icon corner color="grey" size="huge" name={sidebarIcon} />
+                    </Icon.Group>
                 </Responsive>
+
                 <Menu.Item>
-                    <Link to={"/dashboard"}><HeaderTag as="h3">SDUCloud</HeaderTag></Link>
+                    <Link to={"/dashboard"}>
+                        <HeaderTag><h3 className="logo">SDUCloud</h3></HeaderTag>
+                    </Link>
                 </Menu.Item>
+
+                <Responsive as={Menu.Item} minWidth={1000}>
+                    <Dropdown
+                        icon='users'
+                        floating
+                        labeled
+                        button
+                        className='icon'
+                        options={[
+                            { text: "Data Stream Processing", value: "p1" },
+                            { text: "Event generator for Beyond Standard Model (BSM) physics", value: "p2" },
+                            { text: "Motif Discovery with Homer", value: "p3" },
+                        ]}
+                        onChange={() => infoNotification("Note: this feature has not been implemented yet")}
+                        defaultValue="p1"
+                    />
+                </Responsive>
+
                 <Menu.Menu position="right">
                     <Menu.Item>
-                        <Responsive minWidth={700}>
+                        <Responsive minWidth={1000}>
                             <Form
                                 size="tiny"
                                 onSubmit={(e) => {
@@ -82,19 +103,42 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                                 />
                             </Form>
                         </Responsive>
-                        <Responsive maxWidth={699} as={Link} to={"/metadata/search/"}>
+                        <Responsive maxWidth={999} as={Link} to={"/metadata/search/"}>
                             <Icon name="search" />
                         </Responsive>
                     </Menu.Item>
                     <Menu.Item>
                         <Notifications />
                     </Menu.Item>
-                    <Dropdown item icon="settings">
+                    <Dropdown
+                        item
+                        icon={null}
+                        trigger={
+                            <Avatar
+                                style={{ width: "32px", height: "32px" }}
+                                avatarStyle="Circle"
+                                topType="NoHair"
+                                accessoriesType="Blank"
+                                facialHairType="Blank"
+                                clotheType="GraphicShirt"
+                                clotheColor="Blue02"
+                                graphicType="Bear"
+                                eyeType="Default"
+                                eyebrowType="Default"
+                                mouthType="Smile"
+                                skinColor="Light"
+                            />
+                        }
+                    >
                         <Dropdown.Menu>
+                            <Dropdown.Item disabled>
+                                Welcome, {Cloud.userInfo.firstNames}
+                            </Dropdown.Item>
                             <Dropdown.Item as={Link} to={"/usersettings/settings"}>
+                                <Icon name="settings" />
                                 Settings
                             </Dropdown.Item>
-                            <Dropdown.Item onClick={() => Cloud.logout()}>Logout</Dropdown.Item>
+                            <Dropdown.Item text="Logout" icon="sign out" onClick={() => Cloud.logout()} />
                         </Dropdown.Menu>
                     </Dropdown>
                 </Menu.Menu>

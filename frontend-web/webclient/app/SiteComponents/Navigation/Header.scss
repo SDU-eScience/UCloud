@@ -5,16 +5,22 @@ div.ui.menu-padding.menu {
     color: white;
 }
 
-div.ui.inverted.menu-padding.menu div.item a h3.ui.header {
+div.ui.menu-padding.menu div a.item.sidebar-button-padding {
+    padding-bottom: 20px;
+}
+
+.logo {
     color: white;
     font-weight: 200;
 }
 
-.header-search {
-    width: 450px;
-    // FIXME: Center me
-}
+@media(min-width: 1000px) {
+    .logo {
+        width: 236px;
+    }
 
-div.ui.menu-padding.menu div a.item.sidebar-button-padding {
-    padding-bottom: 20px;
+    .header-search {
+        width: 450px;
+        // FIXME: Center me
+    }
 }

@@ -3,7 +3,7 @@ import { Spinner } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { shortUUID, failureNotification } from "../../UtilityFunctions";
-import { Container, List, Card, Icon, Popup } from "semantic-ui-react";
+import { Container, List, Card, Icon, Popup, Step, SemanticICONS, Grid } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { FilesTable } from "../Files/Files";
 import { List as PaginationList } from "../Pagination";
@@ -104,7 +104,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 failure => {
                     failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
                     console.log(failure);
-                }).then(() => this.setState({ loading: false }))
+                }).then(() => this.setState({ loading: false }), () => this.setState({ loading: false }))
             // Initially this: .finally(() => this.setState({ loading: false }))
             // However, Finally is TC-39, not part of the standard yet. (https://github.com/tc39/proposal-promise-finally)
         );
@@ -126,43 +126,31 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     renderProgressPanel() {
         const isFailure = this.state.appState === "FAILURE";
         const isSuccess = this.state.appState === "SUCCESS";
-        const lastStep = isFailure ? "FAILURE" : "SUCCESS";
-        const lastStepName = isFailure ? "Failure" : "Success";
 
         return (
-            <div>
+            <div className="job-result-box">
                 <h4>Progress</h4>
                 <ProgressTracker>
                     <ProgressTrackerItem
-                        error={isFailure}
-                        success={isSuccess}
+                        icon="check"
                         active={this.isStateActive("VALIDATED")}
                         complete={this.isStateComplete("VALIDATED")}
                         title={"Validated"} />
                     <ProgressTrackerItem
-                        error={isFailure}
-                        success={isSuccess}
+                        icon="hourglass half"
                         active={this.isStateActive("PENDING")}
                         complete={this.isStateComplete("PENDING")}
                         title={"Pending"} />
                     <ProgressTrackerItem
-                        error={isFailure}
-                        success={isSuccess}
+                        icon="calendar"
                         active={this.isStateActive("SCHEDULED")}
                         complete={this.isStateComplete("SCHEDULED")}
                         title={"Scheduled"} />
                     <ProgressTrackerItem
-                        error={isFailure}
-                        success={isSuccess}
+                        icon="stopwatch"
                         active={this.isStateActive("RUNNING")}
                         complete={this.isStateComplete("RUNNING")}
                         title={"Running"} />
-                    <ProgressTrackerItem
-                        error={isFailure}
-                        success={isSuccess}
-                        active={this.isStateActive(lastStep)}
-                        complete={this.isStateComplete(lastStep)}
-                        title={lastStepName} />
                 </ProgressTracker>
             </div>
         );
@@ -218,7 +206,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         }
 
         return (
-            <div>
+            <div className="job-result-box">
                 <h4>Job Information</h4>
                 <Card fluid size="large">
                     <Card.Content>
@@ -234,7 +222,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     renderStreamPanel() {
         if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
         return (
-            <div>
+            <div className="job-result-box">
                 <h4>
                     Standard Streams
                     &nbsp;
@@ -247,19 +235,18 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 </h4>
                 <div className="card">
                     <div className={"card-body"}>
-                        <div className={"row"}>
-                            <div className="col-md-6">
+                        <Grid columns={2}>
+                            <Grid.Column>
                                 <h4>Output</h4>
                                 <pre className="stream"
                                     ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></pre>
-                            </div>
-
-                            <div className="col-md-6">
+                            </Grid.Column>
+                            <Grid.Column>
                                 <h4>Information</h4>
                                 <pre className="stream"
                                     ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></pre>
-                            </div>
-                        </div>
+                            </Grid.Column>
+                        </Grid>
                     </div>
                 </div>
             </div>
@@ -330,23 +317,19 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 }
 
 const ProgressTracker = ({ children }) => (
-    <ul className={"progress-tracker progress-tracker--word progress-tracker--word-center"}>{children}</ul>
+    <Step.Group size="tiny" fluid>{children}</Step.Group>
 );
-const ProgressTrackerItem = (props) => (
-    <li
-        className={
-            "progress-step " +
-            ((props.complete) ? "is-complete " : "") +
-            ((props.active) ? "is-active " : "") +
-            ((props.error) ? "error" : "") +
-            ((props.success) ? "success" : "")
-        }
+
+const ProgressTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: SemanticICONS }) => (
+    <Step
+        completed={props.complete}
+        active={props.active}
     >
-        <span className="progress-marker" />
-        <span className={"progress-text"}>
-            <h4 className={"progress-title visible-md visible-lg"}>{props.title}</h4>
-        </span>
-    </li>
+        <Icon name={props.icon} />
+        <Step.Content>
+            <Step.Title>{props.title}</Step.Title>
+        </Step.Content>
+    </Step>
 );
 
 export default connect()(DetailedResult);

@@ -6,7 +6,7 @@ import {
     successNotification,
     defaultErrorHandler
 } from "../../UtilityFunctions";
-import { UserSettingsFields, UserSettingsState} from ".";
+import { UserSettingsFields, UserSettingsState } from ".";
 
 class UserSettings extends React.Component<{}, UserSettingsState> {
     constructor(props) {

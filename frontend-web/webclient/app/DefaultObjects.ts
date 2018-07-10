@@ -22,7 +22,7 @@ export enum KeyCode {
     B = 66
 }
 
-export const emptyPage: Page<any> = { items: [], itemsPerPage: 10, itemsInTotal: 0, pageNumber: 0 };
+export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0 };
 
 export const RightsMap: { [s: string]: number } = {
     "NONE": 0,

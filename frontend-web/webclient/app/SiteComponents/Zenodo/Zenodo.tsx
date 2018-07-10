@@ -22,7 +22,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
         };
         const { updatePageTitle, fetchPublications } = props;
         updatePageTitle("Zenodo Publications");
-        fetchPublications(0, 10);
+        fetchPublications(0, 25);
     }
 
     render() {

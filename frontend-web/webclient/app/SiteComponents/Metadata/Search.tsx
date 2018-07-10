@@ -68,7 +68,7 @@ class SearchComponent extends React.Component<SearchProps, SearchState> {
         const { history } = this.props;
         return (
             <div>
-                <Responsive as={Input} maxWidth={699}
+                <Responsive as={Input} maxWidth={999}
                     fluid
                     placeholder="Search..."
                     onKeyDown={(e) => { if (e.keyCode === KeyCode.ENTER) history.push(`/metadata/search/${e.target.value}`) }}

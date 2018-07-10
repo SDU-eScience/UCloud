@@ -1,10 +1,9 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps } from "semantic-ui-react";
+import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps, Dimmer } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { connect } from "react-redux";
 import { fetchSidebarOptions, setSidebarLoading, setSidebarClosed } from "../../Actions/Sidebar";
-import Avatar from "avataaars";
 
 interface SidebarProps {
     open?: boolean
@@ -36,29 +35,43 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
     render() {
         const { open, setSidebarClosed } = this.props;
         const { activeIndices } = this.state;
+
+        const sidebarIsOpen = open && window.innerWidth < 1000;
+
+        const content = (
+            <div className={"container-wrapper"}>
+                <div className="container-content">
+                    <div className="container-padding">
+                        {this.props.children}
+                    </div>
+                </div>
+            </div>
+        );
+
         return (
             <React.Fragment>
-                <Sidebar.Pushable className="sidebar-height">
-                    <Responsive minWidth={1025}>
-                        <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
-                            <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={setSidebarClosed} />
-                        </Accordion>
-                    </Responsive>
+                <Responsive minWidth={1000}>
+                    <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
+                        <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={setSidebarClosed} />
+                    </Accordion>
+
+                    {content}
+                </Responsive>
+
+                <Responsive maxWidth={999} as={Sidebar.Pushable}>
                     <MobileSidebar
                         closeSidebar={setSidebarClosed}
                         visible={open}
                         handleClick={this.handleClick}
                         activeIndices={activeIndices}
                     />
+
                     <Sidebar.Pusher
                         onClick={() => open ? setSidebarClosed() : null}
-                        dimmed={open && window.innerWidth <= 1024}
-                    >
-                        <div className="container-margin content-height container-padding">
-                            {this.props.children}
-                        </div>
+                        dimmed={sidebarIsOpen}>
+                        {content}
                     </Sidebar.Pusher>
-                </Sidebar.Pushable>
+                </Responsive>
             </React.Fragment >
         );
     }
@@ -66,7 +79,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
 
 type HandleClick = (e: React.MouseEvent<HTMLDivElement>, d: AccordionTitleProps) => void;
 interface AdminOptionsProps { menuActive: boolean, handleClick: HandleClick, closeSidebar: Function }
-const AdminOptions = ({ menuActive, handleClick, closeSidebar }:AdminOptionsProps) => Cloud.userIsAdmin ? (
+const AdminOptions = ({ menuActive, handleClick, closeSidebar }: AdminOptionsProps) => Cloud.userIsAdmin ? (
     <Menu.Item>
         <Accordion.Title content="Admin" onClick={handleClick} index={2} active={menuActive} />
         <Accordion.Content active={menuActive}>
@@ -78,34 +91,18 @@ const AdminOptions = ({ menuActive, handleClick, closeSidebar }:AdminOptionsProp
         </Accordion.Content>
     </Menu.Item>) : null;
 
-interface MobileSidebarProps { handleClick: HandleClick, activeIndices: boolean[], visible: boolean, closeSidebar: Function}
-const MobileSidebar = ({ handleClick, activeIndices, visible, closeSidebar }:MobileSidebarProps) => (
+interface MobileSidebarProps { handleClick: HandleClick, activeIndices: boolean[], visible: boolean, closeSidebar: Function }
+const MobileSidebar = ({ handleClick, activeIndices, visible, closeSidebar }: MobileSidebarProps) => (
     <Sidebar animation="overlay" visible={visible}>
-        <Accordion as={Menu} vertical fixed="left" className="my-sidebar">
+        <Accordion as={Menu} borderless vertical fixed="left" className="my-sidebar">
             <SidebarMenuItems closeSidebar={closeSidebar} handleClick={handleClick} activeIndices={activeIndices} />
         </Accordion>
-
     </Sidebar>
 );
+
 const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
     <React.Fragment>
         <Accordion>
-            <Menu.Item>
-                <Avatar
-                    avatarStyle="Circle"
-                    topType="NoHair"
-                    accessoriesType="Blank"
-                    facialHairType="Blank"
-                    clotheType="GraphicShirt"
-                    clotheColor="Blue02"
-                    graphicType="Bear"
-                    eyeType="Default"
-                    eyebrowType="Default"
-                    mouthType="Smile"
-                    skinColor="Light"
-                />
-                <div className="user-name">{`Welcome, ${Cloud.userInfo.firstNames}`}</div>
-            </Menu.Item>
             <Menu.Item>
                 <MenuLink icon="home" to="/dashboard" name="Dashboard" onClick={() => closeSidebar()} />
             </Menu.Item>
