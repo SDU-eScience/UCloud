@@ -8,7 +8,7 @@ import dk.sdu.cloud.service.Page
 interface ApplicationDAO2<Session> {
     fun findAllByName(
         session: Session,
-        user: String,
+        user: String?,
 
         name: String,
         paging: NormalizedPaginationRequest
@@ -16,7 +16,7 @@ interface ApplicationDAO2<Session> {
 
     fun findByNameAndVersion(
         session: Session,
-        user: String,
+        user: String?,
 
         name: String,
         version: String
@@ -24,7 +24,7 @@ interface ApplicationDAO2<Session> {
 
     fun listLatestVersion(
         session: Session,
-        user: String,
+        user: String?,
 
         paging: NormalizedPaginationRequest
     ): Page<NewApplication>
@@ -32,13 +32,16 @@ interface ApplicationDAO2<Session> {
     fun create(
         session: Session,
         user: String,
-        description: NewNormalizedApplicationDescription
+        description: NewNormalizedApplicationDescription,
+        originalDocument: String = ""
     )
 
     fun updateDescription(
         session: Session,
         user: String,
 
+        name: String,
+        version: String,
         newDescription: String? = null,
         newAuthors: List<String>? = null
     )

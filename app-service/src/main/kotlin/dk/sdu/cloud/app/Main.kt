@@ -2,6 +2,7 @@ package dk.sdu.cloud.app
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.app.api.AppServiceDescription
+import dk.sdu.cloud.app.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
