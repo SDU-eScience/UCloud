@@ -6,49 +6,11 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.mapItems
-import org.hibernate.annotations.Type
-import java.io.Serializable
 import java.util.*
-import javax.persistence.*
 
-/**
- * Updated in:
- *
- * - V3__Applications.sql
- */
-@Entity
-@Table(name = "applications")
-class ApplicationEntity(
-    var owner: String,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var createdAt: Date,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var modifiedAt: Date,
-
-    @Type(type = JSONB_TYPE)
-    var application: NewNormalizedApplicationDescription,
-
-    // Note: This is just the original document. We _do not_ attempt to keep this synchronized with changes
-    // to description etc.
-    //
-    // In case this is used for migration we should apply these updates on top of it!
-    @Column(length = 1024 * 64)
-    var originalDocument: String,
-
-    @EmbeddedId
-    var id: EmbeddedNameAndVersion
-) {
-    companion object : HibernateEntity<ApplicationEntity>, WithId<EmbeddedNameAndVersion>
-}
-
-data class EmbeddedNameAndVersion(
-    var name: String = "",
-    var version: String = ""
-) : Serializable
-
-class ApplicationHibernateDAO : ApplicationDAO2<HibernateSession> {
+class ApplicationHibernateDAO(
+    private val toolDAO: ToolHibernateDAO
+) : ApplicationDAO2<HibernateSession> {
     override fun findAllByName(
         session: HibernateSession,
         user: String?,
@@ -57,7 +19,7 @@ class ApplicationHibernateDAO : ApplicationDAO2<HibernateSession> {
     ): Page<NewApplication> {
         return session.paginatedCriteria<ApplicationEntity>(paging) {
             entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
-        }.mapItems { it.toApplication() }
+        }.mapItems { it.toModel() }
     }
 
     override fun findByNameAndVersion(
@@ -67,7 +29,7 @@ class ApplicationHibernateDAO : ApplicationDAO2<HibernateSession> {
         version: String
     ): NewApplication {
         return internalByNameAndVersion(session, name, version)
-            ?.toApplication() ?: throw ApplicationException.NotFound()
+            ?.toModel() ?: throw ApplicationException.NotFound()
     }
 
     override fun listLatestVersion(
@@ -96,7 +58,7 @@ class ApplicationHibernateDAO : ApplicationDAO2<HibernateSession> {
                 group by id.name
             )
         """.trimIndent()
-        ).paginatedList(paging).map { it.toApplication() }
+        ).paginatedList(paging).map { it.toModel() }
 
         return Page(
             count,
@@ -120,6 +82,9 @@ class ApplicationHibernateDAO : ApplicationDAO2<HibernateSession> {
         val existing = internalByNameAndVersion(session, description.info.name, description.info.version)
         if (existing != null) throw ApplicationException.AlreadyExists()
 
+        val existingTool = toolDAO.internalByNameAndVersion(session, description.tool.name, description.tool.version)
+                ?: throw ApplicationException.BadToolReference()
+
         session.save(
             ApplicationEntity(
                 user,
@@ -127,6 +92,7 @@ class ApplicationHibernateDAO : ApplicationDAO2<HibernateSession> {
                 Date(),
                 description,
                 originalDocument,
+                existingTool,
                 EmbeddedNameAndVersion(description.info.name, description.info.version)
             )
         )
@@ -155,7 +121,7 @@ class ApplicationHibernateDAO : ApplicationDAO2<HibernateSession> {
         session.update(existing)
     }
 
-    private fun internalByNameAndVersion(session: HibernateSession, name: String, version: String): ApplicationEntity? {
+    internal fun internalByNameAndVersion(session: HibernateSession, name: String, version: String): ApplicationEntity? {
         return session
             .criteria<ApplicationEntity> {
                 (entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name) and
@@ -171,18 +137,21 @@ class ApplicationHibernateDAO : ApplicationDAO2<HibernateSession> {
             maxResults = 1
         }.uniqueResult()?.owner
     }
+}
 
-    private fun ApplicationEntity.toApplication(): NewApplication {
-        return NewApplication(
-            createdAt.time,
-            modifiedAt.time,
-            application
-        )
-    }
+internal fun ApplicationEntity.toModel(): NewApplication {
+    return NewApplication(
+        owner,
+        createdAt.time,
+        modifiedAt.time,
+        application,
+        tool.toModel()
+    )
 }
 
 sealed class ApplicationException(why: String) : RuntimeException(why) {
     class NotFound : ApplicationException("Not found")
     class NotAllowed : ApplicationException("Not allowed")
     class AlreadyExists : ApplicationException("Already exists")
+    class BadToolReference : ApplicationException("Tool does not exist")
 }

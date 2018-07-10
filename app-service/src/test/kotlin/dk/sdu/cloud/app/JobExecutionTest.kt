@@ -82,7 +82,7 @@ class JobExecutionTest {
         defaultMaxTime = SimpleDuration(1, 0, 0),
         requiredModules = emptyList(),
         authors = listOf("Author"),
-        prettyName = "Dummy",
+        title = "Dummy",
         createdAt = System.currentTimeMillis(),
         modifiedAt = System.currentTimeMillis(),
         description = "Dummy description"
