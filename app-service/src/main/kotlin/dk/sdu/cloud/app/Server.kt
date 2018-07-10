@@ -51,7 +51,9 @@ class Server(
         val sbatchGenerator = SBatchGenerator()
         slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
 
-        val jobDao = JobHibernateDAO()
+        val toolDao = ToolHibernateDAO()
+        val applicationDao = ApplicationHibernateDAO(toolDao)
+        val jobDao = JobHibernateDAO(applicationDao)
         val jobExecutionService = JobExecutionService(
             cloud,
             kafka.producer.forStream(HPCStreams.appEvents),

@@ -245,7 +245,8 @@ class JobExecutionService<DBSession>(
                 it,
                 validatedJob.systemId,
                 principal.subject,
-                validatedJob.appWithDependencies.application
+                validatedJob.appWithDependencies.application.info.name,
+                validatedJob.appWithDependencies.application.info.version
             )
         }
         runBlocking { producer.emit(validatedJob) }
@@ -759,6 +760,8 @@ class JobValidationException(message: String) : JobException(message, HttpStatus
 class JobInternalException(message: String) : JobException(message, HttpStatusCode.InternalServerError)
 class JobNotFoundException(entity: String) : JobException("Not found: $entity", HttpStatusCode.NotFound)
 class JobNotAllowedException : JobException("Not allowed", HttpStatusCode.Unauthorized)
+class JobBadApplication : JobException("Application not found", HttpStatusCode.BadRequest)
+
 data class ValidatedFileForUpload(
     val stat: StorageFile,
     val destinationFileName: String,

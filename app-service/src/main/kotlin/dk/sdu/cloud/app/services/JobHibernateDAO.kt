@@ -1,52 +1,19 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.AppState
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
-import org.hibernate.annotations.NaturalId
 import java.util.*
-import javax.persistence.*
 
-@Entity
-@Table(name = "jobs")
-data class JobEntity(
-    @Id
-    @NaturalId
-    var systemId: UUID,
-
-    var owner: String,
-
-    var appName: String,
-
-    var appVersion: String,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var createdAt: Date,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var modifiedAt: Date,
-
-    @Enumerated(EnumType.STRING)
-    var state: AppState,
-
-    var slurmId: Long?,
-
-    var status: String?,
-
-    var sshUser: String?,
-
-    var jobDirectory: String?,
-
-    var workingDirectory: String?
-) {
-    companion object : HibernateEntity<JobEntity>, WithId<UUID>
-}
-
-class JobHibernateDAO : JobDAO<HibernateSession> {
+class JobHibernateDAO(
+    private val applicationDAO: ApplicationHibernateDAO
+) : JobDAO<HibernateSession> {
     override fun findJobInformationBySlurmId(session: HibernateSession, slurmId: Long): JobInformation? {
         return session.criteria<JobEntity> { entity[JobEntity::slurmId] equal slurmId }.uniqueResult()
             ?.toJobInformation()
@@ -78,14 +45,17 @@ class JobHibernateDAO : JobDAO<HibernateSession> {
         session: HibernateSession,
         user: String,
         systemId: String,
-        appDescription: NormalizedApplicationDescription
+        applicationName: String,
+        applicationVersion: String
     ) {
+        val appEntity = applicationDAO.internalByNameAndVersion(session, applicationName, applicationVersion)
+                ?: throw JobBadApplication()
+
         session.save(
             JobEntity(
                 systemId = UUID.fromString(systemId),
                 owner = user,
-                appName = appDescription.info.name,
-                appVersion = appDescription.info.version,
+                application = appEntity,
                 createdAt = Date(),
                 modifiedAt = Date(),
                 state = AppState.VALIDATED,
@@ -133,8 +103,8 @@ class JobHibernateDAO : JobDAO<HibernateSession> {
         owner,
         state,
         status!!,
-        appName,
-        appVersion,
+        application.id.name,
+        application.id.version,
         createdAt.time,
         modifiedAt.time
     )
@@ -142,8 +112,8 @@ class JobHibernateDAO : JobDAO<HibernateSession> {
     private fun JobEntity.toJobInformation(): JobInformation = JobInformation(
         systemId.toString(),
         owner,
-        appName,
-        appVersion,
+        application.id.name,
+        application.id.version,
         slurmId,
         status,
         sshUser,

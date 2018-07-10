@@ -1,18 +1,18 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.NewApplication
-import dk.sdu.cloud.app.api.NewNormalizedApplicationDescription
+import dk.sdu.cloud.app.api.NewNormalizedToolDecription
+import dk.sdu.cloud.app.api.NewTool
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
-interface ApplicationDAO2<Session> {
+interface ToolDAO2<Session> {
     fun findAllByName(
         session: Session,
         user: String?,
 
         name: String,
         paging: NormalizedPaginationRequest
-    ): Page<NewApplication>
+    ): Page<NewTool>
 
     fun findByNameAndVersion(
         session: Session,
@@ -20,19 +20,19 @@ interface ApplicationDAO2<Session> {
 
         name: String,
         version: String
-    ): NewApplication
+    ): NewTool
 
     fun listLatestVersion(
         session: Session,
         user: String?,
 
         paging: NormalizedPaginationRequest
-    ): Page<NewApplication>
+    ): Page<NewTool>
 
     fun create(
         session: Session,
         user: String,
-        description: NewNormalizedApplicationDescription,
+        description: NewNormalizedToolDecription,
         originalDocument: String = ""
     )
 

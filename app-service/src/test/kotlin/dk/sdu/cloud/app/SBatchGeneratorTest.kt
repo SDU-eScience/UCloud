@@ -12,7 +12,7 @@ class SBatchGeneratorTest {
     fun testWithNoParams() {
         ToolDAO.inMemoryDB["test"] = listOf(
             ToolDescription(
-                prettyName = "hello",
+                title = "hello",
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 createdAt = 1519910207000L,
                 modifiedAt = 1519910207000L,
@@ -62,7 +62,7 @@ class SBatchGeneratorTest {
     fun testWithFileParameters() {
         ToolDAO.inMemoryDB["hello_world"] = listOf(
             ToolDescription(
-                prettyName = "hello",
+                title = "hello",
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 createdAt = 1519910207000L,
                 modifiedAt = 1519910207000L,
@@ -130,7 +130,7 @@ class SBatchGeneratorTest {
     fun testWithSeveralFileParameters() {
         ToolDAO.inMemoryDB["hello_world"] = listOf(
             ToolDescription(
-                prettyName = "hello",
+                title = "hello",
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 createdAt = 1519910207000L,
                 modifiedAt = 1519910207000L,

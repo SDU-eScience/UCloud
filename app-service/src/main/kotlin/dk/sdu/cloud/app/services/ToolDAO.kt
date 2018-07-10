@@ -9,7 +9,7 @@ object ToolDAO {
     val inMemoryDB = mutableMapOf(
         "hello_world" to listOf(
             ToolDescription(
-                prettyName = "hello",
+                title = "hello",
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 createdAt = 1519910207000L,
                 modifiedAt = 1519910207000L,
@@ -25,7 +25,7 @@ object ToolDAO {
 
         "figlet" to listOf(
             ToolDescription(
-                prettyName = "Figlet",
+                title = "Figlet",
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 createdAt = 1519910207000L,
                 modifiedAt = 1519910207000L,
@@ -41,7 +41,7 @@ object ToolDAO {
 
         "parms" to listOf(
             ToolDescription(
-                prettyName = "parms",
+                title = "parms",
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
                 createdAt = 1519910207000L,
                 modifiedAt = 1519910207000L,
@@ -57,7 +57,7 @@ object ToolDAO {
 
         "tqdist" to listOf(
             ToolDescription(
-                prettyName = "tqDist",
+                title = "tqDist",
                 authors = listOf(
                     "Andreas Sand",
                     "Morten K. Holt",
@@ -91,7 +91,7 @@ object ToolDAO {
 
         "rapidnj" to listOf(
             ToolDescription(
-                prettyName = "RapidNJ",
+                title = "RapidNJ",
                 authors = listOf(
                     "Martin Simonsen",
                     "Thomas Mailund",
@@ -115,7 +115,7 @@ object ToolDAO {
 
         "searchgui" to listOf(
             ToolDescription(
-                prettyName = "SearchGUI",
+                title = "SearchGUI",
                 authors = listOf(
                     "Vaudel M",
                     "Barsnes H",
@@ -138,7 +138,7 @@ object ToolDAO {
 
         "bwa-sambamba" to listOf(
             ToolDescription(
-                prettyName = "bwa-sambamba",
+                title = "bwa-sambamba",
                 authors = listOf("BWA Authors", "Sambamba Authors"),
                 createdAt = 1527663964000L,
                 modifiedAt = 1527663964000L,

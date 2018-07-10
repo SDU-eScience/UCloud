@@ -18,25 +18,6 @@ data class JobInformation(
     val state: AppState
 )
 
-/*
-object JobsTable : Table() {
-    val systemId = varchar("system_id", 36).primaryKey()
-    val owner = varchar("owner", 128).index()
-    val appName = text("app_name")
-    val appVersion = text("app_version")
-    val createdAt = datetime("created_at")
-    val modifiedAt = datetime("modified_at")
-    val state = text("state")
-
-    val slurmId = long("slurm_id").nullable()
-    val status = text("status").nullable()
-
-    val sshUser = text("ssh_user").nullable()
-    val jobDirectory = text("job_directory").nullable()
-    val workingDirectory = text("working_directory").nullable()
-}
-*/
-
 interface JobDAO<Session> {
     fun findJobInformationBySlurmId(
         session: Session,
@@ -65,7 +46,9 @@ interface JobDAO<Session> {
         session: Session,
         user: String,
         systemId: String,
-        appDescription: NormalizedApplicationDescription
+
+        applicationName: String,
+        applicationVersion: String
     )
 
     fun updateJobWithSlurmInformation(

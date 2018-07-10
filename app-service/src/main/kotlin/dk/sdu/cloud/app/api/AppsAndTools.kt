@@ -43,10 +43,13 @@ data class NormalizedApplicationDescription(
 
 // Note: It is currently assumed that validation is done in layers above
 data class NewApplication(
+    val owner: String,
     val createdAt: Long,
     val modifiedAt: Long,
-    val description: NewNormalizedApplicationDescription
+    val description: NewNormalizedApplicationDescription,
+    val tool: NewTool
 )
+
 data class NewNormalizedApplicationDescription(
     val info: NameAndVersion,
     val tool: NameAndVersion,
@@ -84,6 +87,7 @@ sealed class ApplicationDescription(val application: String) {
         val invocation: List<InvocationParameter>
 
         val outputFileGlobs: List<String>
+
         init {
             ::title.requireNotBlank()
             ::title.disallowCharacters('\n')
@@ -281,9 +285,29 @@ data class ToolDescription(
     val defaultMaxTime: SimpleDuration,
     val requiredModules: List<String>,
     val authors: List<String>,
-    val prettyName: String,
+    val title: String,
     val createdAt: Long,
     val modifiedAt: Long,
     val description: String,
     val backend: ToolBackend = ToolBackend.SINGULARITY
+)
+
+data class NewNormalizedToolDecription(
+    val info: NameAndVersion,
+    val container: String,
+    val defaultNumberOfNodes: Int,
+    val defaultTasksPerNode: Int,
+    val defaultMaxTime: SimpleDuration,
+    val requiredModules: List<String>,
+    val authors: List<String>,
+    val title: String,
+    val description: String,
+    val backend: ToolBackend
+)
+
+data class NewTool(
+    val owner: String,
+    val createdAt: Long,
+    val modifiedAt: Long,
+    val description: NewNormalizedToolDecription
 )
