@@ -6,7 +6,7 @@ import * as moment from "moment";
 import { connect } from "react-redux";
 import "./index.scss";
 import { withRouter } from "react-router";
-import { Page } from "../../types/types";
+import { Page } from "../../Types";
 import { fetchNotifications, notificationRead } from "../../Actions/Notifications";
 import { History } from "history";
 import Status from "../Navigation/Status";

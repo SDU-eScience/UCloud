@@ -1,7 +1,7 @@
 import { Cloud } from "../../authentication/SDUCloudObject";
 import { failureNotification } from "../UtilityFunctions";
 import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES } from "../Reducers/Analyses";
-import { Page, Analysis, ReceivePage, SetLoadingAction } from "../types/types";
+import { Page, Analysis, ReceivePage, SetLoadingAction } from "../Types";
 
 /**
  * Fetches a page of analyses based on the itemsPerPage and page provided
@@ -17,7 +17,7 @@ export const fetchAnalyses = (itemsPerPage: number, page: number): Promise<Recei
 
 /**
  * Returns an action containing the page retrieved
- * @param {Page<Analysis>} page contains the analyses
+ * @param {Page<Analysis>} page contains the analyses, pageNumber and items per page
  */
 const receiveAnalyses = (page: Page<Analysis>): ReceivePage<Analysis> => ({
     type: RECEIVE_ANALYSES,

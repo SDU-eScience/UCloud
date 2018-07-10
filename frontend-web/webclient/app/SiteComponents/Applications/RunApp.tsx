@@ -11,37 +11,7 @@ import { connect } from "react-redux";
 import { getFilenameFromPath } from "../../UtilityFunctions";
 import { updatePageTitle } from "../../Actions/Status";
 import "../Styling/Shared.scss";
-import { History } from "history";
-
-interface RunAppState {
-    promises: PromiseKeeper
-    loading: boolean
-    appName: string
-    displayAppName: string
-    appVersion: string
-    appDescription: string
-    appAuthor: string
-    parameters: any[] // FIXME
-    parameterValues: {}
-    jobInfo: {
-        maxTime?: {
-            hours: number | null
-            minutes: number | null
-            seconds: number | null
-        }
-        numberOfNodes: number | null
-        tasksPerNode: number | null
-    }
-    tool: {} // ???
-    comment: string
-    jobSubmitted: boolean
-}
-
-interface RunAppProps {
-    uppy: any
-    history: History
-    updatePageTitle: () => void
-}
+import { RunAppProps, RunAppState } from "."
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     constructor(props) {

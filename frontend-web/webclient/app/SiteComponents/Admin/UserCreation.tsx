@@ -6,18 +6,7 @@ import {
     successNotification,
     defaultErrorHandler
 } from "../../UtilityFunctions";
-
-interface UserCreationState {
-    promiseKeeper: PromiseKeeper
-    submitted: boolean
-    username: string
-    password: string
-    repeatedPassword: string
-    usernameError: boolean
-    passwordError: boolean
-}
-
-type UserCreationField = keyof UserCreationState;
+import { UserCreationState, UserCreationField } from ".";
 
 class UserCreation extends React.Component<{}, UserCreationState> {
     constructor(props) {

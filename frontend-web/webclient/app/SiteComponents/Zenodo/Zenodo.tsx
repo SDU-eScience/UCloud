@@ -8,22 +8,8 @@ import { fetchPublications, setZenodoLoading } from "../../Actions/Zenodo";
 import { connect } from "react-redux";
 import { dateToString } from "../../Utilities/DateUtilities";
 import { List } from "../Pagination/List";
-import { Page, Publication } from "../../types/types";
+import { ZenodoHomeProps, ZenodoHomeState } from ".";
 
-interface ZenodoHomeProps {
-    connected: boolean
-    loading: boolean
-    page: Page<Publication>
-    fetchPublications: (pageNo: Number, pageSize: number) => void
-    updatePageTitle: () => void
-}
-
-interface ZenodoHomeState {
-    sorting: {
-        lastSorting: string
-        asc: boolean
-    }
-}
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {

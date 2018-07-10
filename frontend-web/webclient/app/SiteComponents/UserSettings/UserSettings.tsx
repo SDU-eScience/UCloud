@@ -6,17 +6,7 @@ import {
     successNotification,
     defaultErrorHandler
 } from "../../UtilityFunctions";
-
-interface UserSettingsState {
-    promiseKeeper: PromiseKeeper
-    currentPassword: string
-    newPassword: string
-    repeatedPassword: string
-    error: boolean
-    repeatPasswordError: boolean
-}
-
-type UserSettingsFields = keyof UserSettingsState
+import { UserSettingsFields, UserSettingsState} from ".";
 
 class UserSettings extends React.Component<{}, UserSettingsState> {
     constructor(props) {

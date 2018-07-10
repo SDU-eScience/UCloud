@@ -1,4 +1,4 @@
-interface License {
+export interface License {
   name: string
   link: string
   identifier: string

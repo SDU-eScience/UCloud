@@ -1,9 +1,9 @@
-// TODO: Find better name for File
+// TODO: Split in to more specific files
 import { tusConfig } from "./Configurations";
 import * as Uppy from "uppy";
-import { File, Analysis, Application, Status, SidebarOption, emptyPage } from "./types/types"
+import { File, Analysis, Application, Status, SidebarOption, Page } from "./Types"
 import SDUCloud from "../authentication/lib";
-import { SortOrder, SortBy } from "./SiteComponents/Files/Files";
+import { SortOrder, SortBy } from "./SiteComponents/Files";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -21,6 +21,8 @@ export enum KeyCode {
     A = 65,
     B = 66
 }
+
+export const emptyPage: Page<any> = { items: [], itemsPerPage: 10, itemsInTotal: 0, pageNumber: 0 };
 
 export const RightsMap: { [s: string]: number } = {
     "NONE": 0,
@@ -76,10 +78,8 @@ const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>
         }
     }).use(Uppy.Tus, tusConfig);
 
-
-// FIXME Shouldn't return string
-const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy | string => {
-    const sortingColumn: SortBy | string = window.localStorage.getItem(`filesSorting${columnIndex}`);
+const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
+    const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`) as SortBy;
     if (!sortingColumn) {
         if (columnIndex === 0) {
             window.localStorage.setItem("filesSorting0", "lastModified");

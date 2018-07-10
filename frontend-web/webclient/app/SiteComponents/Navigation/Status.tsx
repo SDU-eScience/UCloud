@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { Button, SemanticCOLORS } from "semantic-ui-react";
 import { connect } from "react-redux";
-import { Status } from "../../types/types";
+import { Status } from "../../Types";
 
 interface StatusProps { status: Status }
 const Status = ({ status }: StatusProps) => (

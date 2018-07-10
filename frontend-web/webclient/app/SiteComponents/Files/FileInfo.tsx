@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { getParentPath, favorite, fileSizeToString, toLowerCaseAndCapitalize } from "../../UtilityFunctions";
+import { favorite, fileSizeToString, toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "../../Actions/Files";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { SensitivityLevel } from "../../DefaultObjects"

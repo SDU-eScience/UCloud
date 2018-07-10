@@ -5,13 +5,14 @@ div.ui.menu-padding.menu {
     color: white;
 }
 
-div.ui.inverted.menu-padding.menu div.item a h1.ui.header {
+div.ui.inverted.menu-padding.menu div.item a h3.ui.header {
     color: white;
     font-weight: 200;
 }
 
 .header-search {
-    width: 300px;
+    width: 450px;
+    // FIXME: Center me
 }
 
 div.ui.menu-padding.menu div a.item.sidebar-button-padding {

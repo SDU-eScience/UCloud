@@ -1,11 +1,10 @@
 import * as React from "react";
 import swal from "sweetalert2";
 import { RightsMap, SensitivityLevelMap } from "./DefaultObjects";
-import { File, Acl, Page } from "./types/types";
 import Cloud from "../authentication/lib";
-import { AccessRight } from "./types/types";
 import { SemanticICONS } from "semantic-ui-react";
-import { SortBy, SortOrder } from "./SiteComponents/Files/Files";
+import { SortBy, SortOrder } from "./SiteComponents/Files";
+import { Page, File, Acl, AccessRight } from "./Types";
 
 export const toLowerCaseAndCapitalize = (str: string): string => !str ? "" : str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 
@@ -32,7 +31,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
     ].some((it) => it === filePath)
 };
 
-export function sortByNumber<T>(list: T[], name: string, asc: boolean): T[] {
+export function sortByNumber<T>(list: T[], name: keyof T, asc: boolean): T[] {
     list.sort((a: T, b: T) => (Number(a[name]) - (Number(b[name]))) * (asc ? -1 : 1));
     return list;
 }

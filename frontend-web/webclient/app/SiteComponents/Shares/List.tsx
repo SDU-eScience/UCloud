@@ -2,29 +2,12 @@ import * as React from "react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import PropTypes from "prop-types";
 import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from 'semantic-ui-react';
-import { AccessRight, Page } from "../../types/types";
+import { AccessRight, Page } from "../../Types";
 import { getFilenameFromPath, shareSwal } from "../../UtilityFunctions";
 import "./List.scss"
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "../../Actions/Status";
-import { Store } from "redux";
-
-interface ListState {
-    shares: SharesByPath[]
-    errorMessage: string,
-    page: number,
-    itemsPerPage: number
-    loading: boolean
-}
-
-interface ListProps {
-    keepTitle: boolean
-    byPath?: string
-}
-
-interface ListContext {
-    store: Store
-}
+import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
 
 export class List extends React.Component<ListProps, ListState> {
     constructor(props: ListProps, ctx: ListContext) {
@@ -336,28 +319,6 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
             />
         </ButtonGroup>
     );
-}
-
-enum ShareState {
-    REQUEST_SENT = "REQUEST_SENT",
-    ACCEPTED = "ACCEPTED",
-    REJECTED = "REJECT",
-    REVOKE = "REVOKE"
-}
-
-type ShareId = string
-export interface SharesByPath {
-    path: string,
-    sharedBy: string,
-    sharedByMe: boolean,
-    shares: Share[]
-}
-
-interface Share {
-    id: ShareId,
-    sharedWith: String,
-    rights: AccessRight[],
-    state: ShareState
 }
 
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {

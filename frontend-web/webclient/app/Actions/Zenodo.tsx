@@ -3,7 +3,8 @@ import {
     RECEIVE_PUBLICATIONS,
     SET_ZENODO_LOADING
 } from "../Reducers/Zenodo";
-import { SetLoadingAction, ReceivePage, Publication, Page, emptyPage } from "../types/types";
+import { SetLoadingAction, ReceivePage, Publication, Page } from "../Types";
+import { emptyPage } from "../DefaultObjects";
 
 /**
  * Fetches publications by the user
@@ -14,14 +15,14 @@ import { SetLoadingAction, ReceivePage, Publication, Page, emptyPage } from "../
 export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePublications> =>
     Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) => {
         return receivePublications(response.inProgress, response.connected);
-    }).catch(failure => {
+    }).catch(_ => {
         return receivePublications(emptyPage, false);
     });
 
 interface ReceivePublications extends ReceivePage<Publication> { connected: boolean }
 /**
  * The action for receiving a page of Publications
- * @param {page<Publication>} page The page of publications by the user
+ * @param {Page<Publication>} page The page of publications by the user
  * @param {boolean} connected Whether or not the user is connected to Zenodo
  */
 const receivePublications = (page: Page<Publication>, connected: boolean): ReceivePublications => ({

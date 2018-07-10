@@ -6,27 +6,8 @@ import { connect } from "react-redux";
 import { fetchApplications, setLoading, toPage, updateApplicationsPerPage, updateApplications } from "../../Actions/Applications";
 import { updatePageTitle } from "../../Actions/Status";
 import "../Styling/Shared.scss";
-import { Application } from "../../types/types";
-import { SortBy, SortOrder } from "../Files/Files";
-
-interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
-
-interface ApplicationsOperations {
-    updatePageTitle: () => void
-    setLoading: (loading: boolean) => void
-    fetchApplications: () => void
-    updateApplications: (applications: Application[]) => void
-    toPage: (pageNumber: number) => void
-    updateApplicationsPerPage: (applicationsPerPage: number) => void
-}
-
-interface ApplicationsStateProps {
-    applications: Application[]
-    loading: boolean
-    itemsPerPage, pageNumber: number
-    sortBy: SortBy
-    sortOrder: SortOrder
-}
+import { Application } from "../../Types";
+import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 
 class Applications extends React.Component<ApplicationsProps> {
     constructor(props: ApplicationsProps) {

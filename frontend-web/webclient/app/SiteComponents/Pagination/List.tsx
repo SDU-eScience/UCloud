@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Grid, Message, Header } from "semantic-ui-react";
-import { Page } from "../../types/types";
+import { Page } from "../../Types";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import * as Self from ".";
 import "./pagination.scss";

@@ -4,11 +4,11 @@ import { identifierTypes } from "../../DefaultObjects";
 import { allLicenses } from "./licenses";
 import { Creator, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
 import { blankOrNull } from "../../UtilityFunctions";
-import { History } from "history";
 import { PropTypes } from "prop-types";
 import { updatePageTitle } from "../../Actions/Status";
+import { CreateUpdateProps, CreateUpdateState } from ".";
 
-const newCollaborator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
+const newCreator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
 const newSubject = (): Subject => ({ term: "", identifier: "" });
 
@@ -35,13 +35,6 @@ const identifierHasValue = (identifier: RelatedIdentifier): boolean => {
     );
 };
 
-interface CreateUpdateProps {
-    match: {
-        params: string[]
-    }
-    history: History
-}
-
 export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     constructor(props, ctx) {
         super(props);
@@ -54,7 +47,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
             keywords: [""],
             notes: "",
             dataManagementPlan: "",
-            contributors: [newCollaborator()],
+            contributors: [newCreator()],
             references: [""],
             grants: [""],
             subjects: [newSubject()],
@@ -74,7 +67,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         getByPath(this.state.path).then(it => this.setMetadata(it, this.state.path));
     }
 
-    setMetadata(it, path) {
+    setMetadata(it, path: string) {
         const md = it.metadata;
         const license = allLicenses.find(it => it.identifier == md.license);
         const mappedLicense = license ? {
@@ -84,14 +77,14 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         } : null;
 
         this.setState(() => ({
-            path,
+            path: path,
             id: md.id,
             title: md.title,
             description: md.description,
             license: mappedLicense,
             keywords: md.keywords ? md.keywords : [""],
             notes: md.notes ? md.notes : "",
-            contributors: md.contributors ? md.contributors : [newCollaborator()],
+            contributors: md.contributors ? md.contributors : [newCreator()],
             references: md.references ? md.references : [""],
             grants: md.grants ? md.grants.map(it => it ? it.id : "") : [""],
             subjects: md.subjects ? md.subjects : [newSubject()],
@@ -194,7 +187,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 
     addCollaborator(e) {
         e.preventDefault();
-        this.setState(() => ({ contributors: this.state.contributors.concat(newCollaborator()) }));
+        this.setState(() => ({ contributors: this.state.contributors.concat(newCreator()) }));
     }
 
     addSubject(e) {
@@ -213,7 +206,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         };
     }
 
-    setStateEvList(key) {
+    setStateEvList(key: keyof CreateUpdateState) {
         return (value, index, member) => {
             const list = this.state[key];
             if (!!member) list[index][member] = value;

@@ -1,12 +1,13 @@
+
 import * as React from "react";
-import { Input, Menu, Dropdown, Icon, Responsive, Header as H1, Form } from "semantic-ui-react";
+import { Input, Menu, Dropdown, Icon, Responsive, Header as HeaderTag, Form } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import "./Header.scss";
 import PropTypes from "prop-types";
 import { Dispatch } from "redux";
-import Notifications from "../Notifications/index";
+import Notifications from "../Notifications";
 import { setSidebarOpen } from "../../Actions/Sidebar";
 import { History } from "history";
 
@@ -39,8 +40,16 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         const { history } = this.context.router;
         const sidebarIcon = open ? "triangle left" : "triangle right";
         const { searchText } = this.state;
+
+        // TODO Just for testing
+        const options = [
+            { key: "projects", text: "Projects", value: "projects" },
+            /* { key: 'files', text: 'Files', value: 'files' },
+            { key: 'apps', text: 'Applications', value: 'apps' }, */
+        ];
+
         return ( // fixed="top" (remove attached, borderless)
-            <Menu className="menu-padding" inverted attached borderless>
+            <Menu className="menu-padding" inverted attached borderless size="tiny" >
                 <Responsive maxWidth={1024}>
                     <Menu.Item onClick={() => dispatch(setSidebarOpen())} className="sidebar-button-padding">
                         <Icon.Group size="large">
@@ -50,13 +59,27 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                     </Menu.Item>
                 </Responsive>
                 <Menu.Item>
-                    <Link to={"/dashboard"}><H1 as="h1">SDUCloud</H1></Link>
+                    <Link to={"/dashboard"}><HeaderTag as="h3">SDUCloud</HeaderTag></Link>
                 </Menu.Item>
                 <Menu.Menu position="right">
                     <Menu.Item>
                         <Responsive minWidth={700}>
-                            <Form onSubmit={(e) => { e.preventDefault(); if (!!searchText) history.push(`/metadata/search/${searchText}`) }} >
-                                <Input value={searchText} onChange={(_, { value }) => this.updateSearchText(value)} className="header-search" fluid icon='search' placeholder='Search...' />
+                            <Form
+                                size="tiny"
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    if (!!searchText) history.push(`/metadata/search/${searchText}`)
+                                }}
+                            >
+                                <Input
+                                    label={<Dropdown defaultValue="projects" options={options} basic />}
+                                    value={searchText}
+                                    onChange={(_, { value }) => this.updateSearchText(value)}
+                                    className="header-search"
+                                    fluid
+                                    icon='search'
+                                    placeholder='Search...'
+                                />
                             </Form>
                         </Responsive>
                         <Responsive maxWidth={699} as={Link} to={"/metadata/search/"}>

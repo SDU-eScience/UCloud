@@ -8,24 +8,7 @@ import { List } from "../Pagination/List";
 import { connect } from "react-redux";
 import "../Styling/Shared.scss";
 import { setLoading, fetchAnalyses } from "../../Actions/Analyses";
-import { Page, Analysis } from "../../types/types";
-
-interface AnalysesProps extends AnalysesStateProps, AnalysesOperations {}
-
-interface AnalysesStateProps {
-    page: Page<Analysis>
-    loading: boolean
-}
-
-interface AnalysesOperations {
-    updatePageTitle: (title: string) => void
-    setLoading: (loading: boolean) => void
-    fetchAnalyses: (itemsPerPage: number, pageNumber: number) => void
-}
-
-interface AnalysesState {
-    reloadIntervalId: number
-}
+import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } from ".";
 
 class Analyses extends React.Component<AnalysesProps, AnalysesState> {
     constructor(props) {

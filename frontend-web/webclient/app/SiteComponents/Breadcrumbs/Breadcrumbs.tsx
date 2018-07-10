@@ -1,10 +1,10 @@
 import * as React from "react";
 import { Breadcrumb } from "semantic-ui-react";
 import "./Breadcrumbs.scss";
+import { BreadCrumbMapping, Breadcrumbs as BreadCrumbsList } from ".";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 
-interface Breadcrumbs { currentPath: string, navigate: (path: string) => void }
-export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
+export const BreadCrumbs = ({ currentPath, navigate }: BreadCrumbsList) => {
     if (!currentPath) return null;
     const pathsMapping = buildBreadCrumbs(currentPath);
     const activePathsMapping = pathsMapping.pop()
@@ -26,11 +26,6 @@ export const BreadCrumbs = ({ currentPath, navigate }: Breadcrumbs) => {
         </Breadcrumb>
     );
 
-}
-
-type BreadCrumbMapping = {
-    actualPath: string
-    local: string
 }
 
 export function buildBreadCrumbs(path: string) {

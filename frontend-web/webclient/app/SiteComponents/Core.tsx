@@ -9,7 +9,7 @@ import RunApp from "./Applications/RunApp";
 import Analyses from "./Applications/Analyses";
 import DetailedResult from "./Applications/DetailedResult";
 import Header from "./Navigation/Header";
-import Sidebar from "../SiteComponents/Navigation/Sidebar";
+import Sidebar from "./Navigation/Sidebar";
 import ZenodoPublish from "./Zenodo/Publish";
 import ZenodoHome from "./Zenodo/Zenodo";
 import ZenodoInfo from "./Zenodo/Info";

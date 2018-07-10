@@ -13,64 +13,8 @@ import { updatePageTitle } from "../../Actions/Status";
 import { FileSelectorModal } from "./FileSelector";
 import { FileIcon } from "../UtilityComponents";
 import { Uploader } from "../Uploader";
-import { File, Page } from "../../types/types";
-import { History } from "history";
-
-// FIXME Wrong file placement for SortOrder/SortBy
-export enum SortOrder {
-    ASCENDING = "ASCENDING",
-    DESCENDING = "DESCENDING"
-}
-
-export enum SortBy {
-    TYPE = "TYPE",
-    PATH = "PATH",
-    CREATED_AT = "CREATED_AT",
-    MODIFIED_AT = "MODIFIED_AT",
-    SIZE = "SIZE",
-    ACL = "ACL",
-    FAVORITED = "FAVORITED",
-    SENSITIVITY = "SENSITIVITY",
-    ANNOTATION = "ANNOTATION"
-}
-// FIXME END
-
-interface FilesProps extends FilesStateProps, FilesOperations {
-    match: { params: string[] }
-    history: History
-}
-
-interface FilesStateProps { // Redux Props
-    path: string
-    page: Page<File>
-    loading: boolean
-    fileSelectorShown: boolean
-    fileSelectorLoading: boolean
-    disallowedPaths: string[]
-    fileSelectorCallback: Function
-    fileSelectorPath: string
-    fileSelectorPage: Page<File>
-    sortBy: SortBy
-    sortOrder: SortOrder
-    creatingFolder: boolean
-    editFileIndex: number
-    // Ignore, used to ensure rerender.
-    checkedFilesCount, favFilesCount: number
-}
-
-interface FilesOperations { // Redux operations
-    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => void
-    fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
-    setFileSelectorCallback: (callback: Function) => void
-    checkFile: (checked: boolean, page: Page<File>, newFile: File) => void
-    setPageTitle: () => void
-    updateFiles: (files: Page<File>) => void
-    showFileSelector: (open: boolean) => void
-    setDisallowedPaths: (disallowedPaths: string[]) => void
-    setCreatingFolder: (creating: boolean) => void
-    setEditingFileIndex: (index: number) => void
-    resetFolderEditing: () => void
-}
+import { File, Page } from "../../Types";
+import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations } from ".";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -245,7 +189,7 @@ export const FilesTable = ({
     projectNavigation = null, creatingNewFolder = false, allowCopyAndMove = false, onFavoriteFile
 }) => {
     return (
-        <Table unstackable basic="very" padded="very">
+        <Table unstackable basic="very">
             <FilesTableHeader masterCheckBox={masterCheckBox} sortingIcon={sortingIcon} sortFiles={sortFiles} />
             <Table.Body>
                 <CreateFolder creatingNewFolder={creatingNewFolder} handleKeyDown={handleKeyDown} />

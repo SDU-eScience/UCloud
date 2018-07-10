@@ -1,6 +1,6 @@
 import * as React from "react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { getParentPath, iconFromFilePath, favorite } from "../../UtilityFunctions";
+import { getParentPath, iconFromFilePath } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
@@ -12,28 +12,7 @@ import "../Styling/Shared.scss";
 import { Card, List, Icon } from "semantic-ui-react";
 import * as moment from "moment";
 import { FileIcon } from "../UtilityComponents";
-import { File, Analysis } from "../../types/types";
-
-interface DashboardProps extends DashboardOperations, DashboardStateProps {}
-
-interface DashboardStateProps {
-    // Redux store props
-    favoriteFiles, recentFiles: File[]
-    recentAnalyses: Analysis[]
-    notifications: any[]
-    favoriteLoading, analysesLoading, recentLoading: boolean
-    favoriteFilesLength: number
-}
-
-interface DashboardOperations {
-    // Redux operations
-    receiveFavorites: (files: File[]) => void
-    updatePageTitle: () => void
-    setAllLoading: (loading: boolean) => void
-    fetchFavorites: () => void
-    fetchRecentFiles: () => void
-    fetchRecentAnalyses: () => void
-}
+import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 
 class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {
@@ -47,7 +26,6 @@ class Dashboard extends React.Component<DashboardProps> {
         props.fetchRecentFiles();
         props.fetchRecentAnalyses();
     }
-
 
     render() {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications,

@@ -15,8 +15,9 @@ import {
     RESET_FOLDER_EDITING
 } from "../Reducers/Files";
 import { failureNotification } from "../UtilityFunctions";
-import { Page, emptyPage, File, ReceivePage, SetLoadingAction, Action } from "../types/types";
-import { SortOrder, SortBy } from "../SiteComponents/Files/Files";
+import { Page, File, ReceivePage, SetLoadingAction, Action } from "../Types";
+import { SortOrder, SortBy } from "../SiteComponents/Files";
+import { emptyPage } from "../DefaultObjects";
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,

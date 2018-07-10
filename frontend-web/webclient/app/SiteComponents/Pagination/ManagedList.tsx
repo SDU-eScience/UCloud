@@ -1,23 +1,10 @@
 import * as React from "react";
-import { Page, emptyPage } from "../../types/types";
+import { Page } from "../../Types";
+import { emptyPage } from "../../DefaultObjects";
 import * as Self from ".";
 
-interface ManagedListProps {
-    dataProvider: (page: number, itemsPerPage: number) => Promise<Page<any>>
-    pageRenderer: (page: Page<any>) => React.ReactNode
-}
-
-interface ManagedListState {
-    loading: boolean
-    currentPage: number
-    itemsPerPage: number
-    results: Page<any>
-    errorMessage?: string
-    dataProvider: Function
-}
-
-export class ManagedList extends React.Component<ManagedListProps, ManagedListState> {
-    constructor(props: ManagedListProps) {
+export class ManagedList extends React.Component<Self.ManagedListProps, Self.ManagedListState> {
+    constructor(props: Self.ManagedListProps) {
         super(props);
 
         this.state = {

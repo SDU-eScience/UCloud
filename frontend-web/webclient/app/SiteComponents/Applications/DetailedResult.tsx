@@ -6,45 +6,20 @@ import { shortUUID, failureNotification } from "../../UtilityFunctions";
 import { Container, List, Card, Icon, Popup } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { FilesTable } from "../Files/Files";
-import { List as PaginationList } from "../Pagination/index";
+import { List as PaginationList } from "../Pagination";
 import "./wizard.scss";
 import "./Applications.scss";
 import { connect } from "react-redux";
 import "../Styling/Shared.scss";
 import { updatePageTitle } from "../../Actions/Status";
-import { emptyPage, Page, File } from "../../types/types";
+import { emptyPage } from "../../DefaultObjects";
+import { DetailedResultProps, DetailedResultState, StdElement } from ".";
 
-interface DetailedResultProps {
+class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
+    private stdoutEl: StdElement;
+    private stderrEl: StdElement;
 
-}
-
-type Any = any
-
-interface DetailedResultState {
-    page: Page<File>
-    loading: boolean
-    complete: boolean
-    appState: string
-    status: string
-    app: {
-        name: string
-        version: string
-    }
-    stdout: string
-    stderr: string
-    stdoutLine: number
-    stderrLine: number
-    stdoutOldTop: number,
-    stderrOldTop: number,
-    reloadIntervalId: number
-    promises: PromiseKeeper
-}
-
-class DetailedResult extends React.Component<any, DetailedResultState> {
-    private stdoutEl: any; // FIXME Find more specific type
-    private stderrEl: any; // FIXME Find more specific type
-
-    constructor(props) {
+    constructor(props: DetailedResultProps) {
         super(props);
         this.state = {
             loading: false,

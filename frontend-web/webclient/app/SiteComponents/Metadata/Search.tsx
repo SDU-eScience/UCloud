@@ -1,8 +1,9 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Label, Icon, Card, Header, Responsive, Form, Input } from "semantic-ui-react";
+import { Label, Icon, Card, Header, Responsive, Input } from "semantic-ui-react";
 import { simpleSearch, ProjectMetadata } from "./api";
-import { Page, emptyPage } from "../../types/types";
+import { Page } from "../../Types";
+import { emptyPage } from "../../DefaultObjects";
 import { withRouter } from "react-router-dom";
 import { PropTypes } from "prop-types";
 import * as Pagination from "../Pagination";

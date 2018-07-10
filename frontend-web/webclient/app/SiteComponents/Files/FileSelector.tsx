@@ -12,29 +12,9 @@ import { KeyCode } from "../../DefaultObjects";
 import { FileIcon } from "../UtilityComponents";
 import "./Files.scss";
 import "../Styling/Shared.scss";
-import { File, emptyPage, Page } from "../../types/types";
-
-interface FileSelectorProps {
-    allowUpload?: boolean
-    onFileSelect: Function
-    uppy?: any
-    path: string
-    isRequired: boolean
-    canSelectFolders?: boolean
-    onlyAllowFolders?: boolean
-    remove?: Function
-}
-
-interface FileSelectorState {
-    promises: PromiseKeeper
-    path: string
-    loading: boolean
-    page: Page<File>
-    modalShown: boolean
-    breadcrumbs: { path: string, actualPath: string }[]
-    uppyOnUploadSuccess: Function
-    creatingFolder: boolean
-}
+import { File, Page } from "../../Types";
+import { emptyPage } from "../../DefaultObjects";
+import { FileSelectorProps, FileSelectorState } from ".";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props, context) {

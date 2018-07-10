@@ -3,22 +3,8 @@ import { Container, Header, List, Table, Progress } from "semantic-ui-react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import PromiseKeeper from "../../PromiseKeeper";
-import { Publication } from "../../types/types";
-import { match } from "react-router-dom";
 import { dateToString } from "../../Utilities/DateUtilities";
-
-interface ZenodoInfoState {
-    promises: PromiseKeeper
-    loading: boolean
-    publicationID: string
-    publication?: Publication
-    intervalId: number
-    uploads?: any
-}
-
-type ZenodoInfoProps = {
-    match: match<{ jobID: string }>
-}
+import { ZenodoInfoProps, ZenodoInfoState } from ".";
 
 class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
     constructor(props: ZenodoInfoProps) {
