@@ -31,7 +31,9 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
         } else {
             return (
                 <React.StrictMode>
+
                     <Header as="h2">
+                        <Button as={Link} style={{ float: "right" }} to="/zenodo/publish/" content="Create new upload" />
                         <Header.Content className="mobile-padding">
                             Upload progress
                         </Header.Content>
@@ -55,9 +57,6 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                         onItemsPerPageChanged={(size) => fetchPublications(0, size)}
                         onPageChanged={(pageNumber) => fetchPublications(pageNumber, page.itemsPerPage)}
                     />
-                    <Link to="/zenodo/publish/">
-                        <Button className="top-margin">Create new upload</Button>
-                    </Link>
                 </React.StrictMode >
 
             );
