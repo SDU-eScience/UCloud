@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.services.saml.Auth
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.util.urlDecoded
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.logEntry
 import io.ktor.application.call
 import io.ktor.http.ContentType
@@ -25,8 +26,8 @@ import org.slf4j.LoggerFactory
 private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
 
 class SAMLController(
-        private val authSettings: Saml2Settings,
-        private val tokenService: TokenService
+    private val authSettings: Saml2Settings,
+    private val tokenService: TokenService<*>
 ) {
     fun configure(routing: Routing): Unit = with(routing) {
         route("auth") {
@@ -51,9 +52,9 @@ class SAMLController(
 
                     val auth = Auth(authSettings, call)
                     val samlRequestTarget = auth.login(
-                            setNameIdPolicy = true,
-                            returnTo = relayState,
-                            stay = true
+                        setNameIdPolicy = true,
+                        returnTo = relayState,
+                        stay = true
                     )
 
                     log.debug("Redirecting to $samlRequestTarget")
@@ -92,10 +93,11 @@ class SAMLController(
                         log.debug("User successfully authenticated!")
                         val token = tokenService.createAndRegisterTokenFor(user)
                         log.debug("Using token: $token")
-                        call.respondRedirect("/auth/login-redirect?" +
-                                "service=${service.urlEncoded}" +
-                                "&accessToken=${token.accessToken.urlEncoded}" +
-                                "&refreshToken=${token.refreshToken.urlEncoded}"
+                        call.respondRedirect(
+                            "/auth/login-redirect?" +
+                                    "service=${service.urlEncoded}" +
+                                    "&accessToken=${token.accessToken.urlEncoded}" +
+                                    "&refreshToken=${token.refreshToken.urlEncoded}"
                         )
                     }
                 }

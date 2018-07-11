@@ -1,4 +1,4 @@
-package dk.sdu.cloud.metadata.utils
+package dk.sdu.cloud.auth.utils
 
 import com.auth0.jwt.interfaces.Claim
 import dk.sdu.cloud.auth.api.Role

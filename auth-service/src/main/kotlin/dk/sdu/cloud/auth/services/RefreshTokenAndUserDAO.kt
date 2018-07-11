@@ -1,50 +1,57 @@
 package dk.sdu.cloud.auth.services
 
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.slf4j.LoggerFactory
+import dk.sdu.cloud.service.db.*
+import org.hibernate.annotations.NaturalId
+import javax.persistence.Entity
+import javax.persistence.Id
+import javax.persistence.ManyToOne
+import javax.persistence.Table
 
 data class RefreshTokenAndUser(val associatedUser: String, val token: String)
 
-object RefreshTokens : Table() {
-    val token = varchar("token", 36).primaryKey()
-    val associatedUser = reference("associated_user", Principals.id)
+interface RefreshTokenDAO<Session> {
+    fun findById(session: Session, token: String): RefreshTokenAndUser?
+    fun insert(session: Session, tokenAndUser: RefreshTokenAndUser)
+    fun delete(session: Session, token: String): Boolean
 }
 
-object RefreshTokenAndUserDAO {
-    private val log = LoggerFactory.getLogger(RefreshTokenAndUserDAO::class.java)
+/**
+ * Updated in:
+ *
+ * - V1__Initial.sql
+ */
+@Entity
+@Table(name = "refresh_tokens")
+data class RefreshTokenEntity(
+    @Id
+    @NaturalId
+    var token: String,
 
-    fun findById(token: String): RefreshTokenAndUser? {
-        log.debug("findById($token)")
-        val results = transaction {
-            RefreshTokens.select { RefreshTokens.token eq token }.limit(1).toList()
-        }
+    @ManyToOne
+    var associatedUser: PrincipalEntity
+) {
+    companion object : HibernateEntity<RefreshTokenEntity>, WithId<String>
+}
 
-        return results.singleOrNull()?.let {
-            RefreshTokenAndUser(
-                    token = it[RefreshTokens.token],
-                    associatedUser = it[RefreshTokens.associatedUser]
-            )
-        }.also {
-            log.debug("Returning $it")
-        }
+class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
+    override fun findById(session: HibernateSession, token: String): RefreshTokenAndUser? {
+        return session
+            .criteria<RefreshTokenEntity> { entity[RefreshTokenEntity::token] equal token }
+            .uniqueResult()
+            ?.toModel()
     }
 
-    fun insert(tokenAndUser: RefreshTokenAndUser) {
-        log.debug("insert($tokenAndUser)")
-        transaction {
-            RefreshTokens.insert {
-                it[token] = tokenAndUser.token
-                it[associatedUser] = tokenAndUser.associatedUser
-            }
-        }
+    override fun insert(session: HibernateSession, tokenAndUser: RefreshTokenAndUser) {
+        val principal = PrincipalEntity[session, tokenAndUser.associatedUser] ?: TODO()
+        session.save(RefreshTokenEntity(tokenAndUser.token, principal))
     }
 
-    fun delete(token: String): Boolean {
-        log.debug("delete($token)")
-        return transaction {
-            RefreshTokens.deleteWhere { RefreshTokens.token eq token }
-        } == 1
+    override fun delete(session: HibernateSession, token: String): Boolean {
+        session.delete(RefreshTokenEntity[session, token] ?: return false)
+        return true
     }
+}
 
+fun RefreshTokenEntity.toModel(): RefreshTokenAndUser {
+    return RefreshTokenAndUser(associatedUser.id, token)
 }

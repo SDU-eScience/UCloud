@@ -1,16 +1,20 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.auth.services.*
+import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.UserCreationService
+import dk.sdu.cloud.auth.services.UserDAO
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import io.ktor.application.install
-import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 
-class UserController(
+class UserController<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val userDAO: UserDAO<DBSession>,
     private val userCreationService: UserCreationService
 ) {
     fun configure(routing: Route): Unit = with(routing) {
@@ -28,16 +32,7 @@ class UserController(
                 password = it.password
             )
 
-            try {
-                userCreationService.createUser(person)
-            } catch (ex: UserException) {
-                return@implement when (ex) {
-                    is UserException.AlreadyExists -> {
-                        error(CommonErrorMessage(ex.why), HttpStatusCode.Conflict)
-                    }
-                }
-            }
-
+            userCreationService.createUser(person)
             ok(Unit)
         }
 
@@ -45,48 +40,22 @@ class UserController(
             logEntry(log, it)
             if (!protect()) return@implement
 
-            val username = call.request.currentUsername
-            val user = UserDAO.findById(username) as? Person.ByPassword ?: return@implement run {
-                error(
-                    CommonErrorMessage("Not authenticated via password"),
-                    HttpStatusCode.Unauthorized
-                )
+            db.withTransaction { session ->
+                userDAO.updatePassword(session, call.request.currentUsername, it.newPassword, it.currentPassword)
+                ok(Unit)
             }
-
-            if (!user.checkPassword(it.currentPassword)) return@implement run {
-                error(
-                    CommonErrorMessage("Invalid password"),
-                    HttpStatusCode.Forbidden
-                )
-            }
-
-            val (hashedPassword, salt) = PersonUtils.hashPassword(it.newPassword)
-
-            val userWithNewPassword = user.copy(
-                password = hashedPassword,
-                salt = salt
-            )
-
-            if (!UserDAO.update(userWithNewPassword)) return@implement run {
-                log.warn("Unable to update user. Updated rows was not 1")
-
-                error(
-                    CommonErrorMessage("Internal server error"),
-                    HttpStatusCode.InternalServerError
-                )
-            }
-
-            ok(Unit)
         }
 
-        implement(UserDescriptions.lookupUsers) {
-            logEntry(log, it)
+        implement(UserDescriptions.lookupUsers) { req ->
+            logEntry(log, req)
             if (!protect(PRIVILEGED_ROLES)) return@implement
 
             ok(
                 LookupUsersResponse(
-                    UserDAO.findAllByIds(it.users).mapValues {
-                        it.value?.let { UserLookup(it.id, it.role) }
+                    db.withTransaction {
+                        userDAO.findAllByIds(it, req.users).mapValues {
+                            it.value?.let { UserLookup(it.id, it.role) }
+                        }
                     }
                 )
             )

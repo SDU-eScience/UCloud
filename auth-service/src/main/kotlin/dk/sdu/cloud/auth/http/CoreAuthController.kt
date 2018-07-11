@@ -4,6 +4,8 @@ import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
@@ -26,8 +28,10 @@ import org.slf4j.LoggerFactory
 import java.io.File
 
 // TODO Bad name
-class CoreAuthController(
-    private val tokenService: TokenService,
+class CoreAuthController<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val ottDao: OneTimeTokenDAO<DBSession>,
+    private val tokenService: TokenService<DBSession>,
     private val enablePasswords: Boolean,
     private val enableWayf: Boolean
 ) {
@@ -329,7 +333,7 @@ class CoreAuthController(
                     return@implement
                 }
 
-                val tokenWasClaimed = OneTimeTokenDAO.claim(jti, principal.subject)
+                val tokenWasClaimed = db.withTransaction { ottDao.claim(it, jti, principal.subject) }
                 if (tokenWasClaimed) {
                     ok(HttpStatusCode.NoContent)
                 } else {

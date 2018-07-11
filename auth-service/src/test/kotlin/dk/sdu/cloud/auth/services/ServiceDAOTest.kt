@@ -6,8 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class ServiceDAOTest{
-
+class ServiceDAOTest {
     private val service = Service("nameOfMyService", "endpoint")
 
     @Test

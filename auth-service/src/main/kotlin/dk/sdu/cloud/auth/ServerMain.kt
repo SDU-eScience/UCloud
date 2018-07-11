@@ -7,23 +7,18 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.onelogin.saml2.settings.SettingsBuilder
 import com.onelogin.saml2.util.Util
-import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.auth.services.OTTBlackListTable
-import dk.sdu.cloud.auth.services.PersonUtils
-import dk.sdu.cloud.auth.services.Principals
-import dk.sdu.cloud.auth.services.RefreshTokens
+import dk.sdu.cloud.auth.api.AuthServiceDescription
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.*
 import io.ktor.application.Application
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.clients.producer.KafkaProducer
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils.create
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.flywaydb.core.Flyway
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
@@ -56,21 +51,9 @@ private fun loadKeysAndInsertIntoProps(properties: Properties): Pair<RSAPublicKe
 
 internal typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
 
-data class DatabaseConfiguration(
-    val url: String,
-    val driver: String,
-    val username: String,
-    val password: String
-) {
-    override fun toString(): String {
-        return "DatabaseConfiguration(url='$url', driver='$driver', username='$username')"
-    }
-}
-
 data class AuthConfiguration(
     val enablePasswords: Boolean = true,
     val enableWayf: Boolean = false,
-    val database: DatabaseConfiguration,
     val production: Boolean = true,
     private val connection: RawConnectionConfig
 ) {
@@ -83,13 +66,18 @@ data class AuthConfiguration(
     }
 }
 
+private const val ARG_GENERATE_DDL = "--generate-ddl"
+private const val ARG_MIGRATE = "--migrate"
+
 fun main(args: Array<String>) {
+    val serviceDescription = AuthServiceDescription
+
     val configuration = run {
         log.info("Reading configuration...")
         val configMapper = jacksonObjectMapper().apply {
             configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         }
-        val configFilePath = args.getOrNull(0) ?: "/etc/${AuthServiceDescription.name}/config.json"
+        val configFilePath = args.getOrNull(0) ?: "/etc/${serviceDescription.name}/config.json"
         val configFile = File(configFilePath)
         log.debug("Using path: $configFilePath. This has resolved to: ${configFile.absolutePath}")
         if (!configFile.exists()) {
@@ -119,38 +107,62 @@ fun main(args: Array<String>) {
     }
 
     log.info("Connecting to database...")
-    Database.connect(
-        url = configuration.database.url,
-        driver = configuration.database.driver,
-
-        user = configuration.database.username,
-        password = configuration.database.password
-    )
+    val jdbcUrl = with(configuration.connConfig.database!!) { postgresJdbcUrl(host, database) }
+    val db = with(configuration.connConfig.database!!) {
+        HibernateSessionFactory.create(
+            HibernateDatabaseConfig(
+                POSTGRES_DRIVER,
+                jdbcUrl,
+                POSTGRES_9_5_DIALECT,
+                username,
+                password,
+                defaultSchema = serviceDescription.name,
+                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.contains(ARG_MIGRATE)
+            )
+        )
+    }
     log.info("Connected to database!")
 
     KtorUtils.runningInProduction = configuration.production
 
-    when (args.getOrNull(1)) {
-        null, "run-server" -> {
-            log.info("Connecting to Service Registry")
-            val serviceRegistry = ServiceRegistry(AuthServiceDescription.instance(configuration.connConfig))
-            log.info("Connected to Service Registry")
+    log.info("Connecting to Service Registry")
+    val serviceRegistry = ServiceRegistry(serviceDescription.instance(configuration.connConfig))
+    log.info("Connected to Service Registry")
 
-            val serverProvider: HttpServerProvider = { block ->
-                embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
+    val serverProvider: HttpServerProvider = { block ->
+        embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
+    }
+
+    val samlProperties = Properties().apply {
+        load(AuthServer::class.java.classLoader.getResourceAsStream("saml.properties"))
+    }
+
+    val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
+    val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
+
+    // TODO FIXME!!!
+    val cloud = RefreshingJWTAuthenticatedCloud(defaultServiceClient(args, serviceRegistry), "TODO")
+
+    when {
+        args.contains(ARG_GENERATE_DDL) -> {
+            println("Start of DDL")
+            println(db.generateDDL())
+            db.close()
+            println("End of DDL")
+        }
+
+        args.contains(ARG_MIGRATE) -> {
+            val flyway = Flyway()
+            with(configuration.connConfig.database!!) {
+                flyway.setDataSource(jdbcUrl, username, password)
             }
+            flyway.setSchemas(serviceDescription.name)
+            flyway.migrate()
+        }
 
-            val samlProperties = Properties().apply {
-                load(AuthServer::class.java.classLoader.getResourceAsStream("saml.properties"))
-            }
-
-            val (_, priv) = loadKeysAndInsertIntoProps(samlProperties)
-            val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
-
-            // TODO FIXME!!!
-            val cloud = RefreshingJWTAuthenticatedCloud(defaultServiceClient(args, serviceRegistry), "TODO")
-
+        else -> {
             AuthServer(
+                db,
                 jwtAlg = Algorithm.RSA256(null, priv),
                 config = configuration,
                 authSettings = authSettings,
@@ -159,15 +171,6 @@ fun main(args: Array<String>) {
                 ktor = serverProvider,
                 cloud = cloud
             ).start()
-        }
-
-        "generate-db" -> {
-            log.info("Generating database (intended for development only)")
-            log.info("Creating tables...")
-            transaction {
-                create(Principals, RefreshTokens, OTTBlackListTable)
-            }
-            log.info("OK")
         }
     }
 }

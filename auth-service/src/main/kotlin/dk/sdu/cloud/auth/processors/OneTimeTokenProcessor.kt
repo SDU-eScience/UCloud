@@ -1,10 +1,6 @@
 package dk.sdu.cloud.auth.processors
 
 import dk.sdu.cloud.auth.api.OneTimeTokenEvent
-import dk.sdu.cloud.auth.api.RefreshTokenEvent
-import dk.sdu.cloud.auth.services.OneTimeTokenDAO
-import dk.sdu.cloud.auth.services.RefreshTokenAndUser
-import dk.sdu.cloud.auth.services.RefreshTokenAndUserDAO
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Predicate
 import org.slf4j.LoggerFactory

@@ -11,10 +11,10 @@ import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.processors.OneTimeTokenProcessor
 import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
-import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.UserCreationService
+import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 class AuthServer(
+    private val db: HibernateSessionFactory,
     private val cloud: AuthenticatedCloud,
     private val jwtAlg: Algorithm,
     private val config: AuthConfiguration,
@@ -39,7 +40,14 @@ class AuthServer(
         val instance = AuthServiceDescription.instance(config.connConfig)
 
         log.info("Creating core services...")
+        val userDao = UserHibernateDAO()
+        val refreshTokenDao = RefreshTokenHibernateDAO()
+        val ottDao = OneTimeTokenHibernateDAO()
+
         val tokenService = TokenService(
+            db,
+            userDao,
+            refreshTokenDao,
             jwtAlg,
             kafka.producer.forStream(AuthStreams.UserUpdateStream),
             kafka.producer.forStream(AuthStreams.RefreshTokenStream),
@@ -54,7 +62,12 @@ class AuthServer(
 
             log.info("Configuring stream processors...")
 
-            RefreshTokenProcessor(kBuilder.stream(AuthStreams.RefreshTokenStream)).also { it.init() }
+            RefreshTokenProcessor(
+                db,
+                refreshTokenDao,
+                kBuilder.stream(AuthStreams.RefreshTokenStream)
+            ).also { it.init() }
+
             OneTimeTokenProcessor(kBuilder.stream(AuthStreams.OneTimeTokenStream)).also { it.init() }
 
             kafka.build(kBuilder.build()).also {
@@ -75,13 +88,15 @@ class AuthServer(
 
             log.info("Creating HTTP controllers")
             val coreController = CoreAuthController(
+                db,
+                ottDao,
                 tokenService,
                 config.enablePasswords,
                 config.enableWayf
             )
             val samlController = SAMLController(authSettings, tokenService)
-            val passwordController = PasswordController(tokenService)
-            val userController = UserController(userCreationService)
+            val passwordController = PasswordController(db, userDao, tokenService)
+            val userController = UserController(db, userDao, userCreationService)
             log.info("HTTP controllers configured!")
 
             routing {

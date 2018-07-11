@@ -1,32 +1,38 @@
 package dk.sdu.cloud.auth.services
 
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.slf4j.LoggerFactory
-import java.sql.SQLException
+import dk.sdu.cloud.service.db.HibernateSession
+import org.hibernate.annotations.NaturalId
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Table
 
-object OTTBlackListTable : Table() {
-    val jti = varchar("jti", 36).primaryKey()
-    val claimedBy = varchar("claimed_by", 256)
+interface OneTimeTokenDAO<Session> {
+    fun claim(session: Session, jti: String, claimedBy: String): Boolean
 }
 
+/**
+ * Updated in:
+ *
+ * - V1__Initial.sql
+ */
+@Entity
+@Table(name = "ott_black_list")
+data class OTTBlackListEntity(
+    @Id
+    @NaturalId
+    var jti: String,
+    var claimedBy: String
+)
 
-object OneTimeTokenDAO {
-    private val log = LoggerFactory.getLogger(OneTimeTokenDAO::class.java)
-
-    fun claim(jti: String, claimedBy: String): Boolean {
-        val result = try {
-            transaction {
-                OTTBlackListTable.insert {
-                    it[OTTBlackListTable.jti] = jti
-                    it[OTTBlackListTable.claimedBy] = claimedBy
-                }
-            }
-        } catch (ex: SQLException) {
+class OneTimeTokenHibernateDAO : OneTimeTokenDAO<HibernateSession> {
+    override fun claim(session: HibernateSession, jti: String, claimedBy: String): Boolean {
+        val value = try {
+            session.save(OTTBlackListEntity(jti, claimedBy)) as String
+        } catch (ex: Exception) {
             null
         }
 
-        return result != null
+        return value != null
     }
 }

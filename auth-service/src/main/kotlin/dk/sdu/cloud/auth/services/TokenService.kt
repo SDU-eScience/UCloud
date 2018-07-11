@@ -7,6 +7,8 @@ import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.Auth
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
@@ -15,8 +17,10 @@ import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
 
-
-class TokenService(
+class TokenService<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val userDao: UserDAO<DBSession>,
+    private val refreshTokenDao: RefreshTokenDAO<DBSession>,
     private val jwtAlg: JWTAlgorithm,
     private val userEventProducer: MappedEventProducer<String, UserEvent>,
     private val tokenEventProducer: MappedEventProducer<String, RefreshTokenEvent>,
@@ -113,8 +117,9 @@ class TokenService(
 
                 log.debug("User is authenticated with id $id")
 
-                val existing = UserDAO.findById(id)
-                return if (existing == null) {
+                return try {
+                    db.withTransaction { userDao.findById(it, id) } as Person.ByWAYF
+                } catch (ex: UserException.NotFound) {
                     log.debug("User not found. Creating new user...")
 
                     val userCreated = PersonUtils.createUserByWAYF(auth)
@@ -124,9 +129,6 @@ class TokenService(
                     }
 
                     userCreated
-                } else {
-                    log.debug("User already exists: $existing")
-                    existing as Person.ByWAYF
                 }
             }
         } catch (ex: Exception) {
@@ -149,7 +151,10 @@ class TokenService(
         log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
 
         val validated = TokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
-        val user = UserDAO.findById(validated.subject) ?: throw RefreshTokenException.InternalError()
+        val user =
+            db.withTransaction {
+                userDao.findByIdOrNull(it, validated.subject) ?: throw RefreshTokenException.InternalError()
+            }
 
         val oneTimeToken = createOneTimeAccessTokenForExistingSession(user, *audience)
         launch {
@@ -167,31 +172,35 @@ class TokenService(
     }
 
     fun refresh(rawToken: String): AccessToken {
-        log.debug("Refreshing token: rawToken=$rawToken")
-        val token = RefreshTokenAndUserDAO.findById(rawToken) ?: run {
-            log.debug("Could not find token!")
-            throw RefreshTokenException.InvalidToken()
+        val accessToken = db.withTransaction { session ->
+            log.debug("Refreshing token: rawToken=$rawToken")
+            val token = refreshTokenDao.findById(session, rawToken) ?: run {
+                log.debug("Could not find token!")
+                throw RefreshTokenException.InvalidToken()
+            }
+
+            val user = userDao.findByIdOrNull(session, token.associatedUser) ?: run {
+                log.warn(
+                    "Received a valid token, but was unable to resolve the associated user: " +
+                            token.associatedUser
+                )
+                throw RefreshTokenException.InternalError()
+            }
+
+            createAccessTokenForExistingSession(user)
         }
 
-        val user = UserDAO.findById(token.associatedUser) ?: run {
-            log.warn(
-                "Received a valid token, but was unable to resolve the associated user: " +
-                        token.associatedUser
-            )
-            throw RefreshTokenException.InternalError()
-        }
-
-        val accessToken = createAccessTokenForExistingSession(user)
         launch {
             val invokeEvent = RefreshTokenEvent.Invoked(rawToken, accessToken.accessToken)
             tokenEventProducer.emit(invokeEvent)
         }
-
         return accessToken
     }
 
     fun logout(refreshToken: String) {
-        val token = RefreshTokenAndUserDAO.findById(refreshToken) ?: throw RefreshTokenException.InvalidToken()
+        val token = db.withTransaction {
+            refreshTokenDao.findById(it, refreshToken) ?: throw RefreshTokenException.InvalidToken()
+        }
 
         launch {
             val event = RefreshTokenEvent.Invalidated(token.token)

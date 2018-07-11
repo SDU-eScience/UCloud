@@ -3,8 +3,11 @@ package dk.sdu.cloud.auth.http
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserDAO
+import dk.sdu.cloud.auth.services.UserException
 import dk.sdu.cloud.auth.services.checkPassword
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry
 import io.ktor.application.call
 import io.ktor.request.receiveParameters
@@ -15,7 +18,11 @@ import io.ktor.routing.route
 import io.ktor.util.toMap
 import org.slf4j.LoggerFactory
 
-class PasswordController(private val tokenService: TokenService) {
+class PasswordController<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val userDao: UserDAO<DBSession>,
+    private val tokenService: TokenService<DBSession>
+) {
     fun configure(routing: Routing): Unit = with(routing) {
         route("auth") {
             post("login") {
@@ -43,9 +50,14 @@ class PasswordController(private val tokenService: TokenService) {
                     return@post call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
                 }
 
-                val user = UserDAO.findById(username) as? Person.ByPassword ?: return@post run {
-                    log.info("User not found or is not a password authenticated person")
-                    call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
+                val user = db.withTransaction {
+                    try {
+                        userDao.findById(it, username) as? Person.ByPassword ?: throw UserException.NotFound()
+                    } catch (ex: UserException.NotFound) {
+                        log.info("User not found or is not a password authenticated person")
+                        call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
+                        return@post
+                    }
                 }
 
                 val validPassword = user.checkPassword(password)

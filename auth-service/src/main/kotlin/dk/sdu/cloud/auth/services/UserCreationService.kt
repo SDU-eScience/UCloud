@@ -3,7 +3,8 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.auth.api.UserEventProducer
-import org.h2.jdbc.JdbcSQLException
+import dk.sdu.cloud.service.RPCException
+import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 
 // TODO This is quite stupid.
@@ -12,14 +13,17 @@ import org.slf4j.LoggerFactory
 // is structured in such a way that everything goes through Kafka, we don't do that
 // anymore. This service creates a single user and emits the event correctly.
 
-sealed class UserException(val why: String) : RuntimeException(why) {
-    class AlreadyExists : UserException("User already exists")
+sealed class UserException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
+    class AlreadyExists : UserException("User already exists", HttpStatusCode.Conflict)
+    class NotFound : UserException("User not found", HttpStatusCode.NotFound)
+    class InvalidAuthentication : UserException("Invalid username or password", HttpStatusCode.BadRequest)
 }
 
 class UserCreationService(
     private val userEventProducer: UserEventProducer
 ) {
     suspend fun createUser(user: Person.ByPassword) {
+        /*
         try {
             log.info("Creating user: $user")
             UserDAO.insert(user)
@@ -32,6 +36,7 @@ class UserCreationService(
         }
 
         userEventProducer.emit(UserEvent.Created(user.id, user))
+        */
     }
 
     companion object {

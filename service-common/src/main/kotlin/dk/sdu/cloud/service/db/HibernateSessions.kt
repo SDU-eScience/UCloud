@@ -22,22 +22,16 @@ class HibernateSessionFactory(
 
     val autoDetectedEntities: List<Class<*>> = emptyList()
 ) : DBSessionFactory<HibernateSession> {
-    override fun <R> withSession(closure: HibernateSession.() -> R): R {
-        val session = factory.openSession()
-        return session.use(closure)
+    override fun openSession(): HibernateSession {
+        return factory.openSession()
     }
 
-    override fun <R> withTransaction(
-        session: HibernateSession,
-        autoCommit: Boolean,
-        closure: (HibernateSession) -> R
-    ): R {
-        with(session) {
-            beginTransaction()
-            val result = closure(this)
-            if (autoCommit) transaction.commit()
-            return result
-        }
+    override fun closeSession(session: HibernateSession) {
+        session.close()
+    }
+
+    override fun openTransaction(session: HibernateSession) {
+        session.beginTransaction()
     }
 
     override fun commit(session: HibernateSession) {
