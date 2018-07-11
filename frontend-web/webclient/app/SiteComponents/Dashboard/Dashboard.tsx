@@ -3,7 +3,7 @@ import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { getParentPath, iconFromFilePath } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
-import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath } from "../../UtilityFunctions";
+import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath, shortenString } from "../../UtilityFunctions";
 import { updatePageTitle } from "../../Actions/Status";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../../Actions/Dashboard";
 import { connect } from "react-redux";
@@ -31,9 +31,9 @@ class Dashboard extends React.Component<DashboardProps> {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications,
             favoriteLoading, recentLoading, analysesLoading } = this.props;
         favoriteFiles.forEach((f) => f.favorited = true);
-        const favoriteOrUnfavorite = (file) => { 
+        const favoriteOrUnfavorite = (file) => {
             favoriteFile(file, Cloud);
-            this.props.receiveFavorites(favoriteFiles.filter(f => f.favorited)); 
+            this.props.receiveFavorites(favoriteFiles.filter(f => f.favorited));
         };
         return (
             <React.StrictMode>
@@ -41,7 +41,7 @@ class Dashboard extends React.Component<DashboardProps> {
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
-                        favorite={(filePath) =>  favoriteOrUnfavorite(filePath)}
+                        favorite={(filePath) => favoriteOrUnfavorite(filePath)}
                     />
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
@@ -61,7 +61,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
             <List.Content floated="right">
                 <Icon name="star" color="blue" onClick={() => favorite(file)} />
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={false} />
+            <ListFileContent path={file.path} type={file.type} link={false} maxPathLength={24} />
         </List.Item>)
     );
 
@@ -78,12 +78,12 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
         </Card >)
 };
 
-const ListFileContent = ({ path, type, link }) =>
+const ListFileContent = ({ path, type, link, maxPathLength }) =>
     <React.Fragment>
         <List.Content>
             <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} size={null} link={link} color="grey" />
             <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
-                {getFilenameFromPath(path)}
+                {shortenString(getFilenameFromPath(path), maxPathLength)}
             </Link>
         </List.Content>
     </React.Fragment>
@@ -95,7 +95,7 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
             <List.Content floated="right">
                 <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={file.link} />
+            <ListFileContent path={file.path} type={file.type} link={file.link} maxPathLength={16} />
         </List.Item>
     ));
 
@@ -178,7 +178,7 @@ const Notification = ({ notification }) => {
 const statusToIconName = (status) => status === "SUCCESS" ? "check" : "x";
 const statusToColor = (status) => status === "SUCCESS" ? "green" : "red";
 
-const mapDispatchToProps = (dispatch):DashboardOperations => ({
+const mapDispatchToProps = (dispatch): DashboardOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
     setAllLoading: (loading) => dispatch(setAllLoading(loading)),
     fetchFavorites: () => dispatch(fetchFavorites()),

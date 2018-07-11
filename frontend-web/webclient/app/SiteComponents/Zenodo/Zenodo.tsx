@@ -22,7 +22,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
         };
         const { updatePageTitle, fetchPublications } = props;
         updatePageTitle("Zenodo Publications");
-        fetchPublications(0, 25);
+        fetchPublications(0, 10);
     }
 
     render() {
@@ -32,7 +32,6 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
         } else {
             return (
                 <React.Fragment>
-                    <Icon className="float-right" link circular name="sync" onClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)} loading={loading} />
                     <Header as="h2">
                         <Header.Content className="mobile-padding">
                             Upload progress
@@ -41,16 +40,24 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                             Connected to Zenodo
                         </Responsive>
                     </Header>
+                    <Icon
+                        className="float-right"
+                        size="small"
+                        link
+                        circular
+                        name="sync"
+                        onClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)} loading={loading}
+                    />
                     <List
                         loading={loading}
-                        pageRenderer={(page) =>
+                        pageRenderer={(page) => (
                             <Table basic="very">
                                 <TableHeader />
                                 <Table.Body>
                                     {page.items.map((it, i) => (<PublicationRow publication={it} key={i} />))}
                                 </Table.Body>
                             </Table>
-                        }
+                        )}
                         page={page}
                         onItemsPerPageChanged={(size) => fetchPublications(0, size)}
                         onPageChanged={(pageNumber) => fetchPublications(pageNumber, page.itemsPerPage)}

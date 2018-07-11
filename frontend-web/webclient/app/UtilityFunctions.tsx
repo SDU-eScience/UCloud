@@ -394,13 +394,24 @@ export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.s
 export const addTrailingSlash = (path: string) => path.endsWith("/") ? path : `${path}/`;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
 
-export const blankOrNull = (value: string): boolean => {
-    return value == null || value.length == 0 || /^\s*$/.test(value);
-};
+/**
+ * Shortens the passed string if the length exceeds max size. If it exceeds, the string is shortened, trimmed, and 
+ * ellipses are added.
+ * @param {string} content the string to be shortened
+ * @param {number} maxSize the maximum size allowed for the string
+ */
+export const shortenString = (content: string, maxLength: number):string => {
+    if (content.length < maxLength) return content;
+    return content.slice(0, maxLength).trim().concat("...");
+}
+
+export const blankOrNull = (value: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
 
 export const ifPresent = (f, handler: (f: any) => void) => {
     if (f) handler(f)
 };
+
+
 
 export function defaultErrorHandler(error: any): number {
     let request: XMLHttpRequest = error.request;

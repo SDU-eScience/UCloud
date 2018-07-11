@@ -45,6 +45,13 @@ export class List extends React.PureComponent<ListProps> {
             <div>
                 {errorComponent}
 
+                <Self.EntriesPerPageSelector
+                    content="Items per page"
+                    className="pagination-items-per-page"
+                    entriesPerPage={props.page.itemsPerPage}
+                    onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
+                />
+
                 {body}
 
                 <div>
@@ -55,12 +62,6 @@ export class List extends React.PureComponent<ListProps> {
                         totalPages={Math.ceil(props.page.itemsInTotal / props.page.itemsPerPage)}
                     />
 
-                    <Self.EntriesPerPageSelector
-                        content="Items per page"
-                        className="pagination-items-per-page"
-                        entriesPerPage={props.page.itemsPerPage}
-                        onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
-                    />
                 </div>
             </div>
         );

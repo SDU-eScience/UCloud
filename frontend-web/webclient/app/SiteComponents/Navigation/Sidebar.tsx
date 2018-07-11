@@ -153,7 +153,7 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
             <Menu.Item>
                 <MenuLink icon="share" to="/shares" name="Shares" onClick={() => closeSidebar()} />
             </Menu.Item>
-            <AdminOptions menuActive={activeIndices[2]} handleClick={handleClick} closeSidebar={closeSidebar} />
+        <AdminOptions menuActive={activeIndices[2]} handleClick={handleClick} closeSidebar={closeSidebar} />
         </Accordion>
     </React.Fragment>
 );
