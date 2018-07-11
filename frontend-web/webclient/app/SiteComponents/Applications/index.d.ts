@@ -52,7 +52,7 @@ export interface DetailedResultProps {
 }
 
 export interface DetailedResultState {
-    page: Page<File>
+    page: Page<Types.File>
     loading: boolean
     complete: boolean
     appState: string
