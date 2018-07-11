@@ -98,9 +98,10 @@ const Analysis = ({ analysis }) => {
 };
 
 const formatDate = (millis) => {
-    // TODO Very primitive
     let d = new Date(millis);
-    return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`
+    return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/` + 
+        `${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:` + 
+        `${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`
 };
 
 const pad = (value, length) =>

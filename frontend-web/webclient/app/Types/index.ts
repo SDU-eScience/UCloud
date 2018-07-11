@@ -10,7 +10,7 @@ export interface File {
     sensitivityLevel: string
     isChecked?: boolean
     link: boolean
-    annotations: string[] 
+    annotations: string[]
 }
 
 export interface Acl {
@@ -38,23 +38,38 @@ export interface Analysis {
 }
 
 export interface Application {
+    owner: string
+    createdAt: number
+    modifiedAt: number
+
     tool: {
-        name:string
-        version:string
+        owner: string
+        createdAt: number
+        modifiedAt: number
+
+        description: {
+            name: string
+            version: string
+        }
     }
-    info: {
-        name:string
-        version:string
+
+    description: {
+        info: {
+            name: string
+            version: string
+        }
+
+        title: string
+        authors: string[]
+        description: string
+
+        parameters: any[]
+        invocation: any[]
     }
-    prettyName:string
-    authors:string[]
-    createdAt:number
-    modifiedAt:number
-    description:string
 }
 
-export interface Status { 
-    title: string 
+export interface Status {
+    title: string
     level: string
     body: string
 }
@@ -71,12 +86,12 @@ export interface Publication {
     name: string
     zenodoAction: string
     createdAt: number
-    modifiedAt: number   
+    modifiedAt: number
 }
 
 export interface Notification {
     type: string
-    jobId?:string
+    jobId?: string
     ts: number
     status?: string
     id: string

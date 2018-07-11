@@ -241,8 +241,8 @@ class JobExecutionService<DBSession>(
         db.withTransaction {
             jobDao.createJob(
                 it,
-                validatedJob.systemId,
                 principal.subject,
+                validatedJob.systemId,
                 validatedJob.appWithDependencies.description.info.name,
                 validatedJob.appWithDependencies.description.info.version
             )
@@ -711,11 +711,13 @@ class JobExecutionService<DBSession>(
 
     private fun cleanUp(event: AppEvent.ExecutionCompleted): AppEvent {
         sshConnectionPool.use {
+            /*
             val removeStatus = rm(event.jobDirectory, recurse = true, force = true)
             if (removeStatus != 0) {
                 log.warn("Could not successfully delete directory of job!")
                 log.warn("Event is: $event")
             }
+            */
 
             return AppEvent.Completed(
                 event.systemId,

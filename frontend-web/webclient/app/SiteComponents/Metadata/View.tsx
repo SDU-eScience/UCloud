@@ -145,7 +145,6 @@ export const View = (props: ViewProps) => {
 
 const ContributorItem = (props: { contributor: Creator }) => {
     const { contributor } = props;
-    console.log(contributor);
     if (
         !blankOrNull(contributor.affiliation) ||
         !blankOrNull(contributor.gnd) ||

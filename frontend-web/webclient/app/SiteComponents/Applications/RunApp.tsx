@@ -12,6 +12,7 @@ import { getFilenameFromPath } from "../../UtilityFunctions";
 import { updatePageTitle } from "../../Actions/Status";
 import "../Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
+import { Application } from "../../Types";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     constructor(props) {
@@ -23,7 +24,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             displayAppName: props.match.params.appName,
             appVersion: props.match.params.appVersion,
             appDescription: "",
-            appAuthor: "",
+            appAuthor: [],
             parameters: null,
             parameterValues: {},
             jobInfo: {
@@ -130,14 +131,14 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         }));
 
         this.state.promises.makeCancelable(
-            Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}/?resolve=true`)
-        ).promise.then(req => {
-            const app = req.response.application;
+            Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}`)
+        ).promise.then((req: { response: Application }) => {
+            const app = req.response.description;
             const tool = req.response.tool;
 
             this.setState(() => ({
                 appName: app.info.name,
-                displayAppName: app.prettyName,
+                displayAppName: app.title,
                 parameters: app.parameters,
                 appAuthor: app.authors,
                 appDescription: app.description,
@@ -226,7 +227,7 @@ const Parameters = (props) => {
             <JobSchedulingParams
                 onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
                 jobInfo={props.jobInfo}
-                tool={props.tool}
+                tool={props.tool.description}
             />
 
             <Button
@@ -466,7 +467,7 @@ const FloatingParameter = (props) => {
 const GenericParameter = ({ parameter, children }) => (
     <Form.Field required={!parameter.optional}>
         <label htmlFor={parameter.name}>
-            {parameter.prettyName}
+            {parameter.title}
         </label>
         {children}
         <OptionalText optional={parameter.optional} />

@@ -285,7 +285,7 @@ sealed class ToolDescription(val tool: String) {
         val backend: ToolBackend,
         val authors: List<String>,
         val defaultNumberOfNodes: Int = 1,
-        val defaultTasksPerNode: Int = 0,
+        val defaultTasksPerNode: Int = 1,
         val defaultMaxTime: SimpleDuration = SimpleDuration(1, 0, 0),
         val requiredModules: List<String> = emptyList(),
         val description: String = ""

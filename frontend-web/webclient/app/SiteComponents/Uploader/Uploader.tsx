@@ -71,7 +71,6 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
 
     // TODO The upload component should be able to continue in background?
     onFilesAdded(files: File[]) {
-        console.log(files);
         const filteredFiles = files.filter(it => it.size > 0).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
 

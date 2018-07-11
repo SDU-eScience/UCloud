@@ -11,13 +11,13 @@ export interface ApplicationsOperations {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchApplications: () => void
-    updateApplications: (applications: Types.Application[]) => void
+    updateApplications: (applications: Page<Types.Application>) => void
     toPage: (pageNumber: number) => void
     updateApplicationsPerPage: (applicationsPerPage: number) => void
 }
 
 export interface ApplicationsStateProps {
-    applications: Types.Application[]
+    applications: Page<Types.Application>
     loading: boolean
     itemsPerPage, pageNumber: number
     sortBy: SortBy
@@ -80,7 +80,7 @@ export interface RunAppState {
     displayAppName: string
     appVersion: string
     appDescription: string
-    appAuthor: string
+    appAuthor: string[]
     parameters: any[] // FIXME
     parameterValues: {}
     jobInfo: {
