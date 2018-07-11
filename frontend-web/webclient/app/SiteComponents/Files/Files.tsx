@@ -62,9 +62,9 @@ class Files extends React.Component<FilesProps> {
     }
 
     shouldComponentUpdate(nextProps, _nextState) {
-        const { fetchFiles, page } = this.props;
-        if (nextProps.path !== nextProps.match.params[0] && !this.props.loading) {
-            fetchFiles(nextProps.match.params[0], page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
+        const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
+        if (nextProps.path !== nextProps.match.params[0] && !loading) {
+            fetchFiles(nextProps.match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         }
         return true;
     }

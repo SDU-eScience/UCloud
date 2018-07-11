@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Table, Header, Responsive, Icon } from "semantic-ui-react";
+import { Button, Table, Header, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
@@ -9,7 +9,7 @@ import { connect } from "react-redux";
 import { dateToString } from "../../Utilities/DateUtilities";
 import { List } from "../Pagination/List";
 import { ZenodoHomeProps, ZenodoHomeState } from ".";
-
+import { RefreshButton } from "../UtilityComponents";
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {
@@ -22,7 +22,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
         };
         const { updatePageTitle, fetchPublications } = props;
         updatePageTitle("Zenodo Publications");
-        fetchPublications(0, 10);
+        fetchPublications(0, 25);
     }
 
     render() {
@@ -31,7 +31,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
             return (<NotConnectedToZenodo />);
         } else {
             return (
-                <React.Fragment>
+                <React.StrictMode>
                     <Header as="h2">
                         <Header.Content className="mobile-padding">
                             Upload progress
@@ -40,16 +40,10 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                             Connected to Zenodo
                         </Responsive>
                     </Header>
-                    <Icon
-                        className="float-right"
-                        size="small"
-                        link
-                        circular
-                        name="sync"
-                        onClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)} loading={loading}
-                    />
+                    <RefreshButton onClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)} loading={loading} />
                     <List
                         loading={loading}
+                        customEmptyPage={<Header.Subheader content="No Zenodo publications found."/>}
                         pageRenderer={(page) => (
                             <Table basic="very">
                                 <TableHeader />
@@ -65,7 +59,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                     <Link to="/zenodo/publish/">
                         <Button className="top-margin">Create new upload</Button>
                     </Link>
-                </React.Fragment >
+                </React.StrictMode >
 
             );
         }
@@ -78,8 +72,8 @@ const TableHeader = () => (
             <Table.HeaderCell>ID</Table.HeaderCell>
             <Table.HeaderCell>Name</Table.HeaderCell>
             <Table.HeaderCell>Status</Table.HeaderCell>
-            <Table.HeaderCell />
-            <Table.HeaderCell>Info</Table.HeaderCell>
+            {/*<Table.HeaderCell />
+            <Table.HeaderCell>Info</Table.HeaderCell> */}
             <Table.HeaderCell>Last update</Table.HeaderCell>
         </Table.Row>
     </Table.Header>
@@ -98,12 +92,12 @@ const PublicationRow = ({ publication }) => {
             <Table.Cell>{publication.id}</Table.Cell>
             <Table.Cell>{publication.name}</Table.Cell>
             <Table.Cell>{toLowerCaseAndCapitalize(publication.status)}</Table.Cell>
-            <Table.Cell>{actionButton}</Table.Cell>
+            {/* <Table.Cell>{actionButton}</Table.Cell>
             <Table.Cell>
                 <Link to={`/zenodo/info/${encodeURIComponent(publication.id)}`}>
                     <Button>Show More</Button>
                 </Link>
-            </Table.Cell>
+            </Table.Cell> */}
             <Table.Cell>{dateToString(publication.modifiedAt)}</Table.Cell>
         </Table.Row>);
 }

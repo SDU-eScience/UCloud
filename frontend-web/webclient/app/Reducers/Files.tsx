@@ -16,7 +16,7 @@ export const RESET_FOLDER_EDITING = "RESET_FOLDER_EDITING";
 const files = (state: any = {}, action) => {
     switch (action.type) {
         case RECEIVE_FILES: {
-            return { ...state, page: action.page, loading: false, fileSelectorFiles: action.page.items, fileSelectorPath: action.path, sortOrder: action.sortOrder, sortBy: action.sortBy };
+            return { ...state, page: action.page, loading: false, fileSelectorPath: action.path, fileSelectorPage: action.page, sortOrder: action.sortOrder, sortBy: action.sortBy };
         }
         case UPDATE_FILES: {
             return { ...state, page: action.page };
@@ -25,7 +25,7 @@ const files = (state: any = {}, action) => {
             return { ...state, loading: action.loading };
         }
         case UPDATE_PATH: {
-            return { ...state, path: action.path };
+            return { ...state, path: action.path, fileSelectorPath: action.path };
         }
         case FILE_SELECTOR_SHOWN: {
             return { ...state, fileSelectorShown: action.state };
