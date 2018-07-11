@@ -4,8 +4,10 @@ import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.Tool
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.mapItems
+import io.ktor.http.HttpStatusCode
 import java.util.*
 
 class ToolHibernateDAO : ToolDAO<HibernateSession> {
@@ -134,8 +136,8 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
 
 internal fun ToolEntity.toModel(): Tool = Tool(owner, createdAt.time, modifiedAt.time, tool)
 
-sealed class ToolException(why: String) : RuntimeException(why) {
-    class NotFound : ToolException("Not found")
-    class NotAllowed : ToolException("Not allowed")
-    class AlreadyExists : ToolException("Already exists")
+sealed class ToolException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
+    class NotFound : ToolException("Not found", HttpStatusCode.NotFound)
+    class NotAllowed : ToolException("Not allowed", HttpStatusCode.Forbidden)
+    class AlreadyExists : ToolException("Already exists", HttpStatusCode.Conflict)
 }

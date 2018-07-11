@@ -7,6 +7,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
+import io.ktor.http.HttpMethod
 
 data class FindApplicationAndOptionalDependencies(
     val name: String,
@@ -44,6 +45,18 @@ object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
     val listAll = callDescription<PaginationRequest, Page<Application>, CommonErrorMessage> {
         prettyName = "appsListAll"
         path { using(baseContext) }
+
+        params {
+            +boundTo(PaginationRequest::itemsPerPage)
+            +boundTo(PaginationRequest::page)
+        }
+    }
+
+    val create = callDescription<Unit, Unit, CommonErrorMessage> {
+        prettyName = "appsCreate"
+        method = HttpMethod.Put
+        path { using(baseContext) }
+        // body { //YAML Body TODO Implement support }
     }
 }
 

@@ -4,8 +4,10 @@ import dk.sdu.cloud.app.api.Application
 import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.mapItems
+import io.ktor.http.HttpStatusCode
 import java.util.*
 
 class ApplicationHibernateDAO(
@@ -149,9 +151,9 @@ internal fun ApplicationEntity.toModel(): Application {
     )
 }
 
-sealed class ApplicationException(why: String) : RuntimeException(why) {
-    class NotFound : ApplicationException("Not found")
-    class NotAllowed : ApplicationException("Not allowed")
-    class AlreadyExists : ApplicationException("Already exists")
-    class BadToolReference : ApplicationException("Tool does not exist")
+sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
+    class NotFound : ApplicationException("Not found", HttpStatusCode.NotFound)
+    class NotAllowed : ApplicationException("Not allowed", HttpStatusCode.Forbidden)
+    class AlreadyExists : ApplicationException("Already exists", HttpStatusCode.Conflict)
+    class BadToolReference : ApplicationException("Tool does not exist", HttpStatusCode.BadRequest)
 }

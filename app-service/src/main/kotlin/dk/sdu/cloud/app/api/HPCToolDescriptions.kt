@@ -5,6 +5,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.storage.api.WithPagination
+import io.ktor.http.HttpMethod
 
 data class FindByNameAndPagination(
     val name: String,
@@ -37,10 +38,30 @@ object HPCToolDescriptions : RESTDescriptions(AppServiceDescription) {
         }
     }
 
-    val listAll = callDescription<PaginationRequest, Page<Tool>, List<NormalizedToolDescription>> {
+    val listAll = callDescription<PaginationRequest, Page<Tool>, CommonErrorMessage> {
         prettyName = "toolsListAll"
         path {
             using(baseContext)
         }
+
+        params {
+            +boundTo(PaginationRequest::itemsPerPage)
+            +boundTo(PaginationRequest::page)
+        }
+    }
+
+    val create = callDescription<Unit, Unit, CommonErrorMessage> {
+        prettyName = "toolsCreate"
+        method = HttpMethod.Put
+
+        path {
+            using(baseContext)
+        }
+
+        /*
+        body {
+            // YAML document TODO Need support in implement feature for this
+        }
+        */
     }
 }

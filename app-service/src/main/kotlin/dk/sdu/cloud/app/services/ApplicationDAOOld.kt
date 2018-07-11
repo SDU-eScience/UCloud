@@ -1,16 +1,13 @@
 package dk.sdu.cloud.app.services
 
-/*
-import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.util.yamlMapper
-import java.io.File
 
-object ApplicationDAO {
+object ApplicationDAO2 {
     val inMemoryDB: MutableMap<String, List<NormalizedApplicationDescription>> = mutableMapOf(
+        /*
         "figlet" to listOf(
             NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
@@ -56,13 +53,12 @@ object ApplicationDAO {
                 outputFileGlobs = listOf("stdout.txt", "stderr.txt")
             )
         ),
+        */
 
         "parms" to listOf(
             NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                prettyName = "PALMS",
-                createdAt = 1519910207000L,
-                modifiedAt = 1519910207000L,
+                title = "PALMS",
                 description = "The central role of places in which physical activity (PA) is done is now widely recognized, so it is important to measure both activity and its location. At present, other than using the very expensive method of doubly-labeled water, if a researcher wants to measure PA in free living humans the most accurate technologies are either combined heart rate and motion (HR+M) sensors or accelerometers. But these devices do not collect data on where the activity occurs. If a researcher wants to know where a person performs physical activity, this information must be collected by means of self report after the PA has occurred. More recently, strategies utilizing ecological momentary assessment (EMA) have been used to sample behavioral experiences, including physical activity, in free living humans while they occur. However, this approach depends upon time- or event-critical sampling of self-reported information and thus continues to depend on self-report from the user to enter the information. Objective measurement of walking and cycling using portable global positioning system (GPS) devices has been successful but GPS data have yet to be combined with highly accurate PA measurement in a way that can be used across settings and populations. \n",
                 tool = NameAndVersion("parms", "1.0.0"),
                 info = NameAndVersion("parms", "1.0.0"),
@@ -434,7 +430,8 @@ object ApplicationDAO {
                 ),
                 outputFileGlobs = listOf("output.json")
             )
-        ),
+        )
+        /*
 
         "tqdist_triplet" to listOf(
             NormalizedApplicationDescription(
@@ -691,6 +688,7 @@ object ApplicationDAO {
                 )
             )
         )
+        */
     )
 
     fun findByNameAndVersion(name: String, version: String): NormalizedApplicationDescription? =
@@ -702,7 +700,35 @@ object ApplicationDAO {
 }
 
 fun main(args: Array<String>) {
-    val parsed = yamlMapper.readValue<ApplicationDescription>(File("/tmp/searchgui.yml"))
-    println("foo")
+    ApplicationDAO2.all().first().invocation.forEach {
+        when (it) {
+            is WordInvocationParameter -> {
+                println("- ${it.word}")
+            }
+
+            is VariableInvocationParameter -> {
+                println("- type: var")
+                println("  vars:")
+                it.variableNames.forEach {
+                    println("  - $it")
+                }
+
+                if (it.prefixGlobal.isNotEmpty()) println("  prefixGlobal: \"${it.prefixGlobal}\"")
+                if (it.prefixVariable.isNotEmpty()) println("  prefixVariable: \"${it.prefixVariable}\"")
+                if (it.suffixGlobal.isNotEmpty()) println("  suffixGlobal: \"${it.suffixGlobal}\"")
+                if (it.suffixVariable.isNotEmpty()) println("  suffixVariable: \"${it.suffixVariable}\"")
+                if (it.variableSeparator != " ") println("  variableSeparator: \"${it.variableSeparator}\"")
+            }
+
+            is BooleanFlagParameter -> {
+                println("- type: flag")
+                println("  var: ${it.variableName}")
+            }
+        }
+
+        println()
+    }
+//    val foo: Map<String, ApplicationParameter<*>> = ApplicationDAO2.all().first().parameters.associateBy { it.name }
+//    println(yamlMapper.writeValueAsString(foo))
+//    println(yamlMapper.writeValueAsString(ApplicationDAO2.all()))
 }
-*/

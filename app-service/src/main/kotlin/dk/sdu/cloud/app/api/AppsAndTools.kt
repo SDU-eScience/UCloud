@@ -50,8 +50,8 @@ sealed class ApplicationDescription(val application: String) {
         val title: String,
         val description: String,
         invocation: List<Any>,
-        val parameters: Map<String, ApplicationParameter<*>>,
-        outputFileGlobs: List<String>
+        val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
+        outputFileGlobs: List<String> = emptyList()
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
 
@@ -143,7 +143,7 @@ sealed class ApplicationDescription(val application: String) {
                             }
 
                             "flag" -> {
-                                val variable = map["variable"] ?: throw ApplicationVerificationException.BadValue(
+                                val variable = map["var"] ?: throw ApplicationVerificationException.BadValue(
                                     parameterName,
                                     "missing 'variable'"
                                 )
@@ -252,23 +252,6 @@ enum class ToolBackend {
 data class NameAndVersion(val name: String, val version: String) {
     override fun toString() = "$name@$version"
 }
-
-/*
-data class ToolDescription(
-    val info: NameAndVersion,
-    val container: String,
-    val defaultNumberOfNodes: Int,
-    val defaultTasksPerNode: Int,
-    val defaultMaxTime: SimpleDuration,
-    val requiredModules: List<String>,
-    val authors: List<String>,
-    val title: String,
-    val createdAt: Long,
-    val modifiedAt: Long,
-    val description: String,
-    val backend: ToolBackend = ToolBackend.SINGULARITY
-)
-*/
 
 data class NormalizedToolDescription(
     val info: NameAndVersion,
