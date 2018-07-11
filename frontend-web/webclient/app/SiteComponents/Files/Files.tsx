@@ -122,7 +122,9 @@ class Files extends React.Component<FilesProps> {
                     <Pagination.List
                         loading={loading}
                         onRefreshClick={fetch}
-                        customEmptyPage={<Header.Subheader content="No files in current folder" />}
+                        customEmptyPage={this.props.creatingFolder ? (
+                                <CreateFolder creatingNewFolder={true} handleKeyDown={this.handleKeyDown} />) :
+                                (<Header.Subheader content="No files in current folder" />)}
                         pageRenderer={(page) => (
                             <FilesTable
                                 sortFiles={(sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, sortBy)}

@@ -31,7 +31,6 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
         } else {
             return (
                 <React.StrictMode>
-
                     <Header as="h2">
                         <Button as={Link} style={{ float: "right" }} to="/zenodo/publish/" content="Create new upload" />
                         <Header.Content className="mobile-padding">
