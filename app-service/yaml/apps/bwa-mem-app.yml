@@ -1,0 +1,71 @@
+---
+application: v1
+
+title: "BWA-MEM"
+name: bwa-mem
+version: 1.0.0
+
+tool:
+  name: bwa-sambamba
+  version: 3.3.0
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: BWA-MEM
+
+invocation:
+- bwa-mem
+
+- type: var
+  vars: index_base_main
+
+- type: var
+  vars: R1
+
+- type: var
+  vars: R2
+
+parameters:
+  index_base_main:
+    type: input_file
+    title: Index Resources
+
+  base_dict:
+    type: input_file
+    title: .fasta.dict
+
+  base_amb:
+    type: input_file
+    title: .fasta.amb
+
+  base_ann:
+    type: input_file
+    title: .fasta.ann
+
+  base_bwt:
+    type: input_file
+    title: .fasta.bwt
+
+  base_fai:
+    type: input_file
+    title: .fasta.fai
+
+  base_pac:
+    type: input_file
+    title: .fasta.pac
+
+  base_sa:
+    type: input_file
+    title: .fasta.sa
+
+  R1:
+    type: input_file
+    title: R1
+
+  R2:
+    type: input_file
+    title: R2
+
+outputFileGlobs:
+- sample.bam*
