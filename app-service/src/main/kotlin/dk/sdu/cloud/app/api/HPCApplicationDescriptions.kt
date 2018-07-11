@@ -3,30 +3,35 @@ package dk.sdu.cloud.app.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByName
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.KafkaRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
 
 data class FindApplicationAndOptionalDependencies(
     val name: String,
-    val version: String,
-    val resolve: Boolean?
+    val version: String
 )
 
 object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
     private const val baseContext = "/api/hpc/apps/"
 
-    val findByName = callDescription<FindByName, List<NormalizedApplicationDescription>, CommonErrorMessage> {
+    val findByName = callDescription<FindByNameAndPagination, Page<Application>, CommonErrorMessage> {
         prettyName = "appsFindByName"
         path {
             using(baseContext)
-            +boundTo(FindByName::name)
+            +boundTo(FindByNameAndPagination::name)
+        }
+
+        params {
+            +boundTo(FindByNameAndPagination::itemsPerPage)
+            +boundTo(FindByNameAndPagination::page)
         }
     }
 
     val findByNameAndVersion = callDescription<
             FindApplicationAndOptionalDependencies,
-            ApplicationWithOptionalDependencies,
+            Application,
             CommonErrorMessage> {
         prettyName = "appsFindByNameAndVersion"
         path {
@@ -34,13 +39,9 @@ object HPCApplicationDescriptions : RESTDescriptions(AppServiceDescription) {
             +boundTo(FindApplicationAndOptionalDependencies::name)
             +boundTo(FindApplicationAndOptionalDependencies::version)
         }
-
-        params {
-            +boundTo(FindApplicationAndOptionalDependencies::resolve)
-        }
     }
 
-    val listAll = callDescription<Unit, List<ApplicationSummary>, CommonErrorMessage> {
+    val listAll = callDescription<PaginationRequest, Page<Application>, CommonErrorMessage> {
         prettyName = "appsListAll"
         path { using(baseContext) }
     }

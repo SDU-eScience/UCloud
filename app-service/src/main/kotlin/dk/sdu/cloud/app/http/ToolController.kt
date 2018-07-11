@@ -1,35 +1,57 @@
 package dk.sdu.cloud.app.http
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.HPCToolDescriptions
 import dk.sdu.cloud.app.services.ToolDAO
+import dk.sdu.cloud.auth.api.currentUsername
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
-class ToolController(private val source: ToolDAO) {
+class ToolController<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val source: ToolDAO<DBSession>
+) {
     fun configure(routing: Route) = with(routing) {
         route("tools") {
-            implement(HPCToolDescriptions.findByName) {
-                logEntry(log, it)
-                val result = source.findAllByName(it.name)
-                if (result.isEmpty()) error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-                else ok(result)
+            implement(HPCToolDescriptions.findByName) { req ->
+                logEntry(log, req)
+                val result = db.withTransaction {
+                    source.findAllByName(
+                        it,
+                        call.request.currentUsername,
+                        req.name,
+                        req.pagination
+                    )
+                }
+
+                ok(result)
             }
 
-            implement(HPCToolDescriptions.findByNameAndVersion) {
-                logEntry(log, it)
-                val result = source.findByNameAndVersion(it.name, it.version)
-                if (result == null) error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-                else ok(result)
+            implement(HPCToolDescriptions.findByNameAndVersion) { req ->
+                logEntry(log, req)
+                val result = db.withTransaction {
+                    source.findByNameAndVersion(
+                        it,
+                        call.request.currentUsername,
+                        req.name,
+                        req.version
+                    )
+                }
+
+                ok(result)
             }
 
-            implement(HPCToolDescriptions.listAll) {
-                logEntry(log, it)
-                ok(source.all())
+            implement(HPCToolDescriptions.listAll) { req ->
+                logEntry(log, req)
+                ok(
+                    db.withTransaction {
+                        source.listLatestVersion(it, call.request.currentUsername, req.normalize())
+                    }
+                )
             }
         }
     }

@@ -9,13 +9,15 @@ import dk.sdu.cloud.app.services.JobServiceException
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.DBSessionFactory
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
-class JobController(
-    private val jobService: JobService<*>
+class JobController<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val jobService: JobService<DBSession>
 ) {
     fun configure(routing: Route) = with(routing) {
         route("jobs") {

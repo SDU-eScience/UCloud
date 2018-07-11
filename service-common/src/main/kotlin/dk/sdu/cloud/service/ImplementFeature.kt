@@ -5,10 +5,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.*
 import io.ktor.application.*
 import io.ktor.features.conversionService
-import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.receiveOrNull
@@ -184,8 +184,28 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     call.attributes.put(KafkaHttpRouteLogger.requestPayloadToLogKey, transformedPayload)
                 }
 
-                // Call the handler with the payload
-                RESTHandler(this, logResponse, restCall).handler(payload)
+                val restHandler = RESTHandler(this, logResponse, restCall)
+                try {
+                    // Call the handler with the payload
+                    restHandler.handler(payload)
+                } catch (ex: RPCException) {
+                    if (ex.httpStatusCode == HttpStatusCode.InternalServerError) {
+                        log.warn("Internal server error in ${restCall.fullName}")
+                        log.warn(ex.stackTraceToString())
+                    }
+
+                    if (CommonErrorMessage::class == restCall.responseTypeFailure) {
+                        val message =
+                            if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why else "Internal Server Error"
+
+                        @Suppress("UNCHECKED_CAST")
+                        restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
+                    } else {
+                        log.info("Cannot auto-complete exception message when error type is not " +
+                                "CommonErrorMessage. Please catch exceptions yourself.")
+                        call.respond(ex.httpStatusCode)
+                    }
+                }
             }
         }
     }
@@ -331,3 +351,5 @@ fun <R : Any> RESTQueryParameter<R>.bindValuesFromCall(call: ApplicationCall): P
         }
     }
 }
+
+open class RPCException(val why: String, val httpStatusCode: HttpStatusCode) : RuntimeException(why)

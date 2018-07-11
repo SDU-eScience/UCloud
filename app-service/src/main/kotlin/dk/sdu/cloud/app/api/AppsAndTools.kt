@@ -6,51 +6,20 @@ import dk.sdu.cloud.app.services.BooleanFlagParameter
 import dk.sdu.cloud.app.services.InvocationParameter
 import dk.sdu.cloud.app.services.VariableInvocationParameter
 import dk.sdu.cloud.app.services.WordInvocationParameter
+import dk.sdu.cloud.service.RPCException
+import io.ktor.http.HttpStatusCode
 import kotlin.reflect.KProperty0
 
-data class ApplicationSummary(
-    val tool: NameAndVersion,
-    val info: NameAndVersion,
-    val prettyName: String,
-    val authors: List<String>,
-    val createdAt: Long,
-    val modifiedAt: Long,
-    val description: String
-)
-
-data class ApplicationWithOptionalDependencies(
-    val application: NormalizedApplicationDescription,
-    val tool: ToolDescription?
-)
-
-data class NormalizedApplicationDescription(
-    val tool: NameAndVersion,
-    val info: NameAndVersion,
-    val authors: List<String>,
-    val prettyName: String,
-    val createdAt: Long,
-    val modifiedAt: Long,
-    val description: String,
-    val invocation: List<InvocationParameter>,
-    // TODO We cannot have duplicates on param name!
-    val parameters: List<ApplicationParameter<*>>,
-    val outputFileGlobs: List<String>
-) {
-    fun toSummary(): ApplicationSummary = ApplicationSummary(
-        tool, info, prettyName, authors, createdAt, modifiedAt, description
-    )
-}
-
 // Note: It is currently assumed that validation is done in layers above
-data class NewApplication(
+data class Application(
     val owner: String,
     val createdAt: Long,
     val modifiedAt: Long,
-    val description: NewNormalizedApplicationDescription,
-    val tool: NewTool
+    val description: NormalizedApplicationDescription,
+    val tool: Tool
 )
 
-data class NewNormalizedApplicationDescription(
+data class NormalizedApplicationDescription(
     val info: NameAndVersion,
     val tool: NameAndVersion,
     val authors: List<String>,
@@ -70,7 +39,7 @@ data class NewNormalizedApplicationDescription(
     JsonSubTypes.Type(value = ApplicationDescription.V1::class, name = "v1")
 )
 sealed class ApplicationDescription(val application: String) {
-    abstract fun normalize(): NewNormalizedApplicationDescription
+    abstract fun normalize(): NormalizedApplicationDescription
 
     class V1(
         val name: String,
@@ -100,6 +69,8 @@ sealed class ApplicationDescription(val application: String) {
             ::version.requireNotBlank()
             ::version.disallowCharacters('\n')
             ::version.requireSize(maxSize = 255)
+
+            if (authors.isEmpty()) throw ToolVerificationException.BadValue(::authors.name, "Authors is empty")
 
             val badAuthorIndex = authors.indexOfFirst { it.contains("\n") }
             if (badAuthorIndex != -1) {
@@ -239,8 +210,8 @@ sealed class ApplicationDescription(val application: String) {
             )
         }
 
-        override fun normalize(): NewNormalizedApplicationDescription {
-            return NewNormalizedApplicationDescription(
+        override fun normalize(): NormalizedApplicationDescription {
+            return NormalizedApplicationDescription(
                 NameAndVersion(name, version),
                 tool,
                 authors,
@@ -254,18 +225,23 @@ sealed class ApplicationDescription(val application: String) {
     }
 }
 
-sealed class ApplicationVerificationException(why: String) : RuntimeException(why) {
+sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpStatusCode) :
+    RPCException(why, httpStatusCode) {
     class DuplicateDefinition(type: String, definitions: List<String>) :
         ApplicationVerificationException(
             "Duplicate definition of $type. " +
-                    "Duplicates where: ${definitions.joinToString(", ")}"
+                    "Duplicates where: ${definitions.joinToString(", ")}",
+            HttpStatusCode.BadRequest
         )
 
     class BadValue(parameter: String, why: String) :
-        ApplicationVerificationException("Parameter '$parameter' received a bad value. $why")
+        ApplicationVerificationException("Parameter '$parameter' received a bad value. $why", HttpStatusCode.BadRequest)
 
     class BadVariableReference(where: String, name: String) :
-        ApplicationVerificationException("Variable referenced at $where with name '$name' could not be resolved")
+        ApplicationVerificationException(
+            "Variable referenced at $where with name '$name' could not be resolved",
+            HttpStatusCode.BadRequest
+        )
 }
 
 enum class ToolBackend {
@@ -277,6 +253,7 @@ data class NameAndVersion(val name: String, val version: String) {
     override fun toString() = "$name@$version"
 }
 
+/*
 data class ToolDescription(
     val info: NameAndVersion,
     val container: String,
@@ -291,8 +268,9 @@ data class ToolDescription(
     val description: String,
     val backend: ToolBackend = ToolBackend.SINGULARITY
 )
+*/
 
-data class NewNormalizedToolDecription(
+data class NormalizedToolDescription(
     val info: NameAndVersion,
     val container: String,
     val defaultNumberOfNodes: Int,
@@ -305,9 +283,79 @@ data class NewNormalizedToolDecription(
     val backend: ToolBackend
 )
 
-data class NewTool(
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "tool"
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = ToolDescription.V1::class, name = "v1")
+)
+sealed class ToolDescription(val tool: String) {
+    abstract fun normalize(): NormalizedToolDescription
+
+    class V1(
+        val name: String,
+        val version: String,
+        val title: String,
+        val container: String,
+        val backend: ToolBackend,
+        val authors: List<String>,
+        val defaultNumberOfNodes: Int = 1,
+        val defaultTasksPerNode: Int = 0,
+        val defaultMaxTime: SimpleDuration = SimpleDuration(1, 0, 0),
+        val requiredModules: List<String> = emptyList(),
+        val description: String = ""
+    ) : ToolDescription("v1") {
+        init {
+            if (name.length > 255) throw ToolVerificationException.BadValue(::name.name, "Name is too long")
+            if (version.length > 255) throw ToolVerificationException.BadValue(::version.name, "Version is too long")
+            if (title.length > 255) throw ToolVerificationException.BadValue(::title.name, "Title is too long")
+
+            if (name.isBlank()) throw ToolVerificationException.BadValue(::name.name, "Name is blank")
+            if (version.isBlank()) throw ToolVerificationException.BadValue(::version.name, "Version is blank")
+            if (title.isBlank()) throw ToolVerificationException.BadValue(::title.name, "Title is blank")
+
+            if (name.contains('\n')) throw ToolVerificationException.BadValue(::name.name, "Name contains newlines")
+            if (version.contains('\n')) throw ToolVerificationException.BadValue(
+                ::version.name,
+                "Version contains newlines"
+            )
+            if (title.contains('\n')) throw ToolVerificationException.BadValue(::title.name, "Title contains newlines")
+
+            if (authors.isEmpty()) throw ToolVerificationException.BadValue(::authors.name, "Authors is empty")
+            val badAuthorIndex = authors.indexOfFirst { it.contains("\n") }
+            if (badAuthorIndex != -1) {
+                throw ToolVerificationException.BadValue("author[$badAuthorIndex]", "Cannot contain new lines")
+            }
+        }
+
+        override fun normalize(): NormalizedToolDescription {
+            return NormalizedToolDescription(
+                NameAndVersion(name, version),
+                container,
+                defaultNumberOfNodes,
+                defaultTasksPerNode,
+                defaultMaxTime,
+                requiredModules,
+                authors,
+                title,
+                description,
+                backend
+            )
+        }
+    }
+}
+
+sealed class ToolVerificationException(why: String, httpStatusCode: HttpStatusCode) :
+    RPCException(why, httpStatusCode) {
+    class BadValue(parameter: String, reason: String) :
+        ToolVerificationException("Parameter '$parameter' received a bad value. $reason", HttpStatusCode.BadRequest)
+}
+
+data class Tool(
     val owner: String,
     val createdAt: Long,
     val modifiedAt: Long,
-    val description: NewNormalizedToolDecription
+    val description: NormalizedToolDescription
 )

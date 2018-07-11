@@ -1,20 +1,20 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.NewNormalizedToolDecription
-import dk.sdu.cloud.app.api.NewTool
+import dk.sdu.cloud.app.api.NormalizedToolDescription
+import dk.sdu.cloud.app.api.Tool
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.mapItems
 import java.util.*
 
-class ToolHibernateDAO : ToolDAO2<HibernateSession> {
+class ToolHibernateDAO : ToolDAO<HibernateSession> {
     override fun findAllByName(
         session: HibernateSession,
         user: String?,
         name: String,
         paging: NormalizedPaginationRequest
-    ): Page<NewTool> {
+    ): Page<Tool> {
         return session.paginatedCriteria<ToolEntity>(paging) {
             entity[ToolEntity::id][EmbeddedNameAndVersion::name] equal name
         }.mapItems { it.toModel() }
@@ -25,7 +25,7 @@ class ToolHibernateDAO : ToolDAO2<HibernateSession> {
         user: String?,
         name: String,
         version: String
-    ): NewTool {
+    ): Tool {
         return internalByNameAndVersion(session, name, version)?.toModel() ?: throw ToolException.NotFound()
     }
 
@@ -33,7 +33,7 @@ class ToolHibernateDAO : ToolDAO2<HibernateSession> {
         session: HibernateSession,
         user: String?,
         paging: NormalizedPaginationRequest
-    ): Page<NewTool> {
+    ): Page<Tool> {
         //language=HQL
         val count = session.typedQuery<Long>(
             """
@@ -68,7 +68,7 @@ class ToolHibernateDAO : ToolDAO2<HibernateSession> {
     override fun create(
         session: HibernateSession,
         user: String,
-        description: NewNormalizedToolDecription,
+        description: NormalizedToolDescription,
         originalDocument: String
     ) {
         val existingOwner = findOwner(session, description.info.name)
@@ -132,7 +132,7 @@ class ToolHibernateDAO : ToolDAO2<HibernateSession> {
     }
 }
 
-internal fun ToolEntity.toModel(): NewTool = NewTool(owner, createdAt.time, modifiedAt.time, tool)
+internal fun ToolEntity.toModel(): Tool = Tool(owner, createdAt.time, modifiedAt.time, tool)
 
 sealed class ToolException(why: String) : RuntimeException(why) {
     class NotFound : ToolException("Not found")

@@ -1,8 +1,8 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.AppState
-import dk.sdu.cloud.app.api.NewNormalizedApplicationDescription
-import dk.sdu.cloud.app.api.NewNormalizedToolDecription
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
@@ -29,7 +29,7 @@ data class ToolEntity(
     var modifiedAt: Date,
 
     @Type(type = JSONB_TYPE)
-    var tool: NewNormalizedToolDecription,
+    var tool: NormalizedToolDescription,
 
     @Column(length = 1024 * 64)
     var originalDocument: String,
@@ -56,7 +56,7 @@ class ApplicationEntity(
     var modifiedAt: Date,
 
     @Type(type = JSONB_TYPE)
-    var application: NewNormalizedApplicationDescription,
+    var application: NormalizedApplicationDescription,
 
     // Note: This is just the original document. We _do not_ attempt to keep this synchronized with changes
     // to description etc.

@@ -1,29 +1,28 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.AppRequest
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.Application
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
 
 class SBatchGenerator {
     fun generate(
-        description: NormalizedApplicationDescription,
+        app: Application,
         startRequest: AppRequest.Start,
         workDir: String
     ): String {
         val parameters = startRequest.parameters
 
-        // TODO Exception handling
-        val tool = ToolDAO.findByNameAndVersion(description.tool.name, description.tool.version)!!
-
-        val resolvedParameters = description.parameters.associate { it to it.map(parameters[it.name]) }
+        val tool = app.tool.description
+        val appDescription = app.description
+        val resolvedParameters = appDescription.parameters.associate { it to it.map(parameters[it.name]) }
         val givenParameters = resolvedParameters.filterValues { it != null }.mapValues { it.value!! }
 
         val numberOfNodes = startRequest.numberOfNodes ?: tool.defaultNumberOfNodes
         val tasksPerNode = startRequest.tasksPerNode ?: tool.defaultTasksPerNode
         val maxTime = startRequest.maxTime ?: tool.defaultMaxTime
 
-        val invocation = description.invocation.buildSafeBashString(givenParameters)
+        val invocation = appDescription.invocation.buildSafeBashString(givenParameters)
 
         // We should validate at tool level as well, but we do it here as well, just in case
         val requiredModules = ArrayList<String>()
@@ -74,7 +73,8 @@ class SBatchGenerator {
         //
         //
         //
-        val batchJob = """
+
+        return """
             #!/bin/bash
             #SBATCH --account sduescience_slim
             #SBATCH --nodes $numberOfNodes
@@ -85,7 +85,5 @@ class SBatchGenerator {
 
             srun $runCommand $stdRedirect
             """.trimIndent()
-
-        return batchJob
     }
 }

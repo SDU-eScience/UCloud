@@ -3,48 +3,59 @@ package dk.sdu.cloud.app
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
-import org.hamcrest.CoreMatchers.*
+import org.hamcrest.CoreMatchers.containsString
+import org.hamcrest.CoreMatchers.hasItem
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Test
 
 class SBatchGeneratorTest {
-    @Test
-    fun testWithNoParams() {
-        ToolDAO.inMemoryDB["test"] = listOf(
-            ToolDescription(
+    private fun newTool(): Tool {
+        return Tool(
+            "foo",
+            0L,
+            0L,
+            NormalizedToolDescription(
                 title = "hello",
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                createdAt = 1519910207000L,
-                modifiedAt = 1519910207000L,
                 description = "hello",
                 info = NameAndVersion("test", "1.0.0"),
                 container = "container-name",
                 defaultNumberOfNodes = 1,
                 defaultTasksPerNode = 1,
                 defaultMaxTime = SimpleDuration(1, 0, 0),
-                requiredModules = emptyList()
+                requiredModules = emptyList(),
+                backend = ToolBackend.SINGULARITY
             )
         )
+    }
 
-        ApplicationDAO.inMemoryDB["app"] = listOf(
+    private fun simpleApp(): Application {
+        val tool = newTool()
+
+        return Application(
+            "foo",
+            0L,
+            0L,
             NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                prettyName = "Figlet",
-                createdAt = 1519910207000L,
-                modifiedAt = 1519910207000L,
+                title = "Figlet",
                 description = "Render some text!",
                 tool = NameAndVersion("test", "1.0.0"),
                 info = NameAndVersion("app", "1.0.0"),
                 invocation = listOf(WordInvocationParameter("hello")),
                 parameters = emptyList(),
                 outputFileGlobs = emptyList()
-            )
+            ),
+            tool
         )
+    }
 
+
+    @Test
+    fun testWithNoParams() {
+        val app = simpleApp()
         val generator = SBatchGenerator()
-
-        val app = ApplicationDAO.findByNameAndVersion("app", "1.0.0")!!
-        val request = AppRequest.Start(app.info, emptyMap())
+        val request = AppRequest.Start(app.description.info, emptyMap())
         val job = generator.generate(app, request, "")
         val lines = job.lines()
 
@@ -60,28 +71,15 @@ class SBatchGeneratorTest {
 
     @Test
     fun testWithFileParameters() {
-        ToolDAO.inMemoryDB["hello_world"] = listOf(
-            ToolDescription(
-                title = "hello",
-                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                createdAt = 1519910207000L,
-                modifiedAt = 1519910207000L,
-                description = "hello",
-                info = NameAndVersion("hello_world", "1.0.0"),
-                container = "hello.simg",
-                defaultNumberOfNodes = 1,
-                defaultTasksPerNode = 1,
-                defaultMaxTime = SimpleDuration(hours = 0, minutes = 1, seconds = 0),
-                requiredModules = emptyList()
-            )
-        )
+        val tool = newTool()
 
-        ApplicationDAO.inMemoryDB["hello"] = listOf(
+        val app = Application(
+            "foo",
+            0L,
+            0L,
             NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                prettyName = "Figlet",
-                createdAt = 1519910207000L,
-                modifiedAt = 1519910207000L,
+                title = "Figlet",
                 description = "Render some text!",
                 tool = NameAndVersion("hello_world", "1.0.0"),
                 info = NameAndVersion("hello", "1.0.0"),
@@ -94,7 +92,8 @@ class SBatchGeneratorTest {
                     ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
                 ),
                 outputFileGlobs = emptyList()
-            )
+            ),
+            tool
         )
 
         val serde = jsonSerde<Map<String, Any>>()
@@ -111,8 +110,7 @@ class SBatchGeneratorTest {
         val gen = SBatchGenerator()
         val parameters = serde.deserializer().deserialize("", parametersJson.toByteArray())
 
-        val app = ApplicationDAO.findAllByName("hello").first()
-        val command = AppRequest.Start(app.info, parameters)
+        val command = AppRequest.Start(app.description.info, parameters)
         val jobLines = gen.generate(app, command, "/test/a/b/c").lines()
 
         val srunLine = jobLines.find { it.startsWith("srun singularity") }
@@ -128,30 +126,17 @@ class SBatchGeneratorTest {
 
     @Test
     fun testWithSeveralFileParameters() {
-        ToolDAO.inMemoryDB["hello_world"] = listOf(
-            ToolDescription(
-                title = "hello",
-                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                createdAt = 1519910207000L,
-                modifiedAt = 1519910207000L,
-                description = "hello",
-                info = NameAndVersion("hello_world", "1.0.0"),
-                container = "hello.simg",
-                defaultNumberOfNodes = 1,
-                defaultTasksPerNode = 1,
-                defaultMaxTime = SimpleDuration(hours = 0, minutes = 1, seconds = 0),
-                requiredModules = emptyList()
-            )
-        )
+        val tool = newTool()
 
-        ApplicationDAO.inMemoryDB["hello"] = listOf(
+        val app = Application(
+            "foo",
+            0L,
+            0L,
             NormalizedApplicationDescription(
                 authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                prettyName = "Figlet",
-                createdAt = 1519910207000L,
-                modifiedAt = 1519910207000L,
+                title = "Figlet",
                 description = "Render some text!",
-                tool = NameAndVersion("hello_world", "1.0.0"),
+                tool = tool.description.info,
                 info = NameAndVersion("hello", "1.0.0"),
                 invocation = listOf(
                     VariableInvocationParameter(listOf("greeting", "boo"), prefixVariable = "--greeting "),
@@ -163,7 +148,8 @@ class SBatchGeneratorTest {
                     ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
                 ),
                 outputFileGlobs = emptyList()
-            )
+            ),
+            tool
         )
 
         val serde = jsonSerde<Map<String, Any>>()
@@ -181,8 +167,7 @@ class SBatchGeneratorTest {
         val gen = SBatchGenerator()
         val parameters = serde.deserializer().deserialize("", parametersJson.toByteArray())
 
-        val app = ApplicationDAO.findAllByName("hello").first()
-        val request = AppRequest.Start(app.info, parameters)
+        val request = AppRequest.Start(app.description.info, parameters)
         val jobLines = gen.generate(app, request, "/test/a/b/c").lines()
 
         val srunLine = jobLines.find { it.startsWith("srun singularity") }

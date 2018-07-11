@@ -27,14 +27,14 @@ sealed class AppEvent {
     abstract val systemId: String
     abstract val timestamp: Long
     abstract val owner: String
-    abstract val appWithDependencies: ApplicationWithOptionalDependencies
+    abstract val appWithDependencies: Application
 
     data class Validated(
         override val systemId: String,
         override val timestamp: Long,
         val jwt: String,
         override val owner: String,
-        override val appWithDependencies: ApplicationWithOptionalDependencies,
+        override val appWithDependencies: Application,
 
         val jobDirectory: String,
         val workingDirectory: String,
@@ -54,7 +54,7 @@ sealed class AppEvent {
         override val systemId: String,
         override val timestamp: Long,
         override val owner: String,
-        override val appWithDependencies: ApplicationWithOptionalDependencies,
+        override val appWithDependencies: Application,
 
         override val sshUser: String,
         override val jobDirectory: String,
@@ -67,7 +67,7 @@ sealed class AppEvent {
         override val systemId: String,
         override val timestamp: Long,
         override val owner: String,
-        override val appWithDependencies: ApplicationWithOptionalDependencies,
+        override val appWithDependencies: Application,
 
         override val sshUser: String,
         override val jobDirectory: String,
@@ -79,7 +79,7 @@ sealed class AppEvent {
         override val systemId: String,
         override val timestamp: Long,
         override val owner: String,
-        override val appWithDependencies: ApplicationWithOptionalDependencies,
+        override val appWithDependencies: Application,
 
         override val sshUser: String,
         override val jobDirectory: String,
@@ -93,7 +93,7 @@ sealed class AppEvent {
         override val systemId: String,
         override val timestamp: Long,
         override val owner: String,
-        override val appWithDependencies: ApplicationWithOptionalDependencies,
+        override val appWithDependencies: Application,
 
         override val sshUser: String,
         override val jobDirectory: String,
@@ -107,7 +107,7 @@ sealed class AppEvent {
         override val systemId: String,
         override val timestamp: Long,
         override val owner: String,
-        override val appWithDependencies: ApplicationWithOptionalDependencies,
+        override val appWithDependencies: Application,
 
         val successful: Boolean,
         val message: String

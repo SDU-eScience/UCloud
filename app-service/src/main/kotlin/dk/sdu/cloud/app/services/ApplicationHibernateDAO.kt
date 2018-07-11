@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.NewApplication
-import dk.sdu.cloud.app.api.NewNormalizedApplicationDescription
+import dk.sdu.cloud.app.api.Application
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.*
@@ -10,13 +10,13 @@ import java.util.*
 
 class ApplicationHibernateDAO(
     private val toolDAO: ToolHibernateDAO
-) : ApplicationDAO2<HibernateSession> {
+) : ApplicationDAO<HibernateSession> {
     override fun findAllByName(
         session: HibernateSession,
         user: String?,
         name: String,
         paging: NormalizedPaginationRequest
-    ): Page<NewApplication> {
+    ): Page<Application> {
         return session.paginatedCriteria<ApplicationEntity>(paging) {
             entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
         }.mapItems { it.toModel() }
@@ -27,7 +27,7 @@ class ApplicationHibernateDAO(
         user: String?,
         name: String,
         version: String
-    ): NewApplication {
+    ): Application {
         return internalByNameAndVersion(session, name, version)
             ?.toModel() ?: throw ApplicationException.NotFound()
     }
@@ -36,7 +36,7 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: String?,
         paging: NormalizedPaginationRequest
-    ): Page<NewApplication> {
+    ): Page<Application> {
         //language=HQL
         val count = session.typedQuery<Long>(
             """
@@ -71,7 +71,7 @@ class ApplicationHibernateDAO(
     override fun create(
         session: HibernateSession,
         user: String,
-        description: NewNormalizedApplicationDescription,
+        description: NormalizedApplicationDescription,
         originalDocument: String
     ) {
         val existingOwner = findOwnerOfApplication(session, description.info.name)
@@ -139,8 +139,8 @@ class ApplicationHibernateDAO(
     }
 }
 
-internal fun ApplicationEntity.toModel(): NewApplication {
-    return NewApplication(
+internal fun ApplicationEntity.toModel(): Application {
+    return Application(
         owner,
         createdAt.time,
         modifiedAt.time,

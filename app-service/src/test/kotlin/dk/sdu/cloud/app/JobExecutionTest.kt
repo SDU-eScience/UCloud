@@ -55,6 +55,12 @@ class JobExecutionTest {
     @RelaxedMockK
     lateinit var db: DBSessionFactory<Any>
 
+    @RelaxedMockK
+    lateinit var appDao: ApplicationDAO<Any>
+
+    @RelaxedMockK
+    lateinit var toolDao: ToolDAO<Any>
+
     lateinit var service: JobExecutionService<Any>
 
     val emitSlot = ArrayList<AppEvent>()
@@ -74,18 +80,22 @@ class JobExecutionTest {
     private val jobDirectiory = "/scratch/sduescience/p/"
     private val workingDirectory = "/scratch/sduescience/p/files/"
 
-    private val dummyTool = ToolDescription(
-        info = NameAndVersion("dummy", "1.0.0"),
-        container = "dummy.simg",
-        defaultNumberOfNodes = 1,
-        defaultTasksPerNode = 1,
-        defaultMaxTime = SimpleDuration(1, 0, 0),
-        requiredModules = emptyList(),
-        authors = listOf("Author"),
-        title = "Dummy",
-        createdAt = System.currentTimeMillis(),
-        modifiedAt = System.currentTimeMillis(),
-        description = "Dummy description"
+    private val dummyTool = Tool(
+        "foo",
+        0L,
+        0L,
+        NormalizedToolDescription(
+            info = NameAndVersion("dummy", "1.0.0"),
+            container = "dummy.simg",
+            defaultNumberOfNodes = 1,
+            defaultTasksPerNode = 1,
+            defaultMaxTime = SimpleDuration(1, 0, 0),
+            requiredModules = emptyList(),
+            authors = listOf("Author"),
+            title = "Dummy",
+            description = "Dummy description",
+            backend = ToolBackend.UDOCKER
+        )
     )
 
     private val noParamsApplication = app(
@@ -93,6 +103,7 @@ class JobExecutionTest {
         invocation = listOf(WordInvocationParameter("noparms")),
         parameters = emptyList()
     )
+
 
     private val txtFilesGlob = "*.txt"
     private val singleFileGlob = "b.txt"
@@ -110,22 +121,26 @@ class JobExecutionTest {
         invocation: List<InvocationParameter>,
         parameters: List<ApplicationParameter<*>>,
         fileGlobs: List<String> = emptyList()
-    ): NormalizedApplicationDescription {
-        return NormalizedApplicationDescription(
-            tool = dummyTool.info,
-            info = NameAndVersion(name, "1.0.0"),
-            authors = listOf("Author"),
-            prettyName = name,
-            createdAt = System.currentTimeMillis(),
-            modifiedAt = System.currentTimeMillis(),
-            description = name,
-            invocation = invocation,
-            parameters = parameters,
-            outputFileGlobs = fileGlobs
+    ): Application {
+        return Application(
+            "foo",
+            0L,
+            0L,
+            NormalizedApplicationDescription(
+                tool = dummyTool.description.info,
+                info = NameAndVersion(name, "1.0.0"),
+                authors = listOf("Author"),
+                title = name,
+                description = name,
+                invocation = invocation,
+                parameters = parameters,
+                outputFileGlobs = fileGlobs
+            ),
+            dummyTool
         )
     }
 
-    private fun irodsStat(name: String): StorageFile {
+    private fun stat(name: String): StorageFile {
         return StorageFile(
             FileType.FILE,
             name,
@@ -141,12 +156,20 @@ class JobExecutionTest {
         )
     }
 
-    private fun createTemporaryApplication(application: NormalizedApplicationDescription) {
-        ApplicationDAO.inMemoryDB[application.info.name] = listOf(application)
+    private fun createTemporaryApplication(application: Application) {
+        every {
+            with(application.description.info) {
+                appDao.findByNameAndVersion(any(), any(), name, version)
+            }
+        } returns application
     }
 
-    private fun createTemporaryTool(tool: ToolDescription) {
-        ToolDAO.inMemoryDB[tool.info.name] = listOf(tool)
+    private fun createTemporaryTool(tool: Tool) {
+        every {
+            with(tool.description.info) {
+                toolDao.findByNameAndVersion(any(), any(), name, version)
+            }
+        } returns tool
     }
 
     private fun <T> withMockScopes(vararg scopes: MockKUnmockKScope, body: () -> T): T {
@@ -191,6 +214,7 @@ class JobExecutionTest {
             sBatchGenerator,
             db,
             jobsDao,
+            appDao,
             slurmPollAgent,
             sshPool,
             sshUser
@@ -206,8 +230,14 @@ class JobExecutionTest {
     @Test
     fun testValidationOfSimpleJob() {
         val result =
-            runBlocking { service.startJob(AppRequest.Start(noParamsApplication.info, emptyMap()), dummyToken, cloud) }
-        verifyJobStarted(result, noParamsApplication)
+            runBlocking {
+                service.startJob(
+                    AppRequest.Start(noParamsApplication.description.info, emptyMap()),
+                    dummyToken,
+                    cloud
+                )
+            }
+        verifyJobStarted(result, noParamsApplication.description)
     }
 
     @Test(expected = JobValidationException::class)
@@ -219,8 +249,14 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val result = runBlocking { service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken, cloud) }
-        verifyJobStarted(result, application)
+        val result = runBlocking {
+            service.startJob(
+                AppRequest.Start(application.description.info, emptyMap()),
+                dummyToken,
+                cloud
+            )
+        }
+        verifyJobStarted(result, application.description)
     }
 
     @Test
@@ -233,8 +269,14 @@ class JobExecutionTest {
 
         createTemporaryApplication(application)
 
-        val result = runBlocking { service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken, cloud) }
-        verifyJobStarted(result, application)
+        val result = runBlocking {
+            service.startJob(
+                AppRequest.Start(application.description.info, emptyMap()),
+                dummyToken,
+                cloud
+            )
+        }
+        verifyJobStarted(result, application.description)
     }
 
     @Test
@@ -246,8 +288,14 @@ class JobExecutionTest {
         )
         createTemporaryApplication(application)
 
-        val result = runBlocking { service.startJob(AppRequest.Start(application.info, emptyMap()), dummyToken, cloud) }
-        verifyJobStarted(result, application)
+        val result = runBlocking {
+            service.startJob(
+                AppRequest.Start(application.description.info, emptyMap()),
+                dummyToken,
+                cloud
+            )
+        }
+        verifyJobStarted(result, application.description)
     }
 
     @Test
@@ -265,7 +313,7 @@ class JobExecutionTest {
         val result = runBlocking {
             service.startJob(
                 AppRequest.Start(
-                    application.info,
+                    application.description.info,
                     mapOf(
                         "arg" to "foo",
                         "arg2" to "bar"
@@ -275,7 +323,7 @@ class JobExecutionTest {
                 cloud
             )
         }
-        verifyJobStarted(result, application)
+        verifyJobStarted(result, application.description)
     }
 
     @Test(expected = JobValidationException::class)
@@ -293,7 +341,7 @@ class JobExecutionTest {
         val result = runBlocking {
             service.startJob(
                 AppRequest.Start(
-                    application.info,
+                    application.description.info,
                     mapOf(
                         "arg" to "foo"
                     )
@@ -302,7 +350,7 @@ class JobExecutionTest {
                 cloud
             )
         }
-        verifyJobStarted(result, application)
+        verifyJobStarted(result, application.description)
     }
 
     @Test
@@ -314,7 +362,7 @@ class JobExecutionTest {
             } answers {
                 RESTResponse.Ok(
                     mockk(relaxed = true),
-                    irodsStat(path)
+                    stat(path)
                 )
             }
 
@@ -330,7 +378,7 @@ class JobExecutionTest {
             val result = runBlocking {
                 service.startJob(
                     AppRequest.Start(
-                        application.info,
+                        application.description.info,
                         mapOf(
                             "myFile" to mapOf("source" to path, "destination" to "1.txt")
                         )
@@ -340,7 +388,7 @@ class JobExecutionTest {
                 )
             }
 
-            verifyJobStarted(result, application)
+            verifyJobStarted(result, application.description)
             val captured = emitSlot.first() as AppEvent.Validated
             val workDir = URI(captured.workingDirectory)
 
@@ -381,7 +429,7 @@ class JobExecutionTest {
             runBlocking {
                 service.startJob(
                     AppRequest.Start(
-                        application.info,
+                        application.description.info,
                         mapOf(
                             "myFile" to mapOf("source" to path, "destination" to "1.txt")
                         )
@@ -403,7 +451,7 @@ class JobExecutionTest {
                 } answers {
                     RESTResponse.Ok(
                         mockk(relaxed = true),
-                        irodsStat(path)
+                        stat(path)
                     )
                 }
             }
@@ -421,7 +469,7 @@ class JobExecutionTest {
             val result = runBlocking {
                 service.startJob(
                     AppRequest.Start(
-                        application.info,
+                        application.description.info,
                         mapOf(
                             "myFile" to mapOf("source" to paths[0], "destination" to "1.txt"),
                             "myFile2" to mapOf("source" to paths[1], "destination" to "foo.png")
@@ -432,7 +480,7 @@ class JobExecutionTest {
                 )
             }
 
-            verifyJobStarted(result, application)
+            verifyJobStarted(result, application.description)
             val captured = emitSlot.first() as AppEvent.Validated
             val workDir = URI(captured.workingDirectory)
 
@@ -459,7 +507,7 @@ class JobExecutionTest {
                 } answers {
                     RESTResponse.Ok(
                         mockk(relaxed = true),
-                        irodsStat(path)
+                        stat(path)
                     )
                 }
             }
@@ -477,7 +525,7 @@ class JobExecutionTest {
             val result = runBlocking {
                 service.startJob(
                     AppRequest.Start(
-                        application.info,
+                        application.description.info,
                         mapOf(
                             "myFile" to mapOf("source" to paths[0], "destination" to "1.txt")
                         )
@@ -487,7 +535,7 @@ class JobExecutionTest {
                 )
             }
 
-            verifyJobStarted(result, application)
+            verifyJobStarted(result, application.description)
             val captured = emitSlot.first() as AppEvent.Validated
             val workDir = URI(captured.workingDirectory)
 
@@ -507,7 +555,15 @@ class JobExecutionTest {
     private fun verifyJobStarted(result: String, app: NormalizedApplicationDescription) {
         assertNotEquals("", result)
 
-        verify { jobsDao.createJob(any(), result, dummyTokenSubject, app) }
+        verify {
+            jobsDao.createJob(
+                any(),
+                result,
+                dummyTokenSubject,
+                app.info.name,
+                app.info.version
+            )
+        }
 
         coVerify {
             producer.emit(
@@ -528,7 +584,7 @@ class JobExecutionTest {
             System.currentTimeMillis(),
             dummyToken.token,
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            noParamsApplication,
             "/scratch/sduescience/p",
             "/scratch/sduescience/p/files",
             emptyList(),
@@ -552,7 +608,7 @@ class JobExecutionTest {
             System.currentTimeMillis(),
             dummyToken.token,
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            noParamsApplication,
             "/scratch/sduescience/p",
             "/scratch/sduescience/p/files",
             emptyList(),
@@ -596,12 +652,12 @@ class JobExecutionTest {
             System.currentTimeMillis(),
             dummyToken.token,
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(application, dummyTool),
+            application,
             "/scratch/sduescience/p",
             workingDirectory,
             listOf(
                 ValidatedFileForUpload(
-                    irodsStat(fileName),
+                    stat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
                     fileName,
@@ -653,12 +709,12 @@ class JobExecutionTest {
             System.currentTimeMillis(),
             dummyToken.token,
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(application, dummyTool),
+            application,
             "/scratch/sduescience/p",
             workingDirectory,
             listOf(
                 ValidatedFileForUpload(
-                    irodsStat(fileName),
+                    stat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
                     fileName,
@@ -730,12 +786,12 @@ class JobExecutionTest {
             System.currentTimeMillis(),
             dummyToken.token,
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(application, dummyTool),
+            application,
             "/scratch/sduescience/p",
             workingDirectory,
             listOf(
                 ValidatedFileForUpload(
-                    irodsStat(fileName),
+                    stat(fileName),
                     fileName,
                     "$workingDirectory/$fileName",
                     fileName,
@@ -771,12 +827,12 @@ class JobExecutionTest {
             System.currentTimeMillis(),
             dummyToken.token,
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(application, dummyTool),
+            application,
             jobDirectiory,
             workingDirectory,
             listOf(
                 ValidatedFileForUpload(
-                    irodsStat(fileName),
+                    stat(fileName),
                     fileName,
                     "$workingDirectory$fileName",
                     fileName,
@@ -854,7 +910,7 @@ class JobExecutionTest {
             UUID.randomUUID().toString(),
             System.currentTimeMillis(),
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            noParamsApplication,
             "nobody",
             jobDirectiory,
             workingDirectory,
@@ -879,7 +935,7 @@ class JobExecutionTest {
             UUID.randomUUID().toString(),
             System.currentTimeMillis(),
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            noParamsApplication,
             "nobody",
             jobDirectiory,
             workingDirectory,
@@ -901,7 +957,7 @@ class JobExecutionTest {
             UUID.randomUUID().toString(),
             System.currentTimeMillis(),
             dummyTokenSubject,
-            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            noParamsApplication,
             "nobody",
             jobDirectiory,
             workingDirectory,
@@ -950,7 +1006,7 @@ class JobExecutionTest {
             systemId,
             System.currentTimeMillis(),
             owner,
-            ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+            noParamsApplication,
             sshUser,
             jobDirectiory,
             workingDirectory,
@@ -971,7 +1027,7 @@ class JobExecutionTest {
         UUID.randomUUID().toString(),
         System.currentTimeMillis(),
         dummyTokenSubject,
-        ApplicationWithOptionalDependencies(applicationWithOutputs, dummyTool),
+        applicationWithOutputs,
         dummyTokenSubject,
         jobDirectiory,
         workingDirectory,
@@ -1009,7 +1065,7 @@ class JobExecutionTest {
             val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
             assertTrue(outputEvent.successful)
 
-            completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
+            completedInSlurmEvent.appWithDependencies.description.outputFileGlobs.forEach {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
             }
         }
@@ -1042,7 +1098,7 @@ class JobExecutionTest {
             assertTrue(outputEvent.successful)
 
 
-            completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
+            completedInSlurmEvent.appWithDependencies.description.outputFileGlobs.forEach {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
             }
 
@@ -1079,7 +1135,7 @@ class JobExecutionTest {
             val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
             assertTrue(outputEvent.successful)
 
-            completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
+            completedInSlurmEvent.appWithDependencies.description.outputFileGlobs.forEach {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
             }
 
@@ -1122,7 +1178,7 @@ class JobExecutionTest {
             assertTrue(outputEvent.successful)
 
 
-            completedInSlurmEvent.appWithDependencies.application.outputFileGlobs.forEach {
+            completedInSlurmEvent.appWithDependencies.description.outputFileGlobs.forEach {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
             }
 
@@ -1299,7 +1355,7 @@ class JobExecutionTest {
                 UUID.randomUUID().toString(),
                 System.currentTimeMillis(),
                 dummyTokenSubject,
-                ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+                noParamsApplication,
                 "nobody",
                 jobDirectiory,
                 workingDirectory,
@@ -1326,7 +1382,7 @@ class JobExecutionTest {
                 UUID.randomUUID().toString(),
                 System.currentTimeMillis(),
                 dummyTokenSubject,
-                ApplicationWithOptionalDependencies(noParamsApplication, dummyTool),
+                noParamsApplication,
                 "nobody",
                 jobDirectiory,
                 workingDirectory,

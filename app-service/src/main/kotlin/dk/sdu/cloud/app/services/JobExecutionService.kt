@@ -6,7 +6,6 @@ import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ssh.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.RequestOneTimeToken
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
@@ -32,10 +31,15 @@ import java.util.*
 
 class JobExecutionService<DBSession>(
     cloud: RefreshingJWTAuthenticatedCloud,
+
     private val producer: MappedEventProducer<String, AppEvent>,
+
     private val sBatchGenerator: SBatchGenerator,
+
     private val db: DBSessionFactory<DBSession>,
-    private val dao: JobDAO<DBSession>,
+    private val jobDao: JobDAO<DBSession>,
+    private val appDao: ApplicationDAO<DBSession>,
+
     private val slurmPollAgent: SlurmPollAgent,
     private val sshConnectionPool: SSHConnectionPool,
     private val sshUser: String // TODO This won't be needed in final version
@@ -64,7 +68,7 @@ class JobExecutionService<DBSession>(
             for (i in 0..3) {
                 if (i > 0) Thread.sleep(150)
 
-                jobToSlurm = dao.findJobInformationBySlurmId(it, slurmId)
+                jobToSlurm = jobDao.findJobInformationBySlurmId(it, slurmId)
                 if (jobToSlurm != null) break
             }
 
@@ -81,22 +85,17 @@ class JobExecutionService<DBSession>(
                 if (job.state == AppState.RUNNING) return
 
                 db.withTransaction {
-                    dao.updateJobBySystemId(it, job.systemId, AppState.RUNNING, "Running...")
+                    jobDao.updateJobBySystemId(it, job.systemId, AppState.RUNNING, "Running...")
                 }
             }
 
             is SlurmEventTimeout, is SlurmEventFailed, is SlurmEventEnded -> {
-                val app = ApplicationDAO.findByNameAndVersion(job.appName, job.appVersion) ?: run {
-                    log.warn("Unable to find app for job: $job")
+                val appWithDependencies = try {
+                    db.withTransaction { appDao.findByNameAndVersion(it, job.owner, job.appName, job.appVersion) }
+                } catch (ex: ApplicationException.NotFound) {
                     return
                 }
 
-                val tool = ToolDAO.findByNameAndVersion(app.tool.name, app.tool.version) ?: run {
-                    log.warn("Unable to find tool for job: $app, $job")
-                    return
-                }
-
-                val appWithDependencies = ApplicationWithOptionalDependencies(app, tool)
                 val success = event is SlurmEventEnded
 
                 // TODO These will have to result in a hard fail.
@@ -138,7 +137,6 @@ class JobExecutionService<DBSession>(
         try {
             runBlocking {
                 val cloud = __cloudDoNotUseDirectly.withCausedBy(event.systemId)
-                val tokenRefresher = __cloudDoNotUseDirectly.tokenRefresher
 
                 // First we update DB state depending on the event
                 // TODO Test updateJobBySystemId
@@ -155,7 +153,7 @@ class JobExecutionService<DBSession>(
                 }
 
                 if (nextState != null) db.withTransaction {
-                    dao.updateJobBySystemId(
+                    jobDao.updateJobBySystemId(
                         it,
                         event.systemId,
                         nextState,
@@ -172,7 +170,7 @@ class JobExecutionService<DBSession>(
                     is AppEvent.ScheduledAtSlurm -> handleScheduledEvent(event)
 
                     is AppEvent.CompletedInSlurm ->
-                        if (event.success) shipResults(event, cloud, tokenRefresher)
+                        if (event.success) shipResults(event, cloud)
                         else goToCleanupState(event, "Failure in Slurm or non-zero exit code")
 
                     is AppEvent.ExecutionCompleted -> cleanUp(event)
@@ -241,12 +239,12 @@ class JobExecutionService<DBSession>(
     suspend fun startJob(req: AppRequest.Start, principal: DecodedJWT, cloud: AuthenticatedCloud): String {
         val validatedJob = validateJob(req, principal, cloud)
         db.withTransaction {
-            dao.createJob(
+            jobDao.createJob(
                 it,
                 validatedJob.systemId,
                 principal.subject,
-                validatedJob.appWithDependencies.application.info.name,
-                validatedJob.appWithDependencies.application.info.version
+                validatedJob.appWithDependencies.description.info.name,
+                validatedJob.appWithDependencies.description.info.version
             )
         }
         runBlocking { producer.emit(validatedJob) }
@@ -260,14 +258,13 @@ class JobExecutionService<DBSession>(
     ): AppEvent.Validated {
         val uuid = UUID.randomUUID().toString()
 
-        val app = with(req.application) { ApplicationDAO.findByNameAndVersion(name, version) } ?: run {
+        val app = try {
+            db.withTransaction {
+                with(req.application) { appDao.findByNameAndVersion(it, principal.subject, name, version) }
+            }
+        } catch (ex: ApplicationException.NotFound) {
             log.debug("Could not find application: ${req.application.name}@${req.application.version}")
             throw JobNotFoundException("${req.application.name}@${req.application.version}")
-        }
-
-        val tool = ToolDAO.findByNameAndVersion(app.tool.name, app.tool.version) ?: run {
-            log.warn("Could not find tool for application: $app")
-            throw JobInternalException("Internal error")
         }
 
         // Must end in '/'. Otherwise resolve will do the wrong thing
@@ -292,7 +289,7 @@ class JobExecutionService<DBSession>(
             System.currentTimeMillis(),
             principal.token,
             principal.subject,
-            ApplicationWithOptionalDependencies(app, tool),
+            app,
             jobDir.path,
             workDir.path,
             files,
@@ -311,14 +308,14 @@ class JobExecutionService<DBSession>(
     }
 
     private suspend fun validateAndCollectInputFiles(
-        app: NormalizedApplicationDescription,
+        app: Application,
         applicationParameters: Map<String, Any>,
         workDir: URI,
         cloud: AuthenticatedCloud
     ): List<ValidatedFileForUpload> {
         val result = ArrayList<ValidatedFileForUpload>()
 
-        loop@ for (input in app.parameters) {
+        loop@ for (input in app.description.parameters) {
             val isDirectory = input is ApplicationParameter.InputDirectory
             val parameter: ApplicationParameter<FileTransferDescription> = when (input) {
                 is ApplicationParameter.InputFile -> input
@@ -557,7 +554,7 @@ class JobExecutionService<DBSession>(
     private fun handleScheduledEvent(event: AppEvent.ScheduledAtSlurm): AppEvent? {
         slurmPollAgent.startTracking(event.slurmId)
         db.withTransaction {
-            dao.updateJobWithSlurmInformation(
+            jobDao.updateJobWithSlurmInformation(
                 it,
                 event.systemId,
                 event.sshUser,
@@ -573,8 +570,7 @@ class JobExecutionService<DBSession>(
 
     private fun shipResults(
         event: AppEvent.CompletedInSlurm,
-        cloud: AuthenticatedCloud,
-        tokenRefresher: RefreshingJWTAuthenticator
+        cloud: AuthenticatedCloud
     ): AppEvent.ExecutionCompleted {
         val jobId = event.systemId
         val owner = event.owner
@@ -596,7 +592,7 @@ class JobExecutionService<DBSession>(
             }
 
             log.debug("Locating output files")
-            val outputs = event.appWithDependencies.application.outputFileGlobs
+            val outputs = event.appWithDependencies.description.outputFileGlobs
                 .flatMap {
                     lsWithGlob(event.workingDirectory, it)
                 }
@@ -631,7 +627,7 @@ class JobExecutionService<DBSession>(
                     continue
                 }
 
-                val (fileToTransferFromHPC, fileToTransferSize) = if (!sourceFile.isDir) {
+                val (fileToTransferFromHPC, _) = if (!sourceFile.isDir) {
                     Pair(source.path, sourceFile.size)
                 } else {
                     log.debug("Source file is a directory. Zipping it up")

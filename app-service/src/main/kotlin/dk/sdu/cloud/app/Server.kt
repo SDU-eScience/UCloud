@@ -60,6 +60,7 @@ class Server(
             sbatchGenerator,
             db,
             jobDao,
+            applicationDao,
             slurmPollAgent,
             sshPool,
             config.ssh.user
@@ -94,9 +95,9 @@ class Server(
                 route("api/hpc") {
                     protect()
 
-                    AppController(ApplicationDAO).configure(this)
-                    JobController(jobService).configure(this)
-                    ToolController(ToolDAO).configure(this)
+                    AppController(db, applicationDao).configure(this)
+                    JobController(db, jobService).configure(this)
+                    ToolController(db, toolDao).configure(this)
                 }
             }
             log.info("HTTP server successfully configured!")
