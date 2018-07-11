@@ -6,8 +6,6 @@ import { connect } from "react-redux";
 import {
     fetchApplications,
     setLoading,
-    toPage,
-    updateApplicationsPerPage,
     updateApplications
 } from "../../Actions/Applications";
 import { updatePageTitle } from "../../Actions/Status";
@@ -20,16 +18,17 @@ class Applications extends React.Component<ApplicationsProps> {
         super(props);
         props.updatePageTitle();
         props.setLoading(true);
-        props.fetchApplications();
+        props.fetchApplications(props.page.pageNumber, props.page.itemsPerPage);
     }
 
     render() {
-        const { applications, loading, toPage, updateApplicationsPerPage } = this.props;
+        const { page, loading, fetchApplications } = this.props;
 
         return (
             <React.Fragment>
                 <Pagination.List
                     loading={loading}
+                    onRefreshClick={() => this.props.fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={(page: Page<Application>) =>
                         (<Table basic="very">
                             <Table.Header>
@@ -46,9 +45,9 @@ class Applications extends React.Component<ApplicationsProps> {
                             <ApplicationsList applications={page.items} />
                         </Table>)
                     }
-                    page={applications}
-                    onItemsPerPageChanged={(size) => updateApplicationsPerPage(size)}
-                    onPageChanged={(page) => toPage(page)}
+                    page={page}
+                    onItemsPerPageChanged={(size) => fetchApplications(0, size)}
+                    onPageChanged={(pageNumber) => fetchApplications(pageNumber, page.itemsPerPage)}
                     onRefresh={() => null}
                     onErrorDismiss={() => null}
                 />
@@ -83,11 +82,10 @@ const SingleApplication = ({ app }: { app: Application }) => {
 const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    fetchApplications: () => dispatch(fetchApplications()),
-    updateApplications: (applications: Page<Application>) => dispatch(updateApplications(applications)),
-    toPage: (pageNumber: number) => dispatch(toPage(pageNumber)),
-    updateApplicationsPerPage: (applicationsPerPage: number) => dispatch(updateApplicationsPerPage(applicationsPerPage))
-})
+    fetchApplications: (pageNumber: number, itemsPerPage: number) => dispatch(fetchApplications(pageNumber, itemsPerPage)),
+    updateApplications: (applications: Page<Application>) => dispatch(updateApplications(applications))
+});
+
 const mapStateToProps = ({ applications }): ApplicationsStateProps => applications;
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

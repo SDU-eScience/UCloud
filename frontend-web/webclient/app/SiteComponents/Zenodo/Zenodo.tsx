@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Table, Header, Responsive } from "semantic-ui-react";
+import { Button, Table, Header, Responsive, Dropdown } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
@@ -9,7 +9,6 @@ import { connect } from "react-redux";
 import { dateToString } from "../../Utilities/DateUtilities";
 import { List } from "../Pagination/List";
 import { ZenodoHomeProps, ZenodoHomeState } from ".";
-import { RefreshButton } from "../UtilityComponents";
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {
@@ -40,10 +39,10 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                             Connected to Zenodo
                         </Responsive>
                     </Header>
-                    <RefreshButton onClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)} loading={loading} />
                     <List
+                        onRefreshClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
                         loading={loading}
-                        customEmptyPage={<Header.Subheader content="No Zenodo publications found."/>}
+                        customEmptyPage={<Header.Subheader content="No Zenodo publications found." />}
                         pageRenderer={(page) => (
                             <Table basic="very">
                                 <TableHeader />
@@ -72,9 +71,8 @@ const TableHeader = () => (
             <Table.HeaderCell>ID</Table.HeaderCell>
             <Table.HeaderCell>Name</Table.HeaderCell>
             <Table.HeaderCell>Status</Table.HeaderCell>
-            {/*<Table.HeaderCell />
-            <Table.HeaderCell>Info</Table.HeaderCell> */}
             <Table.HeaderCell>Last update</Table.HeaderCell>
+            <Table.HeaderCell />
         </Table.Row>
     </Table.Header>
 );
@@ -83,22 +81,23 @@ const PublicationRow = ({ publication }) => {
     let actionButton = null;
     if (publication.zenodoAction) {
         actionButton = (
-            <a href={publication.zenodoAction} target="_blank">
-                <Button content="Finish publication at Zenodo" />
-            </a>);
+            <Dropdown.Item content="Finish publication at Zenodo" as="a" href={publication.zenodoAction} target="_blank" />
+        )
     }
     return (
         <Table.Row>
             <Table.Cell>{publication.id}</Table.Cell>
             <Table.Cell>{publication.name}</Table.Cell>
             <Table.Cell>{toLowerCaseAndCapitalize(publication.status)}</Table.Cell>
-            {/* <Table.Cell>{actionButton}</Table.Cell>
-            <Table.Cell>
-                <Link to={`/zenodo/info/${encodeURIComponent(publication.id)}`}>
-                    <Button>Show More</Button>
-                </Link>
-            </Table.Cell> */}
             <Table.Cell>{dateToString(publication.modifiedAt)}</Table.Cell>
+            <Table.Cell>
+                <Dropdown direction="left" icon="ellipsis horizontal">
+                    <Dropdown.Menu>
+                        <Dropdown.Item as={Link} content="Show More" to={`/zenodo/info/${encodeURIComponent(publication.id)}`} />
+                        {actionButton}
+                    </Dropdown.Menu>
+                </Dropdown>
+            </Table.Cell>
         </Table.Row>);
 }
 

@@ -9,9 +9,8 @@ export const FileIcon = ({ name, size, link = false, className = "", color }) =>
         </Icon.Group> :
         <Icon name={name} size={size} color={color} />
 
-export const RefreshButton = ({ loading, onClick }) => (
+export const RefreshButton = ({ loading, onClick }: { loading: boolean, onClick: () => void }) => (
     <Icon
-        className="float-right"
         size="small"
         link
         circular

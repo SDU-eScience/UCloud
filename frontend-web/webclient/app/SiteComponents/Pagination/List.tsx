@@ -5,6 +5,7 @@ import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import * as Self from ".";
 import "./pagination.scss";
 import { ifPresent } from "../../UtilityFunctions";
+import { RefreshButton } from "../UtilityComponents";
 
 interface ListProps {
     pageRenderer: (page: Page<any>) => React.ReactNode
@@ -20,6 +21,7 @@ interface ListProps {
     customEmptyPage?: React.ReactNode
 
     // Callbacks
+    onRefreshClick?: () => void
     onItemsPerPageChanged: (itemsPerPage: number) => void
     onPageChanged: (newPage: number) => void
     onRefresh?: () => void
@@ -42,17 +44,23 @@ export class List extends React.PureComponent<ListProps> {
             errorComponent = props.errorMessage();
         }
 
+        const refreshButton = !!this.props.onRefreshClick ? (
+            <RefreshButton loading={this.props.loading} onClick={this.props.onRefreshClick} />
+        ) : null;
+
         return (
             <div>
                 {errorComponent}
-
-                <Self.EntriesPerPageSelector
-                    content="Items per page"
-                    className="pagination-items-per-page"
-                    entriesPerPage={props.page.itemsPerPage}
-                    onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
-                />
-
+                <span className="pagination-float-right">
+                    <Self.EntriesPerPageSelector
+                        content="Items per page"
+                        className="items-per-page-padding"
+                        entriesPerPage={props.page.itemsPerPage}
+                        onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
+                    />
+                    {refreshButton}
+                </span>
+                
                 {body}
 
                 <div>
@@ -62,7 +70,6 @@ export class List extends React.PureComponent<ListProps> {
                         toPage={(page) => ifPresent(props.onPageChanged, (c) => c(page))}
                         totalPages={Math.ceil(props.page.itemsInTotal / props.page.itemsPerPage)}
                     />
-
                 </div>
             </div>
         );

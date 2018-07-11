@@ -132,7 +132,7 @@ export const initObject = (cloud: SDUCloud) => ({
         title: ""
     },
     applications: {
-        applications: emptyPage,
+        page: emptyPage,
         loading: false
     },
     notifications: {
@@ -140,8 +140,8 @@ export const initObject = (cloud: SDUCloud) => ({
         redirectTo: null
     },
     analyses: {
-        loading: false,
-        page: emptyPage
+        page: emptyPage,
+        loading: false
     },
     zenodo: {
         connected: false,

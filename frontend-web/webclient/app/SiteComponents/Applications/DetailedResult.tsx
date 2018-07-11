@@ -117,7 +117,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.retrieveFilesPage(this.state.page.pageNumber, this.state.page.itemsPerPage)
     }
 
-    retrieveFilesPage(pageNumber, itemsPerPage) {
+    retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
         Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
             this.setState({ page: response, loading: false });
         });
@@ -260,6 +260,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 <h4>Output Files</h4>
                 <PaginationList
                     page={page}
+                    onRefreshClick={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
                     pageRenderer={(page) =>
                         <FilesTable
                             files={page.items}

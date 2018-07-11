@@ -118,10 +118,10 @@ class Files extends React.Component<FilesProps> {
                             currentPath={path}
                         />
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
-                        <Icon className="float-right" link circular name="sync" onClick={() => fetch()} loading={loading} />
                     </Grid.Row>
                     <Pagination.List
                         loading={loading}
+                        onRefreshClick={fetch}
                         customEmptyPage={<Header.Subheader content="No files in current folder" />}
                         pageRenderer={(page) => (
                             <FilesTable

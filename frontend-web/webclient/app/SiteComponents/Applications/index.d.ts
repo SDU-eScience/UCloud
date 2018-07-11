@@ -10,21 +10,18 @@ export interface ApplicationsProps extends ApplicationsStateProps, ApplicationsO
 export interface ApplicationsOperations {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
-    fetchApplications: () => void
+    fetchApplications: (a: number, b: number) => void
     updateApplications: (applications: Page<Types.Application>) => void
-    toPage: (pageNumber: number) => void
-    updateApplicationsPerPage: (applicationsPerPage: number) => void
 }
 
 export interface ApplicationsStateProps {
-    applications: Page<Types.Application>
+    page: Page<Types.Application>
     loading: boolean
-    itemsPerPage, pageNumber: number
     sortBy: SortBy
     sortOrder: SortOrder
 }
 
-export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations {}
+export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { }
 
 export interface AnalysesStateProps {
     page: Page<Analysis>

@@ -38,11 +38,12 @@ class Analyses extends React.Component<AnalysesProps, AnalysesState> {
     }
 
     render() {
-        const { page, loading } = this.props;
+        const { page, loading, fetchAnalyses } = this.props;
         return (
             <React.StrictMode>
                 <List
                     loading={loading}
+                    onRefreshClick={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
                     pageRenderer={(page) =>
                         <Table basic="very" unstackable className="mobile-padding">
                             <TableHeader />
