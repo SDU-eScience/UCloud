@@ -2,7 +2,7 @@ import * as React from "react";
 import { Spinner } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../../PromiseKeeper";
 import { Cloud } from "../../../authentication/SDUCloudObject";
-import { shortUUID, failureNotification } from "../../UtilityFunctions";
+import { shortUUID, failureNotification, favorite } from "../../UtilityFunctions";
 import { Container, List, Card, Icon, Popup, Step, SemanticICONS, Grid } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { FilesTable } from "../Files/Files";
@@ -123,38 +123,37 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         });
     }
 
-    renderProgressPanel() {
-        const isFailure = this.state.appState === "FAILURE";
-        const isSuccess = this.state.appState === "SUCCESS";
-
-        return (
-            <div className="job-result-box">
-                <h4>Progress</h4>
-                <ProgressTracker>
-                    <ProgressTrackerItem
-                        icon="check"
-                        active={this.isStateActive("VALIDATED")}
-                        complete={this.isStateComplete("VALIDATED")}
-                        title={"Validated"} />
-                    <ProgressTrackerItem
-                        icon="hourglass half"
-                        active={this.isStateActive("PENDING")}
-                        complete={this.isStateComplete("PENDING")}
-                        title={"Pending"} />
-                    <ProgressTrackerItem
-                        icon="calendar"
-                        active={this.isStateActive("SCHEDULED")}
-                        complete={this.isStateComplete("SCHEDULED")}
-                        title={"Scheduled"} />
-                    <ProgressTrackerItem
-                        icon="stopwatch"
-                        active={this.isStateActive("RUNNING")}
-                        complete={this.isStateComplete("RUNNING")}
-                        title={"Running"} />
-                </ProgressTracker>
-            </div>
-        );
+    favoriteFile(path: string) {
+        this.setState(() => ({ page: favorite(this.state.page, path, Cloud) }))
     }
+
+    renderProgressPanel = () => (
+        <div className="job-result-box">
+            <h4>Progress</h4>
+            <ProgressTracker>
+                <ProgressTrackerItem
+                    icon="check"
+                    active={this.isStateActive("VALIDATED")}
+                    complete={this.isStateComplete("VALIDATED")}
+                    title={"Validated"} />
+                <ProgressTrackerItem
+                    icon="hourglass half"
+                    active={this.isStateActive("PENDING")}
+                    complete={this.isStateComplete("PENDING")}
+                    title={"Pending"} />
+                <ProgressTrackerItem
+                    icon="calendar"
+                    active={this.isStateActive("SCHEDULED")}
+                    complete={this.isStateComplete("SCHEDULED")}
+                    title={"Scheduled"} />
+                <ProgressTrackerItem
+                    icon="stopwatch"
+                    active={this.isStateActive("RUNNING")}
+                    complete={this.isStateComplete("RUNNING")}
+                    title={"Running"} />
+            </ProgressTracker>
+        </div>
+    );
 
     renderInfoPanel() {
         let entries = [
@@ -255,7 +254,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     renderFilePanel() {
         const { page } = this.state;
-        if (!this.state.page.items.length) return null;
+        if (!page.items.length) return null;
         return (
             <div>
                 <h4>Output Files</h4>
@@ -268,7 +267,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             onCheckFile={() => null}
                             setFileSelectorCallback={() => null}
                             fetchFiles={() => null}
-                            onFavoriteFile={() => null}
+                            onFavoriteFile={(path) => this.favoriteFile(path)}
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
                     onItemsPerPageChanged={itemsPerPage => this.retrieveFilesPage(0, itemsPerPage)}
