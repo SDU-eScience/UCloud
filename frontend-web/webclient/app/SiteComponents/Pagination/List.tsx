@@ -17,6 +17,7 @@ interface ListProps {
 
     // Error properties  
     errorMessage?: string | (() => React.ReactNode | null)
+    customEmptyPage?: React.ReactNode
 
     // Callbacks
     onItemsPerPageChanged: (itemsPerPage: number) => void
@@ -78,17 +79,21 @@ export class List extends React.PureComponent<ListProps> {
             </Grid>
         } else {
             if (props.page == null || props.page.items.length == 0) {
-                return <div>
-                    <Header as="h2">
-                        No results.
+                if (!props.customEmptyPage) {
+                    return <div>
+                        <Header as="h2">
+                            No results.
                         <a
-                            href="#"
-                            onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, (c) => c()) }}
-                        >
-                            {" Try again?"}
-                        </a>
-                    </Header>
-                </div>;
+                                href="#"
+                                onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, (c) => c()) }}
+                            >
+                                {" Try again?"}
+                            </a>
+                        </Header>
+                    </div>;
+                } else {
+                    return props.customEmptyPage
+                }
             } else {
                 return props.pageRenderer(props.page);
             }

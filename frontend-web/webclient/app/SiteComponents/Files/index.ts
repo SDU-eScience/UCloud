@@ -43,11 +43,13 @@ export interface FilesStateProps { // Redux Props
 
 export interface FilesOperations { // Redux operations
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => void
+    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
     checkFile: (checked: boolean, page: Page<File>, newFile: File) => void
     setPageTitle: () => void
     updateFiles: (files: Page<File>) => void
+    updatePath: (path: string) => void
     showFileSelector: (open: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
     setCreatingFolder: (creating: boolean) => void

@@ -37,15 +37,15 @@ class Files extends React.Component<FilesProps> {
         if (key === KeyCode.ESC) {
             this.props.resetFolderEditing();
         } else if (key === KeyCode.ENTER) {
-            const { path, fetchFiles, page } = this.props;
+            const { path, fetchPageFromPath, page } = this.props;
             const fileNames = page.items.map((it) => uf.getFilenameFromPath(it.path))
             if (uf.isInvalidPathName(name, fileNames)) return;
-            const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
+            const directoryPath = `${uf.addTrailingSlash(path)}${name}`;
             if (newFolder) {
                 Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
                     if (uf.inSuccessRange(request.status)) {
                         this.props.resetFolderEditing();
-                        fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
+                        fetchPageFromPath(directoryPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy);
                     }
                 }).catch(() => this.props.resetFolderEditing());
             } else {
@@ -54,7 +54,7 @@ class Files extends React.Component<FilesProps> {
                     .then(({ request }) => {
                         if (uf.inSuccessRange(request.status)) {
                             this.props.resetFolderEditing();
-                            fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
+                            fetchPageFromPath(directoryPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy);
                         }
                     }).catch(() => this.props.resetFolderEditing())
             }
@@ -63,7 +63,7 @@ class Files extends React.Component<FilesProps> {
 
     shouldComponentUpdate(nextProps, _nextState) {
         const { fetchFiles, page } = this.props;
-        if (nextProps.path !== nextProps.match.params[0]) {
+        if (nextProps.path !== nextProps.match.params[0] && !this.props.loading) {
             fetchFiles(nextProps.match.params[0], page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
         }
         return true;
@@ -87,7 +87,8 @@ class Files extends React.Component<FilesProps> {
 
     render() {
         // PROPS
-        const { page, path, loading, history, fetchFiles, checkFile, updateFiles } = this.props;
+        const { page, path, loading, history, fetchFiles, checkFile, updateFiles,
+            sortBy, sortOrder } = this.props;
         // Master Checkbox
         const checkedFilesCount = page.items.filter(file => file.isChecked).length;
         const masterCheckboxChecked = page.items.length === checkedFilesCount && page.items.length > 0;
@@ -103,8 +104,9 @@ class Files extends React.Component<FilesProps> {
             const firstSelectedFile = selectedFiles[0];
             this.startEditFile(page.items.findIndex((f) => f.path === firstSelectedFile.path));
         };
-        const navigate = (path) => history.push(`/files/${path}`);
-        const projectNavigation = (projectPath) => history.push(`/metadata/${projectPath}`);
+        const navigate = (path: string) => history.push(`/files/${path}`);
+        const projectNavigation = (projectPath: string) => history.push(`/metadata/${projectPath}`);
+        const fetchPageFromPath = (path) => { this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy); this.props.updatePath(uf.getParentPath(path)); navigate(uf.getParentPath(path)); }
         return (
             <Grid>
                 <Grid.Column computer={13} tablet={16}>
@@ -120,10 +122,11 @@ class Files extends React.Component<FilesProps> {
                     </Grid.Row>
                     <Pagination.List
                         loading={loading}
+                        customEmptyPage={<Header.Subheader content="No files in current folder" />}
                         pageRenderer={(page) => (
                             <FilesTable
-                                sortFiles={(sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, sortBy)}
-                                sortingIcon={(name: SortBy) => uf.getSortingIcon(this.props.sortBy, this.props.sortOrder, name)}
+                                sortFiles={(sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, sortBy)}
+                                sortingIcon={(name: SortBy) => uf.getSortingIcon(sortBy, sortOrder, name)}
                                 masterCheckBox={
                                     <Checkbox
                                         className="hidden-checkbox checkbox-margin"
@@ -136,8 +139,9 @@ class Files extends React.Component<FilesProps> {
                                 creatingNewFolder={this.props.creatingFolder}
                                 handleKeyDown={this.handleKeyDown}
                                 files={page.items}
-                                onCheckFile={(checked, file) => checkFile(checked, page, file)}
-                                fetchFiles={(path) => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy)}
+                                onCheckFile={(checked: boolean, file: File) => checkFile(checked, page, file)}
+                                fetchFiles={(path: string) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                                fetchPageFromPath={fetchPageFromPath}
                                 onFavoriteFile={(filePath: string) => updateFiles(uf.favorite(page, filePath, Cloud))}
                                 editFolderIndex={this.props.editFileIndex}
                                 projectNavigation={projectNavigation}
@@ -147,7 +151,7 @@ class Files extends React.Component<FilesProps> {
                                 showFileSelector={this.props.showFileSelector}
                             />
                         )}
-                        onItemsPerPageChanged={(pageSize) => { this.props.resetFolderEditing(); fetchFiles(path, pageSize, 0, this.props.sortOrder, this.props.sortBy)}}
+                        onItemsPerPageChanged={(pageSize) => { this.props.resetFolderEditing(); fetchFiles(path, pageSize, 0, sortOrder, sortBy) }}
                         page={page}
                         onPageChanged={(pageNumber) => goTo(pageNumber)}
                     />
@@ -158,6 +162,7 @@ class Files extends React.Component<FilesProps> {
                         currentPath={path}
                         createFolder={() => this.createFolder()}
                         refetch={() => fetch()}
+                        fetchPageFromPath={fetchPageFromPath}
                         fetchFiles={fetchFiles}
                         showFileSelector={this.props.showFileSelector}
                         setFileSelectorCallback={this.props.setFileSelectorCallback}
@@ -186,7 +191,7 @@ class Files extends React.Component<FilesProps> {
 export const FilesTable = ({
     files, masterCheckBox = null, showFileSelector = (b) => null, setFileSelectorCallback = (c) => null, setDisallowedPaths = (p) => null,
     sortingIcon, editFolderIndex = -1, sortFiles = null, handleKeyDown = (k, f, n) => null, onCheckFile, fetchFiles, startEditFile = null,
-    projectNavigation = null, creatingNewFolder = false, allowCopyAndMove = false, onFavoriteFile
+    projectNavigation = null, creatingNewFolder = false, allowCopyAndMove = false, onFavoriteFile, fetchPageFromPath = (path) => null
 }) => {
     return (
         <Table unstackable basic="very">
@@ -210,7 +215,8 @@ export const FilesTable = ({
                             allowCopyAndMove={allowCopyAndMove}
                             file={f}
                             rename={!!startEditFile ? () => startEditFile(i) : null}
-                            refetch={(path) => fetchFiles(path)}
+                            fetchPageFromPath={fetchPageFromPath}
+                            refetch={fetchFiles}
                             showFileSelector={showFileSelector}
                             setFileSelectorCallback={setFileSelectorCallback}
                             setDisallowedPaths={setDisallowedPaths}
@@ -466,7 +472,7 @@ function copy(files, operations) {
                     Cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++).catch(() =>
                         uf.failureNotification(`An error occured copying file ${currentPath}.`)
                     ).then(() => {
-                        if (i === files.length) { operations.refetch(); uf.successNotification("File copied."); }
+                        if (i === files.length) { operations.fetchPageFromPath(newPathForFile); uf.successNotification("File copied."); }
                     });
                 } else {
                     uf.failureNotification(`An error occurred, please try again later.`)
@@ -488,7 +494,7 @@ function move(files, operations) {
                 const fromPath = uf.getFilenameFromPath(currentPath);
                 const toPath = uf.replaceHomeFolder(newPathForFile, Cloud.homeFolder);
                 uf.successNotification(`${fromPath} moved to ${toPath}`);
-                operations.refetch();
+                operations.fetchPageFromPath(newPathForFile);
             }).catch(() => uf.failureNotification("An error occurred, please try again later"));
             operations.showFileSelector(false);
             operations.setFileSelectorCallback(null);
@@ -514,10 +520,15 @@ const mapDispatchToProps = (dispatch): FilesOperations => ({
         dispatch(Actions.setLoading(true));
         dispatch(Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy))
     },
+    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => {
+        dispatch(Actions.setLoading(true));
+        dispatch(Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy))
+    },
+    updatePath: (path: string) => dispatch(Actions.updatePath(path)),
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => dispatch(Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
     showFileSelector: (open: boolean) => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: (callback) => dispatch(Actions.setFileSelectorCallback(callback)),
-    checkFile: (checked: boolean, page: Page<File>, newFile: File) => {
+    checkFile: (checked: boolean, page: Page<File>, newFile: File) => { // FIXME: Make an action instead with path?
         page.items.find(file => file.path === newFile.path).isChecked = checked;
         dispatch(Actions.updateFiles(page));
     },

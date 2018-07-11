@@ -387,7 +387,7 @@ export const toFileText = (selectedFiles: File[]): string =>
 
 export const isLink = (file: File) => file.link;
 export const isDirectory = (file: File) => file.type === "DIRECTORY";
-export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(homeFolder, "Home");
+export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(homeFolder, "Home/");
 export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
