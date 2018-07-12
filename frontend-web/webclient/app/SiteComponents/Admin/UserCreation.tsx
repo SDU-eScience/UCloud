@@ -14,17 +14,15 @@ class UserCreation extends React.Component<{}, UserCreationState> {
         this.state = this.initialState();
     }
 
-    initialState(): UserCreationState {
-        return {
-            promiseKeeper: new PromiseKeeper(),
-            submitted: false,
-            username: "",
-            password: "",
-            repeatedPassword: "",
-            usernameError: false,
-            passwordError: false
-        };
-    }
+    initialState = (): UserCreationState => ({
+        promiseKeeper: new PromiseKeeper(),
+        submitted: false,
+        username: "",
+        password: "",
+        repeatedPassword: "",
+        usernameError: false,
+        passwordError: false
+    });
 
     componentWillUnmount() {
         this.state.promiseKeeper.cancelPromises();

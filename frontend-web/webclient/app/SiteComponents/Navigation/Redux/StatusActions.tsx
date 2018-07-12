@@ -1,5 +1,6 @@
 import { UPDATE_PAGE_TITLE, UPDATE_STATUS } from "./StatusReducer";
-import { Action, Status } from "../../../Types";
+import { Action } from "../../../Types";
+import { Status } from "..";
 
 interface UpdatePageTitleAction extends Action { title: string }
 /**

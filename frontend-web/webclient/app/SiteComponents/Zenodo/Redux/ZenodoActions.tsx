@@ -3,8 +3,9 @@ import {
     RECEIVE_PUBLICATIONS,
     SET_ZENODO_LOADING
 } from "./ZenodoReducer";
-import { SetLoadingAction, ReceivePage, Publication, Page } from "../../../Types";
+import { SetLoadingAction, ReceivePage, Page } from "../../../Types";
 import { emptyPage } from "../../../DefaultObjects";
+import { Publication } from "..";
 
 /**
  * Fetches publications by the user

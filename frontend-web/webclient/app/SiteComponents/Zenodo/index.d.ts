@@ -1,7 +1,14 @@
 import PromiseKeeper from "../../PromiseKeeper";
-import { Publication } from "../../Types";
 import { match } from "react-router-dom";
 import { Page } from "../../Types";
+
+export interface Publication {
+    id: number
+    name: string
+    zenodoAction: string
+    createdAt: number
+    modifiedAt: number
+}
 
 export interface ZenodoInfoState {
     promises: PromiseKeeper

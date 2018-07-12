@@ -1,21 +1,33 @@
 import * as Types from "../../Types";
-import { SortBy, SortOrder } from "../Files";
-import { Page, Analysis } from "../../Types";
+import { SortBy, SortOrder, File } from "../Files";
+import { Page } from "../../Types";
 import { Dispatch } from "redux";
 import PromiseKeeper from "../../PromiseKeeper";
 import { History } from "history";
 
 export interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
 
+export interface Analysis {
+    name: string
+    status: string
+    state: string
+    jobId: string
+    appName: string
+    appVersion: string
+    createdAt: number
+    modifiedAt: number
+    owner: string
+}
+
 export interface ApplicationsOperations {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchApplications: (a: number, b: number) => void
-    updateApplications: (applications: Page<Types.Application>) => void
+    updateApplications: (applications: Page<Application>) => void
 }
 
 export interface ApplicationsStateProps {
-    page: Page<Types.Application>
+    page: Page<Application>
     loading: boolean
     sortBy: SortBy
     sortOrder: SortOrder
@@ -48,8 +60,39 @@ export interface DetailedResultProps {
     }
 }
 
+export interface Application {
+    owner: string
+    createdAt: number
+    modifiedAt: number
+
+    tool: {
+        owner: string
+        createdAt: number
+        modifiedAt: number
+
+        description: {
+            name: string
+            version: string
+        }
+    }
+
+    description: {
+        info: {
+            name: string
+            version: string
+        }
+
+        title: string
+        authors: string[]
+        description: string
+
+        parameters: any[]
+        invocation: any[]
+    }
+}
+
 export interface DetailedResultState {
-    page: Page<Types.File>
+    page: Page<File>
     loading: boolean
     complete: boolean
     appState: string

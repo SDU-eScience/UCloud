@@ -14,7 +14,7 @@ import { FileSelectorModal } from "./FileSelector";
 import { FileIcon } from "../UtilityComponents";
 import { Uploader } from "../Uploader";
 import { Page } from "../../Types";
-import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, ReactNodeChildProps, File } from ".";
+import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File } from ".";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -122,8 +122,8 @@ class Files extends React.Component<FilesProps> {
                     <Pagination.List
                         loading={loading}
                         onRefreshClick={fetch}
-                        customEmptyPage={this.props.creatingFolder ? ( // FIXME: Find better way of doing this
-                            <MockedTable><CreateFolder creatingNewFolder={true} handleKeyDown={this.handleKeyDown} /></MockedTable>) :
+                        customEmptyPage={this.props.creatingFolder ? (
+                            <MockedTable creatingFolder={this.props.creatingFolder} handleKeyDown={this.handleKeyDown}/>) :
                             (<Header.Subheader content="No files in current folder" />)}
                         pageRenderer={(page) => (
                             <FilesTable
@@ -190,10 +190,10 @@ class Files extends React.Component<FilesProps> {
 }
 
 // Used for creation of folder in empty folder
-const MockedTable = ({ children }: ReactNodeChildProps) => (
+const MockedTable = ({ handleKeyDown, creatingFolder }: MockedTableProps) => (
     <Table unstackable basic="very">
         <FilesTableHeader masterCheckBox={null} sortingIcon={() => null} sortFiles={null} />
-        <Table.Body>{children}</Table.Body>
+        <Table.Body><CreateFolder creatingNewFolder={creatingFolder} handleKeyDown={handleKeyDown} /></Table.Body>
     </Table>
 )
 

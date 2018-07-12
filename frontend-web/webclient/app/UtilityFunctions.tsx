@@ -4,8 +4,8 @@ import { RightsMap, SensitivityLevelMap } from "./DefaultObjects";
 import Cloud from "../authentication/lib";
 import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder } from "./SiteComponents/Files";
-import { Page, Acl, AccessRight } from "./Types";
-import { File } from "./SiteComponents/Files"
+import { Page, AccessRight } from "./Types";
+import { File, Acl } from "./SiteComponents/Files"
 
 export const toLowerCaseAndCapitalize = (str: string): string => !str ? "" : str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 

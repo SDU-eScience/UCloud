@@ -12,7 +12,7 @@ import { getFilenameFromPath } from "../../UtilityFunctions";
 import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import "../Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
-import { Application } from "../../Types";
+import { Application } from "../Applications";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     constructor(props) {

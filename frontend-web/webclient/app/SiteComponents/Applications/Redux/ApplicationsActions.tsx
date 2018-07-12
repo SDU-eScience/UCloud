@@ -7,12 +7,12 @@ import {
 } from "./ApplicationsReducer";
 
 import {
-    Application,
     Action,
     SetLoadingAction,
     Page
 } from "../../../Types";
 import { emptyPage } from "../../../DefaultObjects";
+import { Application } from ".."
 
 interface ReceiveApplicationsAction extends Action { page: Page<Application> }
 const receiveApplications = (page: Page<Application>): ReceiveApplicationsAction => ({

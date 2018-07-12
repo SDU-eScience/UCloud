@@ -2,6 +2,7 @@ import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT } from "./Notifi
 import { Cloud } from "../../../../authentication/SDUCloudObject";
 import { Page, ReceivePage, Action } from "../../../Types";
 import { failureNotification } from "../../../UtilityFunctions";
+import { Notification } from ".."
 
 const ERROR = "ERROR";
 

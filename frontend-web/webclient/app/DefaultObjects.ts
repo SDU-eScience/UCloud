@@ -1,7 +1,9 @@
 // TODO: Split in to more specific files
 import { tusConfig } from "./Configurations";
 import * as Uppy from "uppy";
-import { Analysis, Status, SidebarOption, Page } from "./Types"
+import { SidebarOption, Page } from "./Types";
+import { Status } from "./SiteComponents/Navigation";
+import { Analysis } from "./SiteComponents/Applications";
 import { File } from "./SiteComponents/Files";
 import SDUCloud from "../authentication/lib";
 import { SortOrder, SortBy } from "./SiteComponents/Files";

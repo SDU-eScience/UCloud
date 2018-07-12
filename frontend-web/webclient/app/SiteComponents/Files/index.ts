@@ -1,4 +1,4 @@
-import { Page, Acl } from "../../Types";
+import { Page } from "../../Types";
 import { History } from "history";
 
 export enum SortOrder {
@@ -21,6 +21,18 @@ export interface File {
     annotations: string[]
 }
 
+export interface Acl {
+    entity: Entity
+    right: string
+}
+
+export interface Entity {
+    type: string
+    name: string
+    displayName: string
+    zone: string
+}
+
 export enum SortBy {
     TYPE = "TYPE",
     PATH = "PATH",
@@ -38,7 +50,10 @@ export interface FilesProps extends FilesStateProps, FilesOperations {
     history: History
 }
 
-export interface ReactNodeChildProps { children: React.ReactNode }
+export interface MockedTableProps { 
+    handleKeyDown: (a, b, c) => void
+    creatingFolder: boolean
+}
 
 export interface FilesStateProps { // Redux Props
     path: string

@@ -10,7 +10,8 @@ import {
 } from "./Redux/ApplicationsActions";
 import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import "../Styling/Shared.scss";
-import { Page, Application } from "../../Types";
+import { Page } from "../../Types";
+import { Application } from "."; 
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 
 class Applications extends React.Component<ApplicationsProps> {

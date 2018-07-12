@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, Table, Header, Responsive, Dropdown } from "semantic-ui-react";
+import { Button, Table, Header, Responsive, Dropdown, Grid, Divider } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "../../UtilityFunctions";
 import { NotConnectedToZenodo } from "../../ZenodoPublishingUtilities";
@@ -31,33 +31,52 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
         } else {
             return (
                 <React.StrictMode>
-                    <Header as="h2">
-                        <Button as={Link} style={{ float: "right" }} to="/zenodo/publish/" content="Create new upload" />
-                        <Header.Content className="mobile-padding">
-                            Upload progress
-                        </Header.Content>
-                        <Responsive as={Header.Subheader} minWidth={768}>
-                            Connected to Zenodo
+                    <Grid>
+                        <Grid.Column computer={13} tablet={16}>
+                            <Grid.Row>
+                                <Responsive maxWidth={991}>
+                                    <Button
+                                        as={Link}
+                                        color="blue"
+                                        to="/zenodo/publish/"
+                                        basic
+                                        fluid
+                                        content="Create new upload"
+                                        maxWidth={991}
+                                    />
+                                </Responsive>
+                            </Grid.Row>
+                            <Header as="h2">
+                                <Header.Content className="mobile-padding">
+                                    Upload progress
+                                </Header.Content>
+                                <Responsive as={Header.Subheader} minWidth={768}>
+                                    Connected to Zenodo
+                                </Responsive>
+                            </Header>
+                            <List
+                                onRefreshClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
+                                loading={loading}
+                                customEmptyPage={<Header.Subheader content="No Zenodo publications found." />}
+                                pageRenderer={(page) => (
+                                    <Table basic="very">
+                                        <TableHeader />
+                                        <Table.Body>
+                                            {page.items.map((it, i) => (<PublicationRow publication={it} key={i} />))}
+                                        </Table.Body>
+                                    </Table>
+                                )}
+                                page={page}
+                                onItemsPerPageChanged={(size) => fetchPublications(0, size)}
+                                onPageChanged={(pageNumber) => fetchPublications(pageNumber, page.itemsPerPage)}
+                            />
+                        </Grid.Column>
+                        <Responsive as={Grid.Column} computer={3} minWidth={992}>
+                            <Button as={Link} color="blue" to="/zenodo/publish/" basic fluid content="Create new upload" />
+                            <Divider />
                         </Responsive>
-                    </Header>
-                    <List
-                        onRefreshClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
-                        loading={loading}
-                        customEmptyPage={<Header.Subheader content="No Zenodo publications found." />}
-                        pageRenderer={(page) => (
-                            <Table basic="very">
-                                <TableHeader />
-                                <Table.Body>
-                                    {page.items.map((it, i) => (<PublicationRow publication={it} key={i} />))}
-                                </Table.Body>
-                            </Table>
-                        )}
-                        page={page}
-                        onItemsPerPageChanged={(size) => fetchPublications(0, size)}
-                        onPageChanged={(pageNumber) => fetchPublications(pageNumber, page.itemsPerPage)}
-                    />
+                    </Grid>
                 </React.StrictMode >
-
             );
         }
     }
