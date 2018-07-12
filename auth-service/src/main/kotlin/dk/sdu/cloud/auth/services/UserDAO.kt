@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.Auth
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 import java.security.NoSuchAlgorithmException
@@ -103,5 +104,7 @@ interface UserDAO<Session> {
     )
 
     fun delete(session: Session, id: String)
+
+    fun listAll(session: Session): List<Principal>
 }
 

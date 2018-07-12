@@ -9,6 +9,10 @@ import com.onelogin.saml2.settings.SettingsBuilder
 import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.service.*

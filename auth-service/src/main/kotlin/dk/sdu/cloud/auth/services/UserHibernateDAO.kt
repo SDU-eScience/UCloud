@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.*
 import org.hibernate.annotations.NaturalId
 import java.util.*
@@ -204,6 +205,9 @@ class UserHibernateDAO : UserDAO<HibernateSession> {
         session.update(entity)
     }
 
+    override fun listAll(session: HibernateSession): List<Principal> {
+        return PrincipalEntity.list(session).map { it.toModel() }
+    }
 }
 
 fun Principal.toEntity(): PrincipalEntity {
