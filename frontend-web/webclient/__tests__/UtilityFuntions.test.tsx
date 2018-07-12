@@ -1,5 +1,5 @@
 import { getParentPath, toLowerCaseAndCapitalize, fileSizeToString } from "../app/UtilityFunctions";
-import initializeTestCloudObject from "./mock/TestCloudObject";
+//import initializeTestCloudObject from "./mock/TestCloudObject";
 
 
 // GET PARENT PATH
@@ -17,10 +17,6 @@ test("Empty path", () => {
 
 test("Null path", () => {
     expect(getParentPath(null)).toBe("");
-});
-
-test("Undefined path", () => {
-    expect(getParentPath()).toBe("");
 });
 
 // TO LOWER CASE AND CAPITALIZE
@@ -45,10 +41,6 @@ test("Null string", () => {
    expect(toLowerCaseAndCapitalize(null)).toBe("");
 });
 
-test("Undefined string", () => {
-   expect(toLowerCaseAndCapitalize()).toBe("");
-});
-
 // FILE SIZE TO STRINGS
 
 test("500 bytes to string", () => {
@@ -56,33 +48,29 @@ test("500 bytes to string", () => {
 });
 
 test("1500 bytes to string", () => {
-    expect(fileSizeToString(1500)).toBe("1.5 KB");
+    expect(fileSizeToString(1500)).toBe("1.50 KB");
 });
 
 test("1500 * 1000 bytes to string ", () => {
-    expect(fileSizeToString(1500 * 1000)).toBe("1.5 MB")
+    expect(fileSizeToString(1500 * 1000)).toBe("1.50 MB")
 });
 
 test("1500 * 1000**2 bytes to string ", () => {
-    expect(fileSizeToString(1500 * 1000**2)).toBe("1.5 GB")
+    expect(fileSizeToString(1500 * 1000**2)).toBe("1.50 GB")
 });
 
 test("1500 * 1000**3 bytes to string ", () => {
-    expect(fileSizeToString(1500 * 1000**3)).toBe("1.5 TB")
+    expect(fileSizeToString(1500 * 1000**3)).toBe("1.50 TB")
 });
 
 test("1500 * 1000**4 bytes to string ", () => {
-    expect(fileSizeToString(1500 * 1000**4)).toBe("1.5 PB")
+    expect(fileSizeToString(1500 * 1000**4)).toBe("1.50 PB")
 });
 
 test("1500 * 1000**5 bytes to string ", () => {
-    expect(fileSizeToString(1500 * 1000**5)).toBe("1.5 EB")
+    expect(fileSizeToString(1500 * 1000**5)).toBe("1.50 EB")
 });
 
 test("Null as input", () => {
     expect(fileSizeToString(null)).toBe("");
-});
-
-test("Undefined as input", () => {
-    expect(fileSizeToString()).toBe("");
 });
