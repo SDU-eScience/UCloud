@@ -75,7 +75,14 @@ open class JsonbType : UserType, DynamicParameterizedType {
     }
 
     protected open fun createType(): JavaType {
-        return mapper.typeFactory.constructSimpleType(klass, emptyArray())
+        val erasedParameters = Array<JavaType>(klass.typeParameters.size) {
+            mapper.typeFactory.constructSimpleType(
+                Any::class.java,
+                emptyArray()
+            )
+        }
+
+        return mapper.typeFactory.constructSimpleType(klass, erasedParameters)
     }
 
     protected val mapper = jacksonObjectMapper()
