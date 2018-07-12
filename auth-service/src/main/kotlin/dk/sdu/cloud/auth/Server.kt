@@ -53,7 +53,8 @@ class AuthServer(
             kafka.producer.forStream(AuthStreams.RefreshTokenStream),
             kafka.producer.forStream(AuthStreams.OneTimeTokenStream)
         )
-        val userCreationService = UserCreationService(kafka.producer.forStream(AuthStreams.UserUpdateStream))
+        val userCreationService =
+            UserCreationService(db, userDao, kafka.producer.forStream(AuthStreams.UserUpdateStream))
         log.info("Core services constructed!")
 
         kStreams = run {

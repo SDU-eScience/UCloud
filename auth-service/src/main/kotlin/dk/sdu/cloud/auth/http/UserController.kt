@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory
 class UserController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val userDAO: UserDAO<DBSession>,
-    private val userCreationService: UserCreationService
+    private val userCreationService: UserCreationService<DBSession>
 ) {
     fun configure(routing: Route): Unit = with(routing) {
         install(JWTProtection)

@@ -4,6 +4,8 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.auth.api.UserEventProducer
 import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 
@@ -19,24 +21,18 @@ sealed class UserException(why: String, httpStatusCode: HttpStatusCode) : RPCExc
     class InvalidAuthentication : UserException("Invalid username or password", HttpStatusCode.BadRequest)
 }
 
-class UserCreationService(
+class UserCreationService<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val userDao: UserDAO<DBSession>,
     private val userEventProducer: UserEventProducer
 ) {
     suspend fun createUser(user: Person.ByPassword) {
-        /*
-        try {
+        db.withTransaction {
             log.info("Creating user: $user")
-            UserDAO.insert(user)
-        } catch (ex: JdbcSQLException) {
-            if (ex.errorCode == 23505) {
-                throw UserException.AlreadyExists()
-            } else {
-                throw ex
-            }
+            userDao.insert(it, user)
         }
 
         userEventProducer.emit(UserEvent.Created(user.id, user))
-        */
     }
 
     companion object {

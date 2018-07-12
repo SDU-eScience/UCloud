@@ -42,7 +42,7 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
     }
 
     override fun insert(session: HibernateSession, tokenAndUser: RefreshTokenAndUser) {
-        val principal = PrincipalEntity[session, tokenAndUser.associatedUser] ?: TODO()
+        val principal = PrincipalEntity[session, tokenAndUser.associatedUser] ?: throw UserException.NotFound()
         session.save(RefreshTokenEntity(tokenAndUser.token, principal))
     }
 
