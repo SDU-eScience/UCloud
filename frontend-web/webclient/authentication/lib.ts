@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import * as jwt from "jsonwebtoken";
 import { failureNotification } from "../app/UtilityFunctions";
 
 /**
@@ -10,7 +10,17 @@ export default class SDUCloud {
      * @param {string} - context 
      * @param {string} - serviceName 
      */
-    constructor(context, serviceName) {
+
+    private context: string;
+    private serviceName: string;
+    private apiContext: string;
+    private authContext: string;
+    private refreshToken: string;
+    private accessToken: string;
+    private decodedToken: any;
+    private redirectOnInvalidTokens: boolean;
+
+    constructor(context: string, serviceName: string) {
         this.context = context;
         this.serviceName = serviceName;
 
@@ -42,7 +52,7 @@ export default class SDUCloud {
      * @param {object} body - the request body, assumed to be a JS object to be encoded as JSON.
      * @return {Promise} promise
      */
-    call(method, path, body, context = this.apiContext) {
+    call(method: string, path: string, body?: object, context = this.apiContext): Promise<any> {
         if (path.indexOf("/") !== 0) path = "/" + path;
         let baseContext = this.context;
         return this.receiveAccessTokenOrRefreshIt().then((token) => {
@@ -92,7 +102,7 @@ export default class SDUCloud {
     /**
      * Calls with the POST HTTP method. See call(method, path, body)
      */
-    post(path, body, context = this.apiContext) {
+    post(path, body?: object, context = this.apiContext) {
         return this.call("POST", path, body, context);
     }
 
@@ -135,7 +145,7 @@ export default class SDUCloud {
      * Opens up a new page which contains the login page at the auth service. This login page will automatically
      * redirect back to the correct service (using serviceName).
      */
-    openBrowserLoginPage() { 
+    openBrowserLoginPage() {
         window.location.href = this.context + this.authContext + "/login?service=" + encodeURIComponent(this.serviceName);
     }
 
@@ -151,7 +161,7 @@ export default class SDUCloud {
     /**
      * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
      */
-    get homeFolder() {
+    get homeFolder(): string {
         let username = this.username;
         return `/home/${username}/`
     }
@@ -159,7 +169,7 @@ export default class SDUCloud {
     /**
      * @returns {string} the location of the jobs folder for the currently logged in user (with trailing slash)
      */
-    get jobFolder() {
+    get jobFolder(): string {
         return `${this.homeFolder}/Jobs/`
     }
 
@@ -167,7 +177,7 @@ export default class SDUCloud {
     /**
      * @returns {string} the userrole. Null if none available in the JWT
      */
-    get userRole() {
+    get userRole(): string {
         const info = this.userInfo;
         if (info) return info.role;
         return null;
@@ -176,7 +186,7 @@ export default class SDUCloud {
     /**
      * @returns {boolean} whether or not the user is listed as an admin.
      */
-    get userIsAdmin() {
+    get userIsAdmin(): boolean {
         return this.userRole === "ADMIN";
     }
 
@@ -199,7 +209,7 @@ export default class SDUCloud {
      *
      * @return {Promise} a promise of an access token
      */
-    receiveAccessTokenOrRefreshIt() {
+    receiveAccessTokenOrRefreshIt(): Promise<any> {
         let tokenPromise = null;
         if (this._isTokenExpired()) {
             tokenPromise = this._refresh();
@@ -230,7 +240,7 @@ export default class SDUCloud {
                     };
                     req.send();
                 });
-            }).then((data) => {
+            }).then((data: any) => {
                 return new Promise((resolve, reject) => {
                     resolve(data.response.accessToken);
                 });
@@ -254,11 +264,11 @@ export default class SDUCloud {
                 if (req.status === 200) {
                     resolve(JSON.parse(req.response));
                 } else {
-                    reject(req.status, JSON.parse(req.response));
+                    reject({ status: req.status, response: JSON.parse(req.response) });
                 }
             };
             req.send();
-        }).then((data) => {
+        }).then((data: any) => {
             return new Promise((resolve, reject) => {
                 this.setTokens(data.accessToken);
                 resolve(data.accessToken);
@@ -272,7 +282,7 @@ export default class SDUCloud {
      * @param accessToken the (JWT) access token.
      * @param refreshToken the refresh token (can be null)
      */
-    setTokens(accessToken, refreshToken) {
+    setTokens(accessToken: string, refreshToken?: string) {
         if (!accessToken) throw this._missingAuth();
 
         this.accessToken = accessToken;
@@ -307,19 +317,17 @@ export default class SDUCloud {
                 }
             };
             req.send();
-        })
-        .then(e => {
+        }).then(e => {
             window.localStorage.removeItem("accessToken");
             window.localStorage.removeItem("refreshToken");
             this.openBrowserLoginPage()
-        })
-        .catch(e => {
+        }).catch(e => {
             failureNotification("Unable to logout. Try again later...");
             console.warn("Unable to invalidate session server side!");
         });
     }
 
-    static get storedAccessToken() {
+    static get storedAccessToken(): string {
         return window.localStorage.getItem("accessToken");
     }
 
@@ -327,7 +335,7 @@ export default class SDUCloud {
         window.localStorage.setItem("accessToken", value);
     }
 
-    static get storedRefreshToken() {
+    static get storedRefreshToken(): string {
         return window.localStorage.getItem("refreshToken");
     }
 
@@ -354,6 +362,7 @@ export default class SDUCloud {
 }
 
 export class MissingAuthError {
+    private name: string;
     constructor() {
         this.name = "MissingAuthError";
     }

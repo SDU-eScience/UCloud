@@ -1,6 +1,5 @@
-import { getParentPath, toLowerCaseAndCapitalize, fileSizeToString } from "../app/UtilityFunctions";
+import { getParentPath, toLowerCaseAndCapitalize, fileSizeToString, getFilenameFromPath } from "../app/UtilityFunctions";
 //import initializeTestCloudObject from "./mock/TestCloudObject";
-
 
 // GET PARENT PATH
 test("Get parent path for file", () => {
@@ -73,4 +72,10 @@ test("1500 * 1000**5 bytes to string ", () => {
 
 test("Null as input", () => {
     expect(fileSizeToString(null)).toBe("");
+});
+
+// Get filename from path
+
+test("Filename from path", () => {
+    expect(getFilenameFromPath("/Home/folder")).toBe("folder");
 });

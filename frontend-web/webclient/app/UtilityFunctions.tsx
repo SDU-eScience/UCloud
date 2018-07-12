@@ -32,38 +32,6 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
     ].some((it) => it === filePath)
 };
 
-export function sortByNumber<T>(list: T[], name: keyof T, asc: boolean): T[] {
-    list.sort((a: T, b: T) => (Number(a[name]) - (Number(b[name]))) * (asc ? -1 : 1));
-    return list;
-}
-
-export function sortByString<T>(list: T[], name: string, asc: boolean): T[] {
-    list.sort((a: T, b: T) => ((a[name] as string).localeCompare(b[name] as string)) * (asc ? 1 : -1));
-    return list;
-}
-
-export const sortFilesByTypeAndName = (files: File[], asc: boolean) => {
-    const order = asc ? 1 : -1;
-    files.sort((a: File, b: File) => {
-        if (a.type === "DIRECTORY" && b.type !== "DIRECTORY")
-            return -1 * order;
-        else if (b.type === "DIRECTORY" && a.type !== "DIRECTORY")
-            return order;
-        else {
-            return getFilenameFromPath(a.path).localeCompare(getFilenameFromPath(b.path)) * order;
-        }
-    });
-    return files;
-};
-
-export const sortFilesBySensitivity = (files: File[], asc: boolean) => {
-    let order = asc ? 1 : -1;
-    files.sort((a, b) => {
-        return SensitivityLevelMap[a.sensitivityLevel] - SensitivityLevelMap[b.sensitivityLevel] * order;
-    });
-    return files;
-};
-
 export const favorite = (page: Page<File>, path: string, cloud: Cloud): Page<File> => {
     let file = page.items.find((file: File) => file.path === path);
     favoriteFile(file, cloud);
@@ -73,9 +41,9 @@ export const favorite = (page: Page<File>, path: string, cloud: Cloud): Page<Fil
 export const favoriteFile = (file: File, cloud: Cloud): void => {
     file.favorited = !file.favorited;
     if (file.favorited)
-        cloud.post(`/files/favorite?path=${file.path}`);
+        cloud.post(`/files/favorite?path=${file.path}`, {});
     else
-        cloud.delete(`/files/favorite?path=${file.path}`);
+        cloud.delete(`/files/favorite?path=${file.path}`, {});
 }
 
 export const getOwnerFromAcls = (acls: Acl[]) => {
