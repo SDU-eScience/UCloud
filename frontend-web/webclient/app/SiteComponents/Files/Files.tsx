@@ -14,7 +14,7 @@ import { FileSelectorModal } from "./FileSelector";
 import { FileIcon } from "../UtilityComponents";
 import { Uploader } from "../Uploader";
 import { File, Page } from "../../Types";
-import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations } from ".";
+import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, ReactNodeChildProps } from ".";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -122,9 +122,9 @@ class Files extends React.Component<FilesProps> {
                     <Pagination.List
                         loading={loading}
                         onRefreshClick={fetch}
-                        customEmptyPage={this.props.creatingFolder ? (
-                                <CreateFolder creatingNewFolder={true} handleKeyDown={this.handleKeyDown} />) :
-                                (<Header.Subheader content="No files in current folder" />)}
+                        customEmptyPage={this.props.creatingFolder ? ( // FIXME: Find better way of doing this
+                            <MockedTable><CreateFolder creatingNewFolder={true} handleKeyDown={this.handleKeyDown} /></MockedTable>) :
+                            (<Header.Subheader content="No files in current folder" />)}
                         pageRenderer={(page) => (
                             <FilesTable
                                 sortFiles={(sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, sortBy)}
@@ -188,6 +188,14 @@ class Files extends React.Component<FilesProps> {
             </Grid>);
     }
 }
+
+// Used for creation of folder in empty folder
+const MockedTable = ({ children }: ReactNodeChildProps) => (
+    <Table unstackable basic="very">
+        <FilesTableHeader masterCheckBox={null} sortingIcon={() => null} sortFiles={null} />
+        <Table.Body>{children}</Table.Body>
+    </Table>
+)
 
 // FIXME Cleanup
 export const FilesTable = ({
@@ -396,7 +404,8 @@ function FileOptions({ selectedFiles, rename, ...props }) {
     );
 };
 
-const PredicatedDropDownItem = ({ predicate, content, onClick }) =>
+interface PredicatedDropDownItemProps { predicate: boolean, content: string, onClick: () => void }
+const PredicatedDropDownItem = ({ predicate, content, onClick }: PredicatedDropDownItemProps) =>
     predicate ? <Dropdown.Item content={content} onClick={onClick} /> : null;
 
 const MobileButtons = ({ file, rename, allowCopyAndMove = false, ...props }) => (
@@ -424,7 +433,8 @@ const MobileButtons = ({ file, rename, allowCopyAndMove = false, ...props }) => 
     </Table.Cell>
 );
 
-function EditOrCreateProjectButton({ file, disabled, projectNavigation }) {
+interface EditOrCreateProjectButtonProps { file: File, disabled: boolean, projectNavigation: (s) => void }
+function EditOrCreateProjectButton({ file, disabled, projectNavigation }: EditOrCreateProjectButtonProps) {
     const canBeProject = uf.canBeProject(file, Cloud.homeFolder);
     const projectButton = (
         <Button className="context-button-margin" fluid basic icon="users" disabled={disabled || !canBeProject}
@@ -455,7 +465,7 @@ function EditOrCreateProject({ file, projectNavigation = null }) {
         </Dropdown.Item>)
 }
 
-function copy(files, operations) {
+function copy(files: File[], operations) {
     let i = 0;
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
@@ -484,7 +494,7 @@ function copy(files, operations) {
     });
 };
 
-function move(files, operations) {
+function move(files: File[], operations): void {
     operations.showFileSelector(true);
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.setFileSelectorCallback((file) => {

@@ -23,6 +23,8 @@ export interface FilesProps extends FilesStateProps, FilesOperations {
     history: History
 }
 
+export interface ReactNodeChildProps { children: React.ReactNode }
+
 export interface FilesStateProps { // Redux Props
     path: string
     page: Page<File>
