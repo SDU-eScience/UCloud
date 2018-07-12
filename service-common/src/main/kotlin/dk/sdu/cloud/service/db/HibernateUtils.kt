@@ -324,6 +324,8 @@ class CriteriaBuilderContext<R, T>(
         return builder.substring(this, from, length)
     }
 
+    fun Expression<Boolean>.toPredicate() = builder.isTrue(this)
+
     companion object {
         @PublishedApi
         internal fun isNumberType(other: Class<*>): Boolean {

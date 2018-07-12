@@ -22,10 +22,10 @@ class NotificationDAOTest{
     @Test
     fun `Create, find, mark, delete notifications test`() {
         val notification = InMemoryNotificationDAO()
-        notification.create(user, notificationInstance)
-        val id = notification.create(user, notificationInstance2)
+        notification.create(Any(), user, notificationInstance)
+        val id = notification.create(Any(), user, notificationInstance2)
 
-        val result = notification.findNotifications(user)
+        val result = notification.findNotifications(Any(), user)
 
         assertEquals(2, result.items.size)
         assertEquals("You got mail again!", result.items[0].message )
@@ -33,16 +33,16 @@ class NotificationDAOTest{
 
         assertFalse(result.items[0].read)
 
-        assertTrue(notification.markAsRead(user, id))
-        assertFalse(notification.markAsRead(user, "22"))
+        assertTrue(notification.markAsRead(Any(), user, id))
+        assertFalse(notification.markAsRead(Any(), user, 22))
 
         //Is put in the back of the list when marked as read
         assertFalse(result.items[1].read)
 
-        assertTrue(notification.delete(id))
-        assertFalse(notification.delete(id))
+        assertTrue(notification.delete(Any(), id))
+        assertFalse(notification.delete(Any(), id))
 
-        val result2 = notification.findNotifications(user)
+        val result2 = notification.findNotifications(Any(), user)
         assertEquals(1, result2.items.size)
         assertEquals("You got mail!", result2.items[0].message )
 

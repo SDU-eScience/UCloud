@@ -1,20 +1,20 @@
 package dk.sdu.cloud.notification.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 data class ListNotificationRequest(
     val type: String? = null,
     val since: Long? = null,
-    val itemsPerPage: Int? = null,
-    val page: Int? = null
-) {
-    val pagination = PaginationRequest(itemsPerPage, page).normalize()
+    override val itemsPerPage: Int?,
+    override val page: Int?
+): WithPaginationRequest {
+    val pagination = normalize()
 }
 
 data class CreateNotification(val user: String, val notification: Notification)
@@ -68,7 +68,7 @@ object NotificationDescriptions : RESTDescriptions(NotificationServiceDescriptio
 
         path {
             using(baseContext)
-            +boundTo(FindByStringId::id)
+            +boundTo(FindByNotificationId::id)
         }
     }
 }

@@ -1,9 +1,9 @@
 package dk.sdu.cloud.notification.api
 
-import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.FindByLongId
 
-typealias NotificationId = String
-typealias FindByNotificationId = FindByStringId
+typealias NotificationId = Long
+typealias FindByNotificationId = FindByLongId
 
 data class Notification(
     val type: String,

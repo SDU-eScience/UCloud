@@ -6,7 +6,9 @@ import dk.sdu.cloud.notification.services.NotificationDAO
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
+import dk.sdu.cloud.notification.services.NotificationHibernateDAO
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import io.ktor.application.install
 import io.ktor.routing.contentType
 import io.ktor.routing.route
@@ -18,6 +20,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 class Server(
+    private val db: HibernateSessionFactory,
     private val configuration: Configuration,
     private val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
@@ -32,8 +35,7 @@ class Server(
         val instance = NotificationServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
-        val notificationDao: NotificationDAO =
-            InMemoryNotificationDAO()
+        val notificationDao = NotificationHibernateDAO()
         log.info("Core services constructed!")
 
         kStreams = run {
@@ -61,7 +63,7 @@ class Server(
 
             routing {
                 route("api/notifications") {
-                    NotificationController(notificationDao).configure(this)
+                    NotificationController(db, notificationDao).configure(this)
                 }
             }
 

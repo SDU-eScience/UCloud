@@ -47,20 +47,17 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
     }
 }
 
-private fun Application.configureNotificationServer(
-    notificationDao: InMemoryNotificationDAO
-    ) {
-    configureBaseServer(NotificationController(notificationDao))
+private fun Application.configureNotificationServer(notificationDao: InMemoryNotificationDAO) {
+    configureBaseServer(NotificationController(mockk(relaxed = true), notificationDao))
 }
 
 class NotificationTest {
-
     private val mapper = jacksonObjectMapper()
 
-    private fun getID(response: String) :String {
+    private fun getID(response: String): String {
         val splittetList = response.split('"')
         val idIndex = splittetList.indexOf("id")
-        return splittetList[idIndex+2]
+        return splittetList[idIndex + 2]
     }
 
     @Test
@@ -77,7 +74,8 @@ class NotificationTest {
                         handleRequest(HttpMethod.Put, "/api/notifications") {
                             addHeader("Job-Id", UUID.randomUUID().toString())
                             setUser(role = Role.ADMIN)
-                            setBody("""
+                            setBody(
+                                """
                                 {
                                     "user":"user",
                                     "notification":{
@@ -85,7 +83,8 @@ class NotificationTest {
                                         "message":"You Got MAIL!!!"
                                     }
                                 }
-                            """.trimIndent())
+                            """.trimIndent()
+                            )
                         }.response
 
                     assertEquals(HttpStatusCode.OK, response.status())
@@ -98,12 +97,16 @@ class NotificationTest {
 
                     assertEquals(HttpStatusCode.OK, response2.status())
 
-                    assertTrue(response2.content.toString().contains(
-                        "\"message\":\"You Got MAIL!!!\""
-                    ))
-                    assertTrue(response2.content.toString().contains(
-                        "\"read\":false"
-                    ))
+                    assertTrue(
+                        response2.content.toString().contains(
+                            "\"message\":\"You Got MAIL!!!\""
+                        )
+                    )
+                    assertTrue(
+                        response2.content.toString().contains(
+                            "\"read\":false"
+                        )
+                    )
 
                     val id = getID(response2.content.toString())
 
@@ -123,9 +126,11 @@ class NotificationTest {
 
                     assertEquals(HttpStatusCode.OK, response4.status())
 
-                    assertTrue(response4.content.toString().contains(
-                        "\"read\":true"
-                    ))
+                    assertTrue(
+                        response4.content.toString().contains(
+                            "\"read\":true"
+                        )
+                    )
 
                     val response5 =
                         handleRequest(HttpMethod.Delete, "/api/notifications/${id}") {
@@ -163,7 +168,8 @@ class NotificationTest {
                         handleRequest(HttpMethod.Put, "/api/notifications") {
                             addHeader("Job-Id", UUID.randomUUID().toString())
                             setUser(role = Role.USER)
-                            setBody("""
+                            setBody(
+                                """
                                 {
                                     "user":"user",
                                     "notification":{
@@ -171,7 +177,8 @@ class NotificationTest {
                                         "message":"You Got MAIL!!!"
                                     }
                                 }
-                            """.trimIndent())
+                            """.trimIndent()
+                            )
                         }.response
 
                     assertEquals(HttpStatusCode.Unauthorized, response.status())
