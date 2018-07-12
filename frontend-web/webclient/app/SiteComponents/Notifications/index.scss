@@ -16,3 +16,8 @@
 .ui.feed > .event.notification.unread:hover, .notification.read:hover {
     background-color: #eee;
 }
+
+button.ui.blue.circular.notification-button-padding, i.notification-button-padding {
+    padding-left: 8px;
+    padding-right: 8px;
+}

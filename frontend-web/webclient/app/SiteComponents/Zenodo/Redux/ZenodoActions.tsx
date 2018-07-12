@@ -1,6 +1,7 @@
 import { Cloud } from "../../../../authentication/SDUCloudObject";
 import {
     RECEIVE_PUBLICATIONS,
+    RECEIVE_ZENODO_LOGIN_STATUS,
     SET_ZENODO_LOADING
 } from "./ZenodoReducer";
 import { SetLoadingAction, ReceivePage, Page } from "../../../Types";
@@ -20,6 +21,14 @@ export const fetchPublications = (page: number, itemsPerPage: number): Promise<R
     }).catch(_ => {
         return receivePublications(emptyPage, false);
     });
+
+export const fetchLoginStatus = () => 
+    Cloud.get("/zenodo").then().catch();
+
+export const receiveLoginStatus = (loggedIn) => ({
+    type: RECEIVE_ZENODO_LOGIN_STATUS,
+    loggedIn
+})
 
 interface ReceivePublications extends ReceivePage<Publication> { connected: boolean }
 /**

@@ -61,7 +61,7 @@ class Files extends React.Component<FilesProps> {
         }
     }
 
-    shouldComponentUpdate(nextProps, _nextState) {
+    shouldComponentUpdate(nextProps, _nextState): boolean {
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
         if (nextProps.path !== nextProps.match.params[0] && !loading) {
             fetchFiles(nextProps.match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
@@ -69,19 +69,17 @@ class Files extends React.Component<FilesProps> {
         return true;
     }
 
-    checkAllFiles = (checked: boolean) => {
+    checkAllFiles = (checked: boolean): void => {
         const { page, updateFiles } = this.props;
         page.items.forEach(file => file.isChecked = checked);
         updateFiles(page);
     }
 
-    createFolder = () => {
-        this.props.resetFolderEditing();
+    createFolder = (): void => {
         this.props.setCreatingFolder(true);
     }
 
-    startEditFile = (index: number) => {
-        this.props.resetFolderEditing();
+    startEditFile = (index: number): void => {
         this.props.setEditingFileIndex(index);
     }
 
