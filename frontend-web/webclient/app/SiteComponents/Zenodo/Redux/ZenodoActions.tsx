@@ -1,10 +1,10 @@
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "../../../../authentication/SDUCloudObject";
 import {
     RECEIVE_PUBLICATIONS,
     SET_ZENODO_LOADING
-} from "../Reducers/Zenodo";
-import { SetLoadingAction, ReceivePage, Publication, Page } from "../Types";
-import { emptyPage } from "../DefaultObjects";
+} from "./ZenodoReducer";
+import { SetLoadingAction, ReceivePage, Publication, Page } from "../../../Types";
+import { emptyPage } from "../../../DefaultObjects";
 
 /**
  * Fetches publications by the user
@@ -12,6 +12,7 @@ import { emptyPage } from "../DefaultObjects";
  * @param {number} itemsPerPage the number of items to be fetched
  * @returns {Promise<ReceivePublications>} a promise containing receive publications action
  */
+
 export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePublications> =>
     Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) => {
         return receivePublications(response.inProgress, response.connected);

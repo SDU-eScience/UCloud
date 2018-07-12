@@ -1,4 +1,4 @@
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "../../../../authentication/SDUCloudObject";
 import {
     RECEIVE_FILES,
     UPDATE_FILES,
@@ -13,11 +13,11 @@ import {
     SET_CREATING_FOLDER,
     SET_EDITING_FILE,
     RESET_FOLDER_EDITING
-} from "../Reducers/Files";
-import { failureNotification } from "../UtilityFunctions";
-import { Page, File, ReceivePage, SetLoadingAction, Action } from "../Types";
-import { SortOrder, SortBy } from "../SiteComponents/Files";
-import { emptyPage } from "../DefaultObjects";
+} from "./FilesReducer";
+import { failureNotification } from "../../../UtilityFunctions";
+import { Page, ReceivePage, SetLoadingAction, Action } from "../../../Types";
+import { SortOrder, SortBy, File } from "..";
+import { emptyPage } from "../../../DefaultObjects";
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,

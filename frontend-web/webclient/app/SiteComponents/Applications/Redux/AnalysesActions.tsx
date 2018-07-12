@@ -1,7 +1,7 @@
-import { Cloud } from "../../authentication/SDUCloudObject";
-import { failureNotification } from "../UtilityFunctions";
-import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES } from "../Reducers/Analyses";
-import { Page, Analysis, ReceivePage, SetLoadingAction } from "../Types";
+import { Cloud } from "../../../../authentication/SDUCloudObject";
+import { failureNotification } from "../../../UtilityFunctions";
+import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES } from "./AnalysesReducer";
+import { Page, Analysis, ReceivePage, SetLoadingAction } from "../../../Types";
 
 /**
  * Fetches a page of analyses based on the itemsPerPage and page provided

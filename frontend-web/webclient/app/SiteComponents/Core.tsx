@@ -13,7 +13,7 @@ import Sidebar from "./Navigation/Sidebar";
 import ZenodoPublish from "./Zenodo/Publish";
 import ZenodoHome from "./Zenodo/Zenodo";
 import ZenodoInfo from "./Zenodo/Info";
-import UppyWrapper from "./UppyWrapper";
+import UppyWrapper from "./Uppy/UppyWrapper";
 import UserCreation from "./Admin/UserCreation";
 import UserSettings from "./UserSettings/UserSettings";
 import * as Share from "./Shares";

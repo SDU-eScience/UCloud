@@ -1,18 +1,3 @@
-export interface File {
-    type: string
-    path: string
-    createdAt: number
-    modifiedAt: number
-    ownerName: string
-    size: number
-    acl: Array<Acl>
-    favorited: boolean
-    sensitivityLevel: string
-    isChecked?: boolean
-    link: boolean
-    annotations: string[]
-}
-
 export interface Acl {
     entity: Entity
     right: string
@@ -120,6 +105,3 @@ export interface DropdownOption {
 export type Action = { type: String }
 export interface SetLoadingAction extends Action { loading: boolean }
 export interface ReceivePage<T> extends Action { page: Page<T> }
-// FIXME Redundant? Ultimately, every page fetching accomplishes the same
-export interface ToPageAction extends Action { pageNumber: number }
-export interface SetItemsPerPage extends Action { itemsPerPage: number }

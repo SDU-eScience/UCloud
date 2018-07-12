@@ -1,9 +1,24 @@
-import { Page, File } from "../../Types";
+import { Page, Acl } from "../../Types";
 import { History } from "history";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
     DESCENDING = "DESCENDING"
+}
+
+export interface File {
+    type: string
+    path: string
+    createdAt: number
+    modifiedAt: number
+    ownerName: string
+    size: number
+    acl: Array<Acl>
+    favorited: boolean
+    sensitivityLevel: string
+    isChecked?: boolean
+    link: boolean
+    annotations: string[]
 }
 
 export enum SortBy {

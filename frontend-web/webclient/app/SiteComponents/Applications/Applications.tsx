@@ -7,8 +7,8 @@ import {
     fetchApplications,
     setLoading,
     updateApplications
-} from "../../Actions/Applications";
-import { updatePageTitle } from "../../Actions/Status";
+} from "./Redux/ApplicationsActions";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import "../Styling/Shared.scss";
 import { Page, Application } from "../../Types";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";

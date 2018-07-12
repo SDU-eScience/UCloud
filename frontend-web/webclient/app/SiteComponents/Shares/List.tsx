@@ -6,7 +6,7 @@ import { AccessRight, Page } from "../../Types";
 import { getFilenameFromPath, shareSwal } from "../../UtilityFunctions";
 import "./List.scss"
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { updatePageTitle } from "../../Actions/Status";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
 
 export class List extends React.Component<ListProps, ListState> {

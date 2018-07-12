@@ -1,7 +1,8 @@
-import { Cloud } from "../../authentication/SDUCloudObject";
-import { SET_ALL_LOADING, RECEIVE_FAVORITES, RECEIVE_RECENT_ANALYSES, RECEIVE_RECENT_FILES } from "../Reducers/Dashboard";
-import { failureNotification } from "../UtilityFunctions";
-import { Analysis, File, SetLoadingAction, Action } from "../Types";
+import { Cloud } from "../../../../authentication/SDUCloudObject";
+import { SET_ALL_LOADING, RECEIVE_FAVORITES, RECEIVE_RECENT_ANALYSES, RECEIVE_RECENT_FILES } from "./DashboardReducer";
+import { failureNotification } from "../../../UtilityFunctions";
+import { Analysis, SetLoadingAction, Action } from "../../../Types";
+import { File } from "../../Files";
 
 interface Fetch<T> extends Action { content: T[] }
 /**

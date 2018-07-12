@@ -4,8 +4,8 @@ import { getParentPath, iconFromFilePath } from "../../UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "../../../authentication/SDUCloudObject"
 import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath, shortenString } from "../../UtilityFunctions";
-import { updatePageTitle } from "../../Actions/Status";
-import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "../../Actions/Dashboard";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
+import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
 import "./Dashboard.scss";
 import "../Styling/Shared.scss";

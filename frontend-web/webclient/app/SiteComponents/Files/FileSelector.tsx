@@ -7,14 +7,14 @@ import PropTypes from "prop-types";
 import { getFilenameFromPath, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "../../UtilityFunctions";
 import * as uf from "../../UtilityFunctions";
 import PromiseKeeper from "../../PromiseKeeper";
-import { changeUppyRunAppOpen } from "../../Actions/UppyActions";
+import { changeUppyRunAppOpen } from "../Uppy/Redux/UppyActions";
 import { KeyCode } from "../../DefaultObjects";
 import { FileIcon } from "../UtilityComponents";
 import "./Files.scss";
 import "../Styling/Shared.scss";
-import { File, Page } from "../../Types";
+import { Page } from "../../Types";
 import { emptyPage } from "../../DefaultObjects";
-import { FileSelectorProps, FileSelectorState } from ".";
+import { FileSelectorProps, FileSelectorState, File } from ".";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props, context) {

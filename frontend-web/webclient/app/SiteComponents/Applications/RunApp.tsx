@@ -9,7 +9,7 @@ import PromiseKeeper from "../../PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
 import { getFilenameFromPath } from "../../UtilityFunctions";
-import { updatePageTitle } from "../../Actions/Status";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import "../Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
 import { Application } from "../../Types";

@@ -1,7 +1,7 @@
-import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT } from "../Reducers/Notifications";
-import { Cloud } from "../../authentication/SDUCloudObject";
-import { Page, ReceivePage, Action } from "../Types";
-import { failureNotification } from "../UtilityFunctions";
+import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT } from "./NotificationsReducer";
+import { Cloud } from "../../../../authentication/SDUCloudObject";
+import { Page, ReceivePage, Action } from "../../../Types";
+import { failureNotification } from "../../../UtilityFunctions";
 
 const ERROR = "ERROR";
 

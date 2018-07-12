@@ -11,7 +11,7 @@ import "./wizard.scss";
 import "./Applications.scss";
 import { connect } from "react-redux";
 import "../Styling/Shared.scss";
-import { updatePageTitle } from "../../Actions/Status";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import { emptyPage } from "../../DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";
 

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps, Dimmer } from "semantic-ui-react";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { connect } from "react-redux";
-import { fetchSidebarOptions, setSidebarLoading, setSidebarClosed } from "../../Actions/Sidebar";
+import { fetchSidebarOptions, setSidebarLoading, setSidebarClosed } from "./Redux/SidebarActions";
 
 interface SidebarProps {
     open?: boolean

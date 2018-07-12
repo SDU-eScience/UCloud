@@ -9,7 +9,7 @@ import { PropTypes } from "prop-types";
 import * as Pagination from "../Pagination";
 import { KeyCode } from "../../DefaultObjects";
 import { History } from "history";
-import { updatePageTitle } from "../../Actions/Status";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 
 interface SearchState {
     query: string

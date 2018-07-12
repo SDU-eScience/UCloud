@@ -1,13 +1,13 @@
 import * as React from "react";
 import { toLowerCaseAndCapitalize, shortUUID } from "../../UtilityFunctions"
-import { updatePageTitle } from "../../Actions/Status";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Table, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { List } from "../Pagination/List";
 import { connect } from "react-redux";
 import "../Styling/Shared.scss";
-import { setLoading, fetchAnalyses } from "../../Actions/Analyses";
+import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
 import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } from ".";
 
 class Analyses extends React.Component<AnalysesProps, AnalysesState> {

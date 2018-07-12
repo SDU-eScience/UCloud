@@ -5,7 +5,7 @@ import { allLicenses } from "./licenses";
 import { Creator, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
 import { blankOrNull } from "../../UtilityFunctions";
 import { PropTypes } from "prop-types";
-import { updatePageTitle } from "../../Actions/Status";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 
 const newCreator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });

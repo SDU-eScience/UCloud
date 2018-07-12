@@ -1,6 +1,6 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { updatePageTitle } from "../../Actions/Status";
+import { updatePageTitle } from "./Redux/StatusActions";
 import { SemanticCOLORS, Segment } from "semantic-ui-react";
 
 const Status = ({ status, updatePageTitle }) => {

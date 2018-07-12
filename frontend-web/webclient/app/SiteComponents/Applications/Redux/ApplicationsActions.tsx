@@ -1,18 +1,18 @@
-import { Cloud } from "../../authentication/SDUCloudObject";
-import { failureNotification } from "../UtilityFunctions";
+import { Cloud } from "../../../../authentication/SDUCloudObject";
+import { failureNotification } from "../../../UtilityFunctions";
 import {
     RECEIVE_APPLICATIONS,
     SET_APPLICATIONS_LOADING,
     UPDATE_APPLICATIONS
-} from "../Reducers/Applications";
+} from "./ApplicationsReducer";
 
 import {
     Application,
     Action,
     SetLoadingAction,
     Page
-} from "../Types";
-import { emptyPage } from "../DefaultObjects";
+} from "../../../Types";
+import { emptyPage } from "../../../DefaultObjects";
 
 interface ReceiveApplicationsAction extends Action { page: Page<Application> }
 const receiveApplications = (page: Page<Application>): ReceiveApplicationsAction => ({

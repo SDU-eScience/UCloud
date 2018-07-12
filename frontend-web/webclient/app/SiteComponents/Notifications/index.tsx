@@ -7,7 +7,7 @@ import { connect } from "react-redux";
 import "./index.scss";
 import { withRouter } from "react-router";
 import { Page } from "../../Types";
-import { fetchNotifications, notificationRead } from "../../Actions/Notifications";
+import { fetchNotifications, notificationRead } from "./Redux/NotificationsActions";
 import { History } from "history";
 import Status from "../Navigation/Status";
 

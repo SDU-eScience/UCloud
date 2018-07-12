@@ -8,13 +8,13 @@ import * as Pagination from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
 import * as uf from "../../UtilityFunctions";
 import { KeyCode } from "../../DefaultObjects";
-import * as Actions from "../../Actions/Files";
-import { updatePageTitle } from "../../Actions/Status";
+import * as Actions from "./Redux/FilesActions";
+import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
 import { FileIcon } from "../UtilityComponents";
 import { Uploader } from "../Uploader";
-import { File, Page } from "../../Types";
-import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, ReactNodeChildProps } from ".";
+import { Page } from "../../Types";
+import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, ReactNodeChildProps, File } from ".";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -465,7 +465,7 @@ function EditOrCreateProject({ file, projectNavigation = null }) {
         </Dropdown.Item>)
 }
 
-function copy(files: File[], operations) {
+function copy(files: File[], operations): void {
     let i = 0;
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);

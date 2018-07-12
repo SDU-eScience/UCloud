@@ -5,15 +5,15 @@ import { createStore, combineReducers } from "redux";
 import { BrowserRouter } from "react-router-dom";
 import Core from "./SiteComponents/Core";
 import { Cloud } from "../authentication/SDUCloudObject";
-import files from "./Reducers/Files";
-import uppyReducers from "./Reducers/UppyReducers";
-import status from "./Reducers/Status";
-import applications from "./Reducers/Applications";
-import dashboard from "./Reducers/Dashboard";
-import zenodo from "./Reducers/Zenodo";
-import sidebar from "./Reducers/Sidebar";
-import analyses from "./Reducers/Analyses";
-import notifications from "./Reducers/Notifications";
+import files from "./SiteComponents/Files/Redux/FilesReducer";
+import uppyReducers from "./SiteComponents/Uppy/Redux/UppyReducers";
+import status from "./SiteComponents/Navigation/Redux/StatusReducer";
+import applications from "./SiteComponents/Applications/Redux/ApplicationsReducer";
+import dashboard from "./SiteComponents/Dashboard/Redux/DashboardReducer";
+import zenodo from "./SiteComponents/Zenodo/Redux/ZenodoReducer";
+import sidebar from "./SiteComponents/Navigation/Redux/SidebarReducer";
+import analyses from "./SiteComponents/Applications/Redux/AnalysesReducer";
+import notifications from "./SiteComponents/Notifications/Redux/NotificationsReducer";
 import { initObject } from "./DefaultObjects";
 import "semantic-ui-css/semantic.min.css"
 
