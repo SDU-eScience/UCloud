@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "../../../authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox } from "semantic-ui-react";
+import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, SemanticSIZES } from "semantic-ui-react";
 import { dateToString } from "../../Utilities/DateUtilities";
 import * as Pagination from "../Pagination";
 import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
@@ -121,7 +121,7 @@ class Files extends React.Component<FilesProps> {
                         loading={loading}
                         onRefreshClick={fetch}
                         customEmptyPage={this.props.creatingFolder ? (
-                            <MockedTable creatingFolder={this.props.creatingFolder} handleKeyDown={this.handleKeyDown}/>) :
+                            <MockedTable creatingFolder={this.props.creatingFolder} handleKeyDown={this.handleKeyDown} />) :
                             (<Header.Subheader content="No files in current folder" />)}
                         pageRenderer={(page) => (
                             <FilesTable
@@ -319,22 +319,21 @@ const PredicatedFavorite = ({ predicate, file, onClick }) =>
 
 const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon className="group-icon-padding" name="users" />) : null;
 
-export function FilenameAndIcons({ file, beingRenamed = null, size = "big", onKeyDown = null, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }) {
+export function FilenameAndIcons({ file, beingRenamed = false, size = "big", onKeyDown = null, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }) {
     const color = file.type === "DIRECTORY" ? "blue" : "grey";
     const fileName = uf.getFilenameFromPath(file.path);
-    const nameLink = (uf.isDirectory(file) ?
-        <Link to={`/files/${file.path}`}>
-            {fileName}
-        </Link> : fileName);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_e, { checked }) => onCheckFile(checked, file)} />
     const icon = (
         <FileIcon
             color={color}
-            name={file.type === "DIRECTORY" ? "folder" : uf.iconFromFilePath(file.path)}
+            name={uf.isDirectory(file) ? "folder" : uf.iconFromFilePath(file.path)}
             size={size} link={file.link}
-            className="create-folder"
         />
     );
+    const nameLink = (uf.isDirectory(file) ?
+        <Link to={`/files/${file.path}`}>
+            {icon}{fileName}
+        </Link> : <React.Fragment>{icon}{fileName}</React.Fragment>);
     return beingRenamed ?
         <Table.Cell className="table-cell-padding-left">
             {checkbox}
@@ -349,9 +348,9 @@ export function FilenameAndIcons({ file, beingRenamed = null, size = "big", onKe
         </Table.Cell> :
         <Table.Cell className="table-cell-padding-left">
             {checkbox}
-            {icon}{nameLink}
+            {nameLink}
             <GroupIcon isProject={uf.isProject(file)} />
-            <PredicatedFavorite predicate={!!onFavoriteFile} file={file} onClick={() => onFavoriteFile(file.path)} />
+            <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites/`)} file={file} onClick={() => onFavoriteFile(file.path)} />
         </Table.Cell>
 };
 
