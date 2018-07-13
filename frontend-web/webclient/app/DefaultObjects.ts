@@ -2,11 +2,11 @@
 import { tusConfig } from "./Configurations";
 import * as Uppy from "uppy";
 import { SidebarOption, Page } from "./Types";
-import { Status } from "./SiteComponents/Navigation";
-import { Analysis } from "./SiteComponents/Applications";
-import { File } from "./SiteComponents/Files";
+import { Status } from "./Navigation";
+import { Analysis } from "./Applications";
+import { File } from "./Files";
 import SDUCloud from "../authentication/lib";
-import { SortOrder, SortBy } from "./SiteComponents/Files";
+import { SortOrder, SortBy } from "./Files";
 
 export const DefaultStatus: Status = {
     title: "No Issues",

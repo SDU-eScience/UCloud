@@ -24,6 +24,9 @@
     "install": "napa",
     "test": "jest"
   },
+  "resolutions": {
+    "eslint-scope": "3.7.1"
+  },
   "dependencies": {
     "@types/react": "^16.4.6",
     "@types/react-dom": "^16.0.6",
