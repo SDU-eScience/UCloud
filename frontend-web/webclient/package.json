@@ -4,6 +4,7 @@
   "description": "SDU Cloud",
   "author": "eScience Center - SDU",
   "jest": {
+    "modulePaths": ["app"],
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
     },
