@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Form, Button, Input, Grid, Header } from "semantic-ui-react";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "../PromiseKeeper";
 import {
     successNotification,

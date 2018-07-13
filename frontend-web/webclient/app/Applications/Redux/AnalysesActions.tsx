@@ -1,7 +1,7 @@
-import { Cloud } from "../../../authentication/SDUCloudObject";
-import { failureNotification } from "../../UtilityFunctions";
+import { Cloud } from "Authentication/SDUCloudObject";
+import { failureNotification } from "UtilityFunctions";
 import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES } from "./AnalysesReducer";
-import { Page, ReceivePage, SetLoadingAction } from "../../Types";
+import { Page, ReceivePage, SetLoadingAction } from "Types";
 import { Analysis } from "..";
 
 /**

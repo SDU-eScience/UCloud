@@ -5,7 +5,7 @@ import { SidebarOption, Page } from "./Types";
 import { Status } from "./Navigation";
 import { Analysis } from "./Applications";
 import { File } from "./Files";
-import SDUCloud from "../authentication/lib";
+import SDUCloud from "Authentication/lib";
 import { SortOrder, SortBy } from "./Files";
 
 export const DefaultStatus: Status = {

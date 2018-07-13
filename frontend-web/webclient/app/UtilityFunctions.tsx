@@ -1,7 +1,7 @@
 import * as React from "react";
 import swal from "sweetalert2";
 import { RightsMap } from "./DefaultObjects";
-import Cloud from "../authentication/lib";
+import Cloud from "Authentication/lib";
 import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder } from "./Files";
 import { Page, AccessRight } from "./Types";

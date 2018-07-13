@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Grid, Header, Form, Input, Button } from "semantic-ui-react";
 import FileSelector from "../Files/FileSelector";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon"

@@ -1,10 +1,10 @@
 import * as React from "react";
 import { Button, Header, Form } from "semantic-ui-react";
-import FileSelector from "../Files/FileSelector";
-import { Cloud } from "../../authentication/SDUCloudObject";
-import { NotConnectedToZenodo } from "../ZenodoPublishingUtilities";
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
+import FileSelector from "Files/FileSelector";
+import { Cloud } from "Authentication/SDUCloudObject";
+import { NotConnectedToZenodo } from "ZenodoPublishingUtilities";
+import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { fetchPublications, setZenodoLoading } from "./Redux/ZenodoActions";
 import { connect } from "react-redux";
 import "./Zenodo.scss";

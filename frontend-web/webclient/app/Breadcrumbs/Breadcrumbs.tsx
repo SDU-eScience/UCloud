@@ -2,7 +2,7 @@ import * as React from "react";
 import { Breadcrumb } from "semantic-ui-react";
 import "./Breadcrumbs.scss";
 import { BreadCrumbMapping, Breadcrumbs as BreadCrumbsList } from ".";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 export const BreadCrumbs = ({ currentPath, navigate }: BreadCrumbsList) => {
     if (!currentPath) return null;

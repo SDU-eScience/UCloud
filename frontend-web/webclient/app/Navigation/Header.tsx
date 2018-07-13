@@ -1,7 +1,7 @@
 
 import * as React from "react";
 import { Input, Menu, Dropdown, Icon, Responsive, Header as HeaderTag, Form } from "semantic-ui-react";
-import { Cloud } from "../../authentication/SDUCloudObject"
+import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import "./Header.scss";

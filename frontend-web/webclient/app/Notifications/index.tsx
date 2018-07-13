@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Cloud } from "../../authentication/SDUCloudObject"
+import { Cloud } from "Authentication/SDUCloudObject"
 import { Popup, Feed, Icon, SemanticICONS, Label, Button, Divider } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";

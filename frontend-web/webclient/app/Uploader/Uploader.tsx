@@ -1,18 +1,11 @@
 import * as React from "react";
-import { Cloud } from "../../authentication/SDUCloudObject"
 import {
     Checkbox,
     Progress,
     Grid,
     Card,
     Button,
-    Popup,
-    Feed,
-    Icon,
-    Divider,
-    SemanticICONS,
-    Label
-} from 'semantic-ui-react';
+    Icon} from 'semantic-ui-react';
 import * as Dropzone from "react-dropzone/dist/index";
 import "./index.scss";
 import { ifPresent, fileSizeToString, iconFromFilePath } from "../UtilityFunctions";

@@ -1,4 +1,4 @@
-import { Cloud } from "../../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import { SET_ALL_LOADING, RECEIVE_FAVORITES, RECEIVE_RECENT_ANALYSES, RECEIVE_RECENT_FILES } from "./DashboardReducer";
 import { failureNotification } from "../../UtilityFunctions";
 import { SetLoadingAction, Action } from "../../Types";

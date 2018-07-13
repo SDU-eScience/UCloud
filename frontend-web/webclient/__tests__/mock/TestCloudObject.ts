@@ -1,5 +1,5 @@
 // Possible as we are running JS, not a browser
-import SDUCloud from "../../authentication/lib";
+import SDUCloud from "../../app/Authentication/lib";
 
 // Storage Mock
 const storageMock = () => {

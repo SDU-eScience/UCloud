@@ -1,12 +1,12 @@
 import * as React from "react";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import PropTypes from "prop-types";
 import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
-import { AccessRight, Page } from "../Types";
-import { getFilenameFromPath, shareSwal } from "../UtilityFunctions";
+import { AccessRight, Page } from "Types";
+import { getFilenameFromPath, shareSwal } from "UtilityFunctions";
 import "./List.scss"
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
+import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
 
 export class List extends React.Component<ListProps, ListState> {

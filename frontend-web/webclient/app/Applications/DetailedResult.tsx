@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Spinner } from "../LoadingIcon/LoadingIcon"
 import PromiseKeeper from "../PromiseKeeper";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import { shortUUID, failureNotification, favorite } from "../UtilityFunctions";
 import { Container, List, Card, Icon, Popup, Step, SemanticICONS, Grid } from "semantic-ui-react";
 import { Link } from "react-router-dom";

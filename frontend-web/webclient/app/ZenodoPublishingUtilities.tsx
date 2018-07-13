@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Cloud } from "../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import { Button, Segment } from "semantic-ui-react";
 
 const ZenodoRedirect = () =>

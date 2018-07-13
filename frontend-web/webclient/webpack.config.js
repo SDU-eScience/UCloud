@@ -5,6 +5,8 @@ const path = require('path');
 //var baseHref = process.env.REACT_BASE_HREF ? process.env.REACT_BASE_HREF : '/';
 const baseHref = "/app";
 
+console.log(`dirname: ${__dirname}`);
+
 module.exports = {
 
     entry: {
@@ -14,7 +16,7 @@ module.exports = {
 
     resolve: {
         //root: path.join(__dirname, ''),
-        modules: ["node_modules"],
+        modules: [path.resolve(__dirname, "app"), "node_modules"],
         extensions: ['.js', '.jsx', ".json", ".ts", ".tsx"]
     },
 

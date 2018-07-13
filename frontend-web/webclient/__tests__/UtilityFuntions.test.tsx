@@ -1,4 +1,4 @@
-import { getParentPath, toLowerCaseAndCapitalize, fileSizeToString, getFilenameFromPath } from "../app/UtilityFunctions";
+import { getParentPath, toLowerCaseAndCapitalize, fileSizeToString, getFilenameFromPath } from "UtilityFunctions";
 //import initializeTestCloudObject from "./mock/TestCloudObject";
 
 // GET PARENT PATH

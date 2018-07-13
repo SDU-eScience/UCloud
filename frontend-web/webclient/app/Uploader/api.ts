@@ -1,4 +1,4 @@
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 export const multipartUpload = (location: string, file: File, onProgress?: (e: ProgressEvent) => void): Promise<XMLHttpRequest> => {
     return Cloud.receiveAccessTokenOrRefreshIt().then(token => {

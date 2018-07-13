@@ -8,6 +8,12 @@
         "jsx": "react",
         "allowJs": true,
         "moduleResolution": "node",
-        "sourceMap": true
+        "sourceMap": true,
+        "baseUrl": ".",
+        "paths": {
+            "*": [
+                "./app/*"
+            ]
+        }
     }
 }

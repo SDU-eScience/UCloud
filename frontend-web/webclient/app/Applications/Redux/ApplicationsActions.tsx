@@ -1,4 +1,4 @@
-import { Cloud } from "../../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import { failureNotification } from "../../UtilityFunctions";
 import {
     RECEIVE_APPLICATIONS,

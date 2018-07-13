@@ -4,17 +4,17 @@ import { Provider } from "react-redux";
 import { createStore, combineReducers } from "redux";
 import { BrowserRouter } from "react-router-dom";
 import Core from "./Core";
-import { Cloud } from "../authentication/SDUCloudObject";
-import files from "./Files/Redux/FilesReducer";
-import uppyReducers from "./Uppy/Redux/UppyReducers";
-import status from "./Navigation/Redux/StatusReducer";
-import applications from "./Applications/Redux/ApplicationsReducer";
-import dashboard from "./Dashboard/Redux/DashboardReducer";
-import zenodo from "./Zenodo/Redux/ZenodoReducer";
-import sidebar from "./Navigation/Redux/SidebarReducer";
-import analyses from "./Applications/Redux/AnalysesReducer";
-import notifications from "./Notifications/Redux/NotificationsReducer";
-import { initObject } from "./DefaultObjects";
+import { Cloud } from "Authentication/SDUCloudObject";
+import files from "Files/Redux/FilesReducer";
+import uppyReducers from "Uppy/Redux/UppyReducers";
+import status from "Navigation/Redux/StatusReducer";
+import applications from "Applications/Redux/ApplicationsReducer";
+import dashboard from "Dashboard/Redux/DashboardReducer";
+import zenodo from "Zenodo/Redux/ZenodoReducer";
+import sidebar from "Navigation/Redux/SidebarReducer";
+import analyses from "Applications/Redux/AnalysesReducer";
+import notifications from "Notifications/Redux/NotificationsReducer";
+import { initObject } from "DefaultObjects";
 import "semantic-ui-css/semantic.min.css"
 
 window.onload = () => {

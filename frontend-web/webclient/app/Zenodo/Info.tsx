@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Container, Header, List, Table, Progress } from "semantic-ui-react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "../PromiseKeeper";
 import { dateToString } from "../Utilities/DateUtilities";
 import { ZenodoInfoProps, ZenodoInfoState } from ".";

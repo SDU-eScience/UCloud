@@ -1,19 +1,19 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider } from "semantic-ui-react";
-import { dateToString } from "../Utilities/DateUtilities";
-import * as Pagination from "../Pagination";
-import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
-import * as uf from "../UtilityFunctions";
-import { KeyCode } from "../DefaultObjects";
+import { dateToString } from "Utilities/DateUtilities";
+import * as Pagination from "Pagination";
+import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
+import * as uf from "UtilityFunctions";
+import { KeyCode } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
-import { FileIcon } from "../UtilityComponents";
-import { Uploader } from "../Uploader";
-import { Page } from "../Types";
+import { FileIcon } from "UtilityComponents";
+import { Uploader } from "Uploader";
+import { Page } from "Types";
 import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File } from ".";
 
 class Files extends React.Component<FilesProps> {

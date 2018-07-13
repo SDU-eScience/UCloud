@@ -1,19 +1,19 @@
 import * as React from "react";
 import { Modal, Button, List, Input, ButtonProps, ModalProps } from "semantic-ui-react";
 import { List as PaginationList } from "../Pagination/List";
-import { Cloud } from "../../authentication/SDUCloudObject";
-import { BreadCrumbs } from "../Breadcrumbs/Breadcrumbs";
+import { Cloud } from "Authentication/SDUCloudObject";
+import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
 import PropTypes from "prop-types";
-import { getFilenameFromPath, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "../UtilityFunctions";
-import * as uf from "../UtilityFunctions";
-import PromiseKeeper from "../PromiseKeeper";
-import { changeUppyRunAppOpen } from "../Uppy/Redux/UppyActions";
-import { KeyCode } from "../DefaultObjects";
-import { FileIcon } from "../UtilityComponents";
+import { getFilenameFromPath, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "UtilityFunctions";
+import * as uf from "UtilityFunctions";
+import PromiseKeeper from "PromiseKeeper";
+import { changeUppyRunAppOpen } from "Uppy/Redux/UppyActions";
+import { KeyCode } from "DefaultObjects";
+import { FileIcon } from "UtilityComponents";
 import "./Files.scss";
-import "../Styling/Shared.scss";
-import { Page } from "../Types";
-import { emptyPage } from "../DefaultObjects";
+import "Styling/Shared.scss";
+import { Page } from "Types";
+import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, File } from ".";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {

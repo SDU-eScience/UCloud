@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps } from "semantic-ui-react";
-import { Cloud } from "../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import { connect } from "react-redux";
 import { fetchSidebarOptions, setSidebarLoading, setSidebarClosed } from "./Redux/SidebarActions";
 

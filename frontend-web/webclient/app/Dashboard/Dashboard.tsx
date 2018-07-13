@@ -2,7 +2,7 @@ import * as React from "react";
 import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
 import { getParentPath, iconFromFilePath } from "../UtilityFunctions";
 import { Link } from "react-router-dom";
-import { Cloud } from "../../authentication/SDUCloudObject"
+import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath, shortenString } from "../UtilityFunctions";
 import { updatePageTitle } from "../Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "./Redux/DashboardActions";

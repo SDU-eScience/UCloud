@@ -1,5 +1,5 @@
 import * as jwt from "jsonwebtoken";
-import { failureNotification } from "../app/UtilityFunctions";
+import { failureNotification } from "UtilityFunctions";
 
 /**
  * Represents an instance of the SDUCloud object used for contacting the backend, implicitly using JWTs.

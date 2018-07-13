@@ -1,4 +1,4 @@
-import { Cloud } from "../../../authentication/SDUCloudObject";
+import { Cloud } from "Authentication/SDUCloudObject";
 import {
     RECEIVE_FILES,
     UPDATE_FILES,
