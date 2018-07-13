@@ -1,6 +1,6 @@
-import PromiseKeeper from "../../PromiseKeeper";
+import PromiseKeeper from "PromiseKeeper";
 import { match } from "react-router-dom";
-import { Page } from "../../Types";
+import { Page } from "Types";
 
 export interface Publication {
     id: number

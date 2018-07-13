@@ -1,4 +1,4 @@
-import PromiseKeeper from "../../PromiseKeeper";
+import PromiseKeeper from "PromiseKeeper";
 
 export interface UserSettingsState {
     promiseKeeper: PromiseKeeper

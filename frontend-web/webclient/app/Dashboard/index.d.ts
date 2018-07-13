@@ -1,4 +1,5 @@
-import { Analysis, File } from "../../Types";
+import { Analysis } from "Applications";
+import { File } from "Files";
 
 export interface DashboardProps extends DashboardOperations, DashboardStateProps {}
 

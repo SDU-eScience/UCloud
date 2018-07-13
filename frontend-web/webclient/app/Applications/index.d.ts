@@ -1,8 +1,8 @@
-import * as Types from "../../Types";
+import * as Types from "Types";
 import { SortBy, SortOrder, File } from "../Files";
-import { Page } from "../../Types";
+import { Page } from "Types";
 import { Dispatch } from "redux";
-import PromiseKeeper from "../../PromiseKeeper";
+import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
 
 export interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
