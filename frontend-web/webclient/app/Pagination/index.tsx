@@ -1,7 +1,7 @@
 export { Buttons, EntriesPerPageSelector } from "./Pagination";
 export { List } from "./List";
 export { ManagedList } from "./ManagedList";
-import { Page } from "../Types";
+import { Page } from "Types";
 
 export interface ManagedListProps {
     dataProvider: (page: number, itemsPerPage: number) => Promise<Page<any>>

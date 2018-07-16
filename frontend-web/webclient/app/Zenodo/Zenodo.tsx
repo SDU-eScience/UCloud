@@ -1,13 +1,13 @@
 import * as React from "react";
 import { Button, Table, Header, Responsive, Dropdown, Grid, Divider } from "semantic-ui-react";
 import { Link } from "react-router-dom";
-import { toLowerCaseAndCapitalize } from "../UtilityFunctions";
-import { NotConnectedToZenodo } from "../ZenodoPublishingUtilities";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
+import { toLowerCaseAndCapitalize } from "UtilityFunctions";
+import { NotConnectedToZenodo } from "ZenodoPublishingUtilities";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { fetchPublications, setZenodoLoading } from "./Redux/ZenodoActions";
 import { connect } from "react-redux";
-import { dateToString } from "../Utilities/DateUtilities";
-import { List } from "../Pagination/List";
+import { dateToString } from "Utilities/DateUtilities";
+import { List } from "Pagination/List";
 import { ZenodoHomeProps, ZenodoHomeState } from ".";
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {

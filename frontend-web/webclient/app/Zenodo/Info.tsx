@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Container, Header, List, Table, Progress } from "semantic-ui-react";
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { Cloud } from "Authentication/SDUCloudObject";
-import PromiseKeeper from "../PromiseKeeper";
-import { dateToString } from "../Utilities/DateUtilities";
+import PromiseKeeper from "PromiseKeeper";
+import { dateToString } from "Utilities/DateUtilities";
 import { ZenodoInfoProps, ZenodoInfoState } from ".";
 
 class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {

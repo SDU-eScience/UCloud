@@ -322,7 +322,7 @@ export default class SDUCloud {
             window.localStorage.removeItem("refreshToken");
             this.openBrowserLoginPage()
         }).catch(e => {
-            failureNotification("Unable to logout. Try again later...");
+            failureNotification("Unable to logout. Try again later.");
             console.warn("Unable to invalidate session server side!");
         });
     }

@@ -1,5 +1,5 @@
 import { CHANGE_UPPY_RUNAPP_OPEN, CHANGE_UPPY_FILES_OPEN, CLOSE_UPPY } from "./UppyReducers";
-import { Action } from "../../Types";
+import { Action } from "Types";
 
 // FIXME Is this even in use?
 interface ChangeUppyOpenAction extends Action { open: boolean }

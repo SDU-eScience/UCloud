@@ -1,11 +1,11 @@
 import * as React from "react";
 import { Header, Grid, Form, Input, Button } from "semantic-ui-react";
-import PromiseKeeper from "../PromiseKeeper";
+import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import {
     successNotification,
     defaultErrorHandler
-} from "../UtilityFunctions";
+} from "UtilityFunctions";
 import { UserSettingsFields, UserSettingsState } from ".";
 
 class UserSettings extends React.Component<{}, UserSettingsState> {

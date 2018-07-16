@@ -4,8 +4,8 @@ import {
     RECEIVE_ZENODO_LOGIN_STATUS,
     SET_ZENODO_LOADING
 } from "./ZenodoReducer";
-import { SetLoadingAction, ReceivePage, Page } from "../../Types";
-import { emptyPage } from "../../DefaultObjects";
+import { SetLoadingAction, ReceivePage, Page } from "Types";
+import { emptyPage } from "DefaultObjects";
 import { Publication } from "..";
 
 /**

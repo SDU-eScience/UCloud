@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import * as Pagination from "../Pagination";
+import * as Pagination from "Pagination";
 import { Table, Button } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
@@ -8,9 +8,9 @@ import {
     setLoading,
     updateApplications
 } from "./Redux/ApplicationsActions";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
-import "../Styling/Shared.scss";
-import { Page } from "../Types";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import "Styling/Shared.scss";
+import { Page } from "Types";
 import { Application } from "."; 
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 

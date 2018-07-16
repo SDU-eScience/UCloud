@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Modal, Button, List, Input, ButtonProps, ModalProps } from "semantic-ui-react";
-import { List as PaginationList } from "../Pagination/List";
+import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
 import PropTypes from "prop-types";

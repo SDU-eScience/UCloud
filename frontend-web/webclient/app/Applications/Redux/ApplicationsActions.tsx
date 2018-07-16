@@ -1,5 +1,5 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { failureNotification } from "../../UtilityFunctions";
+import { failureNotification } from "UtilityFunctions";
 import {
     RECEIVE_APPLICATIONS,
     SET_APPLICATIONS_LOADING,
@@ -10,8 +10,8 @@ import {
     Action,
     SetLoadingAction,
     Page
-} from "../../Types";
-import { emptyPage } from "../../DefaultObjects";
+} from "Types";
+import { emptyPage } from "DefaultObjects";
 import { Application } from ".."
 
 interface ReceiveApplicationsAction extends Action { page: Page<Application> }

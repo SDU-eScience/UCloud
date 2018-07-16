@@ -1,11 +1,11 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { ProjectMetadata } from "./api";
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
+import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import * as ReactMarkdown from "react-markdown";
 import { Creator, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
-import { blankOrNull } from "../UtilityFunctions";
+import { blankOrNull } from "UtilityFunctions";
 import {
     Label,
     Icon,

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { emptyPage } from "../DefaultObjects";
+import { emptyPage } from "DefaultObjects";
 import * as Self from ".";
 
 export class ManagedList extends React.Component<Self.ManagedListProps, Self.ManagedListState> {

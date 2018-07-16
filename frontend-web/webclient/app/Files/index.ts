@@ -1,4 +1,4 @@
-import { Page } from "../Types";
+import { Page } from "Types";
 import { History } from "history";
 
 export enum SortOrder {

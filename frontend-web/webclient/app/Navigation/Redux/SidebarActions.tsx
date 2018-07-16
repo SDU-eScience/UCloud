@@ -1,7 +1,7 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Types from "./SidebarReducer";
-import { failureNotification } from "../../UtilityFunctions";
-import { SetLoadingAction, Action, SidebarOption } from "../../Types";
+import { failureNotification } from "UtilityFunctions";
+import { SetLoadingAction, Action, SidebarOption } from "Types";
 
 /**
  * Intended to fetch sidebar options for the sidebar, currently fetched from a

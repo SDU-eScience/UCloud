@@ -1,11 +1,11 @@
 import * as React from "react";
 import { Form, Button, Input, Grid, Header } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import PromiseKeeper from "../PromiseKeeper";
+import PromiseKeeper from "PromiseKeeper";
 import {
     successNotification,
     defaultErrorHandler
-} from "../UtilityFunctions";
+} from "UtilityFunctions";
 import { UserCreationState, UserCreationField } from ".";
 
 class UserCreation extends React.Component<{}, UserCreationState> {

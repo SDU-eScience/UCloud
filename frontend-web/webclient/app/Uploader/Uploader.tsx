@@ -8,7 +8,7 @@ import {
     Icon} from 'semantic-ui-react';
 import * as Dropzone from "react-dropzone/dist/index";
 import "./index.scss";
-import { ifPresent, fileSizeToString, iconFromFilePath } from "../UtilityFunctions";
+import { ifPresent, fileSizeToString, iconFromFilePath } from "UtilityFunctions";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 
 interface Upload {

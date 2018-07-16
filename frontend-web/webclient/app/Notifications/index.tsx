@@ -6,10 +6,10 @@ import * as moment from "moment";
 import { connect } from "react-redux";
 import "./index.scss";
 import { withRouter } from "react-router";
-import { Page } from "../Types";
+import { Page } from "Types";
 import { fetchNotifications, notificationRead } from "./Redux/NotificationsActions";
 import { History } from "history";
-import Status from "../Navigation/Status";
+import Status from "Navigation/Status";
 
 interface NotificationProps {
     page: Page<Notification>

@@ -1,16 +1,16 @@
 import * as React from "react";
 import { Grid, Header, Form, Input, Button } from "semantic-ui-react";
-import FileSelector from "../Files/FileSelector";
+import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon"
-import PromiseKeeper from "../PromiseKeeper";
+import { DefaultLoading } from "LoadingIcon/LoadingIcon"
+import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
-import { getFilenameFromPath } from "../UtilityFunctions";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
-import "../Styling/Shared.scss";
+import { getFilenameFromPath } from "UtilityFunctions";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import "Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
 import { Application } from ".";
 

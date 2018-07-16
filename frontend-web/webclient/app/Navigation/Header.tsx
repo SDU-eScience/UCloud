@@ -7,11 +7,11 @@ import { Link } from "react-router-dom";
 import "./Header.scss";
 import PropTypes from "prop-types";
 import { Dispatch } from "redux";
-import Notifications from "../Notifications";
+import Notifications from "Notifications";
 import { setSidebarOpen } from "./Redux/SidebarActions";
 import Avatar from "avataaars";
 import { History } from "history";
-import { infoNotification } from "../UtilityFunctions";
+import { infoNotification } from "UtilityFunctions";
 
 interface HeaderProps {
     open?: boolean

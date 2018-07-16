@@ -1,5 +1,5 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Page } from "../Types";
+import { Page } from "Types";
 
 export interface ProjectMetadataWithRights {
     metadata: ProjectMetadata

@@ -1,6 +1,6 @@
 export { List } from "./List";
 import { Store } from "redux";
-import { AccessRight } from "../Types";
+import { AccessRight } from "Types";
 
 export interface ListState {
     shares: SharesByPath[]

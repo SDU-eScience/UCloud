@@ -1,11 +1,11 @@
 import * as React from "react";
 import { Search, Form, Button } from "semantic-ui-react";
-import { identifierTypes } from "../DefaultObjects";
+import { identifierTypes } from "DefaultObjects";
 import { allLicenses } from "./licenses";
 import { Creator, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
-import { blankOrNull } from "../UtilityFunctions";
+import { blankOrNull } from "UtilityFunctions";
 import { PropTypes } from "prop-types";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 
 const newCreator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });

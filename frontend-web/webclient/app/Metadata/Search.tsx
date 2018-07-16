@@ -2,14 +2,14 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { Label, Icon, Card, Header, Responsive, Input } from "semantic-ui-react";
 import { simpleSearch, ProjectMetadata } from "./api";
-import { Page } from "../Types";
-import { emptyPage } from "../DefaultObjects";
+import { Page } from "Types";
+import { emptyPage } from "DefaultObjects";
 import { withRouter } from "react-router-dom";
 import { PropTypes } from "prop-types";
-import * as Pagination from "../Pagination";
-import { KeyCode } from "../DefaultObjects";
+import * as Pagination from "Pagination";
+import { KeyCode } from "DefaultObjects";
 import { History } from "history";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
 
 interface SearchState {
     query: string

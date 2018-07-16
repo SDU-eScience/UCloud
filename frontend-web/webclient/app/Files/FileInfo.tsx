@@ -2,13 +2,13 @@ import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { favorite, fileSizeToString, toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
-import { DefaultLoading } from "../LoadingIcon/LoadingIcon";
-import { SensitivityLevel } from "../DefaultObjects";
+import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import { SensitivityLevel } from "DefaultObjects";
 import { Container, Header, List, Card, Icon } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
-import { updatePageTitle } from "../Navigation/Redux/StatusActions";
-import { List as ShareList } from "../Shares/List";
+import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { List as ShareList } from "Shares/List";
 
 const FileInfo = ({ dispatch, page, loading, ...props }) => {
     dispatch(updatePageTitle("File Info"));

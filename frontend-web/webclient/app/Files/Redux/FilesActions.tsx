@@ -14,10 +14,10 @@ import {
     SET_EDITING_FILE,
     RESET_FOLDER_EDITING
 } from "./FilesReducer";
-import { failureNotification } from "../../UtilityFunctions";
-import { Page, ReceivePage, SetLoadingAction, Action } from "../../Types";
+import { failureNotification } from "UtilityFunctions";
+import { Page, ReceivePage, SetLoadingAction, Action } from "Types";
 import { SortOrder, SortBy, File } from "..";
-import { emptyPage } from "../../DefaultObjects";
+import { emptyPage } from "DefaultObjects";
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
