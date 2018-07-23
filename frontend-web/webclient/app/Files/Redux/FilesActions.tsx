@@ -12,9 +12,10 @@ import {
     SET_DISALLOWED_PATHS,
     SET_CREATING_FOLDER,
     SET_EDITING_FILE,
-    RESET_FOLDER_EDITING
+    RESET_FOLDER_EDITING,
+    FILES_ERROR
 } from "./FilesReducer";
-import { failureNotification } from "UtilityFunctions";
+import { failureNotification, getFilenameFromPath, replaceHomeFolder } from "UtilityFunctions";
 import { Page, ReceivePage, SetLoadingAction, Action } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { emptyPage } from "DefaultObjects";
@@ -26,13 +27,19 @@ import { emptyPage } from "DefaultObjects";
 * @param {number} itemsPerPage number of items to be fetched
 * @param {Page<File>} page number of the page to be fetched
 */
-export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File>> =>
+export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | ErrorMessage> =>
     Cloud.get(`files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`).then(({ response }) =>
         receiveFiles(response, path, order, sortBy)
-    ).catch(() => {
-        failureNotification("An error occurred fetching files for this folder.");
-        return receiveFiles(emptyPage, path, order, sortBy);
-    });
+    ).catch(() =>
+        setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
+    );
+
+
+interface ErrorMessage extends Action { error: string }
+export const setErrorMessage = (error?: string): ErrorMessage => ({
+    type: FILES_ERROR,
+    error
+})
 
 /**
 * Updates the files stored. 

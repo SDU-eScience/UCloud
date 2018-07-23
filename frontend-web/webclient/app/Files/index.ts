@@ -50,7 +50,7 @@ export interface FilesProps extends FilesStateProps, FilesOperations {
     history: History
 }
 
-export interface MockedTableProps { 
+export interface MockedTableProps {
     handleKeyDown: (a, b, c) => void
     creatingFolder: boolean
 }
@@ -69,11 +69,13 @@ export interface FilesStateProps { // Redux Props
     sortOrder: SortOrder
     creatingFolder: boolean
     editFileIndex: number
+    error: string
     // Ignore, used to ensure rerender.
     checkedFilesCount, favFilesCount: number
 }
 
 export interface FilesOperations { // Redux operations
+    dismissError: () => void
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => void
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void

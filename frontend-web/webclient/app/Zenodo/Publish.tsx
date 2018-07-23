@@ -79,9 +79,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
     }
 
     updateName(name) {
-        this.setState(() => ({
-            name
-        }));
+        this.setState(() => ({ name }));
     }
 
     render() {

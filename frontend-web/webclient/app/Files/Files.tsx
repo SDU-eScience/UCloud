@@ -86,7 +86,7 @@ class Files extends React.Component<FilesProps> {
     render() {
         // PROPS
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles,
-            sortBy, sortOrder } = this.props;
+            sortBy, sortOrder, error } = this.props;
         // Master Checkbox
         const checkedFilesCount = page.items.filter(file => file.isChecked).length;
         const masterCheckboxChecked = page.items.length === checkedFilesCount && page.items.length > 0;
@@ -120,9 +120,13 @@ class Files extends React.Component<FilesProps> {
                     <Pagination.List
                         loading={loading}
                         onRefreshClick={fetch}
-                        customEmptyPage={this.props.creatingFolder ? (
-                            <MockTable creatingFolder={this.props.creatingFolder} handleKeyDown={this.handleKeyDown} />) :
-                            (<Header.Subheader content="No files in current folder" />)}
+                        errorMessage={error}
+                        onErrorDismiss={this.props.dismissError}
+                        customEmptyPage={
+                            this.props.creatingFolder ? (
+                                <MockTable creatingFolder={this.props.creatingFolder} handleKeyDown={this.handleKeyDown} />) : (
+                                    <Header.Subheader content="No files in current folder" />
+                                )}
                         pageRenderer={(page) => (
                             <FilesTable
                                 sortFiles={(sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, sortBy)}
@@ -514,16 +518,17 @@ function move(files: File[], operations): void {
 
 const mapStateToProps = (state): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, editFileIndex, creatingFolder,
-        fileSelectorShown, fileSelectorCallback, disallowedPaths, fileSelectorLoading } = state.files;
+        fileSelectorShown, fileSelectorCallback, disallowedPaths, fileSelectorLoading, error } = state.files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = page.items.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
-        page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath, fileSelectorShown,
+        error, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath, fileSelectorShown,
         fileSelectorCallback, disallowedPaths, sortOrder, sortBy, editFileIndex, creatingFolder, fileSelectorLoading
     }
 };
 
 const mapDispatchToProps = (dispatch): FilesOperations => ({
+    dismissError: () => dispatch(Actions.setErrorMessage()),
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => {
         dispatch(Actions.updatePath(path));
         dispatch(Actions.setLoading(true));

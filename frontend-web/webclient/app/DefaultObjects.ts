@@ -100,12 +100,14 @@ const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
 interface ComponentWithPage<T> {
     page: Page<T>
     loading: boolean
+    error?: string
 }
 
 interface DashboardReduxObject {
     favoriteFiles, recentFiles: File[]
     recentAnalyses: Analysis[]
     activity: any[]
+    error?: string
     favoriteLoading, recentLoading, analysesLoading, activityLoading: boolean
 }
 
@@ -163,7 +165,8 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         favoriteLoading: false,
         recentLoading: false,
         analysesLoading: false,
-        activityLoading: false
+        activityLoading: false,
+        error: null
     },
     files: {
         creatingFolder: false,
@@ -172,6 +175,7 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         sortOrder: SortOrder.ASCENDING,
         sortBy: SortBy.PATH,
         loading: false,
+        error: null,
         path: "",
         filesInfoPath: "",
         projects: [] as any[],
@@ -195,21 +199,25 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
     },
     applications: {
         page: emptyPage,
-        loading: false
+        loading: false,
+        error: null
     },
     notifications: {
         page: emptyPage,
         loading: false,
-        redirectTo: ""
+        redirectTo: "",
+        error: null
     },
     analyses: {
         page: emptyPage,
-        loading: false
+        loading: false,
+        error: null
     },
     zenodo: {
         connected: false,
         loading: false,
-        page: emptyPage
+        page: emptyPage,
+        error: null
     },
     sidebar: {
         open: false,
