@@ -5,10 +5,10 @@ import {
     Grid,
     Card,
     Button,
-    Icon} from 'semantic-ui-react';
+    Icon} from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import "./index.scss";
-import { ifPresent, fileSizeToString, iconFromFilePath } from "UtilityFunctions";
+import { ifPresent, fileSizeToString, iconFromFilePath, infoNotification } from "UtilityFunctions";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 
 interface Upload {
@@ -63,9 +63,9 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
 
     // TODO The upload component should be able to continue in background?
     onFilesAdded(files: File[]) {
+        if (files.some(it => it.size === 0)) infoNotification("It is not possible to upload empty files.");
         const filteredFiles = files.filter(it => it.size > 0).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
-
         if (this.props.allowMultiple !== false) { // true if no value
             this.setState(() => ({ uploads: this.state.uploads.concat(filteredFiles) }));
         } else {
