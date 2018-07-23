@@ -5,7 +5,10 @@ import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.metadata.utils.withAuthMock
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.FakeDBSessionFactory
+import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.zenodo.api.*
 import dk.sdu.cloud.zenodo.http.Controller
 import dk.sdu.cloud.zenodo.http.ZenodoController
@@ -51,13 +54,19 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
 }
 
 private fun Application.configureZenodoServer(
-    kafka: KafkaServices = mockk(relaxed = true),
     zenodoRpcService: ZenodoRPCService = ZenodoRPCService(mockk(relaxed = true)),
-    publicationService: PublicationService =
-        PublicationService(mockk(relaxed = true), zenodoRpcService),
+    publicationService: PublicationService<*> = mockk(relaxed = true),
     eventEmitter: MappedEventProducer<String, ZenodoPublishCommand> = mockk(relaxed = true)
 ) {
-    configureBaseServer(ZenodoController(kafka, publicationService, zenodoRpcService, eventEmitter))
+    @Suppress("UNCHECKED_CAST")
+    configureBaseServer(
+        ZenodoController(
+            FakeDBSessionFactory,
+            publicationService as PublicationService<Unit>,
+            zenodoRpcService,
+            eventEmitter
+        )
+    )
 }
 
 class ZenodoTest {
@@ -128,23 +137,24 @@ class ZenodoTest {
             withTestApplication(
                 moduleFunction = {
                     val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
+                    val publicationService = mockk<PublicationService<Unit>>()
 
                     configureZenodoServer(
                         zenodoRpcService = zenodoRpcService,
                         publicationService = publicationService
                     )
-                    coEvery { zenodoRpcService.validateToken(any()) } just Runs
+                    coEvery { zenodoRpcService.validateUser(any()) } just Runs
                     every { zenodoRpcService.isConnected(any()) } returns true
-                    every { publicationService.findForUser(any(), any()) } answers {
-                        val zenodoList = listOf<ZenodoPublication>(
+                    every { publicationService.findForUser(Unit, any(), any()) } answers {
+                        val zenodoList = listOf(
                             ZenodoPublication(
                                 1,
                                 "title",
                                 ZenodoPublicationStatus.COMPLETE,
                                 null,
                                 System.currentTimeMillis(),
-                                System.currentTimeMillis()
+                                System.currentTimeMillis(),
+                                emptyList()
                             ),
                             ZenodoPublication(
                                 2,
@@ -152,20 +162,17 @@ class ZenodoTest {
                                 ZenodoPublicationStatus.PENDING,
                                 null,
                                 System.currentTimeMillis(),
-                                System.currentTimeMillis()
+                                System.currentTimeMillis(),
+                                emptyList()
                             )
                         )
-                        val page = Page<ZenodoPublication>(
-                            2,
-                            10,
-                            0,
-                            zenodoList
-                        )
-                        val publications = ZenodoPublicationList(
-                            page
-                        )
-                        publications
 
+                        Page(
+                            itemsInTotal = 2,
+                            itemsPerPage = 10,
+                            pageNumber = 0,
+                            items = zenodoList
+                        )
                     }
                 },
 
@@ -191,84 +198,25 @@ class ZenodoTest {
     }
 
     @Test
-    fun `List publications - missing authentication - test`() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = {
-                    val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
-
-                    configureZenodoServer(
-                        zenodoRpcService = zenodoRpcService,
-                        publicationService = publicationService
-                    )
-                    coEvery { zenodoRpcService.validateToken(any()) } answers {
-                        throw MissingOAuthToken()
-                    }
-                },
-
-                test = {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/zenodo/publications") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
-
-                    assertEquals(HttpStatusCode.BadRequest, response.status())
-                }
-            )
-        }
-    }
-
-    @Test
-    fun `List publications - Too many retries - test`() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = {
-                    val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
-
-                    configureZenodoServer(
-                        zenodoRpcService = zenodoRpcService,
-                        publicationService = publicationService
-                    )
-                    coEvery { zenodoRpcService.validateToken(any()) } answers {
-                        throw TooManyRetries()
-                    }
-                },
-
-                test = {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/zenodo/publications") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
-
-                    assertEquals(HttpStatusCode.BadGateway, response.status())
-                }
-            )
-        }
-    }
-
-    @Test
     fun `Publish test`() {
         withAuthMock {
             withTestApplication(
                 moduleFunction = {
                     val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
-                    val kafka = mockk<KafkaServices>()
+                    val publicationService = mockk<PublicationService<Unit>>()
                     configureZenodoServer(
-                        kafka = kafka,
                         zenodoRpcService = zenodoRpcService,
                         publicationService = publicationService
                     )
 
-                    every { publicationService.createUploadForFiles(
-                        any(),
-                        any(),
-                        any()
-                    ) } returns 1
+                    every {
+                        publicationService.createUploadForFiles(
+                            Unit,
+                            any(),
+                            any(),
+                            any()
+                        )
+                    } returns 1
 
                 },
 
@@ -277,7 +225,8 @@ class ZenodoTest {
                         handleRequest(HttpMethod.Post, "/api/zenodo/publish") {
                             addHeader("Job-Id", UUID.randomUUID().toString())
                             setUser()
-                            setBody("""
+                            setBody(
+                                """
                                 {
                                 "name":"Publish1",
                                 "filePaths":
@@ -286,7 +235,8 @@ class ZenodoTest {
                                         "home/my/file"
                                     ]
                                 }
-                                """.trimIndent())
+                                """.trimIndent()
+                            )
                         }.response
 
                     assertEquals(HttpStatusCode.OK, response.status())
@@ -306,19 +256,20 @@ class ZenodoTest {
             withTestApplication(
                 moduleFunction = {
                     val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
-                    val kafka = mockk<KafkaServices>()
+                    val publicationService = mockk<PublicationService<Unit>>()
                     configureZenodoServer(
-                        kafka = kafka,
                         zenodoRpcService = zenodoRpcService,
                         publicationService = publicationService
                     )
 
-                    every { publicationService.createUploadForFiles(
-                        any(),
-                        any(),
-                        any()
-                    ) } answers {
+                    every {
+                        publicationService.createUploadForFiles(
+                            Unit,
+                            any(),
+                            any(),
+                            any()
+                        )
+                    } answers {
                         throw PublicationException.NotConnected()
                     }
 
@@ -329,7 +280,8 @@ class ZenodoTest {
                         handleRequest(HttpMethod.Post, "/api/zenodo/publish") {
                             addHeader("Job-Id", UUID.randomUUID().toString())
                             setUser()
-                            setBody("""
+                            setBody(
+                                """
                                 {
                                 "name":"Publish1",
                                 "filePaths":
@@ -338,7 +290,8 @@ class ZenodoTest {
                                         "home/my/file"
                                     ]
                                 }
-                                """.trimIndent())
+                                """.trimIndent()
+                            )
                         }.response
 
                     assertEquals(HttpStatusCode.Unauthorized, response.status())
@@ -353,10 +306,8 @@ class ZenodoTest {
             withTestApplication(
                 moduleFunction = {
                     val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
-                    val kafka = mockk<KafkaServices>()
+                    val publicationService = mockk<PublicationService<Unit>>()
                     configureZenodoServer(
-                        kafka = kafka,
                         zenodoRpcService = zenodoRpcService,
                         publicationService = publicationService
                     )
@@ -389,29 +340,28 @@ class ZenodoTest {
             withTestApplication(
                 moduleFunction = {
                     val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
-                    val kafka = mockk<KafkaServices>()
+                    val publicationService = mockk<PublicationService<Unit>>()
                     configureZenodoServer(
-                        kafka = kafka,
                         zenodoRpcService = zenodoRpcService,
                         publicationService = publicationService
                     )
 
-                    every { publicationService.findById(any(), any()) } answers {
-                        val zenodoUploadList = listOf<ZenodoUpload>(
-                            ZenodoUpload("data",
+                    every { publicationService.findById(Unit, any(), any()) } answers {
+                        val zenodoUploadList = listOf(
+                            ZenodoUpload(
+                                "data",
                                 true,
-                                83901284901283)
+                                83901284901283
+                            )
                         )
-                        val result = ZenodoPublicationWithFiles(
-                            ZenodoPublication(
-                                1,
-                                "publication result",
-                                ZenodoPublicationStatus.COMPLETE,
-                                null,
-                                99049028139,
-                                8921048192301
-                            ), zenodoUploadList
+                        val result = ZenodoPublication(
+                            1L,
+                            "publication result",
+                            ZenodoPublicationStatus.COMPLETE,
+                            null,
+                            99049028139,
+                            8921048192301,
+                            zenodoUploadList
                         )
                         result
                     }
@@ -438,15 +388,13 @@ class ZenodoTest {
             withTestApplication(
                 moduleFunction = {
                     val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
-                    val kafka = mockk<KafkaServices>()
+                    val publicationService = mockk<PublicationService<Unit>>()
                     configureZenodoServer(
-                        kafka = kafka,
                         zenodoRpcService = zenodoRpcService,
                         publicationService = publicationService
                     )
 
-                    every { publicationService.findById(any(), any()) } answers {
+                    every { publicationService.findById(Unit, any(), any()) } answers {
                         throw PublicationException.NotConnected()
                     }
 
@@ -472,15 +420,13 @@ class ZenodoTest {
             withTestApplication(
                 moduleFunction = {
                     val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService>()
-                    val kafka = mockk<KafkaServices>()
+                    val publicationService = mockk<PublicationService<Unit>>()
                     configureZenodoServer(
-                        kafka = kafka,
                         zenodoRpcService = zenodoRpcService,
                         publicationService = publicationService
                     )
 
-                    every { publicationService.findById(any(), any()) } answers {
+                    every { publicationService.findById(Unit, any(), any()) } answers {
                         throw PublicationException.NotFound()
                     }
 

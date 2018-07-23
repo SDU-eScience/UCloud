@@ -17,7 +17,6 @@ import kotlin.test.assertTrue
 //Internal Server Error tests starts at retry 4 to reduce test time.
 
 class ZenodoRPCTest {
-
     private val responseBody = """
         {
             "created":"22-2-12",
@@ -45,9 +44,11 @@ class ZenodoRPCTest {
         }
         """.trimIndent()
 
-    private val oauth = mockk<ZenodoOAuth>()
+    private val oauth = mockk<ZenodoOAuth<Unit>>()
     private val zenodo = ZenodoRPCService(oauth)
-    private val decodedJWT = mockk<DecodedJWT>(relaxed = true)
+    private val decodedJWT = mockk<DecodedJWT>(relaxed = true).also {
+        every { it.subject } returns "user"
+    }
     private val oToken = OAuthTokens("access",
         System.currentTimeMillis()+10000,
         "refresh")
@@ -55,13 +56,13 @@ class ZenodoRPCTest {
     @Test
     fun `is connected test`() {
         every { oauth.isConnected(any()) } returns true
-        assertTrue(zenodo.isConnected(decodedJWT))
+        assertTrue(zenodo.isConnected(decodedJWT.subject))
     }
 
     @Test
     fun `is connected - not connected - test`() {
         every { oauth.isConnected(any()) } returns false
-        assertFalse(zenodo.isConnected(decodedJWT))
+        assertFalse(zenodo.isConnected(decodedJWT.subject))
     }
 
     @Test
@@ -74,7 +75,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns 200
                 response
             }
-            val result = runBlocking { zenodo.validateToken(decodedJWT) }
+            val result = runBlocking { zenodo.validateUser(decodedJWT.subject) }
             assertEquals(Unit, result)
         }
     }
@@ -83,7 +84,7 @@ class ZenodoRPCTest {
     fun `validate Token - missing auth - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns null
-            runBlocking { zenodo.validateToken(decodedJWT) }
+            runBlocking { zenodo.validateUser(decodedJWT.subject) }
         }
     }
 
@@ -95,7 +96,7 @@ class ZenodoRPCTest {
             coEvery { HttpClient.get(any(), any()) } answers {
                 throw TimeoutException()
             }
-            runBlocking { zenodo.validateToken(decodedJWT) }
+            runBlocking { zenodo.validateUser(decodedJWT.subject) }
         }
     }
 
@@ -109,7 +110,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns HttpStatusCode.Unauthorized.value
                 response
             }
-            runBlocking { zenodo.validateToken(decodedJWT) }
+            runBlocking { zenodo.validateUser(decodedJWT.subject) }
         }
     }
 
@@ -123,7 +124,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns HttpStatusCode.Forbidden.value
                 response
             }
-            runBlocking { zenodo.validateToken(decodedJWT) }
+            runBlocking { zenodo.validateUser(decodedJWT.subject) }
         }
     }
 
@@ -137,7 +138,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns 500
                 response
             }
-            runBlocking { zenodo.validateToken(decodedJWT, 4) }
+            runBlocking { zenodo.validateUser(decodedJWT.subject, 4) }
         }
     }
 
@@ -151,7 +152,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns 300
                 response
             }
-            runBlocking { zenodo.validateToken(decodedJWT) }
+            runBlocking { zenodo.validateUser(decodedJWT.subject) }
         }
     }
 
@@ -166,7 +167,7 @@ class ZenodoRPCTest {
                 every {response.responseBody} returns responseBody
                 response
             }
-            val result = runBlocking { zenodo.createDeposition(decodedJWT) }
+            val result = runBlocking { zenodo.createDeposition(decodedJWT.subject) }
             assertEquals("22-2-12", result.created)
         }
     }
@@ -176,7 +177,7 @@ class ZenodoRPCTest {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns null
 
-            runBlocking { zenodo.createDeposition(decodedJWT) }
+            runBlocking { zenodo.createDeposition(decodedJWT.subject) }
         }
     }
 
@@ -188,7 +189,7 @@ class ZenodoRPCTest {
             coEvery { HttpClient.post(any(), any()) } answers {
                 throw TimeoutException()
             }
-            runBlocking { zenodo.createDeposition(decodedJWT) }
+            runBlocking { zenodo.createDeposition(decodedJWT.subject) }
         }
     }
 
@@ -202,7 +203,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns HttpStatusCode.Unauthorized.value
                 response
             }
-            runBlocking { zenodo.createDeposition(decodedJWT) }
+            runBlocking { zenodo.createDeposition(decodedJWT.subject) }
         }
     }
 
@@ -216,7 +217,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns HttpStatusCode.Forbidden.value
                 response
             }
-            runBlocking { zenodo.createDeposition(decodedJWT) }
+            runBlocking { zenodo.createDeposition(decodedJWT.subject) }
         }
     }
 
@@ -230,7 +231,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns 500
                 response
             }
-            runBlocking { zenodo.createDeposition(decodedJWT, 4) }
+            runBlocking { zenodo.createDeposition(decodedJWT.subject, 4) }
         }
     }
 
@@ -244,7 +245,7 @@ class ZenodoRPCTest {
                 every { response.statusCode } returns 300
                 response
             }
-            runBlocking { zenodo.createDeposition(decodedJWT) }
+            runBlocking { zenodo.createDeposition(decodedJWT.subject) }
         }
     }
 
@@ -259,7 +260,7 @@ class ZenodoRPCTest {
                 response
             }
             val result = runBlocking { zenodo.createUpload(
-                decodedJWT,
+                decodedJWT.subject,
                 "depositionID",
                 "FileName",
                 File("Pathname")
@@ -274,7 +275,7 @@ class ZenodoRPCTest {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns null
 
             runBlocking { zenodo.createUpload(
-                decodedJWT,
+                decodedJWT.subject,
                 "depositionID",
                 "FileName",
                 File("Pathname")
@@ -291,7 +292,7 @@ class ZenodoRPCTest {
                 throw TimeoutException()
             }
             runBlocking { zenodo.createUpload(
-                decodedJWT,
+                decodedJWT.subject,
                 "depositionID",
                 "FileName",
                 File("Pathname")
@@ -310,7 +311,7 @@ class ZenodoRPCTest {
                 response
             }
             runBlocking { zenodo.createUpload(
-                decodedJWT,
+                decodedJWT.subject,
                 "depositionID",
                 "FileName",
                 File("Pathname")
@@ -329,7 +330,7 @@ class ZenodoRPCTest {
                 response
             }
             runBlocking { zenodo.createUpload(
-                decodedJWT,
+                decodedJWT.subject,
                 "depositionID",
                 "FileName",
                 File("Pathname")
@@ -348,7 +349,7 @@ class ZenodoRPCTest {
                 response
             }
             runBlocking { zenodo.createUpload(
-                decodedJWT,
+                decodedJWT.subject,
                 "depositionID",
                 "FileName",
                 File("Pathname")
@@ -367,7 +368,7 @@ class ZenodoRPCTest {
                 response
             }
             runBlocking { zenodo.createUpload(
-                decodedJWT,
+                decodedJWT.subject,
                 "depositionID",
                 "FileName",
                 File("Pathname")
@@ -382,7 +383,7 @@ class ZenodoRPCTest {
             url
         }
         assertEquals("http://localhost:5000/home",
-            zenodo.createAuthorizationUrl(decodedJWT, "returnTo").toString())
+            zenodo.createAuthorizationUrl(decodedJWT.subject, "returnTo").toString())
     }
 
     private val metadata = mapOf("1" to "x", "2" to "y", "-1" to "zz")
@@ -391,7 +392,7 @@ class ZenodoRPCTest {
     fun `zenodoDepositionEntity simple Creation - test`(){
         val entity = ZenodoDepositionEntity(
             "22-2-12",
-            listOf<File>(File("path")),
+            listOf(File("path")),
             "1",
             ZenodoDepositionLinks(
                 "discard",

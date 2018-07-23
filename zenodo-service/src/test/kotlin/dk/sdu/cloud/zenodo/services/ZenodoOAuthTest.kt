@@ -1,5 +1,6 @@
 package dk.sdu.cloud.zenodo.services
 
+import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.zenodo.util.HttpClient
 import io.mockk.*
 import kotlinx.coroutines.experimental.runBlocking
@@ -30,6 +31,7 @@ class ZenodoOAuthTest{
     private val statesStore = InMemoryZenodoOAuthStateStore()
     private val responseBody = """{"access_token":"access","expires_in":2,"refresh_token":"refreshed"}"""
     private val zenodoAuth = ZenodoOAuth(
+        FakeDBSessionFactory,
         "ClientSecret",
         clientId,
         callback,
@@ -71,7 +73,7 @@ class ZenodoOAuthTest{
                 every { response.responseBody } returns responseBody
                 response
             }
-            statesStore.storeStateTokenForUser(user, token, returnTo)
+            statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
             val result = runBlocking { zenodoAuth.requestTokenWithCode("code", token) }
             assertEquals("ReturnToString", result)
         }
@@ -86,7 +88,7 @@ class ZenodoOAuthTest{
                 every { response.responseBody } returns responseBody
                 response
             }
-            statesStore.storeStateTokenForUser(user, token, returnTo)
+            statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
             val result = runBlocking { zenodoAuth.requestTokenWithCode("code", token) }
             assertEquals(null, result)
         }
@@ -101,8 +103,8 @@ class ZenodoOAuthTest{
                 every { response.responseBody } returns responseBody
                 response
             }
-            statesStore.storeStateTokenForUser(user, token, returnTo)
-            statesStore.storeAccessAndRefreshToken(user, oauthToken)
+            statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
+            statesStore.storeAccessAndRefreshToken(Unit, user, oauthToken)
             val result = runBlocking { zenodoAuth.retrieveTokenOrRefresh(user) }
 
             assertEquals("tokenToUser1", result?.accessToken)
@@ -133,8 +135,8 @@ class ZenodoOAuthTest{
                 every { response.responseBody } returns responseBody
                 response
             }
-            statesStore.storeStateTokenForUser(user, token, returnTo)
-            statesStore.storeAccessAndRefreshToken(user, oauthTokenExpired)
+            statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
+            statesStore.storeAccessAndRefreshToken(Unit, user, oauthTokenExpired)
             val result = runBlocking { zenodoAuth.retrieveTokenOrRefresh(user) }
 
             assertEquals("access", result?.accessToken)
@@ -144,7 +146,7 @@ class ZenodoOAuthTest{
 
     @Test
     fun `is Connected test`() {
-        statesStore.storeAccessAndRefreshToken(user, oauthTokenExpired)
+        statesStore.storeAccessAndRefreshToken(Unit, user, oauthTokenExpired)
 
         assertTrue(zenodoAuth.isConnected(user))
     }
@@ -156,7 +158,7 @@ class ZenodoOAuthTest{
 
     @Test
     fun `Invalidate Token For User test`() {
-        statesStore.storeAccessAndRefreshToken(user, oauthTokenExpired)
+        statesStore.storeAccessAndRefreshToken(Unit, user, oauthTokenExpired)
         zenodoAuth.invalidateTokenForUser(user)
     }
 

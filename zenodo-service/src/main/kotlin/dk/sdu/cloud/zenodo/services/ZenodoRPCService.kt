@@ -33,7 +33,7 @@ class ZenodoRPCService(
         return oauthService.isConnected(user)
     }
 
-    suspend fun validateToken(user: String, retries: Int = 0) {
+    suspend fun validateUser(user: String, retries: Int = 0) {
         if (retries >= 5) throw TooManyRetries()
 
         val token =
@@ -45,7 +45,7 @@ class ZenodoRPCService(
             }
         } catch (ex: TimeoutException) {
             delay(500)
-            return validateToken(user, retries + 1)
+            return validateUser(user, retries + 1)
         }
 
         try {
@@ -62,7 +62,7 @@ class ZenodoRPCService(
 
                 in 500..599 -> {
                     delay(500)
-                    return validateToken(user, retries + 1)
+                    return validateUser(user, retries + 1)
                 }
 
                 else -> {
@@ -72,7 +72,7 @@ class ZenodoRPCService(
         } catch (ex: Exception) {
             log.info("Caught an exception while trying to parse Zenodo entities!")
             log.info(ex.stackTraceToString())
-            return validateToken(user, retries + 1)
+            return validateUser(user, retries + 1)
         }
     }
 
