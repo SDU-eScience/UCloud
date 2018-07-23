@@ -6,6 +6,10 @@ import PromiseKeeper from "PromiseKeeper";
 import { dateToString } from "Utilities/DateUtilities";
 import { ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus } from ".";
 
+function isTerminal(status: ZenodoPublicationStatus): boolean {
+    return status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
+}
+
 class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
     constructor(props: ZenodoInfoProps) {
         super(props);
@@ -20,7 +24,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
 
     componentWillMount() {
         this.setState(() => ({ loading: true }));
-        const intervalId = window.setInterval(this.reload, 2000);
+        const intervalId = window.setInterval(this.reload, 2_000);
         this.setState(() => ({ intervalId: intervalId }));
     }
 
@@ -32,7 +36,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
                     publication: response,
                     loading: false,
                 }));
-                if (response.status === ZenodoPublicationStatus.COMPLETE) {
+                if (isTerminal(response.status)) {
                     window.clearInterval(this.state.intervalId);
                 }
             });

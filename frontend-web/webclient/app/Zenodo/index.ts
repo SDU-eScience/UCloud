@@ -12,7 +12,12 @@ export interface Publication {
     uploads: Upload[]
 }
 
-export enum ZenodoPublicationStatus { "PENDING", "UPLOADING", "COMPLETE", "FAILURE" }
+export enum ZenodoPublicationStatus {
+    PENDING = "PENDING",
+    UPLOADING = "UPLOADING",
+    COMPLETE = "COMPLETE",
+    FAILURE = "FAILURE"
+}
 
 interface Upload {
     dataObject: string
