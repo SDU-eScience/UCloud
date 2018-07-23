@@ -1,12 +1,13 @@
 // TODO: Split in to more specific files
-import { tusConfig } from "./Configurations";
+import { tusConfig } from "Configurations";
 import * as Uppy from "uppy";
-import { SidebarOption, Page } from "./Types";
-import { Status } from "./Navigation";
-import { Analysis } from "./Applications";
-import { File } from "./Files";
+import { SidebarOption, Page } from "Types";
+import { Status } from "Navigation";
+import { Analysis, Application } from "Applications";
+import { File } from "Files";
 import SDUCloud from "Authentication/lib";
-import { SortOrder, SortBy } from "./Files";
+import { SortOrder, SortBy } from "Files";
+import { Publication } from "Zenodo";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -95,7 +96,65 @@ const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     return sortingColumn;
 };
 
-export const initObject = (cloud: SDUCloud) => ({
+
+interface ComponentWithPage<T> {
+    page: Page<T>
+    loading: boolean
+}
+
+interface DashboardReduxObject {
+    favoriteFiles, recentFiles: File[]
+    recentAnalyses: Analysis[]
+    activity: any[]
+    favoriteLoading, recentLoading, analysesLoading, activityLoading: boolean
+}
+
+interface FilesReduxObject extends ComponentWithPage<File> {
+    creatingFolder: boolean
+    editFileIndex: number
+    sortOrder: SortOrder
+    sortBy: SortBy
+    path, filesInfoPath: string
+    projects: any[]
+    sortingColumns: [SortBy, SortBy]
+    fileSelectorLoading, fileSelectorShown: false
+    fileSelectorPage: Page<File>
+    fileSelectorPath: string
+    fileSelectorCallback: Function
+    disallowedPaths: string[]
+}
+
+interface NotificationsReduxObject extends ComponentWithPage<Notification> {
+    redirectTo: string
+}
+
+interface ZenodoReduxObject extends ComponentWithPage<Publication> {
+    connected: boolean
+}
+
+interface StatusReduxObject {
+    status: Status
+    title: string
+}
+
+interface SidebarReduxObject {
+    loading, open: boolean
+    options: SidebarOption[]
+}
+
+interface InitialReduxObject {
+    dashboard: DashboardReduxObject
+    files: FilesReduxObject,
+    uppy: any
+    status: StatusReduxObject,
+    applications: ComponentWithPage<Application>
+    notifications: NotificationsReduxObject
+    analyses: ComponentWithPage<Analysis>
+    zenodo: ZenodoReduxObject
+    sidebar: SidebarReduxObject
+}
+
+export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
     dashboard: {
         favoriteFiles: [] as File[],
         recentFiles: [] as File[],
@@ -140,7 +199,8 @@ export const initObject = (cloud: SDUCloud) => ({
     },
     notifications: {
         page: emptyPage,
-        redirectTo: null
+        loading: false,
+        redirectTo: ""
     },
     analyses: {
         page: emptyPage,
