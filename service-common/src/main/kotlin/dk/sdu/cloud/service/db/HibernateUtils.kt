@@ -9,6 +9,7 @@ import org.hibernate.tool.schema.TargetType
 import java.io.Serializable
 import java.nio.file.Files
 import java.util.*
+import javax.persistence.PreUpdate
 import javax.persistence.criteria.*
 import kotlin.reflect.KProperty1
 
@@ -17,6 +18,16 @@ interface HibernateEntity<E>
 
 @Suppress("unused")
 interface WithId<Id : Serializable>
+
+interface WithTimestamps {
+    var createdAt: Date
+    var modifiedAt: Date
+
+    @PreUpdate
+    fun _updateModifiedAt() {
+        modifiedAt = Date()
+    }
+}
 
 inline fun <reified E> Session.typedQuery(query: String): org.hibernate.query.Query<E> {
     return createQuery(query, E::class.java)

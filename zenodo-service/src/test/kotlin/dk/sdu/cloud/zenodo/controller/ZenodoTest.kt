@@ -1,11 +1,9 @@
 package dk.sdu.cloud.zenodo.controller
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.jpa.sduclouddb.Publication
 import dk.sdu.cloud.metadata.utils.withAuthMock
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.zenodo.api.*

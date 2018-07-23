@@ -1,7 +1,7 @@
 package dk.sdu.cloud.zenodo.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByIntId
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
@@ -12,15 +12,9 @@ data class ZenodoAccessRequest(val returnTo: String)
 data class ZenodoAccessRedirectURL(val redirectTo: String)
 
 data class ZenodoPublishRequest(val name: String, val filePaths: List<String>)
-data class ZenodoPublishResponse(val publicationId: Int)
+data class ZenodoPublishResponse(val publicationId: Long)
 
-interface ZenodoIsConnected {
-    val connected: Boolean
-}
-
-data class ZenodoErrorMessage(override val connected: Boolean, val why: String) : ZenodoIsConnected
-
-data class ZenodoConnectedStatus(override val connected: Boolean) : ZenodoIsConnected
+data class ZenodoConnectedStatus(val connected: Boolean)
 
 enum class ZenodoPublicationStatus {
     PENDING,
@@ -30,12 +24,13 @@ enum class ZenodoPublicationStatus {
 }
 
 data class ZenodoPublication(
-    val id: Int,
+    val id: Long,
     val name: String,
     val status: ZenodoPublicationStatus,
     val zenodoAction: String?,
     val createdAt: Long,
-    val modifiedAt: Long
+    val modifiedAt: Long,
+    val uploads: List<ZenodoUpload>
 )
 
 data class ZenodoUpload(
@@ -44,15 +39,9 @@ data class ZenodoUpload(
     val updatedAt: Long
 )
 
-data class ZenodoPublicationWithFiles(
-    val publication: ZenodoPublication,
-    val uploads: List<ZenodoUpload>
-)
+typealias ZenodoPublicationWithFiles = ZenodoPublication
 
-data class ZenodoPublicationList(
-    val inProgress: Page<ZenodoPublication>,
-    override val connected: Boolean = true
-) : ZenodoIsConnected
+data class ZenodoPublicationList(val inProgress: Page<ZenodoPublication>)
 
 data class ZenodoListPublicationsRequest(
     override val itemsPerPage: Int?,
@@ -76,7 +65,7 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
         }
     }
 
-    val publish = callDescription<ZenodoPublishRequest, ZenodoPublishResponse, ZenodoErrorMessage> {
+    val publish = callDescription<ZenodoPublishRequest, ZenodoPublishResponse, CommonErrorMessage> {
         method = HttpMethod.Post
         prettyName = "publish"
 
@@ -98,7 +87,7 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
         }
     }
 
-    val listPublications = callDescription<ZenodoListPublicationsRequest, ZenodoPublicationList, ZenodoErrorMessage> {
+    val listPublications = callDescription<ZenodoListPublicationsRequest, Page<ZenodoPublication>, CommonErrorMessage> {
         method = HttpMethod.Get
         prettyName = "listPublications"
 
@@ -113,14 +102,14 @@ object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
         }
     }
 
-    val findPublicationById = callDescription<FindByIntId, ZenodoPublicationWithFiles, ZenodoErrorMessage> {
+    val findPublicationById = callDescription<FindByLongId, ZenodoPublicationWithFiles, CommonErrorMessage> {
         method = HttpMethod.Get
         prettyName = "findPublicationById"
 
         path {
             using(baseContext)
             +"publications"
-            +boundTo(FindByIntId::id)
+            +boundTo(FindByLongId::id)
         }
     }
 }

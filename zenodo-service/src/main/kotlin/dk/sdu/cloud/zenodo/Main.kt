@@ -2,11 +2,13 @@ package dk.sdu.cloud.zenodo
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
+import dk.sdu.cloud.zenodo.services.hibernate.PublicationHibernateDAO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import org.flywaydb.core.Flyway
 import org.slf4j.LoggerFactory
 
 data class Configuration(
@@ -39,6 +41,9 @@ data class ZenodoAPIConfiguration(
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.zenodo.MainKt")
 
+private const val ARG_GENERATE_DDL = "--generate-ddl"
+private const val ARG_MIGRATE = "--migrate"
+
 fun main(args: Array<String>) {
     val serviceDescription = ZenodoServiceDescription
 
@@ -64,5 +69,60 @@ fun main(args: Array<String>) {
         embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
     }
 
-    Server(cloud, kafka, serviceRegistry, configuration, serverProvider).start()
+    log.info("Connecting to database")
+    val jdbcUrl = with(configuration.connConfig.database!!) { postgresJdbcUrl(host, database) }
+    val db = with(configuration.connConfig.database!!) {
+        HibernateSessionFactory.create(
+            HibernateDatabaseConfig(
+                POSTGRES_DRIVER,
+                jdbcUrl,
+                POSTGRES_9_5_DIALECT,
+                username,
+                password,
+                defaultSchema = serviceDescription.name,
+                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.contains(ARG_MIGRATE)
+            )
+        )
+    }
+    log.info("Connected to database")
+
+    when {
+        args.contains(ARG_GENERATE_DDL) -> {
+            println(db.generateDDL())
+            db.close()
+        }
+
+        args.contains(ARG_MIGRATE) -> {
+            val flyway = Flyway()
+            with(configuration.connConfig.database!!) {
+                flyway.setDataSource(jdbcUrl, username, password)
+            }
+            flyway.setSchemas(serviceDescription.name)
+            flyway.migrate()
+        }
+
+        else -> {
+            if (true) {
+                val dao = PublicationHibernateDAO()
+                val pubId = db.withTransaction {
+                    dao.createUploadForFiles(
+                        it,
+                        "foo",
+                        "foo",
+                        setOf("foo")
+                    )
+                }
+                db.withTransaction {
+                    dao.markUploadAsCompleteInPublication(
+                        it,
+                        pubId,
+                        "foo"
+                    )
+                }
+                return
+            }
+            Server(db, cloud, kafka, serviceRegistry, configuration, serverProvider).start()
+        }
+    }
+
 }

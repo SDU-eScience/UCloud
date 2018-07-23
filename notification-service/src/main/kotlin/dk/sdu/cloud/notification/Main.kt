@@ -5,7 +5,6 @@ import com.google.common.net.HostAndPort
 import com.orbitz.consul.Consul
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
-import dk.sdu.cloud.notification.services.NotificationHibernateDAO
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import io.ktor.server.engine.embeddedServer
@@ -100,5 +99,4 @@ fun main(args: Array<String>) {
             Server(db, configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
         }
     }
-
 }

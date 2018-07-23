@@ -8,6 +8,8 @@ import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.withCausedBy
@@ -27,9 +29,10 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
 
-class PublishProcessor(
+class PublishProcessor<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
     private val zenodoService: ZenodoRPCService,
-    private val publicationService: PublicationService,
+    private val publicationService: PublicationService<DBSession>,
     private val cloudContext: CloudContext
 ) {
     fun init(kBuilder: StreamsBuilder) {
@@ -52,17 +55,31 @@ class PublishProcessor(
                 val cloud = JWTAuthenticatedCloud(cloudContext, validatedPrincipal.token).withCausedBy(command.uuid)
 
                 log.debug("Updating status of command: ${command.publicationId} to UPLOADING")
-                publicationService.updateStatusOf(command.publicationId, ZenodoPublicationStatus.UPLOADING)
-                val files = transferCloudFilesToTemporaryStorage(command, cloud)
+                db.withTransaction {
+                    publicationService.updateStatusOf(it, command.publicationId, ZenodoPublicationStatus.UPLOADING)
+                }
 
+                val files = transferCloudFilesToTemporaryStorage(command, cloud)
                 try {
                     transferTemporaryFilesToZenodo(command, validatedPrincipal, files)
 
                     log.debug("Updating status of command: ${command.publicationId} to COMPLETE")
-                    publicationService.updateStatusOf(command.publicationId, ZenodoPublicationStatus.COMPLETE)
+                    db.withTransaction {
+                        publicationService.updateStatusOf(
+                            it,
+                            command.publicationId,
+                            ZenodoPublicationStatus.COMPLETE
+                        )
+                    }
                 } catch (ex: Exception) {
                     log.debug("Updating status of command: ${command.publicationId} to FAILURE")
-                    publicationService.updateStatusOf(command.publicationId, ZenodoPublicationStatus.FAILURE)
+                    db.withTransaction {
+                        publicationService.updateStatusOf(
+                            it,
+                            command.publicationId,
+                            ZenodoPublicationStatus.FAILURE
+                        )
+                    }
 
                     when (ex) {
                         is PublishingException -> {
@@ -132,7 +149,7 @@ class PublishProcessor(
     ) {
         log.debug("Creating deposition at Zenodo!")
         val deposition = try {
-            zenodoService.createDeposition(validatedPrincipal)
+            zenodoService.createDeposition(validatedPrincipal.subject)
         } catch (ex: ZenodoRPCException) {
             log.warn("Unable to create a response at Zenodo!")
             log.warn(ex.stackTraceToString())
@@ -141,20 +158,24 @@ class PublishProcessor(
         log.debug("Response was: $deposition")
 
         val depositionId = deposition.id
-        publicationService.attachZenodoId(command.publicationId, depositionId)
+        db.withTransaction {
+            publicationService.attachZenodoId(it, command.publicationId, depositionId)
+        }
         files.forEachIndexed { idx, file ->
             val path = command.request.filePaths[idx]
             val name = path.substringAfterLast("/")
             log.debug("Uploading file: $name ${file.length()}")
             try {
                 zenodoService.createUpload(
-                    validatedPrincipal,
+                    validatedPrincipal.subject,
                     depositionId,
                     name,
                     file
                 )
 
-                publicationService.markUploadAsCompleteInPublication(command.publicationId, path)
+                db.withTransaction {
+                    publicationService.markUploadAsCompleteInPublication(it, command.publicationId, path)
+                }
             } catch (ex: ZenodoRPCException) {
                 log.warn("Upload failed for file: $name")
                 log.warn(ex.stackTraceToString())

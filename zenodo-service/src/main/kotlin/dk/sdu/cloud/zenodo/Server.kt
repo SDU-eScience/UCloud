@@ -3,14 +3,14 @@ package dk.sdu.cloud.zenodo
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.FakeDBSessionFactory
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
 import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
-import dk.sdu.cloud.zenodo.services.InMemoryZenodoOAuthStateStore
-import dk.sdu.cloud.zenodo.services.PublicationService
-import dk.sdu.cloud.zenodo.services.ZenodoOAuth
-import dk.sdu.cloud.zenodo.services.ZenodoRPCService
+import dk.sdu.cloud.zenodo.services.*
+import dk.sdu.cloud.zenodo.services.hibernate.PublicationHibernateDAO
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
@@ -22,12 +22,11 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.eclipse.persistence.config.PersistenceUnitProperties
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
-import javax.persistence.Persistence
 
 class Server(
+    private val db: HibernateSessionFactory,
     private val cloud: AuthenticatedCloud,
     private val kafka: KafkaServices,
     private val serviceRegistry: ServiceRegistry,
@@ -45,6 +44,7 @@ class Server(
         val instance = ZenodoServiceDescription.instance(config.connConfig)
 
         val zenodoOauth = ZenodoOAuth(
+            db = FakeDBSessionFactory,
             clientSecret = config.zenodo.clientSecret,
             clientId = config.zenodo.clientId,
 
@@ -58,27 +58,14 @@ class Server(
 
         val zenodo = ZenodoRPCService(zenodoOauth)
 
-        val cloudEmf = Persistence.createEntityManagerFactory(
-            "SduClouddbJpaPU", HashMap<String, String>().apply {
-                if (config.connConfig.database != null) {
-                    with(config.connConfig.database!!) {
-                        put(PersistenceUnitProperties.JDBC_URL, url)
-                        put(PersistenceUnitProperties.JDBC_USER, username)
-                        put(PersistenceUnitProperties.JDBC_PASSWORD, password)
-                        put(PersistenceUnitProperties.JDBC_DRIVER, driver)
-                    }
-                }
-            }
-        )
-
-        val publicationService = PublicationService(cloudEmf, zenodo)
+        val publicationService = PublicationHibernateDAO()
 
         kStreams = run {
             log.info("Constructing Kafka Streams Topology")
             val kBuilder = StreamsBuilder()
 
             log.info("Configuring stream processors...")
-            PublishProcessor(zenodo, publicationService, cloud.parent).also { it.init(kBuilder) }
+            PublishProcessor(db, zenodo, publicationService, cloud.parent).also { it.init(kBuilder) }
             log.info("Stream processors configured!")
 
             kafka.build(kBuilder.build()).also {
@@ -111,7 +98,7 @@ class Server(
 
                 route("/api/zenodo") {
                     ZenodoController(
-                        kafka,
+                        db,
                         publicationService,
                         zenodo,
                         kafka.producer.forStream(ZenodoCommandStreams.publishCommands)

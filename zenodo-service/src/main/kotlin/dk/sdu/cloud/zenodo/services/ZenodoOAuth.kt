@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.zenodo.util.HttpClient
 import dk.sdu.cloud.zenodo.util.asDynamicJson
 import java.io.File
@@ -13,17 +15,17 @@ import java.util.*
 private const val SANDBOX_BASE = "https://sandbox.zenodo.org"
 private const val PRODUCTION_BASE = "https://zenodo.org"
 
-interface ZenodoOAuthStateStore {
-    fun storeStateTokenForUser(cloudUser: String, token: String, returnTo: String)
-    fun resolveUserAndRedirectFromStateToken(stateToken: String): Pair<String, String>?
+interface ZenodoOAuthStateStore<Session> {
+    fun storeStateTokenForUser(session: Session, cloudUser: String, token: String, returnTo: String)
+    fun resolveUserAndRedirectFromStateToken(session: Session, stateToken: String): Pair<String, String>?
 
-    fun storeAccessAndRefreshToken(cloudUser: String, token: OAuthTokens)
-    fun retrieveCurrentTokenForUser(cloudUser: String): OAuthTokens?
+    fun storeAccessAndRefreshToken(session: Session, cloudUser: String, token: OAuthTokens)
+    fun retrieveCurrentTokenForUser(session: Session, cloudUser: String): OAuthTokens?
 
-    fun invalidateUser(cloudUser: String)
+    fun invalidateUser(session: Session, cloudUser: String)
 }
 
-class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
+class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore<Unit> {
     val csrfDb = HashMap<String, Pair<String, String>>()
     val csrfToUser = HashMap<String, String>()
     val tokenDb = HashMap<String, OAuthTokens>()
@@ -44,22 +46,22 @@ class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
         }
     }
 
-    override fun storeStateTokenForUser(cloudUser: String, token: String, returnTo: String) {
+    override fun storeStateTokenForUser(session: Unit, cloudUser: String, token: String, returnTo: String) {
         csrfToUser[token] = cloudUser
         csrfDb[cloudUser] = Pair(token, returnTo)
         serialize()
     }
 
-    override fun storeAccessAndRefreshToken(cloudUser: String, token: OAuthTokens) {
+    override fun storeAccessAndRefreshToken(session: Unit, cloudUser: String, token: OAuthTokens) {
         tokenDb[cloudUser] = token
         serialize()
     }
 
-    override fun retrieveCurrentTokenForUser(cloudUser: String): OAuthTokens? {
+    override fun retrieveCurrentTokenForUser(session: Unit, cloudUser: String): OAuthTokens? {
         return tokenDb[cloudUser]
     }
 
-    override fun resolveUserAndRedirectFromStateToken(stateToken: String): Pair<String, String>? {
+    override fun resolveUserAndRedirectFromStateToken(session: Unit, stateToken: String): Pair<String, String>? {
         val user = csrfToUser[stateToken] ?: return null
         val (_, returnTo) = csrfDb[user] ?: return null
         csrfToUser.remove(stateToken)
@@ -67,7 +69,7 @@ class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
         return Pair(user, returnTo)
     }
 
-    override fun invalidateUser(cloudUser: String) {
+    override fun invalidateUser(session: Unit, cloudUser: String) {
         tokenDb.remove(cloudUser)
         serialize()
     }
@@ -79,11 +81,12 @@ class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore {
     }
 }
 
-class ZenodoOAuth(
+class ZenodoOAuth<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
     private val clientSecret: String,
     private val clientId: String,
     private val callback: String,
-    private val stateStore: ZenodoOAuthStateStore,
+    private val stateStore: ZenodoOAuthStateStore<DBSession>,
     private val useSandbox: Boolean
 ) {
     val baseUrl: String get() = if (useSandbox) SANDBOX_BASE else PRODUCTION_BASE
@@ -100,7 +103,9 @@ class ZenodoOAuth(
         append("redirect_uri=$callback")
 
         val token = UUID.randomUUID().toString()
-        stateStore.storeStateTokenForUser(user, token, returnTo)
+        db.withTransaction {
+            stateStore.storeStateTokenForUser(it, user, token, returnTo)
+        }
         append('&')
         append("state=$token")
 
@@ -111,7 +116,9 @@ class ZenodoOAuth(
     }.let { URL(it.toString()) }
 
     suspend fun requestTokenWithCode(code: String, state: String): String? {
-        val (user, returnTo) = stateStore.resolveUserAndRedirectFromStateToken(state) ?: return null
+        val (user, returnTo) = db.withTransaction {
+            stateStore.resolveUserAndRedirectFromStateToken(it, state) ?: return null
+        }
         val response = HttpClient.post("$baseUrl/oauth/token") {
             addFormParam("client_id", clientId)
             addFormParam("client_secret", clientSecret)
@@ -121,8 +128,8 @@ class ZenodoOAuth(
         }
 
         if (response.statusCode !in 200..299) return null
-        parseOAuthResponse(response.asDynamicJson()).also {
-            if (it != null) stateStore.storeAccessAndRefreshToken(user, it)
+        parseOAuthResponse(response.asDynamicJson()).also { resp ->
+            if (resp != null) db.withTransaction { stateStore.storeAccessAndRefreshToken(it, user, resp) }
         }
 
         return returnTo
@@ -137,13 +144,13 @@ class ZenodoOAuth(
         }
 
         if (response.statusCode !in 200..299) return null
-        return parseOAuthResponse(response.asDynamicJson()).also {
-            if (it != null) stateStore.storeAccessAndRefreshToken(user, it)
+        return parseOAuthResponse(response.asDynamicJson()).also { resp ->
+            if (resp != null) db.withTransaction { stateStore.storeAccessAndRefreshToken(it, user, resp) }
         }
     }
 
     suspend fun retrieveTokenOrRefresh(user: String): OAuthTokens? {
-        val token = stateStore.retrieveCurrentTokenForUser(user)
+        val token = db.withTransaction { stateStore.retrieveCurrentTokenForUser(it, user) }
         if (token != null) {
             if (!token.expired) return token
 
@@ -154,11 +161,13 @@ class ZenodoOAuth(
     }
 
     fun invalidateTokenForUser(user: String) {
-        stateStore.invalidateUser(user)
+        db.withTransaction {
+            stateStore.invalidateUser(it, user)
+        }
     }
 
     fun isConnected(user: String): Boolean {
-        return stateStore.retrieveCurrentTokenForUser(user) != null
+        return db.withTransaction { stateStore.retrieveCurrentTokenForUser(it, user) != null }
     }
 }
 
