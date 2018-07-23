@@ -4,7 +4,9 @@
   "description": "SDU Cloud",
   "author": "eScience Center - SDU",
   "jest": {
-    "modulePaths": ["app"],
+    "modulePaths": [
+      "app"
+    ],
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
     },
@@ -32,14 +34,14 @@
     "@types/react": "^16.4.6",
     "@types/react-dom": "^16.0.6",
     "@types/react-redux": "^6.0.4",
-    "@types/react-router": "^4.0.28",
-    "@types/react-router-dom": "^4.2.7",
+    "@types/react-router": "^4.0.29",
+    "@types/react-router-dom": "^4.3.0",
     "avataaars": "^1.1.0",
     "font-awesome": "4.7.0",
     "jsonwebtoken": "8.3.0",
     "loaders.css": "0.1.2",
     "moment": "~2.22.2",
-    "npm": "6.1.0",
+    "npm": "6.2.0",
     "prop-types": "15.6.2",
     "react": "16.4.1",
     "react-dom": "16.4.1",
@@ -50,12 +52,12 @@
     "react-router-dom": "4.3.1",
     "redux": "4.0.0",
     "semantic-ui-css": "^2.3.3",
-    "semantic-ui-react": "^0.82.0",
-    "sweetalert2": "7.25.0",
+    "semantic-ui-react": "^0.82.1",
+    "sweetalert2": "7.25.6",
     "uppy": "0.23.3"
   },
   "devDependencies": {
-    "@types/jest": "^23.1.5",
+    "@types/jest": "^23.3.0",
     "babel-core": "^6.26.3",
     "babel-jest": "23.4.0",
     "babel-loader": "7.1.5",
@@ -72,7 +74,7 @@
     "html-loader": "0.5.5",
     "html-webpack-plugin": "3.2.0",
     "imports-loader": "0.8.0",
-    "jest": "^23.4.0",
+    "jest": "^23.4.1",
     "mini-css-extract-plugin": "^0.4.1",
     "napa": "3.0.0",
     "node-sass": "^4.9.2",
@@ -82,14 +84,14 @@
     "regenerator-runtime": "^0.12.0",
     "sass-loader": "^7.0.3",
     "style-loader": "0.21.0",
-    "ts-jest": "^23.0.0",
+    "ts-jest": "^23.0.1",
     "ts-loader": "^4.4.2",
     "typescript": "2.9.2",
     "uglifyjs-webpack-plugin": "^1.2.7",
     "url-loader": "1.0.1",
-    "webpack": "4.16.0",
-    "webpack-cli": "^3.0.8",
-    "webpack-dev-server": "3.1.4",
+    "webpack": "4.16.1",
+    "webpack-cli": "^3.1.0",
+    "webpack-dev-server": "3.1.5",
     "webpack-merge": "4.1.3"
   }
 }

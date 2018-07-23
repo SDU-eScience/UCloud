@@ -11,14 +11,15 @@ export default class SDUCloud {
      * @param {string} - serviceName 
      */
 
-    private context: string;
-    private serviceName: string;
+    private readonly context: string;
+    private readonly serviceName: string;
+    private readonly authContext: string;
+    private readonly redirectOnInvalidTokens: boolean;
+
     private apiContext: string;
-    private authContext: string;
     private refreshToken: string;
     private accessToken: string;
     private decodedToken: any;
-    private redirectOnInvalidTokens: boolean;
 
     constructor(context: string, serviceName: string) {
         this.context = context;
@@ -50,9 +51,10 @@ export default class SDUCloud {
      * @param {string} method - the HTTP method
      * @param {string} path - the path, should not contain context or /api/
      * @param {object} body - the request body, assumed to be a JS object to be encoded as JSON.
+     * @param {string} context - the base of the request (e.g. "/api")
      * @return {Promise} promise
      */
-    call(method: string, path: string, body?: object, context = this.apiContext): Promise<any> {
+    call(method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> {
         if (path.indexOf("/") !== 0) path = "/" + path;
         let baseContext = this.context;
         return this.receiveAccessTokenOrRefreshIt().then((token) => {
@@ -61,7 +63,7 @@ export default class SDUCloud {
                 req.open(method, baseContext + context + path);
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("contentType", "application/json");
-                req.responseType = "text"; // Explicitely set, otherwise issues with empty response
+                req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                 req.onload = () => {
                     let responseContentType = req.getResponseHeader("content-type");
                     let parsedResponse = req.response.length === 0 ? "{}" : req.response;

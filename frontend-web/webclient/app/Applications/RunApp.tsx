@@ -51,7 +51,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     static propTypes = {
         uppy: PropTypes.object.isRequired,
         uppyOpen: PropTypes.bool.isRequired
-    }
+    };
 
     componentDidMount() {
         this.retrieveApplication();

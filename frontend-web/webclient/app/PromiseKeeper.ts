@@ -24,8 +24,7 @@ export default class PromiseKeeper {
                     hasCanceled_ ? reject({ isCanceled: true }) : reject(error)
                 }
             );
-        }
-        );
+        });
         cancelablePromise.cancel = () => hasCanceled_ = true;
         this.promises.push(cancelablePromise);
         return cancelablePromise;
