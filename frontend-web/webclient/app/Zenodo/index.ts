@@ -8,6 +8,16 @@ export interface Publication {
     zenodoAction: string
     createdAt: number
     modifiedAt: number
+    status: ZenodoPublicationStatus
+    uploads: Upload[]
+}
+
+export enum ZenodoPublicationStatus { "PENDING", "UPLOADING", "COMPLETE", "FAILURE" }
+
+interface Upload {
+    dataObject: string
+    hasBeenTransmitted: boolean
+    updatedAt: number
 }
 
 export interface ZenodoInfoState {
@@ -16,7 +26,6 @@ export interface ZenodoInfoState {
     publicationID: string
     publication?: Publication
     intervalId: number
-    uploads?: any
 }
 
 export type ZenodoInfoProps = {

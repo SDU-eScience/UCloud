@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Input, Menu, Dropdown, Icon, Responsive, Header as HeaderTag, Form } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject"
@@ -12,6 +11,8 @@ import { setSidebarOpen } from "./Redux/SidebarActions";
 import Avatar from "avataaars";
 import { History } from "history";
 import { infoNotification } from "UtilityFunctions";
+import { HeaderStateToProps } from "Navigation";
+import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 
 interface HeaderProps {
     open?: boolean
@@ -29,6 +30,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         this.state = {
             searchText: ""
         };
+        props.dispatch(fetchLoginStatus())
     }
 
     static contextTypes = {
@@ -50,7 +52,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
             { key: 'apps', text: 'Applications', value: 'apps' }, */
         ];
 
-        return ( // fixed="top" (remove attached, borderless)
+        return (
             <Menu className="menu-padding" inverted attached borderless size="tiny" >
                 <Responsive maxWidth={999} as={Menu.Item} onClick={() => dispatch(setSidebarOpen())}>
                     <Icon.Group size="large">
@@ -147,10 +149,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
     }
 }
 
-interface StateToProps {
-    sidebar: {
-        open: boolean
-    }
-}
-const mapStateToProps = ({ sidebar }: StateToProps) => ({ open: sidebar.open });
+
+const mapStateToProps = ({ sidebar }: HeaderStateToProps) => ({ open: sidebar.open });
 export default connect(mapStateToProps)(Header);

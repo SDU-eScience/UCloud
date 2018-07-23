@@ -4,7 +4,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import { dateToString } from "Utilities/DateUtilities";
-import { ZenodoInfoProps, ZenodoInfoState } from ".";
+import { ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus } from ".";
 
 class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
     constructor(props: ZenodoInfoProps) {
@@ -20,7 +20,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
 
     componentWillMount() {
         this.setState(() => ({ loading: true }));
-        const intervalId = window.setInterval(this.reload, 1000);
+        const intervalId = window.setInterval(this.reload, 2000);
         this.setState(() => ({ intervalId: intervalId }));
     }
 
@@ -29,11 +29,10 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
         promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`))
             .promise.then(({ response }) => {
                 this.setState(() => ({
-                    publication: response.publication,
-                    uploads: response.uploads,
+                    publication: response,
                     loading: false,
                 }));
-                if (response.publication.status === "COMPLETE") {
+                if (response.status === ZenodoPublicationStatus.COMPLETE) {
                     window.clearInterval(this.state.intervalId);
                 }
             });
@@ -50,14 +49,15 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
         } else {
             return (
                 <Container className="container-margin">
-                    <ZenodoPublishingBody publication={this.state.publication} uploads={this.state.uploads} />
+                    <ZenodoPublishingBody publication={this.state.publication} />
                 </Container>
             );
         }
     }
 }
 
-const ZenodoPublishingBody = ({ publication, uploads }) => {
+const ZenodoPublishingBody = ({ publication }) => {
+    const { uploads } = publication;
     let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
     return (
         <div>

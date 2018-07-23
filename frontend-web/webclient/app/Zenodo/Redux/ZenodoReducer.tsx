@@ -11,7 +11,7 @@ const zenodo = (state = [], action) => {
             return { ...state, loading: action.loading };
         }
         case RECEIVE_ZENODO_LOGIN_STATUS: {
-            return { ...state, loggedIn: action.loggedIn };
+            return { ...state, connected: action.connected };
         }
         default: {
             return state;

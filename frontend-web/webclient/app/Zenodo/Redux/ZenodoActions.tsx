@@ -15,30 +15,28 @@ import { Publication } from "..";
  * @returns {Promise<ReceivePublications>} a promise containing receive publications action
  */
 
-export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePublications> =>
+export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePage<Publication>> =>
     Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) => {
-        return receivePublications(response.inProgress, response.connected);
+        return receivePublications(response);
     }).catch(_ => {
-        return receivePublications(emptyPage, false);
+        return receivePublications(emptyPage);
     });
 
-export const fetchLoginStatus = () => 
-    Cloud.get("/zenodo").then().catch();
+export const fetchLoginStatus = () =>
+    Cloud.get("/zenodo/status").then(({ response }) => receiveLoginStatus(response.connected));
 
-export const receiveLoginStatus = (loggedIn) => ({
+export const receiveLoginStatus = (connected: boolean) => ({
     type: RECEIVE_ZENODO_LOGIN_STATUS,
-    loggedIn
+    connected
 })
 
-interface ReceivePublications extends ReceivePage<Publication> { connected: boolean }
 /**
  * The action for receiving a page of Publications
  * @param {Page<Publication>} page The page of publications by the user
  * @param {boolean} connected Whether or not the user is connected to Zenodo
  */
-const receivePublications = (page: Page<Publication>, connected: boolean): ReceivePublications => ({
+const receivePublications = (page: Page<Publication>): ReceivePage<Publication> => ({
     type: RECEIVE_PUBLICATIONS,
-    connected,
     page
 });
 

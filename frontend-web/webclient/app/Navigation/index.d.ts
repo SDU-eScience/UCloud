@@ -3,3 +3,9 @@ export interface Status {
     level: string
     body: string
 }
+
+interface HeaderStateToProps {
+    sidebar: {
+        open: boolean
+    }
+}
