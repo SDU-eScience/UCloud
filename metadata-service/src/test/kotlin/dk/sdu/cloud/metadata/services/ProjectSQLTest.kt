@@ -1,38 +1,23 @@
 package dk.sdu.cloud.metadata.services
 
-import dk.sdu.cloud.service.db.FakeDBSessionFactory
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.transaction
+import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ProjectSQLTest {
     val projectOwner = "user"
 
-    fun withDatabase(closure: () -> Unit) {
-        Database.connect(
-            url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
-            driver = "org.h2.Driver"
-        )
-
-        transaction {
-            SchemaUtils.create(Projects)
-        }
-
-        try {
-            closure()
-        } finally {
-            transaction {
-                SchemaUtils.drop(Projects)
-            }
-        }
+    private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
+        HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
     }
 
     @Test
     fun `find By Id test`(){
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
@@ -56,10 +41,10 @@ class ProjectSQLTest {
         }
     }
 
-    @Test (expected = ProjectException.NotFound::class)
+    @Test
     fun `find By Id - Not found - test`(){
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
@@ -77,16 +62,15 @@ class ProjectSQLTest {
                 )
             )
 
-            projectService.findById(500)
-
+            assertNull(projectService.findById(500))
         }
     }
 
 
     @Test
     fun `find Best Matching Project By Path test`() {
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
@@ -112,8 +96,8 @@ class ProjectSQLTest {
 
     @Test (expected = ProjectException.NotFound::class)
     fun `find Best Matching Project By Path - Not Found - test`() {
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
@@ -136,10 +120,10 @@ class ProjectSQLTest {
         }
     }
 
-    @Test (expected = ProjectException.NotFound::class)
+    @Test
     fun `delete project by ID test`(){
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
@@ -158,10 +142,10 @@ class ProjectSQLTest {
         }
     }
 
-    @Test (expected = ProjectException.NotFound::class)
+    @Test
     fun `delete project by ID - Wrong id - test`() {
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
@@ -178,32 +162,37 @@ class ProjectSQLTest {
         }
     }
 
-    @Test (expected = ProjectException.NotFound::class)
+    @Test
     fun `delete project by FSRoot test`() {
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
-                    "home/sdu/user",
+                    "/home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
             )
 
-            val project = projectService.findByFSRoot("home/sdu/user")
-            assertEquals("home/sdu/user", project.fsRoot)
+            val project = projectService.findByFSRoot("/home/sdu/user")
+            assertEquals("/home/sdu/user", project.fsRoot)
 
-            projectService.deleteProjectByRoot("home/sdu/user")
+            projectService.deleteProjectByRoot("/home/sdu/user")
 
-            projectService.findByFSRoot("home/sdu/user")
+            try {
+                projectService.findByFSRoot("/home/sdu/user")
+                assertTrue(false)
+            } catch (ex: ProjectException.NotFound) {
+                // All good
+            }
         }
     }
 
-    @Test (expected = ProjectException.NotFound::class)
+    @Test
     fun `delete project by FSRoot - Not correct path - test`() {
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
@@ -219,8 +208,8 @@ class ProjectSQLTest {
 
     @Test
     fun `update project root test`() {
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,
@@ -242,8 +231,8 @@ class ProjectSQLTest {
 
     @Test (expected = ProjectException.NotFound::class)
     fun `update project - not existing ID - test`() {
-        withDatabase {
-            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+        withDatabase { db ->
+            val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(
                 Project(
                     null,

@@ -3,7 +3,6 @@ package dk.sdu.cloud.metadata.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.metadata.services.*
 import dk.sdu.cloud.metadata.utils.withAuthMock
-import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import io.ktor.application.Application
@@ -18,16 +17,13 @@ import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
 private fun Application.configureMetadataServer(
     elasticMetadataService: ElasticMetadataService,
-    projectService: ProjectService<*> = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+    projectService: ProjectService<*>
 ) {
     configureMetadataServer(elasticMetadataService, elasticMetadataService, elasticMetadataService, projectService)
 }
@@ -36,17 +32,8 @@ private fun Application.configureMetadataServer(
     metadataCommandService: ElasticMetadataService,
     metadataQueryService: MetadataQueryService,
     metadataAdvancedQueryService: MetadataAdvancedQueryService,
-    projectService: ProjectService<*> = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+    projectService: ProjectService<*>
 ) {
-    Database.connect(
-        url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
-        driver = "org.h2.Driver"
-    )
-
-    transaction {
-        SchemaUtils.create(Projects)
-    }
-
     configureBaseServer(
         MetadataController(
             metadataCommandService,
@@ -94,7 +81,7 @@ class MetadataTest {
 
                 withTestApplication(
                     moduleFunction = {
-                        configureMetadataServer(elasticService)
+                        configureMetadataServer(elasticService, projectService)
                         every { projectService.findById(any()) } returns Project(
                             1,
                             "",
@@ -154,7 +141,7 @@ class MetadataTest {
 
                 withTestApplication(
                     moduleFunction = {
-                        configureMetadataServer(elasticService)
+                        configureMetadataServer(elasticService, projectService)
 
                         every { elasticClient.get(any()) } answers {
                             val getResponse = mockk<GetResponse>()
@@ -201,11 +188,11 @@ class MetadataTest {
 
                 withTestApplication(
                     moduleFunction = {
-                        configureMetadataServer(elasticService)
+                        configureMetadataServer(elasticService, projectService)
                     },
                     test = {
                         val response =
-                            handleRequest(HttpMethod.Get, "/api/metadata/id=1") {
+                            handleRequest(HttpMethod.Get, "/api/metadata/1") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser(user)
                             }.response
@@ -335,9 +322,11 @@ class MetadataTest {
                     projectService = projectService
                 )
 
+                every { projectService.findByFSRoot(any()) } throws ProjectException.NotFound()
+
                 withTestApplication(
                     moduleFunction = {
-                        configureMetadataServer(elasticService)
+                        configureMetadataServer(elasticService, projectService)
 
                         every { elasticClient.get(any()) } answers {
                             val getResponse = mockk<GetResponse>()
@@ -354,7 +343,6 @@ class MetadataTest {
                             }.response
 
                         assertEquals(HttpStatusCode.NotFound, response.status())
-
                     }
                 )
             }
@@ -375,7 +363,7 @@ class MetadataTest {
 
                 withTestApplication(
                     moduleFunction = {
-                        configureMetadataServer(elasticService)
+                        configureMetadataServer(elasticService, projectService)
 
                         every { elasticClient.search(any()) } answers {
                             val searchResponse = mockk<SearchResponse>()

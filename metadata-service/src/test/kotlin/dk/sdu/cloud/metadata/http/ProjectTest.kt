@@ -6,13 +6,13 @@ import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.metadata.api.ProjectEventProducer
-import dk.sdu.cloud.metadata.services.ProjectSQLDao
+import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.metadata.services.ProjectService
-import dk.sdu.cloud.metadata.services.Projects
 import dk.sdu.cloud.metadata.utils.withAuthMock
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.FakeDBSessionFactory
+import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
@@ -29,9 +29,6 @@ import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import io.mockk.*
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -56,66 +53,56 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
     }
 }
 
-private fun withDatabase(closure: () -> Unit) {
-    Database.connect(
-        url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
-        driver = "org.h2.Driver"
-    )
-
-    transaction {
-        SchemaUtils.create(Projects)
-    }
-
-    try {
-        closure()
-    } finally {
-        transaction {
-            SchemaUtils.drop(Projects)
-        }
-    }
+private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
+    HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
 }
 
 private fun Application.configureProjectServer(
     producer: ProjectEventProducer = mockk(relaxed = true),
-    projectService: ProjectService<*> = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
+    projectService: ProjectService<*>
 ) {
     configureBaseServer(ProjectsController(producer, projectService))
 }
 
 class ProjectTest {
+    private fun mockTreeCall(vararg payload: SyncItem) {
+        coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
+            val response: HttpResponse = mockk(relaxed = true)
+
+            every { response.content } answers {
+                payload.joinToString("\n") { it.toString() }.byteInputStream().toByteReadChannel()
+            }
+            RESTResponse.Ok(response, Unit)
+        }
+    }
+
+    private fun mockTreeCallOneFile(owner: String = "user1", path: String = "/home/user1/folder/") {
+        mockTreeCall(
+            SyncItem(
+                FileType.DIRECTORY,
+                "someid",
+                owner,
+                0,
+                null,
+                null,
+                path
+            )
+        )
+    }
+
     @Test
     fun `Create and get project test`() {
-        withDatabase {
+        withDatabase { db ->
             objectMockk(FileDescriptions).use {
                 withAuthMock {
                     withTestApplication(
                         moduleFunction = {
-                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                                val response: HttpResponse = mockk(relaxed = true)
-
-                                every { response.content } answers {
-                                    val payload = listOf(
-                                        SyncItem(
-                                            FileType.DIRECTORY,
-                                            "someid",
-                                            "user1",
-                                            0,
-                                            null,
-                                            null,
-                                            "/home/user1/folder/test1"
-                                        )
-                                    ).joinToString("\n") { it.toString() }
-
-                                    payload.byteInputStream().toByteReadChannel()
-                                }
-                                RESTResponse.Ok(response, Unit)
-                            }
-
+                            mockTreeCallOneFile(path = "/home/user1/folder/test1")
                             coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
                                 RESTResponse.Ok(mockk(relaxed = true), Unit)
                             }
 
-                            configureProjectServer()
+                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
                         },
 
                         test = {
@@ -123,13 +110,7 @@ class ProjectTest {
                                 handleRequest(HttpMethod.Put, "/api/projects") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser("user1")
-                                    setBody(
-                                        """
-                                {
-                                "fsRoot" : "/home/user1/folder/test1"
-                                }
-                                """.trimIndent()
-                                    )
+                                    setBody("""{ "fsRoot" : "/home/user1/folder/test1" }""")
                                 }.response
 
                             assertEquals(HttpStatusCode.OK, response.status())
@@ -155,91 +136,14 @@ class ProjectTest {
     }
 
     @Test
-    fun `create project - annotation error - test`() {
-        withDatabase {
-            objectMockk(FileDescriptions).use {
-                withAuthMock {
-                    withTestApplication(
-                        moduleFunction = {
-                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                                val response: HttpResponse = mockk(relaxed = true)
-
-                                every { response.content } answers {
-                                    val payload = listOf(
-                                        SyncItem(
-                                            FileType.DIRECTORY,
-                                            "someid",
-                                            "user1",
-                                            0,
-                                            null,
-                                            null,
-                                            "/home/user1/folder/"
-                                        )
-                                    ).joinToString("\n") { it.toString() }
-
-                                    payload.byteInputStream().toByteReadChannel()
-                                }
-                                RESTResponse.Ok(response, Unit)
-                            }
-
-                            coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
-                                RESTResponse.Err(mockk(relaxed = true))
-                            }
-
-                            configureProjectServer()
-                        },
-
-                        test = {
-                            val response =
-                                handleRequest(HttpMethod.Put, "/api/projects") {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser("user1")
-                                    setBody(
-                                        """
-                                {
-                                "fsRoot" : "/home/user1/folder"
-                                }
-                                """.trimIndent()
-                                    )
-                                }.response
-
-                            assertEquals(HttpStatusCode.InternalServerError, response.status())
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    @Test
     fun `create project - wrong path - test`() {
-        withDatabase {
+        withDatabase { db ->
             objectMockk(FileDescriptions).use {
                 withAuthMock {
                     withTestApplication(
                         moduleFunction = {
-                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                                val response: HttpResponse = mockk(relaxed = true)
-
-                                every { response.content } answers {
-                                    val payload = listOf(
-                                        SyncItem(
-                                            FileType.DIRECTORY,
-                                            "someid",
-                                            "user",
-                                            0,
-                                            null,
-                                            null,
-                                            "/home/user1/folder/"
-                                        )
-                                    ).joinToString("\n") { it.toString() }
-
-                                    payload.byteInputStream().toByteReadChannel()
-                                }
-                                RESTResponse.Ok(response, Unit)
-                            }
-
-                            configureProjectServer()
+                            mockTreeCallOneFile()
+                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
                         },
 
                         test = {
@@ -247,13 +151,7 @@ class ProjectTest {
                                 handleRequest(HttpMethod.Put, "/api/projects") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser("user1")
-                                    setBody(
-                                        """
-                                {
-                                "fsRoot" : "/home/user1/folder/notThere"
-                                }
-                                """.trimIndent()
-                                    )
+                                    setBody("""{ "fsRoot" : "/home/user1/folder/notThere" }""")
                                 }.response
 
                             assertEquals(HttpStatusCode.Forbidden, response.status())
@@ -266,33 +164,13 @@ class ProjectTest {
 
     @Test
     fun `create project - not owner - test`() {
-        withDatabase {
+        withDatabase { db ->
             objectMockk(FileDescriptions).use {
                 withAuthMock {
                     withTestApplication(
                         moduleFunction = {
-                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                                val response: HttpResponse = mockk(relaxed = true)
-
-                                every { response.content } answers {
-                                    val payload = listOf(
-                                        SyncItem(
-                                            FileType.DIRECTORY,
-                                            "someid",
-                                            "user",
-                                            0,
-                                            null,
-                                            null,
-                                            "/home/user1/folder/"
-                                        )
-                                    ).joinToString("\n") { it.toString() }
-
-                                    payload.byteInputStream().toByteReadChannel()
-                                }
-                                RESTResponse.Ok(response, Unit)
-                            }
-
-                            configureProjectServer()
+                            mockTreeCallOneFile(owner = "some other user")
+                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
                         },
 
                         test = {
@@ -300,13 +178,7 @@ class ProjectTest {
                                 handleRequest(HttpMethod.Put, "/api/projects") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser("user1")
-                                    setBody(
-                                        """
-                                {
-                                "fsRoot" : "/home/user1/folder/"
-                                }
-                                """.trimIndent()
-                                    )
+                                    setBody("""{ "fsRoot" : "/home/user1/folder/test1" }""")
                                 }.response
 
                             assertEquals(HttpStatusCode.Forbidden, response.status())
@@ -319,37 +191,17 @@ class ProjectTest {
 
     @Test
     fun `create project - already exists - test`() {
-        withDatabase {
+        withDatabase { db ->
             objectMockk(FileDescriptions).use {
                 withAuthMock {
                     withTestApplication(
                         moduleFunction = {
-                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                                val response: HttpResponse = mockk(relaxed = true)
-
-                                every { response.content } answers {
-                                    val payload = listOf(
-                                        SyncItem(
-                                            FileType.DIRECTORY,
-                                            "someid",
-                                            "user1",
-                                            0,
-                                            null,
-                                            null,
-                                            "/home/user1/folder/"
-                                        )
-                                    ).joinToString("\n") { it.toString() }
-
-                                    payload.byteInputStream().toByteReadChannel()
-                                }
-                                RESTResponse.Ok(response, Unit)
-                            }
-
+                            mockTreeCallOneFile()
                             coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
                                 RESTResponse.Ok(mockk(relaxed = true), Unit)
                             }
 
-                            configureProjectServer()
+                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
                         },
 
                         test = {
@@ -357,13 +209,7 @@ class ProjectTest {
                                 handleRequest(HttpMethod.Put, "/api/projects") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser("user1")
-                                    setBody(
-                                        """
-                                {
-                                "fsRoot" : "/home/user1/folder"
-                                }
-                                """.trimIndent()
-                                    )
+                                    setBody("""{ "fsRoot" : "/home/user1/folder" }""")
                                 }.response
 
                             assertEquals(HttpStatusCode.OK, response.status())
@@ -372,17 +218,12 @@ class ProjectTest {
                                 handleRequest(HttpMethod.Put, "/api/projects") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser("user1")
-                                    setBody(
-                                        """
-                                {
-                                "fsRoot" : "/home/user1/folder"
-                                }
-                                """.trimIndent()
-                                    )
+                                    setBody("""{ "fsRoot" : "/home/user1/folder" }""")
                                 }.response
-                            //TODO Should fail due to duplicate. Project creating does not check to se if fsroot have been used.
-                            //TODO If not handled, project dublicates will exisit and findByPath will fail due to singleOrNull
-                            assertEquals(HttpStatusCode.BadRequest, response2.status())
+
+                            //TODO Should fail due to duplicate. Project creating does not check to se if fsRoot have been used.
+                            //TODO If not handled, project duplicates will exists and findByPath will fail due to singleOrNull
+                            assertEquals(HttpStatusCode.Conflict, response2.status())
                         }
                     )
                 }
@@ -392,37 +233,17 @@ class ProjectTest {
 
     @Test
     fun `get project - not existing - test`() {
-        withDatabase {
+        withDatabase { db ->
             objectMockk(FileDescriptions).use {
                 withAuthMock {
                     withTestApplication(
                         moduleFunction = {
-                            coEvery { FileDescriptions.syncFileList.call(any(), any()) } answers {
-                                val response: HttpResponse = mockk(relaxed = true)
-
-                                every { response.content } answers {
-                                    val payload = listOf(
-                                        SyncItem(
-                                            FileType.DIRECTORY,
-                                            "someid",
-                                            "user1",
-                                            0,
-                                            null,
-                                            null,
-                                            "/home/user1/folder/test1"
-                                        )
-                                    ).joinToString("\n") { it.toString() }
-
-                                    payload.byteInputStream().toByteReadChannel()
-                                }
-                                RESTResponse.Ok(response, Unit)
-                            }
-
+                            mockTreeCallOneFile()
                             coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
                                 RESTResponse.Ok(mockk(relaxed = true), Unit)
                             }
 
-                            configureProjectServer()
+                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
                         },
 
                         test = {
@@ -434,7 +255,6 @@ class ProjectTest {
                                 }.response
 
                             assertEquals(HttpStatusCode.NotFound, response.status())
-
                         }
                     )
                 }

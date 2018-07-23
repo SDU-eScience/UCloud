@@ -4,9 +4,9 @@ import dk.sdu.cloud.storage.api.FileType
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class MetadataSchemaTest{
+class MetadataSchemaTest {
 
-    private val filesList = listOf<FileDescriptionForMetadata>(
+    private val filesList = listOf(
         FileDescriptionForMetadata(
             "1",
             FileType.FILE,
@@ -14,7 +14,7 @@ class MetadataSchemaTest{
         )
     )
 
-    private val creatorList = listOf<Creator>(
+    private val creatorList = listOf(
         Creator(
             "Henrik Schulz",
             "SDU",
@@ -25,10 +25,9 @@ class MetadataSchemaTest{
 
     @Test
     fun `Generate full schema`() {
+        val keywordsList = listOf("keyword 1", "keyword 2")
 
-        val keywordsList = listOf<String>("keyword 1", "keyword 2")
-
-        val contributorList = listOf<Creator>(
+        val contributorList = listOf(
             Creator(
                 "Dan Sebastian Thrane",
                 "SDU",
@@ -37,13 +36,13 @@ class MetadataSchemaTest{
             )
         )
 
-        val referenceList = listOf<String>("here", "and", "there")
+        val referenceList = listOf("here", "and", "there")
 
-        val grantList = listOf<Grant>(
+        val grantList = listOf(
             Grant("idOfGrant")
         )
 
-        val supervisorList = listOf<Creator>(
+        val supervisorList = listOf(
             Creator(
                 "Jonas Hinchely",
                 "SDU",
@@ -52,7 +51,7 @@ class MetadataSchemaTest{
             )
         )
 
-        val subjectsList = listOf<Subject>(
+        val subjectsList = listOf(
             Subject(
                 "term",
                 "12",
@@ -60,7 +59,7 @@ class MetadataSchemaTest{
             )
         )
 
-        val relatedIdentifiersList = listOf<RelatedIdentifier>(
+        val relatedIdentifiersList = listOf(
             RelatedIdentifier.CitedBy("id"),
             RelatedIdentifier.AlternativeIdentifier("id"),
             RelatedIdentifier.Cites("id"),
@@ -94,14 +93,16 @@ class MetadataSchemaTest{
                 "Jtitle",
                 "2",
                 "22",
-                "2-99"),
+                "2-99"
+            ),
             ConferenceInformation(
                 "HH",
                 "22-2-01",
                 "moscow",
                 "www",
                 "1",
-                "2"),
+                "2"
+            ),
             ImprintInformation(
                 "SDU",
                 "222-2-2-2-22",
@@ -180,7 +181,7 @@ class MetadataSchemaTest{
 
     }
 
-    @Test (expected = IllegalArgumentException::class)
+    @Test(expected = IllegalArgumentException::class)
     fun `Generate scheme - Invalid License - test`() {
         ProjectMetadata(
             "",

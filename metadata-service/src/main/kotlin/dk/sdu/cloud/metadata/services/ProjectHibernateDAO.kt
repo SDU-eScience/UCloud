@@ -1,13 +1,12 @@
 package dk.sdu.cloud.metadata.services
 
-import dk.sdu.cloud.metadata.util.normalize
 import dk.sdu.cloud.service.db.*
 import java.util.*
 import javax.persistence.*
 
 @Entity
 @Table(name = "projects")
-class ProjectEntity2(
+class ProjectEntity(
     @Column(length = 1024, unique = true)
     var fsRoot: String,
 
@@ -23,10 +22,10 @@ class ProjectEntity2(
     @GeneratedValue
     var id: Long = 0
 ) : WithTimestamps {
-    companion object : HibernateEntity<ProjectEntity2>, WithId<Long>
+    companion object : HibernateEntity<ProjectEntity>, WithId<Long>
 }
 
-private fun ProjectEntity2.toModel(): Project = Project(
+private fun ProjectEntity.toModel(): Project = Project(
     id,
     fsRoot,
     owner,
@@ -39,14 +38,14 @@ class ProjectHibernateDAO : ProjectDAO<HibernateSession> {
     }
 
     override fun findById(session: HibernateSession, id: Long): Project? {
-        return ProjectEntity2[session, id]?.toModel()
+        return ProjectEntity[session, id]?.toModel()
     }
 
     override fun createProject(session: HibernateSession, project: Project): Long {
         val exists = internalByRoot(session, project.fsRoot) != null
         if (exists) throw ProjectException.Duplicate()
 
-        val entity = ProjectEntity2(
+        val entity = ProjectEntity(
             project.fsRoot,
             project.owner,
             project.description
@@ -57,10 +56,10 @@ class ProjectHibernateDAO : ProjectDAO<HibernateSession> {
 
     override fun findBestMatchingProjectByPath(session: HibernateSession, path: String): Project {
         return session
-            .typedQuery<ProjectEntity2>(
+            .typedQuery<ProjectEntity>(
                 //language=HQL
                 """
-                from ProjectEntity2
+                from ProjectEntity
                 where :path like concat(fsRoot, '%')
                 order by char_length(fsRoot) desc
                 """.trimIndent()
@@ -71,7 +70,7 @@ class ProjectHibernateDAO : ProjectDAO<HibernateSession> {
     }
 
     override fun updateProjectRoot(session: HibernateSession, id: Long, newRoot: String) {
-        val existing = ProjectEntity2[session, id] ?: throw ProjectException.NotFound()
+        val existing = ProjectEntity[session, id] ?: throw ProjectException.NotFound()
         existing.fsRoot = newRoot
         session.update(existing)
     }
@@ -83,14 +82,14 @@ class ProjectHibernateDAO : ProjectDAO<HibernateSession> {
     }
 
     override fun deleteProjectById(session: HibernateSession, id: Long) {
-        ProjectEntity2[session, id]?.let {
+        ProjectEntity[session, id]?.let {
             session.delete(it)
         }
     }
 
-    private fun internalByRoot(session: HibernateSession, path: String): ProjectEntity2? {
+    private fun internalByRoot(session: HibernateSession, path: String): ProjectEntity? {
         return session
-            .criteria<ProjectEntity2> { entity[ProjectEntity2::fsRoot] equal path }
+            .criteria<ProjectEntity> { entity[ProjectEntity::fsRoot] equal path }
             .uniqueResult()
     }
 }
