@@ -54,11 +54,11 @@ export const getOwnerFromAcls = (acls: Acl[]) => {
     }
 };
 
-export const failureNotification = (title: string) => swal({
+export const failureNotification = (title: string, seconds: number = 3) => swal({
     toast: true,
     position: "top-end",
     showConfirmButton: false,
-    timer: 3000,
+    timer: seconds * 1_000,
     type: "error",
     title
 });

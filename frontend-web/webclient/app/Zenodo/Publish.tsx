@@ -9,6 +9,8 @@ import { fetchPublications, setZenodoLoading } from "./Redux/ZenodoActions";
 import { connect } from "react-redux";
 import "./Zenodo.scss";
 import { History } from "history";
+import { removeEntry } from "Utilities/ArrayUtilities";
+import { getFilenameFromPath, failureNotification } from "UtilityFunctions";
 
 interface ZenodoPublishState {
     files: string[]
@@ -30,10 +32,6 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
             name: "",
             requestSent: false,
         };
-        this.handleFileSelection = this.handleFileSelection.bind(this);
-        this.submit = this.submit.bind(this);
-        this.removeFile = this.removeFile.bind(this);
-        this.updateName = this.updateName.bind(this);
         const { dispatch, connected } = props;
         dispatch(updatePageTitle("Zenodo Publish"));
         if (!connected) {
@@ -42,7 +40,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
         }
     }
 
-    submit(e) {
+    submit = (e) => {
         e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
         if (!filePaths.length || !this.state.name) {
@@ -54,16 +52,18 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
         this.setState(() => ({ requestSent: true }));
     }
 
-    removeFile(index) {
+    removeFile = (index) => {
         const { files } = this.state;
-        const remainderFiles = files.slice(0, index).concat(files.slice(index + 1));
-        this.setState(() => ({
-            files: remainderFiles
-        }));
+        const remainderFiles = removeEntry<string>(files, index);
+        this.setState(() => ({ files: remainderFiles }));
     }
 
-    handleFileSelection(file, index) {
+    handleFileSelection = (file, index) => {
         const files = this.state.files.slice();
+        if (files.some(f => getFilenameFromPath(f) === getFilenameFromPath(file.path))) {
+            failureNotification("Zenodo does not allow duplicate filenames. Please rename either file and try again.", 8);
+            return;
+        }
         files[index] = file.path;
         this.setState(() => ({
             files
@@ -111,7 +111,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
                             required={true}
                             value={name}
                             type="text"
-                            onChange={(_, {value}) => this.updateName(value)}
+                            onChange={(_, { value }) => this.updateName(value)}
                         />
                     </Form.Field>
                     <Form.Field>
