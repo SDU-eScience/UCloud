@@ -3,6 +3,7 @@ package dk.sdu.cloud.metadata.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.metadata.services.*
 import dk.sdu.cloud.metadata.utils.withAuthMock
+import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import io.ktor.application.Application
@@ -26,7 +27,7 @@ import kotlin.test.assertEquals
 
 private fun Application.configureMetadataServer(
     elasticMetadataService: ElasticMetadataService,
-    projectService: ProjectService = ProjectService(ProjectSQLDao())
+    projectService: ProjectService<*> = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
 ) {
     configureMetadataServer(elasticMetadataService, elasticMetadataService, elasticMetadataService, projectService)
 }
@@ -35,7 +36,7 @@ private fun Application.configureMetadataServer(
     metadataCommandService: ElasticMetadataService,
     metadataQueryService: MetadataQueryService,
     metadataAdvancedQueryService: MetadataAdvancedQueryService,
-    projectService: ProjectService = ProjectService(ProjectSQLDao())
+    projectService: ProjectService<*> = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
 ) {
     Database.connect(
         url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
@@ -85,7 +86,7 @@ class MetadataTest {
             val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-                val projectService: ProjectService = mockk(relaxed = true)
+                val projectService: ProjectService<*> = mockk(relaxed = true)
                 val elasticService = ElasticMetadataService(
                     elasticClient = elasticClient,
                     projectService = projectService
@@ -95,7 +96,7 @@ class MetadataTest {
                     moduleFunction = {
                         configureMetadataServer(elasticService)
                         every { projectService.findById(any()) } returns Project(
-                            "1",
+                            1,
                             "",
                             user,
                             "description is here"
@@ -145,7 +146,7 @@ class MetadataTest {
             val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-                val projectService: ProjectService = mockk(relaxed = true)
+                val projectService: ProjectService<*> = mockk(relaxed = true)
                 val elasticService = ElasticMetadataService(
                     elasticClient = elasticClient,
                     projectService = projectService
@@ -173,7 +174,7 @@ class MetadataTest {
 
                         verify {
                             elasticClient.get(
-                                match{
+                                match {
                                     println(it)
                                     it.index() == "project_metadata" && it.id() == "1"
                                 }
@@ -186,14 +187,13 @@ class MetadataTest {
     }
 
 
-
     @Test
     fun `find by ID - Nothing found - test`() {
         objectMockk(FileDescriptions).use {
             val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-                val projectService: ProjectService = mockk(relaxed = true)
+                val projectService: ProjectService<*> = mockk(relaxed = true)
                 val elasticService = ElasticMetadataService(
                     elasticClient = elasticClient,
                     projectService = projectService
@@ -224,7 +224,7 @@ class MetadataTest {
             val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-                val projectService: ProjectService = mockk(relaxed = true)
+                val projectService: ProjectService<*> = mockk(relaxed = true)
                 val elasticService = ElasticMetadataService(
                     elasticClient = elasticClient,
                     projectService = projectService
@@ -235,11 +235,11 @@ class MetadataTest {
                         configureMetadataServer(elasticService, projectService)
 
                         every { projectService.findByFSRoot(any()) } returns Project(
-                                "2",
-                                "/home/",
-                                user,
-                                "This is my project"
-                            )
+                            2,
+                            "/home/",
+                            user,
+                            "This is my project"
+                        )
 
                         every { elasticClient.get(any()) } answers {
                             val getResponse = mockk<GetResponse>()
@@ -257,11 +257,13 @@ class MetadataTest {
 
                         assertEquals(HttpStatusCode.OK, response.status())
 
-                        verify { elasticClient.get(
-                            match {
-                                it.index() == "project_metadata" && it.id() == "2"
-                            }
-                        ) }
+                        verify {
+                            elasticClient.get(
+                                match {
+                                    it.index() == "project_metadata" && it.id() == "2"
+                                }
+                            )
+                        }
 
                     }
                 )
@@ -275,7 +277,7 @@ class MetadataTest {
             val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-                val projectService: ProjectService = mockk(relaxed = true)
+                val projectService: ProjectService<*> = mockk(relaxed = true)
                 val elasticService = ElasticMetadataService(
                     elasticClient = elasticClient,
                     projectService = projectService
@@ -286,7 +288,7 @@ class MetadataTest {
                         configureMetadataServer(elasticService, projectService)
 
                         every { projectService.findByFSRoot(any()) } returns Project(
-                            "2",
+                            2,
                             "/home/",
                             user,
                             "This is my project"
@@ -307,11 +309,13 @@ class MetadataTest {
 
                         assertEquals(HttpStatusCode.NotFound, response.status())
 
-                        verify { elasticClient.get(
-                            match {
-                                it.index() == "project_metadata" && it.id() == "2"
-                            }
-                        ) }
+                        verify {
+                            elasticClient.get(
+                                match {
+                                    it.index() == "project_metadata" && it.id() == "2"
+                                }
+                            )
+                        }
 
                     }
                 )
@@ -325,7 +329,7 @@ class MetadataTest {
             val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-                val projectService: ProjectService = mockk(relaxed = true)
+                val projectService: ProjectService<*> = mockk(relaxed = true)
                 val elasticService = ElasticMetadataService(
                     elasticClient = elasticClient,
                     projectService = projectService
@@ -363,7 +367,7 @@ class MetadataTest {
             val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-                val projectService: ProjectService = mockk(relaxed = true)
+                val projectService: ProjectService<*> = mockk(relaxed = true)
                 val elasticService = ElasticMetadataService(
                     elasticClient = elasticClient,
                     projectService = projectService
@@ -375,7 +379,7 @@ class MetadataTest {
 
                         every { elasticClient.search(any()) } answers {
                             val searchResponse = mockk<SearchResponse>()
-                            val hit = Array<SearchHit>(22, {i -> SearchHit(i)})
+                            val hit = Array(22) { SearchHit(it) }
                             every { searchResponse.hits } returns SearchHits(hit, 22, 0.513f)
                             searchResponse
 
@@ -383,7 +387,10 @@ class MetadataTest {
                     },
                     test = {
                         val response =
-                            handleRequest(HttpMethod.Get, "/api/metadata/search?query=wunderbar&itemsPerPage=10&page=0") {
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/metadata/search?query=wunderbar&itemsPerPage=10&page=0"
+                            ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser(user)
                             }.response

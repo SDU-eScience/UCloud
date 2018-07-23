@@ -25,14 +25,15 @@ import java.io.File
 
 class ElasticMetadataService(
     private val elasticClient: RestHighLevelClient,
-    private val projectService: ProjectService
+    private val projectService: ProjectService<*>
 ) : MetadataCommandService, MetadataQueryService, MetadataAdvancedQueryService {
 //    private val client = RestHighLevelClient(RestClient.builder(HttpHost(elasticHost, elasticPort, elasticScheme)))
 
     private val mapper = jacksonObjectMapper()
     private val singleInstanceOfMicroServiceLockBadIdeaButWorksForNow = Any()
     override fun create(metadata: ProjectMetadata) {
-        if (internalGetById(metadata.id) != null) throw MetadataException.Duplicate()
+        val id = metadata.id.toLongOrNull() ?: throw MetadataException.NotFound()
+        if (internalGetById(id) != null) throw MetadataException.Duplicate()
 
         elasticClient.index(
             IndexRequest(index, doc, metadata.id).apply {
@@ -41,7 +42,7 @@ class ElasticMetadataService(
         )
     }
 
-    override fun canEdit(user: String, projectId: String): Boolean {
+    override fun canEdit(user: String, projectId: Long): Boolean {
         val project = projectService.findById(projectId) ?: throw MetadataException.NotFound()
         return canEdit(user, project)
     }
@@ -50,7 +51,7 @@ class ElasticMetadataService(
         return project.owner == user
     }
 
-    override fun update(user: String, projectId: String, metadata: UserEditableProjectMetadata) {
+    override fun update(user: String, projectId: Long, metadata: UserEditableProjectMetadata) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             val project = projectService.findById(projectId) ?: throw MetadataException.NotFound()
             if (!canEdit(user, project)) {
@@ -87,7 +88,7 @@ class ElasticMetadataService(
     // The correct way to update these would be to use a (stored) script in elastic to update the document
     // or, alternatively, use the optimistic concurrency control
 
-    override fun addFiles(projectId: String, files: Set<FileDescriptionForMetadata>) {
+    override fun addFiles(projectId: Long, files: Set<FileDescriptionForMetadata>) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
 
@@ -96,7 +97,7 @@ class ElasticMetadataService(
         }
     }
 
-    override fun removeFilesById(projectId: String, files: Set<String>) {
+    override fun removeFilesById(projectId: Long, files: Set<String>) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
             val normalizedFiles = files.map { it.normalize() }.toSet()
@@ -114,7 +115,7 @@ class ElasticMetadataService(
         }
     }
 
-    override fun updatePathOfFile(projectId: String, fileId: String, newPath: String) {
+    override fun updatePathOfFile(projectId: Long, fileId: String, newPath: String) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
 
@@ -135,7 +136,7 @@ class ElasticMetadataService(
         }
     }
 
-    override fun removeAllFiles(projectId: String) {
+    override fun removeAllFiles(projectId: Long) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
 
@@ -144,12 +145,12 @@ class ElasticMetadataService(
         }
     }
 
-    private fun internalGetById(id: String): ProjectMetadata? {
-        val getResponse = elasticClient[GetRequest(index, doc, id)]
+    private fun internalGetById(id: Long): ProjectMetadata? {
+        val getResponse = elasticClient[GetRequest(index, doc, id.toString())]
         return getResponse?.takeIf { it.isExists }?.sourceAsBytes?.let { mapper.readValue(it) }
     }
 
-    override fun getById(user: String, id: String): ProjectMetadata? {
+    override fun getById(user: String, id: Long): ProjectMetadata? {
         return internalGetById(id)
     }
 
@@ -179,11 +180,11 @@ class ElasticMetadataService(
         return Page(response.hits.totalHits.toInt(), paging.itemsPerPage, paging.page, records)
     }
 
-    private fun internalDelete(projectId: String) {
-        elasticClient.delete(DeleteRequest(index, doc, projectId))
+    private fun internalDelete(projectId: Long) {
+        elasticClient.delete(DeleteRequest(index, doc, projectId.toString()))
     }
 
-    override fun delete(user: String, projectId: String) {
+    override fun delete(user: String, projectId: Long) {
         if (canEdit(user, projectId)) {
             internalDelete(projectId)
         } else {

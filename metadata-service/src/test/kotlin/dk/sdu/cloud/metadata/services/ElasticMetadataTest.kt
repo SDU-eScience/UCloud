@@ -9,19 +9,15 @@ import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse
-import org.elasticsearch.action.delete.DeleteResponse
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.client.RestHighLevelClient
-import org.jetbrains.exposed.sql.checkExcessiveIndices
 import org.junit.Test
 
 class ElasticMetadataTest {
 
-    private val dummyfiles = List<FileDescriptionForMetadata>(10,
-        {i -> FileDescriptionForMetadata(i.toString(),FileType.FILE, "home") })
+    private val dummyfiles = List(10) { i -> FileDescriptionForMetadata(i.toString(), FileType.FILE, "home") }
 
-    private val dummycreators = List<Creator>(10,
-        {i -> Creator(i.toString())})
+    private val dummycreators = List(10) { i -> Creator(i.toString()) }
 
     private val projectMeta = ProjectMetadata(
         "",
@@ -59,8 +55,10 @@ class ElasticMetadataTest {
         }
         """.trimIndent()
 
-    private fun initService(elasticClient : RestHighLevelClient,
-                            projectService: ProjectService = mockk(relaxed = true)): ElasticMetadataService {
+    private fun initService(
+        elasticClient: RestHighLevelClient,
+        projectService: ProjectService<*> = mockk(relaxed = true)
+    ): ElasticMetadataService {
         return ElasticMetadataService(
             elasticClient = elasticClient,
             projectService = projectService
@@ -80,15 +78,16 @@ class ElasticMetadataTest {
 
         elasticService.create(projectMeta)
 
-        verify { elasticClient.index(
-            match {
-                it.index() == "project_metadata" && it.id() == "1"
-            }
-        )
+        verify {
+            elasticClient.index(
+                match {
+                    it.index() == "project_metadata" && it.id() == "1"
+                }
+            )
         }
     }
 
-    @Test (expected = MetadataException.Duplicate::class)
+    @Test(expected = MetadataException.Duplicate::class)
     fun `create - already existing - test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = initService(elasticClient)
@@ -103,6 +102,7 @@ class ElasticMetadataTest {
         elasticService.create(projectMeta)
 
     }
+
     @Test
     fun `add files test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
@@ -115,7 +115,7 @@ class ElasticMetadataTest {
             getResponse
         }
 
-        elasticService.addFiles("1", dummyfiles.toSet())
+        elasticService.addFiles(1, dummyfiles.toSet())
 
         verify {
             elasticClient.index(
@@ -127,7 +127,7 @@ class ElasticMetadataTest {
 
     }
 
-    @Test (expected = MetadataException.NotFound::class)
+    @Test(expected = MetadataException.NotFound::class)
     fun `add files - id do not exist - test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = initService(elasticClient)
@@ -138,12 +138,11 @@ class ElasticMetadataTest {
             getResponse
         }
 
-        elasticService.addFiles("1", dummyfiles.toSet())
+        elasticService.addFiles(1, dummyfiles.toSet())
 
     }
 
-    private val pathList = List<String>(1, {i -> "home"})
-
+    private val pathList = List(1) { "home" }
 
     @Test
     fun `remove files test`() {
@@ -157,13 +156,14 @@ class ElasticMetadataTest {
             getResponse
         }
 
-        elasticService.removeFilesById("1", pathList.toSet())
+        elasticService.removeFilesById(1, pathList.toSet())
 
-        verify { elasticClient.index(
-            match {
-                it.index() == "project_metadata" && it.id() == "1"
-            }
-        )
+        verify {
+            elasticClient.index(
+                match {
+                    it.index() == "project_metadata" && it.id() == "1"
+                }
+            )
         }
 
     }
@@ -179,19 +179,21 @@ class ElasticMetadataTest {
             every { getResponse.sourceAsBytes } returns source.toByteArray()
             getResponse
         }
-        val list = listOf<String>("3")
+        val list = listOf("3")
 
-        elasticService.removeFilesById("1", list.toSet())
+        elasticService.removeFilesById(1, list.toSet())
 
-        verify { elasticClient.delete(
-            match{
-                it.index() == "project_metadata" && it.id() == "1"
-            }
-        ) }
+        verify {
+            elasticClient.delete(
+                match {
+                    it.index() == "project_metadata" && it.id() == "1"
+                }
+            )
+        }
 
     }
 
-    @Test (expected = MetadataException.NotFound::class)
+    @Test(expected = MetadataException.NotFound::class)
     fun `remove files - id do not exist - test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = initService(elasticClient)
@@ -201,7 +203,7 @@ class ElasticMetadataTest {
             every { getResponse.isExists } returns false
             getResponse
         }
-        elasticService.removeFilesById("1", pathList.toSet() )
+        elasticService.removeFilesById(1, pathList.toSet())
 
     }
 
@@ -216,7 +218,7 @@ class ElasticMetadataTest {
             every { getResponse.sourceAsBytes } returns source.toByteArray()
             getResponse
         }
-        elasticService.removeAllFiles("1")
+        elasticService.removeAllFiles(1)
 
         verifyOrder {
             elasticClient.get(
@@ -226,7 +228,7 @@ class ElasticMetadataTest {
             )
             elasticClient.index(
                 match {
-                    it.index() == "project_metadata"  && it.id() == "1"
+                    it.index() == "project_metadata" && it.id() == "1"
                 }
             )
         }
@@ -244,7 +246,7 @@ class ElasticMetadataTest {
             every { getResponse.sourceAsBytes } returns source.toByteArray()
             getResponse
         }
-        elasticService.updatePathOfFile("1", "2", "new/path")
+        elasticService.updatePathOfFile(1, "2", "new/path")
 
         verifyOrder {
             elasticClient.get(
@@ -271,7 +273,7 @@ class ElasticMetadataTest {
             every { getResponse.sourceAsBytes } returns source.toByteArray()
             getResponse
         }
-        elasticService.updatePathOfFile("1", "3", "new/path")
+        elasticService.updatePathOfFile(1, "3", "new/path")
 
         verifyOrder {
             elasticClient.get(
@@ -288,7 +290,7 @@ class ElasticMetadataTest {
         }
     }
 
-    @Test (expected = MetadataException.NotFound::class)
+    @Test(expected = MetadataException.NotFound::class)
     fun `update path of file - index not found - test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = initService(elasticClient)
@@ -299,9 +301,9 @@ class ElasticMetadataTest {
             getResponse
         }
 
-        elasticService.updatePathOfFile("1", "2", "home/new/path")
+        elasticService.updatePathOfFile(1, "2", "home/new/path")
 
-        verify{
+        verify {
             elasticClient.get(
                 match { it.index() == "project_metadata" && it.id() == "1" }
             )
@@ -309,7 +311,7 @@ class ElasticMetadataTest {
 
     }
 
-    @Test (expected = MetadataException.NotFound::class)
+    @Test(expected = MetadataException.NotFound::class)
     fun `update path of file - file not found - test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = initService(elasticClient)
@@ -321,9 +323,9 @@ class ElasticMetadataTest {
             getResponse
         }
 
-        elasticService.updatePathOfFile("1", "4", "home/new/path")
+        elasticService.updatePathOfFile(1, "4", "home/new/path")
 
-        verify{
+        verify {
             elasticClient.get(
                 match { it.index() == "project_metadata" && it.id() == "1" }
             )
@@ -333,48 +335,48 @@ class ElasticMetadataTest {
     @Test
     fun `delete test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService = mockk(relaxed = true)
+        val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = initService(elasticClient, projectService)
 
-        every { projectService.findById(any())} answers {
-            Project("1", "", "user", "Description")
+        every { projectService.findById(any()) } answers {
+            Project(1, "", "user", "Description")
         }
 
-        elasticService.delete("user", "1")
+        elasticService.delete("user", 1)
 
         verify {
             elasticClient.delete(
-                match{
+                match {
                     it.index() == "project_metadata" && it.id() == "1"
                 }
             )
         }
     }
 
-    @Test (expected = MetadataException.NotFound::class)
+    @Test(expected = MetadataException.NotFound::class)
     fun `delete - id not found -test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService = mockk(relaxed = true)
+        val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = initService(elasticClient, projectService)
 
-        every { projectService.findById(any())} answers {
+        every { projectService.findById(any()) } answers {
             null
         }
 
-        elasticService.delete("user", "1")
+        elasticService.delete("user", 1)
     }
 
-    @Test (expected = MetadataException.NotAllowed::class)
+    @Test(expected = MetadataException.NotAllowed::class)
     fun `delete - not allowed -test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService = mockk(relaxed = true)
+        val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = initService(elasticClient, projectService)
 
-        every { projectService.findById(any())} answers {
-            Project("1", "", "user", "Description")
+        every { projectService.findById(any()) } answers {
+            Project(1, "", "user", "Description")
         }
 
-        elasticService.delete("notUser", "1")
+        elasticService.delete("notUser", 1)
     }
 
     @Test

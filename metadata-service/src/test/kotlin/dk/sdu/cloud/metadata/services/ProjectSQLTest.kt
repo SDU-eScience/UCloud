@@ -1,5 +1,6 @@
 package dk.sdu.cloud.metadata.services
 
+import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -31,10 +32,10 @@ class ProjectSQLTest {
     @Test
     fun `find By Id test`(){
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -42,14 +43,14 @@ class ProjectSQLTest {
             )
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user/extra",
                     projectOwner,
                     "Project Description"
                 )
             )
 
-            val project = projectService.findById("2")
+            val project = projectService.findById(2)
 
             assertEquals("home/sdu/user/extra", project?.fsRoot)
         }
@@ -58,10 +59,10 @@ class ProjectSQLTest {
     @Test (expected = ProjectException.NotFound::class)
     fun `find By Id - Not found - test`(){
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -69,14 +70,14 @@ class ProjectSQLTest {
             )
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user/extra",
                     projectOwner,
                     "Project Description"
                 )
             )
 
-            projectService.findById("500")
+            projectService.findById(500)
 
         }
     }
@@ -85,10 +86,10 @@ class ProjectSQLTest {
     @Test
     fun `find Best Matching Project By Path test`() {
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -96,7 +97,7 @@ class ProjectSQLTest {
             )
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user/extra",
                     projectOwner,
                     "Project Description"
@@ -104,18 +105,18 @@ class ProjectSQLTest {
             )
 
             val project = projectService.findBestMatchingProjectByPath("home/sdu/user/extra/I/am/to/long")
-            println(projectService.findById("2"))
-            assertEquals("2", project.id)
+            println(projectService.findById(2))
+            assertEquals(2, project.id)
         }
     }
 
     @Test (expected = ProjectException.NotFound::class)
     fun `find Best Matching Project By Path - Not Found - test`() {
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -123,7 +124,7 @@ class ProjectSQLTest {
             )
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user/extra",
                     projectOwner,
                     "Project Description"
@@ -138,52 +139,52 @@ class ProjectSQLTest {
     @Test (expected = ProjectException.NotFound::class)
     fun `delete project by ID test`(){
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
             )
 
-            val project = projectService.findById("1")
+            val project = projectService.findById(1)
             assertEquals("home/sdu/user", project?.fsRoot)
 
-            projectService.deleteProjectById("1")
+            projectService.deleteProjectById(1)
 
-            projectService.findById("1")
+            projectService.findById(1)
         }
     }
 
     @Test (expected = ProjectException.NotFound::class)
     fun `delete project by ID - Wrong id - test`() {
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
             )
 
-            val project = projectService.findById("1")
+            val project = projectService.findById(1)
             assertEquals("home/sdu/user", project?.fsRoot)
 
-            projectService.deleteProjectById("4")
+            projectService.deleteProjectById(4)
         }
     }
 
     @Test (expected = ProjectException.NotFound::class)
     fun `delete project by FSRoot test`() {
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -202,10 +203,10 @@ class ProjectSQLTest {
     @Test (expected = ProjectException.NotFound::class)
     fun `delete project by FSRoot - Not correct path - test`() {
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -219,22 +220,22 @@ class ProjectSQLTest {
     @Test
     fun `update project root test`() {
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
             )
 
-            val project = projectService.findById("1")
+            val project = projectService.findById(1)
             assertEquals("home/sdu/user", project?.fsRoot)
 
-            projectService.updateProjectRoot("1", "Home/alone/2")
+            projectService.updateProjectRoot(1, "Home/alone/2")
 
-            val project2 = projectService.findById("1")
+            val project2 = projectService.findById(1)
             assertEquals("Home/alone/2", project2?.fsRoot)
         }
     }
@@ -242,10 +243,10 @@ class ProjectSQLTest {
     @Test (expected = ProjectException.NotFound::class)
     fun `update project - not existing ID - test`() {
         withDatabase {
-            val projectService = ProjectService(ProjectSQLDao())
+            val projectService = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
             projectService.createProject(
                 Project(
-                    "",
+                    null,
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -255,7 +256,7 @@ class ProjectSQLTest {
             val project = projectService.findByFSRoot("home/sdu/user")
             assertEquals("home/sdu/user", project.fsRoot)
 
-            projectService.updateProjectRoot("10", "Home/alone/2")
+            projectService.updateProjectRoot(10, "Home/alone/2")
         }
     }
 }

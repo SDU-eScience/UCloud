@@ -6,7 +6,6 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.metadata.api.*
 import dk.sdu.cloud.metadata.services.Project
-import dk.sdu.cloud.metadata.services.ProjectException
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.tryWithProject
 import dk.sdu.cloud.metadata.util.normalize
@@ -15,24 +14,15 @@ import dk.sdu.cloud.storage.api.AnnotateFileRequest
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SyncFileListRequest
-import io.ktor.cio.toByteArray
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import org.slf4j.LoggerFactory
 import java.util.stream.Collectors
 
-// TODO FIXME Move to service-common
-// TODO FIXME Move to service-common
-// TODO FIXME Move to service-common
-interface Controller {
-    val baseContext: String
-    fun configure(routing: Route)
-}
-
 class ProjectsController(
     private val projectEventProducer: ProjectEventProducer,
-    private val projectService: ProjectService
+    private val projectService: ProjectService<*>
 ) : Controller {
     override val baseContext = ProjectDescriptions.baseContext
 
@@ -92,7 +82,7 @@ class ProjectsController(
 
                 // TODO Failure in last part must remove the annotation!
                 log.debug("Creating a project! $currentUser")
-                val project = Project("", request.fsRoot, currentUser, "")
+                val project = Project(null, request.fsRoot, currentUser, "")
                 val id = projectService.createProject(project)
                 val projectWithId = project.copy(id = id)
                 projectEventProducer.emit(ProjectEvent.Created(projectWithId, metadataFiles))

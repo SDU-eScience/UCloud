@@ -50,7 +50,7 @@ class StorageEventProcessor(
     private val projectEvents: ProjectEventConsumer,
 
     private val metadataCommandService: MetadataCommandService,
-    private val projectService: ProjectService,
+    private val projectService: ProjectService<*>,
     private val cloud: AuthenticatedCloud
 ) {
     fun init() {
@@ -111,7 +111,7 @@ class StorageEventProcessor(
                             creators = emptyList(),
                             description = "Project description goes here...",
                             license = null,
-                            id = event.projectId
+                            id = event.projectId.toString()
                         )
                     )
                 }

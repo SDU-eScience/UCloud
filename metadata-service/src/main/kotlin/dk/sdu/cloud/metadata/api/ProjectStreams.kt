@@ -17,16 +17,16 @@ import org.apache.kafka.streams.kstream.KStream
     JsonSubTypes.Type(value = ProjectEvent.Created::class, name = "created")
 )
 sealed class ProjectEvent {
-    abstract val projectId: String
+    abstract val projectId: Long
 
     data class Created(val project: Project, val initialFiles: List<FileDescriptionForMetadata>) : ProjectEvent() {
         override val projectId = project.id!!
     }
 }
 
-typealias ProjectEventProducer = MappedEventProducer<String, ProjectEvent>
-typealias ProjectEventConsumer = KStream<String, ProjectEvent>
+typealias ProjectEventProducer = MappedEventProducer<Long, ProjectEvent>
+typealias ProjectEventConsumer = KStream<Long, ProjectEvent>
 
 object ProjectEvents : KafkaDescriptions() {
-    val events = stream<String, ProjectEvent>("project-events") { it.projectId }
+    val events = stream<Long, ProjectEvent>("project-events") { it.projectId }
 }

@@ -10,6 +10,9 @@ import dk.sdu.cloud.metadata.services.ProjectSQLDao
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.Projects
 import dk.sdu.cloud.metadata.utils.withAuthMock
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
@@ -20,7 +23,6 @@ import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
@@ -50,11 +52,7 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
 
     routing {
         protect()
-        for (controller in controllers) {
-            route(controller.baseContext) {
-                controller.configure(this)
-            }
-        }
+        configureControllers(*controllers)
     }
 }
 
@@ -79,7 +77,7 @@ private fun withDatabase(closure: () -> Unit) {
 
 private fun Application.configureProjectServer(
     producer: ProjectEventProducer = mockk(relaxed = true),
-    projectService: ProjectService = ProjectService(ProjectSQLDao())
+    projectService: ProjectService<*> = ProjectService(FakeDBSessionFactory, ProjectSQLDao())
 ) {
     configureBaseServer(ProjectsController(producer, projectService))
 }

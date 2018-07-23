@@ -18,9 +18,9 @@ sealed class MetadataException : RuntimeException() {
 interface MetadataCommandService {
     fun create(metadata: ProjectMetadata)
 
-    fun update(user: String, projectId: String, metadata: UserEditableProjectMetadata)
+    fun update(user: String, projectId: Long, metadata: UserEditableProjectMetadata)
 
-    fun addFiles(projectId: String, files: Set<FileDescriptionForMetadata>)
+    fun addFiles(projectId: Long, files: Set<FileDescriptionForMetadata>)
 
     /**
      * Removes files from a [ProjectMetadata]
@@ -28,7 +28,7 @@ interface MetadataCommandService {
      * If the [files] contains the [ProjectMetadata.sduCloudRoot] then the [ProjectMetadata] should be deleted, see
      * [delete].
      */
-    fun removeFilesById(projectId: String, files: Set<String>)
+    fun removeFilesById(projectId: Long, files: Set<String>)
 
     /**
      * Update the path of a single file
@@ -36,11 +36,11 @@ interface MetadataCommandService {
      * If the path of the file corresponds to the project root, then the [ProjectMetadata.sduCloudRoot] field should
      * also be updated.
      */
-    fun updatePathOfFile(projectId: String, fileId: String, newPath: String)
+    fun updatePathOfFile(projectId: Long, fileId: String, newPath: String)
 
-    fun removeAllFiles(projectId: String)
+    fun removeAllFiles(projectId: Long)
 
-    fun canEdit(user: String, projectId: String): Boolean
+    fun canEdit(user: String, projectId: Long): Boolean
 
-    fun delete(user: String, projectId: String)
+    fun delete(user: String, projectId: Long)
 }

@@ -23,7 +23,7 @@ interface UserEditableProjectMetadata {
 }
 
 data class ProjectMetadataEditRequest(
-    val id: String,
+    val id: Long,
     override val title: String? = null,
     override val description: String? = null,
     override val license: String? = null,

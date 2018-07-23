@@ -6,6 +6,7 @@ import dk.sdu.cloud.metadata.api.MetadataDescriptions
 import dk.sdu.cloud.metadata.api.MetadataQueryDescriptions
 import dk.sdu.cloud.metadata.api.ProjectMetadataWithRightsInfo
 import dk.sdu.cloud.metadata.services.*
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import io.ktor.http.HttpStatusCode
@@ -17,7 +18,7 @@ class MetadataController(
     private val metadataQueryService: MetadataQueryService,
     private val metadataAdvancedQueryService: MetadataAdvancedQueryService,
 
-    private val projectService: ProjectService // TODO Should not be here
+    private val projectService: ProjectService<*>
 ) : Controller {
     override val baseContext: String = MetadataDescriptions.baseContext
 

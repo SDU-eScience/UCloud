@@ -5,10 +5,12 @@ import com.google.common.net.HostAndPort
 import com.orbitz.consul.Consul
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.metadata.api.MetadataServiceDescription
+import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.*
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import org.jetbrains.exposed.sql.Database
+import org.flywaydb.core.Flyway
 import org.slf4j.LoggerFactory
 
 data class ElasticConfiguration(
@@ -19,7 +21,6 @@ data class ElasticConfiguration(
 
 data class Configuration(
     private val connection: RawConnectionConfig,
-    val database: DatabaseConfiguration,
     val refreshToken: String,
     val elastic: ElasticConfiguration
 
@@ -37,12 +38,16 @@ data class Configuration(
     }
 }
 
+private const val ARG_GENERATE_DDL = "--generate-ddl"
+private const val ARG_MIGRATE = "--migrate"
+
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.metadata.MainKt")
 
 fun main(args: Array<String>) {
     log.info("Starting storage service")
 
-    val configuration = readConfigurationBasedOnArgs<Configuration>(args, MetadataServiceDescription, log = log)
+    val serviceDescription = MetadataServiceDescription
+    val configuration = readConfigurationBasedOnArgs<Configuration>(args, serviceDescription, log = log)
     val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
 
     log.info("Connecting to Service Registry")
@@ -66,15 +71,38 @@ fun main(args: Array<String>) {
 
     log.info("Using engine: ${engine.javaClass.simpleName}")
 
-    log.info("Connected to database")
-    Database.connect(
-        url = configuration.database.url,
-        driver = configuration.database.driver,
+    val jdbcUrl = with(configuration.connConfig.database!!) { postgresJdbcUrl(host, database) }
+    val db = with(configuration.connConfig.database!!) {
+        HibernateSessionFactory.create(
+            HibernateDatabaseConfig(
+                POSTGRES_DRIVER,
+                jdbcUrl,
+                POSTGRES_9_5_DIALECT,
+                username,
+                password,
+                defaultSchema = serviceDescription.name,
+                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.contains(ARG_MIGRATE)
+            )
+        )
+    }
+    log.info("Database initialized")
+    when {
+        args.contains("--generate-ddl") -> {
+            println(db.generateDDL())
+            db.close()
+        }
 
-        user = configuration.database.username,
-        password = configuration.database.password
-    )
-    log.info("Connected!")
+        args.contains("--migrate") -> {
+            val flyway = Flyway()
+            with(configuration.connConfig.database!!) {
+                flyway.setDataSource(jdbcUrl, username, password)
+            }
+            flyway.setSchemas(serviceDescription.name)
+            flyway.migrate()
+        }
 
-    Server(configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
+        else -> {
+            Server(db, configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
+        }
+    }
 }

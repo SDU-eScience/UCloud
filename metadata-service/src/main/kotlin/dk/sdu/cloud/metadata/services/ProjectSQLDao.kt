@@ -23,15 +23,14 @@ class ProjectEntity(id: EntityID<Int>) : IntEntity(id) {
     var description by Projects.description
 
     fun toProject(): Project {
-        return Project(id.value.toString(), fsRoot, owner, description)
+        return Project(id.value.toLong(), fsRoot, owner, description)
     }
 }
 
-class ProjectSQLDao : ProjectDAO {
-    override fun deleteProjectById(id: String) {
-        val convertedId = id.toIntOrNull() ?: throw ProjectException.NotFound()
+class ProjectSQLDao : ProjectDAO<Unit> {
+    override fun deleteProjectById(session: Unit, id: Long) {
         val deleted = transaction {
-            Projects.deleteWhere { Projects.id eq convertedId }
+            Projects.deleteWhere { Projects.id eq id.toInt() }
         }
 
         if (deleted != 1) {
@@ -39,7 +38,7 @@ class ProjectSQLDao : ProjectDAO {
         }
     }
 
-    override fun deleteProjectByRoot(root: String) {
+    override fun deleteProjectByRoot(session: Unit, root: String) {
         val normalizedPath = root.normalize()
         val deleted = transaction {
             Projects.deleteWhere { Projects.fsRoot eq normalizedPath }
@@ -50,8 +49,8 @@ class ProjectSQLDao : ProjectDAO {
         }
     }
 
-    override fun updateProjectRoot(id: String, newRoot: String) {
-        val convertedId = id.toIntOrNull() ?: throw ProjectException.NotFound()
+    override fun updateProjectRoot(session: Unit, id: Long, newRoot: String) {
+        val convertedId = id.toInt()
 
         val updated = transaction {
             Projects.update({ Projects.id eq convertedId }, limit = 1) {
@@ -64,29 +63,29 @@ class ProjectSQLDao : ProjectDAO {
         }
     }
 
-    override fun findByFSRoot(path: String): Project {
+    override fun findByFSRoot(session: Unit, path: String): Project {
         val normalizedPath = path.normalize()
         return transaction {
             ProjectEntity.find { Projects.fsRoot eq normalizedPath }.toList().singleOrNull()?.toProject()
         } ?: throw ProjectException.NotFound()
     }
 
-    override fun findById(id: String): Project? {
-        val convertedId = id.toIntOrNull() ?: return null
+    override fun findById(session: Unit, id: Long): Project? {
+        val convertedId = id.toInt()
         return transaction { ProjectEntity.findById(convertedId)?.toProject() } ?: throw ProjectException.NotFound()
     }
 
-    override fun createProject(project: Project): String {
+    override fun createProject(session: Unit, project: Project): Long {
         return transaction {
             ProjectEntity.new {
                 fsRoot = project.fsRoot
                 description = project.description
                 owner = project.owner
             }
-        }.id.value.toString()
+        }.id.value.toLong()
     }
 
-    override fun findBestMatchingProjectByPath(path: String): Project {
+    override fun findBestMatchingProjectByPath(session: Unit, path: String): Project {
         val normalizedPath = path.normalize()
         return transaction {
             ProjectEntity.wrapRows(
