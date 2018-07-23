@@ -1,17 +1,16 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { failureNotification } from "UtilityFunctions";
 import {
     RECEIVE_APPLICATIONS,
     SET_APPLICATIONS_LOADING,
-    UPDATE_APPLICATIONS
+    UPDATE_APPLICATIONS,
+    APPLICATIONS_ERROR
 } from "./ApplicationsReducer";
-
 import {
     Action,
     SetLoadingAction,
-    Page
+    Page,
+    Error
 } from "Types";
-import { emptyPage } from "DefaultObjects";
 import { Application } from ".."
 
 interface ReceiveApplicationsAction extends Action { page: Page<Application> }
@@ -20,13 +19,15 @@ const receiveApplications = (page: Page<Application>): ReceiveApplicationsAction
     page
 });
 
-export const fetchApplications = (page: number, itemsPerPage: number): Promise<ReceiveApplicationsAction> =>
-    Cloud.get(`/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }: { response: Page<Application> }) => {
-        return receiveApplications(response);
-    }).catch(() => {
-        failureNotification("An error occurred while retrieving applications.")
-        return receiveApplications(emptyPage);
-    });
+export const setErrorMessage = (error?: string): Error => ({
+    type: APPLICATIONS_ERROR,
+    error
+});
+
+export const fetchApplications = (page: number, itemsPerPage: number): Promise<ReceiveApplicationsAction | Error> =>
+    Cloud.get(`/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }: { response: Page<Application> }) => 
+        receiveApplications(response)
+    ).catch(() => setErrorMessage("An error occurred while retrieving applications."));
 
 /**
  * Sets the loading state for the applications component

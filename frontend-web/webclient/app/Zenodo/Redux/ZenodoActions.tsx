@@ -2,10 +2,10 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import {
     RECEIVE_PUBLICATIONS,
     RECEIVE_ZENODO_LOGIN_STATUS,
-    SET_ZENODO_LOADING
+    SET_ZENODO_LOADING,
+    SET_ZENODO_ERROR
 } from "./ZenodoReducer";
-import { SetLoadingAction, ReceivePage, Page } from "Types";
-import { emptyPage } from "DefaultObjects";
+import { SetLoadingAction, ReceivePage, Page, Error } from "Types";
 import { Publication } from "..";
 
 /**
@@ -15,12 +15,15 @@ import { Publication } from "..";
  * @returns {Promise<ReceivePublications>} a promise containing receive publications action
  */
 
-export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePage<Publication>> =>
-    Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) => {
-        return receivePublications(response);
-    }).catch(_ => {
-        return receivePublications(emptyPage);
-    });
+export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePage<Publication> | Error> =>
+    Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) =>
+        receivePublications(response)
+    ).catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching zenodo publications"));
+
+export const setErrorMessage = (type: string, error?: string): Error => ({
+    type,
+    error
+});
 
 export const fetchLoginStatus = () =>
     Cloud.get("/zenodo/status").then(({ response }) => receiveLoginStatus(response.connected));

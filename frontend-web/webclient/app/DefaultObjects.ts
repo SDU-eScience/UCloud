@@ -96,7 +96,6 @@ const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     return sortingColumn;
 };
 
-
 interface ComponentWithPage<T> {
     page: Page<T>
     loading: boolean

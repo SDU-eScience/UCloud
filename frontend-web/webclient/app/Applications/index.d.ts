@@ -20,6 +20,7 @@ export interface Analysis {
 }
 
 export interface ApplicationsOperations {
+    onErrorDismiss: () => void
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchApplications: (a: number, b: number) => void
@@ -29,6 +30,7 @@ export interface ApplicationsOperations {
 export interface ApplicationsStateProps {
     page: Page<Application>
     loading: boolean
+    error?: string
     sortBy: SortBy
     sortOrder: SortOrder
 }
@@ -38,9 +40,11 @@ export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { 
 export interface AnalysesStateProps {
     page: Page<Analysis>
     loading: boolean
+    error?: string
 }
 
 export interface AnalysesOperations {
+    onErrorDismiss: () => void
     updatePageTitle: (title: string) => void
     setLoading: (loading: boolean) => void
     fetchAnalyses: (itemsPerPage: number, pageNumber: number) => void
