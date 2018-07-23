@@ -4,12 +4,9 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.currentUsername
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
-import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.jobId
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.zenodo.api.*
 import dk.sdu.cloud.zenodo.services.PublicationService
 import dk.sdu.cloud.zenodo.services.ZenodoRPCService
@@ -17,14 +14,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 import java.net.URL
-
-// TODO FIXME Move to service-common
-// TODO FIXME Move to service-common
-// TODO FIXME Move to service-common
-interface Controller {
-    val baseContext: String
-    fun configure(routing: Route)
-}
 
 class ZenodoController<DBSession>(
     private val db: DBSessionFactory<DBSession>,

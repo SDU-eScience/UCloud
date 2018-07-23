@@ -17,6 +17,9 @@ import io.ktor.request.httpMethod
 import io.ktor.request.path
 import io.ktor.request.uri
 import io.ktor.response.respond
+import io.ktor.routing.Route
+import io.ktor.routing.Routing
+import io.ktor.routing.route
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.AttributeKey
 import io.ktor.util.toMap
@@ -168,3 +171,16 @@ fun <R : Any> RESTHandler<R, *, *>.logEntry(
 }
 
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
+
+interface Controller {
+    val baseContext: String
+    fun configure(routing: Route)
+}
+
+fun Routing.configureControllers(vararg controllers: Controller) {
+    controllers.forEach {
+        route(it.baseContext) {
+            it.configure(this)
+        }
+    }
+}

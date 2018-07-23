@@ -41,8 +41,6 @@ data class ZenodoUpload(
 
 typealias ZenodoPublicationWithFiles = ZenodoPublication
 
-data class ZenodoPublicationList(val inProgress: Page<ZenodoPublication>)
-
 data class ZenodoListPublicationsRequest(
     override val itemsPerPage: Int?,
     override val page: Int?

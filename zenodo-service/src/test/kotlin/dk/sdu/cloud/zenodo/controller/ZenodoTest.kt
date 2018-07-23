@@ -5,12 +5,9 @@ import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.metadata.utils.withAuthMock
-import dk.sdu.cloud.service.MappedEventProducer
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.FakeDBSessionFactory
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.zenodo.api.*
-import dk.sdu.cloud.zenodo.http.Controller
 import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.services.*
 import io.ktor.application.Application
@@ -45,11 +42,7 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
 
     routing {
         protect()
-        for (controller in controllers) {
-            route(controller.baseContext) {
-                controller.configure(this)
-            }
-        }
+        configureControllers(*controllers)
     }
 }
 

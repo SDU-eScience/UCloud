@@ -8,7 +8,8 @@ import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
 import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
-import dk.sdu.cloud.zenodo.services.*
+import dk.sdu.cloud.zenodo.services.ZenodoOAuth
+import dk.sdu.cloud.zenodo.services.ZenodoRPCService
 import dk.sdu.cloud.zenodo.services.hibernate.PublicationHibernateDAO
 import dk.sdu.cloud.zenodo.services.hibernate.ZenodoOAuthHibernateStateStore
 import io.ktor.application.call
@@ -21,28 +22,26 @@ import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
-import org.apache.kafka.streams.StreamsBuilder
-import org.slf4j.LoggerFactory
-import java.util.concurrent.TimeUnit
+import org.slf4j.Logger
 
 class Server(
     private val db: HibernateSessionFactory,
     private val cloud: AuthenticatedCloud,
-    private val kafka: KafkaServices,
-    private val serviceRegistry: ServiceRegistry,
+    override val kafka: KafkaServices,
+    override val serviceRegistry: ServiceRegistry,
     private val config: Configuration,
     private val ktor: HttpServerProvider
-) {
-    private var initialized = false
+): CommonServer, WithServiceRegistry {
+    override val log: Logger = logger()
+    override val endpoints = listOf("/api/zenodo", "/zenodo/oauth")
 
-    private lateinit var httpServer: ApplicationEngine
-    private lateinit var kStreams: KafkaStreams
+    override lateinit var httpServer: ApplicationEngine
+    override lateinit var kStreams: KafkaStreams
 
-    fun start() {
-        if (initialized) throw IllegalStateException("Already started!")
-
+    override fun start() {
         val instance = ZenodoServiceDescription.instance(config.connConfig)
 
+        log.info("Configuring core services")
         val zenodoOauth = ZenodoOAuth(
             db = db,
             clientSecret = config.zenodo.clientSecret,
@@ -57,26 +56,11 @@ class Server(
         )
 
         val zenodo = ZenodoRPCService(zenodoOauth)
-
         val publicationService = PublicationHibernateDAO()
+        log.info("Core services configured")
 
-        kStreams = run {
-            log.info("Constructing Kafka Streams Topology")
-            val kBuilder = StreamsBuilder()
-
-            log.info("Configuring stream processors...")
+        kStreams = buildStreams { kBuilder ->
             PublishProcessor(db, zenodo, publicationService, cloud.parent).also { it.init(kBuilder) }
-            log.info("Stream processors configured!")
-
-            kafka.build(kBuilder.build()).also {
-                log.info("Kafka Streams Topology successfully built!")
-            }
-        }
-
-        kStreams.setUncaughtExceptionHandler { _, exception ->
-            log.error("Caught fatal exception in Kafka! Stacktrace follows:")
-            log.error(exception.stackTraceToString())
-            stop()
         }
 
         httpServer = ktor {
@@ -96,37 +80,18 @@ class Server(
                     }
                 }
 
-                route("/api/zenodo") {
+                configureControllers(
                     ZenodoController(
                         db,
                         publicationService,
                         zenodo,
                         kafka.producer.forStream(ZenodoCommandStreams.publishCommands)
-                    ).also { it.configure(this) }
-                }
+                    )
+                )
             }
         }
 
-        log.info("Starting HTTP server...")
-        httpServer.start(wait = false)
-        log.info("HTTP server started!")
-
-        log.info("Starting Kafka Streams...")
-        kStreams.start()
-        log.info("Kafka Streams started!")
-
-        initialized = true
-        serviceRegistry.register(listOf("/api/zenodo", "/zenodo/oauth"))
-        log.info("Server is ready!")
-        log.info(instance.toString())
-    }
-
-    fun stop() {
-        httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
-        kStreams.close(30, TimeUnit.SECONDS)
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(Server::class.java)
+        startServices()
+        registerWithRegistry()
     }
 }
