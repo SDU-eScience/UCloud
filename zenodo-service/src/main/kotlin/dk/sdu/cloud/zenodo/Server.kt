@@ -3,7 +3,6 @@ package dk.sdu.cloud.zenodo
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
@@ -11,6 +10,7 @@ import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
 import dk.sdu.cloud.zenodo.services.*
 import dk.sdu.cloud.zenodo.services.hibernate.PublicationHibernateDAO
+import dk.sdu.cloud.zenodo.services.hibernate.ZenodoOAuthHibernateStateStore
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
@@ -44,14 +44,14 @@ class Server(
         val instance = ZenodoServiceDescription.instance(config.connConfig)
 
         val zenodoOauth = ZenodoOAuth(
-            db = FakeDBSessionFactory,
+            db = db,
             clientSecret = config.zenodo.clientSecret,
             clientId = config.zenodo.clientId,
 
             // TODO FIX THIS
             callback = if (config.production) "https://cloud.sdu.dk/zenodo/oauth" else "http://localhost:42250/zenodo/oauth",
 
-            stateStore = InMemoryZenodoOAuthStateStore.load(), // TODO FIX THIS
+            stateStore = ZenodoOAuthHibernateStateStore(),
 
             useSandbox = true // TODO FIX THIS
         )

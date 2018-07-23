@@ -40,7 +40,6 @@ class PublicationHibernateDAO :
         name: String,
         filePaths: Set<String>
     ): Long {
-        // TODO Is this correct? The old implementation would silently discard duplicates
         val filteredFiles = mutableListOf<String>()
         val fileNames = mutableSetOf<String>()
         filePaths.forEach {
@@ -51,12 +50,12 @@ class PublicationHibernateDAO :
             }
         }
 
-        val entity =
-            PublicationEntity(
-                name,
-                user,
-                ZenodoPublicationStatus.PENDING
-            )
+        val entity = PublicationEntity(
+            name,
+            user,
+            ZenodoPublicationStatus.PENDING
+        )
+
         val id = session.save(entity) as Long
 
         filteredFiles.forEach {

@@ -15,7 +15,7 @@ import javax.persistence.Table
 internal data class ZenStateTokenEntity(
     @Id
     @NaturalId
-    var user: String,
+    var owner: String,
 
     var token: String = "",
 
@@ -29,11 +29,11 @@ internal data class ZenStateTokenEntity(
 }
 
 @Entity
-@Table(name = "zeno_oauth_tokens")
+@Table(name = "zen_oauth_tokens")
 internal data class ZenOAuthTokenEntity(
     @Id
     @NaturalId
-    var user: String,
+    var owner: String,
 
     var accessToken: String = "",
 

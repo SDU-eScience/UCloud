@@ -80,7 +80,8 @@ fun main(args: Array<String>) {
                 username,
                 password,
                 defaultSchema = serviceDescription.name,
-                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.contains(ARG_MIGRATE)
+                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.contains(ARG_MIGRATE),
+                showSQLInStdout = true
             )
         )
     }
@@ -102,25 +103,6 @@ fun main(args: Array<String>) {
         }
 
         else -> {
-            if (true) {
-                val dao = PublicationHibernateDAO()
-                val pubId = db.withTransaction {
-                    dao.createUploadForFiles(
-                        it,
-                        "foo",
-                        "foo",
-                        setOf("foo")
-                    )
-                }
-                db.withTransaction {
-                    dao.markUploadAsCompleteInPublication(
-                        it,
-                        pubId,
-                        "foo"
-                    )
-                }
-                return
-            }
             Server(db, cloud, kafka, serviceRegistry, configuration, serverProvider).start()
         }
     }

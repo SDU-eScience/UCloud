@@ -22,7 +22,7 @@ class ZenodoOAuthHibernateStateStore : ZenodoOAuthStateStore<HibernateSession> {
         return session
             .criteria<ZenStateTokenEntity> { entity[ZenStateTokenEntity::token] equal stateToken }
             .uniqueResult()
-            ?.let { it.user to it.returnTo }
+            ?.let { it.owner to it.returnTo }
     }
 
     override fun storeAccessAndRefreshToken(session: HibernateSession, cloudUser: String, token: OAuthTokens) {
@@ -30,6 +30,7 @@ class ZenodoOAuthHibernateStateStore : ZenodoOAuthStateStore<HibernateSession> {
         existing.accessToken = token.accessToken
         existing.refreshToken = token.refreshToken
         existing.expiresAt = Date(token.expiresAt)
+        session.saveOrUpdate(existing)
     }
 
     override fun retrieveCurrentTokenForUser(session: HibernateSession, cloudUser: String): OAuthTokens? {

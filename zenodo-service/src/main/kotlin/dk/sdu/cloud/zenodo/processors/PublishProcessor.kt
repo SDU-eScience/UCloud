@@ -19,6 +19,7 @@ import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.api.ZenodoPublicationStatus
 import dk.sdu.cloud.zenodo.api.ZenodoPublishCommand
+import dk.sdu.cloud.zenodo.services.PublicationException
 import dk.sdu.cloud.zenodo.services.PublicationService
 import dk.sdu.cloud.zenodo.services.ZenodoRPCException
 import dk.sdu.cloud.zenodo.services.ZenodoRPCService
@@ -88,6 +89,21 @@ class PublishProcessor<DBSession>(
                             // TODO We can use ex.message for output to user
                         }
 
+                        is PublicationException -> {
+                            @Suppress("UNUSED_VARIABLE")
+                            val unused = when (ex) {
+                                is PublicationException.NotFound -> {
+                                    log.info("Unable to find publication. Why is this in stream?")
+                                    log.info("Publication was not found for: ${command.publicationId}")
+                                }
+
+                                is PublicationException.NotConnected -> {
+                                    log.info("User was not connected to Zenodo")
+                                    log.info("This happened for: ${command.publicationId}")
+                                }
+                            }
+                        }
+
                         else -> {
                             log.warn("Caught unexpected exception while transferring files to Zenodo")
                             log.warn(ex.stackTraceToString())
@@ -106,7 +122,7 @@ class PublishProcessor<DBSession>(
         cloud: AuthenticatedCloud
     ): List<File> {
         val buffer = ByteArray(4096)
-        return command.request.filePaths.map {
+        return command.request.filePaths.mapNotNull {
             val tokenResponse = AuthDescriptions.requestOneTimeTokenWithAudience.call(
                 RequestOneTimeToken("$DOWNLOAD_FILE_SCOPE,irods"), cloud
             )
@@ -121,6 +137,7 @@ class PublishProcessor<DBSession>(
 
             // This will generate misleading audit trail, unless we get a caused-by header added to it
             val fileDownload = FileDescriptions.download.call(DownloadByURI(it, token.accessToken), cloud)
+            if (fileDownload is RESTResponse.Err) return@mapNotNull null
             val tempFile = Files.createTempFile("zenodo-upload", "").toFile()
             try {
                 tempFile.outputStream().use { out ->
