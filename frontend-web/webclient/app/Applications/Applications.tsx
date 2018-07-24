@@ -13,6 +13,7 @@ import "Styling/Shared.scss";
 import { Page } from "Types";
 import { Application } from "."; 
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
+import { setErrorMessage } from "./Redux/ApplicationsActions";
 
 class Applications extends React.Component<ApplicationsProps> {
     constructor(props: ApplicationsProps) {
@@ -23,13 +24,15 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 
     render() {
-        const { page, loading, fetchApplications } = this.props;
+        const { page, loading, fetchApplications, onErrorDismiss, error } = this.props;
 
         return (
             <React.Fragment>
                 <Pagination.List
                     loading={loading}
-                    onRefreshClick={() => this.props.fetchApplications(page.pageNumber, page.itemsPerPage)}
+                    onErrorDismiss={onErrorDismiss}
+                    errorMessage={error}
+                    onRefreshClick={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={(page: Page<Application>) =>
                         (<Table basic="very">
                             <Table.Header>
@@ -50,7 +53,6 @@ class Applications extends React.Component<ApplicationsProps> {
                     onItemsPerPageChanged={(size) => fetchApplications(0, size)}
                     onPageChanged={(pageNumber) => fetchApplications(pageNumber, page.itemsPerPage)}
                     onRefresh={() => null}
-                    onErrorDismiss={() => null}
                 />
             </React.Fragment>);
     }
@@ -81,6 +83,7 @@ const SingleApplication = ({ app }: { app: Application }) => {
 };
 
 const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
+    onErrorDismiss: () => dispatch(setErrorMessage()),
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
     fetchApplications: (pageNumber: number, itemsPerPage: number) => dispatch(fetchApplications(pageNumber, itemsPerPage)),

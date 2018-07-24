@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { NotConnectedToZenodo } from "ZenodoPublishingUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { fetchPublications, setZenodoLoading } from "./Redux/ZenodoActions";
+import { fetchPublications, setZenodoLoading, setErrorMessage } from "./Redux/ZenodoActions";
+import { SET_ZENODO_ERROR } from "./Redux/ZenodoReducer";
 import { connect } from "react-redux";
 import { dateToString } from "Utilities/DateUtilities";
 import { List } from "Pagination/List";
@@ -25,7 +26,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     }
 
     render() {
-        const { connected, loading, fetchPublications, page } = this.props;
+        const { connected, loading, fetchPublications, page, error, onErrorDismiss } = this.props;
         if (!connected && !loading) {
             return (<NotConnectedToZenodo />);
         } else {
@@ -57,6 +58,8 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                             <List
                                 onRefreshClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
                                 loading={loading}
+                                errorMessage={error}
+                                onErrorDismiss={onErrorDismiss}
                                 customEmptyPage={<Header.Subheader content="No Zenodo publications found." />}
                                 pageRenderer={(page) => (
                                     <Table basic="very">
@@ -118,7 +121,9 @@ const PublicationRow = ({ publication }) => {
         </Table.Row>);
 }
 
+// FIXME: Missing TYPE!
 const mapDispatchToProps = (dispatch) => ({
+    onErrorDismiss: () => dispatch(setErrorMessage(SET_ZENODO_ERROR, null)),
     fetchPublications: (pageNo, pageSize) => {
         dispatch(setZenodoLoading(true));
         dispatch(fetchPublications(pageNo, pageSize))

@@ -26,5 +26,6 @@ export interface DropdownOption {
 }
 
 export type Action = { type: String }
+export interface Error extends Action { error?: string }
 export interface SetLoadingAction extends Action { loading: boolean }
 export interface ReceivePage<T> extends Action { page: Page<T> }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Container, Header, List, Table, Progress } from "semantic-ui-react";
+import { Container, Header, List, Table, Progress, Message } from "semantic-ui-react";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
@@ -14,12 +14,24 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
     constructor(props: ZenodoInfoProps) {
         super(props);
         this.state = {
+            error: null,
             promises: new PromiseKeeper(),
             loading: true,
             publicationID: decodeURIComponent(props.match.params.jobID),
             publication: null,
             intervalId: -1
         };
+    }
+
+    onErrorDismiss = (): void => {
+        this.setState(() => ({ error: null }));
+    }
+
+    setErrorMessage = (jobID: string): void => {
+        this.setState(() => ({
+            error: `An error occured fetching publication ${jobID}`,
+            loading: false
+        }));
     }
 
     componentWillMount() {
@@ -39,7 +51,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
                 if (isTerminal(response.status)) {
                     window.clearInterval(this.state.intervalId);
                 }
-            });
+            }).catch(_ => this.setErrorMessage(this.state.publicationID));
     }
 
     componentWillUnmount() {
@@ -53,6 +65,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
         } else {
             return (
                 <Container className="container-margin">
+                    <ErrorMessage error={this.state.error} onDismiss={this.onErrorDismiss} />
                     <ZenodoPublishingBody publication={this.state.publication} />
                 </Container>
             );
@@ -60,7 +73,12 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
     }
 }
 
+const ErrorMessage = ({ error, onDismiss }) => error !== null ? (
+    <Message content={error} negative onDismiss={onDismiss} />
+) : null;
+
 const ZenodoPublishingBody = ({ publication }) => {
+    if (publication == null) return null;
     const { uploads } = publication;
     let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
     return (

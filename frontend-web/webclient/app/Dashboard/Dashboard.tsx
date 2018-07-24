@@ -5,13 +5,18 @@ import { Link } from "react-router-dom";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath, shortenString } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites } from "./Redux/DashboardActions";
+import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
 import "./Dashboard.scss";
 import "Styling/Shared.scss";
-import { Card, List, Icon } from "semantic-ui-react";
+import { Card, List, Icon, Message } from "semantic-ui-react";
 import * as moment from "moment";
 import { FileIcon } from "UtilityComponents";
+import {
+    DASHBOARD_FAVORITE_ERROR,
+    DASHBOARD_RECENT_ANALYSES_ERROR,
+    DASHBOARD_RECENT_FILES_ERROR
+} from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 
 class Dashboard extends React.Component<DashboardProps> {
@@ -28,15 +33,20 @@ class Dashboard extends React.Component<DashboardProps> {
     }
 
     render() {
-        const { favoriteFiles, recentFiles, recentAnalyses, notifications,
-            favoriteLoading, recentLoading, analysesLoading } = this.props;
+        const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
+            analysesLoading, favoriteError, recentFilesError, recentAnalysesError, errorDismissFavorites,
+            errorDismissRecentAnalyses, errorDismissRecentFiles } = this.props;
         favoriteFiles.forEach((f) => f.favorited = true);
         const favoriteOrUnfavorite = (file) => {
             favoriteFile(file, Cloud);
             this.props.receiveFavorites(favoriteFiles.filter(f => f.favorited));
         };
+
         return (
             <React.StrictMode>
+                <ErrorMessage error={favoriteError} onDismiss={errorDismissFavorites} />
+                <ErrorMessage error={recentFilesError} onDismiss={errorDismissRecentFiles} />
+                <ErrorMessage error={recentAnalysesError} onDismiss={errorDismissRecentAnalyses} />
                 <Card.Group className="mobile-padding">
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
@@ -175,10 +185,16 @@ const Notification = ({ notification }) => {
     }
 };
 
-const statusToIconName = (status) => status === "SUCCESS" ? "check" : "x";
-const statusToColor = (status) => status === "SUCCESS" ? "green" : "red";
+const statusToIconName = (status: string) => status === "SUCCESS" ? "check" : "x";
+const statusToColor = (status: string) => status === "SUCCESS" ? "green" : "red";
+
+const ErrorMessage = ({ error, onDismiss }) => error !== null ?
+    (<Message content={error} onDismiss={onDismiss} negative />) : null;
 
 const mapDispatchToProps = (dispatch): DashboardOperations => ({
+    errorDismissFavorites: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, null)),
+    errorDismissRecentAnalyses: () => dispatch(setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, null)),
+    errorDismissRecentFiles: () => dispatch(setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, null)),
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
     setAllLoading: (loading) => dispatch(setAllLoading(loading)),
     fetchFavorites: () => dispatch(fetchFavorites()),
@@ -190,15 +206,21 @@ const mapDispatchToProps = (dispatch): DashboardOperations => ({
 const mapStateToProps = (state): DashboardStateProps => {
     const {
         favoriteFiles,
+        favoriteError,
         recentFiles,
+        recentFilesError,
         recentAnalyses,
+        recentAnalysesError,
         favoriteLoading,
         recentLoading,
         analysesLoading,
     } = state.dashboard;
     return {
+        favoriteError,
         favoriteFiles,
+        recentFilesError,
         recentFiles,
+        recentAnalysesError,
         recentAnalyses,
         favoriteLoading,
         recentLoading,

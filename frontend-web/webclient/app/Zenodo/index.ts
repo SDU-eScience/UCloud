@@ -26,6 +26,7 @@ interface Upload {
 }
 
 export interface ZenodoInfoState {
+    error?: string
     promises: PromiseKeeper
     loading: boolean
     publicationID: string
@@ -39,9 +40,11 @@ export type ZenodoInfoProps = {
 
 
 export interface ZenodoHomeProps {
+    error?: string
     connected: boolean
     loading: boolean
     page: Page<Publication>
+    onErrorDismiss: () => void
     fetchPublications: (pageNo: Number, pageSize: number) => void
     updatePageTitle: () => void
 }

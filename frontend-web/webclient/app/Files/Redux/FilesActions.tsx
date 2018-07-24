@@ -16,9 +16,8 @@ import {
     FILES_ERROR
 } from "./FilesReducer";
 import { failureNotification, getFilenameFromPath, replaceHomeFolder } from "UtilityFunctions";
-import { Page, ReceivePage, SetLoadingAction, Action } from "Types";
+import { Page, ReceivePage, SetLoadingAction, Action, Error } from "Types";
 import { SortOrder, SortBy, File } from "..";
-import { emptyPage } from "DefaultObjects";
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -27,7 +26,7 @@ import { emptyPage } from "DefaultObjects";
 * @param {number} itemsPerPage number of items to be fetched
 * @param {Page<File>} page number of the page to be fetched
 */
-export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | ErrorMessage> =>
+export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
     Cloud.get(`files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`).then(({ response }) =>
         receiveFiles(response, path, order, sortBy)
     ).catch(() =>
@@ -35,8 +34,7 @@ export const fetchFiles = (path: string, itemsPerPage: number, page: number, ord
     );
 
 
-interface ErrorMessage extends Action { error: string }
-export const setErrorMessage = (error?: string): ErrorMessage => ({
+export const setErrorMessage = (error?: string): Error => ({
     type: FILES_ERROR,
     error
 })

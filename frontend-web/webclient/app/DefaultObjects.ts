@@ -96,7 +96,6 @@ const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     return sortingColumn;
 };
 
-
 interface ComponentWithPage<T> {
     page: Page<T>
     loading: boolean
@@ -107,7 +106,9 @@ interface DashboardReduxObject {
     favoriteFiles, recentFiles: File[]
     recentAnalyses: Analysis[]
     activity: any[]
-    error?: string
+    favoriteError?: string
+    recentFilesError?: string
+    recentAnalysesError?: string
     favoriteLoading, recentLoading, analysesLoading, activityLoading: boolean
 }
 
@@ -166,7 +167,9 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         recentLoading: false,
         analysesLoading: false,
         activityLoading: false,
-        error: null
+        favoriteError: null,
+        recentFilesError: null,
+        recentAnalysesError: null
     },
     files: {
         creatingFolder: false,

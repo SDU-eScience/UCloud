@@ -1,7 +1,6 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { failureNotification } from "UtilityFunctions";
-import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES } from "./AnalysesReducer";
-import { Page, ReceivePage, SetLoadingAction } from "Types";
+import { SET_ANALYSES_LOADING, RECEIVE_ANALYSES, SET_ANALYSES_ERROR } from "./AnalysesReducer";
+import { Page, ReceivePage, SetLoadingAction, Error } from "Types";
 import { Analysis } from "..";
 
 /**
@@ -9,12 +8,11 @@ import { Analysis } from "..";
  * @param {number} itemsPerPage number of items the retrieved page should contain
  * @param {number} page the page number to be retrieved
  */
-export const fetchAnalyses = (itemsPerPage: number, page: number): Promise<ReceivePage<Analysis> | SetLoadingAction> =>
+export const fetchAnalyses = (itemsPerPage: number, page: number): Promise<ReceivePage<Analysis> | Error> =>
     Cloud.get(`/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`)
-        .then(({ response }) => receiveAnalyses(response)).catch(() => {
-            failureNotification("Retrieval of analyses failed, please try again later.");
-            return setLoading(false);
-        });
+        .then(({ response }) => receiveAnalyses(response)).catch(() =>
+            setErrorMessage("Retrieval of analyses failed, please try again later.")
+        );
 
 /**
  * Returns an action containing the page retrieved
@@ -23,6 +21,11 @@ export const fetchAnalyses = (itemsPerPage: number, page: number): Promise<Recei
 const receiveAnalyses = (page: Page<Analysis>): ReceivePage<Analysis> => ({
     type: RECEIVE_ANALYSES,
     page
+});
+
+export const setErrorMessage = (error?: string): Error => ({
+    type: SET_ANALYSES_ERROR,
+    error
 });
 
 /**

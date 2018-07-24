@@ -1,8 +1,15 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { SET_ALL_LOADING, RECEIVE_FAVORITES, RECEIVE_RECENT_ANALYSES, RECEIVE_RECENT_FILES } from "./DashboardReducer";
-import { failureNotification } from "UtilityFunctions";
-import { SetLoadingAction, Action } from "Types";
-import { Analysis } from "Applications"; 
+import {
+    SET_ALL_LOADING,
+    RECEIVE_FAVORITES,
+    RECEIVE_RECENT_ANALYSES, 
+    RECEIVE_RECENT_FILES,
+    DASHBOARD_FAVORITE_ERROR,
+    DASHBOARD_RECENT_ANALYSES_ERROR,
+    DASHBOARD_RECENT_FILES_ERROR
+} from "./DashboardReducer";
+import { SetLoadingAction, Action, Error } from "Types";
+import { Analysis } from "Applications";
 import { File } from "Files";
 
 interface Fetch<T> extends Action { content: T[] }
@@ -15,16 +22,18 @@ export const setAllLoading = (loading: boolean): SetLoadingAction => ({
     loading
 });
 
+export const setErrorMessage = (type: string, error?: string): Error => ({
+    type,
+    error
+});
+
 /**
  * Fetches the contents of the favorites folder and provides the initial 10 items
  */
-export const fetchFavorites = (): Promise<Fetch<File>> =>
+export const fetchFavorites = (): Promise<Fetch<File> | Error> =>
     Cloud.get(`/files?path=${Cloud.homeFolder}Favorites`).then(({ response }) =>
         receiveFavorites(response.items.slice(0, 10))
-    ).catch(() => {
-        failureNotification("Failed to fetch favorites. Please try again later.")
-        return receiveFavorites([])
-    });
+    ).catch(() => setErrorMessage(DASHBOARD_FAVORITE_ERROR, "Failed to fetch favorites. Please try again later."));
 
 /**
  * Returns an action containing favorites
@@ -39,13 +48,10 @@ export const receiveFavorites = (content: File[]): Fetch<File> => ({
  * Fetches the contents of the users homefolder and returns 10 of them.
  */
 // FIXME Should limit to ten items, should sort by modified_at, desc
-export const fetchRecentFiles = (): Promise<Fetch<File>> =>
+export const fetchRecentFiles = (): Promise<Fetch<File> | Error> =>
     Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) =>
         receiveRecentFiles(response.items.slice(0, 10))
-    ).catch(() => {
-        failureNotification("Failed to fetch recent files. Please try again later.");
-        return receiveRecentFiles([]);
-    });
+    ).catch(() => setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, "Failed to fetch recent files. Please try again later."));
 
 /**
 * Returns an action containing recently used files
@@ -59,13 +65,10 @@ const receiveRecentFiles = (content: File[]): Fetch<File> => ({
 /**
  * Fetches the 10 latest updated analyses
  */
-export const fetchRecentAnalyses = (): Promise<Fetch<Analysis>> =>
+export const fetchRecentAnalyses = (): Promise<Fetch<Analysis> | Error> =>
     Cloud.get(`/hpc/jobs/?itemsPerPage=${10}&page=${0}`).then(({ response }) =>
         receiveRecentAnalyses(response.items)
-    ).catch(() => {
-        failureNotification("Failed to fetch recent analyses. Please try again later.")
-        return receiveRecentAnalyses([]);
-    });
+    ).catch(() => setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, "Failed to fetch recent analyses. Please try again later."));
 
 /**
 * Returns an action containing most recently updated analyses
