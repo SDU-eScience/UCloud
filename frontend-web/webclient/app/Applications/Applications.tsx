@@ -66,7 +66,7 @@ function SingleApplication({ app }: SingleApplicationProps) {
     const mClength = materialcolors[color].length;
     const hex = materialcolors[color][(hashCode % mClength)];
     const even = app.modifiedAt % 2 === 0;
-    const opacity = even ? 0.3 : 1
+    const opacity = even ? 0.3 : 1;
     const image = even ? blurOverlay : `https://placekitten.com/${i % 2 === 0 ? "g" : ""}/${200 + i++}/200`;
     return (
         <Card>
@@ -86,7 +86,6 @@ function SingleApplication({ app }: SingleApplicationProps) {
             <Card.Content>
                 <Card.Header content={app.description.info.name} />
                 <Card.Meta content={app.description.info.version} />
-                <Card.Description>Matthew is a musician living in Nashville.</Card.Description>
             </Card.Content>
             <Card.Content extra>
                 <Button.Group>
