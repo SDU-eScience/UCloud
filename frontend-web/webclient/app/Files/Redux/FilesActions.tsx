@@ -114,6 +114,8 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
     path
 });
 
+
+// TODO/FIXME: Set error message for file selector. Note: should 
 export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Action> =>
     Cloud.get(`files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`)
         .then(({ response }) => receiveFiles(response, path, order, sortBy)).catch(() => {
@@ -128,7 +130,7 @@ export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage:
         return receiveFileSelectorFiles(response, path);
     }).catch(() => {
         failureNotification("An error occurred when fetching files for fileselection");
-        return { type: "ERROR" }; // FIXME Will end up in default. Should have case for this
+        return { type: "ERROR" };
     });
 
 /**

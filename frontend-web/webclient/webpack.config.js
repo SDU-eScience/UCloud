@@ -5,8 +5,6 @@ const path = require('path');
 //var baseHref = process.env.REACT_BASE_HREF ? process.env.REACT_BASE_HREF : '/';
 const baseHref = "/app";
 
-console.log(`dirname: ${__dirname}`);
-
 module.exports = {
 
     entry: {
@@ -17,7 +15,7 @@ module.exports = {
     resolve: {
         //root: path.join(__dirname, ''),
         modules: [path.resolve(__dirname, "app"), "node_modules"],
-        extensions: ['.js', '.jsx', ".json", ".ts", ".tsx"]
+        extensions: [".js", ".jsx", ".json", ".ts", ".tsx"]
     },
 
     module: {
@@ -47,10 +45,10 @@ module.exports = {
             },
             {
                 test: /\.(woff|woff2|svg|eot|ttf)/,
-                use: 'url-loader?prefix=font/&limit=10000'
+                use: "url-loader?prefix=font/&limit=10000"
             }, {
                 test: /\.(png|jpg|gif)$/,
-                use: 'url-loader?limit=10000'
+                use: "url-loader?limit=10000"
             }, {
                 test: /\.scss$/,
                 use: [

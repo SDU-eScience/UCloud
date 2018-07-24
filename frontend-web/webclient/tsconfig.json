@@ -1,11 +1,13 @@
 {
     "compilerOptions": {
         "outDir": "./dist/",
+        "resolveJsonModule": true,
         "alwaysStrict": true,
         "noImplicitAny": false,
         "module": "es6",
         "target": "es6",
         "jsx": "react",
+        "pretty": true,
         "allowJs": true,
         "moduleResolution": "node",
         "sourceMap": true,

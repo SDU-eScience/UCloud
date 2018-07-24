@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Table, Button } from "semantic-ui-react";
+import { Card, Button } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -11,9 +11,17 @@ import {
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
 import { Page } from "Types";
-import { Application } from "."; 
+import { Application } from ".";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
+import materialcolors from "Assets/TempMaterialColors";
+import { infoNotification } from "UtilityFunctions";
+
+const COLORS_KEYS = Object.keys(materialcolors);
+
+// We need dynamic import due to nature of the import
+const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
+
 
 class Applications extends React.Component<ApplicationsProps> {
     constructor(props: ApplicationsProps) {
@@ -33,21 +41,12 @@ class Applications extends React.Component<ApplicationsProps> {
                     onErrorDismiss={onErrorDismiss}
                     errorMessage={error}
                     onRefreshClick={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
-                    pageRenderer={(page: Page<Application>) =>
-                        (<Table basic="very">
-                            <Table.Header>
-                                <Table.Row>
-                                    <Table.HeaderCell>
-                                        Application Name
-                                    </Table.HeaderCell>
-                                    <Table.HeaderCell>
-                                        Version
-                                    </Table.HeaderCell>
-                                    <Table.HeaderCell />
-                                </Table.Row>
-                            </Table.Header>
-                            <ApplicationsList applications={page.items} />
-                        </Table>)
+                    pageRenderer={({ items }: Page<Application>) =>
+                        <Card.Group>
+                            {items.map((app, index) =>
+                                <SingleApplication key={index} app={app} />
+                            )}
+                        </Card.Group>
                     }
                     page={page}
                     onItemsPerPageChanged={(size) => fetchApplications(0, size)}
@@ -58,29 +57,70 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 }
 
-const ApplicationsList = ({ applications }: { applications: Application[] }) => {
-    let applicationsList = applications.map((app, index) =>
-        <SingleApplication key={index} app={app} />
-    );
+// FIXME: Entirely for kitten related images
+let i = 0;
+interface SingleApplicationProps { app: Application }
+function SingleApplication({ app }: SingleApplicationProps) {
+    const hashCode = toHashCode(app.description.info.name);
+    const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
+    const mClength = materialcolors[color].length;
+    const hex = materialcolors[color][(hashCode % mClength)];
+    const even = app.modifiedAt % 2 === 0;
+    const opacity = even ? 0.3 : 1
+    const image = even ? blurOverlay : `https://placekitten.com/${i % 2 === 0 ? "g" : ""}/${200 + i++}/200`;
     return (
-        <Table.Body>
-            {applicationsList}
-        </Table.Body>)
-};
+        <Card>
+            <div style={{
+                background: hex
+            }}>
+                <div style={{
+                    opacity: opacity,
+                    width: "100%",
+                    height: "200px",
+                    backgroundImage: `url('${image}')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center"
+                }} />
+            </div>
 
-const SingleApplication = ({ app }: { app: Application }) => {
-    return (
-        <Table.Row>
-            <Table.Cell title={app.description.description}>{app.description.title}</Table.Cell>
-            <Table.Cell title={app.description.description}>{app.description.info.version}</Table.Cell>
-            <Table.Cell>
-                <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
-                    <Button>Run</Button>
-                </Link>
-            </Table.Cell>
-        </Table.Row>
-    )
-};
+            <Card.Content>
+                <Card.Header content={app.description.info.name} />
+                <Card.Meta content={app.description.info.version} />
+                <Card.Description>Matthew is a musician living in Nashville.</Card.Description>
+            </Card.Content>
+            <Card.Content extra>
+                <Button.Group>
+                    <Button
+                        content="Run app"
+                        color="green"
+                        basic fluid
+                        as={Link}
+                        to={`/applications/${app.description.info.name}/${app.description.info.version}/`}
+                    />
+                    <Button
+                        basic
+                        content="Details"
+                        color="blue"
+                        onClick={() => infoNotification("Note: Not implemented yet.")}
+                    />
+                </Button.Group>
+            </Card.Content>
+        </Card>
+    );
+}
+
+function toHashCode(name: string) {
+    var hash = 0;
+    if (name.length == 0) {
+        return hash;
+    }
+    for (var i = 0; i < name.length; i++) {
+        var char = name.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+}
 
 const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage()),
