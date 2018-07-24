@@ -14,6 +14,7 @@ class FileRow(
     private val _group: String?,
     private val _timestamps: Timestamps?,
     private val _path: String?,
+    private val _rawPath: String?,
     private val _inode: String?,
     private val _size: Long?,
     private val _shares: List<AccessEntry>?,
@@ -30,6 +31,7 @@ class FileRow(
     val group: String get() = _group!!
     val timestamps: Timestamps get() = _timestamps!!
     val path: String get() = _path!!
+    val rawPath: String get() = _rawPath!!
     val inode: String get() = _inode!!
     val size: Long get() = _size!!
     val shares: List<AccessEntry> get() = _shares!!
@@ -59,6 +61,7 @@ class FileRow(
             _group,
             _timestamps,
             _path?.let(pathConverter),
+            _rawPath?.let(pathConverter),
             _inode,
             _size,
             _shares?.let { normalizeShares(it) },

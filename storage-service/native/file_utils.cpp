@@ -121,3 +121,35 @@ bool std_ends_with(const std::string &str, const std::string &suffix) {
 bool std_starts_with(const std::string &str, const std::string &prefix) {
     return str.size() >= prefix.size() && 0 == str.compare(0, prefix.size(), prefix);
 }
+
+std::string parent_path(const std::string &path) {
+    auto cleaned = remove_trailing_slashes(path);
+    size_t i = cleaned.find_last_of('/');
+    if (i == std::string::npos) {
+        return cleaned;
+    }
+
+    return cleaned.substr(0, i);
+}
+
+std::string remove_trailing_slashes(const std::string &path) {
+    if (std_ends_with(path, "/")) return remove_trailing_slashes(path.substr(0, path.size() - 1));
+    return path;
+}
+
+std::string add_trailing_slash(const std::string &path) {
+    if (!std_ends_with(path, "/")) {
+        return path + "/";
+    }
+    return path;
+}
+
+std::string file_name(const std::string &path) {
+    auto cleaned = remove_trailing_slashes(path);
+    size_t i = cleaned.find_last_of('/');
+    if (i == std::string::npos || i == cleaned.size() - 1) {
+        return cleaned;
+    }
+
+    return cleaned.substr(i + 1);
+}

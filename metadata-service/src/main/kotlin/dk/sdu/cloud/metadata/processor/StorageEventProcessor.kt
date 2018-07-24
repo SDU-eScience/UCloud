@@ -1,7 +1,6 @@
 package dk.sdu.cloud.metadata.processor
 
 import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.metadata.api.FileDescriptionForMetadata
 import dk.sdu.cloud.metadata.api.ProjectEvent
 import dk.sdu.cloud.metadata.api.ProjectEventConsumer
@@ -10,10 +9,7 @@ import dk.sdu.cloud.metadata.services.MetadataCommandService
 import dk.sdu.cloud.metadata.services.Project
 import dk.sdu.cloud.metadata.services.ProjectException
 import dk.sdu.cloud.metadata.services.ProjectService
-import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.MarkFileAsOpenAccessRequest
 import dk.sdu.cloud.storage.api.StorageEvent
-import kotlinx.coroutines.experimental.runBlocking
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.KStream
 import org.slf4j.LoggerFactory
@@ -65,7 +61,7 @@ class StorageEventProcessor(
                     event.path
                 }
 
-                try{
+                try {
                     val project = projectService.findBestMatchingProjectByPath(path)
                     Pair(event, project)
                 } catch (e: ProjectException.NotFound) {
@@ -82,7 +78,7 @@ class StorageEventProcessor(
                     is StorageEvent.CreatedOrModified -> {
                         metadataCommandService.addFiles(
                             projectId,
-                            setOf(FileDescriptionForMetadata(event.id, event.type, event.path))
+                            setOf(FileDescriptionForMetadata(event.id, event.fileType, event.path))
                         )
                     }
 

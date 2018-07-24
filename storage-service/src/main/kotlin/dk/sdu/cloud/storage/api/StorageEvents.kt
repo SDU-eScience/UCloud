@@ -68,7 +68,7 @@ sealed class StorageEvent {
         override val path: String,
         override val owner: String,
         override val timestamp: Long,
-        val type: FileType
+        val fileType: FileType
     ) : StorageEvent()
 
     /**

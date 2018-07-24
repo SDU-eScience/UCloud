@@ -39,8 +39,8 @@ print_type_and_link_status(std::ostream &stream, const char *path, const struct 
         if (resolve_link(path, &link)) {
             file_type = link.type;
         } else {
-            fprintf(stderr, "Could not resolve file %s\n", path);
-            return -1;
+            // Dead link (will, for example, occur if the link has already been deleted)
+            file_type = 'L';
         }
     } else {
         fprintf(stderr, "Unsupported file at %s. Mode is %d\n", path, st_mode);
@@ -77,7 +77,19 @@ static void print_basic(std::ostream &stream, const char *path, const struct sta
         EMIT_STAT(stat_inp->st_ctime);
     }
 
-    EMIT(PATH, path);
+    if ((mode & PATH) != 0) {
+        auto parent = parent_path(path);
+        auto resolved_parent = realpath(parent.c_str(), nullptr);
+        if (resolved_parent == nullptr) FATAL("resolved_parent == nullptr")
+        std::stringstream resolved_stream;
+        resolved_stream << resolved_parent << '/' << file_name(path);
+        auto resolved_path = resolved_stream.str();
+
+        EMIT_STAT(resolved_path.c_str());
+        free(resolved_parent);
+    }
+
+    EMIT(RAW_PATH, path);
     EMIT(INODE, stat_inp->st_ino);
     EMIT(SIZE, stat_inp->st_size);
 }

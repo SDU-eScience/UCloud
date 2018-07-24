@@ -92,18 +92,6 @@ static int last_index_of(const char *haystack, char needle) {
     return result;
 }
 
-static std::string remove_trailing_slashes(const std::string &path) {
-    if (std_ends_with(path, "/")) return remove_trailing_slashes(path.substr(0, path.size() - 1));
-    return path;
-}
-
-static std::string add_trailing_slash(const std::string &path) {
-    if (!std_ends_with(path, "/")) {
-        return path + "/";
-    }
-    return path;
-}
-
 int
 copy_command_impl(std::ostream &stream, const std::string &from_inp, const std::string &to_inp, bool allow_overwrite) {
     std::cerr << "Copying file: " << from_inp << " -> " << to_inp << std::endl;

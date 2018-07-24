@@ -38,6 +38,7 @@ internal fun FileAttribute.Companion.rawParse(
         var group: String? = null
         var timestamps: Timestamps? = null
         var path: String? = null
+        var rawPath: String? = null
         var inode: String? = null
         var size: Long? = null
         var shares: List<AccessEntry>? = null
@@ -63,6 +64,7 @@ internal fun FileAttribute.Companion.rawParse(
                     fileType = when (currentLine) {
                         "F" -> FileType.FILE
                         "D" -> FileType.DIRECTORY
+                        "L" -> FileType.LINK
                         else -> parsingError("$currentLine is to a recognized file type!")
                     }
                 }
@@ -92,6 +94,8 @@ internal fun FileAttribute.Companion.rawParse(
                 }
 
                 FileAttribute.PATH -> path = currentLine
+
+                FileAttribute.RAW_PATH -> rawPath = currentLine
 
                 FileAttribute.INODE -> inode = currentLine
 
@@ -148,6 +152,7 @@ internal fun FileAttribute.Companion.rawParse(
                     group,
                     timestamps,
                     path,
+                    rawPath,
                     inode,
                     size,
                     shares,

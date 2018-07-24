@@ -172,7 +172,7 @@ class FilesController<Ctx : FSUserContext>(
                     FileAttribute.TIMESTAMPS,
                     FileAttribute.INODE,
                     FileAttribute.CHECKSUM,
-                    FileAttribute.PATH
+                    FileAttribute.RAW_PATH
                 )
 
                 tryWithFS(commandRunnerFactory, call.request.currentUsername) {
@@ -199,7 +199,7 @@ class FilesController<Ctx : FSUserContext>(
                                 }
 
                                 // Must be last entry (path may contain commas)
-                                append(it.path)
+                                append(it.rawPath)
                                 append('\n')
 
                                 toString()

@@ -47,10 +47,6 @@ class CephFileSystem(
 
         val fromStat = stat(ctx, from, setOf(FileAttribute.FILE_TYPE))
         if (fromStat.statusCode != 0) return FSResult(fromStat.statusCode)
-        val fromType = fromStat.value.fileType
-
-        val fromNormalized = from.normalize()
-        val toNormalized = to.normalize()
 
         val timestamp = System.currentTimeMillis()
 
@@ -61,18 +57,22 @@ class CephFileSystem(
             if (allowOverwrite) "1" else "0",
 
             consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), MOVED_ATTRIBUTES).asFSResult {
-                    val oldPath =
-                        if (fromType == FileType.DIRECTORY) {
-                            it.path.removePrefix(fromNormalized).removePrefix("/").let {
-                                joinPath(
-                                    toNormalized,
-                                    it
-                                )
-                            }
-                        } else {
-                            toNormalized
-                        }
+                val toList = it.stdoutLineSequence().toList()
+                val sequence = toList.iterator()
+                val realFrom = sequence.next()
+                    .takeIf { !it.startsWith(EXIT) }
+                    ?.toCloudPath() ?: return@runCommand FSResult(-2)
+
+                val realTo = sequence.next().toCloudPath()
+
+                parseFileAttributes(sequence, MOVED_ATTRIBUTES).asFSResult {
+                    assert(it.path.startsWith(realTo))
+                    val basePath = it.path.removePrefix(realTo).removePrefix("/")
+                    val oldPath = if (fromStat.value.fileType == FileType.DIRECTORY) {
+                        joinPath(realFrom, basePath)
+                    } else {
+                        realFrom
+                    }
 
                     StorageEvent.Moved(it.inode, it.path, it.owner, timestamp, oldPath)
                 }
@@ -374,7 +374,7 @@ class CephFileSystem(
             id = it.inode,
             path = it.path,
             owner = it.owner,
-            type = it.fileType,
+            fileType = it.fileType,
             timestamp = it.timestamps.modified
         )
     }
