@@ -31,9 +31,9 @@
     "eslint-scope": "3.7.1"
   },
   "dependencies": {
-    "@types/react": "^16.4.6",
+    "@types/react": "^16.4.7",
     "@types/react-dom": "^16.0.6",
-    "@types/react-redux": "^6.0.4",
+    "@types/react-redux": "^6.0.5",
     "@types/react-router": "^4.0.29",
     "@types/react-router-dom": "^4.3.0",
     "avataaars": "^1.1.0",
@@ -89,7 +89,7 @@
     "typescript": "2.9.2",
     "uglifyjs-webpack-plugin": "^1.2.7",
     "url-loader": "1.0.1",
-    "webpack": "4.16.1",
+    "webpack": "4.16.2",
     "webpack-cli": "^3.1.0",
     "webpack-dev-server": "3.1.5",
     "webpack-merge": "4.1.3"
