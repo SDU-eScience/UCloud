@@ -64,6 +64,7 @@ internal fun FileAttribute.Companion.rawParse(
                     fileType = when (currentLine) {
                         "F" -> FileType.FILE
                         "D" -> FileType.DIRECTORY
+                        "L" -> FileType.LINK
                         else -> parsingError("$currentLine is to a recognized file type!")
                     }
                 }

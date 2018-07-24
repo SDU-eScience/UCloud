@@ -39,8 +39,8 @@ print_type_and_link_status(std::ostream &stream, const char *path, const struct 
         if (resolve_link(path, &link)) {
             file_type = link.type;
         } else {
-            fprintf(stderr, "Could not resolve file %s\n", path);
-            return -1;
+            // Dead link (will, for example, occur if the link has already been deleted)
+            file_type = 'L';
         }
     } else {
         fprintf(stderr, "Unsupported file at %s. Mode is %d\n", path, st_mode);
