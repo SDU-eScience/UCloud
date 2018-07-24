@@ -66,7 +66,7 @@ dependencies {
     compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
 
-    compile 'dk.sdu.cloud:service-common:0.11.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.12.0-SNAPSHOT'
     compile "dk.sdu.cloud:auth-api:1.1.0-SNAPSHOT"
     compile "dk.sdu.cloud:storage-api:0.4.0-SNAPSHOT"
 
