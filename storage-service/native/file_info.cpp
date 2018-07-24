@@ -77,7 +77,19 @@ static void print_basic(std::ostream &stream, const char *path, const struct sta
         EMIT_STAT(stat_inp->st_ctime);
     }
 
-    EMIT(PATH, path);
+    if ((mode & PATH) != 0) {
+        auto parent = parent_path(path);
+        auto resolved_parent = realpath(parent.c_str(), nullptr);
+        if (resolved_parent == nullptr) FATAL("resolved_parent == nullptr")
+        std::stringstream resolved_stream;
+        resolved_stream << resolved_parent << '/' << file_name(path);
+        auto resolved_path = resolved_stream.str();
+
+        EMIT_STAT(resolved_path.c_str());
+        free(resolved_parent);
+    }
+
+    EMIT(RAW_PATH, path);
     EMIT(INODE, stat_inp->st_ino);
     EMIT(SIZE, stat_inp->st_size);
 }

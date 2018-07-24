@@ -88,7 +88,7 @@ class FileLookupService<Ctx : FSUserContext>(
     private fun readStorageFile(row: FileRow, favorites: Set<String>): StorageFile =
         StorageFile(
             type = row.fileType,
-            path = row.path,
+            path = row.rawPath,
             createdAt = row.timestamps.created,
             modifiedAt = row.timestamps.modified,
             ownerName = row.owner,
@@ -131,7 +131,7 @@ class FileLookupService<Ctx : FSUserContext>(
 
         private val STORAGE_FILE_ATTRIBUTES = setOf(
             FileAttribute.FILE_TYPE,
-            FileAttribute.PATH,
+            FileAttribute.RAW_PATH,
             FileAttribute.TIMESTAMPS,
             FileAttribute.OWNER,
             FileAttribute.SIZE,

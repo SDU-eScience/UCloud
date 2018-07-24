@@ -38,6 +38,7 @@ internal fun FileAttribute.Companion.rawParse(
         var group: String? = null
         var timestamps: Timestamps? = null
         var path: String? = null
+        var rawPath: String? = null
         var inode: String? = null
         var size: Long? = null
         var shares: List<AccessEntry>? = null
@@ -92,6 +93,8 @@ internal fun FileAttribute.Companion.rawParse(
                 }
 
                 FileAttribute.PATH -> path = currentLine
+
+                FileAttribute.RAW_PATH -> rawPath = currentLine
 
                 FileAttribute.INODE -> inode = currentLine
 
@@ -148,6 +151,7 @@ internal fun FileAttribute.Companion.rawParse(
                     group,
                     timestamps,
                     path,
+                    rawPath,
                     inode,
                     size,
                     shares,

@@ -19,7 +19,7 @@ static int compare(const FTSENT **one, const FTSENT **two) {
 }
 
 int delete_command(const char *path_inp) {
-    int status = -1;
+    int status;
     FTS *file_system = nullptr;
     FTSENT *node = nullptr;
     char *path = strdup(path_inp);

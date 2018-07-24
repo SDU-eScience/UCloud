@@ -79,13 +79,14 @@ bool std_starts_with(const std::string &str, const std::string &prefix);
 #define OWNER           (1 << 5 )
 #define GROUP           (1 << 6 )
 #define TIMESTAMPS      (1 << 7 )
-#define PATH            (1 << 8 )
-#define INODE           (1 << 9 )
-#define SIZE            (1 << 10)
-#define SHARES          (1 << 11)
-#define ANNOTATIONS     (1 << 12)
-#define CHECKSUM        (1 << 13)
-#define SENSITIVITY     (1 << 14)
+#define PATH            (1 << 8 ) // Always the canonical path (it is resolved)
+#define RAW_PATH        (1 << 9 ) // The path used to get to the file (not canonical)
+#define INODE           (1 << 10)
+#define SIZE            (1 << 11)
+#define SHARES          (1 << 12)
+#define ANNOTATIONS     (1 << 13)
+#define CHECKSUM        (1 << 14)
+#define SENSITIVITY     (1 << 15)
 
 #define USER_MAX 256
 #define GROUP_MAX 256
@@ -93,5 +94,13 @@ bool std_starts_with(const std::string &str, const std::string &prefix);
 #define CHECKSUM_TYPE_MAX 256
 
 int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode);
+
+std::string remove_trailing_slashes(const std::string &path);
+
+std::string add_trailing_slash(const std::string &path);
+
+std::string parent_path(const std::string &path);
+
+std::string file_name(const std::string &path);
 
 #endif //NATIVE_UTILS_H

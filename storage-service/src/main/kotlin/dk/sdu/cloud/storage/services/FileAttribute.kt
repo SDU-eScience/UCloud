@@ -9,13 +9,14 @@ enum class FileAttribute(val value: Long) {
     OWNER(1 shl 5),
     GROUP(1 shl 6),
     TIMESTAMPS(1 shl 7),
-    PATH(1 shl 8),
-    INODE(1 shl 9),
-    SIZE(1 shl 10),
-    SHARES(1 shl 11),
-    ANNOTATIONS(1 shl 12),
-    CHECKSUM(1 shl 13),
-    SENSITIVITY(1 shl 14),
+    PATH(1 shl 8), // The canonical path
+    RAW_PATH(1 shl 9), // The path used to get to the file (not canonical)
+    INODE(1 shl 10),
+    SIZE(1 shl 11),
+    SHARES(1 shl 12),
+    ANNOTATIONS(1 shl 13),
+    CHECKSUM(1 shl 14),
+    SENSITIVITY(1 shl 15),
     ;
 
     companion object
