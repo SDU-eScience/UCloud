@@ -23,6 +23,11 @@ const receiveAnalyses = (page: Page<Analysis>): ReceivePage<Analysis> => ({
     page
 });
 
+/**
+ * Used to set or remove the error for the component
+ * @param {string?} error The error to be renered in the component. Nothing will be rendered if string is null
+ * @returns {Error}
+ */
 export const setErrorMessage = (error?: string): Error => ({
     type: SET_ANALYSES_ERROR,
     error

@@ -1,4 +1,3 @@
-import * as React from "react";
 import swal from "sweetalert2";
 import { RightsMap } from "./DefaultObjects";
 import Cloud from "Authentication/lib";
@@ -9,13 +8,12 @@ import { File, Acl } from "./Files"
 
 export const toLowerCaseAndCapitalize = (str: string): string => !str ? "" : str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 
-export const WebSocketSupport = () =>
-    !("WebSocket" in window) ?
-        (<h3>
-            <small>WebSockets are not supported in this browser. Notifications won't be updated automatically.
-            </small>
-        </h3>) : null;
-
+/**
+ * Checks if a pathname is legal/already in use
+ * @param {string} path The path being tested
+ * @param {string[]} filePaths the other file paths path is being compared against
+ * @returns whether or not the path is invalid
+ */
 export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
     const disallowedName = ["..", ".", "/", ""].some((it) => it === path);
     if (disallowedName) { failureNotification("Folder name cannot be '.', '..' or '/' or empty"); return true; }
@@ -24,20 +22,37 @@ export const isInvalidPathName = (path: string, filePaths: string[]): boolean =>
     return false;
 };
 
+/**
+ * Checks if the specific folder is a fixed folder, meaning it can not be removed, renamed, deleted, etc.
+ * @param {string} filePath the path of the file to be checked
+ * @param {string} homeFolder the path for the homefolder of the current user
+ */
 export const isFixedFolder = (filePath: string, homeFolder: string): boolean => {
     return [ // homeFolder contains trailing slash
         `${homeFolder}Favorites`,
         `${homeFolder}Jobs`,
         `${homeFolder}Trash bin`
-    ].some((it) => it === filePath)
+    ].some((it) => removeTrailingSlash(it) === filePath)
 };
 
+/**
+ * Used for favoriting a file based on a path and page consisting of files.
+ * @param {Page<File>} page The page of files to be searched through
+ * @param {string} path The path of the file to be favorited
+ * @param {Cloud} cloud The instance of a Cloud object used for requests
+ * @returns {Page<File>} The page of files with the file favorited
+ */
 export const favorite = (page: Page<File>, path: string, cloud: Cloud): Page<File> => {
     let file = page.items.find((file: File) => file.path === path);
     favoriteFile(file, cloud);
     return page;
 };
 
+/**
+ * Used to favorite/defavorite a file based on its current state.
+ * @param {File} file The single file to be favorited
+ * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
+ */
 export const favoriteFile = (file: File, cloud: Cloud): void => {
     file.favorited = !file.favorited;
     if (file.favorited)
@@ -46,7 +61,12 @@ export const favoriteFile = (file: File, cloud: Cloud): void => {
         cloud.delete(`/files/favorite?path=${file.path}`, {});
 }
 
-export const getOwnerFromAcls = (acls: Acl[]) => {
+/**
+ * Returns a string based on the amount of users associated with the ACL
+ * @param {Acl[]} acls - the list of access controls
+ * @return {string}
+ */
+export const getOwnerFromAcls = (acls: Acl[]): string => {
     if (acls.length > 0) {
         return `${acls.length + 1} members`;
     } else {
@@ -145,7 +165,7 @@ export const inputSwal = (inputName: string) => ({
 
 const deletionSwal = (filePaths: string[]) => {
     const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :
-         `Delete file ${getFilenameFromPath(filePaths[0])}`;
+        `Delete file ${getFilenameFromPath(filePaths[0])}`;
     return swal({
         title: "Delete files",
         text: deletionText,
@@ -369,7 +389,7 @@ export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperC
  * @param {string} content the string to be shortened
  * @param {number} maxSize the maximum size allowed for the string
  */
-export const shortenString = (content: string, maxLength: number):string => {
+export const shortenString = (content: string, maxLength: number): string => {
     if (content.length < maxLength) return content;
     return content.slice(0, maxLength).trim().concat("...");
 }
