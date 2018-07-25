@@ -3,6 +3,8 @@
 #include <vector>
 #include <sys/acl.h>
 #include <ostream>
+#include <sstream>
+
 #include "file_utils.h"
 
 #ifdef __linux__
@@ -55,22 +57,25 @@ print_type_and_link_status(std::ostream &stream, const char *path, const struct 
 }
 
 static void print_basic(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode) {
-    auto uid = stat_inp->st_uid;
-    auto gid = stat_inp->st_gid;
+    if ((mode & UNIX_MODE) != 0 || (mode & OWNER) != 0 || (mode & GROUP) != 0) {
+        auto uid = stat_inp->st_uid;
+        auto gid = stat_inp->st_gid;
 
-    auto unix_mode = (stat_inp->st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+        auto unix_mode = (stat_inp->st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
 
-    auto user = getpwuid(uid);
-    if (user == nullptr) FATAL("Could not find user");
+        auto user = getpwuid(uid);
+        if (user == nullptr) FATAL("Could not find user");
 
-    char *group_name;
-    auto gr = getgrgid(gid);
-    if (gr == nullptr) group_name = const_cast<char *>("nobody");
-    else group_name = gr->gr_name;
+        char *group_name;
+        auto gr = getgrgid(gid);
+        if (gr == nullptr) group_name = const_cast<char *>("nobody");
+        else group_name = gr->gr_name;
 
-    EMIT(UNIX_MODE, unix_mode);
-    EMIT(OWNER, user->pw_name);
-    EMIT(GROUP, group_name);
+        EMIT(UNIX_MODE, unix_mode);
+        EMIT(OWNER, user->pw_name);
+        EMIT(GROUP, group_name);
+    }
+
     if ((mode & TIMESTAMPS) != 0) {
         EMIT_STAT(stat_inp->st_atime);
         EMIT_STAT(stat_inp->st_mtime);

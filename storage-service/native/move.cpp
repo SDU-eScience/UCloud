@@ -2,6 +2,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
+#include <sstream>
 
 #include "move.h"
 #include "tree.h"
