@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -e
+npm install
+npm run build
+tar czf dist.tar.gz dist/.
+scp dist.tar.gz unit01:
