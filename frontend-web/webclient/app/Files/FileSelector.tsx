@@ -250,7 +250,7 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
                     fetchFiles={props.fetchFiles}
                 />
                 <MockFolder // Current folder
-                    predicate={onlyAllowFolders}
+                    predicate={!onlyAllowFolders}
                     path={path}
                     setSelectedFile={props.setSelectedFile}
                     canSelectFolders
