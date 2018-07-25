@@ -73,6 +73,31 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         }));
     }
 
+    exportParameters() {
+        // FIXME: This is repeated in onSubmit
+        let { maxTime } = this.state.jobInfo;
+        if (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null) {
+            maxTime.hours = maxTime.hours ? maxTime.hours : 0;
+            maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
+            maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
+        } else if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
+            maxTime = null;
+        }
+        // FIXME END
+        
+        const contents = [JSON.stringify({
+            application: {
+                name: this.state.appName,
+                version: this.state.appVersion,
+            },
+            parameters: Object.assign({}, this.state.parameterValues),
+            numberOfNodes: this.state.jobInfo.numberOfNodes,
+            tasksPerNode: this.state.jobInfo.tasksPerNode,
+            maxTime: maxTime,
+        })]
+        new File(contents, `${this.state.appName}-${this.state.appVersion}-params.json`)
+        // TODO: download
+    }
 
     onSubmit(event) {
         event.preventDefault();
