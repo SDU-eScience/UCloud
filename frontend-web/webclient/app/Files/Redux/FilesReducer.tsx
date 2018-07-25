@@ -13,6 +13,7 @@ export const SET_CREATING_FOLDER = "SET_CREATING_FOLDER";
 export const SET_EDITING_FILE = "SET_EDITING_FILE";
 export const RESET_FOLDER_EDITING = "RESET_FOLDER_EDITING";
 export const FILES_ERROR = "FILES_ERROR";
+export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
 
 const files = (state: any = {}, action) => {
     switch (action.type) {
@@ -39,6 +40,9 @@ const files = (state: any = {}, action) => {
         }
         case SET_FILE_SELECTOR_CALLBACK: {
             return { ...state, fileSelectorCallback: action.callback };
+        }
+        case SET_FILE_SELECTOR_ERROR: {
+            return { ...state, fileSelectorError: action.error}
         }
         case SET_DISALLOWED_PATHS: {
             return { ...state, disallowedPaths: action.paths }

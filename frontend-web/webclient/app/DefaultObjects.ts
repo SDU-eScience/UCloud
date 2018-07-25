@@ -117,7 +117,7 @@ interface FilesReduxObject extends ComponentWithPage<File> {
     editFileIndex: number
     sortOrder: SortOrder
     sortBy: SortBy
-    path, filesInfoPath: string
+    path, filesInfoPath, fileSelectorError: string
     projects: any[]
     sortingColumns: [SortBy, SortBy]
     fileSelectorLoading, fileSelectorShown: false
@@ -188,6 +188,7 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         fileSelectorPage: emptyPage,
         fileSelectorPath: cloud.homeFolder,
         fileSelectorCallback: Function,
+        fileSelectorError: null,
         disallowedPaths: []
     },
     uppy: {

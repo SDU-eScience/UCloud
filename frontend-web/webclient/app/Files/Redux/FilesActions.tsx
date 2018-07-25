@@ -13,7 +13,8 @@ import {
     SET_CREATING_FOLDER,
     SET_EDITING_FILE,
     RESET_FOLDER_EDITING,
-    FILES_ERROR
+    FILES_ERROR,
+    SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
 import { failureNotification, getFilenameFromPath, replaceHomeFolder } from "UtilityFunctions";
 import { Page, ReceivePage, SetLoadingAction, Action, Error } from "Types";
@@ -114,25 +115,18 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
     path
 });
 
-
-// TODO/FIXME: Set error message for file selector. Note: should 
-export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Action> =>
+export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
     Cloud.get(`files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`)
-        .then(({ response }) => receiveFiles(response, path, order, sortBy)).catch(() => {
-            failureNotification(`An error occured fetching the page for file ${path}`);
-            return { type: "ERROR" };
-        });
+        .then(({ response }) => receiveFiles(response, path, order, sortBy)).catch(() =>
+            setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
+        );
 
 
-export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number) =>
+export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<File | Error> =>
     Cloud.get(`files?path=${path}&page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, path);
-    }).catch(() => {
-        failureNotification("An error occurred when fetching files for fileselection");
-        return { type: "ERROR" };
-    });
-
+    }).catch(() => setFileSelectorError(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`));
 /**
  * Sets the fileselector as loading. Intended for when retrieving files.
  */
@@ -160,6 +154,15 @@ interface SetFileSelectorCallbackAction extends Action { callback: Function }
 export const setFileSelectorCallback = (callback: Function): SetFileSelectorCallbackAction => ({
     type: SET_FILE_SELECTOR_CALLBACK,
     callback
+});
+
+/**
+ * Sets the error message for use in the null means nothing will be rendered.
+ * @param {string} error The error message to be set.
+ */
+export const setFileSelectorError = (error?: string): Error => ({
+    type: SET_FILE_SELECTOR_ERROR,
+    error
 });
 
 interface SetEditingFileAction extends Action { editFileIndex: number }

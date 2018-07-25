@@ -185,6 +185,8 @@ interface FileSelectorModalProps {
     creatingFolder?: boolean
     handleKeyDown?: Function
     createFolder?: Function
+    errorMessage?: string
+    onErrorDismiss?: () => void
     navigate?: (path, pageNumber, itemsPerPage) => void
 }
 
@@ -198,6 +200,8 @@ export const FileSelectorModal = (props: FileSelectorModalProps) => (
         <Modal.Content scrolling>
             <BreadCrumbs currentPath={props.path} navigate={(path) => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />
             <PaginationList
+                errorMessage={props.errorMessage}
+                onErrorDismiss={props.onErrorDismiss}
                 pageRenderer={(page) =>
                     <FileSelectorBody
                         {...props}

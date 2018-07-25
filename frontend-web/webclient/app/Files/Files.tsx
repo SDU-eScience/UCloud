@@ -181,6 +181,8 @@ class Files extends React.Component<FilesProps> {
                     path={this.props.fileSelectorPath}
                     fetchFiles={(path, pageNumber, itemsPerPage) => this.props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
                     loading={this.props.fileSelectorLoading}
+                    errorMessage={this.props.fileSelectorError}
+                    onErrorDismiss={() => this.props.onFileSelectorErrorDismiss()}
                     onlyAllowFolders
                     canSelectFolders
                     page={this.props.fileSelectorPage}
@@ -518,16 +520,17 @@ function move(files: File[], operations): void {
 
 const mapStateToProps = (state): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, editFileIndex, creatingFolder,
-        fileSelectorShown, fileSelectorCallback, disallowedPaths, fileSelectorLoading, error } = state.files;
+        fileSelectorShown, fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError } = state.files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = page.items.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
-        error, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath, fileSelectorShown,
-        fileSelectorCallback, disallowedPaths, sortOrder, sortBy, editFileIndex, creatingFolder, fileSelectorLoading
+        error, fileSelectorError, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath, 
+        fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, editFileIndex, creatingFolder, fileSelectorLoading
     }
 };
 
 const mapDispatchToProps = (dispatch): FilesOperations => ({
+    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(null)), 
     dismissError: () => dispatch(Actions.setErrorMessage()),
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => {
         dispatch(Actions.updatePath(path));
