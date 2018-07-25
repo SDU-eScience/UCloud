@@ -100,7 +100,8 @@ function SingleApplication({ app }: SingleApplicationProps) {
                         basic
                         content="Details"
                         color="blue"
-                        onClick={() => infoNotification("Note: Not implemented yet.")}
+                        as={Link}
+                        to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}
                     />
                 </Button.Group>
             </Card.Content>

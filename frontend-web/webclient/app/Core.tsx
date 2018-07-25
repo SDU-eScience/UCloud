@@ -5,6 +5,7 @@ import FileInfo from "Files/FileInfo";
 import Dashboard from "Dashboard/Dashboard";
 import Status from "Navigation/StatusPage";
 import Applications from "Applications/Applications";
+import DetailedApplication from "Applications/DetailedApplication";
 import RunApp from "Applications/RunApp";
 import Analyses from "Applications/Analyses";
 import DetailedResult from "Applications/DetailedResult";
@@ -32,6 +33,7 @@ const Core = () => (
                 <Route exact path="/status" component={Status} />
                 <Route exact path="/applications" component={Applications} />
                 <Route exact path="/applications/:appName/:appVersion" component={RunApp} />
+                <Route exact path="/appDetails/:appName/:appVersion" component={DetailedApplication} />
                 <Route exact path="/analyses" component={Analyses} />
                 <Route exact path="/analyses/:jobId" component={DetailedResult} />
                 <Route exact path="/zenodo/" component={ZenodoHome} />

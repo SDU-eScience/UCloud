@@ -2,6 +2,7 @@ import * as Types from "Types";
 import { SortBy, SortOrder, File } from "Files";
 import { Page } from "Types";
 import { Dispatch } from "redux";
+import { match } from "react-router-dom";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
 
@@ -57,11 +58,7 @@ export interface AnalysesState {
 
 export interface DetailedResultProps {
     dispatch: Dispatch
-    match: {
-        params: {
-            jobId: string
-        }
-    }
+    match: match<{ jobId: string }>
 }
 
 export interface Application {
