@@ -1,0 +1,53 @@
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "path-tokenizer": {
+          "type": "custom",
+          "tokenizer": "path-tokenizer"
+        }
+      },
+      "tokenizer": {
+        "path-tokenizer": {
+          "type": "path_hierarchy",
+          "delimiter": "/"
+        }
+      }
+    }
+  },
+  "mappings": {
+    "doc": {
+      "properties": {
+        "path": {
+          "type": "text",
+          "analyzer": "path-tokenizer",
+          "search_analyzer": "keyword"
+        },
+
+        "id": {
+          "type": "text",
+          "search_analyzer": "keyword"
+        },
+
+        "fileType": {
+          "type": "text",
+          "search_analyzer": "keyword"
+        },
+
+        "owner": {
+          "type": "text",
+          "search_analyzer": "keyword"
+        },
+
+        "lastModified": {
+          "type": "date"
+        },
+
+        "sensitivity": {
+          "type": "text",
+          "search_analyzer": "keyword"
+        }
+      }
+    }
+  }
+}

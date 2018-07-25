@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.4.0-SNAPSHOT'
+version '1.0.0-SNAPSHOT'
 
 buildscript {
     ext.kotlin_version = '1.2.51'
@@ -23,13 +23,6 @@ apply plugin: 'maven-publish'
 apply plugin: 'org.jetbrains.dokka'
 apply plugin: 'kotlin-jpa'
 
-dokka {
-    outputFormat = "html"
-    outputDirectory = "$buildDir/javadoc"
-}
-
-sourceCompatibility = 1.8
-
 repositories {
     mavenCentral()
     mavenLocal()
@@ -37,6 +30,7 @@ repositories {
     maven { url "http://dl.bintray.com/kotlin/ktor" }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
     maven { url "https://dl.bintray.com/tus/maven" }
+    maven { url  "http://dl.bintray.com/mbuhot/maven" }
 
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
@@ -57,46 +51,22 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
-    // ------------
-    // Logging
-    // ------------
     compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
     compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
-    // ------------
 
-    // ------------
-    // ktor
-    // ------------
     compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
 
-    // ------------
-    // Service
-    // ------------
+    compile 'mbuhot:eskotlin:0.4.0'
+    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
+
     compile "dk.sdu.cloud:service-common:0.12.0-SNAPSHOT"
+    compile "dk.sdu.cloud:storage-api:0.4.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.1.0-SNAPSHOT"
-    compile "dk.sdu.cloud:notification-api:0.2.0-SNAPSHOT"
 
-    // ------------
-    // Bulk download test
-    // ------------
-    compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
-
-    // ------------
-    // TUS
-    // ------------
-    compile 'io.tus.java.client:tus-java-client:0.3.1'
-
-    // Database (Rewrite)
-    testCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
-
-    // ------------
-    // Testing
-    // ------------
     testCompile "junit:junit:4.12"
     testCompile "io.mockk:mockk:1.8"
     testCompile "io.ktor:ktor-server-test-host:$ktor_version"
-
 }
 
 kotlin {
@@ -111,23 +81,12 @@ compileKotlin {
 compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
 }
-
 publishing {
     publications {
         api(MavenPublication) {
             groupId(project.group)
             artifactId(project.name.replace("-service", "") + "-api")
             artifact apiJar
-
-            pom.withXml {
-                def dependenciesNode = asNode().appendNode('dependencies')
-
-                // TODO THIS SHOULD NOT BE HARDCODED
-                def tusDepNode = dependenciesNode.appendNode("dependency")
-                tusDepNode.appendNode("groupId", "io.tus.java.client")
-                tusDepNode.appendNode("artifactId", "tus-java-client")
-                tusDepNode.appendNode("version", "0.3.1")
-            }
         }
     }
 
@@ -242,7 +201,7 @@ task apiJar(type: Jar) {
 apiJar.dependsOn(generateServiceManifest)
 
 apply plugin: 'application'
-mainClassName = "dk.sdu.cloud.storage.MainKt"
+mainClassName = "dk.sdu.cloud.index.MainKt"
 
 run {
     if (project.hasProperty("appArgs")) {
