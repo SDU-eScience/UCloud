@@ -121,8 +121,11 @@ sealed class LongRunningResponse<T> {
     ) : LongRunningResponse<T>()
 }
 
+data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>)
+data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
+
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
-    private val baseContext = "/api/files"
+    val baseContext = "/api/files"
 
     val listAtPath = callDescription<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage> {
         prettyName = "filesListAtPath"
@@ -296,6 +299,22 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         path {
             using(baseContext)
             +"annotate"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val verifyFileKnowledge = callDescription<
+            VerifyFileKnowledgeRequest,
+            VerifyFileKnowledgeResponse,
+            CommonErrorMessage>
+    {
+        prettyName = "filesVerifyKnowledge"
+        method = HttpMethod.Post
+
+        path {
+            using(baseContext)
+            +"verify-knowledge"
         }
 
         body { bindEntireRequestFromBody() }

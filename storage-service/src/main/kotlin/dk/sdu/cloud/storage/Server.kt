@@ -61,6 +61,7 @@ class Server(
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
         val transferState = TusHibernateDAO()
         val fileLookupService = FileLookupService(coreFileSystem, favoriteService)
+        val indexingService = IndexingService(coreFileSystem)
 
         val shareDAO = ShareHibernateDAO()
         val shareService = ShareService(db, shareDAO, processRunner, aclService, coreFileSystem)
@@ -121,15 +122,22 @@ class Server(
                     tus.registerTusEndpoint(this, "/api/tus")
                 }
 
-                route("api") {
+                configureControllers(
                     FilesController(
                         processRunner,
                         coreFileSystem,
                         annotationService,
                         favoriteService,
                         fileLookupService
-                    ).configure(this)
+                    ),
 
+                    IndexingController(
+                        processRunner,
+                        indexingService
+                    )
+                )
+
+                route("api") {
                     SimpleDownloadController(
                         cloud,
                         processRunner,
