@@ -20,23 +20,15 @@ interface HeaderProps {
     history: History
 }
 
-enum SearchTypes { 
-    Projects = "projects",
-    Files = "files",
-    Apps = "apps"
-}
-
 interface HeaderState {
     searchText: string
-    searchType: SearchTypes
 }
 
 class Header extends React.Component<HeaderProps, HeaderState> {
     constructor(props) {
         super(props);
         this.state = {
-            searchText: "",
-            searchType: SearchTypes.Projects
+            searchText: ""
         };
         props.dispatch(fetchLoginStatus())
     }
@@ -45,23 +37,13 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         router: PropTypes.object
     }
 
-    updateSearchType = (searchType: SearchTypes) => this.setState(() => ({ searchType }))
-
     updateSearchText = (searchText: string) => this.setState(() => ({ searchText }));
 
     public render() {
         const { open, dispatch } = this.props;
         const { history } = this.context.router;
         const sidebarIcon = open ? "triangle left" : "triangle right";
-        const { searchText, searchType } = this.state;
-
-        // TODO Just for testing
-        const { Projects, Files, Apps } = SearchTypes;
-        const options = [
-            { key: Projects, text: "Projects", value: Projects },
-/*             { key: Files, text: "Files", value: Files },
-            { key: Apps, text: "Applications", value: Apps } */
-        ];
+        const { searchText } = this.state;
 
         return (
             <Menu className="menu-padding" inverted attached borderless size="tiny" >
@@ -106,13 +88,12 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                                 }}
                             >
                                 <Input
-                                    label={<Dropdown defaultValue="projects" options={options} onChange={(_, { value }) => this.updateSearchType(value as SearchTypes)} basic />}
                                     value={searchText}
                                     onChange={(_, { value }) => this.updateSearchText(value)}
                                     className="header-search"
                                     fluid
                                     icon='search'
-                                    placeholder='Search...'
+                                    placeholder='Search by project...'
                                 />
                             </Form>
                         </Responsive>
