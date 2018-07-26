@@ -1,9 +1,10 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Grid, Header, Table, List } from "../../node_modules/semantic-ui-react";
+import { Grid, Header, Table, Label, Icon, List } from "../../node_modules/semantic-ui-react";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import { ApplicationInformation, ParameterTypes } from "Applications";
 
 type DetailedApplicationProps = any
 type DetailedApplicationState = {
@@ -69,27 +70,39 @@ const ApplicationDetails = ({ appInformation }: ApplicationDetails) => {
 const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
     const { tool } = appInformation;
     const { hours, minutes, seconds } = tool.description.defaultMaxTime;
-    const padNumber = (val: number): string => val < 10 ? `0${val}` : `${val}`; 
+    const padNumber = (val: number): string => val < 10 ? `0${val}` : `${val}`;
     const timeString = `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
     return (
-        <Table basic="very">
-            <Table.Header>
-                <Table.Row>
-                    <Table.HeaderCell content="Container name" />
-                    <Table.HeaderCell content="Default job time (HH:MM:SS)" />
-                    <Table.HeaderCell content="Output files" />
-                </Table.Row>
-            </Table.Header>
-            <Table.Body>
-                <Table.Row>
-                    <Table.Cell content={tool.description.backend} />
-                    <Table.Cell content={timeString} />
-                    <Table.Cell content={appInformation.description.outputFileGlobs.map((f, i, a) =>
-                        i !== a.length -1 ? `${f}, ` : f
-                    )} />
-                </Table.Row>
-            </Table.Body>
-        </Table>
+        <List>
+            <List.Item>
+                <List.Content floated="left">
+                    <Label color="green">
+                        <Icon name="wrench" />
+                        Container: {tool.description.backend}
+                    </Label>
+                    <Label color="blue">
+                        <Icon name="file" />
+                        Output files: {appInformation.description.outputFileGlobs.map((f, i, a) =>
+                            i !== a.length - 1 ? `${f}, ` : f
+                        )}
+                    </Label>
+                </List.Content>
+                <List.Content floated="right">
+                    <Label basic>
+                        <Icon name="clock" />
+                        Default job time: {timeString}
+                    </Label>
+                    <Label basic>
+                        <Icon name="address book" />
+                        Default number of nodes: {tool.description.defaultNumberOfNodes}
+                    </Label>
+                    <Label basic>
+                        <Icon name="file" />
+                        Default tasks per node: {tool.description.defaultTasksPerNode}
+                    </Label>
+                </List.Content>
+            </List.Item>
+        </List >
     )
 }
 
@@ -97,6 +110,7 @@ const ApplicationParameters = (props: ApplicationDetails) => (
     <Table basic="very">
         <Table.Header>
             <Table.Row>
+                <Table.HeaderCell content={"#"} />
                 <Table.HeaderCell content={"Parameter name"} />
                 <Table.HeaderCell content={"Default value"} />
                 <Table.HeaderCell content={"Optional"} />
@@ -106,16 +120,36 @@ const ApplicationParameters = (props: ApplicationDetails) => (
         <Table.Body>
             {props.appInformation.description.parameters.map((p, i) =>
                 <Table.Row key={i}>
+                    <Table.Cell content={i + 1} />
                     <Table.Cell content={p.name} />
                     <Table.Cell content={p.defaultValue == null ? "No default value" : p.defaultValue} />
                     <Table.Cell icon={p.optional ? "check" : "close"} />
-                    <Table.Cell content={p.type} />
+                    <Table.Cell content={typeToString(p.type as ParameterTypes)} />
                 </Table.Row>
             )}
         </Table.Body>
     </Table>
 )
 
+const typeToString = (parameterType: ParameterTypes): string => {
+    switch (parameterType) {
+        case ParameterTypes.Integer:
+            return "Integer";
+        case ParameterTypes.FloatingPoint:
+            return "Floating point";
+        case ParameterTypes.Text:
+            return "Text";
+        case ParameterTypes.Boolean:
+            return "Boolean";
+        case ParameterTypes.InputFile:
+            return "Input file";
+        case ParameterTypes.InputDirectory:
+            return "Input directory";
+        default:
+            console.warn(`Unhandled parameter type: ${parameterType}`);
+            return "";
+    }
+}
 
 
 const ApplicationHeader = ({ appInformation }: ApplicationDetails) => {
@@ -139,57 +173,3 @@ const ApplicationHeader = ({ appInformation }: ApplicationDetails) => {
 };
 
 export default DetailedApplication;
-
-interface ApplicationInformation {
-    owner: string
-    createdAt, modifiedAt: number
-    description: {
-        info: {
-            name: string
-            version: string
-        }
-        tool: {
-            name: string
-            version: string
-        }
-        authors: string[]
-        title: string
-        description: string
-        invocation: any
-        parameters: {
-            name: string
-            optional: boolean
-            defaultValue: any
-            title: string
-            description: string
-            trueValue?: boolean
-            falseValue?: boolean
-            type: string
-        }[]
-        outputFileGlobs: [string, string]
-    }
-    tool: {
-        owner: string
-        createdAt: number
-        modifiedAt: number
-        description: {
-            info: {
-                name: string
-                version: string
-            }
-            container: string
-            defaultNumberOfNodes: number,
-            defaultTasksPerNode: number,
-            defaultMaxTime: {
-                hours: number
-                minutes: number
-                seconds: number
-            }
-            requiredModules: any[],
-            authors: string[]
-            title: string,
-            description: string
-            backend: string
-        }
-    }
-}

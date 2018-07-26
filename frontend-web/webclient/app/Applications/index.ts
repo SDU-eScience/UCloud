@@ -143,3 +143,66 @@ export interface RunAppProps {
     history: History
     updatePageTitle: () => void
 }
+
+export interface ApplicationInformation {
+    owner: string
+    createdAt, modifiedAt: number
+    description: {
+        info: {
+            name: string
+            version: string
+        }
+        tool: {
+            name: string
+            version: string
+        }
+        authors: string[]
+        title: string
+        description: string
+        invocation: any
+        parameters: {
+            name: string
+            optional: boolean
+            defaultValue: any
+            title: string
+            description: string
+            trueValue?: boolean
+            falseValue?: boolean
+            type: string
+        }[]
+        outputFileGlobs: [string, string]
+    }
+    tool: {
+        owner: string
+        createdAt: number
+        modifiedAt: number
+        description: {
+            info: {
+                name: string
+                version: string
+            }
+            container: string
+            defaultNumberOfNodes: number,
+            defaultTasksPerNode: number,
+            defaultMaxTime: {
+                hours: number
+                minutes: number
+                seconds: number
+            }
+            requiredModules: any[],
+            authors: string[]
+            title: string,
+            description: string
+            backend: string
+        }
+    }
+}
+
+export enum ParameterTypes {
+    InputFile = "input_file",
+    InputDirectory = "input_directory",
+    Integer = "integer",
+    FloatingPoint = "floating_point",
+    Text = "text",
+    Boolean = "boolean"
+}

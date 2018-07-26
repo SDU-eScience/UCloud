@@ -12,7 +12,7 @@ import { getFilenameFromPath } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
-import { Application } from ".";
+import { Application, ParameterTypes } from ".";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     constructor(props) {
@@ -315,17 +315,17 @@ const JobSchedulingParams = (props) => {
 
 const parameterTypeToComponent = (type) => {
     switch (type) {
-        case "input_file":
+        case ParameterTypes.InputFile:
             return InputFileParameter;
-        case "input_directory":
+        case ParameterTypes.InputDirectory:
             return InputDirectoryParameter;
-        case "integer":
+        case ParameterTypes.Integer:
             return IntegerParameter;
-        case "floating_point":
+        case ParameterTypes.FloatingPoint:
             return FloatingParameter;
-        case "text":
+        case ParameterTypes.Text:
             return TextParameter;
-        case "boolean":
+        case ParameterTypes.Boolean:
             return BooleanParameter;
         default:
             console.warn(`Unknown parameter type: ${type}`);
