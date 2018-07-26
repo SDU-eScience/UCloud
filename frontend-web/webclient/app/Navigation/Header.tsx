@@ -20,15 +20,23 @@ interface HeaderProps {
     history: History
 }
 
+enum SearchTypes { 
+    Projects = "projects",
+    Files = "files",
+    Apps = "apps"
+}
+
 interface HeaderState {
     searchText: string
+    searchType: SearchTypes
 }
 
 class Header extends React.Component<HeaderProps, HeaderState> {
     constructor(props) {
         super(props);
         this.state = {
-            searchText: ""
+            searchText: "",
+            searchType: SearchTypes.Projects
         };
         props.dispatch(fetchLoginStatus())
     }
@@ -37,19 +45,22 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         router: PropTypes.object
     }
 
+    updateSearchType = (searchType: SearchTypes) => this.setState(() => ({ searchType }))
+
     updateSearchText = (searchText: string) => this.setState(() => ({ searchText }));
 
     public render() {
         const { open, dispatch } = this.props;
         const { history } = this.context.router;
         const sidebarIcon = open ? "triangle left" : "triangle right";
-        const { searchText } = this.state;
+        const { searchText, searchType } = this.state;
 
         // TODO Just for testing
+        const { Projects, Files, Apps } = SearchTypes;
         const options = [
-            { key: "projects", text: "Projects", value: "projects" },
-            /* { key: 'files', text: 'Files', value: 'files' },
-            { key: 'apps', text: 'Applications', value: 'apps' }, */
+            { key: Projects, text: "Projects", value: Projects },
+/*             { key: Files, text: "Files", value: Files },
+            { key: Apps, text: "Applications", value: Apps } */
         ];
 
         return (
@@ -69,11 +80,11 @@ class Header extends React.Component<HeaderProps, HeaderState> {
 
                 <Responsive as={Menu.Item} minWidth={1000}>
                     <Dropdown
-                        icon='users'
+                        icon="users"
                         floating
                         labeled
                         button
-                        className='icon'
+                        className="icon"
                         options={[
                             { text: "Data Stream Processing", value: "p1" },
                             { text: "Event generator for Beyond Standard Model (BSM) physics", value: "p2" },
@@ -95,7 +106,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                                 }}
                             >
                                 <Input
-                                    label={<Dropdown defaultValue="projects" options={options} basic />}
+                                    label={<Dropdown defaultValue="projects" options={options} onChange={(_, { value }) => this.updateSearchType(value as SearchTypes)} basic />}
                                     value={searchText}
                                     onChange={(_, { value }) => this.updateSearchText(value)}
                                     className="header-search"

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Card, Button } from "semantic-ui-react";
+import { Card, Button, Icon, Image } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -14,9 +14,11 @@ import { Page } from "Types";
 import { Application } from ".";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
-import materialcolors from "Assets/TempMaterialColors";
+import materialColors from "Assets/TempMaterialColors";
+import { favoriteApplication } from "UtilityFunctions";
+import { Cloud } from "Authentication/SDUCloudObject";
 
-const COLORS_KEYS = Object.keys(materialcolors);
+const COLORS_KEYS = Object.keys(materialColors);
 
 // We need dynamic import due to nature of the import
 const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
@@ -42,15 +44,12 @@ class Applications extends React.Component<ApplicationsProps> {
                     onRefreshClick={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={({ items }: Page<Application>) =>
                         <Card.Group>
-                            {items.map((app, index) =>
-                                <SingleApplication key={index} app={app} />
-                            )}
+                            {items.map((app, index) => <SingleApplication key={index} app={app} />)}
                         </Card.Group>
                     }
                     page={page}
                     onItemsPerPageChanged={(size) => fetchApplications(0, size)}
                     onPageChanged={(pageNumber) => fetchApplications(pageNumber, page.itemsPerPage)}
-                    onRefresh={() => null}
                 />
             </React.Fragment>);
     }
@@ -62,8 +61,8 @@ interface SingleApplicationProps { app: Application }
 function SingleApplication({ app }: SingleApplicationProps) {
     const hashCode = toHashCode(app.description.info.name);
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
-    const mClength = materialcolors[color].length;
-    const hex = materialcolors[color][(hashCode % mClength)];
+    const mClength = materialColors[color].length;
+    const hex = materialColors[color][(hashCode % mClength)];
     const even = app.modifiedAt % 2 === 0;
     const opacity = even ? 0.3 : 1;
     const image = even ? blurOverlay : `https://placekitten.com/${i % 2 === 0 ? "g" : ""}/${200 + i++}/200`;
@@ -81,8 +80,10 @@ function SingleApplication({ app }: SingleApplicationProps) {
                     backgroundPosition: "center"
                 }} />
             </div>
-
             <Card.Content>
+                <Image floated="right">
+                    <Icon name={app.favorite ? "star" : "star outline"} onClick={() => favoriteApplication(app, Cloud)} />
+                </Image>
                 <Card.Header content={app.description.info.name} />
                 <Card.Meta content={app.description.info.version} />
             </Card.Content>
