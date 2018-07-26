@@ -16,7 +16,7 @@ import {
     FILES_ERROR,
     SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
-import { failureNotification, getFilenameFromPath, replaceHomeFolder } from "UtilityFunctions";
+import { getFilenameFromPath, replaceHomeFolder } from "UtilityFunctions";
 import { Page, ReceivePage, SetLoadingAction, Action, Error } from "Types";
 import { SortOrder, SortBy, File } from "..";
 
@@ -34,7 +34,10 @@ export const fetchFiles = (path: string, itemsPerPage: number, page: number, ord
         setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
     );
 
-
+/**
+ * Sets the error message for the Files component.
+ * @param {error?} error the error message. null means nothing is rendered.
+ */
 export const setErrorMessage = (error?: string): Error => ({
     type: FILES_ERROR,
     error
@@ -90,7 +93,7 @@ const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sort
 
 type SortingColumn = 0 | 1;
 /**
- * Sets the selected 
+ * Sets the column in the table that should be rendered (Not implemented)
  * @param index - the index of the sorting colum (0 or 1)
  * @param {SortOrder} asc - the order of the sorting. ASCENDING or DESCENDING
  * @param {SortBy} sortBy - what field the row should show
@@ -103,30 +106,52 @@ export const setSortingColumn = (index: SortingColumn, asc: SortOrder, sortBy: S
 });
 
 interface FileSelectorShownAction extends Action { state: boolean }
+/**
+ * Sets whether or not the file selector should be shown
+ * @param {boolean} state whether or not the file selector is shown
+ */
 export const fileSelectorShown = (state: boolean): FileSelectorShownAction => ({
     type: FILE_SELECTOR_SHOWN,
     state
 });
 
 interface ReceiveFileSelectorFilesAction extends ReceivePage<File> { path: string }
+/**
+ * Returns action for receiving files for the fileselector.
+ * @param {Page<File>} page the page of files
+ * @param {string} path the path of the page the file selector is showing
+ */
 export const receiveFileSelectorFiles = (page: Page<File>, path: string): ReceiveFileSelectorFilesAction => ({
     type: RECEIVE_FILE_SELECTOR_FILES,
     page,
     path
 });
 
+/**
+ * Fetches a page that contains a specific path
+ * @param {string} path The file path that must be contained within the page.
+ * @param {number} itemsPerPage The items per page within the page
+ * @param {SortOrder} order the order to sort by, either ascending or descending
+ * @param {SortBy} sortBy the field to be sorted by
+ */
 export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
     Cloud.get(`files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`)
         .then(({ response }) => receiveFiles(response, path, order, sortBy)).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
         );
 
-
+/**
+ * 
+ * @param path 
+ * @param page 
+ * @param itemsPerPage 
+ */
 export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<File | Error> =>
     Cloud.get(`files?path=${path}&page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, path);
     }).catch(() => setFileSelectorError(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`));
+
 /**
  * Sets the fileselector as loading. Intended for when retrieving files.
  */
