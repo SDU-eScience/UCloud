@@ -24,18 +24,26 @@
           "search_analyzer": "keyword"
         },
 
+        "fileName": {
+          "type": "text",
+          "analyzer": "standard"
+        },
+
         "id": {
           "type": "text",
+          "analyzer": "keyword",
           "search_analyzer": "keyword"
         },
 
         "fileType": {
           "type": "text",
+          "analyzer": "keyword",
           "search_analyzer": "keyword"
         },
 
         "owner": {
           "type": "text",
+          "analyzer": "keyword",
           "search_analyzer": "keyword"
         },
 
@@ -45,6 +53,7 @@
 
         "sensitivity": {
           "type": "text",
+          "analyzer": "keyword",
           "search_analyzer": "keyword"
         }
       }
