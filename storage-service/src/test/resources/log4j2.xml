@@ -15,5 +15,8 @@
         <Logger name="org.hibernate" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="dk.sdu.cloud.storage.services.cephfs.CephFSUserDao" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

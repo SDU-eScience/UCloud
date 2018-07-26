@@ -27,7 +27,8 @@ import dk.sdu.cloud.service.MappedEventProducer
 @JsonSubTypes(
     JsonSubTypes.Type(value = StorageEvent.CreatedOrModified::class, name = "created"),
     JsonSubTypes.Type(value = StorageEvent.Deleted::class, name = "deleted"),
-    JsonSubTypes.Type(value = StorageEvent.Moved::class, name = "moved")
+    JsonSubTypes.Type(value = StorageEvent.Moved::class, name = "moved"),
+    JsonSubTypes.Type(value = StorageEvent.Invalidated::class, name = "invalidated")
 )
 sealed class StorageEvent {
     /**
@@ -92,6 +93,20 @@ sealed class StorageEvent {
         override val owner: String,
         override val timestamp: Long,
         val oldPath: String
+    ) : StorageEvent()
+
+    /**
+     * Indicates that the events have been out-of-sync with the FS for all children of [path]
+     *
+     * Clients should invalidate their caches for all paths starting with [path] (including [path]).
+     *
+     * __Note:__ The [id], [owner] and [timestamp] are all best-effort approximates and should not be relied upon
+     */
+    data class Invalidated(
+        override val id: String,
+        override val path: String,
+        override val owner: String,
+        override val timestamp: Long
     ) : StorageEvent()
 }
 
