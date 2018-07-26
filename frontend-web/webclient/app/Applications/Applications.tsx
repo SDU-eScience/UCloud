@@ -15,7 +15,6 @@ import { Application } from ".";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
 import materialcolors from "Assets/TempMaterialColors";
-import { infoNotification } from "UtilityFunctions";
 
 const COLORS_KEYS = Object.keys(materialcolors);
 
@@ -110,12 +109,12 @@ function SingleApplication({ app }: SingleApplicationProps) {
 }
 
 function toHashCode(name: string) {
-    var hash = 0;
+    let hash = 0;
     if (name.length == 0) {
         return hash;
     }
-    for (var i = 0; i < name.length; i++) {
-        var char = name.charCodeAt(i);
+    for (let i = 0; i < name.length; i++) {
+        let char = name.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
         hash = hash & hash; // Convert to 32bit integer
     }

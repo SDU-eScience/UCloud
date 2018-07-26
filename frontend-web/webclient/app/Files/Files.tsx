@@ -499,7 +499,8 @@ function copy(files: File[], operations): void {
 
 function move(files: File[], operations): void {
     operations.showFileSelector(true);
-    operations.setDisallowedPaths(files.map(f => f.path));
+    const parentPath = uf.getParentPath(files[0].path);
+    operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
     operations.setFileSelectorCallback((file) => {
         const newPath = file.path;
         files.forEach((f) => {
