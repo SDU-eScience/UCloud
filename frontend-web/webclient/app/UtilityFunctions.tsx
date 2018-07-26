@@ -5,6 +5,7 @@ import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder } from "./Files";
 import { Page, AccessRight } from "./Types";
 import { File, Acl } from "./Files"
+import { Application } from "Applications";
 
 export const toLowerCaseAndCapitalize = (str: string): string => !str ? "" : str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 
@@ -60,6 +61,24 @@ export const favoriteFile = (file: File, cloud: Cloud): void => {
     else
         cloud.delete(`/files/favorite?path=${file.path}`, {});
 }
+
+/**
+ * 
+ * @param application {Application}
+ * @param cloud {Cloud} The cloud instance for the use
+ */
+export const favoriteApplication = (application: Application, cloud: Cloud) => {
+    const { info } = application.description;
+    application.favorite = !application.favorite;
+    infoNotification("Backend functionality for favoriting applications missing");
+    return;
+    if (application.favorite) {
+        cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
+    } else {
+        cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
+    }
+}
+
 
 /**
  * Returns a string based on the amount of users associated with the ACL

@@ -65,7 +65,7 @@ export interface Application {
     owner: string
     createdAt: number
     modifiedAt: number
-
+    favorite?: boolean
     tool: {
         owner: string
         createdAt: number
