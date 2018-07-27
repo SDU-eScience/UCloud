@@ -67,11 +67,7 @@ class IndexingService<Ctx : FSUserContext>(
                 System.currentTimeMillis()
             )
 
-            val deletedEvents = reference.map {
-                StorageEvent.Deleted(it.id, it.path, it.owner, System.currentTimeMillis())
-            }
-
-            return DirectoryDiff(shouldContinue = false, diff = deletedEvents + invalidatedEvent)
+            return DirectoryDiff(shouldContinue = false, diff = listOf(invalidatedEvent))
         }
 
         val realById = realDirectory.associateBy { it.inode }
@@ -79,21 +75,16 @@ class IndexingService<Ctx : FSUserContext>(
         val allFileIds = referenceById.keys + realById.keys
 
         val deletedFiles = referenceById.filter { it.key !in realById }
-        val deletedEvents = deletedFiles.map {
-            StorageEvent.Deleted(it.value.id, it.value.path, it.value.owner, System.currentTimeMillis())
-        }
-        val invalidatedEvents = deletedFiles.filter { it.value.fileType == FileType.DIRECTORY }.map {
+        val invalidatedEvents = deletedFiles.map {
             StorageEvent.Invalidated(it.value.id, it.value.path, it.value.owner, System.currentTimeMillis())
         }
 
-        // TODO WE NEED A SOLUTION HERE
-        // TODO WE NEED A SOLUTION HERE
-        // TODO WE NEED A SOLUTION HERE
-        // TODO The new files _might_ already exist in the event stream without a deleted event.
-        // This means that clients must check the path field of deleted events to ensure they don't delete something
-        // that is out-of-date (in case of create (A) -> create (B) -> delete (A)). That is problematic.
-        //
-        // One solution might be to not emit delete events from in here and only emit invalidated events.
+        // Note: We don't emit any deleted events. That would cause problems for clients that assume that
+        // create/deletes are always correctly ordered. During this diffing process we could easily get
+        // "create (A) -> create (B) -> delete (A)" in the case of a file moving from A to B.
+        // Using Invalidated events instead force the client to consider the path, and nothing more (it won't
+        // delete based on file ID).
+
         val newFiles = realById.filter { it.key !in referenceById }
         val createdEvents = newFiles.map { it.value.toCreatedEvent() }
         // For directories created here we can be pretty sure that the reference system does _not_ already have
@@ -162,7 +153,7 @@ class IndexingService<Ctx : FSUserContext>(
 
         return DirectoryDiff(
             shouldContinue = true,
-            diff = deletedEvents + invalidatedEvents + createdEvents + traversalEvents + updatedEvents
+            diff = invalidatedEvents + createdEvents + traversalEvents + updatedEvents
         )
     }
 
