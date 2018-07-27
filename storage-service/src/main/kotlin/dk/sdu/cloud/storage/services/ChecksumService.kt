@@ -19,7 +19,7 @@ class ChecksumService<Ctx : FSUserContext>(
         // How will this implementation handle very frequent updates to a file?
         // TODO We still open a new context for each file. Group by owner and re-use
         channel.windowed(500).consumeEach {
-            it.filterIsInstance<StorageEvent.CreatedOrModified>().distinctBy { it.path }.forEach {
+            it.filterIsInstance<StorageEvent.CreatedOrRefreshed>().distinctBy { it.path }.forEach {
                 commandRunnerFactory.withContext(it.owner) { ctx ->
                     computeAndAttachChecksum(ctx, it.path)
                 }

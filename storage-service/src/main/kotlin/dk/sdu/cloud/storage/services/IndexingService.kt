@@ -2,8 +2,8 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.SERVICE_USER
+import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
 import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.SensitivityLevel
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.api.StorageEventProducer
 import dk.sdu.cloud.storage.util.FSException
@@ -38,17 +38,6 @@ class IndexingService<Ctx : FSUserContext>(
         }
     }
 
-    data class SlimStorageFile(
-        val id: String,
-        val path: String,
-        val owner: String,
-        val fileType: FileType,
-
-        // TODO Not yet supported
-        val sensitivityLevel: SensitivityLevel = SensitivityLevel.CONFIDENTIAL,
-        val annotations: List<String> = emptyList()
-    )
-
     data class DirectoryDiff(
         val shouldContinue: Boolean,
         val diff: List<StorageEvent>
@@ -64,7 +53,10 @@ class IndexingService<Ctx : FSUserContext>(
      * Afterwards the algorithm will continue to perform the diffing and launch events based on
      * this, progress can be tracked via [Pair.second].
      */
-    fun runDiffOnRoots(ctx: Ctx, rootToReference: Map<String, List<SlimStorageFile>>): Pair<Map<String, Boolean>, Job> {
+    fun runDiffOnRoots(
+        ctx: Ctx,
+        rootToReference: Map<String, List<EventMaterializedStorageFile>>
+    ): Pair<Map<String, Boolean>, Job> {
         val roots = rootToReference.keys
 
         val shouldContinue = roots.map {
@@ -96,8 +88,22 @@ class IndexingService<Ctx : FSUserContext>(
      *
      * It is assumed that the [ctx] can read the entirety of [directoryPath]
      */
-    fun calculateDiff(ctx: Ctx, directoryPath: String, reference: List<SlimStorageFile>): DirectoryDiff {
-        fun FileRow.toCreatedEvent() = StorageEvent.CreatedOrModified(inode, path, owner, timestamps.created, fileType)
+    fun calculateDiff(ctx: Ctx, directoryPath: String, reference: List<EventMaterializedStorageFile>): DirectoryDiff {
+        fun FileRow.toCreatedEvent() = StorageEvent.CreatedOrRefreshed(
+            inode,
+            path,
+            owner,
+            timestamps.created,
+            fileType,
+            timestamps,
+            size,
+            checksum,
+            isLink,
+            if (isLink) linkTarget else null,
+            if (isLink) linkInode else null,
+            annotations,
+            sensitivityLevel
+        )
 
         val realDirectory = try {
             fs.listDirectory(ctx, directoryPath, DIFF_MODE)
@@ -180,16 +186,7 @@ class IndexingService<Ctx : FSUserContext>(
             ) {
                 // Note: The file type can only be wrong if the client has made an incorrect assumption
                 // (due to missing information). We do not need to perform traversals on the directory (if applicable)
-
-                events.add(
-                    StorageEvent.CreatedOrModified(
-                        realFile.inode,
-                        realFile.path,
-                        realFile.owner,
-                        realFile.timestamps.modified,
-                        realFile.fileType
-                    )
-                )
+                events.add(realFile.toCreatedEvent())
             }
 
             events
@@ -205,13 +202,18 @@ class IndexingService<Ctx : FSUserContext>(
         override val log = logger()
 
         private val DIFF_MODE = setOf(
+            FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
             FileAttribute.PATH,
+            FileAttribute.TIMESTAMPS,
             FileAttribute.OWNER,
-            FileAttribute.FILE_TYPE,
-            FileAttribute.SENSITIVITY,
+            FileAttribute.SIZE,
+            FileAttribute.CHECKSUM,
+            FileAttribute.IS_LINK,
+            FileAttribute.LINK_TARGET,
+            FileAttribute.LINK_INODE,
             FileAttribute.ANNOTATIONS,
-            FileAttribute.TIMESTAMPS
+            FileAttribute.SENSITIVITY
         )
     }
 }

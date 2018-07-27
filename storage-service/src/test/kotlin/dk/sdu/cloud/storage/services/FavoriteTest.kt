@@ -37,7 +37,7 @@ class FavoriteTest {
         Thread.sleep(1000)
 
         coVerify {
-            emitter.emit(match { it is StorageEvent.CreatedOrModified && it.path == "/$favoriteLink" })
+            emitter.emit(match { it is StorageEvent.CreatedOrRefreshed && it.path == "/$favoriteLink" })
         }
     }
 

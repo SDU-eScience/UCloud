@@ -40,7 +40,6 @@ class FileRow(
     val sensitivityLevel: SensitivityLevel get() = _sensitivityLevel!!
     val linkInode: String get() = _linkInode!!
 
-
     fun convertToCloud(usernameConverter: (String) -> String, pathConverter: (String) -> String): FileRow {
         fun normalizeShares(incoming: List<AccessEntry>): List<AccessEntry> {
             return incoming.map {

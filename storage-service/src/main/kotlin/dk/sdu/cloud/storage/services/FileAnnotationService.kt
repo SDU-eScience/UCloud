@@ -1,15 +1,35 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.storage.api.StorageEventProducer
 import dk.sdu.cloud.storage.api.validateAnnotation
 import dk.sdu.cloud.storage.util.unwrap
+import kotlinx.coroutines.experimental.launch
 import java.util.*
 
 class FileAnnotationService<Ctx : FSUserContext>(
-    private val fs: LowLevelFileSystemInterface<Ctx>
+    private val fs: LowLevelFileSystemInterface<Ctx>,
+    private val storageEventProducer: StorageEventProducer
 ) {
     fun annotateFiles(ctx: Ctx, path: String, annotation: String) {
         validateAnnotation(annotation)
+
         fs.setExtendedAttribute(ctx, path, "annotate${UUID.randomUUID().toString().replace("-", "")}", annotation)
             .unwrap()
+
+        val stat = fs.stat(ctx, path, setOf(
+            FileAttribute.INODE,
+            FileAttribute.PATH,
+            FileAttribute.OWNER,
+            FileAttribute.ANNOTATIONS
+        )).unwrap()
+
+        launch {
+            storageEventProducer.emit(
+                StorageEvent.AnnotationsUpdated(
+                    stat.inode, stat.path, stat.owner, System.currentTimeMillis(), stat.annotations
+                )
+            )
+        }
     }
 }

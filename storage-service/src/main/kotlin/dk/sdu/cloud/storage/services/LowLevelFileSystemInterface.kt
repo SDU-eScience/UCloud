@@ -35,7 +35,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         from: String,
         to: String,
         allowOverwrite: Boolean
-    ): FSResult<List<StorageEvent.CreatedOrModified>>
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
     
     fun move(
         ctx: Ctx,
@@ -59,7 +59,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         allowOverwrite: Boolean
-    ): FSResult<List<StorageEvent.CreatedOrModified>>
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
     
     fun <R> write(
         ctx: Ctx,
@@ -75,7 +75,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     fun makeDirectory(
         ctx: Ctx,
         path: String
-    ): FSResult<List<StorageEvent.CreatedOrModified>>
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
     
     fun getExtendedAttribute(
         ctx: Ctx,
@@ -122,7 +122,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         targetPath: String,
         linkPath: String
-    ): FSResult<List<StorageEvent.CreatedOrModified>>
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
 
     fun createACLEntry(
         ctx: Ctx,

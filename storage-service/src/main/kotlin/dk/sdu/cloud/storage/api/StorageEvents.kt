@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.storage.services.FileChecksum
+import dk.sdu.cloud.storage.services.Timestamps
 import org.apache.kafka.streams.kstream.KStream
 
 /**
@@ -33,9 +35,10 @@ import org.apache.kafka.streams.kstream.KStream
     property = KafkaRequest.TYPE_PROPERTY
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(value = StorageEvent.CreatedOrModified::class, name = "created"),
+    JsonSubTypes.Type(value = StorageEvent.CreatedOrRefreshed::class, name = "created"),
     JsonSubTypes.Type(value = StorageEvent.Deleted::class, name = "deleted"),
-    JsonSubTypes.Type(value = StorageEvent.Moved::class, name = "moved"),
+    JsonSubTypes.Type(value = StorageEvent.AnnotationsUpdated::class, name = "annotations"),
+    JsonSubTypes.Type(value = StorageEvent.SensitivityUpdated::class, name = "sensitivity"),
     JsonSubTypes.Type(value = StorageEvent.Invalidated::class, name = "invalidated")
 )
 sealed class StorageEvent {
@@ -75,14 +78,57 @@ sealed class StorageEvent {
     abstract val timestamp: Long
 
     /**
-     * Emitted when a file has been created or modified.
+     * Emitted when a file has been created or a full-refresh of the file is deemed necessary.
+     *
+     * It is safe for clients to overwrite their previous entry at indexed by [id]. None of the old attributes are
+     * guaranteed to be the same. For example, it is perfectly valid for the system not to emit a [Moved] event and just
+     * send a new [CreatedOrRefreshed] event with a new [path]. This will, for example, occur when inconsistencies are
+     * detected.
      */
-    data class CreatedOrModified(
+    data class CreatedOrRefreshed(
         override val id: String,
         override val path: String,
         override val owner: String,
         override val timestamp: Long,
-        val fileType: FileType
+        val fileType: FileType,
+
+        val fileTimestamps: Timestamps,
+        val size: Long,
+        val checksum: FileChecksum,
+
+        val isLink: Boolean,
+        val linkTarget: String?,
+        val linkTargetId: String?,
+
+        val annotations: Set<String>,
+
+        val sensitivityLevel: SensitivityLevel
+    ) : StorageEvent()
+
+    /**
+     * Emitted when the sensitivity level of a file has changed
+     */
+    data class SensitivityUpdated(
+        override val id: String,
+        override val path: String,
+        override val owner: String,
+        override val timestamp: Long,
+
+        val sensitivityLevel: SensitivityLevel
+    ) : StorageEvent()
+
+    /**
+     * Emitted when the annotations of a file has changed.
+     *
+     * A complete refresh of all annotations are sent, not just new/deleted ones.
+     */
+    data class AnnotationsUpdated(
+        override val id: String,
+        override val path: String,
+        override val owner: String,
+        override val timestamp: Long,
+
+        val annotations: Set<String>
     ) : StorageEvent()
 
     /**
@@ -114,6 +160,8 @@ sealed class StorageEvent {
      * Clients should invalidate their caches for all paths starting with [path] (including [path]).
      *
      * __Note:__ The [id], [owner] and [timestamp] are all best-effort approximates and should not be relied upon
+     *
+     * __Note:__ The [id] should _never_ be relied upon for this event time.
      */
     data class Invalidated(
         override val id: String,
@@ -122,6 +170,29 @@ sealed class StorageEvent {
         override val timestamp: Long
     ) : StorageEvent()
 }
+
+/**
+ * Represents a [StorageFile] materialized from a stream of [StorageEvent]s.
+ */
+data class EventMaterializedStorageFile(
+    val id: String,
+    val path: String,
+    val owner: String,
+    val timestamp: Long,
+    val fileType: FileType,
+
+    val fileTimestamps: Timestamps,
+    val size: Long,
+    val checksum: FileChecksum,
+
+    val isLink: Boolean,
+    val linkTarget: String?,
+    val linkTargetId: String?,
+
+    val annotations: Set<String>,
+
+    val sensitivityLevel: SensitivityLevel
+)
 
 typealias StorageEventProducer = MappedEventProducer<String, StorageEvent>
 typealias StoraveEventStream = KStream<String, StorageEvent>

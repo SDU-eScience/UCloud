@@ -64,7 +64,7 @@ fun Application.configureServerWithFileController(
         fs = fs,
         eventProducer = eventProducer,
         coreFs = coreFs,
-        annotationService = FileAnnotationService(fs),
+        annotationService = FileAnnotationService(fs, eventProducer),
         favoriteService = favoriteService,
         lookupService = FileLookupService(coreFs, favoriteService)
     )

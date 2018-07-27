@@ -49,10 +49,11 @@ class Server(
         val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
 
         val fs = CephFileSystem(cloudToCephFsDao, fsRoot)
-        val coreFileSystem = CoreFileSystemService(fs, kafka.producer.forStream(StorageEvents.events))
+        val storageEventProducer = kafka.producer.forStream(StorageEvents.events)
+        val coreFileSystem = CoreFileSystemService(fs, storageEventProducer)
 
         val aclService = ACLService(fs)
-        val annotationService = FileAnnotationService(fs)
+        val annotationService = FileAnnotationService(fs, storageEventProducer)
         val checksumService = ChecksumService(processRunner, fs, coreFileSystem).also {
             launch { it.attachToFSChannel(coreFileSystem.openEventSubscription()) }
         }
@@ -61,7 +62,7 @@ class Server(
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
         val transferState = TusHibernateDAO()
         val fileLookupService = FileLookupService(coreFileSystem, favoriteService)
-        val indexingService = IndexingService(coreFileSystem)
+        val indexingService = IndexingService(coreFileSystem, storageEventProducer)
 
         val shareDAO = ShareHibernateDAO()
         val shareService = ShareService(db, shareDAO, processRunner, aclService, coreFileSystem)

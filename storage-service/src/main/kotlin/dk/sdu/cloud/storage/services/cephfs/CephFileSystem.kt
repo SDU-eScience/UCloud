@@ -19,7 +19,7 @@ class CephFileSystem(
         from: String,
         to: String,
         allowOverwrite: Boolean
-    ): FSResult<List<StorageEvent.CreatedOrModified>> {
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
         val fromPath = translateAndCheckFile(from)
         val toPath = translateAndCheckFile(to)
 
@@ -113,7 +113,7 @@ class CephFileSystem(
         ctx: CephFSCommandRunner,
         path: String,
         allowOverwrite: Boolean
-    ): FSResult<List<StorageEvent.CreatedOrModified>> {
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.WRITE_OPEN,
@@ -144,7 +144,7 @@ class CephFileSystem(
         )
     }
 
-    override fun makeDirectory(ctx: CephFSCommandRunner, path: String): FSResult<List<StorageEvent.CreatedOrModified>> {
+    override fun makeDirectory(ctx: CephFSCommandRunner, path: String): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.MKDIR,
@@ -264,7 +264,7 @@ class CephFileSystem(
         ctx: CephFSCommandRunner,
         targetPath: String,
         linkPath: String
-    ): FSResult<List<StorageEvent.CreatedOrModified>> {
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
         val absTargetPath = translateAndCheckFile(targetPath)
         val absLinkPath = translateAndCheckFile(linkPath)
 
@@ -369,13 +369,26 @@ class CephFileSystem(
         return FSResult(statusCode!!, Unit)
     }
 
-    private fun createdOrModifiedFromRow(it: FileRow): StorageEvent.CreatedOrModified {
-        return StorageEvent.CreatedOrModified(
+    private fun createdOrModifiedFromRow(it: FileRow): StorageEvent.CreatedOrRefreshed {
+        return StorageEvent.CreatedOrRefreshed(
             id = it.inode,
             path = it.path,
             owner = it.owner,
+            timestamp = it.timestamps.modified,
+
             fileType = it.fileType,
-            timestamp = it.timestamps.modified
+
+            fileTimestamps = it.timestamps,
+            size = it.size,
+            checksum = it.checksum,
+
+            isLink = it.isLink,
+            linkTarget = if (it.isLink) it.linkTarget else null,
+            linkTargetId = if (it.isLink) it.linkInode else null,
+
+            annotations = it.annotations,
+
+            sensitivityLevel = it.sensitivityLevel
         )
     }
 
@@ -454,7 +467,14 @@ class CephFileSystem(
             FileAttribute.INODE,
             FileAttribute.PATH,
             FileAttribute.TIMESTAMPS,
-            FileAttribute.OWNER
+            FileAttribute.OWNER,
+            FileAttribute.SIZE,
+            FileAttribute.CHECKSUM,
+            FileAttribute.IS_LINK,
+            FileAttribute.LINK_TARGET,
+            FileAttribute.LINK_INODE,
+            FileAttribute.ANNOTATIONS,
+            FileAttribute.SENSITIVITY
         )
 
         private val MOVED_ATTRIBUTES = setOf(
