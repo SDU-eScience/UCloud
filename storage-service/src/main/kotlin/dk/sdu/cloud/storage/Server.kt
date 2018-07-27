@@ -53,8 +53,13 @@ class Server(
         val coreFileSystem = CoreFileSystemService(fs, storageEventProducer)
 
         val aclService = ACLService(fs)
+
+        // TODO Breaks previous contract that CoreFS would emit all events
         val annotationService = FileAnnotationService(fs, storageEventProducer)
+
         val checksumService = ChecksumService(processRunner, fs, coreFileSystem).also {
+            // TODO Will only receive events from CoreFS, not from others.
+            // TODO Doesn't emit events for checksums
             launch { it.attachToFSChannel(coreFileSystem.openEventSubscription()) }
         }
         val favoriteService = FavoriteService(coreFileSystem)
@@ -62,6 +67,8 @@ class Server(
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
         val transferState = TusHibernateDAO()
         val fileLookupService = FileLookupService(coreFileSystem, favoriteService)
+
+        // TODO Breaks previous contract that CoreFS would emit all events
         val indexingService = IndexingService(coreFileSystem, storageEventProducer)
 
         val shareDAO = ShareHibernateDAO()

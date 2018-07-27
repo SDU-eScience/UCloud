@@ -1,6 +1,7 @@
 package dk.sdu.cloud.storage.processor
 
 import dk.sdu.cloud.auth.api.UserEvent
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.services.StorageUserDao
 import org.apache.kafka.streams.kstream.KStream
 import org.slf4j.LoggerFactory
@@ -10,8 +11,6 @@ class UserProcessor(
     private val isDevelopment: Boolean,
     private val userDao: StorageUserDao
 ) {
-    private val log = LoggerFactory.getLogger(UserProcessor::class.java)
-
     fun init() {
         stream.foreach { _, event -> handleEvent(event) }
     }
@@ -33,5 +32,9 @@ class UserProcessor(
                 log.warn("Discarding event: $event")
             }
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
