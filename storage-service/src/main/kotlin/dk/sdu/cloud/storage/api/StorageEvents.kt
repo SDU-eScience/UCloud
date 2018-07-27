@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.MappedEventProducer
+import org.apache.kafka.streams.kstream.KStream
 
 /**
  * Represents an event which has occurred inside of the storage system
@@ -18,6 +19,13 @@ import dk.sdu.cloud.service.MappedEventProducer
  * __Note:__ Since events are emitted and consumed asynchronously you cannot be certain that the file is present at
  * the [StorageEvent.path] or that the file even exists, since multiple new events may have occurred when the event
  * is consumed.
+ *
+ * __Note:__ The events are emitted on a best-effort basis. It is entirely possible that these events can be out-of-sync
+ * with the real system. As a result clients should be able to handle event sequences that are technically
+ * impossible to occur. For example, a create event might be missed and jump straight to a moved or deleted event.
+ *
+ * __Note:__ Regular scans are performed to ensure the events and FS are in-sync. When inconsistencies are detected new
+ * events will be emitted to make the events consistent with the FS.
  */
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -55,14 +63,19 @@ sealed class StorageEvent {
     abstract val owner: String
 
     /**
-     * Internal timestamp
+     * Internal timestamp for when the event occurred
      *
      * Format is milliseconds since unix epoch
+     *
+     * __Note:__ This is different from the time the event is emitted. In case of events emitted due to an
+     * out-of-sync event stream the timestamps may differ significantly.
+     *
+     * __Note:__ These timestamps are best-effort.
      */
     abstract val timestamp: Long
 
     /**
-     * Emitted when a file has been created.
+     * Emitted when a file has been created or modified.
      */
     data class CreatedOrModified(
         override val id: String,
@@ -85,7 +98,7 @@ sealed class StorageEvent {
     /**
      * Emitted when a file is moved from one location to another
      *
-     * __Note:__ The path in this case refers to the _new_ path. No effort is made to preserve the old path.
+     * __Note:__ The path in this case refers to the _new_ path.
      */
     data class Moved(
         override val id: String,
@@ -111,6 +124,7 @@ sealed class StorageEvent {
 }
 
 typealias StorageEventProducer = MappedEventProducer<String, StorageEvent>
+typealias StoraveEventStream = KStream<String, StorageEvent>
 
 object StorageEvents : KafkaDescriptions() {
     /**

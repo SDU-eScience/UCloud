@@ -49,20 +49,13 @@ class IndexingService<Ctx : FSUserContext>(
         val diff: List<StorageEvent>
     )
 
-
     /**
      * Calculates which events are missing from the [reference] folder
      *
      * It is assumed that the [ctx] can read the entirety of [directoryPath]
      */
     fun calculateDiff(ctx: Ctx, directoryPath: String, reference: List<SlimStorageFile>): DirectoryDiff {
-        fun FileRow.toCreatedEvent() = StorageEvent.CreatedOrModified(
-            inode,
-            path,
-            owner,
-            timestamps.created,
-            fileType
-        )
+        fun FileRow.toCreatedEvent() = StorageEvent.CreatedOrModified(inode, path, owner, timestamps.created, fileType)
 
         val realDirectory = try {
             fs.listDirectory(ctx, directoryPath, DIFF_MODE)
@@ -93,6 +86,14 @@ class IndexingService<Ctx : FSUserContext>(
             StorageEvent.Invalidated(it.value.id, it.value.path, it.value.owner, System.currentTimeMillis())
         }
 
+        // TODO WE NEED A SOLUTION HERE
+        // TODO WE NEED A SOLUTION HERE
+        // TODO WE NEED A SOLUTION HERE
+        // TODO The new files _might_ already exist in the event stream without a deleted event.
+        // This means that clients must check the path field of deleted events to ensure they don't delete something
+        // that is out-of-date (in case of create (A) -> create (B) -> delete (A)). That is problematic.
+        //
+        // One solution might be to not emit delete events from in here and only emit invalidated events.
         val newFiles = realById.filter { it.key !in referenceById }
         val createdEvents = newFiles.map { it.value.toCreatedEvent() }
         // For directories created here we can be pretty sure that the reference system does _not_ already have
