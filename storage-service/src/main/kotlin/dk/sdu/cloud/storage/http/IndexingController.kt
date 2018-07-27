@@ -6,6 +6,8 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.storage.SERVICE_USER
+import dk.sdu.cloud.storage.api.DeliverMaterializedFileSystemResponse
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.VerifyFileKnowledgeResponse
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
@@ -32,6 +34,16 @@ class IndexingController<Ctx : FSUserContext>(
                 ok(VerifyFileKnowledgeResponse(
                     indexingService.verifyKnowledge(it, req.files)
                 ))
+            }
+        }
+
+        implement(FileDescriptions.deliverMaterializedFileSystem) { req ->
+            logEntry(log, req)
+            if (!protect(PRIVILEGED_ROLES)) return@implement
+
+            tryWithFS(commandRunnerFactory, SERVICE_USER) {
+                val result = indexingService.runDiffOnRoots(it, req.rootsToMaterialized)
+                ok(DeliverMaterializedFileSystemResponse(result.first))
             }
         }
     }

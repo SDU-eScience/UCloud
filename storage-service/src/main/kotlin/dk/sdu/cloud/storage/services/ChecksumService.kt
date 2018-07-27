@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.api.FileChecksum
 import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.unwrap
@@ -104,4 +105,3 @@ class ChecksumService<Ctx : FSUserContext>(
     }
 }
 
-data class FileChecksum(val algorithm: String, val checksum: String)

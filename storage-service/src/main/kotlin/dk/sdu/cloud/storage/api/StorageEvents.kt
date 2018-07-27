@@ -5,8 +5,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.MappedEventProducer
-import dk.sdu.cloud.storage.services.FileChecksum
-import dk.sdu.cloud.storage.services.Timestamps
 import org.apache.kafka.streams.kstream.KStream
 
 /**
@@ -171,6 +169,9 @@ sealed class StorageEvent {
     ) : StorageEvent()
 }
 
+data class Timestamps(val accessed: Long, val created: Long, val modified: Long)
+data class FileChecksum(val algorithm: String, val checksum: String)
+
 /**
  * Represents a [StorageFile] materialized from a stream of [StorageEvent]s.
  */
@@ -178,7 +179,6 @@ data class EventMaterializedStorageFile(
     val id: String,
     val path: String,
     val owner: String,
-    val timestamp: Long,
     val fileType: FileType,
 
     val fileTimestamps: Timestamps,

@@ -1,8 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.AccessEntry
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.SensitivityLevel
+import dk.sdu.cloud.storage.api.*
 
 // This slightly messy code allows us to skip null checks. This makes for a better API
 class FileRow(
@@ -72,7 +70,6 @@ class FileRow(
     }
 }
 
-data class Timestamps(val accessed: Long, val created: Long, val modified: Long)
 
 fun Set<FileAttribute>.asBitSet(): Long {
     var result = 0L

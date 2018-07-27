@@ -124,6 +124,14 @@ sealed class LongRunningResponse<T> {
 data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>)
 data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
+data class DeliverMaterializedFileSystemRequest(
+    val rootsToMaterialized: Map<String, List<EventMaterializedStorageFile>>
+)
+
+data class DeliverMaterializedFileSystemResponse(
+    val shouldContinue: Map<String, Boolean>
+)
+
 object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     val baseContext = "/api/files"
 
@@ -315,6 +323,22 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         path {
             using(baseContext)
             +"verify-knowledge"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val deliverMaterializedFileSystem = callDescription<
+            DeliverMaterializedFileSystemRequest,
+            DeliverMaterializedFileSystemResponse,
+            CommonErrorMessage>
+    {
+        prettyName = "filesDeliverMaterializedFileSystem"
+        method = HttpMethod.Post
+
+        path {
+            using(baseContext)
+            +"deliver-materialized"
         }
 
         body { bindEntireRequestFromBody() }
