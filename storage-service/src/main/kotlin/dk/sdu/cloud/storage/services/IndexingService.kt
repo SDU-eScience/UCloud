@@ -1,18 +1,23 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
 import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.storage.api.StorageEventProducer
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.parent
+import kotlinx.coroutines.experimental.Job
+import kotlinx.coroutines.experimental.launch
 import java.util.*
 
 /**
  * Service responsible for handling operations related to indexing
  */
 class IndexingService<Ctx : FSUserContext>(
-    private val fs: CoreFileSystemService<Ctx>
+    private val fs: CoreFileSystemService<Ctx>,
+    private val storageEventProducer: StorageEventProducer
 ) {
     fun verifyKnowledge(ctx: Ctx, files: List<String>): List<Boolean> {
         val parents = files.map { it.parent() }.toSet()
@@ -50,6 +55,43 @@ class IndexingService<Ctx : FSUserContext>(
     )
 
     /**
+     * Runs the diff algorithm on several roots.
+     *
+     * It is assumed that the [ctx] can read all of the roots stored [rootToReference].
+     *
+     * This method will quickly verify if the roots exist and return the result of that in [Pair.first].
+     *
+     * Afterwards the algorithm will continue to perform the diffing and launch events based on
+     * this, progress can be tracked via [Pair.second].
+     */
+    fun runDiffOnRoots(ctx: Ctx, rootToReference: Map<String, List<SlimStorageFile>>): Pair<Map<String, Boolean>, Job> {
+        val roots = rootToReference.keys
+
+        val shouldContinue = roots.map {
+            val isValid = fs
+                .statOrNull(ctx, it, setOf(FileAttribute.FILE_TYPE))
+                ?.takeIf { it.fileType == FileType.DIRECTORY } != null
+
+            it to isValid
+        }.toMap()
+
+        val job = launch {
+            rootToReference.map { (root, reference) ->
+                log.debug("Calculating diff for $root")
+                val diff = calculateDiff(ctx, root, reference).diff
+                if (diff.isNotEmpty()) {
+                    log.info("Diff for $root caused ${diff.size} correction events to be emitted")
+                    if (log.isDebugEnabled) log.debug(diff.toString())
+                }
+
+                diff.forEach { storageEventProducer.emit(it) }
+            }
+        }
+
+        return Pair(shouldContinue, job)
+    }
+
+    /**
      * Calculates which events are missing from the [reference] folder
      *
      * It is assumed that the [ctx] can read the entirety of [directoryPath]
@@ -61,9 +103,9 @@ class IndexingService<Ctx : FSUserContext>(
             fs.listDirectory(ctx, directoryPath, DIFF_MODE)
         } catch (ex: FSException.NotFound) {
             val invalidatedEvent = StorageEvent.Invalidated(
-                UUID.randomUUID().toString(),
+                "invalid-id-" + UUID.randomUUID().toString(),
                 directoryPath,
-                "_storage",
+                SERVICE_USER,
                 System.currentTimeMillis()
             )
 
@@ -117,12 +159,14 @@ class IndexingService<Ctx : FSUserContext>(
                     //
                     // We don't attempt to just rename children since events are likely missing due to parent being
                     // out of sync.
-                    events.add(StorageEvent.Invalidated(
-                        realFile.inode,
-                        referenceFile.path,
-                        realFile.owner,
-                        realFile.timestamps.modified
-                    ))
+                    events.add(
+                        StorageEvent.Invalidated(
+                            realFile.inode,
+                            referenceFile.path,
+                            realFile.owner,
+                            realFile.timestamps.modified
+                        )
+                    )
 
                     events.addAll(fs.tree(ctx, realFile.path, DIFF_MODE).map { it.toCreatedEvent() })
                 }
@@ -162,7 +206,6 @@ class IndexingService<Ctx : FSUserContext>(
 
         private val DIFF_MODE = setOf(
             FileAttribute.INODE,
-            FileAttribute.RAW_PATH, // TODO Should this be rawPath or path?
             FileAttribute.PATH,
             FileAttribute.OWNER,
             FileAttribute.FILE_TYPE,

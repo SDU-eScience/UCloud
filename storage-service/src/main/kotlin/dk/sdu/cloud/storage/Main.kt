@@ -35,6 +35,8 @@ private val log = LoggerFactory.getLogger("dk.sdu.cloud.storage.MainKt")
 private const val ARG_GENERATE_DDL = "--generate-ddl"
 private const val ARG_MIGRATE = "--migrate"
 
+val SERVICE_USER = "_${StorageServiceDescription.name}"
+
 fun main(args: Array<String>) {
     log.info("Starting storage service")
 
