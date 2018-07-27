@@ -6,9 +6,8 @@ import PromiseKeeper from "PromiseKeeper";
 import { dateToString } from "Utilities/DateUtilities";
 import { ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus } from ".";
 
-function isTerminal(status: ZenodoPublicationStatus): boolean {
-    return status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
-}
+const isTerminal = (status: ZenodoPublicationStatus): boolean =>
+    status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
 
 class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
     constructor(props: ZenodoInfoProps) {
@@ -61,7 +60,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
 
     render() {
         if (this.state.loading) {
-            return (<Container><DefaultLoading loading={this.state.loading} /></Container>)
+            return (<Container as={DefaultLoading} loading={this.state.loading} />)
         } else {
             return (
                 <Container className="container-margin">
@@ -122,7 +121,7 @@ const FilesList = ({ files }) =>
                 {files.map((file, index) =>
                     <Table.Row key={index}>
                         <Table.Cell>{file.dataObject}</Table.Cell>
-                        <Table.Cell>{file.hasBeenTransmitted ? "✓" : "…"}</Table.Cell>
+                        <Table.Cell>{file.hasBeenTransmitted ? "Uploaded" : "Pending"}</Table.Cell>
                     </Table.Row>
                 )}
             </Table.Body>

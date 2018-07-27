@@ -130,8 +130,9 @@ const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
     updateApplications: (applications: Page<Application>) => dispatch(updateApplications(applications))
 });
 
-const mapStateToProps = ({ applications }): ApplicationsStateProps => {
-    return { favCount: applications.page.items.filter(it => it.favorite).length, ...applications }
-}
+const mapStateToProps = ({ applications }): ApplicationsStateProps => ({
+    favCount: applications.page.items.filter(it => it.favorite).length,
+    ...applications 
+})
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

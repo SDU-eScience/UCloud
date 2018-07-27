@@ -59,6 +59,8 @@ const ApplicationDetails = ({ appInformation }: ApplicationDetails) => {
     return (
         <React.Fragment>
             <ApplicationHeader appInformation={appInformation} />
+            <Header as="h3" content="Tags"/>
+            <ApplicationTags appInformation={appInformation} />
             <Header as="h1" content="Tools" />
             <ApplicationTools appInformation={appInformation} />
             <Header as="h1" content="Parameters" />
@@ -66,6 +68,15 @@ const ApplicationDetails = ({ appInformation }: ApplicationDetails) => {
         </React.Fragment>
     );
 }
+
+const ApplicationTags = (props) => {
+    const mockedTags = ["nanomachines", "medication", "megamachines"];
+    return (
+        <React.Fragment>
+            {mockedTags.map((tag, i) => <Label key={i} basic content={tag} />)}
+        </React.Fragment>
+    )
+};
 
 const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
     const { tool } = appInformation;
@@ -86,6 +97,7 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
                             i !== a.length - 1 ? `${f}, ` : f
                         )}
                     </Label>
+                    <Label content={`${appInformation.description.parameters.length} parameters`} />
                 </List.Content>
                 <List.Content floated="right">
                     <Label basic>
@@ -93,13 +105,9 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
                         Default job time: {timeString}
                     </Label>
                     <Label basic>
-                        <Icon name="address book" />
                         Default number of nodes: {tool.description.defaultNumberOfNodes}
                     </Label>
-                    <Label basic>
-                        <Icon name="file" />
-                        Default tasks per node: {tool.description.defaultTasksPerNode}
-                    </Label>
+                    <Label basic content={`Default tasks per node: ${tool.description.defaultTasksPerNode}`} />
                 </List.Content>
             </List.Item>
         </List >
@@ -120,7 +128,6 @@ const ApplicationParameters = (props: ApplicationDetails) => (
         <Table.Body>
             {props.appInformation.description.parameters.map((p, i) =>
                 <Table.Row key={i}>
-                    <Table.Cell content={i + 1} />
                     <Table.Cell content={p.name} />
                     <Table.Cell content={p.defaultValue == null ? "No default value" : p.defaultValue} />
                     <Table.Cell icon={p.optional ? "check" : "close"} />
