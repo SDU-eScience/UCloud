@@ -63,20 +63,22 @@ export const favoriteFile = (file: File, cloud: Cloud): void => {
 }
 
 /**
- * 
- * @param application {Application}
- * @param cloud {Cloud} The cloud instance for the use
+ * //FIXME Missing backend/redux functionality
+ * Favorites an application. 
+ * @param {Application} Application the application to be favorited
+ * @param {Cloud} cloud The cloud instance for requests
  */
-export const favoriteApplication = (application: Application, cloud: Cloud) => {
-    const { info } = application.description;
-    application.favorite = !application.favorite;
+export const favoriteApplication = (application: Application, page: Page<Application>, cloud: Cloud):Page<Application> => {
+    const a = page.items.find(it => it.description.info.name === application.description.info.name);
+    a.favorite = !a.favorite;
     infoNotification("Backend functionality for favoriting applications missing");
-    return;
-    if (application.favorite) {
+    return page;
+/*  const {info} = a.description;
+    if (a.favorite) {
         cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
     } else {
         cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-    }
+    } */
 }
 
 

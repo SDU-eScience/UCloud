@@ -33,8 +33,8 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 
     render() {
-        const { page, loading, fetchApplications, onErrorDismiss, error } = this.props;
-
+        const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
+        const favoriteApp = (app: Application) => updateApplications(favoriteApplication(app, page, Cloud));
         return (
             <React.Fragment>
                 <Pagination.List
@@ -44,7 +44,7 @@ class Applications extends React.Component<ApplicationsProps> {
                     onRefreshClick={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={({ items }: Page<Application>) =>
                         <Card.Group>
-                            {items.map((app, index) => <SingleApplication key={index} app={app} />)}
+                            {items.map((app, index) => <SingleApplication key={index} app={app} favoriteApp={favoriteApp} />)}
                         </Card.Group>
                     }
                     page={page}
@@ -57,8 +57,8 @@ class Applications extends React.Component<ApplicationsProps> {
 
 // FIXME: Entirely for kitten related images
 let i = 0;
-interface SingleApplicationProps { app: Application }
-function SingleApplication({ app }: SingleApplicationProps) {
+interface SingleApplicationProps { app: Application, favoriteApp: (app: Application) => void }
+function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
     const hashCode = toHashCode(app.description.info.name);
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
     const mClength = materialColors[color].length;
@@ -82,7 +82,7 @@ function SingleApplication({ app }: SingleApplicationProps) {
             </div>
             <Card.Content>
                 <Image floated="right">
-                    <Icon name={app.favorite ? "star" : "star outline"} onClick={() => favoriteApplication(app, Cloud)} />
+                    <Icon name={app.favorite ? "star" : "star outline"} onClick={() => favoriteApp(app)} />
                 </Image>
                 <Card.Header content={app.description.info.name} />
                 <Card.Meta content={app.description.info.version} />
@@ -130,6 +130,8 @@ const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
     updateApplications: (applications: Page<Application>) => dispatch(updateApplications(applications))
 });
 
-const mapStateToProps = ({ applications }): ApplicationsStateProps => applications;
+const mapStateToProps = ({ applications }): ApplicationsStateProps => {
+    return { favCount: applications.page.items.filter(it => it.favorite).length, ...applications }
+}
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

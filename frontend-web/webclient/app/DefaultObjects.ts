@@ -105,7 +105,6 @@ interface ComponentWithPage<T> {
 interface DashboardReduxObject {
     favoriteFiles, recentFiles: File[]
     recentAnalyses: Analysis[]
-    activity: any[]
     favoriteError?: string
     recentFilesError?: string
     recentAnalysesError?: string
@@ -162,7 +161,6 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         favoriteFiles: [] as File[],
         recentFiles: [] as File[],
         recentAnalyses: [] as Analysis[],
-        activity: [] as any[],
         favoriteLoading: false,
         recentLoading: false,
         analysesLoading: false,
