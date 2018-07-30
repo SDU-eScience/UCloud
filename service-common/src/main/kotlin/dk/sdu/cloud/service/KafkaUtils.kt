@@ -1,11 +1,13 @@
 package dk.sdu.cloud.service
 
+import org.apache.kafka.clients.admin.AdminClient
+import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
-import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.kafka.common.utils.Bytes
 import org.apache.kafka.streams.*
@@ -15,8 +17,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.*
-import kotlin.coroutines.experimental.suspendCoroutine
-import kotlin.math.min
 import kotlin.reflect.KClass
 
 fun <K, V> StreamsBuilder.stream(description: StreamDescription<K, V>): KStream<K, V> =
@@ -72,10 +72,18 @@ fun <K, V> KStream<K, V>.to(description: StreamDescription<K, V>) {
 
 class KafkaServices(
     private val streamsConfig: Properties,
-    val producer: KafkaProducer<String, String>
-) {
-    public fun build(block: Topology): KafkaStreams {
+    private val consumerConfig: Properties,
+    val producer: KafkaProducer<String, String>,
+    val adminClient: AdminClient?
+) : EventConsumerFactory {
+    fun build(block: Topology): KafkaStreams {
         return KafkaStreams(block, streamsConfig)
+    }
+
+    override fun <K, V> createConsumer(description: StreamDescription<K, V>): EventConsumer<K, V> {
+        val consumer = KafkaConsumer<String, String>(consumerConfig)
+        consumer.subscribe(listOf(description.name))
+        return KafkaEventConsumer(description, consumer)
     }
 }
 
@@ -102,10 +110,19 @@ object KafkaUtil {
         return retrieveKafkaProducerConfiguration(config.kafka)
     }
 
-    public fun retrieveKafkaProducerConfiguration(kafkaServers: KafkaConnectionConfig): Properties = Properties().apply {
-        this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.servers.joinToString(",") { it.toString() }
-        this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
-        this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+    public fun retrieveKafkaProducerConfiguration(kafkaServers: KafkaConnectionConfig): Properties =
+        Properties().apply {
+            this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = kafkaServers.servers.joinToString(",") { it.toString() }
+            this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+            this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+        }
+
+    public fun retrieveConsumerConfig(config: ConnectionConfig): Properties = Properties().apply {
+        this[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = config.kafka.servers.joinToString(",") { it.toString() }
+        this[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = "false"
+        this[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.qualifiedName!!
+        this[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.qualifiedName!!
+        this[ConsumerConfig.GROUP_ID_CONFIG] = config.service.description.name
     }
 
     /**
@@ -116,14 +133,24 @@ object KafkaUtil {
     public inline fun createKafkaServices(
         configuration: ServerConfiguration,
         streamsConfigBody: (Properties) -> Unit = {},
+        consumerConfigBody: (Properties) -> Unit = {},
         producerConfigBody: (Properties) -> Unit = {},
+        createAdminClient: Boolean = false,
         log: Logger = LoggerFactory.getLogger(KafkaUtil::class.java)
     ): KafkaServices {
         log.info("Connecting to Kafka")
         val streamsConfig = retrieveKafkaStreamsConfiguration(configuration.connConfig).also(streamsConfigBody)
         val producerConfig = retrieveKafkaProducerConfiguration(configuration.connConfig).also(producerConfigBody)
+        val consumerConfig = retrieveConsumerConfig(configuration.connConfig).also(consumerConfigBody)
         val producer = KafkaProducer<String, String>(producerConfig)
+        val adminClient: AdminClient? = if (createAdminClient) {
+            AdminClient.create(mapOf(
+                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to
+                        configuration.connConfig.kafka.servers.joinToString(",") { it.toString() }
+            ))
+        } else null
+
         log.info("Connected to Kafka")
-        return KafkaServices(streamsConfig, producer)
+        return KafkaServices(streamsConfig, consumerConfig, producer, adminClient)
     }
 }
