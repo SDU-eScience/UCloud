@@ -217,10 +217,6 @@ const ApplicationHeader = ({ authors, name, description, version }) => {
                 <h4>{version}</h4>
                 <h4>{pluralize(authors, "Author")}: {authorString}</h4>
             </Header.Content>
-            <Header.Subheader>
-                <ReactMarkdown source={description} />
-            </Header.Subheader>
-
         </Header>
     );
 };

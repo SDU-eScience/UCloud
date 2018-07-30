@@ -1,4 +1,3 @@
-import * as Types from "Types";
 import { SortBy, SortOrder, File } from "Files";
 import { Page } from "Types";
 import { Dispatch } from "redux";

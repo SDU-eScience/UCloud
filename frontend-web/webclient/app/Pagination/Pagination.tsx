@@ -43,7 +43,7 @@ export const EntriesPerPageSelector = ({
     content
 }: EntriesPerPageSelector) => (
         <span className={className}>
-            <span>{content} </span>
+            <span>{content}</span>
             <Dropdown
                 compact
                 inline

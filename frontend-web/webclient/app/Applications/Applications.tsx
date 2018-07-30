@@ -27,6 +27,10 @@ const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
 class Applications extends React.Component<ApplicationsProps> {
     constructor(props: ApplicationsProps) {
         super(props);
+    }
+
+    componentDidMount() {
+        const { props } = this;
         props.updatePageTitle();
         props.setLoading(true);
         props.fetchApplications(props.page.pageNumber, props.page.itemsPerPage);
@@ -36,14 +40,14 @@ class Applications extends React.Component<ApplicationsProps> {
         const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
         const favoriteApp = (app: Application) => updateApplications(favoriteApplication(app, page, Cloud));
         return (
-            <React.Fragment>
+            <React.StrictMode>
                 <Pagination.List
                     loading={loading}
                     onErrorDismiss={onErrorDismiss}
                     errorMessage={error}
                     onRefreshClick={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={({ items }: Page<Application>) =>
-                        <Card.Group>
+                        <Card.Group className="card-margin">
                             {items.map((app, index) => <SingleApplication key={index} app={app} favoriteApp={favoriteApp} />)}
                         </Card.Group>
                     }
@@ -51,7 +55,7 @@ class Applications extends React.Component<ApplicationsProps> {
                     onItemsPerPageChanged={(size) => fetchApplications(0, size)}
                     onPageChanged={(pageNumber) => fetchApplications(pageNumber, page.itemsPerPage)}
                 />
-            </React.Fragment>);
+            </React.StrictMode>);
     }
 }
 
@@ -132,7 +136,7 @@ const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
 
 const mapStateToProps = ({ applications }): ApplicationsStateProps => ({
     favCount: applications.page.items.filter(it => it.favorite).length,
-    ...applications 
-})
+    ...applications
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

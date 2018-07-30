@@ -45,24 +45,24 @@ export class List extends React.PureComponent<ListProps> {
         }
 
         const refreshButton = !!this.props.onRefreshClick ? (
-            <RefreshButton loading={this.props.loading} onClick={this.props.onRefreshClick} />
+            <RefreshButton
+                className="pagination-float-right"
+                loading={this.props.loading}
+                onClick={this.props.onRefreshClick} 
+            />
         ) : null;
 
         return (
-            <div>
+            <React.Fragment>
                 {errorComponent}
-                <span className="pagination-float-right">
-                    <Self.EntriesPerPageSelector
-                        content="Items per page"
-                        className="items-per-page-padding"
-                        entriesPerPage={props.page.itemsPerPage}
-                        onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
-                    />
-                    {refreshButton}
-                </span>
-                
+                {refreshButton}
+                <Self.EntriesPerPageSelector
+                    content="Items per page"
+                    className="items-per-page-padding pagination-float-right"
+                    entriesPerPage={props.page.itemsPerPage}
+                    onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
+                />
                 {body}
-
                 <div>
                     <Self.Buttons
                         as="span"
@@ -71,7 +71,7 @@ export class List extends React.PureComponent<ListProps> {
                         totalPages={Math.ceil(props.page.itemsInTotal / props.page.itemsPerPage)}
                     />
                 </div>
-            </div>
+            </React.Fragment>
         );
     }
 

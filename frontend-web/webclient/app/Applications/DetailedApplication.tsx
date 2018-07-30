@@ -63,14 +63,12 @@ const ApplicationDetails = ({ appInformation }: ApplicationDetails) => {
             <ApplicationTags appInformation={appInformation} />
             <Header as="h1" content="Tools" />
             <ApplicationTools appInformation={appInformation} />
-            <Header as="h1" content="Parameters" />
-            <ApplicationParameters appInformation={appInformation} />
         </React.Fragment>
     );
 }
 
 const ApplicationTags = (props) => {
-    const mockedTags = ["nanomachines", "medication", "megamachines"];
+    const mockedTags = ["nanomachines", "medication", "megamachines", "hyper light simulation", "teleportation research"];
     return (
         <React.Fragment>
             {mockedTags.map((tag, i) => <Label key={i} basic content={tag} />)}
@@ -93,8 +91,8 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
                     </Label>
                     <Label color="blue">
                         <Icon name="file" />
-                        Output files: {appInformation.description.outputFileGlobs.map((f, i, a) =>
-                            i !== a.length - 1 ? `${f}, ` : f
+                        Output files: {appInformation.description.outputFileGlobs.map((f, i, { length }) =>
+                            i !== length - 1 ? `${f}, ` : f
                         )}
                     </Label>
                     <Label content={`${appInformation.description.parameters.length} parameters`} />
@@ -118,7 +116,6 @@ const ApplicationParameters = (props: ApplicationDetails) => (
     <Table basic="very">
         <Table.Header>
             <Table.Row>
-                <Table.HeaderCell content={"#"} />
                 <Table.HeaderCell content={"Parameter name"} />
                 <Table.HeaderCell content={"Default value"} />
                 <Table.HeaderCell content={"Optional"} />
