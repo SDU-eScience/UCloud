@@ -1,5 +1,8 @@
 package dk.sdu.cloud.storage.util
 
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
+import java.io.IOException
 import java.io.InputStream
 import kotlin.math.min
 
@@ -104,11 +107,17 @@ class BoundaryContainedStream(
                 remainingBufferSize
             )
 
-            val read = delegate.read(
-                internalBuffer,
-                remainingBufferSize,
-                internalBuffer.size - remainingBufferSize
-            )
+            val read = try {
+                delegate.read(
+                    internalBuffer,
+                    remainingBufferSize,
+                    internalBuffer.size - remainingBufferSize
+                )
+            } catch (ex: IOException) {
+                log.warn("Caught exception while trying to readMoreData()")
+                log.warn(ex.stackTraceToString())
+                -1
+            }
 
             if (read == -1) throw IllegalStateException("Unexpected end of stream. Boundary not found")
 
@@ -180,5 +189,9 @@ class BoundaryContainedStream(
 
     override fun markSupported(): Boolean {
         return false
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

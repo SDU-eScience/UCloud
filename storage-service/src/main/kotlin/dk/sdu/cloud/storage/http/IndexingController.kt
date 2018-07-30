@@ -41,8 +41,8 @@ class IndexingController<Ctx : FSUserContext>(
             logEntry(log, req)
             if (!protect(PRIVILEGED_ROLES)) return@implement
 
-            tryWithFS(commandRunnerFactory, SERVICE_USER) {
-                val result = indexingService.runDiffOnRoots(it, req.rootsToMaterialized)
+            tryWithFS {
+                val result = indexingService.runDiffOnRoots(req.rootsToMaterialized)
                 ok(DeliverMaterializedFileSystemResponse(result.first))
             }
         }

@@ -69,7 +69,7 @@ class Server(
         val fileLookupService = FileLookupService(coreFileSystem, favoriteService)
 
         // TODO Breaks previous contract that CoreFS would emit all events
-        val indexingService = IndexingService(coreFileSystem, storageEventProducer)
+        val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
 
         val shareDAO = ShareHibernateDAO()
         val shareService = ShareService(db, shareDAO, processRunner, aclService, coreFileSystem)

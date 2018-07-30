@@ -36,7 +36,7 @@ data class IndexedFile(
     /**
      * Depth in the file hierarchy
      *
-     * Example: /a/b/c will have a depth of 3 and /a/b/c/d will have a depth of 4
+     * Example: /a/b/c will have a depth of 3 and /a/b/c/d will have a depth of 4 and / will have a depth of 0
      */
     val fileDepth: Int,
 
@@ -162,7 +162,9 @@ class ElasticIndexingService(
             is StorageEvent.Moved -> elasticClient.update(handleMoved(event))
             is StorageEvent.SensitivityUpdated -> elasticClient.update(handleSensitivityUpdated(event))
             is StorageEvent.AnnotationsUpdated -> elasticClient.update(handleAnnotationsUpdated(event))
-            is StorageEvent.Invalidated -> elasticClient.bulk(handleInvalidated(event))
+            is StorageEvent.Invalidated -> elasticClient.bulk(
+                handleInvalidated(event).takeIf { it.requests().isNotEmpty() } ?: return
+            )
         }
     }
 
@@ -180,7 +182,8 @@ class ElasticIndexingService(
                     is StorageEvent.Invalidated -> request.add(handleInvalidated(event).requests())
                 }
             }
-            elasticClient.bulk(request)
+
+            if (request.requests().isNotEmpty()) elasticClient.bulk(request)
         }
     }
 
@@ -369,6 +372,8 @@ class FileIndexScanner(
                             rootToMaterialized.putAll(scanDirectoriesOfDepth(it.key, it.value))
                         }
 
+                        // TODO JSON payload can become gigantic with 100 roots.
+                        // Will increase memory usage by _a lot_
                         val deliveryResponse = FileDescriptions.deliverMaterializedFileSystem.call(
                             DeliverMaterializedFileSystemRequest(rootToMaterialized),
                             cloud
@@ -392,8 +397,8 @@ class FileIndexScanner(
                         synchronized(queueLock) {
                             queue.addAll(newRoots)
                         }
-                    }
-                }.joinAll()
+                    }.join()
+                }//.joinAll()
             }
         }
     }

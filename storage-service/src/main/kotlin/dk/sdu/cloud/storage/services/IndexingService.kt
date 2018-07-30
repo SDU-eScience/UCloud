@@ -1,6 +1,7 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
 import dk.sdu.cloud.storage.api.FileType
@@ -16,6 +17,7 @@ import java.util.*
  * Service responsible for handling operations related to indexing
  */
 class IndexingService<Ctx : FSUserContext>(
+    private val runnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val storageEventProducer: StorageEventProducer
 ) {
@@ -46,7 +48,9 @@ class IndexingService<Ctx : FSUserContext>(
     /**
      * Runs the diff algorithm on several roots.
      *
-     * It is assumed that the [ctx] can read all of the roots stored [rootToReference].
+     * This method will create its own context, to avoid problems where this method will have its
+     * interpreter closed prematurely. This would happen in the norma tryWithFS { ... } workflow.
+     * It will run as the [SERVICE_USER] it is expected that this user can read all files.
      *
      * This method will quickly verify if the roots exist and return the result of that in [Pair.first].
      *
@@ -54,29 +58,42 @@ class IndexingService<Ctx : FSUserContext>(
      * this, progress can be tracked via [Pair.second].
      */
     fun runDiffOnRoots(
-        ctx: Ctx,
         rootToReference: Map<String, List<EventMaterializedStorageFile>>
     ): Pair<Map<String, Boolean>, Job> {
+        val ctx = runnerFactory(SERVICE_USER)
         val roots = rootToReference.keys
 
-        val shouldContinue = roots.map {
-            val isValid = fs
-                .statOrNull(ctx, it, setOf(FileAttribute.FILE_TYPE))
-                ?.takeIf { it.fileType == FileType.DIRECTORY } != null
+        val shouldContinue = try {
+            roots.map {
+                val isValid = fs
+                    .statOrNull(ctx, it, setOf(FileAttribute.FILE_TYPE))
+                    ?.takeIf { it.fileType == FileType.DIRECTORY } != null
 
-            it to isValid
-        }.toMap()
+                it to isValid
+            }.toMap()
+        } catch (ex: Exception) {
+            ctx.close()
+            throw ex
+        }
 
         val job = launch {
-            rootToReference.map { (root, reference) ->
-                log.debug("Calculating diff for $root")
-                val diff = calculateDiff(ctx, root, reference).diff
-                if (diff.isNotEmpty()) {
-                    log.info("Diff for $root caused ${diff.size} correction events to be emitted")
-                    if (log.isDebugEnabled) log.debug(diff.toString())
-                }
+            try {
+                rootToReference.map { (root, reference) ->
+                    log.debug("Calculating diff for $root")
+                    val diff = calculateDiff(ctx, root, reference).diff
+                    if (diff.isNotEmpty()) {
+                        log.info("Diff for $root caused ${diff.size} correction events to be emitted")
+                        if (log.isDebugEnabled) log.debug(diff.toString())
+                    }
 
-                diff.forEach { storageEventProducer.emit(it) }
+                    diff.forEach { storageEventProducer.emit(it) }
+                }
+            } catch (ex: Exception) {
+                log.warn("Caught exception while diffing directories:")
+                log.warn(rootToReference.toString())
+                log.warn(ex.stackTraceToString())
+            } finally {
+                ctx.close()
             }
         }
 

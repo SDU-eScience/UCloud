@@ -129,7 +129,11 @@ internal fun FileAttribute.Companion.rawParse(
                 }
 
                 FileAttribute.SENSITIVITY -> {
-                    sensitivityLevel = SensitivityLevel.valueOf(currentLine)
+                    sensitivityLevel = try {
+                        SensitivityLevel.valueOf(currentLine)
+                    } catch (ex: IllegalArgumentException) {
+                        SensitivityLevel.CONFIDENTIAL
+                    }
                 }
 
                 FileAttribute.LINK_INODE -> {

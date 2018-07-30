@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.indexing.api.IndexingServiceDescription
 import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
+import dk.sdu.cloud.indexing.services.FileIndexScanner
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.api.StorageEvents
 import io.ktor.application.install
@@ -14,6 +15,7 @@ import org.apache.http.HttpHost
 import org.apache.kafka.streams.KafkaStreams
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
+import kotlin.system.exitProcess
 
 class Server(
     private val configuration: Configuration,
@@ -34,6 +36,18 @@ class Server(
 
         val elastic = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
         val indexingService = ElasticIndexingService(elastic)
+
+        if (args.contains("--scan")) {
+            try {
+                val scanner = FileIndexScanner(cloud, elastic)
+                scanner.scan()
+
+                exitProcess(0)
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+                exitProcess(1)
+            }
+        }
 
         kStreams = buildStreams { kBuilder ->
             StorageEventProcessor(kBuilder.stream(StorageEvents.events), indexingService).also { it.init() }

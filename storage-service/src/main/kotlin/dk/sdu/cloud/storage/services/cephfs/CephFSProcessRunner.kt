@@ -1,6 +1,7 @@
 package dk.sdu.cloud.storage.services.cephfs
 
 import dk.sdu.cloud.service.GuardedOutputStream
+import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.services.CommandRunner
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.StorageUserDao
@@ -35,8 +36,16 @@ class CephFSCommandRunner(
     private val serverBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
 
     private val interpreter: Process = run {
-        val unixUser = cephFSUserDao.findStorageUser(user) ?: throw IllegalStateException("Could not find user")
-        val prefix = if (isDevelopment) emptyList() else listOf("sudo", "-u", unixUser)
+        val prefix = if (isDevelopment) {
+            emptyList()
+        } else {
+            if (user == SERVICE_USER) {
+                emptyList()
+            } else {
+                val unixUser = cephFSUserDao.findStorageUser(user) ?: throw IllegalStateException("Could not find user")
+                listOf("sudo", "-u", unixUser)
+            }
+        }
         val command = listOf(
             "ceph-interpreter",
             String(clientBoundary, Charsets.UTF_8),
