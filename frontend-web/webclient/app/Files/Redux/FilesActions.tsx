@@ -16,7 +16,7 @@ import {
     FILES_ERROR,
     SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder } from "UtilityFunctions";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "UtilityFunctions";
 import { Page, ReceivePage, SetLoadingAction, Action, Error } from "Types";
 import { SortOrder, SortBy, File } from "..";
 
@@ -136,7 +136,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  */
 export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
     Cloud.get(`files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`)
-        .then(({ response }) => receiveFiles(response, path, order, sortBy)).catch(() =>
+        .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
         );
 
