@@ -246,9 +246,9 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
                     handleKeyDown={props.handleKeyDown}
                 />
                 <MockFolder // Return folder
-                    predicate={uf.removeTrailingSlash(path) !== uf.removeTrailingSlash(Cloud.homeFolder)}
+                    predicate={uf.removeTrailingSlash(path) !== uf.removeTrailingSlash(Cloud.homeFolder) && !(disallowedPaths.some(it => it === getParentPath(path)))}
                     folderName=".."
-                    path={uf.addTrailingSlash(getParentPath(path))}
+                    path={getParentPath(path)}
                     canSelectFolders={props.canSelectFolders}
                     setSelectedFile={props.setSelectedFile}
                     fetchFiles={props.fetchFiles}
