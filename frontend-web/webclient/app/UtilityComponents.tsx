@@ -3,7 +3,7 @@ import { Icon, Header } from "semantic-ui-react";
 
 export const FileIcon = ({ name, size, link = false, className = "", color }) =>
     link ?
-        <Icon.Group className={className} size={size}>
+        <Icon.Group style={{ paddingLeft: "6px"}}className={className} size={size}>
             <Icon name={name} color={color} />
             <Icon corner color="grey" name="share" />
         </Icon.Group> :

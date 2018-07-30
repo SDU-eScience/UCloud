@@ -281,9 +281,11 @@ function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, 
     ) : null;
     return predicate ? (
         <List.Item className="pointer-cursor itemPadding" onClick={() => fetchFiles(path)}>
-            {folderSelection}
-            <List.Icon name="folder" color="blue" />
-            <List.Content content={folderName} />
+            <List.Content>
+                {folderSelection}
+                <List.Icon name="folder" color="blue" />
+                {folderName}
+            </List.Content>
         </List.Item>
     ) : null;
 }
@@ -320,13 +322,12 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: File
         (<React.Fragment>
             {files.map((file, index) =>
                 file.type === "FILE" ? (
-                    <List.Item
-                        key={index}
-                        icon={uf.iconFromFilePath(file.path)}
-                        content={uf.getFilenameFromPath(file.path)}
-                        onClick={() => setSelectedFile(file)}
-                        className="itemPadding pointer-cursor"
-                    />
+                    <List.Item key={index} className="itemPadding pointer-cursor">
+                        <List.Content onClick={() => setSelectedFile(file)}>
+                            <List.Icon name={uf.iconFromFilePath(file.path)}/>
+                            {uf.getFilenameFromPath(file.path)}
+                        </List.Content>
+                    </List.Item>
                 ) : (
                         <List.Item key={index} className="itemPadding pointer-cursor">
                             <List.Content floated="right">
