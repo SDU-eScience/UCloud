@@ -14,27 +14,27 @@ import org.apache.http.HttpHost
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import java.io.File
-import kotlin.test.assertEquals
 
 fun main(args: Array<String>) {
     val cloud = mockk<AuthenticatedCloud>(relaxed = true)
     var numRequests = 0
     val time = System.currentTimeMillis()
 
-    File("/tmp/debug.txt").printWriter().use { debugStream ->
-        RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http"))).use { elasticClient ->
+    val elasticClient = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
+    val scanner = FileIndexScanner(cloud, elasticClient)
+
+    elasticClient.use {
+        File("/tmp/debug.txt").printWriter().use { debugStream ->
             objectMockk(FileDescriptions).use {
                 coEvery { FileDescriptions.deliverMaterializedFileSystem.call(any(), any()) } answers {
                     val request = invocation.args.first() as DeliverMaterializedFileSystemRequest
                     numRequests++
 
                     request.rootsToMaterialized.forEach { t, u ->
-//                        debugStream.println(t)
+                        debugStream.println(t)
                         u.forEach {
                             debugStream.println("  $it")
                         }
-
-                        assertEquals(10, u.size, "Unexpected size for $t")
                     }
 
 
@@ -44,12 +44,12 @@ fun main(args: Array<String>) {
                     )
                 }
 
-                val scanner = FileIndexScanner(cloud, elasticClient)
                 scanner.scan()
+
+                println("Performed $numRequests requests to storage-service")
             }
         }
-    }
 
-    println("Performed $numRequests requests to storage-service")
-    println("Took ${System.currentTimeMillis() - time} ms")
+        println("Took ${System.currentTimeMillis() - time} ms")
+    }
 }

@@ -9,6 +9,8 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.storage.api.*
+import kotlinx.coroutines.experimental.joinAll
+import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
@@ -165,19 +167,21 @@ class ElasticIndexingService(
     }
 
     override fun bulkHandleEvent(events: List<StorageEvent>) {
-        val request = BulkRequest()
-        events.forEach { event ->
-            @Suppress("UNUSED_VARIABLE")
-            val ignored: Any? = when (event) {
-                is StorageEvent.CreatedOrRefreshed -> request.add(handleCreatedOrModified(event))
-                is StorageEvent.Deleted -> request.add(handleDeleted(event))
-                is StorageEvent.Moved -> request.add(handleMoved(event))
-                is StorageEvent.SensitivityUpdated -> request.add(handleSensitivityUpdated(event))
-                is StorageEvent.AnnotationsUpdated -> request.add(handleAnnotationsUpdated(event))
-                is StorageEvent.Invalidated -> request.add(handleInvalidated(event).requests())
+        events.chunked(10_000).forEach { chunk ->
+            val request = BulkRequest()
+            chunk.forEach { event ->
+                @Suppress("UNUSED_VARIABLE")
+                val ignored: Any? = when (event) {
+                    is StorageEvent.CreatedOrRefreshed -> request.add(handleCreatedOrModified(event))
+                    is StorageEvent.Deleted -> request.add(handleDeleted(event))
+                    is StorageEvent.Moved -> request.add(handleMoved(event))
+                    is StorageEvent.SensitivityUpdated -> request.add(handleSensitivityUpdated(event))
+                    is StorageEvent.AnnotationsUpdated -> request.add(handleAnnotationsUpdated(event))
+                    is StorageEvent.Invalidated -> request.add(handleInvalidated(event).requests())
+                }
             }
+            elasticClient.bulk(request)
         }
-        elasticClient.bulk(request)
     }
 
     private fun handleCreatedOrModified(event: StorageEvent.CreatedOrRefreshed): UpdateRequest {
@@ -352,37 +356,44 @@ class FileIndexScanner(
         // We could maybe track the first time we see a file (by id) and do queries based on that
 
         runBlocking {
+            val queueLock = Any()
             val queue = arrayListOf(HARDCODED_ROOT)
             while (queue.isNotEmpty()) {
                 // Send up to 100 roots per request
-                for (roots in queue.chunked(100).also { queue.clear() }) {
-                    val rootToMaterialized = HashMap<String, List<EventMaterializedStorageFile>>()
-                    roots.groupBy { it.depth() }.forEach {
-                        rootToMaterialized.putAll(scanDirectoriesOfDepth(it.key, it.value))
-                    }
+                val queueInChunks = queue.chunked(100).also { queue.clear() }
 
-                    val deliveryResponse = FileDescriptions.deliverMaterializedFileSystem.call(
-                        DeliverMaterializedFileSystemRequest(rootToMaterialized),
-                        cloud
-                    )
+                queueInChunks.map { roots ->
+                    launch {
+                        val rootToMaterialized = HashMap<String, List<EventMaterializedStorageFile>>()
+                        roots.groupBy { it.depth() }.forEach {
+                            rootToMaterialized.putAll(scanDirectoriesOfDepth(it.key, it.value))
+                        }
 
-                    if (deliveryResponse !is RESTResponse.Ok) {
-                        throw RuntimeException(
-                            "Could not deliver reference FS: " +
-                                    "${deliveryResponse.status} - ${deliveryResponse.rawResponseBody}"
+                        val deliveryResponse = FileDescriptions.deliverMaterializedFileSystem.call(
+                            DeliverMaterializedFileSystemRequest(rootToMaterialized),
+                            cloud
                         )
-                    }
 
-                    // Continue on all roots that the FS agrees on
-                    val rootsToContinueOn = deliveryResponse.result.shouldContinue.filterValues { it }.keys
-                    val newRoots = rootsToContinueOn.flatMap {
-                        rootToMaterialized[it]!!
-                            .filter { it.fileType == FileType.DIRECTORY && !it.isLink }
-                            .map { it.path }
-                    }
+                        if (deliveryResponse !is RESTResponse.Ok) {
+                            throw RuntimeException(
+                                "Could not deliver reference FS: " +
+                                        "${deliveryResponse.status} - ${deliveryResponse.rawResponseBody}"
+                            )
+                        }
 
-                    queue.addAll(newRoots)
-                }
+                        // Continue on all roots that the FS agrees on
+                        val rootsToContinueOn = deliveryResponse.result.shouldContinue.filterValues { it }.keys
+                        val newRoots = rootsToContinueOn.flatMap {
+                            rootToMaterialized[it]!!
+                                .filter { it.fileType == FileType.DIRECTORY && !it.isLink }
+                                .map { it.path }
+                        }
+
+                        synchronized(queueLock) {
+                            queue.addAll(newRoots)
+                        }
+                    }
+                }.joinAll()
             }
         }
     }
@@ -420,30 +431,6 @@ class FileIndexScanner(
         )
 
         return items.groupBy { it.path.parent() }
-    }
-
-    private fun scanDirectory(directory: String): List<EventMaterializedStorageFile> {
-        val items = ArrayList<EventMaterializedStorageFile>()
-        elasticClient.scrollThroughSearch<IndexedFile>(
-            mapper,
-            listOf(ElasticIndexingService.FILES_INDEX),
-            builder = {
-                source {
-                    bool {
-                        filter = listOf(
-                            term { IndexedFile.PATH_FIELD to directory },
-
-                            // We want the files stored in it, thus we have to increment the depth by
-                            // one (to get its direct children)
-                            term { IndexedFile.FILE_DEPTH_FIELD to directory.depth() + 1 }
-                        )
-                    }
-                }
-            },
-
-            handler = { items.add(it.toMaterializedFile()) }
-        )
-        return items
     }
 
     companion object : Loggable {
