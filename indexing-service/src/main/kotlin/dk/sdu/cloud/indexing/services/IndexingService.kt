@@ -3,10 +3,7 @@ package dk.sdu.cloud.indexing.services
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.indexing.util.scrollThroughSearch
-import dk.sdu.cloud.indexing.util.search
-import dk.sdu.cloud.indexing.util.source
-import dk.sdu.cloud.indexing.util.term
+import dk.sdu.cloud.indexing.util.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -20,7 +17,6 @@ import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
-import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.Requests
 import org.elasticsearch.client.RestHighLevelClient
@@ -48,7 +44,7 @@ data class IndexedFile(
     val fileTimestamps: Timestamps,
     val checksum: FileChecksum,
 
-    val isLink: Boolean,
+    val fileIsLink: Boolean,
     val linkTarget: String?,
     val linkTargetId: String?,
 
@@ -70,7 +66,7 @@ data class IndexedFile(
         val FILE_TIMESTAMPS_FIELD = IndexedFile::fileTimestamps.name
         val CHECKSUM_FIELD = IndexedFile::checksum.name
 
-        val IS_LINK_FIELD = IndexedFile::isLink.name
+        val FILE_IS_LINK_FIELD = IndexedFile::fileIsLink.name
         val LINK_TARGET_FIELD = IndexedFile::linkTarget.name
         val LINK_TARGET_ID_FIELD = IndexedFile::linkTargetId.name
 
@@ -181,6 +177,7 @@ class ElasticIndexingService(
                 is StorageEvent.Invalidated -> request.add(handleInvalidated(event).requests())
             }
         }
+        elasticClient.bulk(request)
     }
 
     private fun handleCreatedOrModified(event: StorageEvent.CreatedOrRefreshed): UpdateRequest {
@@ -198,7 +195,7 @@ class ElasticIndexingService(
             fileTimestamps = event.fileTimestamps,
             checksum = event.checksum,
 
-            isLink = event.isLink,
+            fileIsLink = event.isLink,
             linkTarget = event.linkTarget,
             linkTargetId = event.linkTargetId,
 
@@ -208,7 +205,8 @@ class ElasticIndexingService(
         )
 
         return UpdateRequest(FILES_INDEX, DOC_TYPE, indexedFile.id).apply {
-            upsert(mapper.writeValueAsBytes(indexedFile), XContentType.JSON)
+            doc(mapper.writeValueAsBytes(indexedFile), XContentType.JSON)
+            docAsUpsert(true)
         }
     }
 
@@ -358,7 +356,11 @@ class FileIndexScanner(
             while (queue.isNotEmpty()) {
                 // Send up to 100 roots per request
                 for (roots in queue.chunked(100).also { queue.clear() }) {
-                    val rootToMaterialized = roots.map { it to scanDirectory(it) }.toMap()
+                    val rootToMaterialized = HashMap<String, List<EventMaterializedStorageFile>>()
+                    roots.groupBy { it.depth() }.forEach {
+                        rootToMaterialized.putAll(scanDirectoriesOfDepth(it.key, it.value))
+                    }
+
                     val deliveryResponse = FileDescriptions.deliverMaterializedFileSystem.call(
                         DeliverMaterializedFileSystemRequest(rootToMaterialized),
                         cloud
@@ -375,7 +377,7 @@ class FileIndexScanner(
                     val rootsToContinueOn = deliveryResponse.result.shouldContinue.filterValues { it }.keys
                     val newRoots = rootsToContinueOn.flatMap {
                         rootToMaterialized[it]!!
-                            .filter { it.fileType == FileType.DIRECTORY }
+                            .filter { it.fileType == FileType.DIRECTORY && !it.isLink }
                             .map { it.path }
                     }
 
@@ -383,6 +385,41 @@ class FileIndexScanner(
                 }
             }
         }
+    }
+
+    private fun scanDirectoriesOfDepth(
+        depth: Int,
+        directories: List<String>
+    ): Map<String, List<EventMaterializedStorageFile>> {
+        lazyAssert("directories need to be of the same depth") {
+            directories.all { it.depth() == depth }
+        }
+
+        log.debug("Scanning the following directories together:")
+        log.debug('[' + directories.joinToString(", ") { "\"$it\"" } + ']')
+
+        val items = ArrayList<EventMaterializedStorageFile>()
+        elasticClient.scrollThroughSearch<IndexedFile>(
+            mapper,
+            listOf(ElasticIndexingService.FILES_INDEX),
+            builder = {
+                source {
+                    bool {
+                        filter = listOf(
+                            terms { IndexedFile.PATH_FIELD to directories },
+
+                            // We want the files stored in it, thus we have to increment the depth by
+                            // one (to get its direct children)
+                            term { IndexedFile.FILE_DEPTH_FIELD to depth + 1 }
+                        )
+                    }
+                }
+            },
+
+            handler = { items.add(it.toMaterializedFile()) }
+        )
+
+        return items.groupBy { it.path.parent() }
     }
 
     private fun scanDirectory(directory: String): List<EventMaterializedStorageFile> {
@@ -395,7 +432,10 @@ class FileIndexScanner(
                     bool {
                         filter = listOf(
                             term { IndexedFile.PATH_FIELD to directory },
-                            term { IndexedFile.FILE_DEPTH_FIELD to directory.depth() }
+
+                            // We want the files stored in it, thus we have to increment the depth by
+                            // one (to get its direct children)
+                            term { IndexedFile.FILE_DEPTH_FIELD to directory.depth() + 1 }
                         )
                     }
                 }
@@ -413,9 +453,13 @@ class FileIndexScanner(
     }
 }
 
+// TODO A lot of these are likely to fail under Windows.
+
 private fun String.fileName(): String = File(this).name
 
-private fun String.depth(): Int = File(this).path.split("/").size
+private fun String.depth(): Int = split("/").size - 1
+
+private fun String.parent(): String = File(this).parent
 
 private fun IndexedFile.toMaterializedFile(): EventMaterializedStorageFile = EventMaterializedStorageFile(
     id,
@@ -425,7 +469,7 @@ private fun IndexedFile.toMaterializedFile(): EventMaterializedStorageFile = Eve
     fileTimestamps,
     size,
     checksum,
-    isLink,
+    fileIsLink,
     linkTarget,
     linkTargetId,
     annotations,

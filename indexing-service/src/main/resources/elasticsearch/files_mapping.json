@@ -30,7 +30,7 @@
         },
 
         "fileDepth": {
-          "type": "number"
+          "type": "long"
         },
 
         "id": {
@@ -52,7 +52,7 @@
         },
 
         "size": {
-          "type": "number"
+          "type": "long"
         },
 
         "fileTimestamps": {
@@ -63,7 +63,7 @@
           "type": "object"
         },
 
-        "isLink": {
+        "fileIsLink": {
           "type": "boolean"
         },
 

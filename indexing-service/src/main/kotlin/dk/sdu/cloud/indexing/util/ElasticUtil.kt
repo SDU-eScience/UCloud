@@ -5,17 +5,17 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.stackTraceToString
 import mbuhot.eskotlin.query.QueryData
 import mbuhot.eskotlin.query.initQuery
-import mbuhot.eskotlin.query.term.TermBlock
 import org.elasticsearch.action.ActionListener
 import org.elasticsearch.action.search.*
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.TermQueryBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import kotlin.coroutines.experimental.Continuation
-import kotlin.coroutines.experimental.suspendCoroutine
 
 inline fun <reified T : Any> SearchResponse.paginated(
     mapper: ObjectMapper,
@@ -46,6 +46,7 @@ inline fun <reified T : Any> SearchResponse.mapped(mapper: ObjectMapper): List<T
             mapper.readValue<T>(it.sourceAsString)
         } catch (ex: Exception) {
             ElasticQueryService.log.info("Unable to deserialize IndexedFile from source: ${it.sourceAsString}")
+            ElasticQueryService.log.info(ex.stackTraceToString())
             null
         }
     }
@@ -64,49 +65,27 @@ fun RestHighLevelClient.search(vararg indices: String, builder: SearchRequest.()
     return search(SearchRequest(*indices).also(builder))
 }
 
-suspend fun RestHighLevelClient.aSearch(searchRequest: SearchRequest): SearchResponse = suspendCoroutine { cont ->
-    searchAsync(searchRequest, actionListener(cont))
-}
-
-suspend fun RestHighLevelClient.aScrollThroughSearch(
-    indices: List<String>,
-    builder: SearchRequest.() -> Unit,
-    handler: (SearchResponse) -> Unit
-) {
-    val request = SearchRequest(*indices.toTypedArray()).also(builder)
-    var resp: SearchResponse = aSearch(request)
-    while (resp.hits.hits.isNotEmpty()) {
-        handler(resp)
-        resp = resp.aScroll(this)
-    }
-
-    resp.aClearScroll(this)
-}
-
-suspend inline fun <reified T : Any> RestHighLevelClient.aScrollThroughSearch(
-    mapper: ObjectMapper,
-    indices: List<String>,
-    noinline builder: SearchRequest.() -> Unit,
-    noinline handler: (T) -> Unit
-) {
-    aScrollThroughSearch(indices, builder) {
-        it.mapped<T>(mapper).forEach(handler)
-    }
-}
-
 fun RestHighLevelClient.scrollThroughSearch(
     indices: List<String>,
     builder: SearchRequest.() -> Unit,
     handler: (SearchResponse) -> Unit
 ) {
-    val request = SearchRequest(*indices.toTypedArray()).also(builder)
+    val request = SearchRequest(*indices.toTypedArray())
+        .also {
+            it.source().sort("_doc").size(1000)
+            it.scroll(TimeValue.timeValueMinutes(1))
+        }
+        .also(builder)
+
     var resp: SearchResponse = search(request)
     while (resp.hits.hits.isNotEmpty()) {
         handler(resp)
-        resp = resp.scroll(this)
+        resp = searchScroll(SearchScrollRequest(resp.scrollId).apply {
+            scroll(TimeValue.timeValueMinutes(1))
+        })
     }
 
-    resp.clearScroll(this)
+    clearScroll(ClearScrollRequest().apply { scrollIds = listOf(resp.scrollId) })
 }
 
 inline fun <reified T : Any> RestHighLevelClient.scrollThroughSearch(
@@ -118,10 +97,6 @@ inline fun <reified T : Any> RestHighLevelClient.scrollThroughSearch(
     scrollThroughSearch(indices, builder) {
         it.mapped<T>(mapper).forEach(handler)
     }
-}
-
-suspend fun SearchResponse.aScroll(client: RestHighLevelClient): SearchResponse = suspendCoroutine { continuation ->
-    client.searchScrollAsync(SearchScrollRequest(scrollId), actionListener(continuation))
 }
 
 private fun <T> actionListener(continuation: Continuation<T>): ActionListener<T> = object : ActionListener<T> {
@@ -136,10 +111,6 @@ private fun <T> actionListener(continuation: Continuation<T>): ActionListener<T>
 
 fun SearchResponse.scroll(client: RestHighLevelClient): SearchResponse =
     client.searchScroll(SearchScrollRequest(scrollId))
-
-suspend fun SearchResponse.aClearScroll(client: RestHighLevelClient): ClearScrollResponse = suspendCoroutine { cont ->
-    client.clearScrollAsync(ClearScrollRequest().apply { scrollIds = listOf(scrollId) }, actionListener(cont))
-}
 
 fun SearchResponse.clearScroll(client: RestHighLevelClient): ClearScrollResponse =
     client.clearScroll(ClearScrollRequest().apply { scrollIds = listOf(scrollId) })

@@ -4,14 +4,13 @@ import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.InternalSearchResult
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.storage.api.*
 import org.apache.http.HttpHost
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import java.util.*
 
-const val recreateIndex = false
+const val recreateIndex = true
 
 fun main(args: Array<String>) {
     val elastic = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
@@ -21,12 +20,20 @@ fun main(args: Array<String>) {
 
     fun MutableList<StorageEvent>.file(path: String, type: FileType) {
         add(
-            StorageEvent.CreatedOrModified(
+            StorageEvent.CreatedOrRefreshed(
                 path,
                 path,
                 "bob",
                 System.currentTimeMillis(),
-                type
+                type,
+                Timestamps(0L, 0L, 0L),
+                0L,
+                FileChecksum("", ""),
+                false,
+                null,
+                null,
+                emptySet(),
+                SensitivityLevel.CONFIDENTIAL
             )
         )
     }
@@ -51,13 +58,13 @@ fun main(args: Array<String>) {
 
         with(events) {
             repeat(10) { a ->
-                file("$a", FileType.DIRECTORY)
+                file("/home/$a", FileType.DIRECTORY)
                 repeat(10) { b ->
-                    file("$a/$b", FileType.DIRECTORY)
+                    file("/home/$a/$b", FileType.DIRECTORY)
                     repeat(10) { c ->
-                        file("$a/$b/$c", FileType.DIRECTORY)
+                        file("/home/$a/$b/$c", FileType.DIRECTORY)
                         repeat(10) { d ->
-                            file("$a/$b/$c/$d", FileType.FILE)
+                            file("/home/$a/$b/$c/$d", FileType.FILE)
                         }
                     }
                 }
