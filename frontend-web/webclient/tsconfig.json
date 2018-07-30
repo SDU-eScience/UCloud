@@ -1,7 +1,6 @@
 {
     "compilerOptions": {
         "outDir": "./dist/",
-        "resolveJsonModule": true,
         "alwaysStrict": true,
         "noImplicitAny": false,
         "module": "esnext",
