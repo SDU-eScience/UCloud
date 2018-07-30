@@ -104,9 +104,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 failure => {
                     failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
                     console.log(failure);
-                }).then(() => this.setState({ loading: false }), () => this.setState({ loading: false }))
-            // Initially this: .finally(() => this.setState({ loading: false }))
-            // However, Finally is TC-39, not part of the standard yet. (https://github.com/tc39/proposal-promise-finally)
+                }).finally(() => this.setState({ loading: false }))
         );
     }
 

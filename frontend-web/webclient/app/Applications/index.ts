@@ -145,6 +145,7 @@ export interface RunAppProps {
 
 export interface ApplicationInformation {
     owner: string
+    favorite?: boolean
     createdAt, modifiedAt: number
     description: {
         info: {

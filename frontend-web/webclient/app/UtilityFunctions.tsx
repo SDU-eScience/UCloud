@@ -101,6 +101,7 @@ export const failureNotification = (title: string, seconds: number = 3) => swal(
     showConfirmButton: false,
     timer: seconds * 1_000,
     type: "error",
+    backdrop: false,
     title
 });
 
@@ -110,6 +111,7 @@ export const successNotification = (title: string) => swal({
     showConfirmButton: false,
     timer: 3000,
     type: "success",
+    backdrop: false,
     title
 });
 
@@ -119,6 +121,7 @@ export const infoNotification = (title: string) => swal({
     showConfirmButton: false,
     timer: 3000,
     type: "info",
+    backdrop: false,
     title
 });
 

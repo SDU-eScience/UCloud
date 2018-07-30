@@ -40,13 +40,36 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
             });
     }
 
+    favoriteApplication = (): void => {
+        const { appInformation } = this.state;
+        appInformation.favorite = !appInformation.favorite;
+        if (appInformation.favorite) {
+            // post
+        } else {
+            // delete
+        }
+        this.setState(() => ({ appInformation }));
+    }
+
     render() {
         const { appInformation } = this.state;
+        let body;
+        if (appInformation != null) {
+            body = (
+                <React.Fragment>
+                    <ApplicationHeader favoriteApplication={this.favoriteApplication} appInformation={appInformation} />
+                    <Header as="h3" content="Tags" />
+                    <ApplicationTags tags={[] as string[]} />
+                    <Header as="h1" content="Tools" />
+                    <ApplicationTools appInformation={appInformation} />
+                </React.Fragment>)
+        } else {
+            body = (<DefaultLoading loading={this.state.loading} />);
+        }
         return (
             <Grid container columns={16}>
                 <Grid.Column width={16}>
-                    <DefaultLoading loading={this.state.loading} />
-                    <ApplicationDetails appInformation={appInformation} />
+                    {body}
                 </Grid.Column>
             </Grid>
         );
@@ -54,20 +77,8 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
 }
 
 interface ApplicationDetails { appInformation: ApplicationInformation }
-const ApplicationDetails = ({ appInformation }: ApplicationDetails) => {
-    if (appInformation == null) return null;
-    return (
-        <React.Fragment>
-            <ApplicationHeader appInformation={appInformation} />
-            <Header as="h3" content="Tags"/>
-            <ApplicationTags appInformation={appInformation} />
-            <Header as="h1" content="Tools" />
-            <ApplicationTools appInformation={appInformation} />
-        </React.Fragment>
-    );
-}
 
-const ApplicationTags = (props) => {
+const ApplicationTags = (props: { tags: string[] }) => {
     const mockedTags = ["nanomachines", "medication", "megamachines", "hyper light simulation", "teleportation research"];
     return (
         <React.Fragment>
@@ -112,6 +123,7 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
     )
 }
 
+// FIXME, remove?
 const ApplicationParameters = (props: ApplicationDetails) => (
     <Table basic="very">
         <Table.Header>
@@ -155,8 +167,8 @@ const typeToString = (parameterType: ParameterTypes): string => {
     }
 }
 
-
-const ApplicationHeader = ({ appInformation }: ApplicationDetails) => {
+interface ApplicationHeaderProps extends ApplicationDetails { favoriteApplication: () => void }
+const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationHeaderProps) => {
     if (appInformation == null) return null;
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
@@ -166,6 +178,13 @@ const ApplicationHeader = ({ appInformation }: ApplicationDetails) => {
         <Header as="h1">
             <Header.Content>
                 {appInformation.description.title}
+                <span style={{ paddingLeft: "5px" }}>
+                    <Icon
+                        color="blue"
+                        name={appInformation.favorite ? "star" : "star outline"}
+                        onClick={() => favoriteApplication()}
+                    />
+                </span>
                 <h4>{appInformation.description.info.version}</h4>
                 <h4>{pluralize(appInformation.description.authors, "Author")}: {authorString}</h4>
             </Header.Content>
