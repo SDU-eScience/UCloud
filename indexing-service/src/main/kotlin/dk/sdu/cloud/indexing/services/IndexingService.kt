@@ -9,19 +9,20 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.storage.api.*
-import kotlinx.coroutines.experimental.joinAll
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.ElasticsearchStatusException
+import org.elasticsearch.action.DocWriteRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.Requests
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentType
 import org.slf4j.Logger
 import java.io.File
@@ -169,19 +170,24 @@ class ElasticIndexingService(
     }
 
     override fun bulkHandleEvent(events: List<StorageEvent>) {
-        events.chunked(10_000).forEach { chunk ->
-            val request = BulkRequest()
-            chunk.forEach { event ->
-                @Suppress("UNUSED_VARIABLE")
-                val ignored: Any? = when (event) {
-                    is StorageEvent.CreatedOrRefreshed -> request.add(handleCreatedOrModified(event))
-                    is StorageEvent.Deleted -> request.add(handleDeleted(event))
-                    is StorageEvent.Moved -> request.add(handleMoved(event))
-                    is StorageEvent.SensitivityUpdated -> request.add(handleSensitivityUpdated(event))
-                    is StorageEvent.AnnotationsUpdated -> request.add(handleAnnotationsUpdated(event))
-                    is StorageEvent.Invalidated -> request.add(handleInvalidated(event).requests()) // TODO This one, can itself, produce more than 10K requests
-                }
+        val requests = ArrayList<DocWriteRequest<*>>()
+
+        events.forEach { event ->
+            @Suppress("UNUSED_VARIABLE")
+            val ignored: Any? = when (event) {
+                is StorageEvent.CreatedOrRefreshed -> requests.add(handleCreatedOrModified(event))
+                is StorageEvent.Deleted -> requests.add(handleDeleted(event))
+                is StorageEvent.Moved -> requests.add(handleMoved(event))
+                is StorageEvent.SensitivityUpdated -> requests.add(handleSensitivityUpdated(event))
+                is StorageEvent.AnnotationsUpdated -> requests.add(handleAnnotationsUpdated(event))
+                is StorageEvent.Invalidated -> requests.addAll(handleInvalidated(event).requests())
             }
+        }
+
+        requests.chunked(1000).forEach {
+            val request = BulkRequest()
+            request.add(it)
+            request.timeout(TimeValue.timeValueMinutes(5))
 
             if (request.requests().isNotEmpty()) elasticClient.bulk(request)
         }
