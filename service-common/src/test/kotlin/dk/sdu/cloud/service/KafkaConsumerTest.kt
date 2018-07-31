@@ -77,7 +77,6 @@ class KafkaConsumerTest {
             }
         }
 
-
         val producerJob = launch {
             delay(2000)
 
