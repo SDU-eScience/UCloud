@@ -80,10 +80,10 @@ class KafkaServices(
         return KafkaStreams(block, streamsConfig)
     }
 
-    override fun <K, V> createConsumer(description: StreamDescription<K, V>): EventConsumer<K, V> {
+    override fun <K, V> createConsumer(description: StreamDescription<K, V>): EventConsumer<Pair<K, V>> {
         val consumer = KafkaConsumer<String, String>(consumerConfig)
         consumer.subscribe(listOf(description.name))
-        return KafkaEventConsumer(description, consumer)
+        return KafkaEventConsumer(10, description, consumer)
     }
 }
 
@@ -123,6 +123,7 @@ object KafkaUtil {
         this[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.qualifiedName!!
         this[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.qualifiedName!!
         this[ConsumerConfig.GROUP_ID_CONFIG] = config.service.description.name
+//        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
     }
 
     /**
