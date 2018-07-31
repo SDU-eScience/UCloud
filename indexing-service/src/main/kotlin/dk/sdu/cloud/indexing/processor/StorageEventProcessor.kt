@@ -1,18 +1,27 @@
 package dk.sdu.cloud.indexing.processor
 
 import dk.sdu.cloud.indexing.services.IndexingService
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.storage.api.StorageEvent
-import org.apache.kafka.streams.kstream.KStream
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.storage.api.StorageEvents
 import org.slf4j.Logger
 
 class StorageEventProcessor(
-    private val stream: KStream<String, StorageEvent>,
-    private val indexingService: IndexingService
+    private val streamFactory: EventConsumerFactory,
+    private val indexingService: IndexingService,
+    private val parallelism: Int = 4
 ) {
-    fun init() {
-        stream.foreach { _, event ->
-            indexingService.handleEvent(event)
+    fun init(): List<EventConsumer<*>> {
+        return (0 until parallelism).map {
+            streamFactory.createConsumer(StorageEvents.events).configure { root ->
+                root
+                    .batched(
+                        batchTimeout = 500,
+                        maxBatchSize = 1000
+                    )
+                    .consumeBatchAndCommit {
+                        indexingService.bulkHandleEvent(it.map { it.second })
+                    }
+            }
         }
     }
 

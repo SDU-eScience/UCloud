@@ -179,7 +179,7 @@ class ElasticIndexingService(
                     is StorageEvent.Moved -> request.add(handleMoved(event))
                     is StorageEvent.SensitivityUpdated -> request.add(handleSensitivityUpdated(event))
                     is StorageEvent.AnnotationsUpdated -> request.add(handleAnnotationsUpdated(event))
-                    is StorageEvent.Invalidated -> request.add(handleInvalidated(event).requests())
+                    is StorageEvent.Invalidated -> request.add(handleInvalidated(event).requests()) // TODO This one, can itself, produce more than 10K requests
                 }
             }
 

@@ -14,9 +14,9 @@ fun main(args: Array<String>) {
     val cephFs = CephFileSystem(userDao, File("fs").absolutePath)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(cephFs, eventProducer)
-    val indexingService = IndexingService(coreFs, eventProducer)
 
     val commandRunnerFactory = CephFSCommandRunnerFactory(userDao, true)
+    val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
     val diff = commandRunnerFactory.withContext("jonas@hinchely.dk") { ctx ->
         indexingService.calculateDiff(
             ctx, "/home/jonas@hinchely.dk", emptyList()

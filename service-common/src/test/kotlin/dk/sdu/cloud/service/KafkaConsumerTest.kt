@@ -6,6 +6,7 @@ import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class KafkaConsumerTest {
     private val kafkaService = KafkaUtil.createKafkaServices(
@@ -81,12 +82,7 @@ class KafkaConsumerTest {
             delay(2000)
 
             repeat(1000) {
-                producer.emit(
-                    Advanced(
-                        it,
-                        "hello" to 42
-                    )
-                )
+                producer.emit(Advanced(it, "hello" to 42))
             }
         }
         runBlocking { producerJob.join() }
@@ -100,5 +96,63 @@ class KafkaConsumerTest {
             // We have at-least-once delivery. But we still want to make sure all of them are actually delivered
             consumedItems.flatMap { it }.associateBy { it.first }.values.size
         )
+    }
+
+    @Test
+    fun testLongRunningBatch() {
+        var caughtException: Throwable? = null
+
+        val producer = kafkaService.producer.forStream(Descriptions.testStream)
+        val consumer = kafkaService.createConsumer(Descriptions.testStream).configure { root ->
+            root
+                .batched(batchTimeout = 30_000, maxBatchSize = Int.MAX_VALUE)
+                .consumeBatchAndCommit {
+                    println("Consumed a batch of size: ${it.size}")
+                    assertEquals(2000, it.size)
+                }
+        }
+
+        consumer.onExceptionCaught { caughtException = it }
+
+        val producerJob = launch {
+            repeat(2000) { producer.emit(Advanced(it, "hello" to 42)) }
+        }
+        runBlocking { producerJob.join() }
+
+        repeat(35) { println(it); Thread.sleep(1000) }
+        consumer.close()
+
+        if (caughtException != null) throw caughtException!!
+    }
+
+    @Test
+    fun testOverflow() {
+        var caughtException: Throwable? = null
+
+        val processedIds = hashSetOf<Int>()
+        val producer = kafkaService.producer.forStream(Descriptions.testStream)
+        val consumer = kafkaService.createConsumer(Descriptions.testStream, internalQueueSize = 1).configure { root ->
+            root.consumeAndCommit {
+                processedIds.add(it.second.id)
+                Thread.sleep(10)
+            }
+        }
+
+        consumer.onExceptionCaught { caughtException = it }
+
+        val producerJob = launch {
+            repeat(2000) { producer.emit(Advanced(it, "hello" to 42)) }
+        }
+        runBlocking { producerJob.join() }
+
+        // Might want to increase this number. Being able to finish in 35 seconds actually requires a bit of luck from
+        // the locks
+        repeat(35) { println(it); Thread.sleep(1000) }
+        consumer.close()
+
+        repeat(2000) { assertTrue(it in processedIds, "Expected $it in processedIds") }
+        assertEquals(2000, processedIds.size)
+
+        if (caughtException != null) throw caughtException!!
     }
 }

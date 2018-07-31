@@ -7,7 +7,6 @@ import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.FileIndexScanner
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.api.StorageEvents
 import io.ktor.application.install
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -27,6 +26,7 @@ class Server(
 ) : CommonServer, WithServiceRegistry {
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
+    private val eventConsumers = ArrayList<EventConsumer<*>>()
 
     override val log = logger()
     override val endpoints: List<String> = listOf("/api/search", "/api/index")
@@ -49,10 +49,11 @@ class Server(
             }
         }
 
-        kStreams = buildStreams { kBuilder ->
-            StorageEventProcessor(kBuilder.stream(StorageEvents.events), indexingService).also { it.init() }
+        StorageEventProcessor(kafka, indexingService).init().forEach {
+            it.onExceptionCaught { stop() }
         }
 
+        kStreams = buildStreams { }
         httpServer = ktor {
             installDefaultFeatures(cloud, kafka, instance, requireJobId = true)
             install(JWTProtection)
@@ -64,5 +65,10 @@ class Server(
 
         startServices()
         registerWithRegistry()
+    }
+
+    override fun stop() {
+        super.stop()
+        eventConsumers.forEach { it.close() }
     }
 }

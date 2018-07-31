@@ -53,8 +53,8 @@ class BatchedEventStreamProcessor<V>(
         nextTimedEmit = System.currentTimeMillis() + batchTimeout
     }
 
-    override fun commitConsumed() {
-        parent.commitConsumed()
+    override fun commitConsumed(events: List<ConsumedEvent<*>>) {
+        parent.commitConsumed(events)
     }
 }
 
@@ -84,7 +84,7 @@ fun <V> EventStreamProcessor<*, V>.consumeBatchAndCommit(handler: (List<V>) -> U
     addProcessor<V, Unit> {
         if (it.isNotEmpty()) {
             handler(it.map { it.value })
-            commitConsumed()
+            commitConsumed(it)
         }
 
         emptyList()
@@ -94,7 +94,7 @@ fun <V> EventStreamProcessor<*, V>.consumeBatchAndCommit(handler: (List<V>) -> U
 fun <V> EventStreamProcessor<*, V>.consumeAndCommit(handler: (V) -> Unit) {
     addProcessor<V, Unit> {
         it.forEach { handler(it.value) }
-        commitConsumed()
+        commitConsumed(it)
         emptyList()
     }
 }

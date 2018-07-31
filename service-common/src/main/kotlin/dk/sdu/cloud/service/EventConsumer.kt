@@ -21,18 +21,21 @@ interface EventConsumer<V> : Closeable {
     val isRunning: Boolean
 
     fun configure(configure: (processor: EventStreamProcessor<*, V>) -> Unit): EventConsumer<V>
-    fun commitConsumed()
+    fun commitConsumed(events: List<ConsumedEvent<*>>)
     fun onExceptionCaught(handler: (Throwable) -> Unit)
 }
 
 interface EventConsumerFactory {
-    fun <K, V> createConsumer(description: StreamDescription<K, V>): EventConsumer<Pair<K, V>>
+    fun <K, V> createConsumer(
+        description: StreamDescription<K, V>,
+        internalQueueSize: Int = 1024
+    ): EventConsumer<Pair<K, V>>
 }
 
 interface EventStreamProcessor<ValueIn, ValueOut> {
     fun addChildProcessor(processor: EventStreamProcessor<ValueOut, *>)
     fun accept(events: List<ConsumedEvent<ValueIn>>)
-    fun commitConsumed()
+    fun commitConsumed(events: List<ConsumedEvent<*>>)
 }
 
 abstract class AbstractEventStreamProcessor<ValueIn, ValueOut>(
@@ -51,8 +54,8 @@ abstract class AbstractEventStreamProcessor<ValueIn, ValueOut>(
         children.forEach { it.accept(output) }
     }
 
-    override fun commitConsumed() {
-        parent.commitConsumed()
+    override fun commitConsumed(events: List<ConsumedEvent<*>>) {
+        parent.commitConsumed(events)
     }
 }
 
