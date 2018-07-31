@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Grid, Header, Form, Input, Button } from "semantic-ui-react";
+import { Grid, Header, Form, Input, Button, Icon } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -8,7 +8,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
-import { getFilenameFromPath } from "UtilityFunctions";
+import { getFilenameFromPath, favoriteApplication } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
@@ -20,6 +20,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.state = {
             promises: new PromiseKeeper(),
             loading: false,
+            favorite: null,
             appName: props.match.params.appName,
             displayAppName: props.match.params.appName,
             appVersion: props.match.params.appVersion,
@@ -61,6 +62,12 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.state.promises.cancelPromises();
     }
 
+    favoriteApp = () => {
+        this.setState(() => ({
+            favorite: favoriteApplication({ favorite: this.state.favorite }).favorite
+        }));
+    }
+
     onJobSchedulingParamsChange(field, value, timeField) {
         let { jobInfo } = this.state;
         if (timeField) {
@@ -84,7 +91,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             maxTime = null;
         }
         // FIXME END
-        
+
         const contents = [JSON.stringify({
             application: {
                 name: this.state.appName,
@@ -162,6 +169,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             const tool = req.response.tool;
 
             this.setState(() => ({
+                favorite: req.response.favorite,
                 appName: app.info.name,
                 displayAppName: app.title,
                 parameters: app.parameters,
@@ -182,7 +190,8 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                     <ApplicationHeader
                         name={this.state.displayAppName}
                         version={this.state.appVersion}
-                        description={this.state.appDescription}
+                        favorite={this.state.favorite}
+                        favoriteApp={this.favoriteApp}
                         authors={this.state.appAuthor}
                     />
 
@@ -205,7 +214,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 }
 
-const ApplicationHeader = ({ authors, name, description, version }) => {
+const ApplicationHeader = ({ authors, name, favorite, version, favoriteApp }) => {
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!authors) ? authors.join(", ") : "";
@@ -214,6 +223,13 @@ const ApplicationHeader = ({ authors, name, description, version }) => {
         <Header as="h1">
             <Header.Content>
                 {name}
+                <span className="app-favorite-padding">
+                    <Icon
+                        color="blue"
+                        name={favorite ? "star" : "star outline"}
+                        onClick={() => favoriteApp()}
+                    />
+                </span>
                 <h4>{version}</h4>
                 <h4>{pluralize(authors, "Author")}: {authorString}</h4>
             </Header.Content>
@@ -269,14 +285,14 @@ const JobSchedulingParams = (props) => {
                 <Form.Input
                     label="Number of nodes"
                     type="number" step="1"
-                    placeholder={"Default value: " + props.tool.defaultNumberOfNodes}
+                    placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
                     onChange={(e, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
                 <Form.Input
                     label="Tasks per node"
                     type="number" step="1"
-                    placeholder={"Default value: " + props.tool.defaultTasksPerNode}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
+                    placeholder={`Default value: ${props.tool.defaultTasksPerNode}`}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
                 />
             </Form.Group>
             <label>Maximum time allowed</label>

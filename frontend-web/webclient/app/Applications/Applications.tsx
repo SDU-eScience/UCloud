@@ -14,11 +14,11 @@ import { Page } from "Types";
 import { Application } from ".";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
-import materialColors from "Assets/TempMaterialColors";
-import { favoriteApplication } from "UtilityFunctions";
+import { MaterialColors } from "Assets/materialcolors.json";
+import { favoriteApplicationFromPage } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject";
 
-const COLORS_KEYS = Object.keys(materialColors);
+const COLORS_KEYS = Object.keys(MaterialColors);
 
 // We need dynamic import due to nature of the import
 const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
@@ -38,7 +38,7 @@ class Applications extends React.Component<ApplicationsProps> {
 
     render() {
         const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
-        const favoriteApp = (app: Application) => updateApplications(favoriteApplication(app, page, Cloud));
+        const favoriteApp = (app: Application) => updateApplications(favoriteApplicationFromPage(app, page, Cloud));
         return (
             <React.StrictMode>
                 <Pagination.List
@@ -65,8 +65,8 @@ interface SingleApplicationProps { app: Application, favoriteApp: (app: Applicat
 function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
     const hashCode = toHashCode(app.description.info.name);
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
-    const mClength = materialColors[color].length;
-    const hex = materialColors[color][(hashCode % mClength)];
+    const mClength = MaterialColors[color].length;
+    const hex = MaterialColors[color][(hashCode % mClength)];
     const even = app.modifiedAt % 2 === 0;
     const opacity = even ? 0.3 : 1;
     const image = even ? blurOverlay : `https://placekitten.com/${i % 2 === 0 ? "g" : ""}/${200 + i++}/200`;
