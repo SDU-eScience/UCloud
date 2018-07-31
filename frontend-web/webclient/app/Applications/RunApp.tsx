@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Grid, Header, Form, Input, Button, Icon } from "semantic-ui-react";
+import { Grid, Header, Form, Input, Button, Rating } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import swal from "sweetalert2";
@@ -224,9 +224,11 @@ const ApplicationHeader = ({ authors, name, favorite, version, favoriteApp }) =>
             <Header.Content>
                 {name}
                 <span className="app-favorite-padding">
-                    <Icon
-                        color="blue"
-                        name={favorite ? "star" : "star outline"}
+                    <Rating
+                        icon="star"
+                        size="huge"
+                        rating={favorite ? 1 : 0}
+                        maxRating={1}
                         onClick={() => favoriteApp()}
                     />
                 </span>

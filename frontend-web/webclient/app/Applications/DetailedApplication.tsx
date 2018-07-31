@@ -1,7 +1,7 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Grid, Header, Table, Label, Icon, List } from "../../node_modules/semantic-ui-react";
+import { Grid, Header, Table, Label, Icon, List, Rating } from "../../node_modules/semantic-ui-react";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { ApplicationInformation, ParameterTypes } from "Applications";
@@ -179,9 +179,11 @@ const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationH
             <Header.Content>
                 {appInformation.description.title}
                 <span className="app-favorite-padding">
-                    <Icon
-                        color="blue"
-                        name={appInformation.favorite ? "star" : "star outline"}
+                    <Rating
+                        icon="star"
+                        size="huge"
+                        rating={appInformation.favorite ? 1 : 0}
+                        maxRating={1}
                         onClick={() => favoriteApplication()}
                     />
                 </span>

@@ -92,8 +92,8 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                                     onChange={(_, { value }) => this.updateSearchText(value)}
                                     className="header-search"
                                     fluid
-                                    icon='search'
-                                    placeholder='Search by project...'
+                                    icon="search"
+                                    placeholder="Search by project..."
                                 />
                             </Form>
                         </Responsive>

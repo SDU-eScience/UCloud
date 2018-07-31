@@ -206,4 +206,11 @@ export enum ParameterTypes {
     FloatingPoint = "floating_point",
     Text = "text",
     Boolean = "boolean"
+export interface SearchFieldProps {
+    onSubmit: () => void
+    icon: string
+    placeholder: string
+    value: string
+    loading: boolean
+    onValueChange: (value: string) => void
 }
