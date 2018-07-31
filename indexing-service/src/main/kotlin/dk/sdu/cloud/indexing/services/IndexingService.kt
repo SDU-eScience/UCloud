@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.storage.api.*
+import kotlinx.coroutines.experimental.joinAll
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
@@ -403,8 +404,8 @@ class FileIndexScanner(
                         synchronized(queueLock) {
                             queue.addAll(newRoots)
                         }
-                    }.join()
-                }//.joinAll()
+                    }
+                }.joinAll()
             }
         }
     }
