@@ -178,7 +178,7 @@ const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationH
         <Header as="h1">
             <Header.Content>
                 {appInformation.description.title}
-                <span style={{ paddingLeft: "5px" }}>
+                <span className="app-favorite-padding">
                     <Icon
                         color="blue"
                         name={appInformation.favorite ? "star" : "star outline"}
