@@ -96,7 +96,7 @@ fun main(args: Array<String>) {
         }
 
         else -> {
-            Server(db, configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
+            Server(db, configuration, kafka, serverProvider, serviceRegistry, cloud).start()
         }
     }
 }

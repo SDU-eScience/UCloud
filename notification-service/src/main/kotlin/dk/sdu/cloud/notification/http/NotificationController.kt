@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.services.NotificationDAO
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
@@ -15,13 +16,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 
-// TODO FIXME Move to service-common
-// TODO FIXME Move to service-common
-// TODO FIXME Move to service-common
-interface Controller {
-    val baseContext: String
-    fun configure(routing: Route)
-}
 
 class NotificationController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
