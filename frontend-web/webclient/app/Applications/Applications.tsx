@@ -15,7 +15,7 @@ import { Application } from ".";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
 import materialColors from "Assets/TempMaterialColors";
-import { favoriteApplication } from "UtilityFunctions";
+import { favoriteApplicationFromPage } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject";
 
 const COLORS_KEYS = Object.keys(materialColors);
@@ -38,7 +38,7 @@ class Applications extends React.Component<ApplicationsProps> {
 
     render() {
         const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
-        const favoriteApp = (app: Application) => updateApplications(favoriteApplication(app, page, Cloud));
+        const favoriteApp = (app: Application) => updateApplications(favoriteApplicationFromPage(app, page, Cloud));
         return (
             <React.StrictMode>
                 <Pagination.List

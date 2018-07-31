@@ -5,7 +5,7 @@ import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder } from "./Files";
 import { Page, AccessRight } from "./Types";
 import { File, Acl } from "./Files"
-import { Application } from "Applications";
+import { Application, ApplicationInformation } from "Applications";
 
 export const toLowerCaseAndCapitalize = (str: string): string => !str ? "" : str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 
@@ -36,6 +36,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
     ].some((it) => removeTrailingSlash(it) === filePath)
 };
 
+// FIXME rename favorite lambda. Favorite doesn't make sense as a name
 /**
  * Used for favoriting a file based on a path and page consisting of files.
  * @param {Page<File>} page The page of files to be searched through
@@ -61,26 +62,6 @@ export const favoriteFile = (file: File, cloud: Cloud): void => {
     else
         cloud.delete(`/files/favorite?path=${file.path}`, {});
 }
-
-/**
- * //FIXME Missing backend/redux functionality
- * Favorites an application. 
- * @param {Application} Application the application to be favorited
- * @param {Cloud} cloud The cloud instance for requests
- */
-export const favoriteApplication = (application: Application, page: Page<Application>, cloud: Cloud):Page<Application> => {
-    const a = page.items.find(it => it.description.info.name === application.description.info.name);
-    a.favorite = !a.favorite;
-    infoNotification("Backend functionality for favoriting applications missing");
-    return page;
-/*  const {info} = a.description;
-    if (a.favorite) {
-        cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-    } else {
-        cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-    } */
-}
-
 
 /**
  * Returns a string based on the amount of users associated with the ACL
@@ -425,6 +406,35 @@ export const ifPresent = (f, handler: (f: any) => void) => {
 };
 
 
+/**
+ * //FIXME Missing backend functionality
+ * Favorites an application. 
+ * @param {Application} Application the application to be favorited
+ * @param {Cloud} cloud The cloud instance for requests
+ */
+export const favoriteApplicationFromPage = (application: Application, page: Page<Application>, cloud: Cloud):Page<Application> => {
+    const a = page.items.find(it => it.description.info.name === application.description.info.name);
+    a.favorite = !a.favorite;
+    infoNotification("Backend functionality for favoriting applications missing");
+    return page;
+/*  const {info} = a.description;
+    if (a.favorite) {
+        cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
+    } else {
+        cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
+    } */
+}
+
+
+export const favoriteApplication = (app) => {
+    app.favorite = !app.favorite;
+    if (app.favorite) {
+        // post
+    } else {
+        // delete
+    }
+    return app;
+}
 
 export function defaultErrorHandler(error: any): number {
     let request: XMLHttpRequest = error.request;

@@ -117,6 +117,7 @@ export interface RunAppState {
     promises: PromiseKeeper
     loading: boolean
     appName: string
+    favorite: boolean
     displayAppName: string
     appVersion: string
     appDescription: string
