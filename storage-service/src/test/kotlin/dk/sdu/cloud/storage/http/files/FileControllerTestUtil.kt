@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.storage.api.*
@@ -20,8 +21,7 @@ import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.routing.Route
-import io.ktor.routing.route
+import io.ktor.routing.Routing
 import io.ktor.routing.routing
 import io.ktor.server.testing.*
 import io.mockk.mockk
@@ -42,7 +42,7 @@ data class FileControllerContext(
 fun Application.configureServerWithFileController(
     fsRootInitializer: () -> File = { createDummyFS() },
     userDao: StorageUserDao = simpleCloudToCephFSDao(),
-    additional: Route.(FileControllerContext) -> Unit = {}
+    additional: Routing.(FileControllerContext) -> Unit = {}
 ) {
     val instance = ServiceInstance(
         StorageServiceDescription.definition(),
@@ -60,7 +60,7 @@ fun Application.configureServerWithFileController(
     val coreFs = CoreFileSystemService(fs, eventProducer)
     val favoriteService = FavoriteService(coreFs)
 
-    val fileController = FileControllerContext(
+    val ctx = FileControllerContext(
         cloud = cloud,
         fsRoot = fsRoot.absolutePath,
         runner = runner,
@@ -73,13 +73,10 @@ fun Application.configureServerWithFileController(
     )
 
     routing {
-        route("api") {
-            val routing = this
-            with(fileController) {
-                FilesController(runner, coreFs, annotationService, favoriteService, lookupService).configure(routing)
-            }
-            additional(fileController)
-        }
+        configureControllers(
+            with(ctx) { FilesController(runner, coreFs, annotationService, favoriteService, lookupService) }
+        )
+        additional(ctx)
     }
 }
 

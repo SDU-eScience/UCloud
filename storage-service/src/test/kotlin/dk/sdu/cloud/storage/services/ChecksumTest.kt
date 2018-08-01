@@ -25,7 +25,7 @@ class ChecksumTest {
         Assert.assertTrue(checksum.checksum == "01C77500CC529C8D85A620C9FEF013496A702B83".toLowerCase())
     }
 
-    @Test (expected = IllegalArgumentException::class)
+    @Test(expected = IllegalArgumentException::class)
     fun illegalAlgorithm() {
         val fsRoot = createDummyFS()
         val (runner, service) = createService(fsRoot.absolutePath)

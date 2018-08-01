@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.http.download
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.storage.http.SimpleDownloadController
 import dk.sdu.cloud.storage.http.files.configureServerWithFileController
 import dk.sdu.cloud.storage.http.files.setUser
@@ -56,7 +57,7 @@ class DownloadTests {
                 coEvery { TokenValidation.validateAndClaim(any(), any(), any()) } returns user
 
                 val bulk = BulkDownloadService(it.coreFs)
-                SimpleDownloadController(it.cloud, it.runner, it.coreFs, bulk).configure(this)
+                configureControllers(SimpleDownloadController(it.cloud, it.runner, it.coreFs, bulk))
             }
         }
     }

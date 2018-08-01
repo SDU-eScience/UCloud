@@ -1,7 +1,6 @@
 package dk.sdu.cloud.storage.util
 
 import com.auth0.jwt.interfaces.Claim
-import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.SecurityPrincipal
 import dk.sdu.cloud.service.TokenValidation

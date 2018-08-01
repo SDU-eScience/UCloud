@@ -55,7 +55,12 @@ class MoveTest {
         Assert.assertFalse(nonexistingFolder.exists())
 
         runner.withContext("user1") {
-            service.move(it, "home/user1/folder/a", "home/user1/folder/newly/created/folder", WriteConflictPolicy.OVERWRITE)
+            service.move(
+                it,
+                "home/user1/folder/a",
+                "home/user1/folder/newly/created/folder",
+                WriteConflictPolicy.OVERWRITE
+            )
         }
 
     }

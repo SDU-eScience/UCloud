@@ -2,9 +2,12 @@ package dk.sdu.cloud.storage.http.share
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.storage.api.FindByShareId
@@ -22,8 +25,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.objectMockk
-import io.mockk.use
+import io.mockk.*
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -31,16 +33,31 @@ class ShareTests {
     // Possible problem when tests are run on other computer. Schulz is not the owner of the filesystem.
     @Test
     fun createListAndAcceptTest() {
-        objectMockk(NotificationDescriptions).use {
+        objectMockk(NotificationDescriptions, UserDescriptions).use {
+            coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    FindByNotificationId("mocked id")
+                )
+            }
+
+            coEvery { UserDescriptions.lookupUsers.call(any(), any()) } answers {
+                val payload = args.first() as LookupUsersRequest
+
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    LookupUsersResponse(payload.users.map { it to UserLookup(it, Role.USER) }.toMap())
+                )
+            }
+
             withAuthMock {
                 val userToRunAs = "user"
                 val userToShareWith = "user1"
 
                 withTestApplication(
                     moduleFunction = {
-                        configureServerWithFileController(userDao = cloudToCephFsDAOWithFixedAnswer(
-                            userToRunAs
-                        )
+                        configureServerWithFileController(
+                            userDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)
                         ) {
                             val db = HibernateSessionFactory.create(
                                 H2_TEST_CONFIG.copy(
@@ -51,7 +68,7 @@ class ShareTests {
                             val aclService = ACLService(it.fs)
                             val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
 
-                            ShareController(shareService, it.runner, it.coreFs).configure(this)
+                            configureControllers(ShareController(shareService, it.runner, it.coreFs))
                         }
                     },
 
