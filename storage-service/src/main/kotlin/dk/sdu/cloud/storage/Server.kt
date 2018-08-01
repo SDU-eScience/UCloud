@@ -22,23 +22,27 @@ import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.experimental.launch
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.TimeUnit
 
 class Server(
     private val configuration: Configuration,
-    private val kafka: KafkaServices,
+    override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory,
-    private val serviceRegistry: ServiceRegistry,
+    override val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val args: Array<String>
-) {
-    private lateinit var httpServer: ApplicationEngine
-    private lateinit var kStreams: KafkaStreams
+): CommonServer, WithServiceRegistry {
+    override val log: Logger = logger()
+    override val endpoints = listOf("api/tus", "api")
 
-    fun start() {
+    override lateinit var httpServer: ApplicationEngine
+    override lateinit var kStreams: KafkaStreams
+
+    override fun start() {
         val instance = StorageServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
@@ -142,51 +146,35 @@ class Server(
                     IndexingController(
                         processRunner,
                         indexingService
-                    )
-                )
+                    ),
 
-                route("api") {
                     SimpleDownloadController(
                         cloud,
                         processRunner,
                         coreFileSystem,
                         bulkDownloadService
-                    ).configure(this)
+                    ),
 
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
                         uploadService
-                    ).configure(this)
+                    ),
 
                     ShareController(
                         shareService,
                         processRunner,
                         coreFileSystem
-                    ).configure(this)
-                }
+                    )
+                )
             }
             log.info("HTTP server successfully configured!")
         }
 
-        log.info("Starting HTTP server...")
-        httpServer.start(wait = false)
-        log.info("HTTP server started!")
-
-        log.info("Starting Kafka Streams...")
-        kStreams.start()
-        log.info("Kafka Streams started!")
-
-        serviceRegistry.register(listOf("/api/files", "/api/acl", "/api/tus", "/api/upload", "/api/shares"))
-        log.info("Server is ready!")
-        log.info(instance.toString())
+        startServices()
+        registerWithRegistry()
     }
 
-    fun stop() {
-        httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
-        kStreams.close(30, TimeUnit.SECONDS)
-        db.close()
-    }
 
     companion object {
         private val log = LoggerFactory.getLogger(Server::class.java)

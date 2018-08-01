@@ -14,7 +14,6 @@ import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest

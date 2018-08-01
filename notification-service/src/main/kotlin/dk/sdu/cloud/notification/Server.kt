@@ -16,22 +16,26 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 class Server(
     private val db: HibernateSessionFactory,
     private val configuration: Configuration,
-    private val kafka: KafkaServices,
+    override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    private val serviceRegistry: ServiceRegistry,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val args: Array<String>
-) {
-    private lateinit var httpServer: ApplicationEngine
-    private lateinit var kStreams: KafkaStreams
+    override val serviceRegistry: ServiceRegistry,
+    private val cloud: RefreshingJWTAuthenticatedCloud
+): CommonServer, WithServiceRegistry {
 
-    fun start() {
+    override val log: Logger = logger()
+    override val endpoints = listOf("api/notifications")
+
+    override lateinit var httpServer: ApplicationEngine
+    override lateinit var kStreams: KafkaStreams
+
+    override fun start() {
         val instance = NotificationServiceDescription.instance(configuration.connConfig)
 
         log.info("Creating core services")
@@ -62,31 +66,20 @@ class Server(
             install(JWTProtection)
 
             routing {
-                route("api/notifications") {
-                    NotificationController(db, notificationDao).configure(this)
-                }
+                configureControllers(
+                    NotificationController(
+                        db,
+                        notificationDao
+                    )
+                )
             }
 
             log.info("HTTP server successfully configured!")
         }
 
-        log.info("Starting HTTP server...")
-        httpServer.start(wait = false)
-        log.info("HTTP server started!")
+        startServices()
+        registerWithRegistry()
 
-        log.info("Starting Kafka Streams...")
-        kStreams.start()
-        log.info("Kafka Streams started!")
-
-        serviceRegistry.register(listOf("/api/notification"))
-        log.info("Server is ready!")
-        log.info(instance.toString())
-    }
-
-
-    fun stop() {
-        httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
-        kStreams.close(30, TimeUnit.SECONDS)
     }
 
     companion object {

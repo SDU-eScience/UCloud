@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserDAO
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
@@ -16,8 +17,10 @@ class UserController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val userDAO: UserDAO<DBSession>,
     private val userCreationService: UserCreationService<DBSession>
-) {
-    fun configure(routing: Route): Unit = with(routing) {
+): Controller {
+    override val baseContext = UserDescriptions.baseContext
+
+    override fun configure(routing: Route): Unit = with(routing) {
         install(JWTProtection)
 
         implement(UserDescriptions.createNewUser) {

@@ -49,7 +49,7 @@ fun Share.minimalize(): MinimalShare =
     MinimalShare(id ?: throw NullPointerException("id must be != null"), sharedWith, rights, state)
 
 object ShareDescriptions : RESTDescriptions(StorageServiceDescription) {
-    private const val baseContext = "/api/shares"
+    const val baseContext = "/api/shares"
 
     val list = callDescription<ListSharesRequest, Page<SharesByPath>, CommonErrorMessage> {
         prettyName = "listShare"

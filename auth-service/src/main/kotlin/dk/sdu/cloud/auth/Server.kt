@@ -20,6 +20,7 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
@@ -29,14 +30,17 @@ class AuthServer(
     private val jwtAlg: Algorithm,
     private val config: AuthConfiguration,
     private val authSettings: Saml2Settings,
-    private val serviceRegistry: ServiceRegistry,
-    private val kafka: KafkaServices,
+    override val serviceRegistry: ServiceRegistry,
+    override val kafka: KafkaServices,
     private val ktor: HttpServerProvider
-) {
-    private lateinit var kStreams: KafkaStreams
-    private lateinit var httpServer: ApplicationEngine
+): CommonServer, WithServiceRegistry {
+    override val log: Logger = logger()
+    override val endpoints = listOf(UserDescriptions.baseContext)
 
-    fun start() {
+    override lateinit var kStreams: KafkaStreams
+    override lateinit var httpServer: ApplicationEngine
+
+    override fun start() {
         val instance = AuthServiceDescription.instance(config.connConfig)
 
         log.info("Creating core services...")
@@ -97,7 +101,6 @@ class AuthServer(
             )
             val samlController = SAMLController(authSettings, tokenService)
             val passwordController = PasswordController(db, userDao, tokenService)
-            val userController = UserController(db, userDao, userCreationService)
             log.info("HTTP controllers configured!")
 
             routing {
@@ -105,46 +108,19 @@ class AuthServer(
                 if (config.enableWayf) samlController.configure(this)
                 if (config.enablePasswords) passwordController.configure(this)
 
-                route(UserDescriptions.baseContext) {
-                    userController.configure(this)
-                }
+                configureControllers(
+                    UserController(
+                        db,
+                        userDao,
+                        userCreationService)
+                )
             }
 
             log.info("HTTP server successfully configured!")
         }
 
-        log.info("Starting HTTP server...")
-        httpServer.start(wait = false)
-        log.info("HTTP server started!")
-
-        log.info("Starting Kafka Streams...")
-        kStreams.start()
-        log.info("Kafka Streams started!")
-
-        serviceRegistry.register(listOf("/auth"))
-
-        log.info("Server is ready!")
-        log.info(instance.toString())
-    }
-
-    fun stop() {
-        try {
-            kStreams.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        try {
-            httpServer.stop(0, 5, TimeUnit.SECONDS)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        try {
-            kafka.producer.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        startServices()
+        registerWithRegistry()
     }
 
     companion object {

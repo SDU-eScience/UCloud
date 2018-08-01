@@ -1,6 +1,7 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.KafkaHttpRouteLogger
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -39,6 +40,7 @@ class TusController<DBSession, Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>
 ) {
+
     fun registerTusEndpoint(routing: Route, contextPath: String) {
         routing.apply {
             val serverConfiguration = InternalConfig(

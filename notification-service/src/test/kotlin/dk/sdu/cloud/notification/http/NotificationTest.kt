@@ -2,16 +2,16 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.metadata.utils.withAuthMock
-import dk.sdu.cloud.notification.http.Controller
 import dk.sdu.cloud.notification.http.NotificationController
 import dk.sdu.cloud.notification.services.InMemoryNotificationDAO
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
@@ -39,11 +39,7 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
 
     routing {
         protect()
-        for (controller in controllers) {
-            route(controller.baseContext) {
-                controller.configure(this)
-            }
-        }
+        configureControllers(*controllers)
     }
 }
 
