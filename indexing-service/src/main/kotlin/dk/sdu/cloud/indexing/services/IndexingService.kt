@@ -296,6 +296,8 @@ class ElasticQueryService(
         paging: NormalizedPaginationRequest
     ): Page<InternalSearchResult> = elasticClient
         .search<IndexedFile>(mapper, paging, FILES_INDEX) {
+//            sort(IndexedFile.ID_FIELD)
+
             bool {
                 must {
                     match_phrase_prefix {

@@ -6,8 +6,8 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.storage.api.FileSortBy
 import dk.sdu.cloud.storage.api.SortOrder
 import dk.sdu.cloud.storage.api.StorageFile
-import dk.sdu.cloud.storage.services.mkdir
-import dk.sdu.cloud.storage.services.touch
+import dk.sdu.cloud.storage.util.mkdir
+import dk.sdu.cloud.storage.util.touch
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationEngine

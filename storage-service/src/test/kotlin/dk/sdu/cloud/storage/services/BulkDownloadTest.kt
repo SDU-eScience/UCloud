@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test

@@ -15,7 +15,7 @@ import dk.sdu.cloud.storage.http.files.setUser
 import dk.sdu.cloud.storage.services.ACLService
 import dk.sdu.cloud.storage.services.ShareHibernateDAO
 import dk.sdu.cloud.storage.services.ShareService
-import dk.sdu.cloud.storage.services.cloudToCephFsDAOWithFixedAnswer
+import dk.sdu.cloud.storage.util.cloudToCephFsDAOWithFixedAnswer
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -38,7 +38,10 @@ class ShareTests {
 
                 withTestApplication(
                     moduleFunction = {
-                        configureServerWithFileController(userDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)) {
+                        configureServerWithFileController(userDao = cloudToCephFsDAOWithFixedAnswer(
+                            userToRunAs
+                        )
+                        ) {
                             val db = HibernateSessionFactory.create(
                                 H2_TEST_CONFIG.copy(
                                     usePool = false,

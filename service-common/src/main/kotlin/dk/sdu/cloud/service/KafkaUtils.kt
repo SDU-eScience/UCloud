@@ -127,7 +127,7 @@ object KafkaUtil {
         this[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.qualifiedName!!
         this[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.qualifiedName!!
         this[ConsumerConfig.GROUP_ID_CONFIG] = config.service.description.name + "-consumer"
-//        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
+        this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
     }
 
     /**

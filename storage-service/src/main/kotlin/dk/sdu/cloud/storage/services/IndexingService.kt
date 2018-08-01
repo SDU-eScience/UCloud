@@ -89,6 +89,7 @@ class IndexingService<Ctx : FSUserContext>(
                     diff.forEach { storageEventProducer.emit(it) }
                 }
             } catch (ex: Exception) {
+                // Note: we don't bubble up the exception to anyone else
                 log.warn("Caught exception while diffing directories:")
                 log.warn(rootToReference.toString())
                 log.warn(ex.stackTraceToString())
@@ -133,16 +134,22 @@ class IndexingService<Ctx : FSUserContext>(
             )
 
             return DirectoryDiff(shouldContinue = false, diff = listOf(invalidatedEvent))
+        } catch (ex: FSException.BadRequest) {
+            // Will be thrown if the root is not a directory. The diff will be caught in the parent.
+            return DirectoryDiff(shouldContinue = false, diff = emptyList())
         }
 
+        val realByPath = realDirectory.associateBy { it.path }
         val realById = realDirectory.associateBy { it.inode }
         val referenceById = reference.associateBy { it.id }
         val allFileIds = referenceById.keys + realById.keys
 
+        val eventCollector = ArrayList<StorageEvent>()
+
         val deletedFiles = referenceById.filter { it.key !in realById }
-        val invalidatedEvents = deletedFiles.map {
+        eventCollector.addAll(deletedFiles.map {
             StorageEvent.Invalidated(it.value.id, it.value.path, it.value.owner, System.currentTimeMillis())
-        }
+        })
 
         // Note: We don't emit any deleted events. That would cause problems for clients that assume that
         // create/deletes are always correctly ordered. During this diffing process we could easily get
@@ -151,67 +158,79 @@ class IndexingService<Ctx : FSUserContext>(
         // delete based on file ID).
 
         val newFiles = realById.filter { it.key !in referenceById }
-        val createdEvents = newFiles.map { it.value.toCreatedEvent() }
+        eventCollector.addAll(newFiles.filter { it.value.fileType == FileType.FILE }.map { it.value.toCreatedEvent() })
+
         // For directories created here we can be pretty sure that the reference system does _not_ already have
         // them. We need to traverse those
-        val traversalEvents =
+        eventCollector.addAll(
             newFiles.filter { it.value.fileType == FileType.DIRECTORY }.flatMap {
                 fs.tree(ctx, it.value.path, DIFF_MODE).map { it.toCreatedEvent() }
             }
+        )
 
         val filesStillPresent = allFileIds.filter { it in realById && it in referenceById }
-        val updatedEvents = filesStillPresent.flatMap { id ->
-            val realFile = realById[id]!!
-            val referenceFile = referenceById[id]!!
-            assert(referenceFile.id == realFile.inode)
+        eventCollector.addAll(
+            filesStillPresent.flatMap { id ->
+                val realFile = realById[id]!!
+                val referenceFile = referenceById[id]!!
+                assert(referenceFile.id == realFile.inode)
 
-            val events = ArrayList<StorageEvent>()
-            if (referenceFile.path != realFile.path) {
-                events.add(
-                    StorageEvent.Moved(
-                        realFile.inode,
-                        realFile.path,
-                        realFile.owner,
-                        realFile.timestamps.modified,
-                        referenceFile.path
-                    )
-                )
-
-                if (realFile.fileType == FileType.DIRECTORY) {
-                    // Need to invalidate and re-index
-                    //
-                    // We don't attempt to just rename children since events are likely missing due to parent being
-                    // out of sync.
+                val events = ArrayList<StorageEvent>()
+                if (referenceFile.path != realFile.path) {
                     events.add(
-                        StorageEvent.Invalidated(
+                        StorageEvent.Moved(
                             realFile.inode,
-                            referenceFile.path,
+                            realFile.path,
                             realFile.owner,
-                            realFile.timestamps.modified
+                            realFile.timestamps.modified,
+                            referenceFile.path
                         )
                     )
 
-                    events.addAll(fs.tree(ctx, realFile.path, DIFF_MODE).map { it.toCreatedEvent() })
+                    if (realFile.fileType == FileType.DIRECTORY) {
+                        // Need to invalidate and re-index
+                        //
+                        // We don't attempt to just rename children since events are likely missing due to parent being
+                        // out of sync.
+                        events.add(
+                            StorageEvent.Invalidated(
+                                realFile.inode,
+                                referenceFile.path,
+                                realFile.owner,
+                                realFile.timestamps.modified
+                            )
+                        )
+
+                        events.addAll(fs.tree(ctx, realFile.path, DIFF_MODE).map { it.toCreatedEvent() })
+                    }
                 }
-            }
 
-            if (
-                referenceFile.annotations.sorted() != realFile.annotations.sorted() ||
-                referenceFile.fileType != realFile.fileType ||
-                referenceFile.owner != realFile.owner ||
-                referenceFile.sensitivityLevel != realFile.sensitivityLevel
-            ) {
-                // Note: The file type can only be wrong if the client has made an incorrect assumption
-                // (due to missing information). We do not need to perform traversals on the directory (if applicable)
-                events.add(realFile.toCreatedEvent())
-            }
+                if (
+                    referenceFile.annotations.sorted() != realFile.annotations.sorted() ||
+                    referenceFile.fileType != realFile.fileType ||
+                    referenceFile.owner != realFile.owner ||
+                    referenceFile.sensitivityLevel != realFile.sensitivityLevel
+                ) {
+                    // Note: The file type can only be wrong if the client has made an incorrect assumption
+                    // (due to missing information). We do not need to perform traversals on the directory (if applicable)
+                    events.add(realFile.toCreatedEvent())
+                }
 
-            events
-        }
+                events
+            }
+        )
+
+        // Detect paths that have been invalidated (for valid reasons) but have since reference gotten a new file at
+        // same path
+        eventCollector.addAll(
+            eventCollector
+                .filterIsInstance<StorageEvent.Invalidated>()
+                .mapNotNull { realByPath[it.path]?.toCreatedEvent() }
+        )
 
         return DirectoryDiff(
             shouldContinue = true,
-            diff = invalidatedEvents + createdEvents + traversalEvents + updatedEvents
+            diff = eventCollector
         )
     }
 

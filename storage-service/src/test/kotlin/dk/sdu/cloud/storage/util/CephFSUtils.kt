@@ -1,11 +1,14 @@
-package dk.sdu.cloud.storage.services
+package dk.sdu.cloud.storage.util
 
+import dk.sdu.cloud.storage.api.Timestamps
+import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
 import io.mockk.every
 import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 
 fun simpleCloudToCephFSDao(): StorageUserDao {
     val dao = mockk<StorageUserDao>()
@@ -40,14 +43,33 @@ fun cephFSWithRelaxedMocks(
     )
 }
 
-fun File.mkdir(name: String, closure: File.() -> Unit) {
+fun File.mkdir(name: String, closure: File.() -> Unit): File {
     val f = File(this, name)
     f.mkdir()
     f.closure()
+    return f
 }
 
-fun File.touch(name: String, contents: String = "Hello!") {
-    File(this, name).writeText(contents)
+fun File.touch(name: String, contents: String = "Hello!"): File {
+    return File(this, name).also { it.writeText(contents) }
+}
+
+fun File.inode(): String {
+    return Files
+        .readAttributes(toPath(), BasicFileAttributes::class.java)
+        .fileKey()
+        .toString()
+        .substringAfter("ino=")
+        .removeSuffix(")")
+}
+
+fun File.timestamps(): Timestamps {
+    val attrs = Files.readAttributes(toPath(), BasicFileAttributes::class.java)
+    return Timestamps(
+        accessed = attrs.lastAccessTime().toMillis(),
+        created = attrs.creationTime().toMillis(),
+        modified = attrs.lastModifiedTime().toMillis()
+    )
 }
 
 fun createDummyFS(): File {
@@ -71,3 +93,6 @@ fun createDummyFS(): File {
     return fsRoot
 }
 
+fun createFS(builder: File.() -> Unit): String {
+    return Files.createTempDirectory("storage-service-test").toFile().apply { builder() }.absolutePath
+}

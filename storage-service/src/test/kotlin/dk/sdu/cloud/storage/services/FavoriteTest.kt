@@ -4,6 +4,8 @@ import dk.sdu.cloud.storage.api.StorageEvent
 import dk.sdu.cloud.storage.api.StorageEventProducer
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.storage.util.createDummyFS
 import io.mockk.*
 import org.junit.Assert
 import org.junit.Test

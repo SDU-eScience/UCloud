@@ -27,6 +27,7 @@ class Server(
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
     private val eventConsumers = ArrayList<EventConsumer<*>>()
+    private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
     override val endpoints: List<String> = listOf("/api/search", "/api/index")
@@ -34,7 +35,7 @@ class Server(
     override fun start() {
         val instance = IndexingServiceDescription.instance(configuration.connConfig)
 
-        val elastic = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
+        elastic = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
         val indexingService = ElasticIndexingService(elastic)
 
         if (args.contains("--scan")) {
@@ -70,5 +71,6 @@ class Server(
     override fun stop() {
         super.stop()
         eventConsumers.forEach { it.close() }
+        elastic.close()
     }
 }
