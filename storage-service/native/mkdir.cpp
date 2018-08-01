@@ -3,5 +3,5 @@
 #include <iostream>
 
 int mkdir_command(const char *path) {
-    return do_mkdir(std::cout, path, 0700, FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER);
+    return do_mkdir(std::cout, path, 0700, CREATED_OR_MODIFIED);
 }

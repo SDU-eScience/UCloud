@@ -14,8 +14,6 @@
 #include "file_utils.h"
 #include "tree.h"
 
-#define FILE_INFO (FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER)
-
 static int compare(const FTSENT **one, const FTSENT **two) {
     return (strcmp((*one)->fts_name, (*two)->fts_name));
 }
@@ -141,7 +139,7 @@ copy_command_impl(std::ostream &stream, const std::string &from_inp, const std::
         // Create parent dir (dirs are not guaranteed to show up in traversal)
         strncpy(parent_path, to_inp_c, (size_t) i);
         parent_path[i] = '\0';
-        status = mkpath(stream, parent_path, 0700, FILE_INFO); // mkpath prints dirs created
+        status = mkpath(stream, parent_path, 0700, CREATED_OR_MODIFIED); // mkpath prints dirs created
         if (status != 0) goto clean_up;
     }
 
@@ -158,9 +156,9 @@ copy_command_impl(std::ostream &stream, const std::string &from_inp, const std::
             goto clean_up;
         }
 
-        print_file_information(stream, to_inp_c, &s, FILE_INFO);
+        print_file_information(stream, to_inp_c, &s, CREATED_OR_MODIFIED);
     } else if (S_ISDIR(s.st_mode)) {
-        status = mkpath(stream, to_inp_c, 0700, FILE_INFO);
+        status = mkpath(stream, to_inp_c, 0700, CREATED_OR_MODIFIED);
     } else {
         assert(false);
         status = -EINVAL;

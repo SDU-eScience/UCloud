@@ -50,6 +50,7 @@ int do_mkdir(std::ostream &stream, const char *path, mode_t mode, uint64_t file_
 void verify_path_or_fatal(const char *path);
 
 bool std_ends_with(const std::string &str, const std::string &suffix);
+
 bool std_starts_with(const std::string &str, const std::string &prefix);
 
 #ifdef __linux__
@@ -92,6 +93,9 @@ bool std_starts_with(const std::string &str, const std::string &prefix);
 #define GROUP_MAX 256
 #define CHECKSUM_MAX 256
 #define CHECKSUM_TYPE_MAX 256
+
+#define CREATED_OR_MODIFIED (FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER | SIZE | CHECKSUM | \
+    IS_LINK | LINK_TARGET |LINK_INODE | ANNOTATIONS | SENSITIVITY)
 
 int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode);
 

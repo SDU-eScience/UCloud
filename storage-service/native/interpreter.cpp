@@ -258,7 +258,7 @@ int write_open_command(char *path, bool allow_overwrite) {
     if (file_opened_for_writing < 0) return -errno;
 
     fstat(file_opened_for_writing, &s);
-    print_file_information(std::cout, path, &s, FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER);
+    print_file_information(std::cout, path, &s, CREATED_OR_MODIFIED);
     return 0;
 }
 
