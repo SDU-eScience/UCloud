@@ -25,7 +25,6 @@ import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 class Server(
     private val configuration: Configuration,
@@ -173,10 +172,5 @@ class Server(
 
         startServices()
         registerWithRegistry()
-    }
-
-
-    companion object {
-        private val log = LoggerFactory.getLogger(Server::class.java)
     }
 }

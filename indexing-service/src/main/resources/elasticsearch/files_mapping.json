@@ -23,64 +23,47 @@
           "analyzer": "path-tokenizer",
           "search_analyzer": "keyword"
         },
-
         "fileName": {
           "type": "text",
-          "analyzer": "standard"
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
         },
-
         "fileDepth": {
           "type": "long"
         },
-
         "id": {
-          "type": "text",
-          "analyzer": "keyword",
-          "search_analyzer": "keyword"
+          "type": "keyword"
         },
-
         "fileType": {
-          "type": "text",
-          "analyzer": "keyword",
-          "search_analyzer": "keyword"
+          "type": "keyword"
         },
-
         "owner": {
-          "type": "text",
-          "analyzer": "keyword",
-          "search_analyzer": "keyword"
+          "type": "keyword"
         },
-
         "size": {
           "type": "long"
         },
-
         "fileTimestamps": {
           "type": "object"
         },
-
         "checksum": {
           "type": "object"
         },
-
         "fileIsLink": {
           "type": "boolean"
         },
-
         "linkTarget": {
           "type": "text"
         },
-
         "linkTargetId": {
           "type": "text"
         },
-
         "sensitivity": {
-          "type": "text",
-          "analyzer": "keyword",
-          "search_analyzer": "keyword"
+          "type": "keyword"
         },
-
         "annotations": {
           "type": "object"
         }

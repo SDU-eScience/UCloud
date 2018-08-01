@@ -57,7 +57,7 @@ fun main(args: Array<String>) {
 
 
         with(events) {
-            repeat(1000) { a ->
+            repeat(10) { a ->
                 file("/home/$a", FileType.DIRECTORY)
                 repeat(10) { b ->
                     file("/home/$a/$b", FileType.DIRECTORY)

@@ -8,13 +8,15 @@ import org.elasticsearch.client.RestHighLevelClient
 
 fun main(args: Array<String>) {
     val elastic = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
-    val query = ElasticQueryService(elastic)
+    elastic.use {
+        val query = ElasticQueryService(elastic)
 
-    val firstPage = query.simpleQuery(
-        listOf("/home/jonas@hinchely.dk"),
-        "new",
-        NormalizedPaginationRequest(null, null)
-    )
+        val firstPage = query.simpleQuery(
+            listOf("/home/jonas@hinchely.dk"),
+            "/home/jonas@hinchely.dk",
+            NormalizedPaginationRequest(null, null)
+        )
 
-    println(firstPage)
+        println(firstPage)
+    }
 }

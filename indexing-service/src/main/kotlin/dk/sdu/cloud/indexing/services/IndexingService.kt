@@ -13,6 +13,7 @@ import kotlinx.coroutines.experimental.joinAll
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
+import mbuhot.eskotlin.query.fulltext.match
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.ElasticsearchStatusException
@@ -62,6 +63,7 @@ data class IndexedFile(
         val ID_FIELD = IndexedFile::id.name
         val PATH_FIELD = IndexedFile::path.name
         val FILE_NAME_FIELD = IndexedFile::fileName.name
+        val FILE_NAME_KEYWORD = IndexedFile::fileName.name + ".keyword"
         val OWNER_FIELD = IndexedFile::owner.name
         val FILE_DEPTH_FIELD = IndexedFile::fileDepth.name
         val FILE_TYPE_FIELD = IndexedFile::fileType.name
@@ -296,23 +298,34 @@ class ElasticQueryService(
         paging: NormalizedPaginationRequest
     ): Page<InternalSearchResult> = elasticClient
         .search<IndexedFile>(mapper, paging, FILES_INDEX) {
-//            sort(IndexedFile.ID_FIELD)
+            sort(IndexedFile.FILE_NAME_KEYWORD)
 
             bool {
-                must {
+                should = listOf(
                     match_phrase_prefix {
                         IndexedFile.FILE_NAME_FIELD to {
                             this.query = query
                             max_expansions = 10
                         }
+                    },
+
+                    term {
+                        boost = 0.5f
+                        IndexedFile.OWNER_FIELD to query
                     }
-                }
+                )
 
                 filter {
                     terms {
                         IndexedFile.PATH_FIELD to roots
                     }
                 }
+
+                // minimum_should_match = 1
+                // TODO Can't use this. eskotlin is compiled against an old version which isn't binary compatible
+                // Also seems like eskotlin development is mostly dead, we should fork it.
+            }.also {
+                it.minimumShouldMatch(1)
             }
         }
         .mapItems { with(it) { InternalSearchResult(id, path, fileType) } }
@@ -352,20 +365,17 @@ class FileIndexScanner(
     private val mapper = jacksonObjectMapper()
 
     fun scan() {
-        // TODO If the materialized view has two files at same path, but with different id
-        // Then I do not think the verifier will be able to correct the record. It will invalidate the entire
-        // path, and not tell which is correct.
-        // I guess this will still be eventually consistent. In the next update there will (hopefully) not be the
-        // same conflict and it will add the missing one. We should probably detect this duplicate case?
-
         // We will end up traversing the entries it has just corrected for us.
+        // Although, some are likely to be missed since we do a breadth-first scan.
+
+        // TODO It is possible to have orphaned files in the index.
+        // This can happen due to Invalidated not being keyed correctly (its not possible to key it correctly).
+        // In that case we may invalidated a directory before all events in the queue for the affected files are
+        // processed.
         //
-        // A timestamp for newest event is not enough to filter out new entries. We cannot rely on timestamps for
-        // created (since we also get for refreshes).
-        //
-        // This will cause quite a lot of wasted work when we are doing large rebuilds.
-        //
-        // We could maybe track the first time we see a file (by id) and do queries based on that
+        // These won't be delivered to the FS, and as a result they won't be deleted. We should probably just detect
+        // them during a scan and delete them. I see no reason to notify the storage service about it (the event
+        // stream was correct).
 
         runBlocking {
             val queueLock = Any()

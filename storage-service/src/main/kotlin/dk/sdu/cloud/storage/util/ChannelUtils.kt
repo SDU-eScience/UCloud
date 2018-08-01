@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.util
 
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import kotlinx.coroutines.experimental.channels.produce
+import kotlinx.coroutines.experimental.channels.ticker
 import kotlinx.coroutines.experimental.selects.select
 import java.util.concurrent.TimeUnit
 

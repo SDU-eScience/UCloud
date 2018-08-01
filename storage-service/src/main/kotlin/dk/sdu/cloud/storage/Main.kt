@@ -36,7 +36,7 @@ private const val ARG_GENERATE_DDL = "--generate-ddl"
 private const val ARG_MIGRATE = "--migrate"
 
 val SERVICE_USER = "_${StorageServiceDescription.name}"
-val SERVICE_UNIX_USER = "storage" // Note: root is also supported. Should only be done in a container
+const val SERVICE_UNIX_USER = "storage" // Note: root is also supported. Should only be done in a container
 
 fun main(args: Array<String>) {
     log.info("Starting storage service")
