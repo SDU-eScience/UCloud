@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.services.UserDAO
 import dk.sdu.cloud.auth.services.UserException
 import dk.sdu.cloud.auth.services.checkPassword
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry

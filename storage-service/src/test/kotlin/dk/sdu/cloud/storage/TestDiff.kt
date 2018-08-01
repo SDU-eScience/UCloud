@@ -9,7 +9,7 @@ import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
 import io.mockk.mockk
 import java.io.File
 
-fun main(args: Array<String>) {
+/*fun main(args: Array<String>) {
     val userDao = CephFSUserDao(true)
     val cephFs = CephFileSystem(userDao, File("fs").absolutePath)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
@@ -25,4 +25,4 @@ fun main(args: Array<String>) {
 
     println("Should continue: ${diff.shouldContinue}")
     diff.diff.forEach { println(it) }
-}
+}*/

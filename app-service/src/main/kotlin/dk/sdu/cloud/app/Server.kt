@@ -18,27 +18,31 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 class Server(
-    private val kafka: KafkaServices,
-    private val serviceRegistry: ServiceRegistry,
+    override val kafka: KafkaServices,
+    override val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: HPCConfig,
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory
-) {
+): CommonServer, WithServiceRegistry {
     private var initialized = false
+    override val log: Logger = logger()
+    override val endpoints = listOf("api/hpc")
 
-    private lateinit var httpServer: ApplicationEngine
-    private lateinit var kStreams: KafkaStreams
+
+    override lateinit var httpServer: ApplicationEngine
+    override lateinit var kStreams: KafkaStreams
     private lateinit var scheduledExecutor: ScheduledExecutorService
     private lateinit var slurmPollAgent: SlurmPollAgent
 
-    fun start() {
+    override fun start() {
         if (initialized) throw IllegalStateException("Already started!")
 
         val instance = AppServiceDescription.instance(config.connConfig)
@@ -99,35 +103,29 @@ class Server(
                     JobController(db, jobService).configure(this)
                     ToolController(db, toolDao).configure(this)
                 }
+
+                configureControllers(
+                    AppController(
+                        db,
+                        applicationDao
+                    ),
+
+                    JobController(
+                        db,
+                        jobService
+                    ),
+
+                    ToolController(
+                        db,
+                        toolDao
+                    )
+                )
             }
             log.info("HTTP server successfully configured!")
         }
 
-        log.info("Starting Application Services")
-        slurmPollAgent.start()
-        jobExecutionService.initialize()
-
-        log.info("Starting HTTP server...")
-        // TODO We don't actually wait for the server to be ready before we register health endpoint!
-        httpServer.start(wait = false)
-        log.info("HTTP server started!")
-
-        log.info("Starting Kafka Streams...")
-        kStreams.start()
-        log.info("Kafka Streams started!")
-
-        initialized = true
-        serviceRegistry.register(listOf("/api/hpc"))
-        log.info("Server is ready!")
-        log.info(instance.toString())
-    }
-
-    fun stop() {
-        httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
-        kStreams.close(30, TimeUnit.SECONDS)
-
-        slurmPollAgent.stop()
-        scheduledExecutor.shutdown()
+        startServices()
+        registerWithRegistry()
     }
 
     companion object {

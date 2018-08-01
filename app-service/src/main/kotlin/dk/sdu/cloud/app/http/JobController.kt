@@ -18,8 +18,10 @@ import org.slf4j.LoggerFactory
 class JobController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val jobService: JobService<DBSession>
-) {
-    fun configure(routing: Route) = with(routing) {
+): Controller {
+    override val baseContext = HPCJobDescriptions.baseContext
+
+    override fun configure(routing: Route):Unit  = with(routing) {
         route("jobs") {
             implement(HPCJobDescriptions.findById) {
                 logEntry(log, it)

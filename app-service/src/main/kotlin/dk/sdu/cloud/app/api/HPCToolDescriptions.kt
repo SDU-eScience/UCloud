@@ -14,7 +14,7 @@ data class FindByNameAndPagination(
 ) : WithPagination
 
 object HPCToolDescriptions : RESTDescriptions(AppServiceDescription) {
-    private val baseContext = "/api/hpc/tools"
+    val baseContext = "/api/hpc/tools"
 
     val findByNameAndVersion = callDescription<FindByNameAndVersion, Tool, CommonErrorMessage> {
         prettyName = "toolsByNameAndVersion"

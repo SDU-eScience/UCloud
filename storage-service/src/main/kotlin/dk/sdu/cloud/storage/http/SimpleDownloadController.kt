@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
@@ -34,8 +35,10 @@ class SimpleDownloadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val bulkDownloadService: BulkDownloadService<Ctx>
-) {
-    fun configure(routing: Route) = with(routing) {
+): Controller {
+    override val baseContext = FileDescriptions.baseContext
+
+    override fun configure(routing: Route): Unit = with(routing) {
         route("files") {
             implement(FileDescriptions.download) { request ->
                 logEntry(log, request)

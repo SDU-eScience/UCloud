@@ -11,11 +11,9 @@ import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.auth.api.PRIVILEGED_ROLES
 import dk.sdu.cloud.auth.api.currentUsername
 import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receiveText
 import io.ktor.routing.Route
@@ -26,8 +24,10 @@ import org.yaml.snakeyaml.reader.ReaderException
 class AppController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: ApplicationDAO<DBSession>
-) {
-    fun configure(routing: Route) = with(routing) {
+): Controller {
+    override val baseContext = HPCApplicationDescriptions.baseContext
+
+    override fun configure(routing: Route):Unit = with(routing) {
         route("apps") {
             implement(HPCApplicationDescriptions.findByNameAndVersion) { req ->
                 logEntry(log, req)

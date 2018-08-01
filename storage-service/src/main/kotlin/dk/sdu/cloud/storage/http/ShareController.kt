@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
@@ -19,8 +20,10 @@ class ShareController<Ctx : FSUserContext>(
     private val shareService: ShareService<*, Ctx>,
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>
-) {
-    fun configure(routing: Route) = with(routing) {
+): Controller {
+    override val baseContext = ShareDescriptions.baseContext
+
+    override fun configure(routing: Route):Unit = with(routing) {
         route("shares") {
             protect()
 

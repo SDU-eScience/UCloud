@@ -11,6 +11,7 @@ import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.auth.api.PRIVILEGED_ROLES
 import dk.sdu.cloud.auth.api.currentUsername
 import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
@@ -25,8 +26,10 @@ import org.yaml.snakeyaml.reader.ReaderException
 class ToolController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: ToolDAO<DBSession>
-) {
-    fun configure(routing: Route) = with(routing) {
+): Controller {
+    override val baseContext = HPCToolDescriptions.baseContext
+
+    override fun configure(routing: Route): Unit = with(routing) {
         route("tools") {
             implement(HPCToolDescriptions.findByName) { req ->
                 logEntry(log, req)

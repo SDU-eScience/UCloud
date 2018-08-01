@@ -82,13 +82,6 @@ class Server(
 
     }
 
-
-
-    override fun stop() {
-        httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
-        kStreams.close(30, TimeUnit.SECONDS)
-    }
-
     companion object {
         private val log = LoggerFactory.getLogger(Server::class.java)
     }
