@@ -2,7 +2,7 @@ import * as React from "react";
 import { Spinner } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { shortUUID, failureNotification, favorite } from "UtilityFunctions";
+import { shortUUID, failureNotification, favoriteFileFromPage } from "UtilityFunctions";
 import { Container, List, Card, Icon, Popup, Step, SemanticICONS, Grid } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { FilesTable } from "Files/Files";
@@ -122,7 +122,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     favoriteFile(path: string) {
-        this.setState(() => ({ page: favorite(this.state.page, path, Cloud) }))
+        this.setState(() => ({ page: favoriteFileFromPage(this.state.page, path, Cloud) }))
     }
 
     renderProgressPanel = () => (

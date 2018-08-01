@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { favorite, fileSizeToString, toLowerCaseAndCapitalize } from "UtilityFunctions";
+import { favoriteFileFromPage, fileSizeToString, toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel } from "DefaultObjects";
@@ -36,7 +36,7 @@ const FileInfo = ({ dispatch, page, loading, ...props }) => {
                     {toLowerCaseAndCapitalize(file.type)}
                 </Header.Subheader>
             </Header>                               {/* MapDispatchToProps */}
-            <FileView file={file} favorite={() => dispatch(updateFiles(favorite(page, file.path, Cloud)))} />
+            <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, file.path, Cloud)))} />
             {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
             <ShareList keepTitle={false} byPath={file.path} />
             <DefaultLoading loading={loading} />

@@ -144,6 +144,17 @@ export interface RunAppProps {
     updatePageTitle: () => void
 }
 
+export interface ApplicationParameter {
+    name: string
+    optional: boolean
+    defaultValue: any
+    title: string
+    description: string
+    trueValue?: boolean
+    falseValue?: boolean
+    type: string
+}
+
 export interface ApplicationInformation {
     owner: string
     favorite?: boolean
@@ -161,16 +172,7 @@ export interface ApplicationInformation {
         title: string
         description: string
         invocation: any
-        parameters: {
-            name: string
-            optional: boolean
-            defaultValue: any
-            title: string
-            description: string
-            trueValue?: boolean
-            falseValue?: boolean
-            type: string
-        }[]
+        parameters: ApplicationParameter[]
         outputFileGlobs: [string, string]
     }
     tool: {

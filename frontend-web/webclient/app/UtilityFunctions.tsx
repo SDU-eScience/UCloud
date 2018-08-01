@@ -5,9 +5,9 @@ import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder } from "./Files";
 import { Page, AccessRight } from "./Types";
 import { File, Acl } from "./Files"
-import { Application, ApplicationInformation } from "Applications";
+import { Application } from "Applications";
 
-export const toLowerCaseAndCapitalize = (str: string): string => !str ? "" : str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
+export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 
 /**
  * Checks if a pathname is legal/already in use
@@ -36,7 +36,6 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
     ].some((it) => removeTrailingSlash(it) === filePath)
 };
 
-// FIXME rename favorite lambda. Favorite doesn't make sense as a name
 /**
  * Used for favoriting a file based on a path and page consisting of files.
  * @param {Page<File>} page The page of files to be searched through
@@ -44,7 +43,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
  * @param {Cloud} cloud The instance of a Cloud object used for requests
  * @returns {Page<File>} The page of files with the file favorited
  */
-export const favorite = (page: Page<File>, path: string, cloud: Cloud): Page<File> => {
+export const favoriteFileFromPage = (page: Page<File>, path: string, cloud: Cloud): Page<File> => {
     let file = page.items.find((file: File) => file.path === path);
     favoriteFile(file, cloud);
     return page;
@@ -86,21 +85,21 @@ export const failureNotification = (title: string, seconds: number = 3) => swal(
     title
 });
 
-export const successNotification = (title: string) => swal({
+export const successNotification = (title: string, seconds: number = 3) => swal({
     toast: true,
     position: "top-end",
     showConfirmButton: false,
-    timer: 3000,
+    timer: seconds * 1_000,
     type: "success",
     backdrop: false,
     title
 });
 
-export const infoNotification = (title: string) => swal({
+export const infoNotification = (title: string, seconds: number = 3) => swal({
     toast: true,
     position: "top-end",
     showConfirmButton: false,
-    timer: 3000,
+    timer: seconds * 1_000,
     type: "info",
     backdrop: false,
     title

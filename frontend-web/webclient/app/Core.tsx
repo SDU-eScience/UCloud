@@ -17,6 +17,7 @@ import ZenodoInfo from "Zenodo/Info";
 import UppyWrapper from "Uppy/UppyWrapper";
 import UserCreation from "Admin/UserCreation";
 import UserSettings from "UserSettings/UserSettings";
+import DetailedFileSearch from "Files/DetailedFileSearch";
 import * as Share from "Shares";
 import * as Metadata from "Metadata";
 
@@ -31,6 +32,7 @@ const Core = () => (
                 <Route exact path="/dashboard" component={Dashboard} />
                 <Route exact path="/fileInfo/*" component={FileInfo} />
                 <Route exact path="/status" component={Status} />
+                <Route exact path="/fileSearch" component={DetailedFileSearch} />
                 <Route exact path="/applications" component={Applications} />
                 <Route exact path="/applications/:appName/:appVersion" component={RunApp} />
                 <Route exact path="/appDetails/:appName/:appVersion" component={DetailedApplication} />

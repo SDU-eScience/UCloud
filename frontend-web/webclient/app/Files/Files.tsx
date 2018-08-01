@@ -146,7 +146,7 @@ class Files extends React.Component<FilesProps> {
                                 onCheckFile={(checked: boolean, file: File) => checkFile(checked, page, file)}
                                 fetchFiles={(path: string) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                                 fetchPageFromPath={fetchPageFromPath}
-                                onFavoriteFile={(filePath: string) => updateFiles(uf.favorite(page, filePath, Cloud))}
+                                onFavoriteFile={(filePath: string) => updateFiles(uf.favoriteFileFromPage(page, filePath, Cloud))}
                                 editFolderIndex={this.props.editFileIndex}
                                 projectNavigation={projectNavigation}
                                 startEditFile={this.startEditFile}
