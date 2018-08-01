@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.SERVICE_UNIX_USER
 import dk.sdu.cloud.storage.api.*
 
 // This slightly messy code allows us to skip null checks. This makes for a better API
@@ -40,11 +41,12 @@ class FileRow(
 
     fun convertToCloud(usernameConverter: (String) -> String, pathConverter: (String) -> String): FileRow {
         fun normalizeShares(incoming: List<AccessEntry>): List<AccessEntry> {
-            return incoming.map {
+            return incoming.mapNotNull {
                 if (it.isGroup) {
                     it
                 } else {
-                    it.copy(entity = usernameConverter(it.entity))
+                    if (it.entity == SERVICE_UNIX_USER) null
+                    else it.copy(entity = usernameConverter(it.entity))
                 }
             }
         }
