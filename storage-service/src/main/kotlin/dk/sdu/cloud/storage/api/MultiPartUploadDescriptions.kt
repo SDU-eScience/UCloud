@@ -16,7 +16,7 @@ import java.util.*
 data class BulkUploadErrorMessage(val message: String, val rejectedUploads: List<String>)
 
 object MultiPartUploadDescriptions : RESTDescriptions(StorageServiceDescription) {
-    private const val baseContext = "/api/upload"
+    const val baseContext = "/api/upload"
     private val client = OkHttpClient()
 
     // TODO FIXME Really need that multi-part support

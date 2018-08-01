@@ -21,60 +21,59 @@ class JobController<DBSession>(
 ): Controller {
     override val baseContext = HPCJobDescriptions.baseContext
 
-    override fun configure(routing: Route):Unit  = with(routing) {
-        route("jobs") {
-            implement(HPCJobDescriptions.findById) {
-                logEntry(log, it)
-                val user = call.request.validatedPrincipal
-                val result = jobService.findJobById(user, it.id)
-                if (result == null) {
-                    error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-                } else {
-                    ok(result)
-                }
-            }
-
-            implement(HPCJobDescriptions.listRecent) {
-                logEntry(log, it)
-                val user = call.request.validatedPrincipal
-                ok(jobService.recentJobs(user, it))
-            }
-
-            implement(HPCJobDescriptions.start) { req ->
-                logEntry(log, req)
-                try {
-                    val userCloud = JWTAuthenticatedCloud(
-                        call.cloudClient.parent,
-                        call.request.validatedPrincipal.token
-                    ).withCausedBy(call.request.jobId)
-
-                    val uuid = jobService.startJob(call.request.validatedPrincipal, req, userCloud)
-                    ok(JobStartedResponse(uuid))
-                } catch (ex: JobException) {
-                    if (ex.statusCode.value in 500..599) log.warn(ex.stackTraceToString())
-                    error(CommonErrorMessage(ex.message ?: "An error has occurred"), ex.statusCode)
-                }
-            }
-
-            implement(HPCJobDescriptions.follow) { req ->
-                logEntry(log, req)
-
-                val user = call.request.validatedPrincipal
-                val job = jobService.findJobForInternalUseById(user, req.jobId) ?: return@implement run {
-                    log.debug("Could not find job id: ${req.jobId}")
-                    error(CommonErrorMessage("Job not found"), HttpStatusCode.NotFound)
-                }
-
-                val result = try {
-                    jobService.followStdStreams(req, job)
-                } catch (ex: JobServiceException) {
-                    error(CommonErrorMessage(ex.message ?: "Unknown error"), ex.statusCode)
-                    return@implement
-                }
-
+    override fun configure(routing: Route): Unit  = with(routing) {
+        implement(HPCJobDescriptions.findById) {
+            logEntry(log, it)
+            val user = call.request.validatedPrincipal
+            val result = jobService.findJobById(user, it.id)
+            if (result == null) {
+                error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
+            } else {
                 ok(result)
             }
         }
+
+        implement(HPCJobDescriptions.listRecent) {
+            logEntry(log, it)
+            val user = call.request.validatedPrincipal
+            ok(jobService.recentJobs(user, it))
+        }
+
+        implement(HPCJobDescriptions.start) { req ->
+            logEntry(log, req)
+            try {
+                val userCloud = JWTAuthenticatedCloud(
+                    call.cloudClient.parent,
+                    call.request.validatedPrincipal.token
+                ).withCausedBy(call.request.jobId)
+
+                val uuid = jobService.startJob(call.request.validatedPrincipal, req, userCloud)
+                ok(JobStartedResponse(uuid))
+            } catch (ex: JobException) {
+                if (ex.statusCode.value in 500..599) log.warn(ex.stackTraceToString())
+                error(CommonErrorMessage(ex.message ?: "An error has occurred"), ex.statusCode)
+            }
+        }
+
+        implement(HPCJobDescriptions.follow) { req ->
+            logEntry(log, req)
+
+            val user = call.request.validatedPrincipal
+            val job = jobService.findJobForInternalUseById(user, req.jobId) ?: return@implement run {
+                log.debug("Could not find job id: ${req.jobId}")
+                error(CommonErrorMessage("Job not found"), HttpStatusCode.NotFound)
+            }
+
+            val result = try {
+                jobService.followStdStreams(req, job)
+            } catch (ex: JobServiceException) {
+                error(CommonErrorMessage(ex.message ?: "Unknown error"), ex.statusCode)
+                return@implement
+            }
+
+            ok(result)
+        }
+
     }
 
     companion object {

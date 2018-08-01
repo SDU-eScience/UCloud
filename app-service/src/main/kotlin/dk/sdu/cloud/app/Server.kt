@@ -123,9 +123,19 @@ class Server(
             }
             log.info("HTTP server successfully configured!")
         }
-
+        log.info("Starting Application Services")
         startServices()
         registerWithRegistry()
+        slurmPollAgent.start()
+        jobExecutionService.initialize()
+
+        initialized = true
+    }
+
+    override fun stop() {
+        super.stop() // stops kStreams and httpServer
+        slurmPollAgent.stop()
+        scheduledExecutor.shutdown()
     }
 
     companion object {

@@ -28,86 +28,85 @@ class AppController<DBSession>(
     override val baseContext = HPCApplicationDescriptions.baseContext
 
     override fun configure(routing: Route):Unit = with(routing) {
-        route("apps") {
-            implement(HPCApplicationDescriptions.findByNameAndVersion) { req ->
-                logEntry(log, req)
+        implement(HPCApplicationDescriptions.findByNameAndVersion) { req ->
+            logEntry(log, req)
 
-                val app = db.withTransaction {
-                    source.findByNameAndVersion(
-                        it,
-                        call.request.currentUsername,
-                        req.name,
-                        req.version
-                    )
-                }
-
-                ok(app)
-            }
-
-            implement(HPCApplicationDescriptions.findByName) { req ->
-                logEntry(log, req)
-
-                val result = db.withTransaction {
-                    source.findAllByName(it, call.request.currentUsername, req.name, req.pagination)
-                }
-
-                ok(result)
-            }
-
-            implement(HPCApplicationDescriptions.listAll) { req ->
-                logEntry(log, req)
-
-                ok(
-                    db.withTransaction {
-                        source.listLatestVersion(it, call.request.currentUsername, req.normalize())
-                    }
+            val app = db.withTransaction {
+                source.findByNameAndVersion(
+                    it,
+                    call.request.currentUsername,
+                    req.name,
+                    req.version
                 )
             }
 
-            implement(HPCApplicationDescriptions.create) { req ->
-                logEntry(log, req)
-                if (!protect(PRIVILEGED_ROLES)) return@implement
-
-                val content = try {
-                    call.receiveText()
-                } catch (ex: Exception) {
-                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    return@implement
-                }
-
-                @Suppress("DEPRECATION")
-                val yamlDocument = try {
-                    yamlMapper.readValue<ApplicationDescription>(content)
-                } catch (ex: JsonMappingException) {
-                    error(
-                        CommonErrorMessage(
-                            "Bad value for parameter ${ex.pathReference.replace(
-                                "dk.sdu.cloud.app.api.",
-                                ""
-                            )}. ${ex.message}"
-                        ),
-                        HttpStatusCode.BadRequest
-                    )
-                    return@implement
-                } catch (ex: MarkedYAMLException) {
-                    log.debug(ex.stackTraceToString())
-                    error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
-                    return@implement
-                } catch (ex: ReaderException) {
-                    error(
-                        CommonErrorMessage("Document contains illegal characters (unicode?)"),
-                        HttpStatusCode.BadRequest
-                    )
-                    return@implement
-                }
-
-                db.withTransaction {
-                    source.create(it, call.request.currentUsername, yamlDocument.normalize(), content)
-                }
-
-                ok(Unit)
-            }
+            ok(app)
         }
+
+        implement(HPCApplicationDescriptions.findByName) { req ->
+            logEntry(log, req)
+
+            val result = db.withTransaction {
+                source.findAllByName(it, call.request.currentUsername, req.name, req.pagination)
+            }
+
+            ok(result)
+        }
+
+        implement(HPCApplicationDescriptions.listAll) { req ->
+            logEntry(log, req)
+
+            ok(
+                db.withTransaction {
+                    source.listLatestVersion(it, call.request.currentUsername, req.normalize())
+                }
+            )
+        }
+
+        implement(HPCApplicationDescriptions.create) { req ->
+            logEntry(log, req)
+            if (!protect(PRIVILEGED_ROLES)) return@implement
+
+            val content = try {
+                call.receiveText()
+            } catch (ex: Exception) {
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                return@implement
+            }
+
+            @Suppress("DEPRECATION")
+            val yamlDocument = try {
+                yamlMapper.readValue<ApplicationDescription>(content)
+            } catch (ex: JsonMappingException) {
+                error(
+                    CommonErrorMessage(
+                        "Bad value for parameter ${ex.pathReference.replace(
+                            "dk.sdu.cloud.app.api.",
+                            ""
+                        )}. ${ex.message}"
+                    ),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
+            } catch (ex: MarkedYAMLException) {
+                log.debug(ex.stackTraceToString())
+                error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
+                return@implement
+            } catch (ex: ReaderException) {
+                error(
+                    CommonErrorMessage("Document contains illegal characters (unicode?)"),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
+            }
+
+            db.withTransaction {
+                source.create(it, call.request.currentUsername, yamlDocument.normalize(), content)
+            }
+
+            ok(Unit)
+        }
+
     }
 
     companion object {

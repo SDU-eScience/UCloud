@@ -30,87 +30,86 @@ class ToolController<DBSession>(
     override val baseContext = HPCToolDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-        route("tools") {
-            implement(HPCToolDescriptions.findByName) { req ->
-                logEntry(log, req)
-                val result = db.withTransaction {
-                    source.findAllByName(
-                        it,
-                        call.request.currentUsername,
-                        req.name,
-                        req.pagination
-                    )
-                }
-
-                ok(result)
-            }
-
-            implement(HPCToolDescriptions.findByNameAndVersion) { req ->
-                logEntry(log, req)
-                val result = db.withTransaction {
-                    source.findByNameAndVersion(
-                        it,
-                        call.request.currentUsername,
-                        req.name,
-                        req.version
-                    )
-                }
-
-                ok(result)
-            }
-
-            implement(HPCToolDescriptions.listAll) { req ->
-                logEntry(log, req)
-                ok(
-                    db.withTransaction {
-                        source.listLatestVersion(it, call.request.currentUsername, req.normalize())
-                    }
+        implement(HPCToolDescriptions.findByName) { req ->
+            logEntry(log, req)
+            val result = db.withTransaction {
+                source.findAllByName(
+                    it,
+                    call.request.currentUsername,
+                    req.name,
+                    req.pagination
                 )
             }
 
-            implement(HPCToolDescriptions.create) { req ->
-                logEntry(log, req)
-                if (!protect(PRIVILEGED_ROLES)) return@implement
-
-                val content = try {
-                    call.receiveText()
-                } catch (ex: Exception) {
-                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    return@implement
-                }
-
-                @Suppress("DEPRECATION")
-                val yamlDocument = try {
-                    yamlMapper.readValue<ToolDescription>(content)
-                } catch (ex: JsonMappingException) {
-                    error(
-                        CommonErrorMessage(
-                            "Bad value for parameter ${ex.pathReference.replace(
-                                "dk.sdu.cloud.app.api.",
-                                ""
-                            )}. ${ex.message}"
-                        ),
-                        HttpStatusCode.BadRequest
-                    )
-                    return@implement
-                } catch (ex: MarkedYAMLException) {
-                    error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
-                    return@implement
-                } catch (ex: ReaderException) {
-                    error(
-                        CommonErrorMessage("Document contains illegal characters (unicode?)"),
-                        HttpStatusCode.BadRequest
-                    )
-                    return@implement
-                }
-
-                db.withTransaction {
-                    source.create(it, call.request.currentUsername, yamlDocument.normalize(), content)
-                }
-
-                ok(Unit)
-            }
+            ok(result)
         }
+
+        implement(HPCToolDescriptions.findByNameAndVersion) { req ->
+            logEntry(log, req)
+            val result = db.withTransaction {
+                source.findByNameAndVersion(
+                    it,
+                    call.request.currentUsername,
+                    req.name,
+                    req.version
+                )
+            }
+
+            ok(result)
+        }
+
+        implement(HPCToolDescriptions.listAll) { req ->
+            logEntry(log, req)
+            ok(
+                db.withTransaction {
+                    source.listLatestVersion(it, call.request.currentUsername, req.normalize())
+                }
+            )
+        }
+
+        implement(HPCToolDescriptions.create) { req ->
+            logEntry(log, req)
+            if (!protect(PRIVILEGED_ROLES)) return@implement
+
+            val content = try {
+                call.receiveText()
+            } catch (ex: Exception) {
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                return@implement
+            }
+
+            @Suppress("DEPRECATION")
+            val yamlDocument = try {
+                yamlMapper.readValue<ToolDescription>(content)
+            } catch (ex: JsonMappingException) {
+                error(
+                    CommonErrorMessage(
+                        "Bad value for parameter ${ex.pathReference.replace(
+                            "dk.sdu.cloud.app.api.",
+                            ""
+                        )}. ${ex.message}"
+                    ),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
+            } catch (ex: MarkedYAMLException) {
+                error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
+                return@implement
+            } catch (ex: ReaderException) {
+                error(
+                    CommonErrorMessage("Document contains illegal characters (unicode?)"),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
+            }
+
+            db.withTransaction {
+                source.create(it, call.request.currentUsername, yamlDocument.normalize(), content)
+            }
+
+            ok(Unit)
+        }
+
     }
 
     companion object {

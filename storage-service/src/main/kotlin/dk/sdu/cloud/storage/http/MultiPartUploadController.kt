@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.principalRole
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.storage.api.BulkUploadErrorMessage
@@ -30,36 +31,115 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val bulkUploadService: BulkUploadService<Ctx>
-) {
-    fun configure(routing: Route) = with(routing) {
-        route("upload") {
-            protect()
+): Controller {
+    override val baseContext = MultiPartUploadDescriptions.baseContext
 
-            implement(MultiPartUploadDescriptions.upload) {
-                logEntry(log, it)
+    override fun configure(routing: Route):Unit = with(routing) {
+        protect()
 
-                // TODO Support in RESTDescriptions for multi-parts would be nice
+        implement(MultiPartUploadDescriptions.upload) {
+            logEntry(log, it)
+
+            // TODO Support in RESTDescriptions for multi-parts would be nice
+            val multipart = call.receiveMultipart()
+            var location: String? = null
+            var sensitivity: SensitivityLevel = SensitivityLevel.CONFIDENTIAL
+            var owner: String = call.request.validatedPrincipal.subject
+
+            multipart.forEachPart { part ->
+                log.debug("Received part ${part.name}")
+                when (part) {
+                    is PartData.FormItem -> {
+                        when (part.name) {
+                            "location" -> location = part.value
+
+                            "sensitivity" -> {
+                                // If we can parse it, set it
+                                SensitivityLevel.values().find { it.name == part.value }
+                                    ?.let { sensitivity = it }
+                            }
+
+                            "owner" -> {
+                                if (call.request.principalRole.isPrivileged()) {
+                                    owner = part.value
+                                }
+                            }
+                        }
+                    }
+
+                    is PartData.FileItem -> {
+                        if (part.name == "upload") {
+                            if (location == null) {
+                                error(
+                                    CommonErrorMessage("Bad request. Missing location or upload"),
+                                    HttpStatusCode.BadRequest
+                                )
+                                return@forEachPart
+                            }
+
+                            assert(
+                                owner == call.request.validatedPrincipal.subject ||
+                                        call.request.principalRole.isPrivileged()
+                            )
+
+                            commandRunnerFactory.withContext(owner) { ctx ->
+                                fs.write(ctx, location!!, WriteConflictPolicy.OVERWRITE) {
+                                    val out = this
+                                    part.streamProvider().use { it.copyTo(out) }
+                                }
+
+                                ok(Unit)
+                            }
+                        }
+                    }
+                }
+                part.dispose()
+            }
+        }
+
+        implement(MultiPartUploadDescriptions.bulkUpload) {
+            logEntry(log, it)
+
+            var policy: WriteConflictPolicy? = null
+            var path: String? = null
+            var format: String? = null
+            var error = false
+
+            val user = call.request.validatedPrincipal.subject
+
+            tryWithFS {
                 val multipart = call.receiveMultipart()
-                var location: String? = null
-                var sensitivity: SensitivityLevel = SensitivityLevel.CONFIDENTIAL
-                var owner: String = call.request.validatedPrincipal.subject
-
                 multipart.forEachPart { part ->
                     log.debug("Received part ${part.name}")
+
                     when (part) {
                         is PartData.FormItem -> {
                             when (part.name) {
-                                "location" -> location = part.value
+                                "policy" -> {
+                                    try {
+                                        policy = WriteConflictPolicy.valueOf(part.value)
+                                    } catch (ex: Exception) {
+                                        error(
+                                            CommonErrorMessage("Bad request"),
+                                            HttpStatusCode.BadRequest
+                                        )
 
-                                "sensitivity" -> {
-                                    // If we can parse it, set it
-                                    SensitivityLevel.values().find { it.name == part.value }
-                                        ?.let { sensitivity = it }
+                                        error = true
+                                    }
                                 }
 
-                                "owner" -> {
-                                    if (call.request.principalRole.isPrivileged()) {
-                                        owner = part.value
+                                "path" -> path = part.value
+
+                                "format" -> {
+                                    format = part.value
+
+                                    if (format != "tgz") {
+                                        error(
+                                            CommonErrorMessage("Unsupported format '$format'"),
+                                            HttpStatusCode.BadRequest
+                                        )
+
+                                        error = true
                                     }
                                 }
                             }
@@ -67,110 +147,31 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
                         is PartData.FileItem -> {
                             if (part.name == "upload") {
-                                if (location == null) {
-                                    error(
-                                        CommonErrorMessage("Bad request. Missing location or upload"),
-                                        HttpStatusCode.BadRequest
-                                    )
-                                    return@forEachPart
-                                }
+                                if (error || path == null || policy == null || format == null) return@forEachPart
 
-                                assert(
-                                    owner == call.request.validatedPrincipal.subject ||
-                                            call.request.principalRole.isPrivileged()
-                                )
+                                @Suppress("NAME_SHADOWING") val path = path!!
+                                @Suppress("NAME_SHADOWING") val policy = policy!!
+                                @Suppress("NAME_SHADOWING") val format = format!!
 
-                                commandRunnerFactory.withContext(owner) { ctx ->
-                                    fs.write(ctx, location!!, WriteConflictPolicy.OVERWRITE) {
-                                        val out = this
-                                        part.streamProvider().use { it.copyTo(out) }
+                                val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
+                                part.streamProvider().copyTo(outputFile.outputStream())
+                                launch {
+                                    commandRunnerFactory.withContext(user) {
+                                        bulkUploadService.bulkUpload(
+                                            it,
+                                            path,
+                                            format,
+                                            policy,
+                                            outputFile.inputStream()
+                                        )
                                     }
-
-                                    ok(Unit)
-                                }
-                            }
-                        }
-                    }
-                    part.dispose()
-                }
-            }
-
-            implement(MultiPartUploadDescriptions.bulkUpload) {
-                logEntry(log, it)
-
-                var policy: WriteConflictPolicy? = null
-                var path: String? = null
-                var format: String? = null
-                var error = false
-
-                val user = call.request.validatedPrincipal.subject
-
-                tryWithFS {
-                    val multipart = call.receiveMultipart()
-                    multipart.forEachPart { part ->
-                        log.debug("Received part ${part.name}")
-
-                        when (part) {
-                            is PartData.FormItem -> {
-                                when (part.name) {
-                                    "policy" -> {
-                                        try {
-                                            policy = WriteConflictPolicy.valueOf(part.value)
-                                        } catch (ex: Exception) {
-                                            error(
-                                                CommonErrorMessage("Bad request"),
-                                                HttpStatusCode.BadRequest
-                                            )
-
-                                            error = true
-                                        }
-                                    }
-
-                                    "path" -> path = part.value
-
-                                    "format" -> {
-                                        format = part.value
-
-                                        if (format != "tgz") {
-                                            error(
-                                                CommonErrorMessage("Unsupported format '$format'"),
-                                                HttpStatusCode.BadRequest
-                                            )
-
-                                            error = true
-                                        }
+                                    try {
+                                        outputFile.delete()
+                                    } catch (_: Exception) {
                                     }
                                 }
-                            }
 
-                            is PartData.FileItem -> {
-                                if (part.name == "upload") {
-                                    if (error || path == null || policy == null || format == null) return@forEachPart
-
-                                    @Suppress("NAME_SHADOWING") val path = path!!
-                                    @Suppress("NAME_SHADOWING") val policy = policy!!
-                                    @Suppress("NAME_SHADOWING") val format = format!!
-
-                                    val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
-                                    part.streamProvider().copyTo(outputFile.outputStream())
-                                    launch {
-                                        commandRunnerFactory.withContext(user) {
-                                            bulkUploadService.bulkUpload(
-                                                it,
-                                                path,
-                                                format,
-                                                policy,
-                                                outputFile.inputStream()
-                                            )
-                                        }
-                                        try {
-                                            outputFile.delete()
-                                        } catch (_: Exception) {
-                                        }
-                                    }
-
-                                    ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
-                                }
+                                ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
                             }
                         }
                     }
@@ -178,6 +179,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             }
         }
     }
+
 
     private fun Role.isPrivileged(): Boolean = when (this) {
         Role.SERVICE, Role.ADMIN -> true

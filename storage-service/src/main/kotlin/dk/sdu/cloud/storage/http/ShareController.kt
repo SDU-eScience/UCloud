@@ -23,71 +23,70 @@ class ShareController<Ctx : FSUserContext>(
 ): Controller {
     override val baseContext = ShareDescriptions.baseContext
 
-    override fun configure(routing: Route):Unit = with(routing) {
-        route("shares") {
-            protect()
+    override fun configure(routing: Route): Unit = with(routing) {
+        protect()
 
-            implement(ShareDescriptions.list) {
-                logEntry(log, it)
-                tryWithFS(commandRunnerFactory, call.user) { ctx ->
-                    tryWithShareService {
-                        ok(shareService.list(ctx, it.pagination))
-                    }
-                }
-            }
-
-            implement(ShareDescriptions.accept) {
-                logEntry(log, it)
-
+        implement(ShareDescriptions.list) {
+            logEntry(log, it)
+            tryWithFS(commandRunnerFactory, call.user) { ctx ->
                 tryWithShareService {
-                    tryWithFS(commandRunnerFactory, call.user) { ctx ->
-                        ok(
-                            shareService.updateState(
-                                ctx,
-                                it.id,
-                                ShareState.ACCEPTED
-                            )
-                        )
-                    }
-                }
-            }
-
-            implement(ShareDescriptions.revoke) {
-                logEntry(log, it)
-
-                tryWithShareService {
-                    ok(shareService.deleteShare(call.user, it.id))
-                }
-            }
-
-            implement(ShareDescriptions.reject) {
-                logEntry(log, it)
-
-                tryWithShareService {
-                    ok(shareService.deleteShare(call.user, it.id))
-                }
-            }
-
-            implement(ShareDescriptions.update) {
-                logEntry(log, it)
-
-                tryWithShareService {
-                    tryWithFS(commandRunnerFactory, call.user) { ctx ->
-                        ok(shareService.updateRights(ctx, it.id, it.rights))
-                    }
-                }
-            }
-
-            implement(ShareDescriptions.create) {
-                logEntry(log, it)
-
-                tryWithShareService {
-                    tryWithFS(commandRunnerFactory, call.user) { ctx ->
-                        ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
-                    }
+                    ok(shareService.list(ctx, it.pagination))
                 }
             }
         }
+
+        implement(ShareDescriptions.accept) {
+            logEntry(log, it)
+
+            tryWithShareService {
+                tryWithFS(commandRunnerFactory, call.user) { ctx ->
+                    ok(
+                        shareService.updateState(
+                            ctx,
+                            it.id,
+                            ShareState.ACCEPTED
+                        )
+                    )
+                }
+            }
+        }
+
+        implement(ShareDescriptions.revoke) {
+            logEntry(log, it)
+
+            tryWithShareService {
+                ok(shareService.deleteShare(call.user, it.id))
+            }
+        }
+
+        implement(ShareDescriptions.reject) {
+            logEntry(log, it)
+
+            tryWithShareService {
+                ok(shareService.deleteShare(call.user, it.id))
+            }
+        }
+
+        implement(ShareDescriptions.update) {
+            logEntry(log, it)
+
+            tryWithShareService {
+                tryWithFS(commandRunnerFactory, call.user) { ctx ->
+                    ok(shareService.updateRights(ctx, it.id, it.rights))
+                }
+            }
+        }
+
+        implement(ShareDescriptions.create) {
+            logEntry(log, it)
+
+            tryWithShareService {
+                tryWithFS(commandRunnerFactory, call.user) { ctx ->
+                    ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
+                }
+            }
+        }
+
     }
 
     val ApplicationCall.user: String get() = request.validatedPrincipal.subject
