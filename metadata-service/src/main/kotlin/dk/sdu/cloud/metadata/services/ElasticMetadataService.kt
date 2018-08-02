@@ -1,36 +1,50 @@
 package dk.sdu.cloud.metadata.services
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.metadata.api.FileDescriptionForMetadata
+import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.storage.api.FindByPath
+import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match
+import mbuhot.eskotlin.query.term.match_all
+import org.elasticsearch.action.DocWriteRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
+import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.search.SearchRequest
+import org.elasticsearch.action.search.SearchScrollRequest
+import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.LoggerFactory
-import java.io.File
 
 class ElasticMetadataService(
     private val elasticClient: RestHighLevelClient,
     private val projectService: ProjectService<*>
 ) : MetadataCommandService, MetadataQueryService, MetadataAdvancedQueryService {
-//    private val client = RestHighLevelClient(RestClient.builder(HttpHost(elasticHost, elasticPort, elasticScheme)))
+    private val mapper = jacksonObjectMapper().apply {
+        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    }
 
-    private val mapper = jacksonObjectMapper()
+    // The correct way to update these would be to use a (stored) script in elastic to update the document
+    // or, alternatively, use the optimistic concurrency control
     private val singleInstanceOfMicroServiceLockBadIdeaButWorksForNow = Any()
+
     override fun create(metadata: ProjectMetadata) {
         val id = metadata.id.toLongOrNull() ?: throw MetadataException.NotFound()
         if (internalGetById(id) != null) throw MetadataException.Duplicate()
@@ -85,66 +99,6 @@ class ElasticMetadataService(
         )
     }
 
-    // The correct way to update these would be to use a (stored) script in elastic to update the document
-    // or, alternatively, use the optimistic concurrency control
-
-    override fun addFiles(projectId: Long, files: Set<FileDescriptionForMetadata>) {
-        synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
-            // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
-
-            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
-            internalUpdate(existing.copy(files = (existing.files.toSet() + files).toList()))
-        }
-    }
-
-    override fun removeFilesById(projectId: Long, files: Set<String>) {
-        synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
-            // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
-            val normalizedFiles = files.map { it.normalize() }.toSet()
-
-            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
-            val rootFile = existing.files.find { it.path == existing.sduCloudRoot }?.id ?: ""
-            if (rootFile in normalizedFiles) {
-                log.debug("Deleting project (root file contained in deleted)")
-                internalDelete(projectId)
-                projectService.deleteProjectById(projectId)
-            } else {
-                log.debug("Deleting files from project (non-root)")
-                internalUpdate(existing.copy(files = existing.files.toSet().filter { it.id !in normalizedFiles }))
-            }
-        }
-    }
-
-    override fun updatePathOfFile(projectId: Long, fileId: String, newPath: String) {
-        synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
-            // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
-
-            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
-            val actualFile = existing.files.toSet().find { it.id == fileId } ?: throw MetadataException.NotFound()
-
-            val hasNewRoot = actualFile.path.normalize() == existing.sduCloudRoot.normalize()
-            val newRoot =
-                if (hasNewRoot) { newPath }
-                else { existing.sduCloudRoot }
-
-            if (hasNewRoot) {
-                projectService.updateProjectRoot(projectId, newPath.normalize())
-            }
-
-            val set = existing.files.toSet().filter { it.id != fileId } + actualFile.copy(path = newPath)
-            internalUpdate(existing.copy(files = set.toList(), sduCloudRoot = newRoot.normalize()))
-        }
-    }
-
-    override fun removeAllFiles(projectId: Long) {
-        synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
-            // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
-
-            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
-            internalUpdate(existing.copy(files = emptyList()))
-        }
-    }
-
     private fun internalGetById(id: Long): ProjectMetadata? {
         val getResponse = elasticClient[GetRequest(index, doc, id.toString())]
         return getResponse?.takeIf { it.isExists }?.sourceAsBytes?.let { mapper.readValue(it) }
@@ -158,7 +112,7 @@ class ElasticMetadataService(
         val request = SearchRequest(index).apply {
             source(SearchSourceBuilder().apply {
                 val q = bool {
-                       match { "full_search" to query }
+                    match { "full_search" to query }
                 }
 
                 from(paging.itemsPerPage * paging.page)
@@ -192,8 +146,6 @@ class ElasticMetadataService(
         }
     }
 
-    private fun String.normalize(): String = File(this).normalize().path
-
     fun initializeElasticSearch() {
         try {
             elasticClient.indices().delete(DeleteIndexRequest(index))
@@ -214,7 +166,8 @@ class ElasticMetadataService(
                     .put("analysis.tokenizer.autocomplete.token_chars", "letter")
             )
 
-            request.mapping(doc, """
+            request.mapping(
+                doc, """
         {
           "properties": {
             "title": {
@@ -240,13 +193,42 @@ class ElasticMetadataService(
             }
           }
         }
-        """, XContentType.JSON)
+        """, XContentType.JSON
+            )
 
             elasticClient.indices().create(request)
         } catch (ex: Exception) {
             log.debug("Exception caught when creating settings and mapping for index")
             log.debug(ex.stackTraceToString())
         }
+    }
+
+    private fun listAllProjectsRaw(): List<Map<String, *>> {
+        val collectedResults = ArrayList<Map<String, *>>()
+        var results = elasticClient.search(SearchRequest(index).apply {
+            scroll(TimeValue.timeValueMinutes(5))
+
+            source(
+                SearchSourceBuilder().apply {
+                    val q = match_all { }
+                    query(q)
+                }
+            )
+        })
+
+        while (results.hits.hits.isNotEmpty()) {
+            collectedResults.addAll(
+                results.hits.filter { it.hasSource() }.mapNotNull { it.sourceAsMap }
+            )
+
+            results = elasticClient.searchScroll(SearchScrollRequest(results.scrollId).apply {
+                scroll(
+                    TimeValue.timeValueMinutes(5)
+                )
+            })
+        }
+
+        return collectedResults
     }
 
     companion object {

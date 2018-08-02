@@ -126,7 +126,9 @@ data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
 data class DeliverMaterializedFileSystemRequest(
     val rootsToMaterialized: Map<String, List<EventMaterializedStorageFile>>
-)
+): WithPrettyToString {
+    override fun toString() = toPrettyString()
+}
 
 data class DeliverMaterializedFileSystemResponse(
     val shouldContinue: Map<String, Boolean>

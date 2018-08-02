@@ -1,19 +1,9 @@
 package dk.sdu.cloud.metadata.api
 
-import dk.sdu.cloud.storage.api.FileType
 import org.junit.Test
 import kotlin.test.assertEquals
 
 class MetadataSchemaTest {
-
-    private val filesList = listOf(
-        FileDescriptionForMetadata(
-            "1",
-            FileType.FILE,
-            "home"
-        )
-    )
-
     private val creatorList = listOf(
         Creator(
             "Henrik Schulz",
@@ -76,8 +66,8 @@ class MetadataSchemaTest {
 
         val metadata = ProjectMetadata(
             "",
+            "",
             "title",
-            filesList,
             creatorList,
             "This is a description",
             "Abstyles",
@@ -131,10 +121,6 @@ class MetadataSchemaTest {
         assertEquals("Open", metadata.accessConditions)
         assertEquals(899929, metadata.embargoDate)
 
-        assertEquals("1", metadata.files[0].id)
-        assertEquals("home", metadata.files[0].path)
-        assertEquals(FileType.FILE, metadata.files[0].type)
-
         assertEquals("Henrik Schulz", metadata.creators[0].name)
         assertEquals("SDU", metadata.creators[0].affiliation)
         assertEquals("Orc11111", metadata.creators[0].orcId)
@@ -186,7 +172,7 @@ class MetadataSchemaTest {
         ProjectMetadata(
             "",
             "title",
-            filesList,
+            "fsrootid",
             creatorList,
             "A description",
             "NotALegalOne",

@@ -2,13 +2,6 @@ package dk.sdu.cloud.metadata.api
 
 import dk.sdu.cloud.metadata.util.Licenses
 
-enum class AccessRight {
-    OPEN_ACCESS,
-    EMBARGOED,
-    RESTRICTED,
-    CLOSED
-}
-
 interface UserEditableProjectMetadata {
     val title: String?
     val description: String?
@@ -43,14 +36,14 @@ data class ProjectMetadata(
     val sduCloudRoot: String,
 
     /**
+     * The SDUCloud FSRoot ID
+     */
+    val sduCloudRootId: String,
+
+    /**
      * The title of this project
      */
     override val title: String,
-
-    /**
-     * A list of files in this project
-     */
-    val files: List<FileDescriptionForMetadata>,
 
     /**
      * A list of creators of this project (defaults to users in project)

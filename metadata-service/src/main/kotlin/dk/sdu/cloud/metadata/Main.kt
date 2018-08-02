@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.common.net.HostAndPort
 import com.orbitz.consul.Consul
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.metadata.api.MetadataServiceDescription
-import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import io.ktor.server.engine.embeddedServer
@@ -81,7 +81,7 @@ fun main(args: Array<String>) {
                 username,
                 password,
                 defaultSchema = serviceDescription.name,
-                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.contains(ARG_MIGRATE)
+                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.any { it.startsWith(ARG_MIGRATE) }
             )
         )
     }
@@ -94,6 +94,9 @@ fun main(args: Array<String>) {
 
         args.contains("--migrate") -> {
             val flyway = Flyway()
+            FlywayMigrationContext.configuration = configuration
+            FlywayMigrationContext.cloud = cloud
+
             with(configuration.connConfig.database!!) {
                 flyway.setDataSource(jdbcUrl, username, password)
             }
@@ -105,4 +108,9 @@ fun main(args: Array<String>) {
             Server(db, configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
         }
     }
+}
+
+object FlywayMigrationContext {
+    lateinit var configuration: Configuration
+    lateinit var cloud: AuthenticatedCloud
 }

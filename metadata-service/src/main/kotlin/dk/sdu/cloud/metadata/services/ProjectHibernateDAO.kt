@@ -8,7 +8,10 @@ import javax.persistence.*
 @Table(name = "projects")
 class ProjectEntity(
     @Column(length = 1024, unique = true)
-    var fsRoot: String,
+    var fsRoot: String, // TODO Should this be unique?
+
+    @Column(unique = true, nullable = false)
+    var fsRootId: String,
 
     var owner: String,
 
@@ -28,6 +31,7 @@ class ProjectEntity(
 private fun ProjectEntity.toModel(): Project = Project(
     id,
     fsRoot,
+    fsRootId,
     owner,
     description
 )
@@ -47,6 +51,7 @@ class ProjectHibernateDAO : ProjectDAO<HibernateSession> {
 
         val entity = ProjectEntity(
             project.fsRoot,
+            project.fsRootId,
             project.owner,
             project.description
         )

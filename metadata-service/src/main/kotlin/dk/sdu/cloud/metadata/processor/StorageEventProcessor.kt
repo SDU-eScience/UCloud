@@ -1,12 +1,10 @@
 package dk.sdu.cloud.metadata.processor
 
 import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.metadata.api.FileDescriptionForMetadata
 import dk.sdu.cloud.metadata.api.ProjectEvent
 import dk.sdu.cloud.metadata.api.ProjectEventConsumer
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.services.MetadataCommandService
-import dk.sdu.cloud.metadata.services.Project
 import dk.sdu.cloud.metadata.services.ProjectException
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.storage.api.StorageEvent
@@ -53,42 +51,18 @@ class StorageEventProcessor(
         log.info("Initializing storage event processor")
 
         KafkaStream(storageEvents)
-            .mapValues { event ->
-                // Map by project to guarantee ordering of project events
-                val path = if (event is StorageEvent.Moved) {
-                    event.oldPath
-                } else {
-                    event.path
-                }
+            .filter { _, event -> event is StorageEvent.Deleted || event is StorageEvent.Invalidated }
+            .forEach { _, event ->
+                // TODO Technically we should not assume that Invalidated means deleted.
+                // It is valid for the storage-service to emit Invalidated followed by a refresh of the real file.
+                // We should instead enqueue an internal delete if we don't receive a refresh of the real file within,
+                // say, 48 hours.
 
                 try {
-                    val project = projectService.findBestMatchingProjectByPath(path)
-                    Pair(event, project)
+                    val project = projectService.findBestMatchingProjectByPath(event.path)
+                    metadataCommandService.delete(project.owner, project.id!!)
                 } catch (e: ProjectException.NotFound) {
-                    return@mapValues Pair<StorageEvent, Project?>(event, null)
-                }
-            }
-            .filter { _, eventWithProject -> eventWithProject.second != null }
-            .map { _, (event, project) -> project!! to event }
-            .forEach { project, event ->
-                // Then process the actual events
-                val projectId = project.id!!
-
-                when (event) {
-                    is StorageEvent.CreatedOrModified -> {
-                        metadataCommandService.addFiles(
-                            projectId,
-                            setOf(FileDescriptionForMetadata(event.id, event.fileType, event.path))
-                        )
-                    }
-
-                    is StorageEvent.Moved -> {
-                        metadataCommandService.updatePathOfFile(projectId, event.id, event.path)
-                    }
-
-                    is StorageEvent.Deleted -> {
-                        metadataCommandService.removeFilesById(projectId, setOf(event.id))
-                    }
+                    // Do nothing
                 }
             }
 
@@ -102,8 +76,8 @@ class StorageEventProcessor(
                     metadataCommandService.create(
                         ProjectMetadata(
                             sduCloudRoot = event.project.fsRoot,
+                            sduCloudRootId = event.project.fsRootId,
                             title = "Untitled project",
-                            files = event.initialFiles,
                             creators = emptyList(),
                             description = "Project description goes here...",
                             license = null,

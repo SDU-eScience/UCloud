@@ -193,7 +193,9 @@ data class EventMaterializedStorageFile(
     val annotations: Set<String>,
 
     val sensitivityLevel: SensitivityLevel
-)
+): WithPrettyToString {
+    override fun toString() = toPrettyString()
+}
 
 typealias StorageEventProducer = MappedEventProducer<String, StorageEvent>
 typealias StoraveEventStream = KStream<String, StorageEvent>

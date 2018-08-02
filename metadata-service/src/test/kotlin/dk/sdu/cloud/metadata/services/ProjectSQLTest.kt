@@ -8,7 +8,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ProjectSQLTest {
-    val projectOwner = "user"
+    private val projectOwner = "user"
 
     private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
         HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
@@ -22,6 +22,7 @@ class ProjectSQLTest {
                 Project(
                     null,
                     "home/sdu/user",
+                    "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
@@ -29,6 +30,7 @@ class ProjectSQLTest {
             projectService.createProject(
                 Project(
                     null,
+                    "home/sdu/user/extra",
                     "home/sdu/user/extra",
                     projectOwner,
                     "Project Description"
@@ -49,6 +51,7 @@ class ProjectSQLTest {
                 Project(
                     null,
                     "home/sdu/user",
+                    "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
@@ -56,6 +59,7 @@ class ProjectSQLTest {
             projectService.createProject(
                 Project(
                     null,
+                    "home/sdu/user/extra",
                     "home/sdu/user/extra",
                     projectOwner,
                     "Project Description"
@@ -75,6 +79,7 @@ class ProjectSQLTest {
                 Project(
                     null,
                     "home/sdu/user",
+                    "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
@@ -82,6 +87,7 @@ class ProjectSQLTest {
             projectService.createProject(
                 Project(
                     null,
+                    "home/sdu/user/extra",
                     "home/sdu/user/extra",
                     projectOwner,
                     "Project Description"
@@ -102,6 +108,7 @@ class ProjectSQLTest {
                 Project(
                     null,
                     "home/sdu/user",
+                    "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
@@ -109,6 +116,7 @@ class ProjectSQLTest {
             projectService.createProject(
                 Project(
                     null,
+                    "home/sdu/user/extra",
                     "home/sdu/user/extra",
                     projectOwner,
                     "Project Description"
@@ -127,6 +135,7 @@ class ProjectSQLTest {
             projectService.createProject(
                 Project(
                     null,
+                    "home/sdu/user",
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -150,6 +159,7 @@ class ProjectSQLTest {
                 Project(
                     null,
                     "home/sdu/user",
+                    "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
@@ -169,6 +179,7 @@ class ProjectSQLTest {
             projectService.createProject(
                 Project(
                     null,
+                    "/home/sdu/user",
                     "/home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -197,6 +208,7 @@ class ProjectSQLTest {
                 Project(
                     null,
                     "home/sdu/user",
+                    "home/sdu/user",
                     projectOwner,
                     "Project Description"
                 )
@@ -213,6 +225,7 @@ class ProjectSQLTest {
             projectService.createProject(
                 Project(
                     null,
+                    "home/sdu/user",
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
@@ -236,6 +249,7 @@ class ProjectSQLTest {
             projectService.createProject(
                 Project(
                     null,
+                    "home/sdu/user",
                     "home/sdu/user",
                     projectOwner,
                     "Project Description"
