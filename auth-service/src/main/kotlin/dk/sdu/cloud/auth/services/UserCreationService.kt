@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.auth.api.Person
+import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.auth.api.UserEventProducer
 import dk.sdu.cloud.service.RPCException
@@ -26,7 +27,7 @@ class UserCreationService<DBSession>(
     private val userDao: UserDAO<DBSession>,
     private val userEventProducer: UserEventProducer
 ) {
-    suspend fun createUser(user: Person.ByPassword) {
+    suspend fun createUser(user: Principal) {
         db.withTransaction {
             log.info("Creating user: $user")
             userDao.insert(it, user)
