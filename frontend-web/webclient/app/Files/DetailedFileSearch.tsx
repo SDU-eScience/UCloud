@@ -144,7 +144,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         <Checkbox style={{ paddingRight: "15px" }} label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
                     </Form.Group>
                     <Header as="h3" content="File extensions" />
-                    <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} />
+                    <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: [] }))} />
                     <Form onSubmit={(e) => { e.preventDefault(); this.onAddExtension(); }}>
                         <Form.Input value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
                         <Dropdown
@@ -154,7 +154,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         />
                     </Form>
                     <Header as="h3" content="Sensitivity" />
-                    <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} />
+                    <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} clearAll={() => this.setState(() => ({ sensitivities: [] }))} />
                     {sensitivityDropdown}
                     <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => console.log("Almost submitted!")} />
                 </Grid.Column>
@@ -165,7 +165,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
 
 const SearchLabels = (props) => (
     <div style={{ paddingBottom: "5px" }}>
-        {props.labels.map((l, i) => (<Label basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
+        {props.labels.map((l, i) => (<Label style={{ marginBottom: "4px" }} basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
+        {props.labels.length > 1 ? <Label color="blue" content="Clear all" onRemove={props.clearAll} /> : null}
     </div>
 );
 
