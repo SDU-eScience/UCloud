@@ -94,7 +94,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             <Grid container columns={16}>
                 <Grid.Column width={16}>
                     <Header as="h3" content="Filename" />
-                    {filename ? <div style={{ paddingBottom: "5px" }}><Label content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
+                    {filename ? <div className="padding-bottom"><Label content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
                     <Input fluid placeholder={"Filename must include..."} onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
                     <Header as="h3" content="Created at" />
                     <Form onSubmit={(e) => e.preventDefault()}>
@@ -140,8 +140,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     </Form>
                     <Header as="h3" content="Type" />
                     <Form.Group widths="equal">
-                        <Checkbox style={{ paddingRight: "15px" }} label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
-                        <Checkbox style={{ paddingRight: "15px" }} label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
+                        <Checkbox className="padding-right" label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
+                        <Checkbox className="padding-right" label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
                     </Form.Group>
                     <Header as="h3" content="File extensions" />
                     <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: [] }))} />
@@ -164,9 +164,9 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
 }
 
 const SearchLabels = (props) => (
-    <div style={{ paddingBottom: "5px" }}>
-        {props.labels.map((l, i) => (<Label style={{ marginBottom: "4px" }} basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
-        {props.labels.length > 1 ? <Label color="blue" content="Clear all" onRemove={props.clearAll} /> : null}
+    <div className="padding-bottom">
+        {props.labels.map((l, i) => (<Label className="label-padding" basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
+        {props.labels.length > 1 ? <Label className="label-padding" color="blue" content="Clear all" onRemove={props.clearAll} /> : null}
     </div>
 );
 
