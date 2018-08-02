@@ -159,7 +159,7 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
                 <Image floated="right">
                     <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => favoriteApp(app)} />
                 </Image>
-                <Card.Header content={app.description.info.name} />
+                <Card.Header content={app.description.title} />
                 <Card.Meta content={app.description.info.version} />
             </Card.Content>
             <Card.Content extra>
