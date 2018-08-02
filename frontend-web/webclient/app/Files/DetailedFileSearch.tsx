@@ -47,26 +47,32 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         this.setState(() => ({ sensitivities: remainingSensitivities }));
     }
 
-    onAddExtension(value?: string) {
+    // Not DRY
+    onRemoveExtension(extension: string) {
+        const { extensions } = this.state;
+        const remaining = extensions.filter(e => e !== extension);
+        this.setState(() => ({ extensions: remaining }));
+    }
+
+    onAddExtension() {
         const { extensionValue, extensions } = this.state;
-        const exts = value ? value : extensionValue;
-        const newExtensions = exts.trim().split(" ").filter(it => it);
+        const newExtensions = extensionValue.trim().split(" ").filter(it => it);
         let entryAdded = false;
         newExtensions.forEach(ext => { entryAdded = addEntryIfNotPresent(extensions, ext) || entryAdded });
         this.setState(() => ({
             extensions,
-            extensionValue: entryAdded ? "" : exts
+            extensionValue: entryAdded ? "" : extensionValue
         }));
         if (!entryAdded) {
             infoNotification("Extension already added");
         }
     }
 
-    // Not DRY
-    onRemoveExtension(extension: string) {
+    onAddPresets(presetExtensions: string) {
+        const ext = presetExtensions.trim().split(" ").filter(it => it);
         const { extensions } = this.state;
-        const remaining = extensions.filter(e => e !== extension);
-        this.setState(() => ({ extensions: remaining }));
+        ext.forEach(it => addEntryIfNotPresent(extensions, it));
+        this.setState(() => ({ extensions }));
     }
 
     render() {
@@ -143,7 +149,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         <Form.Input value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
                         <Dropdown
                             text="Add extension preset"
-                            onChange={(_, { value }) => this.onAddExtension(value as string)}
+                            onChange={(_, { value }) => this.onAddPresets(value as string)}
                             options={extensionPresets}
                         />
                     </Form>
