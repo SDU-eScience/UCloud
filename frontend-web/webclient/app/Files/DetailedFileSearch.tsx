@@ -8,6 +8,8 @@ interface DetailedFileSearchProps {
 
 }
 
+type Annotation = "Project";
+
 type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
 interface DetailedFileSearchState {
@@ -17,7 +19,8 @@ interface DetailedFileSearchState {
     extensions: string[]
     extensionValue: string
     tags: string[]
-    sensitivities: SensitivityLevel[]
+    sensitivities: SensitivityLevel[],
+    annotations: Annotation[]
 }
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
@@ -30,13 +33,16 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             extensionValue: "",
             extensions: [],
             tags: [],
+            annotations: [],
             sensitivities: []
         }
     }
 
     onAddSensitivity(sensitivity: SensitivityLevel): void {
         const { sensitivities } = this.state;
+        // FIXME: Shouldn't be able to occur?
         if (sensitivities.includes(sensitivity)) return;
+
         sensitivities.push(sensitivity);
         this.setState(() => ({ sensitivities }));
     }
@@ -53,6 +59,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         const remaining = extensions.filter(e => e !== extension);
         this.setState(() => ({ extensions: remaining }));
     }
+
+
 
     onAddExtension() {
         const { extensionValue, extensions } = this.state;
@@ -75,8 +83,20 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         this.setState(() => ({ extensions }));
     }
 
+    onAddAnnotation(annotation: Annotation) {
+        const { annotations } = this.state;
+        annotations.push(annotation);
+        this.setState(() => ({ annotations }));
+    }
+
+    onRemoveAnnotation(annotation: Annotation) {
+        const { annotations } = this.state;
+        const remaining = annotations.filter(a => a !== annotation);
+        this.setState(() => ({ annotations: remaining }));
+    }
+
     render() {
-        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename } = this.state;
+        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations } = this.state;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.includes(s.text as SensitivityLevel));
         let sensitivityDropdown = null;
         if (remainingSensitivities.length) {
@@ -86,6 +106,19 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         text="Add sensitivity level"
                         onChange={(_, { value }) => this.onAddSensitivity(value as SensitivityLevel)}
                         options={remainingSensitivities}
+                    />
+                </div>
+            );
+        }
+        const remainingAnnotations = annotationOptions.filter(a => !annotations.includes(a.text as Annotation));
+        let annotationsDropdown = null;
+        if (remainingAnnotations.length) {
+            annotationsDropdown = (
+                <div>
+                    <Dropdown
+                        text="Add annotation"
+                        onChange={(_, { value }) => this.onAddAnnotation(value as Annotation)}
+                        options={remainingAnnotations}
                     />
                 </div>
             );
@@ -156,6 +189,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Header as="h3" content="Sensitivity" />
                     <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} clearAll={() => this.setState(() => ({ sensitivities: [] }))} />
                     {sensitivityDropdown}
+
+                    <Header as="h3" content="Annotations" />
+                    <SearchLabels labels={annotations} onLabelRemove={(l) => this.onRemoveAnnotation(l)} clearAll={() => this.setState(() => ({ annotations: [] }))} />
+                    {annotationsDropdown}
+
                     <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => console.log("Almost submitted!")} />
                 </Grid.Column>
             </Grid>
@@ -181,6 +219,10 @@ const sensitivityOptions = [
     { key: "open_access", text: "Open Access", value: "Open Access" },
     { key: "confidential", text: "Confidential", value: "Confidential" },
     { key: "sensitive", text: "Sensitive", value: "Sensitive" }
+]
+
+const annotationOptions = [
+    { key: "project", text: "Project", value: "Project" }
 ]
 
 export default connect()(DetailedFileSearch);
