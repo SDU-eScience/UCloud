@@ -28,6 +28,7 @@ import org.elasticsearch.client.Requests
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentType
+import org.elasticsearch.index.query.QueryBuilder
 import org.slf4j.Logger
 import java.io.File
 import java.util.*
@@ -116,7 +117,7 @@ interface IndexQueryService {
         owner: String?,
         fileType: FileType?,
         lastModified: Long?,
-        sensitivity: SensitivityLevel?,
+        sensitivity: List<SensitivityLevel>?,
         annotations: List<String>?,
         paging: NormalizedPaginationRequest
     ): Page<EventMaterializedStorageFile>
@@ -357,11 +358,63 @@ class ElasticQueryService(
         owner: String?,
         fileType: FileType?,
         lastModified: Long?,
-        sensitivity: SensitivityLevel?,
+        sensitivity: List<SensitivityLevel>?,
         annotations: List<String>?,
         paging: NormalizedPaginationRequest
     ): Page<EventMaterializedStorageFile> {
-        TODO("not implemented")
+        if (name == null && owner == null && fileType == null && lastModified == null &&
+            sensitivity == null && annotations == null) {
+            return Page(0, paging.itemsPerPage, paging.page, emptyList())
+        }
+
+        elasticClient.search<IndexedFile>(mapper, paging, FILES_INDEX) {
+            sort(IndexedFile.FILE_NAME_KEYWORD)
+
+            bool {
+                should = ArrayList<QueryBuilder>().apply {
+                    if (name != null) {
+                        add(match_phrase_prefix {
+                            IndexedFile.FILE_NAME_FIELD to {
+                                query = name
+                                max_expansions= 10
+                            }
+                        })
+                    }
+
+                    if (owner != null) {
+                        add(term {
+                            IndexedFile.OWNER_FIELD to owner
+                        })
+                    }
+
+                    if (fileType != null) {
+                        add(term {
+                            IndexedFile.FILE_TYPE_FIELD to fileType.name
+                        })
+                    }
+
+                    if (sensitivity != null) {
+                        add(terms {
+                            IndexedFile.SENSITIVITY_FIELD to sensitivity.map { it.name }
+                        })
+                    }
+
+                    if (annotations != null) {
+                        add(terms {
+                            IndexedFile.ANNOTATIONS_FIELD to annotations
+                        })
+                    }
+                }
+
+                filter {
+                    terms { IndexedFile.PATH_FIELD to roots }
+                }
+            }.also {
+                it.minimumShouldMatch(1)
+            }
+        }
+
+        TODO()
     }
 
     companion object : Loggable {
