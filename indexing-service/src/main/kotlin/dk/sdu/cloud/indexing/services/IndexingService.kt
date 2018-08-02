@@ -1,8 +1,10 @@
 package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.indexing.api.SearchResult
 import dk.sdu.cloud.indexing.util.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -13,7 +15,6 @@ import kotlinx.coroutines.experimental.joinAll
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
-import mbuhot.eskotlin.query.fulltext.match
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.ElasticsearchStatusException
@@ -21,6 +22,7 @@ import org.elasticsearch.action.DocWriteRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
+import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.Requests
 import org.elasticsearch.client.RestHighLevelClient
@@ -86,23 +88,18 @@ interface Migratable {
     fun migrate() {}
 }
 
-data class InternalSearchResult(
-    val id: String,
-    val path: String,
-    val fileType: FileType
-) {
-    fun toExternalResult(): SearchResult = SearchResult(path, fileType)
-}
+fun EventMaterializedStorageFile.toExternalResult(): SearchResult = SearchResult(path, fileType)
 
-data class SearchResult(
-    val path: String,
-    val fileType: FileType
+data class BulkIndexingResponse(
+    val failures: List<String>
 )
 
 interface IndexingService : Migratable {
     fun handleEvent(event: StorageEvent)
-    fun bulkHandleEvent(events: List<StorageEvent>) {
+
+    fun bulkHandleEvent(events: List<StorageEvent>): BulkIndexingResponse {
         events.forEach { handleEvent(it) }
+        return BulkIndexingResponse(emptyList())
     }
 }
 
@@ -111,7 +108,7 @@ interface IndexQueryService {
         roots: List<String>,
         query: String,
         paging: NormalizedPaginationRequest
-    ): Page<InternalSearchResult>
+    ): Page<EventMaterializedStorageFile>
 
     fun advancedQuery(
         roots: List<String>,
@@ -122,7 +119,9 @@ interface IndexQueryService {
         sensitivity: SensitivityLevel?,
         annotations: List<String>?,
         paging: NormalizedPaginationRequest
-    ): Page<InternalSearchResult>
+    ): Page<EventMaterializedStorageFile>
+
+    fun findFileByIdOrNull(id: String): EventMaterializedStorageFile?
 }
 
 class ElasticIndexingService(
@@ -172,7 +171,7 @@ class ElasticIndexingService(
         }
     }
 
-    override fun bulkHandleEvent(events: List<StorageEvent>) {
+    override fun bulkHandleEvent(events: List<StorageEvent>): BulkIndexingResponse {
         val requests = ArrayList<DocWriteRequest<*>>()
 
         events.forEach { event ->
@@ -187,13 +186,27 @@ class ElasticIndexingService(
             }
         }
 
-        requests.chunked(1000).forEach {
+        val failures = ArrayList<String>()
+        requests.chunked(1000).forEach { chunk ->
             val request = BulkRequest()
-            request.add(it)
+            request.add(chunk)
             request.timeout(TimeValue.timeValueMinutes(5))
 
-            if (request.requests().isNotEmpty()) elasticClient.bulk(request)
+            if (request.requests().isNotEmpty()) {
+                val resp = elasticClient.bulk(request)
+                failures.addAll(resp.items.filter { it.isFailed }.map { it.failureMessage })
+            }
         }
+
+        if (failures.isNotEmpty()) {
+            log.info("${failures.size} failures occurred while handling bulk indexing")
+            if (log.isDebugEnabled) {
+                failures.forEachIndexed { i, failure ->
+                    log.debug("  $i: $failure")
+                }
+            }
+        }
+        return BulkIndexingResponse(failures)
     }
 
     private fun handleCreatedOrModified(event: StorageEvent.CreatedOrRefreshed): UpdateRequest {
@@ -221,7 +234,8 @@ class ElasticIndexingService(
         )
 
         return UpdateRequest(FILES_INDEX, DOC_TYPE, indexedFile.id).apply {
-            doc(mapper.writeValueAsBytes(indexedFile), XContentType.JSON)
+            val writeValueAsBytes = mapper.writeValueAsBytes(indexedFile)
+            doc(writeValueAsBytes, XContentType.JSON)
             docAsUpsert(true)
         }
     }
@@ -292,11 +306,18 @@ class ElasticQueryService(
 ) : IndexQueryService {
     private val mapper = jacksonObjectMapper()
 
+    override fun findFileByIdOrNull(id: String): EventMaterializedStorageFile? {
+        return elasticClient[GetRequest(FILES_INDEX, DOC_TYPE, id)]
+            ?.takeIf { it.isExists }
+            ?.let { mapper.readValue<IndexedFile>(it.sourceAsString) }
+            ?.toMaterializedFile()
+    }
+
     override fun simpleQuery(
         roots: List<String>,
         query: String,
         paging: NormalizedPaginationRequest
-    ): Page<InternalSearchResult> = elasticClient
+    ): Page<EventMaterializedStorageFile> = elasticClient
         .search<IndexedFile>(mapper, paging, FILES_INDEX) {
             sort(IndexedFile.FILE_NAME_KEYWORD)
 
@@ -328,7 +349,7 @@ class ElasticQueryService(
                 it.minimumShouldMatch(1)
             }
         }
-        .mapItems { with(it) { InternalSearchResult(id, path, fileType) } }
+        .mapItems { it.toMaterializedFile() }
 
     override fun advancedQuery(
         roots: List<String>,
@@ -339,7 +360,7 @@ class ElasticQueryService(
         sensitivity: SensitivityLevel?,
         annotations: List<String>?,
         paging: NormalizedPaginationRequest
-    ): Page<InternalSearchResult> {
+    ): Page<EventMaterializedStorageFile> {
         TODO("not implemented")
     }
 

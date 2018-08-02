@@ -2,120 +2,71 @@ package dk.sdu.cloud.indexing
 
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
-import dk.sdu.cloud.indexing.services.InternalSearchResult
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.storage.api.StorageEvent
 import org.apache.http.HttpHost
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
-import java.util.*
+import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
-const val recreateIndex = true
-
-fun main(args: Array<String>) {
-    val elastic = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
-
-    val indexingService = ElasticIndexingService(elastic)
-    val queryService = ElasticQueryService(elastic)
-
-    fun MutableList<StorageEvent>.file(path: String, type: FileType) {
-        add(
-            StorageEvent.CreatedOrRefreshed(
-                path,
-                path,
-                "bob",
-                System.currentTimeMillis(),
-                type,
-                Timestamps(0L, 0L, 0L),
-                0L,
-                FileChecksum("", ""),
-                false,
-                null,
-                null,
-                emptySet(),
-                SensitivityLevel.CONFIDENTIAL
-            )
-        )
-    }
-
-    fun MutableList<StorageEvent>.rename(path: String, oldPath: String) {
-        add(
-            StorageEvent.Moved(
-                oldPath,
-                path,
-                "bob",
-                System.currentTimeMillis(),
-                oldPath
-            )
-        )
-    }
-
-    if (recreateIndex) {
-        indexingService.migrate()
-
-        val events = ArrayList<StorageEvent>()
-
-
-        with(events) {
-            repeat(10) { a ->
-                file("/home/$a", FileType.DIRECTORY)
-                repeat(10) { b ->
-                    file("/home/$a/$b", FileType.DIRECTORY)
-                    repeat(10) { c ->
-                        file("/home/$a/$b/$c", FileType.DIRECTORY)
-                        repeat(10) { d ->
-                            file("/home/$a/$b/$c/$d", FileType.FILE)
-                        }
-                    }
-                }
+class IndexingTest {
+    @Test
+    fun `test indexing of file with annotation`() {
+        withFreshIndex {
+            val events = ArrayList<StorageEvent>().apply {
+                file("a", FileType.FILE, setOf("P"))
             }
+
+            val response = indexingService.bulkHandleEvent(events)
+            assertEquals(0, response.failures.size)
+
+            val fileInIndex = queryService.findFileByIdOrNull("a")
+            assertTrue(fileInIndex != null)
+            val annotations = fileInIndex!!.annotations
+            assertEquals(1, annotations.size)
+            assertEquals("P", annotations.first())
         }
-
-
-
-        indexingService.bulkHandleEvent(events)
     }
 
-    /*
-    val chars = List(10) { ('a' + it) }
-    indexingService.bulkHandleEvent(ArrayList<StorageEvent>().apply {
-        repeat(10) { aIdx ->
-            val a = chars[aIdx]
-            rename("$a", "$aIdx")
-            repeat(10) { bIdx ->
-                val b = chars[bIdx]
-                rename("$a/$b", "$aIdx/$bIdx")
-                repeat(10) { cIdx ->
-                    val c = chars[cIdx]
-                    rename("$a/$b/$c", "$aIdx/$bIdx/$cIdx")
-                    repeat(10) { dIdx ->
-                        val d = chars[dIdx]
-                        rename("$a/$b/$c/$d", "$aIdx/$bIdx/$cIdx/$dIdx")
-                    }
-                }
+    @Test
+    fun `test index and find`() {
+        withFreshIndex {
+            val events = ArrayList<StorageEvent>().apply {
+                file("a", FileType.FILE)
             }
+
+            val response = indexingService.bulkHandleEvent(events)
+            assertEquals(0, response.failures.size)
+
+            val fileInIndex = queryService.findFileByIdOrNull("a")
+            assertTrue(fileInIndex != null)
+            fileInIndex!!
+            assertEquals("a", fileInIndex.path)
+            assertEquals(FileType.FILE, fileInIndex.fileType)
         }
-    })
-    */
-
-    var currentPage = 0
-    var itemsInTotal = 1
-
-    val results = ArrayList<InternalSearchResult>()
-    while (currentPage * 100 < itemsInTotal) {
-        val page = queryService.simpleQuery(
-            listOf("a", "c/d"),
-            "e",
-            NormalizedPaginationRequest(100, currentPage)
-        )
-
-        results.addAll(page.items)
-
-        itemsInTotal = page.itemsInTotal
-        currentPage++
     }
 
-    results.sortedBy { it.path }.forEach { println(it) }
+    @Test
+    fun `test not found by id`() {
+        withFreshIndex {
+            val fileInIndex = queryService.findFileByIdOrNull("a")
+            assertTrue(fileInIndex == null)
+        }
+    }
 
-    elastic.close()
+    private data class TestContext(
+        val elastic: RestHighLevelClient,
+        val indexingService: ElasticIndexingService,
+        val queryService: ElasticQueryService
+    )
+
+    private fun withFreshIndex(consumer: TestContext.() -> Unit) {
+        val elastic = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
+        val indexingService = ElasticIndexingService(elastic)
+        val queryService = ElasticQueryService(elastic)
+        TestContext(elastic, indexingService, queryService).apply { indexingService.migrate() }.consumer()
+    }
+
 }

@@ -37,6 +37,7 @@ import org.apache.kafka.streams.kstream.KStream
     JsonSubTypes.Type(value = StorageEvent.Deleted::class, name = "deleted"),
     JsonSubTypes.Type(value = StorageEvent.AnnotationsUpdated::class, name = "annotations"),
     JsonSubTypes.Type(value = StorageEvent.SensitivityUpdated::class, name = "sensitivity"),
+    JsonSubTypes.Type(value = StorageEvent.Moved::class, name = "moved"),
     JsonSubTypes.Type(value = StorageEvent.Invalidated::class, name = "invalidated")
 )
 sealed class StorageEvent {

@@ -3,8 +3,10 @@ package dk.sdu.cloud.indexing
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.indexing.api.IndexingServiceDescription
+import dk.sdu.cloud.indexing.http.SearchController
 import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
+import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.FileIndexScanner
 import dk.sdu.cloud.service.*
 import io.ktor.application.install
@@ -30,13 +32,14 @@ class Server(
     private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
-    override val endpoints: List<String> = listOf("/api/search", "/api/index")
+    override val endpoints: List<String> = listOf("/api/file-search", "/api/index")
 
     override fun start() {
         val instance = IndexingServiceDescription.instance(configuration.connConfig)
 
-        elastic = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
+        elastic = RestHighLevelClient(RestClient.builder(HttpHost(configuration.elasticHost, 9200, "http")))
         val indexingService = ElasticIndexingService(elastic)
+        val queryService = ElasticQueryService(elastic)
 
         if (args.contains("--scan")) {
             try {
@@ -60,7 +63,9 @@ class Server(
             install(JWTProtection)
 
             routing {
-
+                configureControllers(
+                    SearchController(queryService)
+                )
             }
         }
 

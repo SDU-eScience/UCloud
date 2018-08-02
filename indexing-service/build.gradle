@@ -201,7 +201,7 @@ task apiJar(type: Jar) {
 apiJar.dependsOn(generateServiceManifest)
 
 apply plugin: 'application'
-mainClassName = "dk.sdu.cloud.index.MainKt"
+mainClassName = "dk.sdu.cloud.indexing.MainKt"
 
 run {
     if (project.hasProperty("appArgs")) {
