@@ -18,11 +18,6 @@ export interface ProjectMetadata {
     title: string
 
     /**
-     * A list of files in this project
-     */
-    files: FileDescriptionForMetadata[]
-
-    /**
      * A list of creators of this project (defaults to users in project)
      */
     creators: Creator[]

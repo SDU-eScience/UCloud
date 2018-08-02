@@ -114,11 +114,6 @@ const SearchItem = ({ item }: { item: ProjectMetadata }) => (
                 MIT
                 <Label.Detail>License</Label.Detail>
             </Label>
-            <Label basic>
-                <Icon name='file' />
-                {item.files.length}
-                <Label.Detail>Files</Label.Detail>
-            </Label>
         </Card.Content>
     </Card>
 );

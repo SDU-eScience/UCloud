@@ -14,31 +14,6 @@ import org.slf4j.LoggerFactory
 
 typealias StorageEventConsumer = KStream<String, StorageEvent>
 
-interface Stream<K : Any, V : Any> {
-    fun forEach(consumer: (K, V) -> Unit)
-    fun <A : Any, B : Any> map(mapper: (K, V) -> Pair<A, B>): Stream<A, B>
-    fun <B : Any> mapValues(mapper: (V) -> B): Stream<K, B>
-    fun filter(predicate: (K, V) -> Boolean): Stream<K, V>
-}
-
-class KafkaStream<K : Any, V : Any>(private val delegate: KStream<K, V>) : Stream<K, V> {
-    override fun forEach(consumer: (K, V) -> Unit) {
-        delegate.foreach(consumer)
-    }
-
-    override fun <A : Any, B : Any> map(mapper: (K, V) -> Pair<A, B>): Stream<A, B> {
-        return KafkaStream(delegate.map { key, value -> mapper(key, value).let { KeyValue(it.first, it.second) } })
-    }
-
-    override fun <B : Any> mapValues(mapper: (V) -> B): Stream<K, B> {
-        return KafkaStream(delegate.mapValues { mapper(it) })
-    }
-
-    override fun filter(predicate: (K, V) -> Boolean): Stream<K, V> {
-        return KafkaStream(delegate.filter { key, value -> predicate(key, value) })
-    }
-}
-
 class StorageEventProcessor(
     private val storageEvents: StorageEventConsumer,
     private val projectEvents: ProjectEventConsumer,
@@ -50,23 +25,27 @@ class StorageEventProcessor(
     fun init() {
         log.info("Initializing storage event processor")
 
-        KafkaStream(storageEvents)
+        storageEvents
             .filter { _, event -> event is StorageEvent.Deleted || event is StorageEvent.Invalidated }
-            .forEach { _, event ->
+            .foreach { _, event ->
                 // TODO Technically we should not assume that Invalidated means deleted.
                 // It is valid for the storage-service to emit Invalidated followed by a refresh of the real file.
                 // We should instead enqueue an internal delete if we don't receive a refresh of the real file within,
                 // say, 48 hours.
 
+                log.debug("Handling StorageEvent: $event")
+
                 try {
-                    val project = projectService.findBestMatchingProjectByPath(event.path)
+                    val project = projectService.findByFSRoot(event.path)
                     metadataCommandService.delete(project.owner, project.id!!)
+                    projectService.deleteProjectByRoot(event.path)
                 } catch (e: ProjectException.NotFound) {
                     // Do nothing
+                    log.debug("No project for ${event.path}")
                 }
             }
 
-        KafkaStream(projectEvents).forEach { _, event ->
+        projectEvents.foreach { _, event ->
             // NOTE(Dan): we want to keep the project and metadata abstractions very separate. A project does not need
             // a description. We can easily fill in dummy values for the people who don't want any thing special.
             // We can likely also source some of this information from their project application.

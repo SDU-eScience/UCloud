@@ -86,15 +86,7 @@ export const View = (props: ViewProps) => {
                         </List.Item>
                         : null
                     }
-
-                    <List.Item>
-                        <Label basic className="metadata-detailed-tag">
-                            <Icon name='file' />
-                            {metadata.files.length}
-                            <Label.Detail>Files</Label.Detail>
-                        </Label>
-                    </List.Item>
-                </List>
+               </List>
 
                 <Header as="h4">
                     <Icon name="hashtag" />
