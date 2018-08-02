@@ -47,15 +47,15 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         this.setState(() => ({ sensitivities: remainingSensitivities }));
     }
 
-    // On Add Sensitivity matches a lot, not DRY
-    onAddExtension() {
+    onAddExtension(value?: string) {
         const { extensionValue, extensions } = this.state;
-        const newExtensions = extensionValue.trim().split(" ").filter(it => it);
+        const exts = value ? value : extensionValue;
+        const newExtensions = exts.trim().split(" ").filter(it => it);
         let entryAdded = false;
         newExtensions.forEach(ext => { entryAdded = addEntryIfNotPresent(extensions, ext) || entryAdded });
         this.setState(() => ({
             extensions,
-            extensionValue: entryAdded ? "" : extensionValue
+            extensionValue: entryAdded ? "" : exts
         }));
         if (!entryAdded) {
             infoNotification("Extension already added");
@@ -70,11 +70,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
     }
 
     render() {
-        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders } = this.state;
+        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename } = this.state;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.includes(s.text as SensitivityLevel));
-        let sensitiviyDropdown = null;
+        let sensitivityDropdown = null;
         if (remainingSensitivities.length) {
-            sensitiviyDropdown = (
+            sensitivityDropdown = (
                 <div>
                     <Dropdown
                         text="Add sensitivity level"
@@ -88,6 +88,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             <Grid container columns={16}>
                 <Grid.Column width={16}>
                     <Header as="h3" content="Filename" />
+                    {filename ? <div style={{ paddingBottom: "5px" }}><Label content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
                     <Input fluid placeholder={"Filename must include..."} onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
                     <Header as="h3" content="Created at" />
                     <Form onSubmit={(e) => e.preventDefault()}>
@@ -133,17 +134,22 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     </Form>
                     <Header as="h3" content="Type" />
                     <Form.Group widths="equal">
-                        <Checkbox style={{ paddingRight: "15px"}} label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
-                        <Checkbox style={{ paddingRight: "15px"}} label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
+                        <Checkbox style={{ paddingRight: "15px" }} label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
+                        <Checkbox style={{ paddingRight: "15px" }} label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
                     </Form.Group>
                     <Header as="h3" content="File extensions" />
                     <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} />
                     <Form onSubmit={(e) => { e.preventDefault(); this.onAddExtension(); }}>
                         <Form.Input value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
+                        <Dropdown
+                            text="Add extension preset"
+                            onChange={(_, { value }) => this.onAddExtension(value as string)}
+                            options={extensionPresets}
+                        />
                     </Form>
                     <Header as="h3" content="Sensitivity" />
                     <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} />
-                    {sensitiviyDropdown}
+                    {sensitivityDropdown}
                     <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => console.log("Almost submitted!")} />
                 </Grid.Column>
             </Grid>
@@ -157,14 +163,12 @@ const SearchLabels = (props) => (
     </div>
 );
 
-
-/* 
-    Extension - done
-    Timestamps
-    File names - in progress
-    Type - done
-    Sensitivity - done
-*/
+const extensionPresets = [
+    { key: "text", content: "Text", value: ".txt .docx .rtf .csv .pdf" },
+    { key: "image", content: "Image", value: ".png .jpeg .jpg .ppm .gif" },
+    { key: "sound", content: "Sound", value: ".mp3 .ogg .wav .flac .aac" },
+    { key: "compressed", content: "Compressed files", value: ".zip .tar.gz" }
+]
 
 const sensitivityOptions = [
     { key: "open_access", text: "Open Access", value: "Open Access" },
