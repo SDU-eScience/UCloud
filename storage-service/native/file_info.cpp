@@ -242,7 +242,7 @@ int print_file_information(std::ostream &stream, const char *path, const struct 
     print_basic(stream, path, stat_inp, mode);
     if ((mode & SHARES) != 0) print_shares(stream, path);
     if ((mode & ANNOTATIONS) != 0) print_annotations(stream, path);
-    if ((mode & SENSITIVITY) != 0) print_sensitivity(stream, path);
     if ((mode & CHECKSUM) != 0) print_checksum(stream, path);
+    if ((mode & SENSITIVITY) != 0) print_sensitivity(stream, path);
     return 0;
 }
