@@ -50,7 +50,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
     // On Add Sensitivity matches a lot, not DRY
     onAddExtension() {
         const { extensionValue, extensions } = this.state;
-        const newExtensions = extensionValue.trim().replace(/\./g, "").split(" ").filter(it => it);
+        const newExtensions = extensionValue.trim().split(" ").filter(it => it);
         let entryAdded = false;
         newExtensions.forEach(ext => { entryAdded = addEntryIfNotPresent(extensions, ext) || entryAdded });
         this.setState(() => ({
