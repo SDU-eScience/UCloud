@@ -57,7 +57,8 @@ private fun Application.configureAuthServer(userDao: UserHibernateDAO,
         UserController(
             hsfactory,
             userDao,
-            userCreationService
+            userCreationService,
+            mockk(relaxed = true)
         )
     )
 }
