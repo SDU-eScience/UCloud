@@ -8,6 +8,8 @@ interface DetailedFileSearchProps {
 
 }
 
+type Annotation = "Project";
+
 type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
 interface DetailedFileSearchState {
@@ -17,7 +19,8 @@ interface DetailedFileSearchState {
     extensions: string[]
     extensionValue: string
     tags: string[]
-    sensitivities: SensitivityLevel[]
+    sensitivities: SensitivityLevel[],
+    annotations: Annotation[]
 }
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
@@ -30,13 +33,16 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             extensionValue: "",
             extensions: [],
             tags: [],
+            annotations: [],
             sensitivities: []
         }
     }
 
     onAddSensitivity(sensitivity: SensitivityLevel): void {
         const { sensitivities } = this.state;
+        // FIXME: Shouldn't be able to occur?
         if (sensitivities.includes(sensitivity)) return;
+
         sensitivities.push(sensitivity);
         this.setState(() => ({ sensitivities }));
     }
@@ -47,10 +53,18 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         this.setState(() => ({ sensitivities: remainingSensitivities }));
     }
 
-    // On Add Sensitivity matches a lot, not DRY
+    // Not DRY
+    onRemoveExtension(extension: string) {
+        const { extensions } = this.state;
+        const remaining = extensions.filter(e => e !== extension);
+        this.setState(() => ({ extensions: remaining }));
+    }
+
+
+
     onAddExtension() {
         const { extensionValue, extensions } = this.state;
-        const newExtensions = extensionValue.trim().replace(/\./g, "").split(" ").filter(it => it);
+        const newExtensions = extensionValue.trim().split(" ").filter(it => it);
         let entryAdded = false;
         newExtensions.forEach(ext => { entryAdded = addEntryIfNotPresent(extensions, ext) || entryAdded });
         this.setState(() => ({
@@ -62,19 +76,31 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         }
     }
 
-    // Not DRY
-    onRemoveExtension(extension: string) {
+    onAddPresets(presetExtensions: string) {
+        const ext = presetExtensions.trim().split(" ").filter(it => it);
         const { extensions } = this.state;
-        const remaining = extensions.filter(e => e !== extension);
-        this.setState(() => ({ extensions: remaining }));
+        ext.forEach(it => addEntryIfNotPresent(extensions, it));
+        this.setState(() => ({ extensions }));
+    }
+
+    onAddAnnotation(annotation: Annotation) {
+        const { annotations } = this.state;
+        annotations.push(annotation);
+        this.setState(() => ({ annotations }));
+    }
+
+    onRemoveAnnotation(annotation: Annotation) {
+        const { annotations } = this.state;
+        const remaining = annotations.filter(a => a !== annotation);
+        this.setState(() => ({ annotations: remaining }));
     }
 
     render() {
-        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders } = this.state;
+        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations } = this.state;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.includes(s.text as SensitivityLevel));
-        let sensitiviyDropdown = null;
+        let sensitivityDropdown = null;
         if (remainingSensitivities.length) {
-            sensitiviyDropdown = (
+            sensitivityDropdown = (
                 <div>
                     <Dropdown
                         text="Add sensitivity level"
@@ -84,10 +110,24 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                 </div>
             );
         }
+        const remainingAnnotations = annotationOptions.filter(a => !annotations.includes(a.text as Annotation));
+        let annotationsDropdown = null;
+        if (remainingAnnotations.length) {
+            annotationsDropdown = (
+                <div>
+                    <Dropdown
+                        text="Add annotation"
+                        onChange={(_, { value }) => this.onAddAnnotation(value as Annotation)}
+                        options={remainingAnnotations}
+                    />
+                </div>
+            );
+        }
         return (
             <Grid container columns={16}>
                 <Grid.Column width={16}>
                     <Header as="h3" content="Filename" />
+                    {filename ? <div className="padding-bottom"><Label content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
                     <Input fluid placeholder={"Filename must include..."} onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
                     <Header as="h3" content="Created at" />
                     <Form onSubmit={(e) => e.preventDefault()}>
@@ -133,17 +173,27 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     </Form>
                     <Header as="h3" content="Type" />
                     <Form.Group widths="equal">
-                        <Checkbox style={{ paddingRight: "15px"}} label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
-                        <Checkbox style={{ paddingRight: "15px"}} label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
+                        <Checkbox className="padding-right" label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
+                        <Checkbox className="padding-right" label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
                     </Form.Group>
                     <Header as="h3" content="File extensions" />
-                    <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} />
+                    <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: [] }))} />
                     <Form onSubmit={(e) => { e.preventDefault(); this.onAddExtension(); }}>
                         <Form.Input value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
+                        <Dropdown
+                            text="Add extension preset"
+                            onChange={(_, { value }) => this.onAddPresets(value as string)}
+                            options={extensionPresets}
+                        />
                     </Form>
                     <Header as="h3" content="Sensitivity" />
-                    <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} />
-                    {sensitiviyDropdown}
+                    <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} clearAll={() => this.setState(() => ({ sensitivities: [] }))} />
+                    {sensitivityDropdown}
+
+                    <Header as="h3" content="Annotations" />
+                    <SearchLabels labels={annotations} onLabelRemove={(l) => this.onRemoveAnnotation(l)} clearAll={() => this.setState(() => ({ annotations: [] }))} />
+                    {annotationsDropdown}
+
                     <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => console.log("Almost submitted!")} />
                 </Grid.Column>
             </Grid>
@@ -152,24 +202,27 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
 }
 
 const SearchLabels = (props) => (
-    <div style={{ paddingBottom: "5px" }}>
-        {props.labels.map((l, i) => (<Label basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
+    <div className="padding-bottom">
+        {props.labels.map((l, i) => (<Label className="label-padding" basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
+        {props.labels.length > 1 ? <Label className="label-padding" color="blue" content="Clear all" onRemove={props.clearAll} /> : null}
     </div>
 );
 
-
-/* 
-    Extension - done
-    Timestamps
-    File names - in progress
-    Type - done
-    Sensitivity - done
-*/
+const extensionPresets = [
+    { key: "text", content: "Text", value: ".txt .docx .rtf .csv .pdf" },
+    { key: "image", content: "Image", value: ".png .jpeg .jpg .ppm .gif" },
+    { key: "sound", content: "Sound", value: ".mp3 .ogg .wav .flac .aac" },
+    { key: "compressed", content: "Compressed files", value: ".zip .tar.gz" }
+]
 
 const sensitivityOptions = [
     { key: "open_access", text: "Open Access", value: "Open Access" },
     { key: "confidential", text: "Confidential", value: "Confidential" },
     { key: "sensitive", text: "Sensitive", value: "Sensitive" }
+]
+
+const annotationOptions = [
+    { key: "project", text: "Project", value: "Project" }
 ]
 
 export default connect()(DetailedFileSearch);

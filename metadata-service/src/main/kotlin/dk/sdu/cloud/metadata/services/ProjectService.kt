@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 data class Project(
     val id: Long?,
     val fsRoot: String,
+    val fsRootId: String,
     val owner: String,
     val description: String
 )

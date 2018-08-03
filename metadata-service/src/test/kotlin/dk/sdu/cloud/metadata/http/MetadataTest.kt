@@ -4,7 +4,6 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.metadata.services.*
 import dk.sdu.cloud.metadata.utils.withAuthMock
 import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.FileType
 import io.ktor.application.Application
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -49,14 +48,8 @@ class MetadataTest {
     private val source = """
         {
             "sduCloudRoot" : "",
+            "sduCloudRootId" : "",
             "title" : "I got a title",
-            "files" : [
-                {
-                "id" : "2",
-                "type" : "${FileType.FILE}",
-                "path" : "home"
-                }
-            ],
             "creators" : [
                 {
                 "name" : "I. A. M. User"
@@ -84,6 +77,7 @@ class MetadataTest {
                         configureMetadataServer(elasticService, projectService)
                         every { projectService.findById(any()) } returns Project(
                             1,
+                            "",
                             "",
                             user,
                             "description is here"
@@ -224,6 +218,7 @@ class MetadataTest {
                         every { projectService.findByFSRoot(any()) } returns Project(
                             2,
                             "/home/",
+                            "/home/",
                             user,
                             "This is my project"
                         )
@@ -276,6 +271,7 @@ class MetadataTest {
 
                         every { projectService.findByFSRoot(any()) } returns Project(
                             2,
+                            "/home/",
                             "/home/",
                             user,
                             "This is my project"
@@ -365,7 +361,7 @@ class MetadataTest {
                     moduleFunction = {
                         configureMetadataServer(elasticService, projectService)
 
-                        every { elasticClient.search(any()) } answers {
+                        every { elasticClient.search(any()) } answers { _ ->
                             val searchResponse = mockk<SearchResponse>()
                             val hit = Array(22) { SearchHit(it) }
                             every { searchResponse.hits } returns SearchHits(hit, 22, 0.513f)

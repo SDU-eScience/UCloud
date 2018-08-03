@@ -36,7 +36,7 @@ class Server(
     private val args: Array<String>
 ): CommonServer, WithServiceRegistry {
     override val log: Logger = logger()
-    override val endpoints = listOf("api/tus", "api")
+    override val endpoints = listOf("/api/tus", "/api/files", "/api/shares", "/api/upload")
 
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams

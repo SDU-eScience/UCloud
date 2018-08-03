@@ -4,7 +4,6 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.AuthStreams
-import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
@@ -15,14 +14,10 @@ import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
-import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import java.util.concurrent.TimeUnit
 
 class AuthServer(
     private val db: HibernateSessionFactory,
@@ -33,9 +28,9 @@ class AuthServer(
     override val serviceRegistry: ServiceRegistry,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider
-): CommonServer, WithServiceRegistry {
+) : CommonServer, WithServiceRegistry {
     override val log: Logger = logger()
-    override val endpoints = listOf(UserDescriptions.baseContext)
+    override val endpoints = listOf("/auth")
 
     override lateinit var kStreams: KafkaStreams
     override lateinit var httpServer: ApplicationEngine
@@ -57,16 +52,14 @@ class AuthServer(
             kafka.producer.forStream(AuthStreams.RefreshTokenStream),
             kafka.producer.forStream(AuthStreams.OneTimeTokenStream)
         )
-        val userCreationService =
-            UserCreationService(db, userDao, kafka.producer.forStream(AuthStreams.UserUpdateStream))
+        val userCreationService = UserCreationService(
+            db,
+            userDao,
+            kafka.producer.forStream(AuthStreams.UserUpdateStream)
+        )
         log.info("Core services constructed!")
 
-        kStreams = run {
-            log.info("Constructing Kafka Streams Topology")
-            val kBuilder = StreamsBuilder()
-
-            log.info("Configuring stream processors...")
-
+        kStreams = buildStreams { kBuilder ->
             RefreshTokenProcessor(
                 db,
                 refreshTokenDao,
@@ -74,16 +67,6 @@ class AuthServer(
             ).also { it.init() }
 
             OneTimeTokenProcessor(kBuilder.stream(AuthStreams.OneTimeTokenStream)).also { it.init() }
-
-            kafka.build(kBuilder.build()).also {
-                log.info("Kafka Streams Topology successfully built!")
-            }
-        }
-
-        kStreams.setUncaughtExceptionHandler { _, exception ->
-            log.error("Caught fatal exception in Kafka! Stacktrace follows:")
-            log.error(exception.stackTraceToString())
-            stop()
         }
 
         httpServer = ktor {
@@ -112,7 +95,9 @@ class AuthServer(
                     UserController(
                         db,
                         userDao,
-                        userCreationService)
+                        userCreationService,
+                        tokenService
+                    )
                 )
             }
 
@@ -121,9 +106,5 @@ class AuthServer(
 
         startServices()
         registerWithRegistry()
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(AuthServer::class.java)
     }
 }

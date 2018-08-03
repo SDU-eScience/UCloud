@@ -107,10 +107,7 @@ static void print_shares(std::ostream &stream, const char *path) {
 
     errno = 0;
     auto acl = acl_get_file(path, acl_type);
-
-#ifdef __linux__
-    if (acl == nullptr && errno != ENOTSUP) FATAL("acl_get_file");
-#endif
+    // we silently ignore errors and just print 0 shares
 
     std::vector<shared_with_t> shares;
     int entry_count = 0;
@@ -242,7 +239,7 @@ int print_file_information(std::ostream &stream, const char *path, const struct 
     print_basic(stream, path, stat_inp, mode);
     if ((mode & SHARES) != 0) print_shares(stream, path);
     if ((mode & ANNOTATIONS) != 0) print_annotations(stream, path);
-    if ((mode & SENSITIVITY) != 0) print_sensitivity(stream, path);
     if ((mode & CHECKSUM) != 0) print_checksum(stream, path);
+    if ((mode & SENSITIVITY) != 0) print_sensitivity(stream, path);
     return 0;
 }

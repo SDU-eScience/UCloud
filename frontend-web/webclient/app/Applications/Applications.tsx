@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Card, Button, Header, Container, Image, Input, Form, Rating } from "semantic-ui-react";
+import { Card, Button, Header, Container, Image, Dropdown, Input, Form, Rating } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -23,27 +23,22 @@ const COLORS_KEYS = Object.keys(MaterialColors);
 // We need dynamic import due to nature of the import
 const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
 
-interface ApplicationSearchState {
-    nameSearch: string
-    tagSearch: string
-}
+type SearchBy = "name" | "tags";
 
-interface ApplicationState extends ApplicationSearchState {
-    nameSearchLoading: boolean
-    tagSearchLoading: boolean
+interface ApplicationState {
+    searchLoading: boolean
     searchResults: Application[]
+    searchBy: SearchBy
+    searchText: string
 }
-
-type SearchProperties = keyof ApplicationSearchState;
 
 class Applications extends React.Component<ApplicationsProps, ApplicationState> {
     constructor(props: ApplicationsProps) {
         super(props);
         this.state = {
-            nameSearch: "",
-            nameSearchLoading: false,
-            tagSearch: "",
-            tagSearchLoading: false,
+            searchText: "",
+            searchLoading: false,
+            searchBy: "name",
             searchResults: []
         }
     }
@@ -55,50 +50,37 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         props.fetchApplications(props.page.pageNumber, props.page.itemsPerPage);
     }
 
-    onSearchValueUpdate = (property: SearchProperties, value: string) => {
-        this.setState(() => ({ ...this.state, [property]: value, }))
-    }
-
-    onSearch = (searchBy: SearchProperties) => {
-        console.log(searchBy);
-        if (searchBy === "tagSearch") {
-            this.setState(() => ({ tagSearchLoading: true }));
-            const tags = this.state.tagSearch.split(" ").filter(p => p);
-            console.log(tags);
-        } else if (searchBy === "nameSearch") {
-            this.setState(() => ({ nameSearchLoading: true }));
-            console.log(this.state.nameSearch);
-        } else {
-            console.warn(`${searchBy} as a searchProperty. Shouldn't happen.`)
-        }
-        setTimeout(() => this.setState(() => ({ nameSearchLoading: false, tagSearchLoading: false })), 2000);
+    onSearch = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        this.setState(() => ({ searchLoading: true }));
+        console.log(this.state.searchBy, this.state.searchText)
+        setTimeout(() => this.setState(() => ({ searchLoading: false })), 2000);
     }
 
     render() {
         const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
-        const { tagSearch, nameSearch, nameSearchLoading, tagSearchLoading } = this.state;
+        const { searchLoading } = this.state;
         const favoriteApp = (app: Application) => updateApplications(favoriteApplicationFromPage(app, page, Cloud));
         return (
             <React.StrictMode>
                 <Container>
                     <Header as={"h3"} content="Search Applications" />
-                    <SearchField
-                        loading={nameSearchLoading}
-                        onSubmit={() => this.onSearch("nameSearch")}
-                        value={nameSearch}
-                        icon={"search"}
-                        placeholder={"Search by name..."}
-                        onValueChange={(value) => this.onSearchValueUpdate("nameSearch", value)}
-                    />
-                    <SearchField
-                        loading={tagSearchLoading}
-                        onSubmit={() => this.onSearch("tagSearch")}
-                        value={tagSearch}
-                        icon={"search"}
-                        placeholder={"Search by whitespace separated tags..."}
-                        onValueChange={(value) => this.onSearchValueUpdate("tagSearch", value)}
-                    />
-
+                    <Form onSubmit={(e) => this.onSearch(e)}>
+                        <Form.Input
+                            loading={searchLoading}
+                            action={
+                                <Dropdown
+                                    button basic floating
+                                    onChange={(_, { value }) => this.setState(() => ({ searchBy: value as SearchBy }))}
+                                    options={searchOptions}
+                                    defaultValue="name"
+                                />
+                            }
+                            icon="search"
+                            iconPosition="left"
+                            placeholder="Search applications..."
+                        />
+                    </Form>
                 </Container>
                 <Pagination.List
                     loading={loading}
@@ -114,23 +96,14 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                     onItemsPerPageChanged={(size) => fetchApplications(0, size)}
                     onPageChanged={(pageNumber) => fetchApplications(pageNumber, page.itemsPerPage)}
                 />
-            </React.StrictMode>);
+            </React.StrictMode >);
     }
 }
 
-const SearchField = ({ onSubmit, icon, placeholder, value, onValueChange, loading }: SearchFieldProps) => (
-    <Form onSubmit={onSubmit}>
-        <Form.Input
-            fluid
-            style={{ marginBottom: "8px" }}
-            loading={loading}
-            icon={icon}
-            placeholder={placeholder}
-            value={value}
-            onChange={(_, { value }) => onValueChange(value)}
-        />
-    </Form>
-);
+const searchOptions = [
+    { key: "name", text: "Name", value: "name" },
+    { key: "tags", text: "Tags", value: "tags" }
+]
 
 interface SingleApplicationProps { app: Application, favoriteApp: (app: Application) => void }
 function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
@@ -159,7 +132,7 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
                 <Image floated="right">
                     <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => favoriteApp(app)} />
                 </Image>
-                <Card.Header content={app.description.info.name} />
+                <Card.Header content={app.description.title} />
                 <Card.Meta content={app.description.info.version} />
             </Card.Content>
             <Card.Content extra>

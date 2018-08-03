@@ -19,7 +19,7 @@ import org.apache.kafka.streams.kstream.KStream
 sealed class ProjectEvent {
     abstract val projectId: Long
 
-    data class Created(val project: Project, val initialFiles: List<FileDescriptionForMetadata>) : ProjectEvent() {
+    data class Created(val project: Project) : ProjectEvent() {
         override val projectId = project.id!!
     }
 }

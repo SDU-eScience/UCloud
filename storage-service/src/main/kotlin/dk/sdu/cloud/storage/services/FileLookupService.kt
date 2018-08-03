@@ -98,7 +98,7 @@ class FileLookupService<Ctx : FSUserContext>(
             sensitivityLevel = row.sensitivityLevel,
             link = row.isLink,
             annotations = row.annotations,
-            inode = row.inode
+            fileId = row.inode
         )
 
     fun lookupFileInDirectory(

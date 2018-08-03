@@ -27,7 +27,7 @@ inline fun <reified T : Any> SearchResponse.paginated(
             try {
                 mapper.readValue<T>(it.sourceAsString)
             } catch (ex: Exception) {
-                ElasticQueryService.log.info("Unable to deserialize IndexedFile from source: ${it.sourceAsString}")
+                ElasticQueryService.log.info("Unable to deserialize ElasticIndexedFile from source: ${it.sourceAsString}")
                 null
             }
         }
@@ -45,7 +45,7 @@ inline fun <reified T : Any> SearchResponse.mapped(mapper: ObjectMapper): List<T
         try {
             mapper.readValue<T>(it.sourceAsString)
         } catch (ex: Exception) {
-            ElasticQueryService.log.info("Unable to deserialize IndexedFile from source: ${it.sourceAsString}")
+            ElasticQueryService.log.info("Unable to deserialize ElasticIndexedFile from source: ${it.sourceAsString}")
             ElasticQueryService.log.info(ex.stackTraceToString())
             null
         }

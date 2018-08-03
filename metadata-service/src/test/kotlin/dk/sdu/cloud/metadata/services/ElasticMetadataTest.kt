@@ -1,9 +1,7 @@
 package dk.sdu.cloud.metadata.services
 
 import dk.sdu.cloud.metadata.api.Creator
-import dk.sdu.cloud.metadata.api.FileDescriptionForMetadata
 import dk.sdu.cloud.metadata.api.ProjectMetadata
-import dk.sdu.cloud.storage.api.FileType
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -14,15 +12,12 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.junit.Test
 
 class ElasticMetadataTest {
-
-    private val dummyfiles = List(10) { i -> FileDescriptionForMetadata(i.toString(), FileType.FILE, "home") }
-
     private val dummycreators = List(10) { i -> Creator(i.toString()) }
 
     private val projectMeta = ProjectMetadata(
         "",
+        "",
         "I got a title",
-        dummyfiles,
         dummycreators,
         "Here is my description",
         "Abstyles",
@@ -32,19 +27,8 @@ class ElasticMetadataTest {
     private val source = """
         {
             "sduCloudRoot" : "",
+            "sduCloudRootId" : "",
             "title" : "I got a title",
-            "files" : [
-                {
-                "id" : "2",
-                "type" : "${FileType.FILE}",
-                "path" : "home"
-                },
-                {
-                "id" : "3",
-                "type" : "${FileType.FILE}",
-                "path" : ""
-                }
-            ],
             "creators" : [
                 {
                 "name" : "I. A. M. User"
@@ -104,242 +88,13 @@ class ElasticMetadataTest {
     }
 
     @Test
-    fun `add files test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns true
-            every { getResponse.sourceAsBytes } returns source.toByteArray()
-            getResponse
-        }
-
-        elasticService.addFiles(1, dummyfiles.toSet())
-
-        verify {
-            elasticClient.index(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-        }
-
-    }
-
-    @Test(expected = MetadataException.NotFound::class)
-    fun `add files - id do not exist - test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns false
-            getResponse
-        }
-
-        elasticService.addFiles(1, dummyfiles.toSet())
-
-    }
-
-    private val pathList = List(1) { "home" }
-
-    @Test
-    fun `remove files test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns true
-            every { getResponse.sourceAsBytes } returns source.toByteArray()
-            getResponse
-        }
-
-        elasticService.removeFilesById(1, pathList.toSet())
-
-        verify {
-            elasticClient.index(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-        }
-
-    }
-
-    @Test
-    fun `remove files - file is root - test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns true
-            every { getResponse.sourceAsBytes } returns source.toByteArray()
-            getResponse
-        }
-        val list = listOf("3")
-
-        elasticService.removeFilesById(1, list.toSet())
-
-        verify {
-            elasticClient.delete(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-        }
-
-    }
-
-    @Test(expected = MetadataException.NotFound::class)
-    fun `remove files - id do not exist - test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns false
-            getResponse
-        }
-        elasticService.removeFilesById(1, pathList.toSet())
-
-    }
-
-    @Test
-    fun `remove ALL files test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns true
-            every { getResponse.sourceAsBytes } returns source.toByteArray()
-            getResponse
-        }
-        elasticService.removeAllFiles(1)
-
-        verifyOrder {
-            elasticClient.get(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-            elasticClient.index(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-        }
-
-    }
-
-    @Test
-    fun `update path of file test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns true
-            every { getResponse.sourceAsBytes } returns source.toByteArray()
-            getResponse
-        }
-        elasticService.updatePathOfFile(1, "2", "new/path")
-
-        verifyOrder {
-            elasticClient.get(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-            elasticClient.index(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-        }
-    }
-
-    @Test
-    fun `update path of file - new root - test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns true
-            every { getResponse.sourceAsBytes } returns source.toByteArray()
-            getResponse
-        }
-        elasticService.updatePathOfFile(1, "3", "new/path")
-
-        verifyOrder {
-            elasticClient.get(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-
-            elasticClient.index(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
-            )
-        }
-    }
-
-    @Test(expected = MetadataException.NotFound::class)
-    fun `update path of file - index not found - test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns false
-            getResponse
-        }
-
-        elasticService.updatePathOfFile(1, "2", "home/new/path")
-
-        verify {
-            elasticClient.get(
-                match { it.index() == "project_metadata" && it.id() == "1" }
-            )
-        }
-
-    }
-
-    @Test(expected = MetadataException.NotFound::class)
-    fun `update path of file - file not found - test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val elasticService = initService(elasticClient)
-
-        every { elasticClient.get(any()) } answers {
-            val getResponse = mockk<GetResponse>()
-            every { getResponse.isExists } returns true
-            every { getResponse.sourceAsBytes } returns source.toByteArray()
-            getResponse
-        }
-
-        elasticService.updatePathOfFile(1, "4", "home/new/path")
-
-        verify {
-            elasticClient.get(
-                match { it.index() == "project_metadata" && it.id() == "1" }
-            )
-        }
-    }
-
-    @Test
     fun `delete test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = initService(elasticClient, projectService)
 
         every { projectService.findById(any()) } answers {
-            Project(1, "", "user", "Description")
+            Project(1, "", "", "user", "Description")
         }
 
         elasticService.delete("user", 1)
@@ -373,7 +128,7 @@ class ElasticMetadataTest {
         val elasticService = initService(elasticClient, projectService)
 
         every { projectService.findById(any()) } answers {
-            Project(1, "", "user", "Description")
+            Project(1, "", "", "user", "Description")
         }
 
         elasticService.delete("notUser", 1)
