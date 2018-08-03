@@ -2,15 +2,28 @@
   "settings": {
     "analysis": {
       "analyzer": {
-        "path-tokenizer": {
+        "path-analyzer": {
           "type": "custom",
           "tokenizer": "path-tokenizer"
+        },
+
+        "extension-analyzer": {
+          "type": "custom",
+          "tokenizer": "extension-tokenizer",
+          "filter": ["lowercase"]
         }
       },
+
       "tokenizer": {
         "path-tokenizer": {
           "type": "path_hierarchy",
           "delimiter": "/"
+        },
+
+        "extension-tokenizer": {
+          "type": "path_hierarchy",
+          "delimiter": ".",
+          "reverse": "true"
         }
       }
     }
@@ -20,7 +33,7 @@
       "properties": {
         "path": {
           "type": "text",
-          "analyzer": "path-tokenizer",
+          "analyzer": "path-analyzer",
           "search_analyzer": "keyword"
         },
         "fileName": {
@@ -28,6 +41,12 @@
           "fields": {
             "keyword": {
               "type": "keyword"
+            },
+
+            "extension": {
+              "type": "text",
+              "analyzer": "extension-analyzer",
+              "search_analyzer": "keyword"
             }
           }
         },

@@ -50,7 +50,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
             fs.copy(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
         } else {
-            tree(ctx, from, setOf(FileAttribute.PATH)).forEach {
+            tree(ctx, from, setOf(FileAttribute.PATH)).forEach { it ->
                 val currentPath = it.path
 
                 retryWithCatch(
@@ -242,9 +242,5 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         } else {
             return value
         }
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(CoreFileSystemService::class.java)
     }
 }

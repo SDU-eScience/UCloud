@@ -14,8 +14,6 @@ data class BulkIndexingResponse(
     val failures: List<String>
 )
 
-
-
 interface IndexingService : Migratable {
     fun handleEvent(event: StorageEvent)
 

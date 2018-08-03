@@ -51,12 +51,16 @@ data class ElasticIndexedFile(
         val PATH_FIELD = ElasticIndexedFile::path.name
         val FILE_NAME_FIELD = ElasticIndexedFile::fileName.name
         val FILE_NAME_KEYWORD = ElasticIndexedFile::fileName.name + ".keyword"
+        val FILE_NAME_EXTENSION = ElasticIndexedFile::fileName.name + ".extension"
         val OWNER_FIELD = ElasticIndexedFile::owner.name
         val FILE_DEPTH_FIELD = ElasticIndexedFile::fileDepth.name
 
         val FILE_TYPE_FIELD = ElasticIndexedFile::fileType.name
         val SIZE_FIELD = ElasticIndexedFile::size.name
         val FILE_TIMESTAMPS_FIELD = ElasticIndexedFile::fileTimestamps.name
+        val TIMESTAMP_CREATED_FIELD = FILE_TIMESTAMPS_FIELD + "." + Timestamps::created.name
+        val TIMESTAMP_MODIFIED_FIELD = FILE_TIMESTAMPS_FIELD + "." + Timestamps::modified.name
+        val TIMESTAMP_ACCESSED_FIELD = FILE_TIMESTAMPS_FIELD + "." + Timestamps::accessed.name
 
         val CHECKSUM_FIELD = ElasticIndexedFile::checksum.name
         val FILE_IS_LINK_FIELD = ElasticIndexedFile::fileIsLink.name
