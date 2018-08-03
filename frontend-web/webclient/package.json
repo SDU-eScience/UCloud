@@ -33,7 +33,7 @@
   "dependencies": {
     "@types/react": "^16.4.7",
     "@types/react-dom": "^16.0.6",
-    "@types/react-redux": "^6.0.5",
+    "@types/react-redux": "^6.0.6",
     "@types/react-router": "^4.0.30",
     "@types/react-router-dom": "^4.3.0",
     "avataaars": "^1.1.0",
@@ -53,7 +53,7 @@
     "redux": "4.0.0",
     "semantic-ui-css": "^2.3.3",
     "semantic-ui-react": "^0.82.1",
-    "sweetalert2": "7.26.9",
+    "sweetalert2": "7.26.10",
     "uppy": "0.23.3"
   },
   "devDependencies": {
@@ -84,12 +84,12 @@
     "regenerator-runtime": "^0.12.0",
     "sass-loader": "^7.1.0",
     "style-loader": "0.21.0",
-    "ts-jest": "^23.0.1",
+    "ts-jest": "^23.1.1",
     "ts-loader": "^4.4.2",
     "typescript": "3.0.1",
     "uglifyjs-webpack-plugin": "^1.2.7",
     "url-loader": "1.0.1",
-    "webpack": "4.16.3",
+    "webpack": "4.16.4",
     "webpack-cli": "^3.1.0",
     "webpack-dev-server": "3.1.5",
     "webpack-merge": "4.1.4"

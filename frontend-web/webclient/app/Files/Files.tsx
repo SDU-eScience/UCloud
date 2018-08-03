@@ -104,6 +104,7 @@ class Files extends React.Component<FilesProps> {
         };
         const navigate = (path: string) => history.push(`/files/${path}`);
         const projectNavigation = (projectPath: string) => history.push(`/metadata/${projectPath}`);
+        const advancedSearchNavigation = () => history.push("/filesearch/");
         const fetchPageFromPath = (path) => { this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy); this.props.updatePath(uf.getParentPath(path)); navigate(uf.getParentPath(path)); }
         return (
             <Grid>
@@ -114,6 +115,7 @@ class Files extends React.Component<FilesProps> {
                             maxWidth={991}
                             createFolder={() => this.createFolder()}
                             currentPath={path}
+                            advancedSearchNavigation={advancedSearchNavigation}
                         />
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
                     </Grid.Row>
@@ -173,6 +175,7 @@ class Files extends React.Component<FilesProps> {
                         setDisallowedPaths={this.props.setDisallowedPaths}
                         rename={rename}
                         projectNavigation={projectNavigation}
+                        advancedSearchNavigation={advancedSearchNavigation}
                     />
                 </Responsive>
                 <FileSelectorModal
@@ -265,13 +268,13 @@ const FilesTableHeader = ({ sortingIcon, sortFiles = (_) => null, masterCheckBox
 
 const ContextBar = ({ currentPath, selectedFiles, createFolder, ...props }) => (
     <div>
-        <ContextButtons refetch={props.refetch} currentPath={currentPath} createFolder={createFolder} />
+        <ContextButtons refetch={props.refetch} currentPath={currentPath} createFolder={createFolder} advancedSearchNavigation={props.advancedSearchNavigation} />
         <Divider />
         <FileOptions projectNavigation={props.projectNavigation} selectedFiles={selectedFiles} rename={props.rename} {...props} />
     </div>
 );
 
-const ContextButtons = ({ currentPath, createFolder, refetch }) => (
+const ContextButtons = ({ currentPath, createFolder, refetch, advancedSearchNavigation }) => (
     <div>
         <Modal trigger={<Button color="blue" className="context-button-margin" fluid>Upload Files</Button>}>
             <Modal.Header content="Upload Files" />
@@ -282,6 +285,7 @@ const ContextButtons = ({ currentPath, createFolder, refetch }) => (
             </Modal.Content>
         </Modal>
         <Button basic className="context-button-margin" fluid onClick={() => createFolder()} content="New folder" />
+        <Button basic className="context-button-margin" fluid onClick={() => advancedSearchNavigation()} content="Advanced Search" color="green" />
     </div>
 );
 
@@ -525,13 +529,13 @@ const mapStateToProps = (state): FilesStateProps => {
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = page.items.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
-        error, fileSelectorError, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath, 
+        error, fileSelectorError, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, editFileIndex, creatingFolder, fileSelectorLoading
     }
 };
 
 const mapDispatchToProps = (dispatch): FilesOperations => ({
-    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(null)), 
+    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(null)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => {
         dispatch(Actions.updatePath(path));

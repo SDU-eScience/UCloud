@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Card, Button, Header, Container, Image, Dropdown, Input, Form, Rating } from "semantic-ui-react";
+import { Card, Icon, Header, Container, Image, Dropdown, Form, Rating } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -12,8 +12,9 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
 import { Page } from "Types";
 import { Application } from ".";
-import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps, SearchFieldProps } from ".";
+import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
+// Requires at least TS 3.0.0
 import { MaterialColors } from "Assets/materialcolors.json";
 import { favoriteApplicationFromPage } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject";
@@ -111,8 +112,9 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
     const mClength = MaterialColors[color].length;
     const hex = MaterialColors[color][(hashCode % mClength)];
-    const even = app.modifiedAt % 2 === 0;
+    const even = true;//app.modifiedAt % 2 === 0;
     const opacity = even ? 0.3 : 1;
+    const description = app.description.description;
     const image = even ? blurOverlay : `https://placekitten.com/200/200`;
     return (
         <Card>
@@ -129,29 +131,24 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
                 }} />
             </div>
             <Card.Content>
-                <Image floated="right">
+                <span style={{ float: "right" }}>
+                    <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
+                        <Icon color="green" name="play" />
+                    </Link>
                     <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => favoriteApp(app)} />
-                </Image>
-                <Card.Header content={app.description.title} />
+                </span>
+
+                <Card.Header
+                    as={Link}
+                    to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}
+                    content={app.description.title}
+                />
+
                 <Card.Meta content={app.description.info.version} />
             </Card.Content>
+
             <Card.Content extra>
-                <Button.Group>
-                    <Button
-                        content="Run app"
-                        color="green"
-                        basic fluid
-                        as={Link}
-                        to={`/applications/${app.description.info.name}/${app.description.info.version}/`}
-                    />
-                    <Button
-                        basic
-                        content="Details"
-                        color="blue"
-                        as={Link}
-                        to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}
-                    />
-                </Button.Group>
+                {description.length > 72 ? `${description.slice(0, 72)}...` : description}
             </Card.Content>
         </Card>
     );
