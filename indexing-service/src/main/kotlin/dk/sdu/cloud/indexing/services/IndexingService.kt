@@ -420,8 +420,8 @@ class ElasticQueryService(
     companion object : Loggable {
         override val log = logger()
 
-        private val FILES_INDEX = ElasticIndexingService.FILES_INDEX
-        private val DOC_TYPE = ElasticIndexingService.DOC_TYPE
+        private const val FILES_INDEX = ElasticIndexingService.FILES_INDEX
+        private const val DOC_TYPE = ElasticIndexingService.DOC_TYPE
     }
 }
 
@@ -481,8 +481,8 @@ class FileIndexScanner(
 
                         // Continue on all roots that the FS agrees on
                         val rootsToContinueOn = deliveryResponse.result.shouldContinue.filterValues { it }.keys
-                        val newRoots = rootsToContinueOn.flatMap {
-                            rootToMaterialized[it]!!
+                        val newRoots = rootsToContinueOn.flatMap { root ->
+                            rootToMaterialized[root]!!
                                 .filter { it.fileType == FileType.DIRECTORY && !it.isLink }
                                 .map { it.path }
                         }
