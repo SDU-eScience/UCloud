@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Card, Icon, Header, Container, Image, Dropdown, Form, Rating } from "semantic-ui-react";
+import { Card, Icon, Header, Container, Image, Dropdown, Form, Rating, List } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -131,19 +131,21 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
                 }} />
             </div>
             <Card.Content>
-                <span style={{ float: "right" }}>
-                    <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
-                        <Icon color="green" name="play" />
-                    </Link>
-                    <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => favoriteApp(app)} />
-                </span>
-
+                <List horizontal floated="right">
+                    <List.Item>
+                        <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => favoriteApp(app)} />
+                    </List.Item>
+                    <List.Item>
+                        <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
+                            <Icon color="green" name="play"/>
+                        </Link>
+                    </List.Item>
+                </List>
                 <Card.Header
                     as={Link}
                     to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}
                     content={app.description.title}
                 />
-
                 <Card.Meta content={app.description.info.version} />
             </Card.Content>
 

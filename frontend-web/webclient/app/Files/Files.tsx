@@ -104,7 +104,6 @@ class Files extends React.Component<FilesProps> {
         };
         const navigate = (path: string) => history.push(`/files/${path}`);
         const projectNavigation = (projectPath: string) => history.push(`/metadata/${projectPath}`);
-        const advancedSearchNavigation = () => history.push("/filesearch/");
         const fetchPageFromPath = (path) => { this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy); this.props.updatePath(uf.getParentPath(path)); navigate(uf.getParentPath(path)); }
         return (
             <Grid>
@@ -115,7 +114,6 @@ class Files extends React.Component<FilesProps> {
                             maxWidth={991}
                             createFolder={() => this.createFolder()}
                             currentPath={path}
-                            advancedSearchNavigation={advancedSearchNavigation}
                         />
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
                     </Grid.Row>
@@ -175,7 +173,6 @@ class Files extends React.Component<FilesProps> {
                         setDisallowedPaths={this.props.setDisallowedPaths}
                         rename={rename}
                         projectNavigation={projectNavigation}
-                        advancedSearchNavigation={advancedSearchNavigation}
                     />
                 </Responsive>
                 <FileSelectorModal
@@ -268,13 +265,13 @@ const FilesTableHeader = ({ sortingIcon, sortFiles = (_) => null, masterCheckBox
 
 const ContextBar = ({ currentPath, selectedFiles, createFolder, ...props }) => (
     <div>
-        <ContextButtons refetch={props.refetch} currentPath={currentPath} createFolder={createFolder} advancedSearchNavigation={props.advancedSearchNavigation} />
+        <ContextButtons refetch={props.refetch} currentPath={currentPath} createFolder={createFolder} />
         <Divider />
         <FileOptions projectNavigation={props.projectNavigation} selectedFiles={selectedFiles} rename={props.rename} {...props} />
     </div>
 );
 
-const ContextButtons = ({ currentPath, createFolder, refetch, advancedSearchNavigation }) => (
+const ContextButtons = ({ currentPath, createFolder, refetch }) => (
     <div>
         <Modal trigger={<Button color="blue" className="context-button-margin" fluid>Upload Files</Button>}>
             <Modal.Header content="Upload Files" />
@@ -285,7 +282,7 @@ const ContextButtons = ({ currentPath, createFolder, refetch, advancedSearchNavi
             </Modal.Content>
         </Modal>
         <Button basic className="context-button-margin" fluid onClick={() => createFolder()} content="New folder" />
-        <Button basic className="context-button-margin" fluid onClick={() => advancedSearchNavigation()} content="Advanced Search" color="green" />
+        <Button as={Link} to={`/filesearch`} basic className="context-button-margin" fluid content="Advanced Search" color="green" />
     </div>
 );
 
