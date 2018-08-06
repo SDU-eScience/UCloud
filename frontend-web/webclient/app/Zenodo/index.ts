@@ -2,6 +2,12 @@ import PromiseKeeper from "PromiseKeeper";
 import { match } from "react-router-dom";
 import { Page } from "Types";
 
+export interface ZenodoOperations {
+    onErrorDismiss: () => void
+    fetchPublications: (a: number, b: number ) => void
+    updatePageTitle: () => void
+}
+
 export interface Publication {
     id: number
     name: string

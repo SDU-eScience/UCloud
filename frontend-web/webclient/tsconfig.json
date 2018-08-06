@@ -1,5 +1,6 @@
 {
     "compilerOptions": {
+        "noImplicitReturns": true,
         "outDir": "./dist/",
         "alwaysStrict": true,
         "noImplicitAny": false,

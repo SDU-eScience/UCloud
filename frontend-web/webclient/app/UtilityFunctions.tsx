@@ -163,7 +163,7 @@ export const inputSwal = (inputName: string) => ({
     showCancelButton: true,
     inputPlaceholder: `Enter ${inputName}...`,
     focusConfirm: false,
-    inputValidator: (value) =>
+    inputValidator: (value: string) =>
         (!value && `${toLowerCaseAndCapitalize(inputName)} missing`)
 });
 
@@ -232,7 +232,6 @@ export const downloadFiles = (paths: string[], cloud: Cloud) => {
 
 export const fileSizeToString = (bytes: number): string => {
     if (bytes === 0) return "0 B";
-    if (!bytes) { return ""; }
     if (bytes < 1000) {
         return `${bytes} B`;
     } else if (bytes < 1000 ** 2) {
@@ -400,10 +399,12 @@ export const shortenString = (content: string, maxLength: number): string => {
 
 export const blankOrNull = (value: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
 
-export const ifPresent = (f, handler: (f: any) => void) => {
+export const ifPresent = (f: any, handler: (f: any) => void) => {
     if (f) handler(f)
 };
 
+export const downloadAllowed = (files: File[]) => 
+    files.length === 1 || files.every(f => f.sensitivityLevel !== "SENSITIVE")
 
 /**
  * //FIXME Missing backend functionality

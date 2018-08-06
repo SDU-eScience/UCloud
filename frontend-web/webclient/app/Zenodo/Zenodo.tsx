@@ -9,7 +9,7 @@ import { SET_ZENODO_ERROR } from "./Redux/ZenodoReducer";
 import { connect } from "react-redux";
 import { dateToString } from "Utilities/DateUtilities";
 import { List } from "Pagination/List";
-import { ZenodoHomeProps, ZenodoHomeState } from ".";
+import { ZenodoHomeProps, ZenodoHomeState, ZenodoOperations } from ".";
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {
@@ -121,8 +121,7 @@ const PublicationRow = ({ publication }) => {
         </Table.Row>);
 }
 
-// FIXME: Missing TYPE!
-const mapDispatchToProps = (dispatch) => ({
+const mapDispatchToProps = (dispatch): ZenodoOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage(SET_ZENODO_ERROR, null)),
     fetchPublications: (pageNo, pageSize) => {
         dispatch(setZenodoLoading(true));

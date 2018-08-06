@@ -2,7 +2,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import {
     SET_ALL_LOADING,
     RECEIVE_FAVORITES,
-    RECEIVE_RECENT_ANALYSES, 
+    RECEIVE_RECENT_ANALYSES,
     RECEIVE_RECENT_FILES,
     DASHBOARD_FAVORITE_ERROR,
     DASHBOARD_RECENT_ANALYSES_ERROR,
@@ -47,10 +47,10 @@ export const receiveFavorites = (content: File[]): Fetch<File> => ({
 /**
  * Fetches the contents of the users homefolder and returns 10 of them.
  */
-// FIXME Should limit to ten items, should sort by modified_at, desc
+// FIXME Should have specific endpoint so as to not use homefolder for this
 export const fetchRecentFiles = (): Promise<Fetch<File> | Error> =>
-    Cloud.get(`/files?path=${Cloud.homeFolder}`).then(({ response }) =>
-        receiveRecentFiles(response.items.slice(0, 10))
+    Cloud.get(`files?path=${Cloud.homeFolder}&itemsPerPage=10&page=0&order=DESCENDING&sortBy=MODIFIED_AT`).then(({ response }) =>
+        receiveRecentFiles(response.items)
     ).catch(() => setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, "Failed to fetch recent files. Please try again later."));
 
 /**

@@ -124,7 +124,7 @@ export interface RunAppState {
     appVersion: string
     appDescription: string
     appAuthor: string[]
-    parameters: any[] // FIXME
+    parameters: ApplicationParameter[]
     parameterValues: {}
     jobInfo: {
         maxTime?: {

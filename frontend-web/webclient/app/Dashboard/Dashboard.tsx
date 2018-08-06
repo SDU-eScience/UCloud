@@ -17,6 +17,10 @@ import {
     DASHBOARD_RECENT_FILES_ERROR
 } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
+import { Dispatch } from "redux";
+import { Notification } from "Notifications";
+import { Analysis } from "Applications";
+import { File } from "Files";
 
 class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {
@@ -35,10 +39,10 @@ class Dashboard extends React.Component<DashboardProps> {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
             analysesLoading, favoriteError, recentFilesError, recentAnalysesError, errorDismissFavorites,
             errorDismissRecentAnalyses, errorDismissRecentFiles } = this.props;
-        favoriteFiles.forEach((f) => f.favorited = true);
-        const favoriteOrUnfavorite = (file) => {
+        favoriteFiles.forEach((f: File) => f.favorited = true);
+        const favoriteOrUnfavorite = (file: File) => {
             favoriteFile(file, Cloud);
-            this.props.receiveFavorites(favoriteFiles.filter(f => f.favorited));
+            this.props.receiveFavorites(favoriteFiles.filter((f: File) => f.favorited));
         };
 
         return (
@@ -50,7 +54,7 @@ class Dashboard extends React.Component<DashboardProps> {
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
-                        favorite={(filePath) => favoriteOrUnfavorite(filePath)}
+                        favorite={(file: File) => favoriteOrUnfavorite(file)}
                     />
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
@@ -61,16 +65,16 @@ class Dashboard extends React.Component<DashboardProps> {
     }
 }
 
-const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
+const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: Function }) => {
     const noFavorites = files.length || isLoading ? "" : (<h3 className="text-center">
         <small>No favorites found.</small>
     </h3>);
-    const filesList = files.map((file, i) =>
+    const filesList = files.map((file: File, i: number) =>
         (<List.Item key={i} className="itemPadding">
             <List.Content floated="right">
                 <Icon name="star" color="blue" onClick={() => favorite(file)} />
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={false} maxPathLength={24} />
+            <ListFileContent path={file.path} type={file.type} link={false} maxPathLength={11} />
         </List.Item>)
     );
 
@@ -87,7 +91,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }) => {
         </Card >)
 };
 
-const ListFileContent = ({ path, type, link, maxPathLength }) =>
+const ListFileContent = ({ path, type, link, maxPathLength }: { path: string, type: string, link: boolean, maxPathLength: number }) =>
     <React.Fragment>
         <List.Content>
             <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} size={null} link={link} color="grey" />
@@ -98,13 +102,13 @@ const ListFileContent = ({ path, type, link, maxPathLength }) =>
     </React.Fragment>
 
 
-const DashboardRecentFiles = ({ files, isLoading }) => {
-    const filesList = files.sort((a, b) => b.modifiedAt - a.modifiedAt).map((file, i) => (
+const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => {
+    const filesList = files.sort((a: File, b: File) => b.modifiedAt - a.modifiedAt).map((file, i) => (
         <List.Item key={i} className="itemPadding">
             <List.Content floated="right">
                 <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={file.link} maxPathLength={16} />
+            <ListFileContent path={file.path} type={file.type} link={file.link} maxPathLength={7} />
         </List.Item>
     ));
 
@@ -125,7 +129,7 @@ const DashboardRecentFiles = ({ files, isLoading }) => {
         </Card>);
 };
 
-const DashboardAnalyses = ({ analyses, isLoading }) => (
+const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
     <Card>
         <Card.Content>
             <Card.Header content="Recent Analyses" />
@@ -136,7 +140,7 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
                 </h3>)
             }
             <List divided size={"large"}>
-                {analyses.map((analysis, index) =>
+                {analyses.map((analysis: Analysis, index: number) =>
                     <List.Item key={index} className="itemPadding">
                         <List.Content floated="right" content={toLowerCaseAndCapitalize(analysis.state)} />
                         <List.Icon name={statusToIconName(analysis.state)} color={statusToColor(analysis.state)} />
@@ -150,13 +154,13 @@ const DashboardAnalyses = ({ analyses, isLoading }) => (
     </Card>
 );
 
-const DashboardNotifications = ({ notifications }) => (
+const DashboardNotifications = ({ notifications }: { notifications: Notification[] }) => (
     <Card>
         <Card.Content>
             <Card.Header content="Recent notifications" />
             {notifications.length === 0 ? <h3><small>No notifications</small></h3> : null}
             <List divided>
-                {notifications.slice(0, 10).map((n, i) =>
+                {notifications.slice(0, 10).map((n: Notification, i: number) =>
                     <List.Item key={i}>
                         <Notification notification={n} />
                     </List.Item>
@@ -166,13 +170,13 @@ const DashboardNotifications = ({ notifications }) => (
     </Card>
 );
 
-const Notification = ({ notification }) => {
+const Notification = ({ notification }: { notification: Notification }) => {
     switch (notification.type) {
         case "SHARE_REQUEST":
             return (
                 <React.Fragment>
                     <List.Content floated="right">
-                        <List.Description content={moment(new Date(notification.ts)).fromNow()} />
+                        <List.Description content={moment(new Date(notification.ts as number)).fromNow()} />
                     </List.Content>
                     <List.Icon name="share alternate" color="blue" verticalAlign="middle" />
                     <List.Content header="Share Request" description={notification.message} />
@@ -187,7 +191,7 @@ const Notification = ({ notification }) => {
 const statusToIconName = (status: string) => status === "SUCCESS" ? "check" : "x";
 const statusToColor = (status: string) => status === "SUCCESS" ? "green" : "red";
 
-const ErrorMessage = ({ error, onDismiss }) => error !== null ?
+const ErrorMessage = ({ error, onDismiss }: { error?: string, onDismiss: () => void }) => error !== null ?
     (<Message content={error} onDismiss={onDismiss} negative />) : null;
 
 const mapDispatchToProps = (dispatch): DashboardOperations => ({

@@ -203,7 +203,6 @@ const MockTable = ({ handleKeyDown, creatingFolder }: MockedTableProps) => (
     </Table>
 )
 
-// FIXME Cleanup
 export const FilesTable = ({
     files, masterCheckBox = null, showFileSelector = (b) => null, setFileSelectorCallback = (c) => null, setDisallowedPaths = (p) => null,
     sortingIcon, editFolderIndex = -1, sortFiles = null, handleKeyDown = (k, f, n) => null, onCheckFile, fetchFiles, startEditFile = null,
@@ -214,7 +213,7 @@ export const FilesTable = ({
             <FilesTableHeader masterCheckBox={masterCheckBox} sortingIcon={sortingIcon} sortFiles={sortFiles} />
             <Table.Body>
                 <CreateFolder creatingNewFolder={creatingNewFolder} handleKeyDown={handleKeyDown} />
-                {files.map((f, i) => (
+                {files.map((f: File, i: number) => (
                     <Table.Row className="file-row" key={i}>
                         <FilenameAndIcons
                             file={f}
@@ -222,7 +221,7 @@ export const FilesTable = ({
                             beingRenamed={editFolderIndex === i}
                             hasCheckbox={masterCheckBox !== null}
                             onKeyDown={handleKeyDown}
-                            onCheckFile={(checked, newFile) => onCheckFile(checked, newFile)}
+                            onCheckFile={(checked: boolean, newFile: File) => onCheckFile(checked, newFile)}
                         />
                         <Responsive as={Table.Cell} minWidth={768}>{dateToString(f.modifiedAt)}</Responsive>
                         <Responsive as={Table.Cell} minWidth={768}>{uf.getOwnerFromAcls(f.acl)}</Responsive>
@@ -294,6 +293,7 @@ const CreateFolder = ({ creatingNewFolder, handleKeyDown }) => (
             <Table.Cell>
                 <Icon name="folder" color="blue" size="big" className="create-folder" />
                 <Input
+                    fluid
                     transparent
                     className="create-folder-input"
                     onKeyDown={(e) => handleKeyDown(e.keyCode, true, e.target.value)}
@@ -368,7 +368,7 @@ function FileOptions({ selectedFiles, rename, ...props }) {
     const fileText = uf.toFileText(selectedFiles);
     const rights = uf.getCurrentRights(selectedFiles, Cloud);
     const moveDisabled = selectedFiles.some(f => uf.isFixedFolder(f.path, Cloud.homeFolder));
-    const downloadDisabled = (selectedFiles.length > 1 || selectedFiles.some(f => f.sensitivityLevel === "SENSITIVE")); // FIXME Should be function
+    const downloadDisabled = !uf.downloadAllowed(selectedFiles);
     return (
         <div>
             <Header as="h3">{fileText}</Header>

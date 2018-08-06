@@ -11,6 +11,7 @@ import "./Zenodo.scss";
 import { History } from "history";
 import { removeEntry } from "Utilities/ArrayUtilities";
 import { getFilenameFromPath, failureNotification } from "UtilityFunctions";
+import { File } from "Files";
 
 interface ZenodoPublishState {
     files: string[]
@@ -52,13 +53,13 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
         this.setState(() => ({ requestSent: true }));
     }
 
-    removeFile = (index) => {
+    removeFile = (index: number) => {
         const { files } = this.state;
         const remainderFiles = removeEntry<string>(files, index);
         this.setState(() => ({ files: remainderFiles }));
     }
 
-    handleFileSelection = (file, index) => {
+    handleFileSelection = (file: File, index: number) => {
         const files = this.state.files.slice();
         if (files.some(f => getFilenameFromPath(f) === getFilenameFromPath(file.path))) {
             failureNotification("Zenodo does not allow duplicate filenames. Please rename either file and try again.", 8);
@@ -78,7 +79,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
         }));
     }
 
-    updateName(name) {
+    updateName(name: string) {
         this.setState(() => ({ name }));
     }
 
@@ -135,14 +136,14 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
     }
 }
 
-const FileSelections = ({ files, handleFileSelection, removeFile }) => (
+const FileSelections = ({ files, handleFileSelection, removeFile }: { files: string[], handleFileSelection: Function, removeFile: Function }) => (
     <React.Fragment>
         {files.map((file, index) =>
             (<Form.Field key={index}>
                 <FileSelector
                     isRequired={files.length === 1}
                     path={file}
-                    onFileSelect={chosenFile => handleFileSelection(chosenFile, index)}
+                    onFileSelect={(chosenFile: File) => handleFileSelection(chosenFile, index)}
                     allowUpload={false}
                     remove={files.length > 1 ? () => removeFile(index) : null}
                 />
