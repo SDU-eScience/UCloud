@@ -1,11 +1,6 @@
 package dk.sdu.cloud.auth.services
 
-import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.services.saml.Auth
-import dk.sdu.cloud.auth.utils.withAuthMock
-import io.ktor.application.ApplicationCall
-import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -15,8 +10,7 @@ class UserDAOTest{
 
     @Test
     fun `create a user byPassword and check correct and wrong password`() {
-        val utils  = PersonUtils
-        val person = utils.createUserByPassword(
+        val person = PersonUtils.createUserByPassword(
             "FirstName Middle",
             "Lastname",
             "testmail.com",

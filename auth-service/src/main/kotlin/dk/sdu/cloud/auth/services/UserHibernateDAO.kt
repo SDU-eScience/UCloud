@@ -210,7 +210,7 @@ class UserHibernateDAO : UserDAO<HibernateSession> {
     }
 }
 
-fun Principal.toEntity(): PrincipalEntity {
+    fun Principal.toEntity(): PrincipalEntity {
     return when (this) {
         is Person.ByWAYF -> PersonEntityByWAYF(
             id,
