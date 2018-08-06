@@ -5,6 +5,7 @@ import { createStore, combineReducers } from "redux";
 import { BrowserRouter } from "react-router-dom";
 import Core from "./Core";
 import { Cloud } from "Authentication/SDUCloudObject";
+import header from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
 import uppyReducers from "Uppy/Redux/UppyReducers";
 import status from "Navigation/Redux/StatusReducer";
@@ -32,7 +33,17 @@ const addPromiseSupportToDispatch = (store) => {
     };
 };
 
-const rootReducer = combineReducers({ files, dashboard, analyses, applications, uppy: uppyReducers, status, zenodo, sidebar, notifications });
+const rootReducer = combineReducers({ 
+    files,
+    dashboard,
+    analyses,
+    applications,
+    uppy: uppyReducers,
+    header,
+    status,
+    zenodo,
+    sidebar,
+    notifications });
 
 const configureStore = (initialObject) => {
     let store = createStore(rootReducer, initialObject);

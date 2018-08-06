@@ -75,6 +75,7 @@ export interface FilesStateProps { // Redux Props
 }
 
 export interface FilesOperations { // Redux operations
+    prioritizeFileSearch: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => void

@@ -20,6 +20,7 @@ export interface Analysis {
 }
 
 export interface ApplicationsOperations {
+    prioritizeApplicationSearch: () => void
     onErrorDismiss: () => void
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void

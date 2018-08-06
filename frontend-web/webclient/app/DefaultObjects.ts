@@ -144,6 +144,13 @@ interface SidebarReduxObject {
     options: SidebarOption[]
 }
 
+interface HeaderSearch {
+    prioritizedSearch: HeaderSearchType
+}
+
+export type HeaderSearchType = "files" | "applications" | "projects";
+
+
 interface InitialReduxObject {
     dashboard: DashboardReduxObject
     files: FilesReduxObject,
@@ -153,6 +160,7 @@ interface InitialReduxObject {
     notifications: NotificationsReduxObject
     analyses: ComponentWithPage<Analysis>
     zenodo: ZenodoReduxObject
+    header: HeaderSearch
     sidebar: SidebarReduxObject
 }
 
@@ -203,6 +211,9 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         page: emptyPage,
         loading: false,
         error: null
+    },
+    header: {
+        prioritizedSearch: "files"
     },
     notifications: {
         page: emptyPage,

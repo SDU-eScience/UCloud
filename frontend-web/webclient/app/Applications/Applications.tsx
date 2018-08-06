@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Card, Icon, Header, Container, Image, Dropdown, Form, Rating, List } from "semantic-ui-react";
+import { Card, Icon, Rating, List } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -18,71 +18,31 @@ import { setErrorMessage } from "./Redux/ApplicationsActions";
 import { MaterialColors } from "Assets/materialcolors.json";
 import { favoriteApplicationFromPage } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
 // We need dynamic import due to nature of the import
 const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
 
-type SearchBy = "name" | "tags";
-
-interface ApplicationState {
-    searchLoading: boolean
-    searchResults: Application[]
-    searchBy: SearchBy
-    searchText: string
-}
-
-class Applications extends React.Component<ApplicationsProps, ApplicationState> {
+class Applications extends React.Component<ApplicationsProps> {
     constructor(props: ApplicationsProps) {
         super(props);
-        this.state = {
-            searchText: "",
-            searchLoading: false,
-            searchBy: "name",
-            searchResults: []
-        }
     }
 
     componentDidMount() {
         const { props } = this;
         props.updatePageTitle();
+        props.prioritizeApplicationSearch();
         props.setLoading(true);
         props.fetchApplications(props.page.pageNumber, props.page.itemsPerPage);
     }
 
-    onSearch = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        this.setState(() => ({ searchLoading: true }));
-        console.log(this.state.searchBy, this.state.searchText)
-        setTimeout(() => this.setState(() => ({ searchLoading: false })), 2000);
-    }
-
     render() {
         const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
-        const { searchLoading } = this.state;
         const favoriteApp = (app: Application) => updateApplications(favoriteApplicationFromPage(app, page, Cloud));
         return (
             <React.StrictMode>
-                <Container>
-                    <Header as={"h3"} content="Search Applications" />
-                    <Form onSubmit={(e) => this.onSearch(e)}>
-                        <Form.Input
-                            loading={searchLoading}
-                            action={
-                                <Dropdown
-                                    button basic floating
-                                    onChange={(_, { value }) => this.setState(() => ({ searchBy: value as SearchBy }))}
-                                    options={searchOptions}
-                                    defaultValue="name"
-                                />
-                            }
-                            icon="search"
-                            iconPosition="left"
-                            placeholder="Search applications..."
-                        />
-                    </Form>
-                </Container>
                 <Pagination.List
                     loading={loading}
                     onErrorDismiss={onErrorDismiss}
@@ -100,11 +60,6 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
             </React.StrictMode >);
     }
 }
-
-const searchOptions = [
-    { key: "name", text: "Name", value: "name" },
-    { key: "tags", text: "Tags", value: "tags" }
-]
 
 interface SingleApplicationProps { app: Application, favoriteApp: (app: Application) => void }
 function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
@@ -170,6 +125,7 @@ function toHashCode(name: string) {
 }
 
 const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
+    prioritizeApplicationSearch: () => dispatch(setPrioritizedSearch("applications")),
     onErrorDismiss: () => dispatch(setErrorMessage()),
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),

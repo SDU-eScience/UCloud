@@ -15,6 +15,7 @@ import { FileIcon } from "UtilityComponents";
 import { Uploader } from "Uploader";
 import { Page } from "Types";
 import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File } from ".";
+import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -24,7 +25,8 @@ class Files extends React.Component<FilesProps> {
         if (!urlPath) {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
-        this.props.setPageTitle();
+        props.setPageTitle();
+        props.prioritizeFileSearch();
     }
 
     componentDidMount() {
@@ -532,6 +534,7 @@ const mapStateToProps = (state): FilesStateProps => {
 };
 
 const mapDispatchToProps = (dispatch): FilesOperations => ({
+    prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(null)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => {
