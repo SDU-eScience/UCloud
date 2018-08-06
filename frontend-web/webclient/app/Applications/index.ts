@@ -116,6 +116,7 @@ export type StdElement = { scrollTop: number, scrollHeight: number }
 
 export interface RunAppState {
     promises: PromiseKeeper
+    error?: string
     loading: boolean
     appName: string
     favorite: boolean

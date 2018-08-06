@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Grid, Header, Form, Input, Button, Rating } from "semantic-ui-react";
+import { Grid, Header, Form, Input, Button, Rating, Message } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
@@ -22,6 +22,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             promises: new PromiseKeeper(),
             loading: false,
             favorite: null,
+            error: null,
             appName: props.match.params.appName,
             displayAppName: props.match.params.appName,
             appVersion: props.match.params.appVersion,
@@ -124,7 +125,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                 name: this.state.appName,
                 version: this.state.appVersion,
             },
-            parameters: Object.assign({}, this.state.parameterValues),
+            parameters: { ...this.state.parameterValues },
             numberOfNodes: this.state.jobInfo.numberOfNodes,
             tasksPerNode: this.state.jobInfo.tasksPerNode,
             maxTime: maxTime,
@@ -179,15 +180,19 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                 loading: false,
                 tool,
             }));
-        });
+        }).catch(err => this.setState(() => ({
+            loading: false,
+            error: `An error occurred fetching ${this.state.appName}`
+        })));
     }
 
     render() {
+        const error = this.state.error ? <Message color="red" onDismiss={() => this.setState(() => ({ error: null }))} content={this.state.error} /> : null;
         return (
             <Grid container columns={16}>
                 <Grid.Column width={16}>
                     <DefaultLoading loading={this.state.loading} />
-
+                    {error}
                     <ApplicationHeader
                         appName={this.state.appName}
                         displayName={this.state.displayAppName}
@@ -224,7 +229,7 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
     return (
         <Header as="h1">
             <Header.Content className="float-right">
-                <Button as={Link} basic color="blue" content="Application Details" to={`/appDetails/${appName}/${version}`} />
+                <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
             </Header.Content>
             <Header.Content>
                 {displayName}
