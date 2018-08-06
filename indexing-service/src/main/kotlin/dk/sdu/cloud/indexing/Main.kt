@@ -13,7 +13,8 @@ import org.slf4j.LoggerFactory
 data class Configuration(
     private val connection: RawConnectionConfig,
     val refreshToken: String,
-    val elasticHost: String
+    val elasticHost: String,
+    val elasticPort: Int = 9200
 ) : ServerConfiguration {
     @get:JsonIgnore
     override val connConfig: ConnectionConfig

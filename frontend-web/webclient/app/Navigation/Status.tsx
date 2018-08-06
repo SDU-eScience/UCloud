@@ -25,6 +25,8 @@ const statusToButton = (level: string): SemanticCOLORS => {
             return "yellow";
         case "ERROR":
             return "red";
+        default:
+            return "yellow";
     }
 }
 

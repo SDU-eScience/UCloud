@@ -1,7 +1,8 @@
 import * as React from "react";
-import { Grid, Header, Form, Input, Button, Rating } from "semantic-ui-react";
+import { Grid, Header, Form, Input, Button, Rating, Message } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { Link } from "react-router-dom";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon"
@@ -21,6 +22,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             promises: new PromiseKeeper(),
             loading: false,
             favorite: null,
+            error: null,
             appName: props.match.params.appName,
             displayAppName: props.match.params.appName,
             appVersion: props.match.params.appVersion,
@@ -123,7 +125,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                 name: this.state.appName,
                 version: this.state.appVersion,
             },
-            parameters: Object.assign({}, this.state.parameterValues),
+            parameters: { ...this.state.parameterValues },
             numberOfNodes: this.state.jobInfo.numberOfNodes,
             tasksPerNode: this.state.jobInfo.tasksPerNode,
             maxTime: maxTime,
@@ -178,17 +180,22 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                 loading: false,
                 tool,
             }));
-        });
+        }).catch(err => this.setState(() => ({
+            loading: false,
+            error: `An error occurred fetching ${this.state.appName}`
+        })));
     }
 
     render() {
+        const error = this.state.error ? <Message color="red" onDismiss={() => this.setState(() => ({ error: null }))} content={this.state.error} /> : null;
         return (
             <Grid container columns={16}>
                 <Grid.Column width={16}>
                     <DefaultLoading loading={this.state.loading} />
-
+                    {error}
                     <ApplicationHeader
-                        name={this.state.displayAppName}
+                        appName={this.state.appName}
+                        displayName={this.state.displayAppName}
                         version={this.state.appVersion}
                         favorite={this.state.favorite}
                         favoriteApp={this.favoriteApp}
@@ -214,15 +221,18 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 }
 
-const ApplicationHeader = ({ authors, name, favorite, version, favoriteApp }) => {
+const ApplicationHeader = ({ authors, displayName, appName, favorite, version, favoriteApp }) => {
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!authors) ? authors.join(", ") : "";
 
     return (
         <Header as="h1">
+            <Header.Content className="float-right">
+                <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
+            </Header.Content>
             <Header.Content>
-                {name}
+                {displayName}
                 <span className="app-favorite-padding">
                     <Rating
                         icon="star"
@@ -234,8 +244,9 @@ const ApplicationHeader = ({ authors, name, favorite, version, favoriteApp }) =>
                 </span>
                 <h4>{version}</h4>
                 <h4>{pluralize(authors, "Author")}: {authorString}</h4>
+
             </Header.Content>
-        </Header>
+        </Header >
     );
 };
 
@@ -268,6 +279,9 @@ const Parameters = (props) => {
                 jobInfo={props.jobInfo}
                 tool={props.tool.description}
             />
+            <JobMetaParams
+                onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
+            />
 
             <Button
                 color="blue"
@@ -277,6 +291,33 @@ const Parameters = (props) => {
         </Form>
     )
 };
+
+const JobMetaParams = (props) => {
+    return (
+        <React.Fragment>
+            <Form.Input
+                label="Jobname"
+                type="text"
+                placeholder="Jobname will be assigned if field left empty"
+                disabled
+                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
+            />
+            <Form.Input  
+                label="Tags (Separated by space)"
+                type="text"
+                placeholder="Assign tags to jobs"
+                disabled
+                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
+            />
+            <Form.TextArea
+                label="Comment"
+                placeholder="Comment..."
+                disabled
+                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
+            />
+        </React.Fragment>
+    );
+}
 
 const JobSchedulingParams = (props) => {
     // TODO refactor fields, very not DRY compliant
@@ -288,7 +329,7 @@ const JobSchedulingParams = (props) => {
                     label="Number of nodes"
                     type="number" step="1"
                     placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
                 <Form.Input
                     label="Tasks per node"
@@ -305,7 +346,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.hours}
                     type="number" step="1" min="0"
                     value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
                 />
                 <Form.Input
                     fluid
@@ -313,7 +354,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.minutes}
                     type="number" step="1" min="0" max="59"
                     value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
                 />
                 <Form.Input
                     fluid
@@ -321,7 +362,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.seconds}
                     type="number" step="1" min="0" max="59"
                     value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
                 />
             </Form.Group>
         </React.Fragment>)

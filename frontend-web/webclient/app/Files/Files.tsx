@@ -15,6 +15,7 @@ import { FileIcon } from "UtilityComponents";
 import { Uploader } from "Uploader";
 import { Page } from "Types";
 import { FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File } from ".";
+import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -24,7 +25,8 @@ class Files extends React.Component<FilesProps> {
         if (!urlPath) {
             history.push(`/files/${Cloud.homeFolder}/`);
         }
-        this.props.setPageTitle();
+        props.setPageTitle();
+        props.prioritizeFileSearch();
     }
 
     componentDidMount() {
@@ -201,7 +203,6 @@ const MockTable = ({ handleKeyDown, creatingFolder }: MockedTableProps) => (
     </Table>
 )
 
-// FIXME Cleanup
 export const FilesTable = ({
     files, masterCheckBox = null, showFileSelector = (b) => null, setFileSelectorCallback = (c) => null, setDisallowedPaths = (p) => null,
     sortingIcon, editFolderIndex = -1, sortFiles = null, handleKeyDown = (k, f, n) => null, onCheckFile, fetchFiles, startEditFile = null,
@@ -212,7 +213,7 @@ export const FilesTable = ({
             <FilesTableHeader masterCheckBox={masterCheckBox} sortingIcon={sortingIcon} sortFiles={sortFiles} />
             <Table.Body>
                 <CreateFolder creatingNewFolder={creatingNewFolder} handleKeyDown={handleKeyDown} />
-                {files.map((f, i) => (
+                {files.map((f: File, i: number) => (
                     <Table.Row className="file-row" key={i}>
                         <FilenameAndIcons
                             file={f}
@@ -220,7 +221,7 @@ export const FilesTable = ({
                             beingRenamed={editFolderIndex === i}
                             hasCheckbox={masterCheckBox !== null}
                             onKeyDown={handleKeyDown}
-                            onCheckFile={(checked, newFile) => onCheckFile(checked, newFile)}
+                            onCheckFile={(checked: boolean, newFile: File) => onCheckFile(checked, newFile)}
                         />
                         <Responsive as={Table.Cell} minWidth={768}>{dateToString(f.modifiedAt)}</Responsive>
                         <Responsive as={Table.Cell} minWidth={768}>{uf.getOwnerFromAcls(f.acl)}</Responsive>
@@ -282,6 +283,7 @@ const ContextButtons = ({ currentPath, createFolder, refetch }) => (
             </Modal.Content>
         </Modal>
         <Button basic className="context-button-margin" fluid onClick={() => createFolder()} content="New folder" />
+        <Button as={Link} to={`/filesearch`} basic className="context-button-margin" fluid content="Advanced Search" color="green" />
     </div>
 );
 
@@ -291,6 +293,7 @@ const CreateFolder = ({ creatingNewFolder, handleKeyDown }) => (
             <Table.Cell>
                 <Icon name="folder" color="blue" size="big" className="create-folder" />
                 <Input
+                    fluid
                     transparent
                     className="create-folder-input"
                     onKeyDown={(e) => handleKeyDown(e.keyCode, true, e.target.value)}
@@ -365,7 +368,7 @@ function FileOptions({ selectedFiles, rename, ...props }) {
     const fileText = uf.toFileText(selectedFiles);
     const rights = uf.getCurrentRights(selectedFiles, Cloud);
     const moveDisabled = selectedFiles.some(f => uf.isFixedFolder(f.path, Cloud.homeFolder));
-    const downloadDisabled = (selectedFiles.length > 1 || selectedFiles.some(f => f.sensitivityLevel === "SENSITIVE")); // FIXME Should be function
+    const downloadDisabled = !uf.downloadAllowed(selectedFiles);
     return (
         <div>
             <Header as="h3">{fileText}</Header>
@@ -525,13 +528,14 @@ const mapStateToProps = (state): FilesStateProps => {
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = page.items.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     return {
-        error, fileSelectorError, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath, 
+        error, fileSelectorError, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, editFileIndex, creatingFolder, fileSelectorLoading
     }
 };
 
 const mapDispatchToProps = (dispatch): FilesOperations => ({
-    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(null)), 
+    prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
+    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(null)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => {
         dispatch(Actions.updatePath(path));

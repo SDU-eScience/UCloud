@@ -69,12 +69,15 @@ export interface FilesStateProps { // Redux Props
     sortOrder: SortOrder
     creatingFolder: boolean
     editFileIndex: number
-    error, fileSelectorError: string
+    error: string
+    fileSelectorError: string
     // Ignore, used to ensure rerender.
-    checkedFilesCount, favFilesCount: number
+    checkedFilesCount: number
+    favFilesCount: number
 }
 
 export interface FilesOperations { // Redux operations
+    prioritizeFileSearch: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => void

@@ -87,7 +87,7 @@ class KafkaServices(
     ): EventConsumer<Pair<K, V>> {
         val consumer = KafkaConsumer<String, String>(consumerConfig)
         consumer.subscribe(listOf(description.name))
-        return KafkaEventConsumer(internalQueueSize, 20, description, consumer)
+        return KafkaEventConsumer(internalQueueSize, 10, description, consumer)
     }
 }
 

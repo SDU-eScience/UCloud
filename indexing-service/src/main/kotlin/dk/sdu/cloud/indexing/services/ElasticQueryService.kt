@@ -2,6 +2,8 @@ package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.indexing.api.TimestampQuery
+import dk.sdu.cloud.indexing.util.isNullOrEmpty
 import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.indexing.util.term
 import dk.sdu.cloud.service.Loggable
@@ -13,11 +15,12 @@ import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
+import mbuhot.eskotlin.query.term.range
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilder
-import java.util.ArrayList
+import java.util.*
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient
@@ -73,18 +76,22 @@ class ElasticQueryService(
         roots: List<String>,
         name: String?,
         owner: String?,
-        fileType: FileType?,
-        lastModified: Long?,
+        extensions: List<String>?,
+        fileTypes: List<FileType>?,
+        createdAt: TimestampQuery?,
+        modifiedAt: TimestampQuery?,
         sensitivity: List<SensitivityLevel>?,
         annotations: List<String>?,
         paging: NormalizedPaginationRequest
     ): Page<EventMaterializedStorageFile> {
-        if (name == null && owner == null && fileType == null && lastModified == null &&
-            sensitivity == null && annotations == null) {
+        if (name == null && owner == null && fileTypes.isNullOrEmpty() && createdAt == null &&
+            modifiedAt == null && sensitivity.isNullOrEmpty() && annotations.isNullOrEmpty() &&
+            extensions.isNullOrEmpty()
+        ) {
             return Page(0, paging.itemsPerPage, paging.page, emptyList())
         }
 
-        elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
+        return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
             sort(ElasticIndexedFile.FILE_NAME_KEYWORD)
 
             bool {
@@ -98,40 +105,62 @@ class ElasticQueryService(
                         })
                     }
 
+
+                }
+
+                filter = ArrayList<QueryBuilder>().apply {
+                    add(terms { ElasticIndexedFile.PATH_FIELD to roots })
+
+                    if (createdAt != null) {
+                        add(range {
+                            ElasticIndexedFile.TIMESTAMP_CREATED_FIELD to {
+                                if (createdAt.after != null) gte = createdAt.after
+                                if (createdAt.before != null) lte = createdAt.before
+                            }
+                        })
+                    }
+
+                    if (modifiedAt != null) {
+                        add(range {
+                            ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD to {
+                                if (modifiedAt.after != null) gte = modifiedAt.after
+                                if (modifiedAt.before != null) lte = modifiedAt.before
+                            }
+                        })
+                    }
+
                     if (owner != null) {
                         add(term {
                             ElasticIndexedFile.OWNER_FIELD to owner
                         })
                     }
 
-                    if (fileType != null) {
-                        add(term {
-                            ElasticIndexedFile.FILE_TYPE_FIELD to fileType.name
+                    if (!sensitivity.isNullOrEmpty()) {
+                        add(terms {
+                            ElasticIndexedFile.SENSITIVITY_FIELD to sensitivity!!.map { it.name }
                         })
                     }
 
-                    if (sensitivity != null) {
+                    if (!annotations.isNullOrEmpty()) {
                         add(terms {
-                            ElasticIndexedFile.SENSITIVITY_FIELD to sensitivity.map { it.name }
+                            ElasticIndexedFile.ANNOTATIONS_FIELD to annotations!!
                         })
                     }
 
-                    if (annotations != null) {
+                    if (!extensions.isNullOrEmpty()) {
                         add(terms {
-                            ElasticIndexedFile.ANNOTATIONS_FIELD to annotations
+                            ElasticIndexedFile.FILE_NAME_EXTENSION to extensions!!
+                        })
+                    }
+
+                    if (!fileTypes.isNullOrEmpty()) {
+                        add(terms {
+                            ElasticIndexedFile.FILE_TYPE_FIELD to fileTypes!!.map { it.name }
                         })
                     }
                 }
-
-                filter {
-                    terms { ElasticIndexedFile.PATH_FIELD to roots }
-                }
-            }.also {
-                it.minimumShouldMatch(1)
             }
-        }
-
-        TODO()
+        }.mapItems { it.toMaterializedFile() }
     }
 
     companion object : Loggable {

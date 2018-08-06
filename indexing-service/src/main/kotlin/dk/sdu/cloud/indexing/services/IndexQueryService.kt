@@ -1,5 +1,6 @@
 package dk.sdu.cloud.indexing.services
 
+import dk.sdu.cloud.indexing.api.TimestampQuery
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
@@ -17,8 +18,10 @@ interface IndexQueryService {
         roots: List<String>,
         name: String?,
         owner: String?,
-        fileType: FileType?,
-        lastModified: Long?,
+        extensions: List<String>?,
+        fileTypes: List<FileType>?,
+        createdAt: TimestampQuery?,
+        modifiedAt: TimestampQuery?,
         sensitivity: List<SensitivityLevel>?,
         annotations: List<String>?,
         paging: NormalizedPaginationRequest

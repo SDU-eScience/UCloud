@@ -37,7 +37,15 @@ class Server(
     override fun start() {
         val instance = IndexingServiceDescription.instance(configuration.connConfig)
 
-        elastic = RestHighLevelClient(RestClient.builder(HttpHost(configuration.elasticHost, 9200, "http")))
+        elastic = RestHighLevelClient(
+            RestClient.builder(
+                HttpHost(
+                    configuration.elasticHost,
+                    configuration.elasticPort,
+                    "http"
+                )
+            )
+        )
         val indexingService = ElasticIndexingService(elastic)
         val queryService = ElasticQueryService(elastic)
 
@@ -53,8 +61,8 @@ class Server(
             }
         }
 
-        StorageEventProcessor(kafka, indexingService).init().forEach {
-            it.onExceptionCaught { stop() }
+        StorageEventProcessor(kafka, indexingService).init().forEach { processor ->
+            processor.onExceptionCaught { stop() }
         }
 
         kStreams = buildStreams { }

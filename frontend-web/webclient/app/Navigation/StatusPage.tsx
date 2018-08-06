@@ -22,9 +22,11 @@ const levelToColor = (level: string): SemanticCOLORS => {
             return "yellow";
         case "ERROR":
             return "red";
+        default:
+            return "yellow";
     }
 }
 
 const mapDispatchToProps = (dispatch) => ({ updatePageTitle: () => dispatch(updatePageTitle("System Status")) });
-const mapStateToProps = (state) => ({ status: state.status.status });
+const mapStateToProps = ({ status }) => ({ status: status.status });
 export default connect(mapStateToProps, mapDispatchToProps)(Status);

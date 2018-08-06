@@ -20,6 +20,7 @@ export interface Analysis {
 }
 
 export interface ApplicationsOperations {
+    prioritizeApplicationSearch: () => void
     onErrorDismiss: () => void
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
@@ -115,6 +116,7 @@ export type StdElement = { scrollTop: number, scrollHeight: number }
 
 export interface RunAppState {
     promises: PromiseKeeper
+    error?: string
     loading: boolean
     appName: string
     favorite: boolean
@@ -122,7 +124,7 @@ export interface RunAppState {
     appVersion: string
     appDescription: string
     appAuthor: string[]
-    parameters: any[] // FIXME
+    parameters: ApplicationParameter[]
     parameterValues: {}
     jobInfo: {
         maxTime?: {

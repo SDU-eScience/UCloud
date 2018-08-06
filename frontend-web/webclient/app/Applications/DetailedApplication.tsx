@@ -1,7 +1,8 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Grid, Header, Table, Label, Icon, List, Rating } from "../../node_modules/semantic-ui-react";
+import { Grid, Header, Table, Label, Icon, List, Rating, Button, Message } from "semantic-ui-react";
+import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { ApplicationInformation, ParameterTypes } from "Applications";
@@ -11,6 +12,7 @@ type DetailedApplicationState = {
     appInformation?: ApplicationInformation
     promises: PromiseKeeper
     loading: boolean
+    error?: string
 }
 
 
@@ -32,12 +34,15 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
         const { appName, appVersion } = this.props.match.params;
         const { promises } = this.state;
         promises.makeCancelable(Cloud.get(`/hpc/apps/${appName}/${appVersion}`))
-            .promise.then(({ response }: { response: ApplicationInformation }) => {
+            .promise.then(({ response }: { response: ApplicationInformation }) =>
                 this.setState(() => ({
                     appInformation: response,
                     loading: false,
                 }))
-            });
+            ).catch(err => this.setState({
+                error: `An error occurred fetching ${appName}`,
+                loading: false
+            }));
     }
 
     favoriteApplication = (): void => {
@@ -53,23 +58,19 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
 
     render() {
         const { appInformation } = this.state;
-        let body;
-        if (appInformation != null) {
-            body = (
-                <React.Fragment>
+        const error = this.state.error ? (
+            <Message color="red" content={this.state.error} onDismiss={() => this.setState(() => ({ error: null }))} />
+        ) : null;
+        return (
+            <Grid container columns={16}>
+                <DefaultLoading loading={this.state.loading} />
+                <Grid.Column width={16}>
+                    {error}
                     <ApplicationHeader favoriteApplication={this.favoriteApplication} appInformation={appInformation} />
                     <Header as="h3" content="Tags" />
                     <ApplicationTags tags={[] as string[]} />
                     <Header as="h1" content="Tools" />
                     <ApplicationTools appInformation={appInformation} />
-                </React.Fragment>)
-        } else {
-            body = (<DefaultLoading loading={this.state.loading} />);
-        }
-        return (
-            <Grid container columns={16}>
-                <Grid.Column width={16}>
-                    {body}
                 </Grid.Column>
             </Grid>
         );
@@ -88,6 +89,8 @@ const ApplicationTags = (props: { tags: string[] }) => {
 };
 
 const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
+    if (appInformation == null) return null;
+
     const { tool } = appInformation;
     const { hours, minutes, seconds } = tool.description.defaultMaxTime;
     const padNumber = (val: number): string => val < 10 ? `0${val}` : `${val}`;
@@ -128,10 +131,10 @@ const ApplicationParameters = (props: ApplicationDetails) => (
     <Table basic="very">
         <Table.Header>
             <Table.Row>
-                <Table.HeaderCell content={"Parameter name"} />
-                <Table.HeaderCell content={"Default value"} />
-                <Table.HeaderCell content={"Optional"} />
-                <Table.HeaderCell content={"Parameter name"} />
+                <Table.HeaderCell content="Parameter name" />
+                <Table.HeaderCell content="Default value" />
+                <Table.HeaderCell content="Optional" />
+                <Table.HeaderCell content="Parameter name" />
             </Table.Row>
         </Table.Header>
         <Table.Body>
@@ -170,12 +173,16 @@ const typeToString = (parameterType: ParameterTypes): string => {
 interface ApplicationHeaderProps extends ApplicationDetails { favoriteApplication: () => void }
 const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationHeaderProps) => {
     if (appInformation == null) return null;
+    const { info } = appInformation.description;
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!appInformation.description.authors) ? appInformation.description.authors.join(", ") : "";
 
     return (
         <Header as="h1">
+            <Header.Content className="float-right">
+                <Button as={Link} basic color="blue" content="Run Application" to={`/applications/${info.name}/${info.version}/`} />
+            </Header.Content>
             <Header.Content>
                 {appInformation.description.title}
                 <span className="app-favorite-padding">
