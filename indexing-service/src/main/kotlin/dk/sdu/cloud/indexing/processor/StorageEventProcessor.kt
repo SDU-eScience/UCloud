@@ -11,15 +11,15 @@ class StorageEventProcessor(
     private val parallelism: Int = 4
 ) {
     fun init(): List<EventConsumer<*>> {
-        return (0 until parallelism).map {
+        return (0 until parallelism).map { _ ->
             streamFactory.createConsumer(StorageEvents.events).configure { root ->
                 root
                     .batched(
                         batchTimeout = 500,
                         maxBatchSize = 1000
                     )
-                    .consumeBatchAndCommit {
-                        indexingService.bulkHandleEvent(it.map { it.second })
+                    .consumeBatchAndCommit { batch ->
+                        indexingService.bulkHandleEvent(batch.map { it.second })
                     }
             }
         }

@@ -59,8 +59,10 @@ class KafkaEventConsumer<K, V>(
 
     private val processingThread = Thread {
         while (isRunning) {
-            val nextBatch = ArrayList<KafkaConsumedEvent<Pair<K, V>>>(queue.remainingCapacity())
-            queue.drainTo(nextBatch)
+            val next = queue.take() // Block for first available element
+            val nextBatch = ArrayList<KafkaConsumedEvent<Pair<K, V>>>(queue.remainingCapacity() + 1)
+            nextBatch.add(next)
+            queue.drainTo(nextBatch) // Drain immediately if there are several elements in queue
 
             rootProcessor.accept(nextBatch)
         }

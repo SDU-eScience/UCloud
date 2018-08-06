@@ -61,8 +61,8 @@ class Server(
             }
         }
 
-        StorageEventProcessor(kafka, indexingService).init().forEach {
-            it.onExceptionCaught { stop() }
+        StorageEventProcessor(kafka, indexingService).init().forEach { processor ->
+            processor.onExceptionCaught { stop() }
         }
 
         kStreams = buildStreams { }
