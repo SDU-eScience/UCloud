@@ -116,9 +116,14 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
-        Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
-            this.setState({ page: response, loading: false });
-        });
+        this.state.promises.makeCancelable(
+            Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
+                this.setState({
+                    page: response,
+                    loading: false
+                });
+                window.clearInterval(this.state.reloadIntervalId);
+            }));
     }
 
     favoriteFile(path: string) {

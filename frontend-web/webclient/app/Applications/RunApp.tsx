@@ -279,6 +279,9 @@ const Parameters = (props) => {
                 jobInfo={props.jobInfo}
                 tool={props.tool.description}
             />
+            <JobMetaParams
+                onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
+            />
 
             <Button
                 color="blue"
@@ -288,6 +291,33 @@ const Parameters = (props) => {
         </Form>
     )
 };
+
+const JobMetaParams = (props) => {
+    return (
+        <React.Fragment>
+            <Form.Input
+                label="Jobname"
+                type="text"
+                placeholder="Jobname will be assigned if field left empty"
+                disabled
+                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
+            />
+            <Form.Input  
+                label="Tags (Separated by space)"
+                type="text"
+                placeholder="Assign tags to jobs"
+                disabled
+                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
+            />
+            <Form.TextArea
+                label="Comment"
+                placeholder="Comment..."
+                disabled
+                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
+            />
+        </React.Fragment>
+    );
+}
 
 const JobSchedulingParams = (props) => {
     // TODO refactor fields, very not DRY compliant
@@ -299,7 +329,7 @@ const JobSchedulingParams = (props) => {
                     label="Number of nodes"
                     type="number" step="1"
                     placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
                 <Form.Input
                     label="Tasks per node"
@@ -316,7 +346,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.hours}
                     type="number" step="1" min="0"
                     value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
                 />
                 <Form.Input
                     fluid
@@ -324,7 +354,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.minutes}
                     type="number" step="1" min="0" max="59"
                     value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
                 />
                 <Form.Input
                     fluid
@@ -332,7 +362,7 @@ const JobSchedulingParams = (props) => {
                     placeholder={props.tool.defaultMaxTime.seconds}
                     type="number" step="1" min="0" max="59"
                     value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
-                    onChange={(e, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
+                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
                 />
             </Form.Group>
         </React.Fragment>)
