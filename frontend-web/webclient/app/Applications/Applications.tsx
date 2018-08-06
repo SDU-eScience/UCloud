@@ -112,9 +112,9 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
     const mClength = MaterialColors[color].length;
     const hex = MaterialColors[color][(hashCode % mClength)];
-    const even = true;//app.modifiedAt % 2 === 0;
+    const even = app.modifiedAt % 2 === 0;
     const opacity = even ? 0.3 : 1;
-    const description = app.description.description;
+    const { description } = app.description;
     const image = even ? blurOverlay : `https://placekitten.com/200/200`;
     return (
         <Card>
@@ -137,7 +137,7 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
                     </List.Item>
                     <List.Item>
                         <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
-                            <Icon color="green" name="play"/>
+                            <Icon color="green" name="play" />
                         </Link>
                     </List.Item>
                 </List>

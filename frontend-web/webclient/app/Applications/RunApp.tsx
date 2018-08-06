@@ -2,6 +2,7 @@ import * as React from "react";
 import { Grid, Header, Form, Input, Button, Rating } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { Link } from "react-router-dom";
 import swal from "sweetalert2";
 import PropTypes from "prop-types";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon"
@@ -188,7 +189,8 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                     <DefaultLoading loading={this.state.loading} />
 
                     <ApplicationHeader
-                        name={this.state.displayAppName}
+                        appName={this.state.appName}
+                        displayName={this.state.displayAppName}
                         version={this.state.appVersion}
                         favorite={this.state.favorite}
                         favoriteApp={this.favoriteApp}
@@ -214,15 +216,18 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 }
 
-const ApplicationHeader = ({ authors, name, favorite, version, favoriteApp }) => {
+const ApplicationHeader = ({ authors, displayName, appName, favorite, version, favoriteApp }) => {
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!authors) ? authors.join(", ") : "";
 
     return (
         <Header as="h1">
+            <Header.Content className="float-right">
+                <Button as={Link} basic color="blue" content="Application Details" to={`/appDetails/${appName}/${version}`} />
+            </Header.Content>
             <Header.Content>
-                {name}
+                {displayName}
                 <span className="app-favorite-padding">
                     <Rating
                         icon="star"
@@ -234,8 +239,9 @@ const ApplicationHeader = ({ authors, name, favorite, version, favoriteApp }) =>
                 </span>
                 <h4>{version}</h4>
                 <h4>{pluralize(authors, "Author")}: {authorString}</h4>
+
             </Header.Content>
-        </Header>
+        </Header >
     );
 };
 

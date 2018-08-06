@@ -1,7 +1,8 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Grid, Header, Table, Label, Icon, List, Rating } from "../../node_modules/semantic-ui-react";
+import { Grid, Header, Table, Label, Icon, List, Rating, Button } from "semantic-ui-react";
+import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { ApplicationInformation, ParameterTypes } from "Applications";
@@ -128,10 +129,10 @@ const ApplicationParameters = (props: ApplicationDetails) => (
     <Table basic="very">
         <Table.Header>
             <Table.Row>
-                <Table.HeaderCell content={"Parameter name"} />
-                <Table.HeaderCell content={"Default value"} />
-                <Table.HeaderCell content={"Optional"} />
-                <Table.HeaderCell content={"Parameter name"} />
+                <Table.HeaderCell content="Parameter name" />
+                <Table.HeaderCell content="Default value" />
+                <Table.HeaderCell content="Optional" />
+                <Table.HeaderCell content="Parameter name" />
             </Table.Row>
         </Table.Header>
         <Table.Body>
@@ -170,12 +171,16 @@ const typeToString = (parameterType: ParameterTypes): string => {
 interface ApplicationHeaderProps extends ApplicationDetails { favoriteApplication: () => void }
 const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationHeaderProps) => {
     if (appInformation == null) return null;
+    const { info } = appInformation.description;
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!appInformation.description.authors) ? appInformation.description.authors.join(", ") : "";
 
     return (
         <Header as="h1">
+            <Header.Content className="float-right">
+                <Button as={Link} basic color="blue" content="Run Application" to={`/applications/${info.name}/${info.version}`} />
+            </Header.Content>
             <Header.Content>
                 {appInformation.description.title}
                 <span className="app-favorite-padding">
