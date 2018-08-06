@@ -1,5 +1,5 @@
 import * as jwt from "jsonwebtoken";
-import { failureNotification } from "UtilityFunctions";
+import { failureNotification, inRange } from "UtilityFunctions";
 
 /**
  * Represents an instance of the SDUCloud object used for contacting the backend, implicitly using JWTs.
@@ -76,7 +76,7 @@ export default class SDUCloud {
                         }
                     }
 
-                    if (req.status >= 200 && req.status <= 299) {
+                    if (inRange(req.status, 200, 299)) {
                         resolve({
                             response: parsedResponse,
                             request: req,
@@ -172,7 +172,7 @@ export default class SDUCloud {
      * @returns {string} the location of the jobs folder for the currently logged in user (with trailing slash)
      */
     get jobFolder(): string {
-        return `${this.homeFolder}/Jobs/`
+        return `${this.homeFolder}Jobs/`
     }
 
 
@@ -233,7 +233,7 @@ export default class SDUCloud {
                     req.setRequestHeader("Authorization", `Bearer ${token}`);
                     req.setRequestHeader("contentType", "application/json");
                     req.onload = () => {
-                        if (req.status >= 200 && req.status <= 299) {
+                        if (inRange(req.status, 200, 299)) {
                             const response = req.response.length === 0 ? "{}" : req.response;
                             resolve({ response: JSON.parse(response), request: req });
                         } else {
@@ -266,7 +266,7 @@ export default class SDUCloud {
                 if (req.status === 200) {
                     resolve(JSON.parse(req.response));
                 } else {
-                    reject({ status: req.status, response: JSON.parse(req.response) });
+                    reject({ status: req.status, response: req.response });
                 }
             };
             req.send();
@@ -312,7 +312,7 @@ export default class SDUCloud {
             req.setRequestHeader("Authorization", `Bearer ${SDUCloud.storedRefreshToken}`);
             req.setRequestHeader("contentType", "application/json");
             req.onload = () => {
-                if (req.status >= 200 && req.status <= 299) {
+                if (inRange(req.status, 200, 299)) {
                     resolve(req.response);
                 } else {
                     reject(req.response);
