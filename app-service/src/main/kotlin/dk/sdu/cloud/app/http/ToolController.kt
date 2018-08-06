@@ -30,6 +30,8 @@ class ToolController<DBSession>(
     override val baseContext = HPCToolDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
+        protect()
+
         implement(HPCToolDescriptions.findByName) { req ->
             logEntry(log, req)
             val result = db.withTransaction {

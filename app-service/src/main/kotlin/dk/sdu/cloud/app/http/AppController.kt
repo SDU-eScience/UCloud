@@ -28,6 +28,8 @@ class AppController<DBSession>(
     override val baseContext = HPCApplicationDescriptions.baseContext
 
     override fun configure(routing: Route):Unit = with(routing) {
+        protect()
+
         implement(HPCApplicationDescriptions.findByNameAndVersion) { req ->
             logEntry(log, req)
 

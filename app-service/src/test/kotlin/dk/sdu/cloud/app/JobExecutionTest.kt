@@ -196,13 +196,8 @@ class JobExecutionTest {
 
         coEvery { producer.emit(capture(emitSlot)) } just Runs
 
-        every { db.withSession<Any>(captureLambda()) } answers {
-            lambda<(Any) -> Any>().invoke(Any())
-        }
-
-        every { db.withTransaction<Any>(any(), any(), captureLambda()) } answers {
-            lambda<(Any) -> Any>().invoke(Any())
-        }
+        every { db.openSession() } returns Any()
+        every { db.openTransaction(any()) } just Runs
 
         every { sshPool.borrowConnection() } answers {
             Pair(0, sshConnection)
@@ -1038,7 +1033,8 @@ class JobExecutionTest {
     @Test
     fun testShippingResultsWithDirectoryFailure() {
         objectMockk(FileDescriptions).use {
-            val directoryCall = mockk<RESTCallDescription<CreateDirectoryRequest, Unit, CommonErrorMessage>>()
+            val directoryCall =
+                mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>>()
             every { FileDescriptions.createDirectory } returns directoryCall
 
             coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Err(mockk(relaxed = true))
@@ -1053,9 +1049,13 @@ class JobExecutionTest {
     @Test
     fun testShippingResultsWithNoOutputFiles() {
         withMockScopes(objectMockk(FileDescriptions), sftpScope()) {
-            val directoryCall = mockk<RESTCallDescription<CreateDirectoryRequest, Unit, CommonErrorMessage>>()
+            val directoryCall =
+                mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>>()
             every { FileDescriptions.createDirectory } returns directoryCall
-            coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Ok(mockk(relaxed = true), Unit)
+            coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Ok(
+                mockk(relaxed = true),
+                LongRunningResponse.Result(Unit)
+            )
 
             every { sshConnection.lsWithGlob(any(), any()) } returns emptyList()
 
@@ -1277,11 +1277,15 @@ class JobExecutionTest {
 
     private fun mockCreateDirectoryCall(
         success: Boolean
-    ): RESTCallDescription<CreateDirectoryRequest, Unit, CommonErrorMessage> {
-        val directoryCall = mockk<RESTCallDescription<CreateDirectoryRequest, Unit, CommonErrorMessage>>()
+    ): RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
+        val directoryCall =
+            mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>>()
         every { FileDescriptions.createDirectory } returns directoryCall
         if (success) {
-            coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Ok(mockk(relaxed = true), Unit)
+            coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Ok(
+                mockk(relaxed = true),
+                LongRunningResponse.Result(Unit)
+            )
         } else {
             coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Err(mockk(relaxed = true))
         }

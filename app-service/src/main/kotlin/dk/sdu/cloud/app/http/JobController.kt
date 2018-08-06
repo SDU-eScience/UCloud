@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.api.JobStartedResponse
 import dk.sdu.cloud.app.services.JobException
 import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.app.services.JobServiceException
+import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
@@ -22,6 +23,8 @@ class JobController<DBSession>(
     override val baseContext = HPCJobDescriptions.baseContext
 
     override fun configure(routing: Route): Unit  = with(routing) {
+        protect()
+
         implement(HPCJobDescriptions.findById) {
             logEntry(log, it)
             val user = call.request.validatedPrincipal

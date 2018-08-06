@@ -116,7 +116,6 @@ sealed class LongRunningResponse<T> {
     ) : LongRunningResponse<T>()
 
     data class Result<T>(
-        @get:JsonUnwrapped
         val item: T
     ) : LongRunningResponse<T>()
 }
