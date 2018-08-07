@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import PropTypes from "prop-types";
+import * as PropTypes from "prop-types";
 import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
 import { AccessRight, Page } from "Types";
 import { getFilenameFromPath, shareSwal } from "UtilityFunctions";
