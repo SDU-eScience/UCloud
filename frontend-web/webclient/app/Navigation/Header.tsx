@@ -4,7 +4,7 @@ import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import "./Header.scss";
-import PropTypes from "prop-types";
+import * as PropTypes from "prop-types";
 import { Dispatch } from "redux";
 import Notifications from "Notifications";
 import { setSidebarOpen } from "./Redux/SidebarActions";

@@ -117,13 +117,13 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
         this.state.promises.makeCancelable(
-            Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
+            Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`)).promise.then(({ response }) => {
                 this.setState({
                     page: response,
                     loading: false
                 });
                 window.clearInterval(this.state.reloadIntervalId);
-            }));
+            });
     }
 
     favoriteFile(path: string) {

@@ -1,6 +1,6 @@
 import { History } from "history";
-import { Creator, Subject, RelatedIdentifier } from "./api";
-
+import { Contributor, Subject, RelatedIdentifier } from "./api";
+import { match } from "react-router-dom";
 export { CreateUpdate } from "./CreateUpdate";
 export { Search } from "./Search";
 export { ManagedView, View } from "./View";
@@ -14,12 +14,12 @@ export interface CreateUpdateState {
     keywords: string[]
     notes: ""
     dataManagementPlan: ""
-    contributors: Creator[]
+    contributors: Contributor[]
     references: string[]
     grants: string[]
     subjects: Subject[]
     relatedIdentifiers: RelatedIdentifier[]
-    errors: { 
+    errors: {
         description?: boolean
         title?: boolean
         contributors: {}
@@ -29,8 +29,6 @@ export interface CreateUpdateState {
 }
 
 export interface CreateUpdateProps {
-    match: {
-        params: string[]
-    }
+    match: match<string[]>
     history: History
 }

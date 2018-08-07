@@ -3,7 +3,7 @@ import { Modal, Button, List, Input, ButtonProps, ModalProps } from "semantic-ui
 import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
-import PropTypes from "prop-types";
+import * as PropTypes from "prop-types";
 import { getFilenameFromPath, getParentPath, isInvalidPathName, inSuccessRange, removeTrailingSlash } from "UtilityFunctions";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
