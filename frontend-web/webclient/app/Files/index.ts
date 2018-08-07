@@ -1,6 +1,6 @@
 import { Page } from "Types";
 import { History } from "history";
-import { SemanticICONS, SemanticSIZES } from "semantic-ui-react";
+import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps } from "semantic-ui-react";
 import { match } from "react-router-dom";
 
 export enum SortOrder {
@@ -73,7 +73,6 @@ export interface FilesStateProps { // Redux Props
     editFileIndex: number
     error: string
     fileSelectorError: string
-    // Ignore, used to ensure rerender.
     checkedFilesCount: number
     favFilesCount: number
 }
@@ -159,7 +158,7 @@ export interface PredicatedDropDownItemProps {
 export interface FilesTableHeaderProps {
     sortingIcon?: (s: SortBy) => SemanticICONS
     sortFiles?: (s: SortBy) => void
-    masterCheckbox?: React.ReactNode 
+    masterCheckbox?: React.ReactNode
 }
 
 export interface FilenameAndIconsProps {
@@ -170,4 +169,41 @@ export interface FilenameAndIconsProps {
     onKeyDown: (a: number, b: boolean, c: string) => void
     onCheckFile: (c: boolean, f: File) => void
     onFavoriteFile: (p: string) => void
+}
+
+export interface FileSelectorModalProps {
+    show, loading: boolean
+    path: string
+    onHide: (event: React.MouseEvent<HTMLButtonElement | HTMLElement>, data: ButtonProps | ModalProps) => void
+    page: Page<File>
+    setSelectedFile: Function
+    fetchFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
+    disallowedPaths?: string[]
+    onlyAllowFolders?: boolean
+    canSelectFolders?: boolean
+    creatingFolder?: boolean
+    handleKeyDown?: Function
+    createFolder?: Function
+    errorMessage?: string
+    onErrorDismiss?: () => void
+    navigate?: (path, pageNumber, itemsPerPage) => void
+}
+
+export interface FileSelectorBodyProps {
+    disallowedPaths?: string[]
+    onlyAllowFolders?: boolean
+    creatingFolder?: boolean
+    canSelectFolders?: boolean
+    page: Page<File>
+    fetchFiles: (path: string) => void
+    handleKeyDown?: Function
+    setSelectedFile: Function
+    createFolder?: Function
+    path: string
+}
+
+export interface FileListProps {
+    files: File[]
+    setSelectedFile, fetchFiles: Function
+    canSelectFolders: boolean
 }

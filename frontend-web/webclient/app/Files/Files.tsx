@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticSIZES } from "semantic-ui-react";
+import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
