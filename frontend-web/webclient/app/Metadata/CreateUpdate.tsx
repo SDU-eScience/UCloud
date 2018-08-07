@@ -2,22 +2,22 @@ import * as React from "react";
 import { Search, Form, Button } from "semantic-ui-react";
 import { identifierTypes } from "DefaultObjects";
 import { allLicenses } from "./licenses";
-import { Creator, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
+import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
 import { blankOrNull } from "UtilityFunctions";
-import { PropTypes } from "prop-types";
+import * as PropTypes from "prop-types";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 
-const newCreator = (): Creator => ({ name: "", affiliation: "", orcId: "", gnd: "" });
+const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
 const newSubject = (): Subject => ({ term: "", identifier: "" });
 
-const creatorHasValue = (creator: Creator): boolean => {
+const contributorHasValue = (contributor: Contributor): boolean => {
     return (
-        !blankOrNull(creator.affiliation) ||
-        !blankOrNull(creator.orcId) ||
-        !blankOrNull(creator.gnd) ||
-        !blankOrNull(creator.name)
+        !blankOrNull(contributor.affiliation) ||
+        !blankOrNull(contributor.orcId) ||
+        !blankOrNull(contributor.gnd) ||
+        !blankOrNull(contributor.name)
     );
 }
 
@@ -47,7 +47,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
             keywords: [""],
             notes: "",
             dataManagementPlan: "",
-            contributors: [newCreator()],
+            contributors: [newContributor()],
             references: [""],
             grants: [""],
             subjects: [newSubject()],
@@ -84,7 +84,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
             license: mappedLicense,
             keywords: md.keywords ? md.keywords : [""],
             notes: md.notes ? md.notes : "",
-            contributors: md.contributors ? md.contributors : [newCreator()],
+            contributors: md.contributors ? md.contributors : [newContributor()],
             references: md.references ? md.references : [""],
             grants: md.grants ? md.grants.map(it => it ? it.id : "") : [""],
             subjects: md.subjects ? md.subjects : [newSubject()],
@@ -118,7 +118,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                 keywords: s.keywords.filter(e => !blankOrNull(e)),
                 // notes, // TODO Needs to be user editable
                 // dataManagementPlan: s.dataManagementPlan,
-                contributors: s.contributors.filter(e => creatorHasValue(e)),
+                contributors: s.contributors.filter(e => contributorHasValue(e)),
                 references: s.references.filter(e => !blankOrNull(e)),
                 subjects: s.subjects.filter(e => subjectHasValue(e)),
                 relatedIdentifiers: s.relatedIdentifiers.filter(e => identifierHasValue(e)),
@@ -139,7 +139,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 
         let errCollaborators = {};
         this.state.contributors.forEach((element, index) => {
-            if (creatorHasValue(element)) {
+            if (contributorHasValue(element)) {
                 if (blankOrNull(element.name)) errCollaborators[index] = true;
             }
         });
@@ -187,7 +187,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 
     addCollaborator(e) {
         e.preventDefault();
-        this.setState(() => ({ contributors: this.state.contributors.concat(newCreator()) }));
+        this.setState(() => ({ contributors: this.state.contributors.concat(newContributor()) }));
     }
 
     addSubject(e) {
@@ -477,7 +477,7 @@ const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIde
 };
 
 interface CollaboratorsProps {
-    contributors: Creator[]
+    contributors: Contributor[]
     onChange: (value, index: number, key: string) => void
     errors: any
 }

@@ -4,7 +4,7 @@ import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import swal from "sweetalert2";
-import PropTypes from "prop-types";
+import * as PropTypes from "prop-types";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
@@ -104,7 +104,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             tasksPerNode: this.state.jobInfo.tasksPerNode,
             maxTime: maxTime,
         })]
-        new File(contents, `${this.state.appName}-${this.state.appVersion}-params.json`)
+        new File(contents, `${this.state.appName}-${this.state.appVersion}-params.json`);
         // TODO: download
     }
 
