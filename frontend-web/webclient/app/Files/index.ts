@@ -1,5 +1,7 @@
 import { Page } from "Types";
 import { History } from "history";
+import { SemanticICONS } from "semantic-ui-react";
+import { match } from "react-router-dom";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -46,7 +48,7 @@ export enum SortBy {
 }
 
 export interface FilesProps extends FilesStateProps, FilesOperations {
-    match: { params: string[] }
+    match: match<string[]>
     history: History
 }
 
@@ -115,4 +117,41 @@ export interface FileSelectorState {
     breadcrumbs: { path: string, actualPath: string }[]
     uppyOnUploadSuccess: Function
     creatingFolder: boolean
+}
+
+export interface FilesTableProps {
+    files: File[]
+    masterCheckbox?: React.ReactNode
+    showFileSelector: (open: boolean) => void
+    setFileSelectorCallback: Function
+    setDisallowedPaths: (p: string[]) => void
+    sortingIcon: (name: string) => SemanticICONS
+    editFolderIndex: number
+    sortFiles: (sortBy: SortBy) => void
+    handleKeyDown: (a: number, b: boolean, c: string) => void
+    onCheckFile: (c: boolean, f: File) => void
+    fetchFiles: (p: string) => void
+    startEditFile: (i: number) => void
+    projectNavigation: (p: string) => void
+    creatingNewFolder: boolean
+    allowCopyAndMove: boolean
+    onFavoriteFile: (p: string) => void
+    fetchPageFromPath: (p: string) => void
+}
+
+export interface EditOrCreateProjectButtonProps {
+    file: File
+    disabled: boolean
+    projectNavigation: (s) => void
+}
+
+export interface CreateFolderProps {
+    creatingNewFolder: boolean
+    handleKeyDown: (a: number, b: boolean, c: string) => void
+}
+
+export interface PredicatedDropDownItemProps {
+    predicate: boolean
+    content: string
+    onClick: () => void
 }

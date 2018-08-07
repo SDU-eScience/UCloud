@@ -267,6 +267,16 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     pageRenderer={(page) =>
                         <FilesTable
                             files={page.items}
+                            handleKeyDown={() => null}
+                            showFileSelector={() => null}
+                            setDisallowedPaths={() => null}
+                            editFolderIndex={-1}
+                            sortFiles={() => null}
+                            allowCopyAndMove={false}
+                            startEditFile={() => null}
+                            projectNavigation={() => null}
+                            creatingNewFolder={false}
+                            fetchPageFromPath={() => null}
                             sortingIcon={() => null}
                             onCheckFile={() => null}
                             setFileSelectorCallback={() => null}

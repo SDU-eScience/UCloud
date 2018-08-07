@@ -216,9 +216,7 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-export const getFilenameFromPath = (path: string): string =>
-    !path ? "" : path.split("/").filter(p => p).pop();
-
+export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop();
 
 export const downloadFiles = (paths: string[], cloud: Cloud) => {
     paths.forEach(p =>
@@ -265,9 +263,6 @@ export const getCurrentRights = (files: File[], cloud: Cloud) => {
 };
 
 export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy): SemanticICONS => {
-    console.log(sortBy)
-    console.log(sortOrder)
-    console.log(name);
     if (sortBy === name) {
         return sortOrder === SortOrder.DESCENDING ? "chevron down" : "chevron up";
     }
