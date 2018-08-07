@@ -5,6 +5,7 @@ import dk.sdu.cloud.service.db.HibernateSessionFactory
 import io.mockk.every
 import io.mockk.spyk
 import org.junit.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -21,8 +22,6 @@ class OneTimeTokenDaoTest{
             val session = db.openSession()
             val returnValue = ott.claim(session, "jti", "claimedByMe")
             assertTrue(returnValue)
-
-
         }
     }
 
@@ -37,5 +36,12 @@ class OneTimeTokenDaoTest{
             val returnValue = ott.claim(session, "jti", "claimedByMe")
             assertFalse(returnValue)
         }
+    }
+
+    @Test
+    fun `create OTTBlacklistEntity`() {
+        val ott = OTTBlackListEntity("jti", "claimedBy")
+        assertEquals("jti", ott.jti )
+        assertEquals("claimedBy", ott.claimedBy)
     }
 }
