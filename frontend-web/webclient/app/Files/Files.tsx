@@ -16,7 +16,8 @@ import { Uploader } from "Uploader";
 import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File, FilesTableProps,
-    EditOrCreateProjectButtonProps, CreateFolderProps, PredicatedDropDownItemProps
+    EditOrCreateProjectButtonProps, CreateFolderProps, PredicatedDropDownItemProps, FilesTableHeaderProps,
+    FilenameAndIconsProps
 } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 
@@ -195,7 +196,7 @@ class Files extends React.Component<FilesProps> {
 // Used for creation of folder in empty folder
 const MockTable = ({ handleKeyDown, creatingFolder }: MockedTableProps) => (
     <Table unstackable basic="very">
-        <FilesTableHeader masterCheckBox={null} sortingIcon={() => null} sortFiles={null} />
+        <FilesTableHeader masterCheckbox={null} sortingIcon={() => null} sortFiles={null} />
         <Table.Body><CreateFolder creatingNewFolder={creatingFolder} handleKeyDown={handleKeyDown} /></Table.Body>
     </Table>
 )
@@ -204,10 +205,9 @@ export const FilesTable = ({
     files, masterCheckbox, showFileSelector, setFileSelectorCallback, setDisallowedPaths, sortingIcon, editFolderIndex,
     sortFiles, handleKeyDown, onCheckFile, fetchFiles, startEditFile, projectNavigation, creatingNewFolder,
     allowCopyAndMove, onFavoriteFile, fetchPageFromPath
-}: FilesTableProps) => {
-    return (
+}: FilesTableProps) => (
         <Table unstackable basic="very">
-            <FilesTableHeader masterCheckBox={masterCheckbox} sortingIcon={sortingIcon} sortFiles={sortFiles} />
+            <FilesTableHeader masterCheckbox={masterCheckbox} sortingIcon={sortingIcon} sortFiles={sortFiles} />
             <Table.Body>
                 <CreateFolder creatingNewFolder={creatingNewFolder} handleKeyDown={handleKeyDown} />
                 {files.map((f: File, i: number) => (
@@ -237,24 +237,23 @@ export const FilesTable = ({
                 )}
             </Table.Body>
         </Table>
-    )
-}
+    );
 
-const FilesTableHeader = ({ sortingIcon, sortFiles = (_) => null, masterCheckBox = null }) => (
+const FilesTableHeader = ({ sortingIcon, sortFiles, masterCheckbox }: FilesTableHeaderProps) => (
     <Table.Header>
         <Table.Row>
             <Table.HeaderCell className="filename-row" onClick={() => sortFiles(SortBy.PATH)}>
-                {masterCheckBox}
+                {masterCheckbox}
                 Filename
-                <Icon className="float-right" name={sortingIcon("PATH")} />
+                <Icon className="float-right" name={sortingIcon(SortBy.PATH)} />
             </Table.HeaderCell>
             <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(SortBy.MODIFIED_AT)}>
                 Modified
-                <Icon className="float-right" name={sortingIcon("MODIFIED_AT")} />
+                <Icon className="float-right" name={sortingIcon(SortBy.MODIFIED_AT)} />
             </Responsive>
             <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(SortBy.ACL)}>
                 Members
-                <Icon className="float-right" name={sortingIcon("ACL")} />
+                <Icon className="float-right" name={sortingIcon(SortBy.ACL)} />
             </Responsive>
             <Table.HeaderCell />
         </Table.Row>
@@ -288,15 +287,16 @@ const CreateFolder = ({ creatingNewFolder, handleKeyDown }: CreateFolderProps) =
     !creatingNewFolder ? null : (
         <Table.Row>
             <Table.Cell>
-                <Icon name="folder" color="blue" size="big" className="create-folder" />
                 <Input
                     fluid
                     transparent
-                    className="create-folder-input"
                     onKeyDown={(e) => handleKeyDown(e.keyCode, true, e.target.value)}
                     placeholder="Folder name..."
                     autoFocus
-                />
+                >
+                    <Icon name="folder" color="blue" size="big" className="create-folder" />
+                    <input className="input-left-margin" />
+                </Input>
             </Table.Cell>
             <Responsive as={Table.Cell} /><Responsive as={Table.Cell} /><Table.Cell />
         </Table.Row>
@@ -325,17 +325,7 @@ const PredicatedFavorite = ({ predicate, file, onClick }) =>
 
 const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon className="group-icon-padding" name="users" />) : null;
 
-interface FilenameAndIcons {
-    file: File
-    beingRenamed: boolean
-    hasCheckbox: boolean
-    size: SemanticSIZES
-    onKeyDown: (a: number, b: boolean, c: string) => void
-    onCheckFile: (c: boolean, f: File) => void
-    onFavoriteFile: (p: string) => void
-}
-
-function FilenameAndIcons({ file, beingRenamed = false, size = "big", onKeyDown = null, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }) {
+function FilenameAndIcons({ file, beingRenamed = false, size = "big", onKeyDown = null, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }: FilenameAndIconsProps) {
     const color = file.type === "DIRECTORY" ? "blue" : "grey";
     const fileName = uf.getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_e, { checked }) => onCheckFile(checked, file)} />
@@ -359,7 +349,7 @@ function FilenameAndIcons({ file, beingRenamed = false, size = "big", onKeyDown 
                 onKeyDown={(e) => onKeyDown(e.keyCode, false, e.target.value)}
                 autoFocus
                 transparent
-                action={<Button onClick={() => onKeyDown(KeyCode.ESC, false)}>✗</Button>}
+                action={<Button onClick={() => onKeyDown(KeyCode.ESC, false, "")}>✗</Button>}
             />
         </Table.Cell> :
         <Table.Cell className="table-cell-padding-left">
@@ -458,15 +448,15 @@ function EditOrCreateProjectButton({ file, disabled, projectNavigation }: EditOr
             content="Edit Project"
         />
     ) : (
-        <Button
-            className="context-button-margin"
-            fluid basic
-            icon="users"
-            disabled={disabled || !canBeProject}
-            content={"Create Project"}
-            onClick={() => uf.createProject(file.path, Cloud, projectNavigation)}
-        />
-    );
+            <Button
+                className="context-button-margin"
+                fluid basic
+                icon="users"
+                disabled={disabled || !canBeProject}
+                content={"Create Project"}
+                onClick={() => uf.createProject(file.path, Cloud, projectNavigation)}
+            />
+        );
 }
 
 function EditOrCreateProject({ file, projectNavigation = null }) {
@@ -475,8 +465,8 @@ function EditOrCreateProject({ file, projectNavigation = null }) {
     return uf.isProject(file) ? (
         <Dropdown.Item as={Link} to={`/metadata/${file.path}/`} content="Edit Project" />
     ) : (
-        <Dropdown.Item onClick={() => uf.createProject(file.path, Cloud, projectNavigation)} content="Create Project" />
-    );
+            <Dropdown.Item onClick={() => uf.createProject(file.path, Cloud, projectNavigation)} content="Create Project" />
+        );
 }
 
 function copy(files: File[], operations): void {

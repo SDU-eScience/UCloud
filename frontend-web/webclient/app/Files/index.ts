@@ -1,6 +1,6 @@
 import { Page } from "Types";
 import { History } from "history";
-import { SemanticICONS } from "semantic-ui-react";
+import { SemanticICONS, SemanticSIZES } from "semantic-ui-react";
 import { match } from "react-router-dom";
 
 export enum SortOrder {
@@ -154,4 +154,20 @@ export interface PredicatedDropDownItemProps {
     predicate: boolean
     content: string
     onClick: () => void
+}
+
+export interface FilesTableHeaderProps {
+    sortingIcon?: (s: SortBy) => SemanticICONS
+    sortFiles?: (s: SortBy) => void
+    masterCheckbox?: React.ReactNode 
+}
+
+export interface FilenameAndIconsProps {
+    file: File
+    beingRenamed: boolean
+    hasCheckbox: boolean
+    size?: SemanticSIZES
+    onKeyDown: (a: number, b: boolean, c: string) => void
+    onCheckFile: (c: boolean, f: File) => void
+    onFavoriteFile: (p: string) => void
 }

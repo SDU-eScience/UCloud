@@ -114,9 +114,8 @@ const mapDispatchToProps = (dispatch): AnalysesOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage(null)),
     updatePageTitle: () => dispatch(updatePageTitle("Results")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    fetchAnalyses: (itemsPerPage: number, pageNumber: number) =>
-        dispatch(fetchAnalyses(itemsPerPage, pageNumber))
+    fetchAnalyses: (itemsPerPage: number, pageNumber: number) => dispatch(fetchAnalyses(itemsPerPage, pageNumber))
+});
 
-})
-const mapStateToProps = (state): AnalysesStateProps => state.analyses;
+const mapStateToProps = ({ analyses }): AnalysesStateProps => analyses;
 export default connect(mapStateToProps, mapDispatchToProps)(Analyses);
