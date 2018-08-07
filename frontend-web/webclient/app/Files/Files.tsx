@@ -439,36 +439,43 @@ const MobileButtons = ({ file, rename, allowCopyAndMove = false, ...props }) => 
     </Table.Cell>
 );
 
+
 interface EditOrCreateProjectButtonProps { file: File, disabled: boolean, projectNavigation: (s) => void }
 function EditOrCreateProjectButton({ file, disabled, projectNavigation }: EditOrCreateProjectButtonProps) {
     const canBeProject = uf.canBeProject(file, Cloud.homeFolder);
-    const projectButton = (
-        <Button className="context-button-margin" fluid basic icon="users" disabled={disabled || !canBeProject}
-            content={uf.isProject(file) ? "Edit Project" : "Create Project"}
-            onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud, projectNavigation)}
+    const isProject = uf.isProject(file);
+    return isProject ? (
+        <Button
+            as={Link}
+            to={`/metadata/${file.path}/`}
+            className="context-button-margin"
+            fluid basic icon="users"
+            disabled={disabled || !canBeProject}
+            content="Edit Project"
+        />
+    ) : (
+        <Button
+            className="context-button-margin"
+            fluid basic
+            icon="users"
+            disabled={disabled || !canBeProject}
+            content={"Create Project"}
+            onClick={() => uf.createProject(file.path, Cloud, projectNavigation)}
         />
     );
-    if (uf.isProject(file)) {
-        return (
-            <Link to={`/metadata/${file.path}/`} className="context-button-margin">
-                {projectButton}
-            </Link>);
-    } else {
-        return projectButton;
-    }
 }
 
 function EditOrCreateProject({ file, projectNavigation = null }) {
     const canBeProject = uf.canBeProject(file, Cloud.homeFolder);
-    if (!canBeProject || !projectNavigation) { return null; }
-    const projectLink = uf.isProject(file) ? (
-        <Link to={`/metadata/${file.path}/`} className="black-text">
-            Edit Project
-        </Link>) : "Create Project";
-    return (
-        <Dropdown.Item onClick={uf.isProject(file) ? null : () => uf.createProject(file.path, Cloud, projectNavigation)}>
-            {projectLink}
-        </Dropdown.Item>)
+    if (!canBeProject || !projectNavigation) return null;
+    return uf.isProject(file) ? (
+        <Dropdown.Item as={Link} to={`/metadata/${file.path}/`} content="Edit Project" />
+    ) : (
+            <Dropdown.Item
+                onClick={() => uf.createProject(file.path, Cloud, projectNavigation)}
+                content="Create Project"
+            />
+        );
 }
 
 function copy(files: File[], operations): void {
