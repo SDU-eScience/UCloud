@@ -134,19 +134,19 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         <Form.Group widths="equal">
                             <Form.Field>
                                 <label>Created after date</label>
-                                <Input type="date" onChange={(_, { value }) => console.log(value)} />
+                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Created after time</label>
-                                <Input type="time" onChange={(_, { value }) => console.log(value)} />
+                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Created before date</label>
-                                <Input type="date" onChange={(_, { value }) => console.log(value)} />
+                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Created before time</label>
-                                <Input type="time" onChange={(_, { value }) => console.log(value)} />
+                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
                             </Form.Field>
                         </Form.Group>
                     </Form>
@@ -155,26 +155,26 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         <Form.Group widths="equal">
                             <Form.Field>
                                 <label>Modified after date</label>
-                                <Input type="date" onChange={(_, { value }) => console.log(value)} />
+                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Modified after time</label>
-                                <Input type="time" onChange={(_, { value }) => console.log(value)} />
+                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Modified before date</label>
-                                <Input type="date" onChange={(_, { value }) => console.log(value)} />
+                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Modified before time</label>
-                                <Input type="time" onChange={(_, { value }) => console.log(value)} />
+                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
                             </Form.Field>
                         </Form.Group>
                     </Form>
-                    <Header as="h3" content="Type" />
-                    <Form.Group widths="equal">
-                        <Checkbox className="padding-right" label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
-                        <Checkbox className="padding-right" label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
+                    <Header as="h3" content="File Types" />
+                    <Form.Group inline>
+                        <Form.Checkbox label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
+                        <Form.Checkbox label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
                     </Form.Group>
                     <Header as="h3" content="File extensions" />
                     <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: [] }))} />

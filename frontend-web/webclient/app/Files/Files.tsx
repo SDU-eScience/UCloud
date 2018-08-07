@@ -248,6 +248,7 @@ const FilesTableHeader = ({ sortingIcon, sortFiles, masterCheckbox }: FilesTable
                 <Icon className="float-right" name={sortingIcon(SortBy.PATH)} />
             </Table.HeaderCell>
             <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(SortBy.MODIFIED_AT)}>
+                {/*<DropdownExampleDropdown/> */}
                 Modified
                 <Icon className="float-right" name={sortingIcon(SortBy.MODIFIED_AT)} />
             </Responsive>
@@ -259,6 +260,21 @@ const FilesTableHeader = ({ sortingIcon, sortFiles, masterCheckbox }: FilesTable
         </Table.Row>
     </Table.Header>
 );
+
+
+const DropdownExampleDropdown = (props) => (
+    <Dropdown simple text="Modified at">
+        <Dropdown.Menu>
+            <Dropdown.Item text="Ascending" disabled />
+            <Dropdown.Item text="Descending" />
+            <Dropdown.Divider />
+            {Object.keys(SortBy).filter(it => it !== "MODIFIED_AT").map((sortByKey: string, i: number) => (
+                <Dropdown.Item key={i} text={uf.prettierString(sortByKey)} />
+            ))}
+        </Dropdown.Menu>
+    </Dropdown>
+)
+
 
 const ContextBar = ({ currentPath, selectedFiles, createFolder, ...props }) => (
     <div>
@@ -326,7 +342,7 @@ const PredicatedFavorite = ({ predicate, file, onClick }) =>
 const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon className="group-icon-padding" name="users" />) : null;
 
 function FilenameAndIcons({ file, beingRenamed = false, size = "big", onKeyDown = null, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }: FilenameAndIconsProps) {
-    const color = file.type === "DIRECTORY" ? "blue" : "grey";
+    const color = uf.isDirectory(file) ? "blue" : "grey";
     const fileName = uf.getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_e, { checked }) => onCheckFile(checked, file)} />
     const icon = (

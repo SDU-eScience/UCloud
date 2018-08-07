@@ -423,6 +423,7 @@ export const favoriteApplicationFromPage = (application: Application, page: Page
     } */
 }
 
+export const prettierString = (str: string) => toLowerCaseAndCapitalize(str).replace(/_/g, " ")
 
 export const favoriteApplication = (app) => {
     app.favorite = !app.favorite;
