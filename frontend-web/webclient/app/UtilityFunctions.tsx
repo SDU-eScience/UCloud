@@ -216,9 +216,7 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-export const getFilenameFromPath = (path: string): string =>
-    !path ? "" : path.split("/").filter(p => p).pop();
-
+export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop();
 
 export const downloadFiles = (paths: string[], cloud: Cloud) => {
     paths.forEach(p =>

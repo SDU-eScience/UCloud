@@ -75,7 +75,7 @@ class FilesController<Ctx : FSUserContext>(
 
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                 favoriteService.markAsFavorite(it, req.path)
-                CallResult.Success(Unit, HttpStatusCode.NoContent)
+                CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
@@ -85,7 +85,7 @@ class FilesController<Ctx : FSUserContext>(
 
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                 favoriteService.removeFavorite(it, req.path)
-                CallResult.Success(Unit, HttpStatusCode.NoContent)
+                CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
@@ -97,14 +97,14 @@ class FilesController<Ctx : FSUserContext>(
                 log.debug("Authenticated as a privileged account. Using direct strategy")
                 tryWithFSAndTimeout(commandRunnerFactory, req.owner) {
                     coreFs.makeDirectory(it, req.path)
-                    CallResult.Success(Unit, HttpStatusCode.NoContent)
+                    CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             } else {
                 log.debug("Authenticated as a normal user. Using Jargon strategy")
 
                 tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                     coreFs.makeDirectory(it, req.path)
-                    CallResult.Success(Unit, HttpStatusCode.NoContent)
+                    CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             }
         }
@@ -115,7 +115,7 @@ class FilesController<Ctx : FSUserContext>(
 
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                 coreFs.delete(it, req.path)
-                CallResult.Success(Unit, HttpStatusCode.NoContent)
+                CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
@@ -124,7 +124,7 @@ class FilesController<Ctx : FSUserContext>(
             if (!protect()) return@implement
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                 coreFs.move(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
-                CallResult.Success(Unit, HttpStatusCode.NoContent)
+                CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
@@ -134,7 +134,7 @@ class FilesController<Ctx : FSUserContext>(
 
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
                 coreFs.copy(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
-                CallResult.Success(Unit, HttpStatusCode.NoContent)
+                CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 

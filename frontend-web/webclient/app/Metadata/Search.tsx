@@ -5,7 +5,7 @@ import { simpleSearch, ProjectMetadata } from "./api";
 import { Page } from "Types";
 import { emptyPage } from "DefaultObjects";
 import { withRouter } from "react-router-dom";
-import { PropTypes } from "prop-types";
+import * as PropTypes from "prop-types";
 import * as Pagination from "Pagination";
 import { KeyCode } from "DefaultObjects";
 import { History } from "history";

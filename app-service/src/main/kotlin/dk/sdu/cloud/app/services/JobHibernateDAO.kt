@@ -102,7 +102,7 @@ class JobHibernateDAO(
         systemId.toString(),
         owner,
         state,
-        status!!,
+        status ?: "Unknown",
         application.id.name,
         application.id.version,
         createdAt.time,

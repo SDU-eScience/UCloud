@@ -20,7 +20,7 @@ export interface ProjectMetadata {
     /**
      * A list of creators of this project (defaults to users in project)
      */
-    creators: Creator[]
+    creators: Contributor[]
 
     /**
      * A description of the project.
@@ -39,7 +39,7 @@ export interface ProjectMetadata {
 
     keywords?: string[]
     notes?: string
-    contributors?: Creator[]
+    contributors?: Contributor[]
     references?: string[]
     grants?: Grant[]
 
@@ -68,7 +68,7 @@ export interface RelatedIdentifier {
     identifier: string
 }
 
-export interface Creator {
+export interface Contributor {
     name?: string
     affiliation?: string
     orcId?: string

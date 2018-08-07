@@ -34,7 +34,7 @@ class Server(
 ): CommonServer, WithServiceRegistry {
     private var initialized = false
     override val log: Logger = logger()
-    override val endpoints = listOf("api/hpc")
+    override val endpoints = listOf("/api/hpc")
 
 
     override lateinit var httpServer: ApplicationEngine
@@ -71,23 +71,8 @@ class Server(
         )
         val jobService = JobService(db, jobDao, sshPool, jobExecutionService)
 
-        kStreams = run {
-            log.info("Constructing Kafka Streams Topology")
-            val kBuilder = StreamsBuilder()
-
-            log.info("Configuring stream processors...")
+        kStreams = buildStreams { kBuilder ->
             kBuilder.stream(HPCStreams.appEvents).foreach { _, event -> jobExecutionService.handleAppEvent(event) }
-            log.info("Stream processors configured!")
-
-            kafka.build(kBuilder.build()).also {
-                log.info("Kafka Streams Topology successfully built!")
-            }
-        }
-
-        kStreams.setUncaughtExceptionHandler { _, exception ->
-            log.error("Caught fatal exception in Kafka! Stacktrace follows:")
-            log.error(exception.stackTraceToString())
-            stop()
         }
 
         httpServer = ktor {
@@ -96,14 +81,6 @@ class Server(
             install(JWTProtection)
 
             routing {
-                route("api/hpc") {
-                    protect()
-
-                    AppController(db, applicationDao).configure(this)
-                    JobController(db, jobService).configure(this)
-                    ToolController(db, toolDao).configure(this)
-                }
-
                 configureControllers(
                     AppController(
                         db,

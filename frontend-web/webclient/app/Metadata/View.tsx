@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ProjectMetadata } from "./api";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import * as ReactMarkdown from "react-markdown";
-import { Creator, getByPath } from "./api";
+import { Contributor, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
 import { blankOrNull } from "UtilityFunctions";
 import {
@@ -135,7 +135,7 @@ export const View = (props: ViewProps) => {
     </div>;
 }
 
-const ContributorItem = (props: { contributor: Creator }) => {
+const ContributorItem = (props: { contributor: Contributor }) => {
     const { contributor } = props;
     if (
         !blankOrNull(contributor.affiliation) ||
