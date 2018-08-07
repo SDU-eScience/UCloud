@@ -265,6 +265,9 @@ export const getCurrentRights = (files: File[], cloud: Cloud) => {
 };
 
 export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy): SemanticICONS => {
+    console.log(sortBy)
+    console.log(sortOrder)
+    console.log(name);
     if (sortBy === name) {
         return sortOrder === SortOrder.DESCENDING ? "chevron down" : "chevron up";
     }

@@ -30,7 +30,7 @@ class Files extends React.Component<FilesProps> {
     }
 
     componentDidMount() {
-        const { match, page, fetchFiles, fetchSelectorFiles, sortBy, sortOrder } = this.props;
+        const { match, page, fetchFiles, fetchSelectorFiles, sortOrder, sortBy } = this.props;
         fetchFiles(match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         fetchSelectorFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
     }
@@ -87,10 +87,10 @@ class Files extends React.Component<FilesProps> {
 
     render() {
         // PROPS
-        const { page, path, loading, history, fetchFiles, checkFile, updateFiles,
-            sortBy, sortOrder, error } = this.props;
+        const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, error } = this.props;
+        const selectedFiles = page.items.filter(file => file.isChecked);
         // Master Checkbox
-        const checkedFilesCount = page.items.filter(file => file.isChecked).length;
+        const checkedFilesCount = selectedFiles.length;
         const masterCheckboxChecked = page.items.length === checkedFilesCount && page.items.length > 0;
         const indeterminate = checkedFilesCount < page.items.length && checkedFilesCount > 0;
         // Lambdas
@@ -99,14 +99,16 @@ class Files extends React.Component<FilesProps> {
             this.props.resetFolderEditing();
         };
         const fetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
-        const selectedFiles = page.items.filter(file => file.isChecked);
         const rename = () => {
             const firstSelectedFile = selectedFiles[0];
             this.startEditFile(page.items.findIndex((f) => f.path === firstSelectedFile.path));
         };
         const navigate = (path: string) => history.push(`/files/${path}`);
         const projectNavigation = (projectPath: string) => history.push(`/metadata/${projectPath}`);
-        const fetchPageFromPath = (path) => { this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy); this.props.updatePath(uf.getParentPath(path)); navigate(uf.getParentPath(path)); }
+        const fetchPageFromPath = (path) => {
+            this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
+            this.props.updatePath(uf.getParentPath(path)); navigate(uf.getParentPath(path));
+        };
         return (
             <Grid>
                 <Grid.Column computer={13} tablet={16}>
@@ -136,7 +138,7 @@ class Files extends React.Component<FilesProps> {
                                 masterCheckBox={
                                     <Checkbox
                                         className="hidden-checkbox checkbox-margin"
-                                        onClick={(_e, d) => this.checkAllFiles(d.checked)}
+                                        onClick={(_, d) => this.checkAllFiles(d.checked)}
                                         checked={masterCheckboxChecked}
                                         indeterminate={indeterminate}
                                         onChange={(e) => e.stopPropagation()}
@@ -249,15 +251,15 @@ const FilesTableHeader = ({ sortingIcon, sortFiles = (_) => null, masterCheckBox
             <Table.HeaderCell className="filename-row" onClick={() => sortFiles(SortBy.PATH)}>
                 {masterCheckBox}
                 Filename
-                <Icon floated="right" name={sortingIcon("typeAndName")} />
+                <Icon className="float-right" name={sortingIcon("PATH")} />
             </Table.HeaderCell>
             <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(SortBy.MODIFIED_AT)}>
                 Modified
-                <Icon floated="right" name={sortingIcon("modifiedAt")} />
+                <Icon className="float-right" name={sortingIcon("MODIFIED_AT")} />
             </Responsive>
             <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(SortBy.ACL)}>
                 Members
-                <Icon floated="right" name={sortingIcon("owner")} />
+                <Icon className="float-right" name={sortingIcon("ACL")} />
             </Responsive>
             <Table.HeaderCell />
         </Table.Row>
