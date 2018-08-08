@@ -92,7 +92,7 @@ class Files extends React.Component<FilesProps> {
         const masterCheckboxChecked = page.items.length === checkedFilesCount && page.items.length > 0;
         const indeterminate = checkedFilesCount < page.items.length && checkedFilesCount > 0;
         // Lambdas
-        const goTo = (pageNumber) => {
+        const goTo = (pageNumber: number) => {
             this.props.fetchFiles(path, page.itemsPerPage, pageNumber, this.props.sortOrder, this.props.sortBy);
             this.props.resetFolderEditing();
         };
@@ -103,7 +103,7 @@ class Files extends React.Component<FilesProps> {
         };
         const navigate = (path: string) => history.push(`/files/${path}`);
         const projectNavigation = (projectPath: string) => history.push(`/metadata/${projectPath}`);
-        const fetchPageFromPath = (path) => {
+        const fetchPageFromPath = (path: string) => {
             this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
             this.props.updatePath(uf.getParentPath(path)); navigate(uf.getParentPath(path));
         };
@@ -253,15 +253,15 @@ function FilesTableHeader({ sortingIcon, sortFiles, masterCheckbox, sortingColum
     let column2 = null;
     if (sortingColumns != null) {
         column1 = (
-            <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(SortBy.MODIFIED_AT)}>
+            <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(sortingColumns[0])}>
                 <SortByDropdown onSelect={(sortBy: SortBy) => onDropdownSelect(sortBy, 0)} currentSelection={sortingColumns[0]} sortOrder={SortOrder.ASCENDING} onSortOrderChange={(sortOrder: SortOrder) => console.log(sortOrder, 0)} />
                 <Icon className="float-right" name={sortingIcon(sortingColumns[0])} />
             </Responsive>
         );
         column2 = (
-            <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(SortBy.MODIFIED_AT)}>
+            <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(sortingColumns[1])}>
                 <SortByDropdown onSelect={(sortBy: SortBy) => onDropdownSelect(sortBy, 1)} currentSelection={sortingColumns[1]} sortOrder={SortOrder.ASCENDING} onSortOrderChange={(sortOrder: SortOrder) => console.log(sortOrder, 1)} />
-                <Icon className="float-right" name={sortingIcon(sortingColumns[0])} />
+                <Icon className="float-right" name={sortingIcon(sortingColumns[1])} />
             </Responsive>
         );
     } else {
