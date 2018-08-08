@@ -1,15 +1,19 @@
 import { Analysis } from "Applications";
 import { File } from "Files";
+import { Notification } from "Notifications"
 
-export interface DashboardProps extends DashboardOperations, DashboardStateProps {}
+export interface DashboardProps extends DashboardOperations, DashboardStateProps { }
 
 export interface DashboardStateProps {
     // Redux store props
-    favoriteFiles, recentFiles: File[]
+    favoriteFiles: File[]
+    recentFiles: File[]
     recentAnalyses: Analysis[]
-    notifications: any[]
-    favoriteLoading, analysesLoading, recentLoading: boolean
-    favoriteFilesLength: number
+    notifications: Notification[]
+    favoriteLoading: boolean
+    analysesLoading: boolean
+    recentLoading: boolean
+    favoriteFilesLength?: number
     favoriteError?: string
     recentFilesError?: string
     recentAnalysesError?: string

@@ -1,11 +1,12 @@
 import swal from "sweetalert2";
-import { RightsMap } from "./DefaultObjects";
+import { RightsMap, SensitivityLevel } from "./DefaultObjects";
 import Cloud from "Authentication/lib";
 import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder } from "./Files";
 import { Page, AccessRight } from "./Types";
 import { File, Acl } from "./Files"
 import { Application } from "Applications";
+import { dateToString } from "Utilities/DateUtilities";
 
 export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
 
@@ -193,6 +194,31 @@ export const batchDeleteFiles = (filePaths: string[], cloud: Cloud, callback: ()
         }
     })
 };
+
+export function sortingColumnToValue(sortBy: SortBy, file: File): string {
+    switch (sortBy) {
+        case SortBy.TYPE:
+            return toLowerCaseAndCapitalize(file.type);
+        case SortBy.PATH:
+            return getFilenameFromPath(file.path);
+        case SortBy.CREATED_AT:
+            return dateToString(file.createdAt);
+        case SortBy.MODIFIED_AT:
+            return dateToString(file.modifiedAt);
+        case SortBy.SIZE:
+            return fileSizeToString(file.size);
+        case SortBy.ACL:
+            return getOwnerFromAcls(file.acl)
+        case SortBy.FAVORITED:
+            return file.favorited ? "Favorited" : "";
+        case SortBy.SENSITIVITY:
+            return SensitivityLevel[file.sensitivityLevel];
+        case SortBy.ANNOTATION:
+            return file.annotations.toString();
+        default:
+            return "";
+    }
+}
 
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
     deletionSwal([filePath]).then((result: any) => {
@@ -401,7 +427,7 @@ export const ifPresent = (f: any, handler: (f: any) => void) => {
     if (f) handler(f)
 };
 
-export const downloadAllowed = (files: File[]) => 
+export const downloadAllowed = (files: File[]) =>
     files.length === 1 || files.every(f => f.sensitivityLevel !== "SENSITIVE")
 
 /**
@@ -410,17 +436,17 @@ export const downloadAllowed = (files: File[]) =>
  * @param {Application} Application the application to be favorited
  * @param {Cloud} cloud The cloud instance for requests
  */
-export const favoriteApplicationFromPage = (application: Application, page: Page<Application>, cloud: Cloud):Page<Application> => {
+export const favoriteApplicationFromPage = (application: Application, page: Page<Application>, cloud: Cloud): Page<Application> => {
     const a = page.items.find(it => it.description.info.name === application.description.info.name);
     a.favorite = !a.favorite;
     infoNotification("Backend functionality for favoriting applications missing");
     return page;
-/*  const {info} = a.description;
-    if (a.favorite) {
-        cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-    } else {
-        cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-    } */
+    /*  const {info} = a.description;
+        if (a.favorite) {
+            cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
+        } else {
+            cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
+        } */
 }
 
 export const prettierString = (str: string) => toLowerCaseAndCapitalize(str).replace(/_/g, " ")

@@ -204,7 +204,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
 const SearchLabels = (props) => (
     <div className="padding-bottom">
         {props.labels.map((l, i) => (<Label className="label-padding" basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
-        {props.labels.length > 1 ? <Label className="label-padding" color="blue" content="Clear all" onRemove={props.clearAll} /> : null}
+        {props.labels.length > 1 ? (<Label className="label-padding" color="blue" content="Clear all" onRemove={props.clearAll} />) : null}
     </div>
 );
 
@@ -226,5 +226,3 @@ const annotationOptions = [
 ]
 
 export default connect()(DetailedFileSearch);
-
-// Search by extensions, sensitivity, tags, etc.

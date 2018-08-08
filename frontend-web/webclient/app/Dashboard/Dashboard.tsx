@@ -17,7 +17,6 @@ import {
     DASHBOARD_RECENT_FILES_ERROR
 } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
-import { Dispatch } from "redux";
 import { Notification } from "Notifications";
 import { Analysis } from "Applications";
 import { File } from "Files";

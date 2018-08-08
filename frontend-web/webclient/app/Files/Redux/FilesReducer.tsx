@@ -42,7 +42,7 @@ const files = (state: any = {}, action) => {
             return { ...state, fileSelectorCallback: action.callback };
         }
         case SET_FILE_SELECTOR_ERROR: {
-            return { ...state, fileSelectorError: action.error}
+            return { ...state, fileSelectorError: action.error }
         }
         case SET_DISALLOWED_PATHS: {
             return { ...state, disallowedPaths: action.paths }
@@ -58,6 +58,11 @@ const files = (state: any = {}, action) => {
         }
         case FILES_ERROR: {
             return { ...state, error: action.error, loading: false };
+        }
+        case SET_FILES_SORTING_COLUMN: {
+            const { sortingColumns } = state;
+            sortingColumns[action.index] = action.sortBy;
+            return { ...state, sortingColumns };
         }
         default: {
             return state;

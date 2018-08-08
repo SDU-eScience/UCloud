@@ -75,6 +75,8 @@ export interface FilesStateProps { // Redux Props
     fileSelectorError: string
     checkedFilesCount: number
     favFilesCount: number
+    leftSortingColumn: SortBy
+    rightSortingColumn: SortBy
 }
 
 export interface FilesOperations { // Redux operations
@@ -94,6 +96,7 @@ export interface FilesOperations { // Redux operations
     setCreatingFolder: (creating: boolean) => void
     setEditingFileIndex: (index: number) => void
     resetFolderEditing: () => void
+    setSortingColumn: (sortBy: SortBy, index: number) => void
 }
 
 export interface FileSelectorProps {
@@ -119,17 +122,19 @@ export interface FileSelectorState {
 }
 
 export interface FilesTableProps {
+    onDropdownSelect?: (s: SortBy, index: number) => void
+    sortingColumns?: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
     showFileSelector: (open: boolean) => void
-    setFileSelectorCallback: Function
+    setFileSelectorCallback: (c: Function) => void
     setDisallowedPaths: (p: string[]) => void
     sortingIcon: (name: string) => SemanticICONS
     editFolderIndex: number
     sortFiles: (sortBy: SortBy) => void
     handleKeyDown: (a: number, b: boolean, c: string) => void
     onCheckFile: (c: boolean, f: File) => void
-    fetchFiles: (p: string) => void
+    refetchFiles: () => void
     startEditFile: (i: number) => void
     projectNavigation: (p: string) => void
     creatingNewFolder: boolean
@@ -141,7 +146,7 @@ export interface FilesTableProps {
 export interface EditOrCreateProjectButtonProps {
     file: File
     disabled: boolean
-    projectNavigation: (s) => void
+    projectNavigation: (s: string) => void
 }
 
 export interface CreateFolderProps {
@@ -159,6 +164,8 @@ export interface FilesTableHeaderProps {
     sortingIcon?: (s: SortBy) => SemanticICONS
     sortFiles?: (s: SortBy) => void
     masterCheckbox?: React.ReactNode
+    sortingColumns?: [SortBy, SortBy]
+    onDropdownSelect?: (s: SortBy, index: number) => void
 }
 
 export interface FilenameAndIconsProps {
@@ -206,4 +213,25 @@ export interface FileListProps {
     files: File[]
     setSelectedFile, fetchFiles: Function
     canSelectFolders: boolean
+}
+
+export interface MoveCopyOperations {
+    showFileSelector: (show: boolean) => void
+    setDisallowedPaths: (paths: string[]) => void
+    setFileSelectorCallback: (callback: Function) => void
+    fetchPageFromPath: (path: string) => void
+}
+
+export interface FileOptionsProps extends MoveCopyOperations {
+    files: File[]
+    rename: () => void
+    refetch: () => void
+    projectNavigation: (str: string) => void
+}
+
+export interface SortByDropdownProps {
+    currentSelection: SortBy
+    sortOrder: SortOrder
+    onSortOrderChange: (s: SortOrder) => void
+    onSelect: (s: SortBy) => void
 }

@@ -267,6 +267,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     pageRenderer={(page) =>
                         <FilesTable
                             files={page.items}
+                            refetchFiles={() => null}
                             handleKeyDown={() => null}
                             showFileSelector={() => null}
                             setDisallowedPaths={() => null}
@@ -280,7 +281,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             sortingIcon={() => null}
                             onCheckFile={() => null}
                             setFileSelectorCallback={() => null}
-                            fetchFiles={() => null}
                             onFavoriteFile={(path) => this.favoriteFile(path)}
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}

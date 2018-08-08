@@ -91,17 +91,16 @@ const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sort
     }
 };
 
-type SortingColumn = 0 | 1;
+export type SortingColumn = 0 | 1;
 /**
  * Sets the column in the table that should be rendered (Not implemented)
  * @param index - the index of the sorting colum (0 or 1)
  * @param {SortOrder} asc - the order of the sorting. ASCENDING or DESCENDING
  * @param {SortBy} sortBy - what field the row should show
  */
-export const setSortingColumn = (index: SortingColumn, asc: SortOrder, sortBy: SortBy) => ({
+export const setSortingColumn = (sortBy: SortBy, index: SortingColumn) => ({
     type: SET_FILES_SORTING_COLUMN,
     index,
-    asc,
     sortBy
 });
 

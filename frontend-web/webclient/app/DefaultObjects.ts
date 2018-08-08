@@ -7,7 +7,9 @@ import { Analysis, Application } from "Applications";
 import { File } from "Files";
 import SDUCloud from "Authentication/lib";
 import { SortOrder, SortBy } from "Files";
+import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
+import { Notification } from "Notifications";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -86,10 +88,10 @@ const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`) as SortBy;
     if (!sortingColumn) {
         if (columnIndex === 0) {
-            window.localStorage.setItem("filesSorting0", "lastModified");
+            window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);
             return SortBy.MODIFIED_AT;
         } else if (columnIndex === 1) {
-            window.localStorage.setItem("filesSorting1", "acl");
+            window.localStorage.setItem("filesSorting1", SortBy.ACL);
             return SortBy.ACL;
         }
     }
@@ -102,24 +104,18 @@ interface ComponentWithPage<T> {
     error?: string
 }
 
-interface DashboardReduxObject {
-    favoriteFiles, recentFiles: File[]
-    recentAnalyses: Analysis[]
-    favoriteError?: string
-    recentFilesError?: string
-    recentAnalysesError?: string
-    favoriteLoading, recentLoading, analysesLoading, activityLoading: boolean
-}
-
-interface FilesReduxObject extends ComponentWithPage<File> {
+export interface FilesReduxObject extends ComponentWithPage<File> {
     creatingFolder: boolean
     editFileIndex: number
     sortOrder: SortOrder
     sortBy: SortBy
-    path, filesInfoPath, fileSelectorError: string
+    path: string
+    filesInfoPath: string
+    fileSelectorError: string
     projects: any[]
     sortingColumns: [SortBy, SortBy]
-    fileSelectorLoading, fileSelectorShown: false
+    fileSelectorLoading: boolean
+    fileSelectorShown: false
     fileSelectorPage: Page<File>
     fileSelectorPath: string
     fileSelectorCallback: Function
@@ -140,7 +136,8 @@ interface StatusReduxObject {
 }
 
 interface SidebarReduxObject {
-    loading, open: boolean
+    loading: boolean
+    open: boolean
     options: SidebarOption[]
 }
 
@@ -152,7 +149,7 @@ export type HeaderSearchType = "files" | "applications" | "projects";
 
 
 interface InitialReduxObject {
-    dashboard: DashboardReduxObject
+    dashboard: DashboardStateProps
     files: FilesReduxObject,
     uppy: any
     status: StatusReduxObject,
@@ -169,10 +166,10 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         favoriteFiles: [] as File[],
         recentFiles: [] as File[],
         recentAnalyses: [] as Analysis[],
+        notifications: [] as Notification[],
         favoriteLoading: false,
         recentLoading: false,
         analysesLoading: false,
-        activityLoading: false,
         favoriteError: null,
         recentFilesError: null,
         recentAnalysesError: null
