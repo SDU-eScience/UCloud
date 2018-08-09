@@ -334,6 +334,7 @@ class CoreAuthController<DBSession>(
                 }
 
                 val tokenWasClaimed = db.withTransaction { ottDao.claim(it, jti, principal.subject) }
+
                 if (tokenWasClaimed) {
                     ok(HttpStatusCode.NoContent)
                 } else {

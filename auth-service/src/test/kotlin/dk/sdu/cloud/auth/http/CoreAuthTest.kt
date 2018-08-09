@@ -466,7 +466,7 @@ class CoreAuthTest{
     }
 
     @Test
-    fun `Refresh test - unautherized`() {
+    fun `Refresh test - unauthorized`() {
         withDatabase { db ->
             withAuthMock {
                 withTestApplication(
@@ -528,6 +528,430 @@ class CoreAuthTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Unauthorized, response.status())
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Request test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val ottDao = OneTimeTokenHibernateDAO()
+                        val userDao = UserHibernateDAO()
+                        val refreshTokenDao = RefreshTokenHibernateDAO()
+                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+                        val config = mockk<AuthConfiguration>()
+                        val tokenService = TokenService(
+                            db,
+                            userDao,
+                            refreshTokenDao,
+                            jwtAlg,
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true)
+                        )
+
+                        db.withTransaction { session ->
+                            userDao.insert(session, PersonUtils.createUserByPassword(
+                                "firstname",
+                                "lastname",
+                                "user",
+                                Role.ADMIN,
+                                "password"
+                            ))
+                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                        }
+                        installDefaultFeatures(
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            requireJobId = true
+                        )
+
+                        install(JWTProtection)
+
+                        every { config.enablePasswords } returns true
+                        every { config.enableWayf } returns false
+
+                        routing {
+                            CoreAuthController(
+                                db,
+                                ottDao,
+                                tokenService,
+                                config.enablePasswords,
+                                config.enableWayf
+                            ).configure(this)
+                        }
+
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Post, "/auth/request?audience=user") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
+
+                        assertEquals(HttpStatusCode.OK, response.status())
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Request test - missing params`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val ottDao = OneTimeTokenHibernateDAO()
+                        val userDao = UserHibernateDAO()
+                        val refreshTokenDao = RefreshTokenHibernateDAO()
+                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+                        val config = mockk<AuthConfiguration>()
+                        val tokenService = TokenService(
+                            db,
+                            userDao,
+                            refreshTokenDao,
+                            jwtAlg,
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true)
+                        )
+
+                        db.withTransaction { session ->
+                            userDao.insert(session, PersonUtils.createUserByPassword(
+                                "firstname",
+                                "lastname",
+                                "user",
+                                Role.ADMIN,
+                                "password"
+                            ))
+                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                        }
+                        installDefaultFeatures(
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            requireJobId = true
+                        )
+
+                        install(JWTProtection)
+
+                        every { config.enablePasswords } returns true
+                        every { config.enableWayf } returns false
+
+                        routing {
+                            CoreAuthController(
+                                db,
+                                ottDao,
+                                tokenService,
+                                config.enablePasswords,
+                                config.enableWayf
+                            ).configure(this)
+                        }
+
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Post, "/auth/request?user") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
+
+                        assertEquals(HttpStatusCode.BadRequest, response.status())
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Claim test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val ottDao = OneTimeTokenHibernateDAO()
+                        val userDao = UserHibernateDAO()
+                        val refreshTokenDao = RefreshTokenHibernateDAO()
+                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+                        val config = mockk<AuthConfiguration>()
+                        val tokenService = TokenService(
+                            db,
+                            userDao,
+                            refreshTokenDao,
+                            jwtAlg,
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true)
+                        )
+
+                        db.withTransaction { session ->
+                            userDao.insert(session, PersonUtils.createUserByPassword(
+                                "firstname",
+                                "lastname",
+                                "user",
+                                Role.ADMIN,
+                                "password"
+                            ))
+                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                        }
+                        installDefaultFeatures(
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            requireJobId = true
+                        )
+
+                        install(JWTProtection)
+
+                        every { config.enablePasswords } returns true
+                        every { config.enableWayf } returns false
+
+                        routing {
+                            CoreAuthController(
+                                db,
+                                ottDao,
+                                tokenService,
+                                config.enablePasswords,
+                                config.enableWayf
+                            ).configure(this)
+                        }
+
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Post, "/auth/claim/givenJTI") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
+
+                        assertEquals(HttpStatusCode.NoContent, response.status())
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Claim test - Unauthorized not ADMIN or SERVICE`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val ottDao = OneTimeTokenHibernateDAO()
+                        val userDao = UserHibernateDAO()
+                        val refreshTokenDao = RefreshTokenHibernateDAO()
+                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+                        val config = mockk<AuthConfiguration>()
+                        val tokenService = TokenService(
+                            db,
+                            userDao,
+                            refreshTokenDao,
+                            jwtAlg,
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true)
+                        )
+
+                        db.withTransaction { session ->
+                            userDao.insert(
+                                session, PersonUtils.createUserByPassword(
+                                    "firstname",
+                                    "lastname",
+                                    "user",
+                                    Role.USER,
+                                    "password"
+                                )
+                            )
+                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/USER"))
+                        }
+                        installDefaultFeatures(
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            requireJobId = true
+                        )
+
+                        install(JWTProtection)
+
+                        every { config.enablePasswords } returns true
+                        every { config.enableWayf } returns false
+
+                        routing {
+                            CoreAuthController(
+                                db,
+                                ottDao,
+                                tokenService,
+                                config.enablePasswords,
+                                config.enableWayf
+                            ).configure(this)
+                        }
+
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Post, "/auth/claim/givenJTI") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.USER)
+                            }.response
+
+                        assertEquals(HttpStatusCode.Forbidden, response.status())
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Claim test - claim same`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val ottDao = OneTimeTokenHibernateDAO()
+                        val userDao = UserHibernateDAO()
+                        val refreshTokenDao = RefreshTokenHibernateDAO()
+                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+                        val config = mockk<AuthConfiguration>()
+                        val tokenService = TokenService(
+                            db,
+                            userDao,
+                            refreshTokenDao,
+                            jwtAlg,
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true)
+                        )
+
+                        db.withTransaction { session ->
+                            userDao.insert(session, PersonUtils.createUserByPassword(
+                                "firstname",
+                                "lastname",
+                                "user",
+                                Role.ADMIN,
+                                "password"
+                            ))
+                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                        }
+                        installDefaultFeatures(
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            requireJobId = true
+                        )
+
+                        install(JWTProtection)
+
+                        every { config.enablePasswords } returns true
+                        every { config.enableWayf } returns false
+
+                        routing {
+                            CoreAuthController(
+                                db,
+                                ottDao,
+                                tokenService,
+                                config.enablePasswords,
+                                config.enableWayf
+                            ).configure(this)
+                        }
+
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Post, "/auth/claim/givenJTI") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
+
+                        assertEquals(HttpStatusCode.NoContent, response.status())
+
+                        val response2 =
+                            handleRequest(HttpMethod.Post, "/auth/claim/givenJTI") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
+
+                        assertEquals(HttpStatusCode.Conflict, response2.status())
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Logout Test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val ottDao = OneTimeTokenHibernateDAO()
+                        val userDao = UserHibernateDAO()
+                        val refreshTokenDao = RefreshTokenHibernateDAO()
+                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+                        val config = mockk<AuthConfiguration>()
+                        val tokenService = TokenService(
+                            db,
+                            userDao,
+                            refreshTokenDao,
+                            jwtAlg,
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true)
+                        )
+
+                        db.withTransaction { session ->
+                            userDao.insert(session, PersonUtils.createUserByPassword(
+                                "firstname",
+                                "lastname",
+                                "user",
+                                Role.ADMIN,
+                                "password"
+                            ))
+                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                        }
+                        installDefaultFeatures(
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            mockk(relaxed = true),
+                            requireJobId = true
+                        )
+
+                        install(JWTProtection)
+
+                        every { config.enablePasswords } returns true
+                        every { config.enableWayf } returns false
+
+                        routing {
+                            CoreAuthController(
+                                db,
+                                ottDao,
+                                tokenService,
+                                config.enablePasswords,
+                                config.enableWayf
+                            ).configure(this)
+                        }
+
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Post, "/auth/logout") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
+
+                        assertEquals(HttpStatusCode.NoContent, response.status())
                     }
                 )
             }

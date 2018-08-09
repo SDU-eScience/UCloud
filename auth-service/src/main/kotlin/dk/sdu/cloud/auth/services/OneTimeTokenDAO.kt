@@ -28,7 +28,11 @@ data class OTTBlackListEntity(
 class OneTimeTokenHibernateDAO : OneTimeTokenDAO<HibernateSession> {
     override fun claim(session: HibernateSession, jti: String, claimedBy: String): Boolean {
         val value = try {
-            session.save(OTTBlackListEntity(jti, claimedBy)) as String
+            (session.save(OTTBlackListEntity(jti, claimedBy)) as String)
+                .also {
+                    // No exception is thrown if we don't flush immediately
+                    session.flush()
+                }
         } catch (ex: Exception) {
             null
         }

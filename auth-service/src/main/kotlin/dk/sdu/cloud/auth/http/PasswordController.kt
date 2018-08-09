@@ -34,9 +34,11 @@ class PasswordController<DBSession>(
                     return@post call.respondRedirect("/auth/login?invalid")
                 }
 
-                logEntry(log, additionalParameters = mapOf(
+                logEntry(
+                    log, additionalParameters = mapOf(
                         "username" to params["username"]?.firstOrNull(),
-                        "service" to params["service"]?.firstOrNull())
+                        "service" to params["service"]?.firstOrNull()
+                    )
                 )
 
                 val username = params["username"]?.firstOrNull()
@@ -68,10 +70,11 @@ class PasswordController<DBSession>(
                 }
 
                 val token = tokenService.createAndRegisterTokenFor(user)
-                call.respondRedirect("/auth/login-redirect?" +
-                        "service=${service.urlEncoded}" +
-                        "&accessToken=${token.accessToken.urlEncoded}" +
-                        "&refreshToken=${token.refreshToken.urlEncoded}"
+                call.respondRedirect(
+                    "/auth/login-redirect?" +
+                            "service=${service.urlEncoded}" +
+                            "&accessToken=${token.accessToken.urlEncoded}" +
+                            "&refreshToken=${token.refreshToken.urlEncoded}"
                 )
             }
 
