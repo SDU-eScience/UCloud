@@ -73,17 +73,20 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
     const image = even ? blurOverlay : `https://placekitten.com/200/200`;
     return (
         <Card>
+            {/* FIXME: Move styling to .scss file where possible */}
             <div style={{
                 background: hex
             }}>
-                <div style={{
-                    opacity: opacity,
-                    width: "100%",
-                    height: "200px",
-                    backgroundImage: `url('${image}')`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center"
-                }} />
+                <Link to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}>
+                    <div style={{
+                        opacity: opacity,
+                        width: "100%",
+                        height: "200px",
+                        backgroundImage: `url('${image}')`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center"
+                    }} />
+                </Link>
             </div>
             <Card.Content>
                 <List horizontal floated="right">

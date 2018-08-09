@@ -94,7 +94,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         }
         // FIXME END
 
-        const contents = [JSON.stringify({
+        const contents = new Blob([JSON.stringify({
             application: {
                 name: this.state.appName,
                 version: this.state.appVersion,
@@ -103,8 +103,9 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             numberOfNodes: this.state.jobInfo.numberOfNodes,
             tasksPerNode: this.state.jobInfo.tasksPerNode,
             maxTime: maxTime,
-        })]
-        new File(contents, `${this.state.appName}-${this.state.appVersion}-params.json`);
+        })], { type: "application/json"});
+        //new File(contents, `${this.state.appName}-${this.state.appVersion}-params.json`);
+        
         // TODO: download
     }
 
