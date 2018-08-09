@@ -94,7 +94,8 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         }
         // FIXME END
 
-        const contents = new Blob([JSON.stringify({
+        const element = document.createElement('a');
+        element.setAttribute("href", 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify({
             application: {
                 name: this.state.appName,
                 version: this.state.appVersion,
@@ -103,10 +104,13 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             numberOfNodes: this.state.jobInfo.numberOfNodes,
             tasksPerNode: this.state.jobInfo.tasksPerNode,
             maxTime: maxTime,
-        })], { type: "application/json"});
-        //new File(contents, `${this.state.appName}-${this.state.appVersion}-params.json`);
-        
-        // TODO: download
+        })));
+
+        element.setAttribute("download", `${this.state.appName}-${this.state.appVersion}-params.json`);
+        element.style.display = "none";
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
     }
 
     onSubmit(event) {
@@ -216,6 +220,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                         tool={this.state.tool}
                         jobSubmitted={this.state.jobSubmitted}
                     />
+                    <Button onClick={() => this.exportParameters} />
                 </Grid.Column>
             </Grid>
         );
@@ -303,7 +308,7 @@ const JobMetaParams = (props) => {
                 disabled
                 onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
             />
-            <Form.Input  
+            <Form.Input
                 label="Tags (Separated by space)"
                 type="text"
                 placeholder="Assign tags to jobs"

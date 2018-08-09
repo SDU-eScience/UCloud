@@ -106,7 +106,6 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
                 />
                 <Card.Meta content={app.description.info.version} />
             </Card.Content>
-
             <Card.Content extra>
                 {description.length > 72 ? `${description.slice(0, 72)}...` : description}
             </Card.Content>

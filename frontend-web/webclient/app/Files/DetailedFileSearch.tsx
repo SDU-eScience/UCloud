@@ -60,8 +60,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         this.setState(() => ({ extensions: remaining }));
     }
 
-
-
     onAddExtension() {
         const { extensionValue, extensions } = this.state;
         const newExtensions = extensionValue.trim().split(" ").filter(it => it);
@@ -95,40 +93,38 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         this.setState(() => ({ annotations: remaining }));
     }
 
+    onSearch = () => {
+
+    }
+
     render() {
         const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations } = this.state;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.includes(s.text as SensitivityLevel));
-        let sensitivityDropdown = null;
-        if (remainingSensitivities.length) {
-            sensitivityDropdown = (
-                <div>
-                    <Dropdown
-                        text="Add sensitivity level"
-                        onChange={(_, { value }) => this.onAddSensitivity(value as SensitivityLevel)}
-                        options={remainingSensitivities}
-                    />
-                </div>
-            );
-        }
+        const sensitivityDropdown = remainingSensitivities.length ? (
+            <div>
+                <Dropdown
+                    text="Add sensitivity level"
+                    onChange={(_, { value }) => this.onAddSensitivity(value as SensitivityLevel)}
+                    options={remainingSensitivities}
+                />
+            </div>
+        ) : null;
         const remainingAnnotations = annotationOptions.filter(a => !annotations.includes(a.text as Annotation));
-        let annotationsDropdown = null;
-        if (remainingAnnotations.length) {
-            annotationsDropdown = (
-                <div>
-                    <Dropdown
-                        text="Add annotation"
-                        onChange={(_, { value }) => this.onAddAnnotation(value as Annotation)}
-                        options={remainingAnnotations}
-                    />
-                </div>
-            );
-        }
+        const annotationsDropdown = remainingAnnotations.length ? (
+            <div>
+                <Dropdown
+                    text="Add annotation"
+                    onChange={(_, { value }) => this.onAddAnnotation(value as Annotation)}
+                    options={remainingAnnotations}
+                />
+            </div>
+        ) : null;
         return (
-            <Grid container columns={16}>
+            <Grid container columns={16} >
                 <Grid.Column width={16}>
                     <Header as="h3" content="Filename" />
                     {filename ? <div className="padding-bottom"><Label content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
-                    <Input fluid placeholder={"Filename must include..."} onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
+                    <Input fluid placeholder="Filename must include..." onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
                     <Header as="h3" content="Created at" />
                     <Form onSubmit={(e) => e.preventDefault()}>
                         <Form.Group widths="equal">
