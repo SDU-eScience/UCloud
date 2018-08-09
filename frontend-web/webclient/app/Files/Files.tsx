@@ -266,7 +266,7 @@ function FilesTableHeader({ sortingIcon, sortFiles, masterCheckbox, sortingColum
         );
     } else {
         column1 = (<Responsive minWidth={768} as={Table.HeaderCell} content="Modified at" />);
-        column2 = (<Responsive minWidth={768} as={Table.HeaderCell} content="Members" />);
+        column2 = (<Responsive minWidth={768} as={Table.HeaderCell} content="Members" />); // FIXME
     }
     return (
         <Table.Header>

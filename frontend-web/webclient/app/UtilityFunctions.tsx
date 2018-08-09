@@ -2,9 +2,8 @@ import swal from "sweetalert2";
 import { RightsMap, SensitivityLevel } from "./DefaultObjects";
 import Cloud from "Authentication/lib";
 import { SemanticICONS } from "semantic-ui-react";
-import { SortBy, SortOrder } from "./Files";
+import { SortBy, SortOrder, File, Acl } from "./Files";
 import { Page, AccessRight } from "./Types";
-import { File, Acl } from "./Files"
 import { Application } from "Applications";
 import { dateToString } from "Utilities/DateUtilities";
 
@@ -17,8 +16,8 @@ export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).t
  * @returns whether or not the path is invalid
  */
 export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
-    const disallowedName = ["..", ".", "/", ""].some((it) => it === path);
-    if (disallowedName) { failureNotification("Folder name cannot be '.', '..' or '/' or empty"); return true; }
+    const disallowedName = ["..", ".", "/"].some((it) => path.includes(it));
+    if (disallowedName || path === "") { failureNotification("Folder name cannot contain '.', '..' or '/' or empty"); return true; }
     const existingName = filePaths.some((it) => it === path);
     if (existingName) { failureNotification("File with that name already exists"); return true; }
     return false;

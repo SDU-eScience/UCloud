@@ -37,8 +37,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         router: PropTypes.object
     }
 
-    updateSearchText = (searchText: string) => this.setState(() => ({ searchText }));
-
     public render() {
         const { open, dispatch } = this.props;
         const { history } = this.context.router;
@@ -89,7 +87,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                             >
                                 <Input
                                     value={searchText}
-                                    onChange={(_, { value }) => this.updateSearchText(value)}
+                                    onChange={(_, { value }) => this.setState(() => ({ searchText }))}
                                     className="header-search"
                                     fluid
                                     icon="search"
