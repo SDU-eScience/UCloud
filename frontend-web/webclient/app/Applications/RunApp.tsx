@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Grid, Header, Form, Input, Button, Rating, Message, Label } from "semantic-ui-react";
+import { Grid, Header, Form, Input, Button, Rating, Message } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
@@ -82,12 +82,31 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         }));
     }
 
+    compareType(type, parameter): boolean {
+        switch (type) {
+            case ParameterTypes.Boolean:
+                return typeof parameter === "boolean";
+            case ParameterTypes.Integer:
+                return typeof parameter === "number" && parameter % 1 === 0;
+            case ParameterTypes.FloatingPoint:
+                return typeof parameter === "number";
+            case ParameterTypes.Text:
+                return typeof parameter === "string";
+            case ParameterTypes.InputDirectory:
+            case ParameterTypes.InputFile:
+                return typeof parameter.destination === "string" && typeof parameter.source === "string";
+            default:
+                return false;
+        }
+    }
+
     extractParameters(parameters, allowedParameterKeys) {
-        let extractedParameters = {}
+        let extractedParameters = {};
         allowedParameterKeys.forEach(par => {
-            if (parameters[par] !== undefined) {
-                // FIXME Type validation
-                extractedParameters[par] = parameters[par];
+            if (parameters[par.name] !== undefined) {
+                if (this.compareType(par.type, parameters[par.name])) {
+                    extractedParameters[par.name] = parameters[par.name];
+                }
             }
         });
         return extractedParameters;
@@ -105,16 +124,31 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                 } else if (application.version !== this.state.appVersion) {
                     infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
                 }
-                const extractedParameters = this.extractParameters(parameters, this.state.parameters.map(it => it.name));
+                const extractedParameters = this.extractParameters(parameters, this.state.parameters.map(it => ({
+                    name: it.name, type: it.type
+                })));
                 this.setState(() => ({
                     parameterValues: { ...this.state.parameterValues, ...extractedParameters },
-                    jobInfo: { numberOfNodes, tasksPerNode, maxTime }
+                    jobInfo: this.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
                 }));
             } catch (e) {
                 console.log(e);
             }
         };
         fileReader.readAsText(file);
+    }
+
+    extractJobInfo(jobInfo) {
+        let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
+        const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
+        if (maxTime !== null && (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null)) {
+            extractedJobInfo.maxTime.hours = maxTime.hours ? maxTime.hours : null;
+            extractedJobInfo.maxTime.minutes = maxTime.minutes ? maxTime.minutes : null;
+            extractedJobInfo.maxTime.seconds = maxTime.seconds ? maxTime.seconds : null;
+        }
+        extractedJobInfo.numberOfNodes = numberOfNodes;
+        extractedJobInfo.tasksPerNode = tasksPerNode;
+        return extractedJobInfo;
     }
 
     exportParameters() {
@@ -159,7 +193,6 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         } else if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
             maxTime = null;
         }
-
         let job = {
             application: {
                 name: this.state.appName,
@@ -368,19 +401,21 @@ const JobMetaParams = (props) => {
 
 const JobSchedulingParams = (props) => {
     // TODO refactor fields, very not DRY compliant
-    const { maxTime } = props.jobInfo;
+    const { maxTime, numberOfNodes, tasksPerNode } = props.jobInfo;
     return (
         <React.Fragment>
             <Form.Group widths="equal">
                 <Form.Input
                     label="Number of nodes"
                     type="number" step="1"
+                    value={numberOfNodes === null || isNaN(numberOfNodes) ? "" : numberOfNodes}
                     placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
                 <Form.Input
                     label="Tasks per node"
                     type="number" step="1"
+                    value={tasksPerNode === null || isNaN(tasksPerNode) ? "" : tasksPerNode}
                     placeholder={`Default value: ${props.tool.defaultTasksPerNode}`}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
                 />

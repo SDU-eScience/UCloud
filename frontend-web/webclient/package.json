@@ -76,7 +76,7 @@
     "jest": "^23.4.2",
     "mini-css-extract-plugin": "^0.4.1",
     "napa": "3.0.0",
-    "node-sass": "^4.9.2",
+    "node-sass": "^4.9.3",
     "phantomjs-prebuilt": "2.1.16",
     "raw-loader": "0.5.1",
     "react-hot-loader": "4.3.4",
