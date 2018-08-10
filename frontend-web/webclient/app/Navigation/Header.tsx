@@ -87,7 +87,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                             >
                                 <Input
                                     value={searchText}
-                                    onChange={(_, { value }) => this.setState(() => ({ searchText }))}
+                                    onChange={(_, { value }) => this.setState(() => ({ searchText: value }))}
                                     className="header-search"
                                     fluid
                                     icon="search"
