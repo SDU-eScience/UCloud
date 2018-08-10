@@ -1,0 +1,40 @@
+---
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: indexing-service-deployment
+  labels:
+    app: indexing-service
+spec:
+  replicas:  3
+  selector:
+    matchLabels:
+      app: indexing-service
+  template:
+    metadata:
+      labels:
+        app: indexing-service
+    spec:
+      containers:
+      - name: indexing-service
+        image: indexing-service:1.0.0
+        volumeMounts:
+          - name: indexing-service-cm-mount
+            mountPath: /etc/indexing-service/conf.json
+            subPath: conf.json
+      volumes:
+        - name: indexing-service-cm-mount
+          configMap:
+            name: indexing-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: indexing-service
+spec:
+  selector:
+    app: indexing-service
+  clusterIP: None
+
+k
