@@ -58,6 +58,8 @@ export default class SDUCloud {
         if (path.indexOf("/") !== 0) path = "/" + path;
         let baseContext = this.context;
         return this.receiveAccessTokenOrRefreshIt().then((token) => {
+            // FIXME. Look into fetch as an alternative 
+            // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
                 req.open(method, baseContext + context + path);

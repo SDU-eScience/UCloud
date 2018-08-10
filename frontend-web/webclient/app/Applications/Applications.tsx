@@ -61,8 +61,8 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 }
 
-interface SingleApplicationProps { app: Application, favoriteApp: (app: Application) => void }
-function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
+interface SingleApplicationProps { app: Application, favoriteApp?: (app: Application) => void }
+export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
     const hashCode = toHashCode(app.description.info.name);
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
     const mClength = MaterialColors[color].length;
@@ -90,9 +90,9 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
             </div>
             <Card.Content>
                 <List horizontal floated="right">
-                    <List.Item>
-                        <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => favoriteApp(app)} />
-                    </List.Item>
+                    {!!favoriteApp ? <List.Item>
+                        <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => !!favoriteApp ? favoriteApp(app) : null} />
+                    </List.Item> : null}
                     <List.Item>
                         <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
                             <Icon color="green" name="play" />

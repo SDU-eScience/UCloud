@@ -18,6 +18,7 @@ import UppyWrapper from "Uppy/UppyWrapper";
 import UserCreation from "Admin/UserCreation";
 import UserSettings from "UserSettings/UserSettings";
 import DetailedFileSearch from "Files/DetailedFileSearch";
+import SimpleSearch from "SimpleSearch/SimpleSearch";
 import * as Share from "Shares";
 import * as Metadata from "Metadata";
 
@@ -47,6 +48,7 @@ const Core = () => (
                 <Route exact path="/metadata/*" component={Metadata.ManagedView} />
                 <Route exact path="/admin/usercreation" component={UserCreation} />
                 <Route exact path="/usersettings/settings" component={UserSettings} />
+                <Route exact path="/simpleSearch/:priority/*" component={SimpleSearch} />
                 <Route component={NotFound} />
             </Switch>
         </Sidebar>

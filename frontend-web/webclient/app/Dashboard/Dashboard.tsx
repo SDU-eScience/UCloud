@@ -91,14 +91,12 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
 };
 
 const ListFileContent = ({ path, type, link, maxPathLength }: { path: string, type: string, link: boolean, maxPathLength: number }) =>
-    <React.Fragment>
-        <List.Content>
-            <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} size={null} link={link} color="grey" />
-            <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
-                {shortenString(getFilenameFromPath(path), maxPathLength)}
-            </Link>
-        </List.Content>
-    </React.Fragment>
+    <List.Content>
+        <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} size={null} link={link} color="grey" />
+        <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
+            {shortenString(getFilenameFromPath(path), maxPathLength)}
+        </Link>
+    </List.Content>
 
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => {
