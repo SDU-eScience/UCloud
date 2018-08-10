@@ -1,22 +1,22 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.auth.AuthConfiguration
-import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.utils.withAuthMock
+import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
+import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import io.mockk.every
 import io.mockk.mockk
@@ -26,9 +26,61 @@ import kotlin.test.assertEquals
 
 class CoreAuthTest{
 
-    private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-        HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
+    private data class TestContext(
+        val ottDao: OneTimeTokenHibernateDAO,
+        val userdao: UserHibernateDAO,
+        val refreshTokenDao: RefreshTokenHibernateDAO,
+        val jwtAlg: JWTAlgorithm,
+        val config: AuthConfiguration,
+        val tokenService: TokenService<HibernateSession>
+    )
+
+    private fun Application.createCoreAuthController(db: HibernateSessionFactory,
+                                                     enablePassword: Boolean,
+                                                     enableWayf: Boolean): TestContext {
+        val ottDao = OneTimeTokenHibernateDAO()
+        val userDao = UserHibernateDAO()
+        val refreshTokenDao = RefreshTokenHibernateDAO()
+        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+        val config = mockk<AuthConfiguration>()
+        val tokenService = TokenService(
+            db,
+            userDao,
+            refreshTokenDao,
+            jwtAlg,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true)
+        )
+        installDefaultFeatures(
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            requireJobId = true
+        )
+
+        install(JWTProtection)
+
+        routing {
+            CoreAuthController(
+                db,
+                ottDao,
+                tokenService,
+                enablePassword,
+                enableWayf
+            ).configure(this)
+        }
+
+        return TestContext(ottDao, userDao, refreshTokenDao, jwtAlg, config, tokenService)
     }
+
+    private val person = PersonUtils.createUserByPassword(
+        "firstname",
+        "lastname",
+        "user",
+        Role.ADMIN,
+        "password"
+    )
 
     @Test
     fun `Login Test - service given, isInvalid True, Wayf false, password true`() {
@@ -36,45 +88,9 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
                         ServiceDAO.insert(Service("_service", "endpointOfService"))
 
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
+                        createCoreAuthController(db, true, false)
                     },
 
                     test = {
@@ -97,45 +113,9 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
                         ServiceDAO.insert(Service("_service", "endpointOfService"))
 
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns false
-                        every { config.enableWayf } returns true
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
+                        createCoreAuthController(db, false, true)
                     },
 
                     test = {
@@ -158,43 +138,7 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
+                        createCoreAuthController(db, true, false)
                     },
 
                     test = {
@@ -217,43 +161,7 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
+                        createCoreAuthController(db, true, false)
                     },
 
                     test = {
@@ -264,8 +172,7 @@ class CoreAuthTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response.status())
-                        val splittedResponse = response.headers.allValues().toString().split('=', ',')
-                        val result = splittedResponse[8].trim('[', ']')
+                        val result = response.headers.values("Location").toString().trim('[', ']')
                         assertEquals("/auth/login", result)                    }
                 )
             }
@@ -278,45 +185,9 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
 
                         ServiceDAO.insert(Service("_service", "endpointOfService"))
-
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
+                        createCoreAuthController(db, true, false)
                     },
 
                     test = {
@@ -327,8 +198,7 @@ class CoreAuthTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response.status())
-                        val splittedResponse = response.headers.allValues().toString().split('=', ',')
-                        val result = splittedResponse[8].trim('[', ']')
+                        val result = response.headers.values("Location").toString().trim('[', ']')
                         assertEquals("/auth/login?invalid&service", result)                    }
                 )
             }
@@ -341,45 +211,9 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
                         ServiceDAO.insert(Service("_service", "endpointOfService"))
 
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
+                        createCoreAuthController(db, true, false)
                     },
 
                     test = {
@@ -402,53 +236,12 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
+                        createCoreAuthController(db, true, false)
 
                         db.withTransaction { session ->
-                            userDao.insert(session, PersonUtils.createUserByPassword(
-                                "firstname",
-                                "lastname",
-                                "user",
-                                Role.ADMIN,
-                                "password"
-                            ))
-                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            UserHibernateDAO().insert(session, person)
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
                         }
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
                     },
 
                     test = {
@@ -471,53 +264,12 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
+                        createCoreAuthController(db, true, false)
 
                         db.withTransaction { session ->
-                            userDao.insert(session, PersonUtils.createUserByPassword(
-                                "firstname",
-                                "lastname",
-                                "user",
-                                Role.ADMIN,
-                                "password"
-                            ))
-                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user"))
+                            UserHibernateDAO().insert(session, person)
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user"))
                         }
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
                     },
 
                     test = {
@@ -540,53 +292,12 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
+                        createCoreAuthController(db, true, false)
 
                         db.withTransaction { session ->
-                            userDao.insert(session, PersonUtils.createUserByPassword(
-                                "firstname",
-                                "lastname",
-                                "user",
-                                Role.ADMIN,
-                                "password"
-                            ))
-                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            UserHibernateDAO().insert(session, person)
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
                         }
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
                     },
 
                     test = {
@@ -609,53 +320,12 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
+                        createCoreAuthController(db, true, false)
 
                         db.withTransaction { session ->
-                            userDao.insert(session, PersonUtils.createUserByPassword(
-                                "firstname",
-                                "lastname",
-                                "user",
-                                Role.ADMIN,
-                                "password"
-                            ))
-                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            UserHibernateDAO().insert(session, person)
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
                         }
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
                     },
 
                     test = {
@@ -678,53 +348,12 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
+                        createCoreAuthController(db, true, false)
 
                         db.withTransaction { session ->
-                            userDao.insert(session, PersonUtils.createUserByPassword(
-                                "firstname",
-                                "lastname",
-                                "user",
-                                Role.ADMIN,
-                                "password"
-                            ))
-                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            UserHibernateDAO().insert(session, person)
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
                         }
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
                     },
 
                     test = {
@@ -747,23 +376,10 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
+                        createCoreAuthController(db, true, false)
 
                         db.withTransaction { session ->
-                            userDao.insert(
+                            UserHibernateDAO().insert(
                                 session, PersonUtils.createUserByPassword(
                                     "firstname",
                                     "lastname",
@@ -772,30 +388,8 @@ class CoreAuthTest{
                                     "password"
                                 )
                             )
-                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/USER"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/USER"))
                         }
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
                     },
 
                     test = {
@@ -818,53 +412,12 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
+                        createCoreAuthController(db, true, false)
 
                         db.withTransaction { session ->
-                            userDao.insert(session, PersonUtils.createUserByPassword(
-                                "firstname",
-                                "lastname",
-                                "user",
-                                Role.ADMIN,
-                                "password"
-                            ))
-                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            UserHibernateDAO().insert(session, person)
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
                         }
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
                     },
 
                     test = {
@@ -895,53 +448,12 @@ class CoreAuthTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val ottDao = OneTimeTokenHibernateDAO()
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                        val config = mockk<AuthConfiguration>()
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
+                        createCoreAuthController(db, true, false)
 
                         db.withTransaction { session ->
-                            userDao.insert(session, PersonUtils.createUserByPassword(
-                                "firstname",
-                                "lastname",
-                                "user",
-                                Role.ADMIN,
-                                "password"
-                            ))
-                            refreshTokenDao.insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            UserHibernateDAO().insert(session, person)
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
                         }
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        every { config.enablePasswords } returns true
-                        every { config.enableWayf } returns false
-
-                        routing {
-                            CoreAuthController(
-                                db,
-                                ottDao,
-                                tokenService,
-                                config.enablePasswords,
-                                config.enableWayf
-                            ).configure(this)
-                        }
-
                     },
 
                     test = {

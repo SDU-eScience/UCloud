@@ -1,9 +1,13 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import io.mockk.every
 import io.mockk.spyk
+import org.h2.engine.Session
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -11,17 +15,14 @@ import kotlin.test.assertTrue
 
 class OneTimeTokenDaoTest{
 
-    private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-        HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
-    }
-
     @Test
     fun `claim test`() {
         withDatabase { db ->
-            val ott = OneTimeTokenHibernateDAO()
-            val session = db.openSession()
-            val returnValue = ott.claim(session, "jti", "claimedByMe")
-            assertTrue(returnValue)
+            db.withTransaction {
+                val ott = OneTimeTokenHibernateDAO()
+                val returnValue = ott.claim(it, "jti", "claimedByMe")
+                assertTrue(returnValue)
+            }
         }
     }
 

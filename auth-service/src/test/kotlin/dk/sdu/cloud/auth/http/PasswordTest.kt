@@ -4,10 +4,12 @@ import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.utils.withAuthMock
+import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -24,12 +26,59 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-    HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
-}
-
 
 class PasswordTest{
+
+    private data class TestContext(
+        val userDao: UserHibernateDAO,
+        val refreshTokenDao: RefreshTokenHibernateDAO,
+        val jwtAlg: JWTAlgorithm,
+        val tokenService: TokenService<HibernateSession>
+    )
+
+    private fun Application.createPasswordController(db: HibernateSessionFactory): TestContext {
+        val userDao = UserHibernateDAO()
+        val refreshTokenDao = RefreshTokenHibernateDAO()
+        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+
+        val tokenService = TokenService(
+            db,
+            userDao,
+            refreshTokenDao,
+            jwtAlg,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true)
+        )
+
+        installDefaultFeatures(
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            requireJobId = true
+        )
+
+        install(JWTProtection)
+
+        routing {
+            PasswordController(
+                db,
+                userDao,
+                tokenService
+            ).configure(this)
+        }
+
+        return TestContext(userDao, refreshTokenDao, jwtAlg, tokenService)
+
+    }
+
+    private val person = PersonUtils.createUserByPassword(
+        "Firstname",
+        "lastname",
+        "user1",
+        Role.ADMIN,
+        "pass1234"
+    )
 
     @Test
     fun `Login test`() {
@@ -37,45 +86,10 @@ class PasswordTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
-                       installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        routing {
-                            PasswordController(
-                                db,
-                                userDao,
-                                tokenService
-                            ).configure(this)
-                        }
+                        createPasswordController(db)
 
                         db.withTransaction {
-                            userDao.insert(it, PersonUtils.createUserByPassword(
-                                "Firstname",
-                                "lastname",
-                                "user1",
-                                Role.ADMIN,
-                                "pass1234"
-                            ))
+                            UserHibernateDAO().insert(it, person)
                         }
                     },
 
@@ -91,7 +105,14 @@ class PasswordTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response.status())
-                        assertTrue(response.headers.allValues().toString().contains("accessToken="))
+                        println(response.headers.allValues())
+                        assertTrue(response.headers.values("Location").toString()
+                            .contains("/auth/login-redirect?service=_service"))
+                        assertTrue(response.headers.values("Location").toString()
+                            .contains("accessToken="))
+                        assertTrue(response.headers.values("Location").toString()
+                            .contains("refreshToken="))
+
                     }
                 )
             }
@@ -104,45 +125,10 @@ class PasswordTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        routing {
-                            PasswordController(
-                                db,
-                                userDao,
-                                tokenService
-                            ).configure(this)
-                        }
+                        createPasswordController(db)
 
                         db.withTransaction {
-                            userDao.insert(it, PersonUtils.createUserByPassword(
-                                "Firstname",
-                                "lastname",
-                                "user1",
-                                Role.ADMIN,
-                                "pass1234"
-                            ))
+                            UserHibernateDAO().insert(it, person)
                         }
                     },
 
@@ -158,9 +144,8 @@ class PasswordTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response.status())
-                        val splittedResponse = response.headers.allValues().toString().split('=', ',')
-                        val result = splittedResponse[6].trim('[', ']')
-                        assertEquals("/auth/login?service", result)
+                        val result = response.headers.values("Location").toString().trim('[', ']')
+                        assertEquals("/auth/login?service=_service&invalid", result)
                     }
                 )
             }
@@ -173,37 +158,7 @@ class PasswordTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        routing {
-                            PasswordController(
-                                db,
-                                userDao,
-                                tokenService
-                            ).configure(this)
-                        }
-
+                        createPasswordController(db)
                     },
 
                     test = {
@@ -218,9 +173,8 @@ class PasswordTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response.status())
-                        val splittedResponse = response.headers.allValues().toString().split('=', ',')
-                        val result = splittedResponse[6].trim('[', ']')
-                        assertEquals("/auth/login?service", result)
+                        val result = response.headers.values("Location").toString().trim('[', ']')
+                        assertEquals("/auth/login?service=_service&invalid", result)
                     }
                 )
             }
@@ -233,37 +187,7 @@ class PasswordTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        routing {
-                            PasswordController(
-                                db,
-                                userDao,
-                                tokenService
-                            ).configure(this)
-                        }
-
+                        createPasswordController(db)
                     },
 
                     test = {
@@ -278,8 +202,7 @@ class PasswordTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response.status())
-                        val splittedResponse = response.headers.allValues().toString().split('=', ',')
-                        val result = splittedResponse[6].trim('[', ']')
+                        val result = response.headers.values("Location").toString().trim('[', ']')
                         assertEquals("/auth/login?invalid", result)
                     }
                 )
@@ -293,41 +216,10 @@ class PasswordTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        routing {
-                            PasswordController(
-                                db,
-                                userDao,
-                                tokenService
-                            ).configure(this)
-                        }
-
+                        createPasswordController(db)
                     },
 
                     test = {
-
                         val response =
                             handleRequest(HttpMethod.Post, "/auth/login?")
                             {
@@ -338,9 +230,8 @@ class PasswordTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response.status())
-                        val splittedResponse = response.headers.allValues().toString().split('=', ',')
-                        val result = splittedResponse[6].trim('[', ']')
-                        assertEquals("/auth/login?service", result)
+                        val result = response.headers.values("Location").toString().trim('[', ']')
+                        assertEquals("/auth/login?service=_service&invalid", result)
 
                         val response2 =
                             handleRequest(HttpMethod.Post, "/auth/login?")
@@ -352,9 +243,8 @@ class PasswordTest{
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response2.status())
-                        val splittedResponse2 = response2.headers.allValues().toString().split('=', ',')
-                        val result2 = splittedResponse2[6].trim('[', ']')
-                        assertEquals("/auth/login?service", result2)
+                        val result2 = response2.headers.values("Location").toString().trim('[', ']')
+                        assertEquals("/auth/login?service=_service&invalid", result2)
                     }
                 )
             }
@@ -367,37 +257,7 @@ class PasswordTest{
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
-                        val userDao = UserHibernateDAO()
-                        val refreshTokenDao = RefreshTokenHibernateDAO()
-                        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-
-                        val tokenService = TokenService(
-                            db,
-                            userDao,
-                            refreshTokenDao,
-                            jwtAlg,
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true)
-                        )
-
-                        installDefaultFeatures(
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            mockk(relaxed = true),
-                            requireJobId = true
-                        )
-
-                        install(JWTProtection)
-
-                        routing {
-                            PasswordController(
-                                db,
-                                userDao,
-                                tokenService
-                            ).configure(this)
-                        }
-
+                        createPasswordController(db)
                     },
 
                     test = {
@@ -407,8 +267,7 @@ class PasswordTest{
                                 setUser(role = Role.ADMIN)
                             }.response
                         assertNull(response.content)
-                        val splittedResponse = response.headers.allValues().toString().split('=', ',')
-                        val result = splittedResponse[6].trim('[', ']')
+                        val result = response.headers.values("Location").toString().trim('[', ']')
                         assertEquals("/auth/login?invalid", result)
 
                     }

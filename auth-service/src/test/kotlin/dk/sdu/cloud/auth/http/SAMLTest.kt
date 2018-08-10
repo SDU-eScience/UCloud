@@ -4,15 +4,13 @@ import com.onelogin.saml2.model.Organization
 import com.onelogin.saml2.settings.Saml2Settings
 import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.utils.withAuthMock
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
 import io.ktor.application.install
@@ -26,7 +24,6 @@ import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import io.mockk.*
 import org.junit.Test
-import org.mockito.ArgumentMatchers.any
 import java.net.URL
 import java.util.*
 import kotlin.collections.HashMap
@@ -34,9 +31,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SAMLTest {
-    private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-        HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
-    }
 
     private data class TestContext(
         val userDao: UserHibernateDAO,

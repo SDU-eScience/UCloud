@@ -7,7 +7,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ServiceDAOTest {
-    private val service = Service("nameOfMyService", "endpoint")
+    private val servicename = "nameOfMyService"
+    private val endpoint = "endpoint"
+    private val service = Service(servicename, endpoint)
 
     @Test
     fun `insert and find (duplicates and non find case also) test`() {
@@ -16,9 +18,9 @@ class ServiceDAOTest {
         //Cannot insert a service with the same name twice
         assertFalse(serviceDAO.insert(service))
 
-        val resultService = serviceDAO.findByName("nameOfMyService")
-        assertEquals("nameOfMyService", resultService?.name)
-        assertEquals("endpoint", resultService?.endpoint)
+        val resultService = serviceDAO.findByName(servicename)
+        assertEquals(servicename, resultService?.name)
+        assertEquals(endpoint, resultService?.endpoint)
 
         assertNull(serviceDAO.findByName("notHere"))
     }
