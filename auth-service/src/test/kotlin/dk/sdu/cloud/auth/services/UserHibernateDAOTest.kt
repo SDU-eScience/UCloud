@@ -1,10 +1,9 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.auth.api.PublicPerson
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
-import dk.sdu.cloud.auth.services.saml.Auth
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -14,7 +13,6 @@ import org.hibernate.NonUniqueObjectException
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -120,7 +118,7 @@ class UserHibernateDAOTest{
     fun `insert WAYF`() {
         withDatabase { db ->
 
-            val auth = mockk<Auth>()
+            val auth = mockk<SamlRequestProcessor>()
 
             db.withTransaction { session ->
 

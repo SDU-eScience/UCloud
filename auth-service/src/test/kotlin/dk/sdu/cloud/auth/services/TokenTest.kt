@@ -1,15 +1,11 @@
 package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
-import dk.sdu.cloud.auth.api.RequestAndRefreshToken
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
-import dk.sdu.cloud.auth.services.saml.Auth
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.utils.withAuthMock
-import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.mockk.every
@@ -78,7 +74,7 @@ class TokenTest{
                     mockk(relaxed = true),
                     mockk(relaxed = true)
                 )
-                val auth = mockk<Auth>()
+                val auth = mockk<SamlRequestProcessor>()
                 every { auth.authenticated } returns true
                 every { auth.attributes } answers {
                     val h = HashMap<String, List<String>>(10)
@@ -113,7 +109,7 @@ class TokenTest{
                 mockk(relaxed = true),
                 mockk(relaxed = true)
             )
-            val auth = mockk<Auth>()
+            val auth = mockk<SamlRequestProcessor>()
             every { auth.authenticated } returns true
             every { auth.attributes} returns HashMap(1)
             assertNull(tokenService.processSAMLAuthentication(auth))
@@ -136,7 +132,7 @@ class TokenTest{
                 mockk(relaxed = true),
                 mockk(relaxed = true)
             )
-            val auth = mockk<Auth>()
+            val auth = mockk<SamlRequestProcessor>()
             every { auth.authenticated } returns false
             assertNull(tokenService.processSAMLAuthentication(auth))
 

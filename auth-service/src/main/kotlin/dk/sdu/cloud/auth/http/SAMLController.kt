@@ -2,15 +2,16 @@ package dk.sdu.cloud.auth.http
 
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.saml.Auth
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.util.urlDecoded
 import dk.sdu.cloud.auth.util.urlEncoded
-import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.logEntry
+import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.Parameters
 import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
@@ -25,8 +26,11 @@ import org.slf4j.LoggerFactory
 
 private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
 
+typealias SAMLRequestProcessorFactory = (Saml2Settings, ApplicationCall, Parameters) -> SamlRequestProcessor
+
 class SAMLController(
     private val authSettings: Saml2Settings,
+    private val samlProcessorFactory: SAMLRequestProcessorFactory,
     private val tokenService: TokenService<*>
 ) {
     fun configure(routing: Routing): Unit = with(routing) {
@@ -50,7 +54,7 @@ class SAMLController(
 
                     log.debug("Using relayState=$relayState")
 
-                    val auth = Auth(authSettings, call)
+                    val auth = SamlRequestProcessor(authSettings, call)
                     val samlRequestTarget = auth.login(
                         setNameIdPolicy = true,
                         returnTo = relayState,
@@ -82,7 +86,7 @@ class SAMLController(
                         call.respondRedirect("/auth/login")
                     }
 
-                    val auth = Auth(authSettings, call, params)
+                    val auth = samlProcessorFactory(authSettings, call, params)
                     auth.processResponse()
 
                     val user = tokenService.processSAMLAuthentication(auth)

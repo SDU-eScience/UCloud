@@ -4,10 +4,7 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
-import dk.sdu.cloud.auth.services.saml.Auth
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.RPCException
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import java.security.NoSuchAlgorithmException
 import java.security.SecureRandom
 import java.security.spec.InvalidKeySpecException
@@ -42,7 +39,7 @@ internal object PersonUtils {
         )
     }
 
-    fun createUserByWAYF(authenticatedUser: Auth): Person.ByWAYF {
+    fun createUserByWAYF(authenticatedUser: SamlRequestProcessor): Person.ByWAYF {
         if (!authenticatedUser.authenticated) throw IllegalStateException("User is not authenticated")
         val id = authenticatedUser.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
                 ?: throw IllegalArgumentException("Missing EduPersonTargetedId")

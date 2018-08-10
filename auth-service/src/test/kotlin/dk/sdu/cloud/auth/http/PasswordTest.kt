@@ -160,7 +160,8 @@ class PasswordTest{
                         assertEquals(HttpStatusCode.Found, response.status())
                         val splittedResponse = response.headers.allValues().toString().split('=', ',')
                         val result = splittedResponse[6].trim('[', ']')
-                        assertEquals("/auth/login?service", result)                    }
+                        assertEquals("/auth/login?service", result)
+                    }
                 )
             }
         }

@@ -11,6 +11,7 @@ import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.processors.OneTimeTokenProcessor
 import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
 import dk.sdu.cloud.auth.services.*
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
@@ -82,7 +83,13 @@ class AuthServer(
                 config.enablePasswords,
                 config.enableWayf
             )
-            val samlController = SAMLController(authSettings, tokenService)
+
+            val samlController = SAMLController(
+                authSettings,
+                { settings, call, params -> SamlRequestProcessor(settings, call, params) },
+                tokenService
+            )
+
             val passwordController = PasswordController(db, userDao, tokenService)
             log.info("HTTP controllers configured!")
 
