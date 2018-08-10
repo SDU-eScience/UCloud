@@ -36,10 +36,6 @@ test("Empty string", () => {
     expect(toLowerCaseAndCapitalize("")).toBe("");
 });
 
-test("Null string", () => {
-   expect(toLowerCaseAndCapitalize(null)).toBe("");
-});
-
 // FILE SIZE TO STRINGS
 
 test("500 bytes to string", () => {
@@ -68,10 +64,6 @@ test("1500 * 1000**4 bytes to string ", () => {
 
 test("1500 * 1000**5 bytes to string ", () => {
     expect(fileSizeToString(1500 * 1000**5)).toBe("1.50 EB")
-});
-
-test("Null as input", () => {
-    expect(fileSizeToString(null)).toBe("");
 });
 
 // Get filename from path

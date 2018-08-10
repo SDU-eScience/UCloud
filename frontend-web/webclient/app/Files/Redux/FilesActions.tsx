@@ -4,7 +4,7 @@ import {
     UPDATE_FILES,
     SET_FILES_LOADING,
     UPDATE_PATH,
-    SET_FILES_SORTING_COLUMN,
+    SET_FILES_SORTING_COLUMNS,
     FILE_SELECTOR_SHOWN,
     SET_FILE_SELECTOR_LOADING,
     RECEIVE_FILE_SELECTOR_FILES,
@@ -98,10 +98,9 @@ export type SortingColumn = 0 | 1;
  * @param {SortOrder} asc - the order of the sorting. ASCENDING or DESCENDING
  * @param {SortBy} sortBy - what field the row should show
  */
-export const setSortingColumn = (sortBy: SortBy, index: SortingColumn) => ({
-    type: SET_FILES_SORTING_COLUMN,
-    index,
-    sortBy
+export const setSortingColumns = (sortingColumns: [SortBy, SortBy]) => ({
+    type: SET_FILES_SORTING_COLUMNS,
+    sortingColumns
 });
 
 interface FileSelectorShownAction extends Action { state: boolean }

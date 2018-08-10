@@ -9,7 +9,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
-import { getFilenameFromPath, favoriteApplication } from "UtilityFunctions";
+import { getFilenameFromPath, favoriteApplication, infoNotification, failureNotification } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
@@ -82,6 +82,75 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         }));
     }
 
+    compareType(type, parameter): boolean {
+        switch (type) {
+            case ParameterTypes.Boolean:
+                return typeof parameter === "boolean";
+            case ParameterTypes.Integer:
+                return typeof parameter === "number" && parameter % 1 === 0;
+            case ParameterTypes.FloatingPoint:
+                return typeof parameter === "number";
+            case ParameterTypes.Text:
+                return typeof parameter === "string";
+            case ParameterTypes.InputDirectory:
+            case ParameterTypes.InputFile:
+                return typeof parameter.destination === "string" && typeof parameter.source === "string";
+            default:
+                return false;
+        }
+    }
+
+    extractParameters(parameters, allowedParameterKeys) {
+        let extractedParameters = {};
+        allowedParameterKeys.forEach(par => {
+            if (parameters[par.name] !== undefined) {
+                if (this.compareType(par.type, parameters[par.name])) {
+                    extractedParameters[par.name] = parameters[par.name];
+                }
+            }
+        });
+        return extractedParameters;
+    }
+
+    importParameters = (file: File) => {
+        const fileReader = new FileReader();
+        fileReader.onload = () => {
+            const result = fileReader.result as string;
+            try {
+                const { application, parameters, numberOfNodes, tasksPerNode, maxTime } = JSON.parse(result);
+                if (application.name !== this.state.appName) {
+                    failureNotification("Application name does not match");
+                    return;
+                } else if (application.version !== this.state.appVersion) {
+                    infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
+                }
+                const extractedParameters = this.extractParameters(parameters, this.state.parameters.map(it => ({
+                    name: it.name, type: it.type
+                })));
+                this.setState(() => ({
+                    parameterValues: { ...this.state.parameterValues, ...extractedParameters },
+                    jobInfo: this.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
+                }));
+            } catch (e) {
+                console.log(e);
+            }
+        };
+        fileReader.readAsText(file);
+    }
+
+    extractJobInfo(jobInfo) {
+        let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
+        const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
+        if (maxTime !== null && (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null)) {
+            extractedJobInfo.maxTime.hours = maxTime.hours ? maxTime.hours : null;
+            extractedJobInfo.maxTime.minutes = maxTime.minutes ? maxTime.minutes : null;
+            extractedJobInfo.maxTime.seconds = maxTime.seconds ? maxTime.seconds : null;
+        }
+        extractedJobInfo.numberOfNodes = numberOfNodes;
+        extractedJobInfo.tasksPerNode = tasksPerNode;
+        return extractedJobInfo;
+    }
+
     exportParameters() {
         // FIXME: This is repeated in onSubmit
         let { maxTime } = this.state.jobInfo;
@@ -94,13 +163,13 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         }
         // FIXME END
 
-        const element = document.createElement('a');
-        element.setAttribute("href", 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify({
+        const element = document.createElement("a");
+        element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
             application: {
                 name: this.state.appName,
                 version: this.state.appVersion,
             },
-            parameters: Object.assign({}, this.state.parameterValues),
+            parameters: { ...this.state.parameterValues },
             numberOfNodes: this.state.jobInfo.numberOfNodes,
             tasksPerNode: this.state.jobInfo.tasksPerNode,
             maxTime: maxTime,
@@ -124,7 +193,6 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         } else if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
             maxTime = null;
         }
-
         let job = {
             application: {
                 name: this.state.appName,
@@ -185,7 +253,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                 loading: false,
                 tool,
             }));
-        }).catch(err => this.setState(() => ({
+        }).catch(_ => this.setState(() => ({
             loading: false,
             error: `An error occurred fetching ${this.state.appName}`
         })));
@@ -199,6 +267,8 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                     <DefaultLoading loading={this.state.loading} />
                     {error}
                     <ApplicationHeader
+                        importParameters={this.importParameters}
+                        exportParameters={() => this.exportParameters()}
                         appName={this.state.appName}
                         displayName={this.state.displayAppName}
                         version={this.state.appVersion}
@@ -220,14 +290,13 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                         tool={this.state.tool}
                         jobSubmitted={this.state.jobSubmitted}
                     />
-                    <Button onClick={() => this.exportParameters} />
                 </Grid.Column>
             </Grid>
         );
     }
 }
 
-const ApplicationHeader = ({ authors, displayName, appName, favorite, version, favoriteApp }) => {
+const ApplicationHeader = ({ authors, displayName, appName, favorite, version, favoriteApp, exportParameters, importParameters }) => {
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!authors) ? authors.join(", ") : "";
@@ -235,6 +304,11 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
     return (
         <Header as="h1">
             <Header.Content className="float-right">
+                <Button onClick={() => exportParameters()} content="Export parameters" />
+                <Button as="label">
+                    Import parameters
+                    <input className="import-parameters" type="file" onChange={(e) => importParameters(e.target.files[0])} />
+                </Button>
                 <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
             </Header.Content>
             <Header.Content>
@@ -327,19 +401,21 @@ const JobMetaParams = (props) => {
 
 const JobSchedulingParams = (props) => {
     // TODO refactor fields, very not DRY compliant
-    const { maxTime } = props.jobInfo;
+    const { maxTime, numberOfNodes, tasksPerNode } = props.jobInfo;
     return (
         <React.Fragment>
             <Form.Group widths="equal">
                 <Form.Input
                     label="Number of nodes"
                     type="number" step="1"
+                    value={numberOfNodes === null || isNaN(numberOfNodes) ? "" : numberOfNodes}
                     placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
                 <Form.Input
                     label="Tasks per node"
                     type="number" step="1"
+                    value={tasksPerNode === null || isNaN(tasksPerNode) ? "" : tasksPerNode}
                     placeholder={`Default value: ${props.tool.defaultTasksPerNode}`}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
                 />

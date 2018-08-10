@@ -3,7 +3,7 @@ export const UPDATE_FILES = "UPDATE_FILES";
 export const SET_FILES_LOADING = "SET_FILES_LOADING";
 export const UPDATE_PATH = "UPDATE_PATH";
 export const UPDATE_FILES_INFO_PATH = "UPDATE_FILES_INFO_PATH";
-export const SET_FILES_SORTING_COLUMN = "SET_FILES_SORTING_COLUMN";
+export const SET_FILES_SORTING_COLUMNS = "SET_FILES_SORTING_COLUMNS";
 export const FILE_SELECTOR_SHOWN = "FILE_SELECTOR_SHOWN";
 export const RECEIVE_FILE_SELECTOR_FILES = "RECEIVE_FILE_SELECTOR_FILES";
 export const SET_FILE_SELECTOR_LOADING = "SET_FILE_SELECTOR_LOADING";
@@ -59,10 +59,9 @@ const files = (state: any = {}, action) => {
         case FILES_ERROR: {
             return { ...state, error: action.error, loading: false };
         }
-        case SET_FILES_SORTING_COLUMN: {
-            const { sortingColumns } = state;
-            sortingColumns[action.index] = action.sortBy;
-            return { ...state, sortingColumns };
+        case SET_FILES_SORTING_COLUMNS: {
+            action.sortingColumns.forEach((sC, i) => window.localStorage.setItem(`filesSorting${i}`, sC));
+            return { ...state, sortingColumns: action.sortingColumns };
         }
         default: {
             return state;
