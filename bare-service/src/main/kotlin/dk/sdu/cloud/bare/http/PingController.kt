@@ -13,7 +13,7 @@ class PingController : Controller, Loggable {
     override val log = logger()
 
     override fun configure(routing: Route): Unit = with(routing) {
-        protect()
+//        protect()
 
         implement(PingDescriptions.ping) {
             logEntry(log, it)

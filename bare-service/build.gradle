@@ -31,7 +31,7 @@ dokka {
 }
 
 sourceCompatibility = 1.8
-mainClassName = "dk.sdu.cloud.app.MainKt"
+mainClassName = "dk.sdu.cloud.bare.MainKt"
 
 repositories {
     mavenCentral()

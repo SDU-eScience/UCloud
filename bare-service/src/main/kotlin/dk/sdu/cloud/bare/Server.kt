@@ -6,6 +6,7 @@ import dk.sdu.cloud.bare.api.BareServiceDescription
 import dk.sdu.cloud.bare.api.PingStreamDescriptions
 import dk.sdu.cloud.bare.http.PingController
 import dk.sdu.cloud.bare.processor.PingProcessor
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import io.ktor.application.install
 import io.ktor.routing.routing
@@ -14,7 +15,7 @@ import org.apache.kafka.streams.KafkaStreams
 
 class Server(
     override val kafka: KafkaServices,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
+    private val cloud: AuthenticatedCloud,
     private val config: Configuration,
     private val ktor: HttpServerProvider
 ) : CommonServer, Loggable {
@@ -30,7 +31,7 @@ class Server(
         }
 
         httpServer = ktor {
-            installDefaultFeatures(cloud, kafka, instance)
+            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
             install(JWTProtection)
 
             routing {
@@ -41,5 +42,6 @@ class Server(
         }
 
         startServices()
+        log.info("Ready!")
     }
 }
