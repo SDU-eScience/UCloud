@@ -6,6 +6,7 @@ import dk.sdu.cloud.bare.api.PingDescriptions
 import dk.sdu.cloud.bare.api.PingResponse
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.*
+import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 
 class PingController : Controller, Loggable {
@@ -27,9 +28,11 @@ class PingController : Controller, Loggable {
             when (response) {
                 is RESTResponse.Ok -> ok(response.result)
                 else -> {
-                    error(CommonErrorMessage("Call failed! Raw response: ${response.status} - " +
-                            response.rawResponseBody
-                    ))
+                    error(
+                        CommonErrorMessage("Call failed! Raw response: ${response.status} - " +
+                            response.rawResponseBody),
+                        HttpStatusCode.BadGateway
+                    )
                 }
             }
         }

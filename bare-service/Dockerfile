@@ -37,6 +37,7 @@ RUN mkdir /root/.gradle/ && \
     echo "${GRADLE_PROPS}" > /root/.gradle/gradle.properties
 
 RUN set -x && \
+    rm -rf build/ && \
     gradle distTar && \
     (mkdir -p /opt/service || true) && \
     cp build/distributions/*.tar /opt/service.tar && \

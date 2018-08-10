@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: bare-service-deployment
+  labels:
+    app: bare-service
+spec:
+  replicas:  3
+  selector:
+    matchLabels:
+      app: bare-service
+  template:
+    metadata:
+      labels:
+        app: bare-service
+    spec:
+      containers:
+      - name: bare-service
+        image: registry.sdu-cloud.10.135.0.14.xip.io:80/sdu-cloud/bare-service:1.0.1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bare
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: bare-service
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: bare-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.10.135.0.14.xip.io 
+    http:
+      paths:
+      - path: /api/bare
+        backend:
+          serviceName: bare
+          servicePort: 8080

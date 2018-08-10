@@ -32,7 +32,7 @@ class Server(
 
         httpServer = ktor {
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
-            install(JWTProtection)
+//            install(JWTProtection)
 
             routing {
                 configureControllers(
