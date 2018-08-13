@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.1'
+version '1.0.4'
 
 buildscript {
     ext.kotlin_version = '1.2.51'
@@ -71,7 +71,7 @@ dependencies {
     compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
     compile group: 'io.ktor', name: 'ktor-jackson', version: "$ktor_version"
 
-    compile 'dk.sdu.cloud:service-common:0.12.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.14.0-SNAPSHOT'
     compile "dk.sdu.cloud:auth-api:1.1.0-SNAPSHOT"
 
     testCompile group: 'junit', name: 'junit', version: '4.12'

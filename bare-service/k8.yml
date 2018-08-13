@@ -6,7 +6,7 @@ metadata:
   labels:
     app: bare-service
 spec:
-  replicas:  3
+  replicas: 1
   selector:
     matchLabels:
       app: bare-service
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: bare-service
-        image: registry.sdu-cloud.10.135.0.14.xip.io:80/sdu-cloud/bare-service:1.0.1
+        image: registry.sdu-cloud.10.135.0.14.xip.io:80/sdu-cloud/bare-service:1.0.4
 
 ---
 apiVersion: v1

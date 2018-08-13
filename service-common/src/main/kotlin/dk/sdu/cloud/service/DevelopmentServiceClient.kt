@@ -8,48 +8,32 @@ import org.slf4j.LoggerFactory
 import java.net.ConnectException
 
 class DevelopmentServiceClient(
-    private val directServiceClient: DirectServiceClient,
     private val sduCloud: SDUCloud
 ) : CloudContext {
     override fun resolveEndpoint(call: PreparedRESTCall<*, *>): String {
-        return try {
-            val result = directServiceClient.resolveEndpoint(call)
-            log.debug("Using local service for call: $call")
-            result
-        } catch (ex: Exception) {
-            log.debug("Using remote service for call: $call")
-            sduCloud.resolveEndpoint(call)
-        }
+        TODO()
     }
 
     override fun resolveEndpoint(service: ServiceDescription): String {
-        return try {
-            val result = directServiceClient.resolveEndpoint(service)
-            log.debug("Using local service for call: $service")
-            result
-        } catch (ex: Exception) {
-            log.debug("Using remote service for call: $service")
-            sduCloud.resolveEndpoint(service)
-        }
+        TODO()
     }
 
     override fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean {
-        return directServiceClient.tryReconfigurationOnConnectException(call, ex)
+        TODO()
     }
 
-    companion object {
-        private val log = LoggerFactory.getLogger(DevelopmentServiceClient::class.java)
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
 fun defaultServiceClient(
     cliArguments: Array<String>,
-    serviceRegistry: ServiceRegistry,
     cloudEndpoint: String = "https://cloud.sdu.dk"
 ): CloudContext {
     return if (cliArguments.contains("--dev")) {
-        DevelopmentServiceClient(DirectServiceClient(serviceRegistry), SDUCloud(cloudEndpoint))
+        TODO()
     } else {
-        DirectServiceClient(serviceRegistry)
+        DirectServiceClient()
     }
 }

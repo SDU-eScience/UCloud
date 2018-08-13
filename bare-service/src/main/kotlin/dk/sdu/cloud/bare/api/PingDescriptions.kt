@@ -7,6 +7,7 @@ import io.ktor.http.HttpMethod
 
 data class PingRequest(val ping: String)
 data class PingResponse(val pong: String)
+data class EverythingReport(val report: String)
 
 object PingDescriptions : RESTDescriptions(BareServiceDescription) {
     val baseContext = "/api/bare/ping"
@@ -32,5 +33,15 @@ object PingDescriptions : RESTDescriptions(BareServiceDescription) {
         }
 
         body { bindEntireRequestFromBody() }
+    }
+
+    val everything = callDescription<Unit, EverythingReport, CommonErrorMessage> {
+        prettyName = "everything"
+        method = HttpMethod.Get
+
+        path {
+            using(baseContext)
+            +"everything"
+        }
     }
 }

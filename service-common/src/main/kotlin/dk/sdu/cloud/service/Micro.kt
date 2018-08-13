@@ -1,0 +1,102 @@
+package dk.sdu.cloud.service
+
+import dk.sdu.cloud.client.ServiceDescription
+
+class Micro : Loggable {
+    override val log = logger()
+
+    var initialized: Boolean = false
+        private set
+
+    var commandLineArguments: List<String> = emptyList()
+        private set
+
+    lateinit var serviceDescription: ServiceDescription
+        private set
+
+    val attributes = MicroAttributes()
+    private val featureRegistryKey = MicroAttributeKey<MicroAttributes>("feature-registry")
+
+    fun <T : MicroFeature> feature(factory: MicroFeatureFactory<T, *>): T {
+        return attributes[featureRegistryKey][factory.key]
+    }
+
+    fun <T : MicroFeature> featureOrNull(factory: MicroFeatureFactory<T, *>): T? {
+        return attributes[featureRegistryKey].getOrNull(factory.key)
+    }
+
+    fun <Feature : MicroFeature, Config> install(
+        featureFactory: MicroFeatureFactory<Feature, Config>,
+        configuration: Config
+    ) {
+        if (!initialized) throw IllegalStateException("Call init() before installing features")
+
+        val feature = featureFactory.create(configuration)
+        attributes[featureRegistryKey][featureFactory.key] = feature
+
+        feature.init(this, serviceDescription, commandLineArguments)
+    }
+
+    fun init(description: ServiceDescription, cliArgs: Array<String>) {
+        attributes.clear()
+        this.serviceDescription = description
+        commandLineArguments = cliArgs.toList()
+
+        attributes[featureRegistryKey] = MicroAttributes()
+        initialized = true
+    }
+}
+
+class MicroAttributes {
+    private val attributes = HashMap<String, Any>()
+
+    internal fun clear() {
+        attributes.clear()
+    }
+
+    operator fun <T : Any> set(key: MicroAttributeKey<T>, value: T) {
+        attributes[key.name] = value
+    }
+
+    operator fun <T : Any> get(key: MicroAttributeKey<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return attributes[key.name] as? T ?: throw IllegalStateException("Missing attribute for key: ${key.name}")
+    }
+
+    fun <T : Any> getOrNull(key: MicroAttributeKey<T>): T? {
+        @Suppress("UNCHECKED_CAST")
+        return (attributes[key.name] ?: return null) as T
+    }
+}
+
+@Suppress("unused")
+data class MicroAttributeKey<T : Any>(val name: String)
+
+interface MicroFeature {
+    fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>)
+}
+
+interface MicroFeatureFactory<Feature : MicroFeature, Config> {
+    val key: MicroAttributeKey<Feature>
+
+    fun create(config: Config): Feature
+}
+
+inline fun <reified ConfigType : ServerConfiguration> Micro.installDefaultFeatures() {
+    install(ServiceDiscoveryOverrides)
+    install(DevelopmentOverrides)
+    install(ConfigurationFeature, ConfigurationFeatureConfig<ConfigType>())
+    install(KtorServerProviderFeature)
+}
+
+inline fun <reified ConfigType : ServerConfiguration> Micro.initWithDefaultFeatures(
+    description: ServiceDescription,
+    cliArgs: Array<String>
+) {
+    init(description, cliArgs)
+    installDefaultFeatures<ConfigType>()
+}
+
+fun <Feature : MicroFeature> Micro.install(factory: MicroFeatureFactory<Feature, Unit>) {
+    install(factory, Unit)
+}

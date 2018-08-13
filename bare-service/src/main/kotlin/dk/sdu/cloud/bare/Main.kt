@@ -1,15 +1,12 @@
 package dk.sdu.cloud.bare
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.bare.api.BareServiceDescription
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.PreparedRESTCall
 import dk.sdu.cloud.client.ServiceDescription
 import dk.sdu.cloud.service.*
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 
@@ -18,7 +15,8 @@ data class Configuration(
     val refreshToken: String
 ) : ServerConfiguration {
     @get:JsonIgnore
-    override val connConfig get() = connection.processed
+    override val connConfig
+        get() = connection.processed
 
     override fun configure() {
         connection.configure(BareServiceDescription, 8080)
@@ -36,10 +34,12 @@ fun main(args: Array<String>) {
 //    val configuration = readConfigurationBasedOnArgs<Configuration>(args, serviceDescription, log = log)
     val configuration = Configuration(
         RawConnectionConfig(
-            kafka = KafkaConnectionConfig(listOf(
-                KafkaHostConfig("kafka-kafka.kafka.svc.cluster.local"),
-                KafkaHostConfig("localhost")
-            )),
+            kafka = KafkaConnectionConfig(
+                listOf(
+//                KafkaHostConfig("kafka-kafka.kafka.svc.cluster.local")
+                    KafkaHostConfig("localhost")
+                )
+            ),
             service = null,
             database = null
         ),
@@ -47,9 +47,10 @@ fun main(args: Array<String>) {
     ).also { it.configure() }
     val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
 
-//    log.info("Connecting to Service Registry")
-//    val serviceRegistry = ServiceRegistry(serviceDescription.instance(configuration.connConfig))
-//    log.info("Connected to Service Registry")
+    val micro = Micro().apply {
+        init(BareServiceDescription, args)
+        install(KtorServerProviderFeature)
+    }
 
     /*
     log.info("Connecting to database")
@@ -80,10 +81,6 @@ fun main(args: Array<String>) {
         "not-a-real-token"
     )
 
-    val serverProvider: HttpServerProvider = { block ->
-        embeddedServer(Netty, port = configuration.connConfig.service.port, module = block)
-    }
-
     /*
 when {
     args.contains(ARG_GENERATE_DDL) -> {
@@ -102,8 +99,8 @@ when {
 
     else -> {
     */
-            val server = Server(kafka, /*serviceRegistry, */cloud, configuration, serverProvider/*, db*/)
-            server.start()
+    val server = Server(kafka, cloud, configuration, micro.serverProvider)
+    server.start()
 //        }
 //    }
 }

@@ -11,19 +11,14 @@ interface BaseServer {
 }
 
 interface CommonServer : BaseServer, Loggable {
-    val httpServer: ApplicationEngine
+    val httpServer: ApplicationEngine?
     val kafka: KafkaServices
-    val kStreams: KafkaStreams
+    val kStreams: KafkaStreams?
 
     override fun stop() {
-        httpServer.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
-        kStreams.close(30, TimeUnit.SECONDS)
+        httpServer?.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
+        kStreams?.close(30, TimeUnit.SECONDS)
     }
-}
-
-interface WithServiceRegistry {
-    val serviceRegistry: ServiceRegistry
-    val endpoints: List<String>
 }
 
 fun CommonServer.buildStreams(builder: (StreamsBuilder) -> Unit): KafkaStreams {
@@ -41,15 +36,17 @@ fun CommonServer.buildStreams(builder: (StreamsBuilder) -> Unit): KafkaStreams {
 }
 
 fun CommonServer.startServices() {
-    log.info("Starting HTTP server...")
-    httpServer.start(wait = false)
-    log.info("HTTP server started!")
+    val httpServer = httpServer
+    if (httpServer != null) {
+        log.info("Starting HTTP server...")
+        httpServer.start(wait = false)
+        log.info("HTTP server started!")
+    }
 
-    log.info("Starting Kafka Streams...")
-    kStreams.start()
-    log.info("Kafka Streams started!")
-}
-
-fun WithServiceRegistry.registerWithRegistry() {
-    serviceRegistry.register(endpoints)
+    val kStreams = kStreams
+    if (kStreams != null) {
+        log.info("Starting Kafka Streams...")
+        kStreams.start()
+        log.info("Kafka Streams started!")
+    }
 }

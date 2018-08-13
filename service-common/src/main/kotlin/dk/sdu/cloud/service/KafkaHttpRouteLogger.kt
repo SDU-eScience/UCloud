@@ -103,8 +103,7 @@ class KafkaHttpRouteLogger {
         }
     }
 
-    private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) {
-        loadFromParentFeature()
+    private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) { loadFromParentFeature()
         val jobId = call.request.safeJobId
         if (jobId != null) {
             call.attributes.put(requestStartTime, System.currentTimeMillis())
