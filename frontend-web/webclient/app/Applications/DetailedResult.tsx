@@ -14,6 +14,7 @@ import "Styling/Shared.scss";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";
+import { File } from "Files";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -126,8 +127,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             });
     }
 
-    favoriteFile(path: string) {
-        this.setState(() => ({ page: favoriteFileFromPage(this.state.page, path, Cloud) }))
+    favoriteFile(file: File) {
+        this.setState(() => ({ page: favoriteFileFromPage(this.state.page, [file], Cloud) }))
     }
 
     renderProgressPanel = () => (
@@ -266,22 +267,16 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     onRefreshClick={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
                     pageRenderer={(page) =>
                         <FilesTable
+                            fileOperations={[]}
                             files={page.items}
                             refetchFiles={() => null}
-                            handleKeyDown={() => null}
-                            showFileSelector={() => null}
-                            setDisallowedPaths={() => null}
                             editFolderIndex={-1}
                             sortFiles={() => null}
-                            allowCopyAndMove={false}
                             startEditFile={() => null}
-                            projectNavigation={() => null}
                             creatingNewFolder={false}
-                            fetchPageFromPath={() => null}
                             sortingIcon={() => null}
                             onCheckFile={() => null}
-                            setFileSelectorCallback={() => null}
-                            onFavoriteFile={(path) => this.favoriteFile(path)}
+                            onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
                     onItemsPerPageChanged={itemsPerPage => this.retrieveFilesPage(0, itemsPerPage)}

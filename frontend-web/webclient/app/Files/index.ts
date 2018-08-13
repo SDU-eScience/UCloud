@@ -19,6 +19,7 @@ export interface File {
     favorited: boolean
     sensitivityLevel: string
     isChecked?: boolean
+    beingRenamed?: boolean
     link: boolean
     annotations: string[]
 }
@@ -53,7 +54,7 @@ export interface FilesProps extends FilesStateProps, FilesOperations {
 }
 
 export interface MockedTableProps {
-    handleKeyDown: (a, b, c) => void
+    onCreateFolder: (a, c) => void
     creatingFolder: boolean
 }
 
@@ -75,6 +76,7 @@ export interface FilesStateProps { // Redux Props
     fileSelectorError: string
     checkedFilesCount: number
     favFilesCount: number
+    renamingCount: number
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
 }
@@ -125,38 +127,22 @@ export interface FilesTableProps {
     sortingColumns?: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
-    showFileSelector: (open: boolean) => void
-    setFileSelectorCallback: (c: Function) => void
-    setDisallowedPaths: (p: string[]) => void
     sortingIcon: (name: string) => SemanticICONS
     editFolderIndex: number
     sortFiles: (sortBy: SortBy) => void
-    handleKeyDown: (a: number, b: boolean, c: string) => void
+    onRenameFile?: (key: number, file: File, name: string) => void
+    onCreateFolder?: (key: number, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
     refetchFiles: () => void
     startEditFile: (i: number) => void
-    projectNavigation: (p: string) => void
     creatingNewFolder: boolean
-    allowCopyAndMove: boolean
-    onFavoriteFile: (p: string) => void
-    fetchPageFromPath: (p: string) => void
-}
-
-export interface EditOrCreateProjectButtonProps {
-    file: File
-    disabled: boolean
-    projectNavigation: (s: string) => void
+    onFavoriteFile: (f: File[]) => void
+    fileOperations: FileOperations
 }
 
 export interface CreateFolderProps {
     creatingNewFolder: boolean
-    handleKeyDown: (a: number, b: boolean, c: string) => void
-}
-
-export interface PredicatedDropDownItemProps {
-    predicate: boolean
-    content: string
-    onClick: () => void
+    onCreateFolder: (key: number, name: string) => void
 }
 
 export interface FilesTableHeaderProps {
@@ -169,16 +155,16 @@ export interface FilesTableHeaderProps {
 
 export interface FilenameAndIconsProps {
     file: File
-    beingRenamed: boolean
     hasCheckbox: boolean
     size?: SemanticSIZES
-    onKeyDown: (a: number, b: boolean, c: string) => void
+    onRenameFile: (key: number, file: File, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
-    onFavoriteFile: (p: string) => void
+    onFavoriteFile: (files: File[]) => void
 }
 
 export interface FileSelectorModalProps {
-    show, loading: boolean
+    show: boolean
+    loading: boolean
     path: string
     onHide: (event: React.MouseEvent<HTMLButtonElement | HTMLElement>, data: ButtonProps | ModalProps) => void
     page: Page<File>
@@ -221,11 +207,9 @@ export interface MoveCopyOperations {
     fetchPageFromPath: (path: string) => void
 }
 
-export interface FileOptionsProps extends MoveCopyOperations {
+export interface FileOptionsProps {
     files: File[]
-    rename: () => void
-    refetch: () => void
-    projectNavigation: (str: string) => void
+    fileOperations: FileOperations
 }
 
 export interface SortByDropdownProps {
@@ -233,4 +217,21 @@ export interface SortByDropdownProps {
     sortOrder: SortOrder
     onSortOrderChange: (s: SortOrder) => void
     onSelect: (s: SortBy) => void
+}
+
+export interface MobileButtonsProps {
+    file: File
+    rename: (str: string) => void
+    startEditFile: (index: number) => void
+    fileOperations: FileOperations
+}
+
+export type PredicatedOperation = { predicate: (f: File[]) => boolean, onTrue: Operation, onFalse: Operation }
+export type Operation = { text: string, onClick: (f: File[]) => void, disabled: (files: File[]) => boolean, icon: SemanticICONS }
+export type FileOperations = (Operation | PredicatedOperation)[]
+
+export interface ContextButtonsProps {
+    currentPath: string
+    createFolder: () => void
+    refetch: () => void
 }
