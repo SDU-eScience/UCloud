@@ -21,6 +21,6 @@ fun main(args: Array<String>) {
         refreshToken
     )
 
-    val server = Server(micro.kafka, cloud, micro.serverProvider)
+    val server = Server(micro.kafka, cloud, micro.serviceInstance, micro.serverProvider)
     server.start()
 }

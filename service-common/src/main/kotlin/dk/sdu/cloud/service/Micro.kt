@@ -96,6 +96,7 @@ fun Micro.installDefaultFeatures(
     install(KtorServerProviderFeature)
     install(KafkaFeature, kafkaConfig)
     install(CloudContextFeature)
+    install(ServiceInstanceFeature)
 }
 
 fun Micro.initWithDefaultFeatures(

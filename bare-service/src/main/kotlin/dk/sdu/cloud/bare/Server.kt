@@ -13,6 +13,7 @@ import org.apache.kafka.streams.KafkaStreams
 class Server(
     override val kafka: KafkaServices,
     private val cloud: AuthenticatedCloud,
+    private val serviceInstance: ServiceInstance,
     private val ktor: HttpServerProvider
 ) : CommonServer, Loggable {
     override lateinit var httpServer: ApplicationEngine
@@ -28,8 +29,7 @@ class Server(
             installDefaultFeatures(
                 cloud,
                 kafka,
-                // TODO This one
-                ServiceInstance(BareServiceDescription.definition(), "localhost", 8080),
+                serviceInstance,
                 requireJobId = false
             )
 //            install(JWTProtection)
