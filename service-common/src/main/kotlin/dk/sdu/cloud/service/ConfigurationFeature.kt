@@ -74,7 +74,7 @@ class ConfigurationFeature : MicroFeature {
             val arg = argIterator.next()
 
             if (arg == "--config") {
-                val configFile = if (!argIterator.hasNext()) argIterator.next() else null
+                val configFile = if (argIterator.hasNext()) argIterator.next() else null
                 if (configFile == null) {
                     log.info("Dangling --config. Correct syntax is --config <file>")
                 } else {

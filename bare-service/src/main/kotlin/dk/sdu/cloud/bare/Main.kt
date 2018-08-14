@@ -6,6 +6,7 @@ import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.PreparedRESTCall
 import dk.sdu.cloud.client.ServiceDescription
 import dk.sdu.cloud.service.*
+import org.hibernate.Hibernate
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 
@@ -14,6 +15,7 @@ private val log = LoggerFactory.getLogger("dk.sdu.cloud.bare.MainKt")
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(BareServiceDescription, args)
+        install(HibernateFeature)
     }
 
     /*
