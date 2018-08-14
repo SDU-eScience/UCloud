@@ -19,7 +19,7 @@ import {
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification } from "Notifications";
 import { Analysis } from "Applications";
-import { File } from "Files";
+import { File, FileType } from "Files";
 
 class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {
@@ -90,9 +90,9 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         </Card >)
 };
 
-const ListFileContent = ({ path, type, link, maxPathLength }: { path: string, type: string, link: boolean, maxPathLength: number }) =>
+const ListFileContent = ({ path, type, link, maxPathLength }: { path: string, type: FileType, link: boolean, maxPathLength: number }) =>
     <List.Content>
-        <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} size={null} link={link} color="grey" />
+        <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={null} link={link} color="grey" />
         <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
             {shortenString(getFilenameFromPath(path), maxPathLength)}
         </Link>

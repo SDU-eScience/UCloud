@@ -1,9 +1,9 @@
 import swal from "sweetalert2";
-import { RightsMap, SensitivityLevel } from "./DefaultObjects";
+import { RightsMap, SensitivityLevel } from "DefaultObjects";
 import Cloud from "Authentication/lib";
 import { SemanticICONS } from "semantic-ui-react";
-import { SortBy, SortOrder, File, Acl } from "./Files";
-import { Page, AccessRight } from "./Types";
+import { SortBy, SortOrder, File, Acl, FileType } from "Files";
+import { Page, AccessRight } from "Types";
 import { Application } from "Applications";
 import { dateToString } from "Utilities/DateUtilities";
 
@@ -313,7 +313,11 @@ export const createRangeInclusive = (count: number): number[] => {
     return range;
 };
 
-export const iconFromFilePath = (filePath: string): SemanticICONS => {
+export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
+    const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
+    if (homeFolderReplaced === "Home/Jobs/") return "tasks";
+    if (homeFolderReplaced === "Home/Favorites/") return "star";
+    if (type === "DIRECTORY") return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
         return "file outline";
@@ -323,6 +327,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         case "md":
         case "swift":
         case "kt":
+        case "kts":
         case "js":
         case "jsx":
         case "ts":
@@ -376,7 +381,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
             return "file archive outline";
         default:
             if (getFilenameFromPath(filePath).split(".").length > 1)
-                console.warn(`Unhandled extension "${filePath}" for file ${filePath}`);
+                console.warn(`Unhandled extension "${extension}" for file ${filePath}`);
             return "file outline";
     }
 };

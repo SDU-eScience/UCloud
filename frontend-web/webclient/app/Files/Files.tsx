@@ -270,10 +270,10 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect }: SortByDropdow
     return (
         <Dropdown simple text={UF.prettierString(currentSelection)}>
             <Dropdown.Menu>
-                <Dropdown.Item text={UF.prettierString(SortOrder.ASCENDING)} onClick={() => onSelect(SortOrder.ASCENDING, currentSelection) } disabled={sortOrder === SortOrder.ASCENDING} />
-                <Dropdown.Item text={UF.prettierString(SortOrder.DESCENDING)} onClick={() => onSelect(SortOrder.DESCENDING, currentSelection) } disabled={sortOrder === SortOrder.DESCENDING} />
+                <Dropdown.Item text={UF.prettierString(SortOrder.ASCENDING)} onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} disabled={sortOrder === SortOrder.ASCENDING} />
+                <Dropdown.Item text={UF.prettierString(SortOrder.DESCENDING)} onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} disabled={sortOrder === SortOrder.DESCENDING} />
                 <Dropdown.Divider />
-                {Object.keys(SortBy).filter(it => it !== currentSelection).map((sortByKey: SortBy, i: number) => (
+                {Object.keys(SortBy).filter(it => it !== currentSelection).map((sortByKey: SortBy, i) => (
                     <Dropdown.Item key={i} onClick={() => onSelect(sortOrder, sortByKey)} text={UF.prettierString(sortByKey)} />
                 ))}
             </Dropdown.Menu>
@@ -307,7 +307,7 @@ const ContextButtons = ({ currentPath, createFolder, refetch }: ContextButtonsPr
 );
 
 const CreateFolder = ({ creatingNewFolder, onCreateFolder }: CreateFolderProps) => (
-    !creatingNewFolder ? null : (
+    creatingNewFolder ? (
         <Table.Row>
             <Table.Cell>
                 <Input
@@ -323,7 +323,7 @@ const CreateFolder = ({ creatingNewFolder, onCreateFolder }: CreateFolderProps) 
             </Table.Cell>
             <Responsive as={Table.Cell} /><Responsive as={Table.Cell} /><Table.Cell />
         </Table.Row>
-    )
+    ) : null
 );
 
 const PredicatedCheckbox = ({ predicate, item, onClick }) =>
@@ -355,7 +355,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null
     const icon = (
         <FileIcon
             color={color}
-            name={UF.isDirectory(file) ? "folder" : UF.iconFromFilePath(file.path)}
+            name={UF.iconFromFilePath(file.path, file.type, Cloud.homeFolder)}
             size={size} link={file.link}
         />
     );

@@ -8,8 +8,9 @@ export enum SortOrder {
     DESCENDING = "DESCENDING"
 }
 
+export type FileType = "FILE" | "DIRECTORY";
 export interface File {
-    type: string
+    type: FileType
     path: string
     createdAt: number
     modifiedAt: number
