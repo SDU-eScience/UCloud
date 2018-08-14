@@ -134,7 +134,7 @@ export interface FilesTableProps {
     refetchFiles: () => void
     creatingNewFolder: boolean
     onFavoriteFile: (f: File[]) => void
-    fileOperations: FileOperations
+    fileOperations: FileOperation[]
 }
 
 export interface CreateFolderProps {
@@ -207,7 +207,7 @@ export interface MoveCopyOperations {
 
 export interface FileOptionsProps {
     files: File[]
-    fileOperations: FileOperations
+    fileOperations: FileOperation[]
 }
 
 export interface SortByDropdownProps {
@@ -218,12 +218,12 @@ export interface SortByDropdownProps {
 
 export interface MobileButtonsProps {
     file: File
-    fileOperations: FileOperations
+    fileOperations: FileOperation[]
 }
 
 export type PredicatedOperation = { predicate: (f: File[]) => boolean, onTrue: Operation, onFalse: Operation }
 export type Operation = { text: string, onClick: (f: File[]) => void, disabled: (files: File[]) => boolean, icon: SemanticICONS, color: SemanticCOLORS }
-export type FileOperations = (Operation | PredicatedOperation)[]
+export type FileOperation = (Operation | PredicatedOperation)
 
 export interface ContextButtonsProps {
     currentPath: string

@@ -17,7 +17,7 @@ import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File, CreateFolderProps,
     FilesTableHeaderProps, FilenameAndIconsProps, FileOptionsProps, FilesTableProps, SortByDropdownProps,
-    MobileButtonsProps, FileOperations, ContextButtonsProps
+    MobileButtonsProps, FileOperation, ContextButtonsProps
 } from ".";
 import { FilesReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
@@ -111,7 +111,7 @@ class Files extends React.Component<FilesProps> {
         };
         const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath };
         const favoriteFile = (files: File[]) => updateFiles(UF.favoriteFileFromPage(page, files, Cloud));
-        const fileOperations: FileOperations = [
+        const fileOperations: FileOperation[] = [
             { text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)), disabled: (files: File[]) => false, icon: "edit", color: null },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
@@ -393,7 +393,7 @@ function FileOptions({ files, fileOperations }: FileOptionsProps) {
     );
 };
 
-const FileOperations = ({ files, fileOperations, As, ...props }) =>
+export const FileOperations = ({ files, fileOperations, As, ...props }) =>
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
         if ("predicate" in fileOp) {

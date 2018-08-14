@@ -1,5 +1,5 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { File, MoveCopyOperations, FileOperations } from "Files";
+import { File, MoveCopyOperations, FileOperation } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import * as UF from "UtilityFunctions";
@@ -73,15 +73,15 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
 /**
  * @returns Share and Download operations for files
  */
-export const StateLessOperations = (): FileOperations => [
+export const StateLessOperations = (): FileOperation[] => [
     { text: "Share", onClick: (files: File[]) => UF.shareFiles(files, Cloud), disabled: (files: File[]) => false, icon: "share alternate", color: null },
-    { text: "Download", onClick: (files: File[]) => UF.downloadFiles(files, Cloud), disabled: (files: File[]) => !UF.downloadAllowed(files), icon: "download", color: null },
+    { text: "Download", onClick: (files: File[]) => UF.downloadFiles(files, Cloud), disabled: (files: File[]) => !UF.downloadAllowed(files), icon: "download", color: null }
 ];
 
 /**
  * @returns Move and Copy operations for files
  */
-export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): FileOperations => [
+export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): FileOperation[] => [
     { text: "Copy", onClick: (files: File[]) => copy(files, fileSelectorOperations), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3, icon: "copy", color: null },
     { text: "Move", onClick: (files: File[]) => move(files, fileSelectorOperations), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3 || files.some(f => UF.isFixedFolder(f.path, Cloud.homeFolder)), icon: "move", color: null }
 ];
@@ -91,14 +91,14 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @param onDeleted To be called on completed deletion of files
  * @returns the Delete operation
  */
-export const DeleteFileOperation = (onDeleted: () => void): FileOperations => [
+export const DeleteFileOperation = (onDeleted: () => void): FileOperation[] => [
     { text: "Delete", onClick: (files: File[]) => UF.batchDeleteFiles(files, Cloud, onDeleted), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3, icon: "trash", color: "red" }
 ];
 
 /**
  * @returns Properties and Project Operations for files.
  */
-export const HistoryFilesOperations = (history: History): FileOperations => [
+export const HistoryFilesOperations = (history: History): FileOperation[] => [
     { text: "Properties", onClick: (files: File[]) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[]) => files.length !== 1, icon: "settings", color: "blue" },
     {
         predicate: (files: File[]) => UF.isProject(files[0]),
