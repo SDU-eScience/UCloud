@@ -134,10 +134,7 @@ class ConfigurationFeature : MicroFeature {
                     mainJsonNode.mergeWith(updateNode.get(fieldName))
                 }
 
-                mainJsonNode != null && mainJsonNode.isArray && updateJsonNode.isArray -> {
-                    mainJsonNode as ArrayNode
-                    updateJsonNode as ArrayNode
-
+                mainJsonNode != null && mainJsonNode is ArrayNode && updateJsonNode is ArrayNode -> {
                     mainJsonNode.addAll(updateJsonNode)
                 }
 
