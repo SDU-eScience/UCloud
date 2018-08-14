@@ -177,7 +177,7 @@ class ConfigurationFeatureTest {
         micro.init(description, arrayOf("--config", fileA.absolutePath, "--config", fileB.absolutePath))
         micro.install(ConfigurationFeature)
 
-        assertEquals(listOf(4, 5, 6), micro.configuration.requestChunkAt("tree", "a"))
+        assertEquals(listOf(1, 2, 3, 4, 5, 6), micro.configuration.requestChunkAt("tree", "a"))
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
@@ -117,18 +118,31 @@ class ConfigurationFeature : MicroFeature {
     private fun JsonNode.mergeWith(updateNode: JsonNode) {
         val mainNode: JsonNode = this
 
-        val fieldNames = updateNode.fieldNames()
-        while (fieldNames.hasNext()) {
+        updateNode.fieldNames().forEach { fieldName ->
+            val mainJsonNode = mainNode.get(fieldName)
+            val updateJsonNode = updateNode.get(fieldName)
 
-            val fieldName = fieldNames.next()
-            val jsonNode = mainNode.get(fieldName)
-            // if field exists and is an embedded object
-            if (jsonNode != null && jsonNode.isObject) {
-                jsonNode.mergeWith(updateNode.get(fieldName))
-            } else {
-                if (mainNode is ObjectNode) {
-                    val value = updateNode.get(fieldName)
-                    mainNode.set(fieldName, value)
+            when {
+                mainNode is ObjectNode &&
+                        mainJsonNode != null &&
+                        mainJsonNode.isObject &&
+                        !updateJsonNode.isObject -> {
+                    mainNode.set(fieldName, updateJsonNode)
+                }
+
+                mainJsonNode != null && mainJsonNode.isObject -> {
+                    mainJsonNode.mergeWith(updateNode.get(fieldName))
+                }
+
+                mainJsonNode != null && mainJsonNode.isArray && updateJsonNode.isArray -> {
+                    mainJsonNode as ArrayNode
+                    updateJsonNode as ArrayNode
+
+                    mainJsonNode.addAll(updateJsonNode)
+                }
+
+                mainNode is ObjectNode -> {
+                    mainNode.set(fieldName, updateJsonNode)
                 }
             }
         }

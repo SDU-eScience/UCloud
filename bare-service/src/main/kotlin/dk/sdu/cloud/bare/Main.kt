@@ -18,25 +18,7 @@ fun main(args: Array<String>) {
         install(HibernateFeature)
     }
 
-    /*
-    log.info("Connecting to database")
-    val jdbcUrl = with(configuration.connConfig.database!!) { postgresJdbcUrl(host, database) }
-    val db = with(configuration.connConfig.database!!) {
-        HibernateSessionFactory.create(
-            HibernateDatabaseConfig(
-                POSTGRES_DRIVER,
-                jdbcUrl,
-                POSTGRES_9_5_DIALECT,
-                username,
-                password,
-                defaultSchema = serviceDescription.name,
-                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.contains(ARG_MIGRATE)
-            )
-        )
-    }
-    log.info("Connected to database")
-    */
-
+    val refreshToken = micro.configuration.requestChunkAtOrNull("refreshToken") ?: "not-a-real-token" // TODO
 //    val cloud = RefreshingJWTAuthenticatedCloud(
 //        K8CloudContext(),
 //        configuration.refreshToken
@@ -44,7 +26,7 @@ fun main(args: Array<String>) {
 
     val cloud = JWTAuthenticatedCloud(
         K8CloudContext(),
-        "not-a-real-token"
+        refreshToken
     )
 
     val server = Server(micro.kafka, cloud, micro.serverProvider)
