@@ -270,9 +270,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             fileOperations={[]}
                             files={page.items}
                             refetchFiles={() => null}
-                            editFolderIndex={-1}
                             sortFiles={() => null}
-                            startEditFile={() => null}
                             creatingNewFolder={false}
                             sortingIcon={() => null}
                             onCheckFile={() => null}

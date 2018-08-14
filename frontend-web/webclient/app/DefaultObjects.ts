@@ -106,7 +106,6 @@ interface ComponentWithPage<T> {
 
 export interface FilesReduxObject extends ComponentWithPage<File> {
     creatingFolder: boolean
-    editFileIndex: number
     sortOrder: SortOrder
     sortBy: SortBy
     path: string
@@ -176,7 +175,6 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
     },
     files: {
         creatingFolder: false,
-        editFileIndex: -1,
         page: emptyPage,
         sortOrder: SortOrder.ASCENDING,
         sortBy: SortBy.PATH,

@@ -1,6 +1,6 @@
 import { Page } from "Types";
 import { History } from "history";
-import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps } from "semantic-ui-react";
+import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS } from "semantic-ui-react";
 import { match } from "react-router-dom";
 
 export enum SortOrder {
@@ -71,7 +71,6 @@ export interface FilesStateProps { // Redux Props
     sortBy: SortBy
     sortOrder: SortOrder
     creatingFolder: boolean
-    editFileIndex: number
     error: string
     fileSelectorError: string
     checkedFilesCount: number
@@ -96,8 +95,6 @@ export interface FilesOperations { // Redux operations
     showFileSelector: (open: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
     setCreatingFolder: (creating: boolean) => void
-    setEditingFileIndex: (index: number) => void
-    resetFolderEditing: () => void
 }
 
 export interface FileSelectorProps {
@@ -123,18 +120,17 @@ export interface FileSelectorState {
 }
 
 export interface FilesTableProps {
-    onDropdownSelect?: (s: SortBy, a: [SortBy, SortBy]) => void
+    sortOrder?: SortOrder
+    onDropdownSelect?: (sO: SortOrder, s: SortBy, a: [SortBy, SortBy]) => void
     sortingColumns?: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
     sortingIcon: (name: string) => SemanticICONS
-    editFolderIndex: number
     sortFiles: (sortBy: SortBy) => void
     onRenameFile?: (key: number, file: File, name: string) => void
     onCreateFolder?: (key: number, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
     refetchFiles: () => void
-    startEditFile: (i: number) => void
     creatingNewFolder: boolean
     onFavoriteFile: (f: File[]) => void
     fileOperations: FileOperations
@@ -148,9 +144,10 @@ export interface CreateFolderProps {
 export interface FilesTableHeaderProps {
     sortingIcon?: (s: SortBy) => SemanticICONS
     sortFiles?: (s: SortBy) => void
+    sortOrder: SortOrder
     masterCheckbox?: React.ReactNode
     sortingColumns?: [SortBy, SortBy]
-    onDropdownSelect?: (a: SortBy, s: [SortBy, SortBy]) => void
+    onDropdownSelect?: (sO: SortOrder, s: SortBy, a: [SortBy, SortBy]) => void
 }
 
 export interface FilenameAndIconsProps {
@@ -215,19 +212,16 @@ export interface FileOptionsProps {
 export interface SortByDropdownProps {
     currentSelection: SortBy
     sortOrder: SortOrder
-    onSortOrderChange: (s: SortOrder) => void
-    onSelect: (s: SortBy) => void
+    onSelect: (sortorder: SortOrder, s: SortBy) => void
 }
 
 export interface MobileButtonsProps {
     file: File
-    rename: (str: string) => void
-    startEditFile: (index: number) => void
     fileOperations: FileOperations
 }
 
 export type PredicatedOperation = { predicate: (f: File[]) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (f: File[]) => void, disabled: (files: File[]) => boolean, icon: SemanticICONS }
+export type Operation = { text: string, onClick: (f: File[]) => void, disabled: (files: File[]) => boolean, icon: SemanticICONS, color: SemanticCOLORS }
 export type FileOperations = (Operation | PredicatedOperation)[]
 
 export interface ContextButtonsProps {

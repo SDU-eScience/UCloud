@@ -74,16 +74,16 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
  * @returns Share and Download operations for files
  */
 export const StateLessOperations = (): FileOperations => [
-    { text: "Share", onClick: (files: File[]) => UF.shareFiles(files, Cloud), disabled: (files: File[]) => false, icon: "share alternate" },
-    { text: "Download", onClick: (files: File[]) => UF.downloadFiles(files, Cloud), disabled: (files: File[]) => !UF.downloadAllowed(files), icon: "download" },
+    { text: "Share", onClick: (files: File[]) => UF.shareFiles(files, Cloud), disabled: (files: File[]) => false, icon: "share alternate", color: null },
+    { text: "Download", onClick: (files: File[]) => UF.downloadFiles(files, Cloud), disabled: (files: File[]) => !UF.downloadAllowed(files), icon: "download", color: null },
 ];
 
 /**
  * @returns Move and Copy operations for files
  */
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): FileOperations => [
-    { text: "Copy", onClick: (files: File[]) => copy(files, fileSelectorOperations), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3, icon: "copy" },
-    { text: "Move", onClick: (files: File[]) => move(files, fileSelectorOperations), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3 || files.some(f => UF.isFixedFolder(f.path, Cloud.homeFolder)), icon: "move" }
+    { text: "Copy", onClick: (files: File[]) => copy(files, fileSelectorOperations), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3, icon: "copy", color: null },
+    { text: "Move", onClick: (files: File[]) => move(files, fileSelectorOperations), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3 || files.some(f => UF.isFixedFolder(f.path, Cloud.homeFolder)), icon: "move", color: null }
 ];
 
 /**
@@ -92,18 +92,18 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @returns the Delete operation
  */
 export const DeleteFileOperation = (onDeleted: () => void): FileOperations => [
-    { text: "Delete", onClick: (files: File[]) => UF.batchDeleteFiles(files, Cloud, onDeleted), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3, icon: "trash" }
+    { text: "Delete", onClick: (files: File[]) => UF.batchDeleteFiles(files, Cloud, onDeleted), disabled: (files: File[]) => UF.getCurrentRights(files, Cloud).rightsLevel < 3, icon: "trash", color: "red" }
 ];
 
 /**
  * @returns Properties and Project Operations for files.
  */
 export const HistoryFilesOperations = (history: History): FileOperations => [
-    { text: "Properties", onClick: (files: File[]) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[]) => files.length !== 1, icon: "settings" },
+    { text: "Properties", onClick: (files: File[]) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[]) => files.length !== 1, icon: "settings", color: "blue" },
     {
         predicate: (files: File[]) => UF.isProject(files[0]),
-        onTrue: { text: "Edit Project", onClick: (files: File[]) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[]) => files.length !== 1 && !UF.canBeProject(files, Cloud.homeFolder), icon: "group" },
-        onFalse: { text: "Create Project", onClick: (files: File[]) => UF.createProject(files[0].path, Cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[]) => files.length !== 1 && !UF.canBeProject(files, Cloud.homeFolder), icon: "group" },
+        onTrue: { text: "Edit Project", onClick: (files: File[]) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[]) => files.length !== 1 && !UF.canBeProject(files, Cloud.homeFolder), icon: "group", color: "blue" },
+        onFalse: { text: "Create Project", onClick: (files: File[]) => UF.createProject(files[0].path, Cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[]) => files.length !== 1 && !UF.canBeProject(files, Cloud.homeFolder), icon: "group", color: "blue" },
     }
 ];
 
