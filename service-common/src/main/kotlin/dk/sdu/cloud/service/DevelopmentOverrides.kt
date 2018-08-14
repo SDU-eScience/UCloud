@@ -3,18 +3,11 @@ package dk.sdu.cloud.service
 import dk.sdu.cloud.client.ServiceDescription
 
 class DevelopmentOverrides : MicroFeature {
-    private lateinit var ctx: Micro
-
-    var enabled: Boolean = false
-        private set
-
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        this.ctx = ctx
-
         ctx.requireFeature(ConfigurationFeature)
-        enabled = cliArgs.contains("--dev")
+        ctx.developmentModeEnabled = cliArgs.contains("--dev")
 
-        if (enabled) {
+        if (ctx.developmentModeEnabled) {
             val serviceDiscovery =
                 ctx.configuration.requestChunkAtOrNull<Map<String, String>>("development", "serviceDiscovery")
 
@@ -43,5 +36,16 @@ class DevelopmentOverrides : MicroFeature {
         override val log = logger()
 
         override fun create(config: Unit): DevelopmentOverrides = DevelopmentOverrides()
+
+        internal val ENABLED_KEY = MicroAttributeKey<Boolean>("development-mode")
     }
 }
+
+var Micro.developmentModeEnabled: Boolean
+    get() {
+        return attributes.getOrNull(DevelopmentOverrides.ENABLED_KEY) ?: false
+    }
+
+    internal set(value) {
+        attributes[DevelopmentOverrides.ENABLED_KEY] = value
+    }

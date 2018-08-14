@@ -20,11 +20,11 @@ class DirectServiceClient : CloudContext {
     }
 
     override fun resolveEndpoint(service: ServiceDescription): String {
-        TODO()
+        return "http://${service.name}:8080"
     }
 
     override fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean {
-        TODO()
+        return false
     }
 
     companion object : Loggable {

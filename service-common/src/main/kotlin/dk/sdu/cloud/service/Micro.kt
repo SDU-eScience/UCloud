@@ -1,7 +1,6 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
-import kotlin.reflect.KProperty
 
 class Micro : Loggable {
     override val log = logger()
@@ -96,6 +95,7 @@ fun Micro.installDefaultFeatures(
     install(DevelopmentOverrides)
     install(KtorServerProviderFeature)
     install(KafkaFeature, kafkaConfig)
+    install(CloudContextFeature)
 }
 
 fun Micro.initWithDefaultFeatures(
