@@ -5,38 +5,43 @@ import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Test
+import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class KafkaConsumerTest {
-    private val kafkaService = KafkaUtil.createKafkaServices(
-        object : ServerConfiguration {
-            override val connConfig: ConnectionConfig = ConnectionConfig(
-                kafka = KafkaConnectionConfig(
-                    listOf(KafkaHostConfig("localhost"))
-                ),
+    private val kafkaService = run {
+        val micro = Micro().apply {
+            install(ConfigurationFeature)
+            install(KafkaFeature, KafkaFeatureConfiguration())
 
-                service = ServiceConnectionConfig(
-                    description = object : ServiceDescription {
-                        override val name: String = "kafka-consumer-test"
-                        override val version: String = "1.0.0"
-                    },
-                    hostname = "localhost",
-                    port = -1
-                ),
-
-                database = null
-            )
-
-            override fun configure() {
-                // Do nothing
+            val configFile = Files.createTempFile("config", ".json").toFile().also {
+                //language=json
+                it.writeText(
+                    """
+                    {
+                        "kafka": {
+                          "brokers": { "hostname": "localhost" }
+                        }
+                    }
+                    """.trimIndent()
+                )
             }
-        },
 
-        createAdminClient = true
-    )
+            feature(ConfigurationFeature).injectFile(configuration, configFile)
 
-    private val adminClient = kafkaService.adminClient!!
+            val description = object : ServiceDescription {
+                override val name: String = "kafka-consumer-test"
+                override val version: String = "1.0.0"
+            }
+
+            init(description, emptyArray())
+        }
+
+        micro.kafka
+    }
+
+    private val adminClient = kafkaService.adminClient
 
     private data class Advanced(
         val id: Int,

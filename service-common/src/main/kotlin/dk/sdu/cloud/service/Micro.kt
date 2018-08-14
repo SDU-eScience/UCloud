@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
+import kotlin.reflect.KProperty
 
 class Micro : Loggable {
     override val log = logger()
@@ -25,6 +26,10 @@ class Micro : Loggable {
         return attributes[featureRegistryKey].getOrNull(factory.key)
     }
 
+    fun requireFeature(factory: MicroFeatureFactory<*, *>) {
+        featureOrNull(factory) ?: throw IllegalStateException("$factory is a required feature")
+    }
+
     fun <Feature : MicroFeature, Config> install(
         featureFactory: MicroFeatureFactory<Feature, Config>,
         configuration: Config
@@ -32,6 +37,7 @@ class Micro : Loggable {
         if (!initialized) throw IllegalStateException("Call init() before installing features")
 
         val feature = featureFactory.create(configuration)
+        // Must happen before init to ensure that requireFeature(self) will not fail
         attributes[featureRegistryKey][featureFactory.key] = feature
 
         feature.init(this, serviceDescription, commandLineArguments)
@@ -82,19 +88,22 @@ interface MicroFeatureFactory<Feature : MicroFeature, Config> {
     fun create(config: Config): Feature
 }
 
-inline fun <reified ConfigType : ServerConfiguration> Micro.installDefaultFeatures() {
+fun Micro.installDefaultFeatures(
+    kafkaConfig: KafkaFeatureConfiguration = KafkaFeatureConfiguration()
+) {
     install(ServiceDiscoveryOverrides)
     install(DevelopmentOverrides)
-    install(ConfigurationFeature, ConfigurationFeatureConfig<ConfigType>())
+    install(ConfigurationFeature)
     install(KtorServerProviderFeature)
+    install(KafkaFeature, kafkaConfig)
 }
 
-inline fun <reified ConfigType : ServerConfiguration> Micro.initWithDefaultFeatures(
+fun Micro.initWithDefaultFeatures(
     description: ServiceDescription,
     cliArgs: Array<String>
 ) {
     init(description, cliArgs)
-    installDefaultFeatures<ConfigType>()
+    installDefaultFeatures()
 }
 
 fun <Feature : MicroFeature> Micro.install(factory: MicroFeatureFactory<Feature, Unit>) {

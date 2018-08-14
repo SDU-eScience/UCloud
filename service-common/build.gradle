@@ -58,6 +58,7 @@ dependencies {
 
     // Serialization
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.4.1"
+    compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
 
     // Client dependencies (needed to export definitions to clients)
     compile "dk.sdu.cloud:client-core:0.3.1-SNAPSHOT"

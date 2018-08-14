@@ -1,6 +1,5 @@
 package dk.sdu.cloud.bare
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.bare.api.BareServiceDescription
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
@@ -10,46 +9,11 @@ import dk.sdu.cloud.service.*
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 
-data class Configuration(
-    private val connection: RawConnectionConfig,
-    val refreshToken: String
-) : ServerConfiguration {
-    @get:JsonIgnore
-    override val connConfig
-        get() = connection.processed
-
-    override fun configure() {
-        connection.configure(BareServiceDescription, 8080)
-    }
-
-    override fun toString() = connection.toString()
-}
-
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.bare.MainKt")
-private const val ARG_GENERATE_DDL = "--generate-ddl"
-private const val ARG_MIGRATE = "--migrate"
 
 fun main(args: Array<String>) {
-    val serviceDescription = BareServiceDescription
-//    val configuration = readConfigurationBasedOnArgs<Configuration>(args, serviceDescription, log = log)
-    val configuration = Configuration(
-        RawConnectionConfig(
-            kafka = KafkaConnectionConfig(
-                listOf(
-//                KafkaHostConfig("kafka-kafka.kafka.svc.cluster.local")
-                    KafkaHostConfig("localhost")
-                )
-            ),
-            service = null,
-            database = null
-        ),
-        "not-a-real-token"
-    ).also { it.configure() }
-    val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
-
     val micro = Micro().apply {
-        init(BareServiceDescription, args)
-        install(KtorServerProviderFeature)
+        initWithDefaultFeatures(BareServiceDescription, args)
     }
 
     /*
@@ -81,28 +45,8 @@ fun main(args: Array<String>) {
         "not-a-real-token"
     )
 
-    /*
-when {
-    args.contains(ARG_GENERATE_DDL) -> {
-        println(db.generateDDL())
-        db.close()
-    }
-
-    args.contains(ARG_MIGRATE) -> {
-        val flyway = Flyway()
-        with(configuration.connConfig.database!!) {
-            flyway.setDataSource(jdbcUrl, username, password)
-        }
-        flyway.setSchemas(serviceDescription.name)
-        flyway.migrate()
-    }
-
-    else -> {
-    */
-    val server = Server(kafka, cloud, configuration, micro.serverProvider)
+    val server = Server(micro.kafka, cloud, micro.serverProvider)
     server.start()
-//        }
-//    }
 }
 
 class K8CloudContext : CloudContext {
