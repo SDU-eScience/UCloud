@@ -11,9 +11,9 @@ import { simpleSearch } from "Metadata/api";
 import { SearchItem } from "Metadata/Search";
 import { emptyPage } from "DefaultObjects";
 import { AllFileOperations } from "Utilities/FileUtilities";
-import { FileOperations } from "Files/Files";
+import { SimpleSearchProps, SimpleSearchState } from ".";
 
-class SimpleSearch extends React.Component<any, any> {
+class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -45,7 +45,6 @@ class SimpleSearch extends React.Component<any, any> {
     }
 
     searchApplications = (pageNumber: number, itemsPerPage: number) => {
-        const searchString = this.props.match.params[0];
         const { promises } = this.state;
         this.setState(() => ({ applicationsLoading: true }));
         promises.makeCancelable(Cloud.get(`/hpc/apps?page=${pageNumber}&itemsPerPage=${itemsPerPage}`))
@@ -77,7 +76,7 @@ class SimpleSearch extends React.Component<any, any> {
                 menuItem: "Files", render: () => (
                     <Tab.Pane loading={filesLoading}>
                         <Pagination.List
-                            pageRenderer={(page) => (<SimpleFileList fileOperations={fileOperations} files={page.items} />)}
+                            pageRenderer={(page) => (<SimpleFileList files={page.items} />)}
                             page={files}
                             onItemsPerPageChanged={(itemsPerPage: number) => this.searchFiles(files.pageNumber, itemsPerPage)}
                             onPageChanged={(pageNumber: number) => this.searchFiles(pageNumber, files.itemsPerPage)}
@@ -125,7 +124,7 @@ class SimpleSearch extends React.Component<any, any> {
     }
 };
 
-const SimpleFileList = ({ files, fileOperations }) => (
+const SimpleFileList = ({ files }) => (
     <List size="large" relaxed>
         {files.map((f, i) => (
             <List.Item key={i}>
@@ -135,8 +134,8 @@ const SimpleFileList = ({ files, fileOperations }) => (
                         {uf.getFilenameFromPath(f.path)}
                     </Link>
                 </List.Content>
-                    {/* <FileOperations fileOperations={fileOperations} files={[f]} /> */}
-                <List.Content/>
+                {/* <FileOperations fileOperations={fileOperations} files={[f]} /> */}
+                <List.Content />
             </List.Item>
         ))}
     </List>
