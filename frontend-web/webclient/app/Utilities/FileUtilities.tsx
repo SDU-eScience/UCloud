@@ -107,5 +107,10 @@ export const HistoryFilesOperations = (history: History): FileOperations => [
     }
 ];
 
-// FIXME
-export const AllFileOperations = () => (1);
+export const AllFileOperations = (stateless?: boolean, fileSelectorOps?: MoveCopyOperations, onDeleted?: () => void, history?: History) => {
+    const stateLessOperations = stateless ? StateLessOperations() : [];
+    const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps) : [];
+    const deleteOperation = !!onDeleted ? DeleteFileOperation(onDeleted) : [];
+    const historyOperations = !!history ? HistoryFilesOperations(history) : [];
+    return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...historyOperations];
+};

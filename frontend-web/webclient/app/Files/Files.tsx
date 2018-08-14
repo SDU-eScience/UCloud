@@ -17,11 +17,11 @@ import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File, CreateFolderProps,
     FilesTableHeaderProps, FilenameAndIconsProps, FileOptionsProps, FilesTableProps, SortByDropdownProps,
-    MobileButtonsProps, FileOperations, ContextButtonsProps, PredicatedOperation, Operation
+    MobileButtonsProps, FileOperations, ContextButtonsProps
 } from ".";
 import { FilesReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
-import { startRenamingFiles, FileSelectorOperations, StateLessOperations, HistoryFilesOperations, DeleteFileOperation } from "Utilities/FileUtilities";
+import { startRenamingFiles, AllFileOperations } from "Utilities/FileUtilities";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -114,11 +114,8 @@ class Files extends React.Component<FilesProps> {
         const favoriteFile = (files: File[]) => updateFiles(UF.favoriteFileFromPage(page, files, Cloud));
 
         const fileOperations: FileOperations = [
-            { text: "Favorite", onClick: favoriteFile, disabled: (files: File[]) => false, icon: "star" }, 
-            ...StateLessOperations(),
-            ...FileSelectorOperations(fileSelectorOperations),
-            ...DeleteFileOperation(refetch),
-            ...HistoryFilesOperations(this.props.history),
+            { text: "Favorite", onClick: favoriteFile, disabled: (files: File[]) => false, icon: "star" },
+            ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history),
             { text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)), disabled: (files: File[]) => false, icon: "edit" }
         ];
 
@@ -422,6 +419,7 @@ const FileOperations = ({ files, fileOperations, As, ...props }) =>
                 key={i}
                 disabled={operation.disabled(files)}
                 content={operation.text}
+                icon={operation.icon}
                 onClick={() => operation.onClick(files)}
                 {...props}
             />
