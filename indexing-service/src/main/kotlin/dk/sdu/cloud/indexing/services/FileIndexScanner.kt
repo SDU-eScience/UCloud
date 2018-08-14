@@ -10,14 +10,11 @@ import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
 import dk.sdu.cloud.storage.api.FileDescriptions
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.StorageEvent
-import kotlinx.coroutines.experimental.joinAll
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.experimental.*
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.client.RestHighLevelClient
-import java.util.ArrayList
-import java.util.HashMap
+import java.util.*
 
 /**
  * Scans through the file indexes and together with the storage-service fixes inconsistencies
@@ -52,8 +49,8 @@ class FileIndexScanner(
                 // Send up to 100 roots per request
                 val queueInChunks = queue.chunked(100).also { queue.clear() }
 
-                queueInChunks.map { roots ->
-                    launch {
+                val localJobs = queueInChunks.map { roots ->
+                    async<Unit> {
                         val rootToMaterialized =
                             HashMap<String, List<EventMaterializedStorageFile>>()
                         roots.groupBy { it.depth() }.forEach { (depth, directories) ->
@@ -96,7 +93,9 @@ class FileIndexScanner(
                             queue.addAll(newRoots)
                         }
                     }
-                }.joinAll()
+                }
+
+                localJobs.awaitAll()
             }
         }
     }
