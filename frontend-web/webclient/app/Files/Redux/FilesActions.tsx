@@ -12,7 +12,6 @@ import {
     SET_DISALLOWED_PATHS,
     SET_CREATING_FOLDER,
     SET_EDITING_FILE,
-    RESET_FOLDER_EDITING,
     FILES_ERROR,
     SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
@@ -81,7 +80,7 @@ interface ReceiveFiles extends ReceivePage<File> { path: string, sortOrder: Sort
  * @param {SortBy} sortBy - the value the sorting was based on
  */
 const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => {
-    page.items.forEach((f) => f.isChecked = false);
+    page.items.forEach((f) => f.isChecked = f.beingRenamed = false);
     return {
         type: RECEIVE_FILES,
         page,
@@ -207,11 +206,3 @@ export const setCreatingFolder = (creatingFolder: boolean): SetCreatingFolder =>
     type: SET_CREATING_FOLDER,
     creatingFolder
 });
-
-/**
- * Sets the editing folder index to -1 (Meaning not currently editing a file), 
- * and sets creating folder to false.
- */
-export const resetFolderEditing = (): Action => ({
-    type: RESET_FOLDER_EDITING
-})
