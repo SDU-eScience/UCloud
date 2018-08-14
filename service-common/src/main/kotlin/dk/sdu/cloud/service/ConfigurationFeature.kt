@@ -81,6 +81,17 @@ class ConfigurationFeature : MicroFeature {
                 } else {
                     allConfigFiles.add(File(configFile))
                 }
+            } else if (arg == "--config-dir") {
+                val configDirectory = (if (argIterator.hasNext()) argIterator.next() else null)?.let { File(it) }
+                if (configDirectory == null) {
+                    log.info("Dangling --config-dir. Correct syntax is --config-dir <directory>")
+                } else {
+                    if (configDirectory.exists() && configDirectory.isDirectory) {
+                        allConfigFiles.addAll(
+                            configDirectory.listFiles().filter { it.extension in knownExtensions }
+                        )
+                    }
+                }
             }
         }
 
@@ -161,6 +172,8 @@ class ConfigurationFeature : MicroFeature {
             configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
         }
+
+        private val knownExtensions = listOf("yml", "yaml", "json")
 
         internal val CONFIG_KEY = MicroAttributeKey<ServerConfiguration>("server-configuration")
     }
