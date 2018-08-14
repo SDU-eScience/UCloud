@@ -119,22 +119,21 @@ class ConfigurationFeature : MicroFeature {
         val mainNode: JsonNode = this
 
         updateNode.fieldNames().forEach { fieldName ->
-            val mainJsonNode = mainNode.get(fieldName)
-            val updateJsonNode = updateNode.get(fieldName)
+            val mainJsonNode: JsonNode? = mainNode.get(fieldName)
+            val updateJsonNode: JsonNode? = updateNode.get(fieldName)
 
             when {
                 mainNode is ObjectNode &&
-                        mainJsonNode != null &&
-                        mainJsonNode.isObject &&
-                        !updateJsonNode.isObject -> {
+                        mainJsonNode?.isObject == true &&
+                        updateJsonNode?.isObject == false -> {
                     mainNode.set(fieldName, updateJsonNode)
                 }
 
-                mainJsonNode != null && mainJsonNode.isObject -> {
+                mainJsonNode?.isObject == true -> {
                     mainJsonNode.mergeWith(updateNode.get(fieldName))
                 }
 
-                mainJsonNode != null && mainJsonNode is ArrayNode && updateJsonNode is ArrayNode -> {
+                mainJsonNode is ArrayNode && updateJsonNode is ArrayNode -> {
                     mainJsonNode.addAll(updateJsonNode)
                 }
 
