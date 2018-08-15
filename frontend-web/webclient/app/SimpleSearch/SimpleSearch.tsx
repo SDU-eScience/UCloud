@@ -32,8 +32,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
     }
 
     componentDidMount() {
-        if (this.state.search)
-            this.fetchAll();
+        if (!this.state.search) return;
+        this.fetchAll();
     }
 
     searchFiles = (pageNumber: number, itemsPerPage: number) => {
@@ -76,10 +76,9 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
     }
 
     search() {
-        if (this.state.search) {
-            this.props.history.push(`/simplesearch/${this.props.match.params.priority}/${this.state.search}`);
-            this.fetchAll();
-        }
+        if (!this.state.search) return;
+        this.props.history.push(`/simplesearch/${this.props.match.params.priority}/${this.state.search}`);
+        this.fetchAll();
     }
 
     render() {
@@ -93,7 +92,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                         <Pagination.List
                             pageRenderer={(page) => (<SimpleFileList files={page.items} />)}
                             page={files}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchFiles(files.pageNumber, itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchFiles(0, itemsPerPage)}
                             onPageChanged={(pageNumber: number) => this.searchFiles(pageNumber, files.itemsPerPage)}
                         />
                     </Tab.Pane>)
@@ -103,11 +102,10 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                     <Tab.Pane loading={projectsLoading}>
                         <Pagination.List
                             loading={projectsLoading}
-                            pageRenderer={(page) => page.items.map((it, i) => (
-                                <SearchItem key={i} item={it} />))}
+                            pageRenderer={(page) => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
                             page={projects}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchProjects(files.pageNumber, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.searchProjects(pageNumber, files.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchProjects(0, itemsPerPage)}
+                            onPageChanged={(pageNumber: number) => this.searchProjects(pageNumber, projects.itemsPerPage)}
                         />
                     </Tab.Pane>
                 )
@@ -123,8 +121,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                                 </Card.Group>
                             }
                             page={applications}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchApplications(files.pageNumber, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.searchApplications(pageNumber, files.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchApplications(0, itemsPerPage)}
+                            onPageChanged={(pageNumber: number) => this.searchApplications(pageNumber, applications.itemsPerPage)}
                         />
                     </Tab.Pane>
                 )
