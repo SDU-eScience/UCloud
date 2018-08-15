@@ -18,7 +18,18 @@ export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
 const files = (state: any = {}, action) => {
     switch (action.type) {
         case RECEIVE_FILES: {
-            return { ...state, page: action.page, loading: false, fileSelectorPath: action.path, fileSelectorPage: action.page, sortOrder: action.sortOrder, sortBy: action.sortBy, error: null, fileSelectorError: null, creatingFolder: false };
+            return {
+                ...state,
+                page: action.page,
+                loading: false,
+                fileSelectorPath: action.path,
+                fileSelectorPage: action.page,
+                sortOrder: action.sortOrder,
+                sortBy: action.sortBy,
+                error: null,
+                fileSelectorError: null,
+                creatingFolder: false
+            };
         }
         case UPDATE_FILES: {
             return { ...state, page: action.page };

@@ -4,10 +4,12 @@ import { Page } from "Types";
 import { Application } from "Applications";
 import { File } from "Files";
 import { ProjectMetadata } from "Metadata/api";
-import { History} from "history";
+import { History } from "history";
+import { Dispatch } from "redux";
 
 export interface SimpleSearchProps {
     match: match<{ 0: string, priority: string }>
+    dispatch: Dispatch
     history: History
 }
 
@@ -20,4 +22,5 @@ export interface SimpleSearchState {
     projects: Page<ProjectMetadata>
     projectsLoading: boolean
     error: string
+    search: string
 }

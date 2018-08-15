@@ -190,7 +190,7 @@ export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => vo
         } else {
             let i = 0;
             paths.forEach((p) => {
-                cloud.delete("/files", { path: p }).then(() => { ++i === paths.length ? callback() : null })
+                cloud.delete("/files", { path: p }).then(() => ++i === paths.length ? callback() : null)
                     .catch(() => i++);
             });
         }
@@ -438,25 +438,6 @@ export const ifPresent = (f: any, handler: (f: any) => void) => {
 export const downloadAllowed = (files: File[]) =>
     files.length === 1 || files.every(f => f.sensitivityLevel !== "SENSITIVE")
 
-/**
- * //FIXME Missing backend functionality
- * Favorites an application. 
- * @param {Application} Application the application to be favorited
- * @param {Cloud} cloud The cloud instance for requests
- */
-export const favoriteApplicationFromPage = (application: Application, page: Page<Application>, cloud: Cloud): Page<Application> => {
-    const a = page.items.find(it => it.description.info.name === application.description.info.name);
-    a.favorite = !a.favorite;
-    infoNotification("Backend functionality for favoriting applications missing");
-    return page;
-    /*  const {info} = a.description;
-        if (a.favorite) {
-            cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-        } else {
-            cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-        } */
-}
-
 export const prettierString = (str: string) => toLowerCaseAndCapitalize(str).replace(/_/g, " ")
 
 export const favoriteApplication = (app) => {
@@ -469,7 +450,7 @@ export const favoriteApplication = (app) => {
     return app;
 }
 
-export function defaultErrorHandler(error: any): number {
+export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }): number {
     let request: XMLHttpRequest = error.request;
     let why: string = null;
 

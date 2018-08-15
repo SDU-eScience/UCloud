@@ -2,7 +2,7 @@ import * as React from "react";
 import { Button, Header, Form } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { NotConnectedToZenodo } from "ZenodoPublishingUtilities";
+import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { fetchPublications, setZenodoLoading } from "./Redux/ZenodoActions";

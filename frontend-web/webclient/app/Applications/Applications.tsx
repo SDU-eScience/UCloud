@@ -16,7 +16,7 @@ import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } fro
 import { setErrorMessage } from "./Redux/ApplicationsActions";
 // Requires at least TS 3.0.0
 import { MaterialColors } from "Assets/materialcolors.json";
-import { favoriteApplicationFromPage } from "UtilityFunctions";
+import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 
@@ -47,7 +47,7 @@ class Applications extends React.Component<ApplicationsProps> {
                     loading={loading}
                     onErrorDismiss={onErrorDismiss}
                     errorMessage={error}
-                    onRefreshClick={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
+                    onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={({ items }: Page<Application>) =>
                         <Card.Group className="card-margin">
                             {items.map((app, index) => <SingleApplication key={index} app={app} favoriteApp={favoriteApp} />)}

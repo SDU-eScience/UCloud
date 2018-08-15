@@ -146,8 +146,7 @@ interface HeaderSearch {
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 
-
-interface InitialReduxObject {
+export interface ReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
     uppy: any
@@ -160,7 +159,7 @@ interface InitialReduxObject {
     sidebar: SidebarReduxObject
 }
 
-export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
+export const initObject = (cloud: SDUCloud): ReduxObject => ({
     dashboard: {
         favoriteFiles: [] as File[],
         recentFiles: [] as File[],

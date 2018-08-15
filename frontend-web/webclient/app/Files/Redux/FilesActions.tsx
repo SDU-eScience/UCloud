@@ -18,6 +18,7 @@ import {
 import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "UtilityFunctions";
 import { Page, ReceivePage, SetLoadingAction, Action, Error } from "Types";
 import { SortOrder, SortBy, File } from "..";
+import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -27,7 +28,7 @@ import { SortOrder, SortBy, File } from "..";
 * @param {Page<File>} page number of the page to be fetched
 */
 export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
-    Cloud.get(`files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`).then(({ response }) =>
+    Cloud.get(filepathQuery(path, page, itemsPerPage, order, sortBy)).then(({ response }) =>
         receiveFiles(response, path, order, sortBy)
     ).catch(() =>
         setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
@@ -132,7 +133,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  * @param {SortBy} sortBy the field to be sorted by
  */
 export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
-    Cloud.get(`files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`)
+    Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
         .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
         );
@@ -144,7 +145,7 @@ export const fetchPageFromPath = (path: string, itemsPerPage: number, order: Sor
  * @param itemsPerPage 
  */
 export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<File | Error> =>
-    Cloud.get(`files?path=${path}&page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
+    Cloud.get(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, path);
     }).catch(() => setFileSelectorError(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`));
@@ -192,7 +193,7 @@ interface SetEditingFileAction extends Action { editFileIndex: number }
  * Sets the index of the file being edited.
  * @param editFileIndex - the index of the file in the current page being edited
  */
-export const setEditingFile = (editFileIndex: number) => ({
+export const setEditingFile = (editFileIndex: number): SetEditingFileAction => ({
     type: SET_EDITING_FILE,
     editFileIndex
 });
