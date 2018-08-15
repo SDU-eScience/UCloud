@@ -47,7 +47,7 @@ class Applications extends React.Component<ApplicationsProps> {
                     loading={loading}
                     onErrorDismiss={onErrorDismiss}
                     errorMessage={error}
-                    onRefreshClick={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
+                    onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={({ items }: Page<Application>) =>
                         <Card.Group className="card-margin">
                             {items.map((app, index) => <SingleApplication key={index} app={app} favoriteApp={favoriteApp} />)}

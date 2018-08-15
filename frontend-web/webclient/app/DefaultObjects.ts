@@ -146,7 +146,6 @@ interface HeaderSearch {
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 
-
 interface InitialReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,

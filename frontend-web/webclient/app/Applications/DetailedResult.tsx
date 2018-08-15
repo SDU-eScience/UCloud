@@ -264,7 +264,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 <h4>Output Files</h4>
                 <PaginationList
                     page={page}
-                    onRefreshClick={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
+                    onRefresh={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
                     pageRenderer={(page) =>
                         <FilesTable
                             fileOperations={[]}

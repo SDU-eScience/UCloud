@@ -129,14 +129,12 @@ class Files extends React.Component<FilesProps> {
                     </Grid.Row>
                     <Pagination.List
                         loading={loading}
-                        onRefreshClick={refetch}
                         errorMessage={error}
                         onErrorDismiss={this.props.dismissError}
                         customEmptyPage={
-                            this.props.creatingFolder ? (
-                                <MockTable creatingFolder={this.props.creatingFolder} onCreateFolder={this.onCreateFolder} />) : (
-                                    <Header.Subheader content="No files in current folder" />
-                                )
+                            this.props.creatingFolder ?
+                                (<MockTable creatingFolder={this.props.creatingFolder} onCreateFolder={this.onCreateFolder} />) :
+                                (<Header.Subheader content="No files in current folder" />)
                         }
                         pageRenderer={(page) => (
                             <FilesTable
@@ -156,6 +154,7 @@ class Files extends React.Component<FilesProps> {
                                 onCheckFile={(checked: boolean, file: File) => checkFile(checked, page, file)}
                             />
                         )}
+                        onRefresh={refetch}
                         onItemsPerPageChanged={(pageSize) => fetchFiles(path, pageSize, 0, sortOrder, sortBy, [leftSortingColumn, rightSortingColumn])}
                         page={page}
                         onPageChanged={(pageNumber) => goTo(pageNumber)}

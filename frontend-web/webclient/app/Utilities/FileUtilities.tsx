@@ -107,7 +107,7 @@ export const HistoryFilesOperations = (history: History): FileOperation[] => [
     }
 ];
 
-export const AllFileOperations = (stateless?: boolean, fileSelectorOps?: MoveCopyOperations, onDeleted?: () => void, history?: History) => {
+export function AllFileOperations(stateless?: boolean, fileSelectorOps?: MoveCopyOperations, onDeleted?: () => void, history?: History) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps) : [];
     const deleteOperation = !!onDeleted ? DeleteFileOperation(onDeleted) : [];

@@ -56,7 +56,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                                 </Responsive>
                             </Header>
                             <List
-                                onRefreshClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
+                                onRefresh={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
                                 loading={loading}
                                 errorMessage={error}
                                 onErrorDismiss={onErrorDismiss}
