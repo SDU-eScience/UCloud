@@ -1,7 +1,6 @@
-package dk.sdu.cloud.app
+package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.CoreMatchers.hasItem
