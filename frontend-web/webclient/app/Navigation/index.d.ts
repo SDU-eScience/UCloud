@@ -1,4 +1,4 @@
-import { HeaderSearchType} from "DefaultObjects";
+import { HeaderSearchType } from "DefaultObjects";
 
 export interface Status {
     title: string

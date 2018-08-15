@@ -19,7 +19,7 @@ import {
     FilesTableHeaderProps, FilenameAndIconsProps, FileOptionsProps, FilesTableProps, SortByDropdownProps,
     MobileButtonsProps, FileOperation, ContextButtonsProps
 } from ".";
-import { FilesReduxObject } from "DefaultObjects";
+import { ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { startRenamingFiles, AllFileOperations } from "Utilities/FileUtilities";
 
@@ -36,9 +36,8 @@ class Files extends React.Component<FilesProps> {
     }
 
     componentDidMount() {
-        const { match, page, fetchFiles, fetchSelectorFiles, sortOrder, sortBy, leftSortingColumn, rightSortingColumn } = this.props;
+        const { match, page, fetchFiles, sortOrder, sortBy, leftSortingColumn, rightSortingColumn } = this.props;
         fetchFiles(match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy, [leftSortingColumn, rightSortingColumn]);
-        fetchSelectorFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
     }
 
     onRenameFile = (key: number, file: File, name: string) => {
@@ -422,7 +421,7 @@ const MobileButtons = ({ file, fileOperations }: MobileButtonsProps) => (
     </Table.Cell>
 );
 
-const mapStateToProps = ({ files }: { files: FilesReduxObject }): FilesStateProps => {
+const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, creatingFolder,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError,
         sortingColumns } = files;

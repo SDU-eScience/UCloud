@@ -15,6 +15,8 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";
 import { File } from "Files";
+import { filepathQuery } from "Utilities/FileUtilities";
+import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -78,35 +80,32 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             this.retrieveStateWhenCompleted();
             return;
         }
-
+        // hpcJobQuery(id: string, stdoutLine: number, stderrLine: number)
         this.setState({ loading: true });
         this.state.promises.makeCancelable(
-            Cloud.get(`hpc/jobs/follow/${this.jobId}?` +
-                `stdoutLineStart=${this.state.stdoutLine}&stdoutMaxLines=1000` +
-                `&stderrLineStart=${this.state.stderrLine}&stderrMaxLines=1000`
-            ).then(
-                ({ response }) => {
-                    this.setState({
-                        stdout: this.state.stdout + response.stdout,
-                        stderr: this.state.stderr + response.stderr,
-                        stdoutLine: response.stdoutNextLine,
-                        stderrLine: response.stderrNextLine,
+            Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
+        ).promise.then(
+            ({ response }) => {
+                this.setState({
+                    stdout: this.state.stdout.concat(response.stdout),
+                    stderr: this.state.stderr.concat(response.stderr),
+                    stdoutLine: response.stdoutNextLine,
+                    stderrLine: response.stderrNextLine,
 
-                        app: response.application,
-                        status: response.status,
-                        appState: response.state,
-                        complete: response.complete
-                    });
+                    app: response.application,
+                    status: response.status,
+                    appState: response.state,
+                    complete: response.complete
+                });
 
-                    this.scrollIfNeeded();
-                    if (response.complete) this.retrieveStateWhenCompleted();
-                },
+                this.scrollIfNeeded();
+                if (response.complete) this.retrieveStateWhenCompleted();
+            },
 
-                failure => {
-                    failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
-                    console.log(failure);
-                }).finally(() => this.setState({ loading: false }))
-        );
+            failure => {
+                failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
+                console.log(failure);
+            }).finally(() => this.setState({ loading: false }));
     }
 
     retrieveStateWhenCompleted() {
@@ -118,13 +117,14 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
         this.state.promises.makeCancelable(
-            Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`)).promise.then(({ response }) => {
-                this.setState({
-                    page: response,
-                    loading: false
-                });
-                window.clearInterval(this.state.reloadIntervalId);
+            Cloud.get(filepathQuery(`/home/${Cloud.username}/Jobs/${this.jobId}`, pageNumber, itemsPerPage))
+        ).promise.then(({ response }) => {
+            this.setState({
+                page: response,
+                loading: false
             });
+            window.clearInterval(this.state.reloadIntervalId);
+        });
     }
 
     favoriteFile(file: File) {

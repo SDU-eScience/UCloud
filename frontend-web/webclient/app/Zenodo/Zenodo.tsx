@@ -2,7 +2,7 @@ import * as React from "react";
 import { Button, Table, Header, Responsive, Dropdown, Grid, Divider } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions";
-import { NotConnectedToZenodo } from "ZenodoPublishingUtilities";
+import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { fetchPublications, setZenodoLoading, setErrorMessage } from "./Redux/ZenodoActions";
 import { SET_ZENODO_ERROR } from "./Redux/ZenodoReducer";
@@ -70,8 +70,8 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                                     </Table>
                                 )}
                                 page={page}
-                                onItemsPerPageChanged={(size) => fetchPublications(0, size)}
-                                onPageChanged={(pageNumber) => fetchPublications(pageNumber, page.itemsPerPage)}
+                                onItemsPerPageChanged={(size: number) => fetchPublications(0, size)}
+                                onPageChanged={(pageNumber: number) => fetchPublications(pageNumber, page.itemsPerPage)}
                             />
                         </Grid.Column>
                         <Responsive as={Grid.Column} computer={3} minWidth={992}>
@@ -79,7 +79,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                             <Divider />
                         </Responsive>
                     </Grid>
-                </React.StrictMode >
+                </React.StrictMode>
             );
         }
     }

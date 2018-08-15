@@ -1,5 +1,5 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { File, MoveCopyOperations, FileOperation } from "Files";
+import { File, MoveCopyOperations, FileOperation, SortOrder, SortBy } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import * as UF from "UtilityFunctions";
@@ -17,8 +17,7 @@ export function copy(files: File[], operations: MoveCopyOperations): void {
         files.forEach((f) => {
             const currentPath = f.path;
             Cloud.get(`/files/stat?path=${newPath}/${UF.getFilenameFromPath(currentPath)}`).then(({ request }) => {
-                if (request.status === 200)
-                    UF.failureNotification("File already exists");
+                if (request.status === 200) UF.failureNotification("File already exists");
             }).catch(({ request }) => {
                 if (request.status === 404) {
                     const newPathForFile = `${newPath}/${UF.getFilenameFromPath(currentPath)}`;
@@ -32,9 +31,9 @@ export function copy(files: File[], operations: MoveCopyOperations): void {
                 else {
                     UF.failureNotification(`An error occurred, please try again later.`);
                 }
-            });
-        });
-    });
+            }); // End Catch
+        }); // End forEach
+    }); // End Callback
 };
 
 export function move(files: File[], operations: MoveCopyOperations): void {
@@ -114,3 +113,9 @@ export function AllFileOperations(stateless?: boolean, fileSelectorOps?: MoveCop
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
     return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...historyOperations];
 };
+
+export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
+    `files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`;
+
+export const fileLookupQuery = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy) =>
+    `files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
