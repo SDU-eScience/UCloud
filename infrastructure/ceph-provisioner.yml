@@ -1,4 +1,5 @@
 # Created using https://akomljen.com/using-existing-ceph-cluster-for-kubernetes-persistent-storage/
+# image: "quay.io/external_storage/rbd-provisioner:v1.0.0-k8s1.10"
 
 ---
 kind: ClusterRole
@@ -22,7 +23,17 @@ rules:
     resources: ["services"]
     resourceNames: ["kube-dns"]
     verbs: ["list", "get"]
-    
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rbd-provisioner
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -36,17 +47,7 @@ roleRef:
   kind: ClusterRole
   name: rbd-provisioner
   apiGroup: rbac.authorization.k8s.io
-  
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: Role
-metadata:
-  name: rbd-provisioner
-rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get"]
-  
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -60,7 +61,7 @@ subjects:
 - kind: ServiceAccount
   name: rbd-provisioner
   namespace: kube-system
-  
+
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -87,4 +88,6 @@ spec:
         env:
         - name: PROVISIONER_NAME
           value: ceph.com/rbd
+        securityContext:
+          allowPrivilegeEscalation: true
       serviceAccount: rbd-provisioner
