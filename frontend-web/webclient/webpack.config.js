@@ -1,15 +1,16 @@
-const webpack = require('webpack');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require("webpack");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
-const path = require('path');
+const path = require("path");
+const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
 //var baseHref = process.env.REACT_BASE_HREF ? process.env.REACT_BASE_HREF : '/';
 const baseHref = "/app";
 
 module.exports = {
 
     entry: {
-        vendor: './app/Vendor.tsx',
-        app: './app/App.tsx'
+        vendor: "./app/Vendor.tsx",
+        app: "./app/App.tsx"
     },
 
     resolve: {
@@ -41,7 +42,7 @@ module.exports = {
             {
                 test: /\.css$/,
                 exclude: path.join(process.cwd(), '/app'),
-                use: [ MiniCSSExtractPlugin.loader, "css-loader"]
+                use: [MiniCSSExtractPlugin.loader, "css-loader"]
             },
             {
                 test: /\.(woff|woff2|svg|eot|ttf)/,
@@ -64,7 +65,10 @@ module.exports = {
         splitChunks: {
             name: "vendor",
             filename: "vendor[hash:6].js"
-        }
+        },
+        minimizer: [
+            new UglifyJsPlugin()
+        ]
     },
 
     plugins: [
