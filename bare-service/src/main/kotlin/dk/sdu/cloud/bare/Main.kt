@@ -7,7 +7,7 @@ import dk.sdu.cloud.service.*
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(BareServiceDescription, args)
-        install(HibernateFeature)
+//        install(HibernateFeature)
     }
 
     val refreshToken = micro.configuration.requestChunkAtOrNull("refreshToken") ?: "not-a-real-token" // TODO
