@@ -246,7 +246,7 @@ function FilesTableHeader({ sortingIcon, sortFiles, sortOrder, masterCheckbox, s
         );
     } else {
         column1 = (<Responsive minWidth={768} as={Table.HeaderCell} content="Modified at" />);
-        column2 = (<Responsive minWidth={768} as={Table.HeaderCell} content="Members" />); // FIXME "Members is not consistent"
+        column2 = (<Responsive minWidth={768} as={Table.HeaderCell} content="Members" />); // FIXME Members is not consistent
     }
     return (
         <Table.Header>
@@ -357,7 +357,6 @@ function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null
             size={size} link={file.link}
         />
     );
-    if (file.path.includes("orites")) console.log(file.path);
     const nameLink = (UF.isDirectory(file) ?
         <Link to={`/files/${file.path}`}>
             {icon}{fileName}

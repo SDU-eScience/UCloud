@@ -1,6 +1,6 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { Grid, Dropdown, Label, Header, Form, Button, Input, Checkbox } from "semantic-ui-react";
+import { Grid, Dropdown, Label, Header, Form, Button, Input } from "semantic-ui-react";
 import { addEntryIfNotPresent } from "Utilities/ArrayUtilities"
 import { infoNotification } from "UtilityFunctions";
 
@@ -21,7 +21,14 @@ interface DetailedFileSearchState {
     tags: string[]
     sensitivities: SensitivityLevel[],
     annotations: Annotation[]
+    createdBefore: TimeSearch
+    createdAfter: TimeSearch
+    modifiedBefore: TimeSearch
+    modifiedAfter: TimeSearch
 }
+
+// FIXME Find better names for types
+type TimeSearch = { date?: string, time?: string }
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
     constructor(props) {
@@ -34,7 +41,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             extensions: [],
             tags: [],
             annotations: [],
-            sensitivities: []
+            sensitivities: [],
+            createdBefore: { time: null, date: null },
+            createdAfter: { time: null, date: null },
+            modifiedBefore: { time: null, date: null },
+            modifiedAfter: { time: null, date: null }
         }
     }
 
@@ -42,7 +53,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         const { sensitivities } = this.state;
         // FIXME: Shouldn't be able to occur?
         if (sensitivities.includes(sensitivity)) return;
-
         sensitivities.push(sensitivity);
         this.setState(() => ({ sensitivities }));
     }
@@ -94,7 +104,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
     }
 
     onSearch = () => {
-
+        console.log(this.state);
     }
 
     render() {
@@ -130,40 +140,40 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         <Form.Group widths="equal">
                             <Form.Field>
                                 <label>Created after date</label>
-                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <Input type="date" onChange={(_, { value }) => this.setState(() => ({ createdAfter: { date: value, time: this.state.createdAfter.time } }))} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Created after time</label>
-                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <Input type="time" onChange={(_, { value }) => this.setState(() => ({ createdAfter: { time: value, date: this.state.createdAfter.date } }))} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Created before date</label>
-                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <Input type="date" onChange={(_, { value }) => this.setState(() => ({ createdBefore: { date: value, time: this.state.createdBefore.time } }))} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Created before time</label>
-                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <Input type="time" onChange={(_, { value }) => this.setState(() => ({ createdBefore: { time: value, date: this.state.createdBefore.date } }))} />
                             </Form.Field>
                         </Form.Group>
                     </Form>
                     <Header as="h3" content="Modified at" />
                     <Form onSubmit={(e) => e.preventDefault()} >
                         <Form.Group widths="equal">
-                            <Form.Field>
+                        <Form.Field>
                                 <label>Modified after date</label>
-                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <Input type="date" onChange={(_, { value }) => this.setState(() => ({ modifiedAfter: { date: value, time: this.state.modifiedAfter.time } }))} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Modified after time</label>
-                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <Input type="time" onChange={(_, { value }) => this.setState(() => ({ modifiedAfter: { time: value, date: this.state.modifiedAfter.date } }))} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Modified before date</label>
-                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <Input type="date" onChange={(_, { value }) => this.setState(() => ({ modifiedBefore: { date: value, time: this.state.modifiedBefore.time } }))} />
                             </Form.Field>
                             <Form.Field>
                                 <label>Modified before time</label>
-                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <Input type="time" onChange={(_, { value }) => this.setState(() => ({ modifiedBefore: { time: value, date: this.state.modifiedBefore.date } }))} />
                             </Form.Field>
                         </Form.Group>
                     </Form>
@@ -190,7 +200,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <SearchLabels labels={annotations} onLabelRemove={(l) => this.onRemoveAnnotation(l)} clearAll={() => this.setState(() => ({ annotations: [] }))} />
                     {annotationsDropdown}
 
-                    <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => console.log("Almost submitted!")} />
+                    <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => this.onSearch()} />
                 </Grid.Column>
             </Grid>
         );
