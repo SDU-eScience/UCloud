@@ -4,6 +4,7 @@ import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
 import * as PropTypes from "prop-types";
+import { connect } from "react-redux";
 import { getFilenameFromPath, getParentPath, isInvalidPathName, inSuccessRange } from "UtilityFunctions";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
@@ -12,9 +13,9 @@ import { KeyCode } from "DefaultObjects";
 import { FileIcon } from "UtilityComponents";
 import "./Files.scss";
 import "Styling/Shared.scss";
-import { Page } from "Types";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileListProps, FileSelectorModalProps, FileSelectorBodyProps } from ".";
+import { filepathQuery } from "Utilities/FileUtilities";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props, context) {
@@ -66,8 +67,9 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         Cloud.head(apiEndpoint).then(it => {
             console.log("Got a response back!");
             let path = it.request.getResponseHeader("File-Location");
+            path.lastSlash
             let lastSlash = path.lastIndexOf("/");
-            if (lastSlash === -1) throw "Could not parse name of path: " + path;
+            if (lastSlash === -1) throw `Could not parse name of path: ${path}`;
             let name = path.substring(lastSlash + 1);
             let fileObject = {
                 path: path,
@@ -104,7 +106,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 
     fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
         this.setState(() => ({ loading: true, creatingFolder: false }));
-        this.state.promises.makeCancelable(Cloud.get(`files?path=${path}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`)).promise.then(({ response }) => {
+        this.state.promises.makeCancelable(Cloud.get(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(({ response }) => {
             this.setState(() => ({
                 page: response,
                 loading: false,
@@ -125,7 +127,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={this.props.remove} />) : null;
         return (
-            <React.Fragment>
+            <React.StrictMode>
                 <Input
                     className="readonly mobile-padding"
                     required={this.props.isRequired}
@@ -133,8 +135,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     value={path}
                     action
                 >
-                    <input />
-                    <Button type="button" onClick={() => this.setState(() => ({ modalShown: true }))} content="Browse" color="blue" />
+                    <input onClick={() => this.setState(() => ({ modalShown: true }))} />
                     {uploadButton}
                     {removeButton}
                 </Input>
@@ -153,7 +154,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     canSelectFolders={this.props.canSelectFolders}
                     onlyAllowFolders={this.props.onlyAllowFolders}
                 />
-            </React.Fragment>)
+            </React.StrictMode>)
     }
 }
 
@@ -244,8 +245,8 @@ function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, 
     ) : null;
 }
 
-const CreatingFolder = ({ creatingFolder, handleKeyDown }) => (
-    (!creatingFolder) ? null : (
+const CreatingFolder = ({ creatingFolder, handleKeyDown }) => 
+    !creatingFolder ? null : (
         <List.Item className="itemPadding">
             <List.Content>
                 <List.Icon name="folder" color="blue" />
@@ -258,8 +259,7 @@ const CreatingFolder = ({ creatingFolder, handleKeyDown }) => (
                 <Button floated="right" onClick={() => handleKeyDown(KeyCode.ESC)}>✗</Button>
             </List.Content>
         </List.Item>
-    )
-);
+    );
 
 const UploadButton = ({ onClick }) => (<Button type="button" content="Upload File" onClick={onClick} />);
 const RemoveButton = ({ onClick }) => (<Button type="button" content="✗" onClick={onClick} />);

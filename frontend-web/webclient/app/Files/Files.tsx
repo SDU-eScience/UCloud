@@ -357,6 +357,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null
             size={size} link={file.link}
         />
     );
+    if (file.path.includes("orites")) console.log(file.path);
     const nameLink = (UF.isDirectory(file) ?
         <Link to={`/files/${file.path}`}>
             {icon}{fileName}
@@ -376,7 +377,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null
             {checkbox}
             {nameLink}
             <GroupIcon isProject={UF.isProject(file)} />
-            <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites/`)} item={file} onClick={() => onFavoriteFile([file])} />
+            <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
         </Table.Cell>
 };
 
