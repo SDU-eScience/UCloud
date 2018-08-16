@@ -31,10 +31,10 @@ export const favoriteApplicationFromPage = (application: Application, page: Page
 export const extractParametersVersion1 = (parameters, allowedParameterKeys, siteVersion: number) => {
     let extractedParameters = {};
     if (siteVersion === 1) {
-        allowedParameterKeys.forEach(par => {
-            if (parameters[par.name] !== undefined) {
-                if (compareType(par.type, parameters[par.name])) {
-                    extractedParameters[par.name] = parameters[par.name];
+        allowedParameterKeys.forEach(({ name, type }) => {
+            if (parameters[name] !== undefined) {
+                if (compareType(type, parameters[name])) {
+                    extractedParameters[name] = parameters[name];
                 }
             }
         });

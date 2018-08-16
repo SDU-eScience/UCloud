@@ -5,11 +5,11 @@ export function removeEntry<T>(arr: T[], index: number):T[] {
 
 type PrimitiveDataTypes = string | number | boolean
 /**
- * @param arr 
+ * @param set 
  * @param entry 
  */
-export function addEntryIfNotPresent(arr: PrimitiveDataTypes[], entry: PrimitiveDataTypes) {
-    if (arr.includes(entry)) return false;
-    arr.push(entry);
-    return true;
+export function addEntryIfNotPresent(set: Set<PrimitiveDataTypes>, entry: PrimitiveDataTypes): boolean {
+    const size = set.size;
+    set.add(entry);
+    return size === set.size;
 }

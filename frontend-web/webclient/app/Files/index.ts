@@ -246,12 +246,12 @@ export interface DetailedFileSearchState {
     allowFolders: boolean
     allowFiles: boolean
     filename: string
-    extensions: string[]
+    extensions: Set<string>
     extensionValue: string
-    tags: string[]
+    tags: Set<string>
     tagValue: string,
-    sensitivities: SensitivityLevel[],
-    annotations: Annotation[]
+    sensitivities: Set<SensitivityLevel>,
+    annotations: Set<Annotation>
     createdBefore: Moment
     createdAfter: Moment
     modifiedBefore: Moment
