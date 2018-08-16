@@ -2,6 +2,7 @@ import { Page } from "Types";
 import { History } from "history";
 import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS } from "semantic-ui-react";
 import { match } from "react-router-dom";
+import Cloud from "Authentication/lib";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -221,8 +222,8 @@ export interface MobileButtonsProps {
     fileOperations: FileOperation[]
 }
 
-export type PredicatedOperation = { predicate: (f: File[]) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (f: File[]) => void, disabled: (files: File[]) => boolean, icon: SemanticICONS, color: SemanticCOLORS }
+export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
+export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS, color: SemanticCOLORS }
 export type FileOperation = (Operation | PredicatedOperation)
 
 export interface ContextButtonsProps {

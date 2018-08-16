@@ -147,7 +147,8 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
 
     onSubmit(event) {
         event.preventDefault();
-        let maxTime = this.extractJobInfo(this.state.jobInfo.maxTime).maxTime;
+        let maxTime = this.extractJobInfo(this.state.jobInfo).maxTime;
+        if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
         let job = {
             application: {
                 name: this.state.appName,

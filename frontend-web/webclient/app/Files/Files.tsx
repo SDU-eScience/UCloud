@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider } from "semantic-ui-react";
+import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticCOLORS } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
@@ -17,7 +17,7 @@ import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File, CreateFolderProps,
     FilesTableHeaderProps, FilenameAndIconsProps, FileOptionsProps, FilesTableProps, SortByDropdownProps,
-    MobileButtonsProps, FileOperation, ContextButtonsProps
+    MobileButtonsProps, FileOperation, ContextButtonsProps, Operation
 } from ".";
 import { ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
@@ -395,17 +395,18 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) =>
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
         if ("predicate" in fileOp) {
-            operation = fileOp.predicate(files) ? fileOp.onTrue : fileOp.onFalse;
+            operation = fileOp.predicate(files, Cloud) ? fileOp.onTrue : fileOp.onFalse;
         }
-        return !operation.disabled(files) ? (
+        operation = (operation as Operation);
+        return !operation.disabled(files, Cloud) ? (
             <As
                 key={i}
-                disabled={operation.disabled(files)}
+                disabled={operation.disabled(files, Cloud)}
                 content={operation.text}
                 icon={operation.icon}
                 color={operation.color}
                 className="context-button-margin"
-                onClick={() => operation.onClick(files)}
+                onClick={() => (operation as Operation).onClick(files, Cloud)}
                 {...props}
             />
         ) : null;
