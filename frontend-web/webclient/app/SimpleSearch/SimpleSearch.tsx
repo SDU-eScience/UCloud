@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Tab, List, Icon, Card, Message, Responsive, Grid, Form } from "semantic-ui-react";
+import { Tab, List, Icon, Card, Message, Responsive, Form } from "semantic-ui-react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
@@ -14,6 +14,8 @@ import { AllFileOperations } from "Utilities/FileUtilities";
 import { SimpleSearchProps, SimpleSearchState } from ".";
 import { HeaderSearchType } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
+import { Application } from "Applications";
+import { Page } from "Types";
 
 class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState> {
     constructor(props) {
@@ -33,11 +35,22 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
 
     componentDidMount() {
         if (!this.state.search) return;
-        this.fetchAll();
+        this.fetchAll(this.state.search);
     }
 
-    searchFiles = (pageNumber: number, itemsPerPage: number) => {
-        const { promises, search } = this.state;
+    shouldComponentUpdate(nextProps, _nextState): boolean {
+        if (nextProps.match.params[0] !== this.props.match.params[0]) {
+            this.setState(() => ({ search: nextProps.match.params[0] }));
+            this.fetchAll(nextProps.match.params[0]);
+        }
+        if (nextProps.match.params.priority !== this.props.match.params.priority) {
+            this.props.dispatch(setPrioritizedSearch(nextProps.match.params.priority as HeaderSearchType));
+        }
+        return true;
+    }
+
+    searchFiles = (search: string, pageNumber: number, itemsPerPage: number) => {
+        const { promises } = this.state;
         this.setState(() => ({ filesLoading: true }));
         promises.makeCancelable(Cloud.get(`/file-search?query=${search}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`))
             .promise.then(({ response }) => this.setState(() => ({ files: response })))
@@ -45,17 +58,20 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
             .finally(() => this.setState(() => ({ filesLoading: false })));
     }
 
-    searchApplications = (pageNumber: number, itemsPerPage: number) => {
-        const { promises, search } = this.state;
+    searchApplications = (search: string, pageNumber: number, itemsPerPage: number) => {
+        const { promises } = this.state;
         this.setState(() => ({ applicationsLoading: true }));
         promises.makeCancelable(Cloud.get(`/hpc/apps?page=${pageNumber}&itemsPerPage=${itemsPerPage}`))
-            .promise.then(({ response }) => this.setState(() => ({ applications: response })))
+            .promise.then(({ response }: { response: Page<Application> }) => {
+                response.items = response.items.filter(it => it.description.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+                this.setState(() => ({ applications: response }))
+            })
             .catch(() => this.setState(() => ({ error: `${this.state.error}An error occurred searching for applications. ` })))
             .finally(() => this.setState(() => ({ applicationsLoading: false })));
     }
 
-    searchProjects = (pageNumber: number, itemsPerPage: number) => {
-        const { promises, search } = this.state;
+    searchProjects = (search: string, pageNumber: number, itemsPerPage: number) => {
+        const { promises } = this.state;
         this.setState(() => ({ projectsLoading: true }));
         promises.makeCancelable(simpleSearch(search, pageNumber, itemsPerPage))
             .promise.then(response => this.setState(() => ({ projects: response })))
@@ -69,22 +85,21 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
         this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${this.state.search}`);
     }
 
-    fetchAll() {
-        this.searchFiles(this.state.files.pageNumber, this.state.files.itemsPerPage);
-        this.searchApplications(this.state.applications.pageNumber, this.state.applications.itemsPerPage);
-        this.searchProjects(this.state.projects.pageNumber, this.state.projects.itemsPerPage);
+    fetchAll(search: string) {
+        this.searchFiles(search, this.state.files.pageNumber, this.state.files.itemsPerPage);
+        this.searchApplications(search, this.state.applications.pageNumber, this.state.applications.itemsPerPage);
+        this.searchProjects(search, this.state.projects.pageNumber, this.state.projects.itemsPerPage);
     }
 
     search() {
         if (!this.state.search) return;
         this.props.history.push(`/simplesearch/${this.props.match.params.priority}/${this.state.search}`);
-        this.fetchAll();
     }
 
     render() {
-        const { files, projects, applications, filesLoading, applicationsLoading, projectsLoading, error } = this.state;
+        const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, error } = this.state;
         const errorMessage = !!error ? (<Message color="red" content={error} onDismiss={() => this.setState(() => ({ error: "" }))} />) : null;
-        const fileOperations = AllFileOperations(true, null, () => this.searchFiles(files.pageNumber, files.itemsPerPage), this.props.history);
+        const fileOperations = AllFileOperations(true, null, () => this.searchFiles(search, files.pageNumber, files.itemsPerPage), this.props.history);
         const panes = [
             {
                 menuItem: "Files", render: () => (
@@ -92,8 +107,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                         <Pagination.List
                             pageRenderer={(page) => (<SimpleFileList files={page.items} />)}
                             page={files}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchFiles(0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.searchFiles(pageNumber, files.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchFiles(search, 0, itemsPerPage)}
+                            onPageChanged={(pageNumber: number) => this.searchFiles(search, pageNumber, files.itemsPerPage)}
                         />
                     </Tab.Pane>)
             },
@@ -104,8 +119,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                             loading={projectsLoading}
                             pageRenderer={(page) => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
                             page={projects}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchProjects(0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.searchProjects(pageNumber, projects.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchProjects(search, 0, itemsPerPage)}
+                            onPageChanged={(pageNumber: number) => this.searchProjects(search, pageNumber, projects.itemsPerPage)}
                         />
                     </Tab.Pane>
                 )
@@ -121,8 +136,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                                 </Card.Group>
                             }
                             page={applications}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchApplications(0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.searchApplications(pageNumber, applications.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchApplications(search, 0, itemsPerPage)}
+                            onPageChanged={(pageNumber: number) => this.searchApplications(search, pageNumber, applications.itemsPerPage)}
                         />
                     </Tab.Pane>
                 )
