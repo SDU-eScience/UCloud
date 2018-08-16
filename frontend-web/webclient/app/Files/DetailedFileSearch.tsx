@@ -3,32 +3,7 @@ import { connect } from "react-redux";
 import { Grid, Dropdown, Label, Header, Form, Button, Input } from "semantic-ui-react";
 import { addEntryIfNotPresent } from "Utilities/ArrayUtilities"
 import { infoNotification } from "UtilityFunctions";
-
-interface DetailedFileSearchProps {
-
-}
-
-type Annotation = "Project";
-
-type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
-
-interface DetailedFileSearchState {
-    allowFolders: boolean
-    allowFiles: boolean
-    filename: string
-    extensions: string[]
-    extensionValue: string
-    tags: string[]
-    sensitivities: SensitivityLevel[],
-    annotations: Annotation[]
-    createdBefore: TimeSearch
-    createdAfter: TimeSearch
-    modifiedBefore: TimeSearch
-    modifiedAfter: TimeSearch
-}
-
-// FIXME Find better names for types
-type TimeSearch = { date?: string, time?: string }
+import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation } from ".";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
     constructor(props) {
@@ -39,6 +14,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             filename: "",
             extensionValue: "",
             extensions: [],
+            tagValue: "",
             tags: [],
             annotations: [],
             sensitivities: [],
@@ -103,12 +79,33 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         this.setState(() => ({ annotations: remaining }));
     }
 
+    onRemoveTag(tag: string) {
+        const { tags } = this.state;
+        const remaining = tags.filter(t => t !== tag);
+        this.setState(() => ({ tags: remaining }));
+    }
+
+    onAddTags = () => {
+        const { tagValue, tags } = this.state;
+        const newTags = tagValue.trim().split(" ").filter(it => it);
+        let entryAdded = false;
+        newTags.forEach(ext => { entryAdded = addEntryIfNotPresent(tags, ext) || entryAdded });
+        this.setState(() => ({
+            tags,
+            tagValue: entryAdded ? "" : tagValue
+        }));
+        if (!entryAdded) {
+            infoNotification("Tag already added");
+        }
+    }
+
     onSearch = () => {
         console.log(this.state);
+        console.warn("Todo");
     }
 
     render() {
-        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations } = this.state;
+        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations, tags, tagValue } = this.state;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.includes(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
             <div>
@@ -159,7 +156,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Header as="h3" content="Modified at" />
                     <Form onSubmit={(e) => e.preventDefault()} >
                         <Form.Group widths="equal">
-                        <Form.Field>
+                            <Form.Field>
                                 <label>Modified after date</label>
                                 <Input type="date" onChange={(_, { value }) => this.setState(() => ({ modifiedAfter: { date: value, time: this.state.modifiedAfter.time } }))} />
                             </Form.Field>
@@ -200,6 +197,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <SearchLabels labels={annotations} onLabelRemove={(l) => this.onRemoveAnnotation(l)} clearAll={() => this.setState(() => ({ annotations: [] }))} />
                     {annotationsDropdown}
 
+                    <Header as="h3" content="Tags" />
+                    <SearchLabels labels={tags} onLabelRemove={(l) => this.onRemoveTag(l)} clearAll={() => this.setState(() => ({ tags: [] }))} />
+                    <Form onSubmit={({ preventDefault }) => { preventDefault(); this.onAddTags(); }}>
+                        <Form.Input value={tagValue} onChange={(_, { value }) => this.setState(() => ({ tagValue: value }))} />
+                    </Form>
                     <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => this.onSearch()} />
                 </Grid.Column>
             </Grid>

@@ -230,3 +230,30 @@ export interface ContextButtonsProps {
     createFolder: () => void
     refetch: () => void
 }
+
+
+export interface DetailedFileSearchProps {
+
+}
+
+export type Annotation = "Project";
+
+export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
+
+export interface DetailedFileSearchState {
+    allowFolders: boolean
+    allowFiles: boolean
+    filename: string
+    extensions: string[]
+    extensionValue: string
+    tags: string[]
+    tagValue: string,
+    sensitivities: SensitivityLevel[],
+    annotations: Annotation[]
+    createdBefore: TimeAndDate
+    createdAfter: TimeAndDate
+    modifiedBefore: TimeAndDate
+    modifiedAfter: TimeAndDate
+}
+
+type TimeAndDate = { date?: string, time?: string }

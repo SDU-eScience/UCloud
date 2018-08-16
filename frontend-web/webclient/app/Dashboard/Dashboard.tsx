@@ -3,11 +3,12 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { getParentPath, iconFromFilePath } from "UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "Authentication/SDUCloudObject"
-import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath, shortenString } from "UtilityFunctions";
+import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
 import "Styling/Shared.scss";
+import "Dashboard/dashboard.scss";
 import { Card, List, Icon, Message } from "semantic-ui-react";
 import * as moment from "moment";
 import { FileIcon } from "UtilityComponents";
@@ -73,7 +74,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
             <List.Content floated="right">
                 <Icon name="star" color="blue" onClick={() => favorite(file)} />
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={false} maxPathLength={11} />
+            <ListFileContent path={file.path} type={file.type} link={false} pixelsWide={200} />
         </List.Item>)
     );
 
@@ -90,11 +91,11 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         </Card >)
 };
 
-const ListFileContent = ({ path, type, link, maxPathLength }: { path: string, type: FileType, link: boolean, maxPathLength: number }) =>
+const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 135 | 200 }) =>
     <List.Content>
         <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={null} link={link} color="grey" />
         <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
-            {shortenString(getFilenameFromPath(path), maxPathLength)}
+            <span className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(path)}</span>
         </Link>
     </List.Content>
 
@@ -105,7 +106,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
             <List.Content floated="right">
                 <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={file.link} maxPathLength={7} />
+            <ListFileContent path={file.path} type={file.type} link={file.link} pixelsWide={135} />
         </List.Item>
     ));
 
