@@ -25,13 +25,13 @@
     "clean": "rm -rf dist/",
     "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
     "install": "napa",
-    "test": "jest"
+    "test": "npm run clean && jest"
   },
   "resolutions": {
     "eslint-scope": "3.7.1"
   },
   "dependencies": {
-    "@types/react": "^16.4.10",
+    "@types/react": "^16.4.11",
     "@types/react-dom": "^16.0.7",
     "@types/react-redux": "^6.0.6",
     "@types/react-router": "^4.0.30",
@@ -40,7 +40,7 @@
     "jsonwebtoken": "8.3.0",
     "loaders.css": "0.1.2",
     "moment": "~2.22.2",
-    "npm": "6.3.0",
+    "npm": "6.4.0",
     "prop-types": "15.6.2",
     "react": "16.4.2",
     "react-dom": "16.4.2",
