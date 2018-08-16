@@ -107,3 +107,8 @@ div.ui.padding-bottom {
 div.ui.fluid.transparent.input input.input-left-margin {
     margin-left: 22px;
 }
+
+// FIXME Issues with datepicker without this
+ul.react-datepicker__time-list {
+   padding-left: 8px;
+}

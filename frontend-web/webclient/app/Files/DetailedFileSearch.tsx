@@ -4,6 +4,8 @@ import { Grid, Dropdown, Label, Header, Form, Button, Input } from "semantic-ui-
 import { addEntryIfNotPresent } from "Utilities/ArrayUtilities"
 import { infoNotification } from "UtilityFunctions";
 import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation } from ".";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
     constructor(props) {
@@ -18,10 +20,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             tags: [],
             annotations: [],
             sensitivities: [],
-            createdBefore: { time: null, date: null },
-            createdAfter: { time: null, date: null },
-            modifiedBefore: { time: null, date: null },
-            modifiedAfter: { time: null, date: null }
+            createdBefore: null,
+            createdAfter: null,
+            modifiedBefore: null,
+            modifiedAfter: null
         }
     }
 
@@ -79,7 +81,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         this.setState(() => ({ annotations: remaining }));
     }
 
-    onRemoveTag(tag: string) {
+    onRemoveTag = (tag: string) => {
         const { tags } = this.state;
         const remaining = tags.filter(t => t !== tag);
         this.setState(() => ({ tags: remaining }));
@@ -134,43 +136,59 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Input fluid placeholder="Filename must include..." onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
                     <Header as="h3" content="Created at" />
                     <Form onSubmit={(e) => e.preventDefault()}>
-                        <Form.Group widths="equal">
+                        <Form.Group>
                             <Form.Field>
-                                <label>Created after date</label>
-                                <Input type="date" onChange={(_, { value }) => this.setState(() => ({ createdAfter: { date: value, time: this.state.createdAfter.time } }))} />
+                                <label>Created after</label>
+                                <DatePicker
+                                    selected={this.state.createdAfter}
+                                    onChange={(d) => this.setState(() => ({ createdAfter: d }))}
+                                    showTimeSelect
+                                    timeFormat="hh:mm"
+                                    timeIntervals={15}
+                                    dateFormat="LLL"
+                                    timeCaption="time"
+                                />
                             </Form.Field>
                             <Form.Field>
-                                <label>Created after time</label>
-                                <Input type="time" onChange={(_, { value }) => this.setState(() => ({ createdAfter: { time: value, date: this.state.createdAfter.date } }))} />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Created before date</label>
-                                <Input type="date" onChange={(_, { value }) => this.setState(() => ({ createdBefore: { date: value, time: this.state.createdBefore.time } }))} />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Created before time</label>
-                                <Input type="time" onChange={(_, { value }) => this.setState(() => ({ createdBefore: { time: value, date: this.state.createdBefore.date } }))} />
+                                <label>Created before</label>
+                                <DatePicker
+                                    selected={this.state.createdBefore}
+                                    onChange={(d) => this.setState(() => ({ createdBefore: d }))}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={15}
+                                    dateFormat="LLL"
+                                    timeCaption="time"
+                                />
                             </Form.Field>
                         </Form.Group>
                     </Form>
                     <Header as="h3" content="Modified at" />
-                    <Form onSubmit={(e) => e.preventDefault()} >
-                        <Form.Group widths="equal">
+                    <Form onSubmit={(e) => e.preventDefault()}>
+                        <Form.Group>
                             <Form.Field>
-                                <label>Modified after date</label>
-                                <Input type="date" onChange={(_, { value }) => this.setState(() => ({ modifiedAfter: { date: value, time: this.state.modifiedAfter.time } }))} />
+                                <label>Modified after</label>
+                                <DatePicker
+                                    selected={this.state.modifiedAfter}
+                                    onChange={(d) => this.setState(() => ({ modifiedAfter: d }))}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={15}
+                                    dateFormat="LLL"
+                                    timeCaption="time"
+                                />
                             </Form.Field>
                             <Form.Field>
-                                <label>Modified after time</label>
-                                <Input type="time" onChange={(_, { value }) => this.setState(() => ({ modifiedAfter: { time: value, date: this.state.modifiedAfter.date } }))} />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Modified before date</label>
-                                <Input type="date" onChange={(_, { value }) => this.setState(() => ({ modifiedBefore: { date: value, time: this.state.modifiedBefore.time } }))} />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Modified before time</label>
-                                <Input type="time" onChange={(_, { value }) => this.setState(() => ({ modifiedBefore: { time: value, date: this.state.modifiedBefore.date } }))} />
+                                <label>Modified before</label>
+                                <DatePicker
+                                    selected={this.state.modifiedBefore}
+                                    onChange={(d) => this.setState(() => ({ modifiedBefore: d }))}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={15}
+                                    dateFormat="LLL"
+                                    timeCaption="time"
+                                />
                             </Form.Field>
                         </Form.Group>
                     </Form>
@@ -199,7 +217,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
 
                     <Header as="h3" content="Tags" />
                     <SearchLabels labels={tags} onLabelRemove={(l) => this.onRemoveTag(l)} clearAll={() => this.setState(() => ({ tags: [] }))} />
-                    <Form onSubmit={({ preventDefault }) => { preventDefault(); this.onAddTags(); }}>
+                    <Form onSubmit={(e) => { e.preventDefault(); this.onAddTags(); }}>
                         <Form.Input value={tagValue} onChange={(_, { value }) => this.setState(() => ({ tagValue: value }))} />
                     </Form>
                     <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => this.onSearch()} />

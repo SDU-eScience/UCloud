@@ -3,6 +3,7 @@ import { History } from "history";
 import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS } from "semantic-ui-react";
 import { match } from "react-router-dom";
 import Cloud from "Authentication/lib";
+import { Moment } from "moment";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -251,10 +252,8 @@ export interface DetailedFileSearchState {
     tagValue: string,
     sensitivities: SensitivityLevel[],
     annotations: Annotation[]
-    createdBefore: TimeAndDate
-    createdAfter: TimeAndDate
-    modifiedBefore: TimeAndDate
-    modifiedAfter: TimeAndDate
+    createdBefore: Moment
+    createdAfter: Moment
+    modifiedBefore: Moment
+    modifiedAfter: Moment
 }
-
-type TimeAndDate = { date?: string, time?: string }
