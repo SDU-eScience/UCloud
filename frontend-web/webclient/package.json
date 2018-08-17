@@ -27,15 +27,7 @@
     "install": "napa",
     "test": "npm run clean && jest"
   },
-  "resolutions": {
-    "eslint-scope": "3.7.1"
-  },
   "dependencies": {
-    "@types/react": "^16.4.11",
-    "@types/react-dom": "^16.0.7",
-    "@types/react-redux": "^6.0.6",
-    "@types/react-router": "^4.0.30",
-    "@types/react-router-dom": "^4.3.0",
     "avataaars": "^1.1.0",
     "jsonwebtoken": "8.3.0",
     "loaders.css": "0.1.2",
@@ -57,6 +49,11 @@
     "uppy": "0.23.3"
   },
   "devDependencies": {
+    "@types/react": "^16.4.11",
+    "@types/react-dom": "^16.0.7",
+    "@types/react-redux": "^6.0.6",
+    "@types/react-router": "^4.0.30",
+    "@types/react-router-dom": "^4.3.0",
     "@types/jest": "^23.3.1",
     "@types/react-datepicker": "^1.1.7",
     "babel-core": "^6.26.3",

@@ -87,7 +87,7 @@ export interface FilesOperations { // Redux operations
     prioritizeFileSearch: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
-    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, sortingColumns: [SortBy, SortBy]) => void
+    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
@@ -124,7 +124,7 @@ export interface FileSelectorState {
 
 export interface FilesTableProps {
     sortOrder?: SortOrder
-    onDropdownSelect?: (sO: SortOrder, s: SortBy, a: [SortBy, SortBy]) => void
+    onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     sortingColumns?: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
@@ -150,7 +150,7 @@ export interface FilesTableHeaderProps {
     sortOrder: SortOrder
     masterCheckbox?: React.ReactNode
     sortingColumns?: [SortBy, SortBy]
-    onDropdownSelect?: (sO: SortOrder, s: SortBy, a: [SortBy, SortBy]) => void
+    onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
 }
 
 export interface FilenameAndIconsProps {
