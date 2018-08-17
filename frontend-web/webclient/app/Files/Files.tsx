@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticCOLORS } from "semantic-ui-react";
+import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
@@ -36,8 +36,8 @@ class Files extends React.Component<FilesProps> {
     }
 
     componentDidMount() {
-        const { match, page, fetchFiles, sortOrder, sortBy, leftSortingColumn, rightSortingColumn } = this.props;
-        fetchFiles(match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy, [leftSortingColumn, rightSortingColumn]);
+        const { match, page, fetchFiles, sortOrder, sortBy } = this.props;
+        fetchFiles(match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
     onRenameFile = (key: number, file: File, name: string) => {
@@ -74,9 +74,9 @@ class Files extends React.Component<FilesProps> {
     }
 
     shouldComponentUpdate(nextProps, _nextState): boolean {
-        const { fetchFiles, page, loading, sortOrder, sortBy, leftSortingColumn, rightSortingColumn } = this.props;
+        const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
         if (nextProps.path !== nextProps.match.params[0] && !loading) {
-            fetchFiles(nextProps.match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy, [leftSortingColumn, rightSortingColumn]);
+            fetchFiles(nextProps.match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         }
         return true;
     }
@@ -101,8 +101,8 @@ class Files extends React.Component<FilesProps> {
             onChange={(e) => e.stopPropagation()}
         />);
         // Lambdas
-        const goTo = (pageNumber: number) => this.props.fetchFiles(path, page.itemsPerPage, pageNumber, this.props.sortOrder, this.props.sortBy, [leftSortingColumn, rightSortingColumn]);
-        const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy, [leftSortingColumn, rightSortingColumn]);
+        const goTo = (pageNumber: number) => this.props.fetchFiles(path, page.itemsPerPage, pageNumber, this.props.sortOrder, this.props.sortBy);
+        const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
         const navigate = (path: string) => history.push(`/files/${path}`);
         const fetchPageFromPath = (path: string) => {
             this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
@@ -139,12 +139,12 @@ class Files extends React.Component<FilesProps> {
                             <FilesTable
                                 onFavoriteFile={favoriteFile}
                                 fileOperations={fileOperations}
-                                sortFiles={(sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, [leftSortingColumn, rightSortingColumn])}
+                                sortFiles={(sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                                 sortingIcon={(name: SortBy) => UF.getSortingIcon(sortBy, sortOrder, name)}
                                 sortOrder={sortOrder}
                                 sortingColumns={[leftSortingColumn, rightSortingColumn]}
                                 refetchFiles={() => refetch()}
-                                onDropdownSelect={(sortOrder: SortOrder, sortBy: SortBy, sortingColumns: [SortBy, SortBy]) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, sortingColumns)}
+                                onDropdownSelect={(sortOrder: SortOrder, sortBy: SortBy, index: number) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
                                 masterCheckbox={checkbox}
                                 creatingNewFolder={this.props.creatingFolder}
                                 onCreateFolder={this.onCreateFolder}
@@ -154,7 +154,7 @@ class Files extends React.Component<FilesProps> {
                             />
                         )}
                         onRefresh={refetch}
-                        onItemsPerPageChanged={(pageSize) => fetchFiles(path, pageSize, 0, sortOrder, sortBy, [leftSortingColumn, rightSortingColumn])}
+                        onItemsPerPageChanged={(pageSize) => fetchFiles(path, pageSize, 0, sortOrder, sortBy)}
                         page={page}
                         onPageChanged={(pageNumber) => goTo(pageNumber)}
                     />
@@ -186,7 +186,7 @@ class Files extends React.Component<FilesProps> {
     }
 }
 
-// Used for creation of folder in empty folder
+// FIXME Used for creation of folder in empty folder
 const MockTable = ({ onCreateFolder, creatingFolder }: MockedTableProps) => (
     <Table unstackable basic="very">
         <FilesTableHeader sortOrder={SortOrder.DESCENDING} masterCheckbox={null} sortingIcon={() => null} sortFiles={null} />
@@ -211,73 +211,59 @@ export const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={(checked: boolean, newFile: File) => onCheckFile(checked, newFile)}
                         />
-                        <Responsive as={Table.Cell} minWidth={768}>
-                            {sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], f) : dateToString(f.modifiedAt)}
-                        </Responsive>
-                        <Responsive as={Table.Cell} minWidth={768}>
-                            {sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], f) : UF.getOwnerFromAcls(f.acl)}
-                        </Responsive>
-                        <MobileButtons
-                            fileOperations={fileOperations}
-                            file={f}
-                        />
+                        <Responsive as={Table.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], f) : dateToString(f.modifiedAt)} />
+                        <Responsive as={Table.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], f) : UF.getOwnerFromAcls(f.acl)}/>
+                        <MobileButtons fileOperations={fileOperations} file={f} />
                     </Table.Row>)
                 )}
             </Table.Body>
         </Table>
     );
 
+const ResponsiveTableColumn = ({ onClick, iconName, onSelect, currentSelection, sortOrder, minWidth = null }) => (
+    <Responsive minWidth={minWidth} as={Table.HeaderCell} onClick={onClick}>
+        <SortByDropdown onSelect={onSelect} currentSelection={currentSelection} sortOrder={sortOrder} />
+        <Icon className="float-right" name={iconName} />
+    </Responsive>
+)
 
-function FilesTableHeader({ sortingIcon, sortFiles, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect }: FilesTableHeaderProps) {
-    let column1 = null;
-    let column2 = null;
-    if (sortingColumns != null) {
-        column1 = (
-            <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(sortingColumns[0])}>
-                <SortByDropdown onSelect={(sortOrder: SortOrder, sortBy: SortBy) => onDropdownSelect(sortOrder, sortBy, [sortBy, sortingColumns[1]])} currentSelection={sortingColumns[0]} sortOrder={sortOrder} />
-                <Icon className="float-right" name={sortingIcon(sortingColumns[0])} />
-            </Responsive>
-        );
-        column2 = (
-            <Responsive minWidth={768} as={Table.HeaderCell} onClick={() => sortFiles(sortingColumns[1])}>
-                <SortByDropdown onSelect={(sortOrder: SortOrder, sortBy: SortBy) => onDropdownSelect(sortOrder, sortBy, [sortingColumns[0], sortBy])} currentSelection={sortingColumns[1]} sortOrder={sortOrder} />
-                <Icon className="float-right" name={sortingIcon(sortingColumns[1])} />
-            </Responsive>
-        );
-    } else {
-        column1 = (<Responsive minWidth={768} as={Table.HeaderCell} content="Modified at" />);
-        column2 = (<Responsive minWidth={768} as={Table.HeaderCell} content="Members" />); // FIXME Members is not consistent
-    }
-    return (
-        <Table.Header>
-            <Table.Row>
-                <Table.HeaderCell className="filename-row" onClick={() => sortFiles(SortBy.PATH)}>
-                    {masterCheckbox}
-                    Filename
-                    <Icon className="float-right" name={sortingIcon(SortBy.PATH)} />
-                </Table.HeaderCell>
-                {column1}
-                {column2}
-                <Table.HeaderCell />
-            </Table.Row>
-        </Table.Header>
-    );
-}
+const FilesTableHeader = ({ sortingIcon, sortFiles, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect }: FilesTableHeaderProps) => (
+    <Table.Header>
+        <Table.Row>
+            <Table.HeaderCell className="filename-row" onClick={() => sortFiles(SortBy.PATH)}>
+                {masterCheckbox}
+                Filename
+                <Icon className="float-right" name={sortingIcon(SortBy.PATH)} />
+            </Table.HeaderCell>
+            {sortingColumns.map((sC, i) => (
+                <ResponsiveTableColumn
+                    minWidth={768}
+                    key={i}
+                    onClick={() => sortFiles(sC)}
+                    onSelect={(sortOrder: SortOrder, sortBy: SortBy) => onDropdownSelect(sortOrder, sortBy, i)}
+                    currentSelection={sC}
+                    sortOrder={sortOrder}
+                    iconName={sortingIcon(sC)}
+                />
+            ))}
+            <Table.HeaderCell />
+        </Table.Row>
+    </Table.Header>
+);
 
-const SortByDropdown = ({ currentSelection, sortOrder, onSelect }: SortByDropdownProps) => {
-    return (
-        <Dropdown simple text={UF.prettierString(currentSelection)}>
-            <Dropdown.Menu>
-                <Dropdown.Item text={UF.prettierString(SortOrder.ASCENDING)} onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} disabled={sortOrder === SortOrder.ASCENDING} />
-                <Dropdown.Item text={UF.prettierString(SortOrder.DESCENDING)} onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} disabled={sortOrder === SortOrder.DESCENDING} />
-                <Dropdown.Divider />
-                {Object.keys(SortBy).filter(it => it !== currentSelection).map((sortByKey: SortBy, i) => (
-                    <Dropdown.Item key={i} onClick={() => onSelect(sortOrder, sortByKey)} text={UF.prettierString(sortByKey)} />
-                ))}
-            </Dropdown.Menu>
-        </Dropdown>
-    )
-}
+const SortByDropdown = ({ currentSelection, sortOrder, onSelect }: SortByDropdownProps) => (
+    <Dropdown simple text={UF.prettierString(currentSelection)}>
+        <Dropdown.Menu>
+            <Dropdown.Item text={UF.prettierString(SortOrder.ASCENDING)} onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} disabled={sortOrder === SortOrder.ASCENDING} />
+            <Dropdown.Item text={UF.prettierString(SortOrder.DESCENDING)} onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} disabled={sortOrder === SortOrder.DESCENDING} />
+            <Dropdown.Divider />
+            {Object.keys(SortBy).filter(it => it !== currentSelection).map((sortByKey: SortBy, i) => (
+                <Dropdown.Item key={i} onClick={() => onSelect(sortOrder, sortByKey)} text={UF.prettierString(sortByKey)} />
+            ))}
+        </Dropdown.Menu>
+    </Dropdown>
+)
+
 
 interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }
 
@@ -347,12 +333,11 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
 const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon className="group-icon-padding" name="users" />) : null;
 
 function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }: FilenameAndIconsProps) {
-    const color = UF.isDirectory(file) ? "blue" : "grey";
     const fileName = UF.getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} item={file.isChecked} onClick={(_, { checked }) => onCheckFile(checked, file)} />
     const icon = (
         <FileIcon
-            color={color}
+            color={UF.isDirectory(file) ? "blue" : "grey"}
             name={UF.iconFromFilePath(file.path, file.type, Cloud.homeFolder)}
             size={size} link={file.link}
         />
@@ -440,11 +425,10 @@ const mapDispatchToProps = (dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(null)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
-    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, sortingColumns: [SortBy, SortBy]) => {
-        // FIXME SortBy can be matched with index instead of providing sortingColumns as well.
+    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => {
         dispatch(Actions.updatePath(path));
         dispatch(Actions.setLoading(true));
-        dispatch(Actions.setSortingColumns(sortingColumns));
+        if (index != null) dispatch(Actions.setSortingColumn(sortBy, index));
         dispatch(Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy))
     },
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => {
