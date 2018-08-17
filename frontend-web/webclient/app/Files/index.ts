@@ -25,6 +25,7 @@ export interface File {
     beingRenamed?: boolean
     link: boolean
     annotations: string[]
+    isMockFolder?: boolean
 }
 
 export interface Acl {
@@ -79,6 +80,7 @@ export interface FilesStateProps { // Redux Props
     checkedFilesCount: number
     favFilesCount: number
     renamingCount: number
+    fileCount: number
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
 }
@@ -125,7 +127,7 @@ export interface FileSelectorState {
 export interface FilesTableProps {
     sortOrder?: SortOrder
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
-    sortingColumns?: [SortBy, SortBy]
+    sortingColumns: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
     sortingIcon: (name: string) => SemanticICONS
@@ -149,7 +151,7 @@ export interface FilesTableHeaderProps {
     sortFiles?: (s: SortBy) => void
     sortOrder: SortOrder
     masterCheckbox?: React.ReactNode
-    sortingColumns?: [SortBy, SortBy]
+    sortingColumns: [SortBy, SortBy]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
 }
 
@@ -216,6 +218,7 @@ export interface SortByDropdownProps {
     currentSelection: SortBy
     sortOrder: SortOrder
     onSelect: (sortorder: SortOrder, s: SortBy) => void
+    asDropdown: boolean
 }
 
 export interface MobileButtonsProps {

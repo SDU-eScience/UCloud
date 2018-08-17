@@ -119,3 +119,22 @@ export const filepathQuery = (path: string, page: number, itemsPerPage: number, 
 
 export const fileLookupQuery = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
+
+
+
+export const NewMockFolder = (): File => ({
+    type: "DIRECTORY",
+    path: "",
+    createdAt: new Date().getMilliseconds(),
+    modifiedAt: new Date().getMilliseconds(),
+    ownerName: "",
+    size: 0,
+    acl: [],
+    favorited: false,
+    sensitivityLevel: "OPEN ACCESS",
+    isChecked: false,
+    beingRenamed: true,
+    link: false,
+    annotations: [],
+    isMockFolder: true
+});

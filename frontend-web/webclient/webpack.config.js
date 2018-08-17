@@ -28,7 +28,8 @@ module.exports = {
             },
             {
                 test: /\.js$/,
-                use: 'imports-loader?define=>false'
+                use: "imports-loader?define=>false",
+                exclude: /node_modules/
             },
             {
                 test: /\.jsx?$/,

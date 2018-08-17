@@ -534,10 +534,10 @@ const GenericNumberParameter = (props) => {
     let value = (props.value != null) ? props.value : "";
 
     const hasLabel = !!props.parameter.unitName;
-
+    
     let baseField = (
         <Input
-            labelPosition='right'
+            labelPosition="right"
             label={{ basic: true, content: hasLabel ? props.parameter.unitName : "Number" }}
             placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
             required={!props.parameter.optional} name={props.parameter.name}

@@ -14,7 +14,7 @@ import "Styling/Shared.scss";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";
-import { File } from "Files";
+import { File, SortBy } from "Files";
 import { filepathQuery } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 
@@ -80,7 +80,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             this.retrieveStateWhenCompleted();
             return;
         }
-        // hpcJobQuery(id: string, stdoutLine: number, stderrLine: number)
         this.setState({ loading: true });
         this.state.promises.makeCancelable(
             Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
@@ -274,6 +273,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             creatingNewFolder={false}
                             sortingIcon={() => null}
                             onCheckFile={() => null}
+                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
