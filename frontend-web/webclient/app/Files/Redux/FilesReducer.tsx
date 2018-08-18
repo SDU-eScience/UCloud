@@ -9,9 +9,6 @@ export const RECEIVE_FILE_SELECTOR_FILES = "RECEIVE_FILE_SELECTOR_FILES";
 export const SET_FILE_SELECTOR_LOADING = "SET_FILE_SELECTOR_LOADING";
 export const SET_FILE_SELECTOR_CALLBACK = "SET_FILE_SELECTOR_CALLBACK";
 export const SET_DISALLOWED_PATHS = "SET_DISALLOWED_PATHS";
-export const SET_CREATING_FOLDER = "SET_CREATING_FOLDER";
-export const SET_EDITING_FILE = "SET_EDITING_FILE";
-export const RESET_FOLDER_EDITING = "RESET_FOLDER_EDITING";
 export const FILES_ERROR = "FILES_ERROR";
 export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
 
@@ -57,12 +54,6 @@ const files = (state: any = {}, action) => {
         }
         case SET_DISALLOWED_PATHS: {
             return { ...state, disallowedPaths: action.paths }
-        }
-        case SET_EDITING_FILE: {
-            return { ...state, ...action };
-        }
-        case SET_CREATING_FOLDER: {
-            return { ...state, ...action };
         }
         case FILES_ERROR: {
             return { ...state, error: action.error, loading: false };

@@ -15,9 +15,9 @@ import { FileIcon } from "UtilityComponents";
 import { Uploader } from "Uploader";
 import { Page } from "Types";
 import {
-    FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, MockedTableProps, File, CreateFolderProps,
-    FilesTableHeaderProps, FilenameAndIconsProps, FileOptionsProps, FilesTableProps, SortByDropdownProps,
-    MobileButtonsProps, FileOperation, ContextButtonsProps, Operation
+    FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
+    FileOptionsProps, FilesTableProps, SortByDropdownProps, MobileButtonsProps, FileOperation, ContextButtonsProps,
+    Operation
 } from ".";
 import { ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
@@ -101,7 +101,7 @@ class Files extends React.Component<FilesProps> {
             onChange={(e) => e.stopPropagation()}
         />);
         // Lambdas
-        const goTo = (pageNumber: number) => this.props.fetchFiles(path, page.itemsPerPage, pageNumber, this.props.sortOrder, this.props.sortBy);
+        const goTo = (pageNumber: number) => fetchFiles(path, page.itemsPerPage, pageNumber, this.props.sortOrder, this.props.sortBy);
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
         const navigate = (path: string) => history.push(`/files/${path}`);
         const fetchPageFromPath = (path: string) => {
@@ -142,7 +142,6 @@ class Files extends React.Component<FilesProps> {
                                 refetchFiles={() => refetch()}
                                 onDropdownSelect={(sortOrder: SortOrder, sortBy: SortBy, index: number) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
                                 masterCheckbox={checkbox}
-                                creatingNewFolder={this.props.creatingFolder}
                                 onRenameFile={this.onRenameFile}
                                 files={page.items}
                                 onCheckFile={(checked: boolean, file: File) => checkFile(checked, page, file)}
@@ -330,16 +329,12 @@ function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null
         </Table.Cell>
 };
 
-function FileOptions({ files, fileOperations }: FileOptionsProps) {
-    if (!files.length) return null;
-    const fileText = UF.toFileText(files);
-    return (
-        <div>
-            <Header as="h3">{fileText}</Header>
-            <FileOperations files={files} fileOperations={fileOperations} As={Button} fluid basic />
-        </div>
-    );
-};
+const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
+    <div>
+        <Header as="h3">{UF.toFileText(files)}</Header>
+        <FileOperations files={files} fileOperations={fileOperations} As={Button} fluid basic />
+    </div>
+) : null;
 
 export const FileOperations = ({ files, fileOperations, As, ...props }) =>
     fileOperations.map((fileOp, i) => {
@@ -373,17 +368,16 @@ const MobileButtons = ({ file, fileOperations }: MobileButtonsProps) => (
 );
 
 const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
-    const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, creatingFolder,
-        fileSelectorShown, fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError,
-        sortingColumns } = files;
+    const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown,
+        fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns } = files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const checkedFilesCount = page.items.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
     const fileCount = page.items.length;
     return {
         error, fileSelectorError, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath,
-        fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, creatingFolder, fileCount,
-        fileSelectorLoading, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount
+        fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
+        leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount
     }
 };
 
@@ -412,7 +406,6 @@ const mapDispatchToProps = (dispatch): FilesOperations => ({
     setPageTitle: () => dispatch(updatePageTitle("Files")),
     updateFiles: (page: Page<File>) => dispatch(Actions.updateFiles(page)),
     setDisallowedPaths: (disallowedPaths: string[]) => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
-    setCreatingFolder: (creating) => dispatch(Actions.setCreatingFolder(creating))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);

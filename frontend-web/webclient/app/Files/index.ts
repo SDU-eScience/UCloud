@@ -4,6 +4,7 @@ import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS }
 import { match } from "react-router-dom";
 import Cloud from "Authentication/lib";
 import { Moment } from "moment";
+import * as React from "react";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -74,7 +75,6 @@ export interface FilesStateProps { // Redux Props
     fileSelectorPage: Page<File>
     sortBy: SortBy
     sortOrder: SortOrder
-    creatingFolder: boolean
     error: string
     fileSelectorError: string
     checkedFilesCount: number
@@ -99,7 +99,6 @@ export interface FilesOperations { // Redux operations
     updatePath: (path: string) => void
     showFileSelector: (open: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
-    setCreatingFolder: (creating: boolean) => void
 }
 
 export interface FileSelectorProps {
@@ -136,7 +135,6 @@ export interface FilesTableProps {
     onCreateFolder?: (key: number, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
     refetchFiles: () => void
-    creatingNewFolder: boolean
     onFavoriteFile: (f: File[]) => void
     fileOperations: FileOperation[]
 }

@@ -10,8 +10,6 @@ import {
     RECEIVE_FILE_SELECTOR_FILES,
     SET_FILE_SELECTOR_CALLBACK,
     SET_DISALLOWED_PATHS,
-    SET_CREATING_FOLDER,
-    SET_EDITING_FILE,
     FILES_ERROR,
     SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
@@ -187,24 +185,4 @@ export const setFileSelectorCallback = (callback: Function): SetFileSelectorCall
 export const setFileSelectorError = (error?: string): Error => ({
     type: SET_FILE_SELECTOR_ERROR,
     error
-});
-
-interface SetEditingFileAction extends Action { editFileIndex: number }
-/**
- * Sets the index of the file being edited.
- * @param editFileIndex - the index of the file in the current page being edited
- */
-export const setEditingFile = (editFileIndex: number): SetEditingFileAction => ({
-    type: SET_EDITING_FILE,
-    editFileIndex
-});
-
-interface SetCreatingFolder extends Action { creatingFolder: boolean }
-/**
- * Sets the value of whether or not the user is creating a folder
- * @param {boolean} creatingFolder - whether or not the user is creating a folder
- */
-export const setCreatingFolder = (creatingFolder: boolean): SetCreatingFolder => ({
-    type: SET_CREATING_FOLDER,
-    creatingFolder
 });

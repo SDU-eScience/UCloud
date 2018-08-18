@@ -105,13 +105,11 @@ interface ComponentWithPage<T> {
 }
 
 export interface FilesReduxObject extends ComponentWithPage<File> {
-    creatingFolder: boolean
     sortOrder: SortOrder
     sortBy: SortBy
     path: string
     filesInfoPath: string
     fileSelectorError: string
-    projects: any[]
     sortingColumns: [SortBy, SortBy]
     fileSelectorLoading: boolean
     fileSelectorShown: false
@@ -173,7 +171,6 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
         recentAnalysesError: null
     },
     files: {
-        creatingFolder: false,
         page: emptyPage,
         sortOrder: SortOrder.ASCENDING,
         sortBy: SortBy.PATH,
@@ -181,7 +178,6 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
         error: null,
         path: "",
         filesInfoPath: "",
-        projects: [] as any[],
         sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
         fileSelectorLoading: false,
         fileSelectorShown: false,
