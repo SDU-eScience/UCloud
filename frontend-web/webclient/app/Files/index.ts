@@ -258,3 +258,5 @@ export interface DetailedFileSearchState {
     modifiedBefore: Moment
     modifiedAfter: Moment
 }
+
+export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";

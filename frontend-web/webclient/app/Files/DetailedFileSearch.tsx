@@ -2,10 +2,11 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Grid, Dropdown, Label, Header, Form, Button, Input } from "semantic-ui-react";
 import { addEntryIfNotPresent } from "Utilities/ArrayUtilities"
-import { infoNotification } from "UtilityFunctions";
-import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation } from ".";
+import { infoNotification, failureNotification } from "UtilityFunctions";
+import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime } from ".";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { Moment } from "moment";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
     constructor(props) {
@@ -101,6 +102,41 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         }
     }
 
+    // FIXME, should show errors in fields instead;
+    validateAndSetDate(m: Moment, property: PossibleTime) {
+        const { createdAfter, createdBefore, modifiedAfter, modifiedBefore } = this.state;
+        const isBefore = property.includes("Before")
+        if (property.startsWith("created")) {
+            if (isBefore) {
+                if (!createdAfter || m.isAfter(createdAfter)) {
+                    this.setState(() => ({ createdBefore: m }));
+                } else {
+                    failureNotification("Created before must be after created after");
+                }
+            } else {
+                if (!createdBefore || m.isBefore(createdBefore)) {
+                    this.setState(() => ({ createdAfter: m }));
+                } else {
+                    failureNotification("Created after must be before created before");
+                }
+            }
+        } else { // Modified
+            if (isBefore) { // Modified Before
+                if ((!createdAfter || m.isAfter(createdAfter)) && (!modifiedAfter || m.isAfter(modifiedAfter))) {
+                    this.setState(() => ({ modifiedBefore: m }));
+                } else {
+                    failureNotification("Modified before must be after created after and modified after");
+                }
+            } else { // Modified After
+                if ((!createdBefore || m.isBefore(createdBefore)) && (!modifiedBefore || m.isBefore(modifiedBefore))) {
+                    this.setState(() => ({ modifiedAfter: m }));
+                } else {
+                    failureNotification("Modified after must be before created before and modified before");
+                }
+            }
+        }
+    }
+
     onSearch = () => {
         console.log(this.state);
         console.warn("Todo");
@@ -141,7 +177,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                 <label>Created after</label>
                                 <DatePicker
                                     selected={this.state.createdAfter}
-                                    onChange={(d) => this.setState(() => ({ createdAfter: d }))}
+                                    onChange={(d) => this.validateAndSetDate(d, "createdAfter")}
                                     showTimeSelect
                                     timeFormat="hh:mm"
                                     timeIntervals={15}
@@ -153,7 +189,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                 <label>Created before</label>
                                 <DatePicker
                                     selected={this.state.createdBefore}
-                                    onChange={(d) => this.setState(() => ({ createdBefore: d }))}
+                                    onChange={(d) => this.validateAndSetDate(d, "createdBefore")}
                                     showTimeSelect
                                     timeFormat="HH:mm"
                                     timeIntervals={15}
@@ -170,7 +206,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                 <label>Modified after</label>
                                 <DatePicker
                                     selected={this.state.modifiedAfter}
-                                    onChange={(d) => this.setState(() => ({ modifiedAfter: d }))}
+                                    onChange={(d) => this.validateAndSetDate(d, "modifiedAfter")}
                                     showTimeSelect
                                     timeFormat="HH:mm"
                                     timeIntervals={15}
@@ -182,7 +218,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                 <label>Modified before</label>
                                 <DatePicker
                                     selected={this.state.modifiedBefore}
-                                    onChange={(d) => this.setState(() => ({ modifiedBefore: d }))}
+                                    onChange={(d) => this.validateAndSetDate(d, "modifiedBefore")}
                                     showTimeSelect
                                     timeFormat="HH:mm"
                                     timeIntervals={15}
@@ -218,7 +254,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Header as="h3" content="Tags" />
                     <SearchLabels labels={tags} onLabelRemove={(l) => this.onRemoveTag(l)} clearAll={() => this.setState(() => ({ tags: new Set() }))} />
                     <Form onSubmit={(e) => { e.preventDefault(); this.onAddTags(); }}>
-                        <Form.Input value={tagValue} onChange={(_, { value }) => this.setState(() => ({ tagValue: value })) } />
+                        <Form.Input value={tagValue} onChange={(_, { value }) => this.setState(() => ({ tagValue: value }))} />
                     </Form>
                     <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => this.onSearch()} />
                 </Grid.Column>
