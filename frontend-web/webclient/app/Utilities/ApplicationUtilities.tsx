@@ -10,6 +10,8 @@ export const hpcJobQuery = (id: string, stdoutLine: number, stderrLine: number, 
 export const hpcJobsQuery = (itemsPerPage: number, page: number): string =>
     `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
 
+export const hpcApplicationsQuery = (page: number, itemsPerPage: number) => `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`
+
 
 /**
 * //FIXME Missing backend functionality

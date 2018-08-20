@@ -41,6 +41,7 @@ class Applications extends React.Component<ApplicationsProps> {
     render() {
         const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
         const favoriteApp = (app: Application) => updateApplications(favoriteApplicationFromPage(app, page, Cloud));
+        console.log(page);
         return (
             <React.StrictMode>
                 <Pagination.List
