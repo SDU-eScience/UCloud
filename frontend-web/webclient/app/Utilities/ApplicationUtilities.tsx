@@ -7,6 +7,10 @@ import { Page } from "Types";
 export const hpcJobQuery = (id: string, stdoutLine: number, stderrLine: number, stdoutMaxLines: number = 1000, stderrMaxLines: number = 1000) =>
     `hpc/jobs/follow/${id}?stdoutLineStart=${stdoutLine}&stdoutMaxLines=${stdoutMaxLines}&stderrLineStart=${stderrLine}&stderrMaxLines=${stderrMaxLines}`;
 
+export const hpcJobsQuery = (itemsPerPage: number, page: number): string =>
+    `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
+
+
 /**
 * //FIXME Missing backend functionality
 * Favorites an application. 

@@ -21,7 +21,7 @@ import {
 } from ".";
 import { ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
-import { startRenamingFiles, AllFileOperations, NewMockFolder } from "Utilities/FileUtilities";
+import { startRenamingFiles, AllFileOperations, newMockFolder } from "Utilities/FileUtilities";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -43,7 +43,7 @@ class Files extends React.Component<FilesProps> {
     newFolder() {
         let { page } = this.props;
         page.items = page.items.filter(it => !it.isMockFolder)
-        page.items = [NewMockFolder()].concat([...page.items]);
+        page.items = [newMockFolder()].concat([...page.items]);
         this.props.updateFiles(page);
     }
 

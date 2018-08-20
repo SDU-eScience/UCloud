@@ -122,7 +122,7 @@ export const fileLookupQuery = (path: string, itemsPerPage: number, order: SortO
 
 
 
-export const NewMockFolder = (): File => ({
+export const newMockFolder = (): File => ({
     type: "DIRECTORY",
     path: "",
     createdAt: new Date().getMilliseconds(),

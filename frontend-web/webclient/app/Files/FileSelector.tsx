@@ -4,7 +4,6 @@ import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
 import * as PropTypes from "prop-types";
-import { connect } from "react-redux";
 import { getFilenameFromPath, getParentPath, isInvalidPathName, inSuccessRange } from "UtilityFunctions";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
@@ -26,7 +25,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             loading: false,
             page: emptyPage,
             modalShown: false,
-            breadcrumbs: [],
             uppyOnUploadSuccess: null,
             creatingFolder: false
         };

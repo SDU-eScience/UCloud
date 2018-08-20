@@ -33,7 +33,7 @@ const addPromiseSupportToDispatch = (store) => {
     };
 };
 
-const rootReducer = combineReducers({ 
+const rootReducer = combineReducers({
     files,
     dashboard,
     analyses,
@@ -43,7 +43,8 @@ const rootReducer = combineReducers({
     status,
     zenodo,
     sidebar,
-    notifications });
+    notifications
+});
 
 const configureStore = (initialObject) => {
     let store = createStore(rootReducer, initialObject);

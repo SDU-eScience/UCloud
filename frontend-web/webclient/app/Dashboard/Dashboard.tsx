@@ -89,7 +89,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         </Card >)
 };
 
-const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 135 | 200 }) =>
+const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) =>
     <List.Content>
         <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={null} link={link} color="grey" />
         <Link to={`/files/${type === "FILE" ? getParentPath(path) : path}`}>
@@ -111,7 +111,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
                             <List.Content floated="right">
                                 <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
                             </List.Content>
-                            <ListFileContent path={file.path} type={file.type} link={file.link} pixelsWide={135} />
+                            <ListFileContent path={file.path} type={file.type} link={file.link} pixelsWide={117} />
                         </List.Item>
                     ))}
                 </List>

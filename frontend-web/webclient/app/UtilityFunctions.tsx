@@ -4,10 +4,9 @@ import Cloud from "Authentication/lib";
 import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder, File, Acl, FileType } from "Files";
 import { Page, AccessRight } from "Types";
-import { Application } from "Applications";
 import { dateToString } from "Utilities/DateUtilities";
 
-export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
+export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
 /**
  * Checks if a pathname is legal/already in use
@@ -295,22 +294,6 @@ export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortB
         return sortOrder === SortOrder.DESCENDING ? "chevron down" : "chevron up";
     }
     return null;
-};
-
-export const createRange = (count: number): number[] => {
-    let range = [];
-    for (let i = 0; i < count; i++) {
-        range.push(i);
-    }
-    return range;
-};
-
-export const createRangeInclusive = (count: number): number[] => {
-    let range = [];
-    for (let i = 0; i <= count; i++) {
-        range.push(i);
-    }
-    return range;
 };
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {

@@ -5,6 +5,7 @@ import { match } from "react-router-dom";
 import Cloud from "Authentication/lib";
 import { Moment } from "moment";
 import * as React from "react";
+import PromiseKeeper from "PromiseKeeper";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -113,12 +114,11 @@ export interface FileSelectorProps {
 }
 
 export interface FileSelectorState {
-    promises: any
+    promises: PromiseKeeper
     path: string
     loading: boolean
     page: Page<File>
     modalShown: boolean
-    breadcrumbs: { path: string, actualPath: string }[]
     uppyOnUploadSuccess: Function
     creatingFolder: boolean
 }
