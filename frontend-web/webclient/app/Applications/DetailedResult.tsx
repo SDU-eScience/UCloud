@@ -270,7 +270,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             files={page.items}
                             refetchFiles={() => null}
                             sortFiles={() => null}
-                            creatingNewFolder={false}
                             sortingIcon={() => null}
                             onCheckFile={() => null}
                             sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
