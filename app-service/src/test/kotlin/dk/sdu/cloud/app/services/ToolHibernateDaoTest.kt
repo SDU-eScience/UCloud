@@ -25,7 +25,7 @@ class ToolHibernateDaoTest{
         2,
         SimpleDuration(1,0,0),
         listOf(""),
-        listOf("auther"),
+        listOf("author"),
         "title",
         "description",
         ToolBackend.UDOCKER
