@@ -264,6 +264,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     onRefresh={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
                     pageRenderer={(page) =>
                         <FilesTable
+                            sortBy={SortBy.PATH}
                             fileOperations={[]}
                             files={page.items}
                             refetchFiles={() => null}

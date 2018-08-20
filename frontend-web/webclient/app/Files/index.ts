@@ -135,6 +135,7 @@ export interface FilesTableProps {
     onCreateFolder?: (key: number, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
     refetchFiles: () => void
+    sortBy: SortBy
     onFavoriteFile: (f: File[]) => void
     fileOperations: FileOperation[]
 }
@@ -148,6 +149,7 @@ export interface FilesTableHeaderProps {
     sortingIcon?: (s: SortBy) => SemanticICONS
     sortFiles?: (s: SortBy) => void
     sortOrder: SortOrder
+    sortBy: SortBy
     masterCheckbox?: React.ReactNode
     sortingColumns: [SortBy, SortBy]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
@@ -217,6 +219,7 @@ export interface SortByDropdownProps {
     sortOrder: SortOrder
     onSelect: (sortorder: SortOrder, s: SortBy) => void
     asDropdown: boolean
+    isSortedBy: boolean
 }
 
 export interface MobileButtonsProps {

@@ -101,8 +101,8 @@ class Files extends React.Component<FilesProps> {
             onChange={(e) => e.stopPropagation()}
         />);
         // Lambdas
-        const goTo = (pageNumber: number) => fetchFiles(path, page.itemsPerPage, pageNumber, this.props.sortOrder, this.props.sortBy);
-        const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, this.props.sortOrder, this.props.sortBy);
+        const goTo = (pageNumber: number) => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy);
+        const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         const navigate = (path: string) => history.push(`/files/${path}`);
         const fetchPageFromPath = (path: string) => {
             this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
@@ -144,6 +144,7 @@ class Files extends React.Component<FilesProps> {
                                 masterCheckbox={checkbox}
                                 onRenameFile={this.onRenameFile}
                                 files={page.items}
+                                sortBy={sortBy}
                                 onCheckFile={(checked: boolean, file: File) => checkFile(checked, page, file)}
                             />
                         )}
@@ -182,10 +183,18 @@ class Files extends React.Component<FilesProps> {
 
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
-    fileOperations, sortOrder, onFavoriteFile
+    fileOperations, sortOrder, onFavoriteFile, sortBy
 }: FilesTableProps) => (
         <Table unstackable basic="very">
-            <FilesTableHeader onDropdownSelect={onDropdownSelect} sortOrder={sortOrder} sortingColumns={sortingColumns} masterCheckbox={masterCheckbox} sortingIcon={sortingIcon} sortFiles={sortFiles} />
+            <FilesTableHeader
+                onDropdownSelect={onDropdownSelect}
+                sortOrder={sortOrder}
+                sortingColumns={sortingColumns}
+                masterCheckbox={masterCheckbox}
+                sortingIcon={sortingIcon}
+                sortFiles={sortFiles}
+                sortBy={sortBy}
+            />
             <Table.Body>
                 {files.map((f: File, i: number) => (
                     <Table.Row className="file-row" key={i}>
@@ -205,14 +214,14 @@ export const FilesTable = ({
         </Table>
     );
 
-const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect, currentSelection, sortOrder, minWidth = null }) => (
+const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect, isSortedBy, currentSelection, sortOrder, minWidth = null }) => (
     <Responsive minWidth={minWidth} as={Table.HeaderCell}>
-        <SortByDropdown onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
+        <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
         <Icon className="float-right" name={iconName} />
     </Responsive>
 )
 
-const FilesTableHeader = ({ sortingIcon, sortFiles, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect }: FilesTableHeaderProps) => (
+const FilesTableHeader = ({ sortingIcon, sortFiles, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy }: FilesTableHeaderProps) => (
     <Table.Header>
         <Table.Row>
             <Table.HeaderCell className="filename-row" onClick={() => sortFiles(SortBy.PATH)}>
@@ -223,6 +232,7 @@ const FilesTableHeader = ({ sortingIcon, sortFiles, sortOrder, masterCheckbox, s
             {sortingColumns.map((sC, i) => (
                 <ResponsiveTableColumn
                     key={i}
+                    isSortedBy={sC === sortBy}
                     minWidth={768}
                     onSelect={(sortOrder: SortOrder, sortBy: SortBy) => onDropdownSelect(sortOrder, sortBy, i)}
                     currentSelection={sC}
@@ -236,11 +246,11 @@ const FilesTableHeader = ({ sortingIcon, sortFiles, sortOrder, masterCheckbox, s
     </Table.Header>
 );
 
-const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown }: SortByDropdownProps) => asDropdown ? (
+const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isSortedBy }: SortByDropdownProps) => asDropdown ? (
     <Dropdown simple text={UF.prettierString(currentSelection)}>
         <Dropdown.Menu>
-            <Dropdown.Item text={UF.prettierString(SortOrder.ASCENDING)} onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} disabled={sortOrder === SortOrder.ASCENDING} />
-            <Dropdown.Item text={UF.prettierString(SortOrder.DESCENDING)} onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} disabled={sortOrder === SortOrder.DESCENDING} />
+            <Dropdown.Item text={UF.prettierString(SortOrder.ASCENDING)} onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} disabled={sortOrder === SortOrder.ASCENDING && isSortedBy} />
+            <Dropdown.Item text={UF.prettierString(SortOrder.DESCENDING)} onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} disabled={sortOrder === SortOrder.DESCENDING && isSortedBy} />
             <Dropdown.Divider />
             {Object.keys(SortBy).filter(it => it !== currentSelection).map((sortByKey: SortBy, i) => (
                 <Dropdown.Item key={i} onClick={() => onSelect(sortOrder, sortByKey)} text={UF.prettierString(sortByKey)} />
