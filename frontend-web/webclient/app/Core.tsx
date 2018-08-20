@@ -19,6 +19,7 @@ import UserCreation from "Admin/UserCreation";
 import UserSettings from "UserSettings/UserSettings";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import SimpleSearch from "SimpleSearch/SimpleSearch";
+import Projects from "Projects/Projects";
 import * as Share from "Shares";
 import * as Metadata from "Metadata";
 
@@ -49,6 +50,7 @@ const Core = () => (
                 <Route exact path="/admin/usercreation" component={UserCreation} />
                 <Route exact path="/usersettings/settings" component={UserSettings} />
                 <Route exact path="/simpleSearch/:priority/*" component={SimpleSearch} />
+                <Route exact path="/projects" component={Projects} />
                 <Route component={NotFound} />
             </Switch>
         </Sidebar>

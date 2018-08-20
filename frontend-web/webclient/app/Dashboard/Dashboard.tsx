@@ -9,7 +9,7 @@ import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, r
 import { connect } from "react-redux";
 import "Styling/Shared.scss";
 import "Dashboard/dashboard.scss";
-import { Card, List, Icon, Message } from "semantic-ui-react";
+import { Card, List, Icon, Message, Header } from "semantic-ui-react";
 import * as moment from "moment";
 import { FileIcon } from "UtilityComponents";
 import {
@@ -66,9 +66,7 @@ class Dashboard extends React.Component<DashboardProps> {
 }
 
 const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: Function }) => {
-    const noFavorites = files.length || isLoading ? "" : (<h3 className="text-center">
-        <small>No favorites found.</small>
-    </h3>);
+    const noFavorites = files.length || isLoading ? null : (<Header as="h3" sub content="No favorites found" />);
     const filesList = files.map((file: File, i: number) =>
         (<List.Item key={i} className="itemPadding">
             <List.Content floated="right">
@@ -101,27 +99,21 @@ const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type:
 
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => {
-    const filesList = files.sort((a: File, b: File) => b.modifiedAt - a.modifiedAt).map((file, i) => (
-        <List.Item key={i} className="itemPadding">
-            <List.Content floated="right">
-                <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
-            </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={file.link} pixelsWide={135} />
-        </List.Item>
-    ));
-
     return (
         <Card>
             <Card.Content>
                 <Card.Header content="Recently used files" />
-                {isLoading || files.length ? null :
-                    (<h3>
-                        <small>No analyses found</small>
-                    </h3>)
-                }
+                {isLoading || files.length ? null : (<Header as="h3" sub content="No recently used files" />)}
                 <DefaultLoading loading={isLoading} />
                 <List divided size={"large"}>
-                    {filesList}
+                    {files.map((file, i) => (
+                        <List.Item key={i} className="itemPadding">
+                            <List.Content floated="right">
+                                <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
+                            </List.Content>
+                            <ListFileContent path={file.path} type={file.type} link={file.link} pixelsWide={135} />
+                        </List.Item>
+                    ))}
                 </List>
             </Card.Content>
         </Card>);
@@ -132,11 +124,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
         <Card.Content>
             <Card.Header content="Recent Analyses" />
             <DefaultLoading loading={isLoading} />
-            {isLoading || analyses.length ? null :
-                (<h3>
-                    <small>No analyses found</small>
-                </h3>)
-            }
+            {isLoading || analyses.length ? null : (<Header as="h3" sub content="No Analyses found" />)}
             <List divided size={"large"}>
                 {analyses.map((analysis: Analysis, index: number) =>
                     <List.Item key={index} className="itemPadding">

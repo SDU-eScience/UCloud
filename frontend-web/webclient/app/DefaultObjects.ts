@@ -86,7 +86,7 @@ const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>
 
 const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`) as SortBy;
-    if (!sortingColumn) {
+    if (!sortingColumn || !(sortingColumn in SortBy)) {
         if (columnIndex === 0) {
             window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);
             return SortBy.MODIFIED_AT;
