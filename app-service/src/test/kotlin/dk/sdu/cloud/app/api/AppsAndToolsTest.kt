@@ -31,6 +31,7 @@ class AppsAndToolsTest{
         assertEquals("description", v1.description)
         assertEquals("string", v1.parameters.keys.first())
         assertEquals("globs", v1.outputFileGlobs.first())
+        assertEquals("string", v1.invocation.first().toString())
 
         val normTool = v1.normalize()
 
@@ -266,6 +267,21 @@ class AppsAndToolsTest{
             "2.2",
             NameAndVersion("name", "2.2"),
             listOf("Authors"),
+            "title",
+            "description",
+            listOf("string"),
+            mapOf(Pair("string", mockk(relaxed = true))),
+            listOf("globs")
+        )
+    }
+
+    @Test (expected = ApplicationVerificationException.BadValue::class)
+    fun `create simple V1 Application description - bad author`() {
+        ApplicationDescription.V1(
+            "name",
+            "2.2",
+            NameAndVersion("name", "2.2"),
+            listOf("Authors\n", "good author"),
             "title",
             "description",
             listOf("string"),
