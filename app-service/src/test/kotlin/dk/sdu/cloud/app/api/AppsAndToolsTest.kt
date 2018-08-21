@@ -31,7 +31,6 @@ class AppsAndToolsTest{
         assertEquals("description", v1.description)
         assertEquals("string", v1.parameters.keys.first())
         assertEquals("globs", v1.outputFileGlobs.first())
-        assertEquals("string", v1.invocation.first().toString())
 
         val normTool = v1.normalize()
 
