@@ -186,3 +186,8 @@ export const setFileSelectorError = (error?: string): Error => ({
     type: SET_FILE_SELECTOR_ERROR,
     error
 });
+
+export const checkAllFiles = (checked: boolean, page: Page<File>) => {
+    page.items.forEach((it) => it.isChecked = checked);
+    return updateFiles(page);
+}

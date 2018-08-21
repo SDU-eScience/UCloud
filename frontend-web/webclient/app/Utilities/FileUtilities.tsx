@@ -108,7 +108,7 @@ export function AllFileOperations(stateless?: boolean, fileSelectorOps?: MoveCop
     return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...historyOperations];
 };
 
-export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
+export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`;
 
 export const fileLookupQuery = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
@@ -116,9 +116,9 @@ export const fileLookupQuery = (path: string, itemsPerPage: number, order: SortO
 
 
 
-export const newMockFolder = (): File => ({
+export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
     type: "DIRECTORY",
-    path: "",
+    path,
     createdAt: new Date().getMilliseconds(),
     modifiedAt: new Date().getMilliseconds(),
     ownerName: "",
@@ -127,7 +127,7 @@ export const newMockFolder = (): File => ({
     favorited: false,
     sensitivityLevel: "OPEN ACCESS",
     isChecked: false,
-    beingRenamed: true,
+    beingRenamed,
     link: false,
     annotations: [],
     isMockFolder: true
@@ -312,3 +312,17 @@ export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => vo
         }
     })
 };
+
+export const moveFile = (oldPath: string, newPath: string, cloud: Cloud, onSuccess: () => void) =>
+    cloud.post(`/files/move?path=${oldPath}&newPath=${newPath}`).then(({ request }) => {
+        if (UF.inSuccessRange(request.status)) {
+            onSuccess()
+        }
+    }).catch(() => UF.failureNotification("An error ocurred trying to rename the file."));
+
+export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) =>
+    cloud.post("/files/directory", { path }).then(({ request }) => {
+        if (UF.inSuccessRange(request.status)) {
+            onSuccess()
+        }
+    }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
