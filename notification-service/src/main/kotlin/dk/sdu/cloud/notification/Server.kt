@@ -22,43 +22,20 @@ import java.util.concurrent.TimeUnit
 
 class Server(
     private val db: HibernateSessionFactory,
-    private val configuration: Configuration,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    override val serviceRegistry: ServiceRegistry,
+    private val instance: ServiceInstance,
     private val cloud: RefreshingJWTAuthenticatedCloud
-): CommonServer, WithServiceRegistry {
-
+): CommonServer {
     override val log: Logger = logger()
-    override val endpoints = listOf("api/notifications")
 
     override lateinit var httpServer: ApplicationEngine
-    override lateinit var kStreams: KafkaStreams
+    override var kStreams: KafkaStreams? = null
 
     override fun start() {
-        val instance = NotificationServiceDescription.instance(configuration.connConfig)
-
         log.info("Creating core services")
         val notificationDao = NotificationHibernateDAO()
         log.info("Core services constructed!")
-
-        kStreams = run {
-            log.info("Constructing Kafka Streams Topology")
-            val kBuilder = StreamsBuilder()
-
-            log.info("Configuring stream processors...")
-            log.info("Stream processors configured!")
-
-            kafka.build(kBuilder.build()).also {
-                log.info("Kafka Streams Topology successfully built!")
-            }
-        }
-
-        kStreams.setUncaughtExceptionHandler { _, exception ->
-            log.error("Caught fatal exception in Kafka! Stacktrace follows:")
-            log.error(exception.stackTraceToString())
-            stop()
-        }
 
         httpServer = ktor {
             log.info("Configuring HTTP server")
@@ -78,11 +55,5 @@ class Server(
         }
 
         startServices()
-        registerWithRegistry()
-
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(Server::class.java)
     }
 }

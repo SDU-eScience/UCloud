@@ -1,0 +1,76 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: notification-service-deployment
+  labels:
+    app: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+      - name: notification-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/notification-service:0.3.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/refresh-token
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      volumes:
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: notification-psql
+      - name: refresh-token
+        secret:
+          secretName: notification-refresh-token
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: notification-service
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: notification-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.dev-sdu-cloud.dk
+    http:
+      paths:
+      - path: /api/notifications
+        backend:
+          serviceName: notification
+          servicePort: 8080

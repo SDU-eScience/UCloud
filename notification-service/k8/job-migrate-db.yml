@@ -1,0 +1,43 @@
+---
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: notification-migration
+
+spec:
+  template:
+    metadata:
+      name: notification-migration
+
+    spec:
+      containers:
+      - args:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/service
+        - --config-dir
+        - /etc/refresh-token
+        - --run-script
+        - migrate-db
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/notification-service:0.3.0
+        name: notification-migration
+
+        volumeMounts:
+        - mountPath: /etc/service
+          name: vol1
+        - mountPath: /etc/refresh-token
+          name: vol2
+
+      imagePullSecrets:
+        - name: esci-docker
+
+      restartPolicy: Never
+
+      volumes:
+      - name: vol1
+        secret:
+          secretName: notification-psql
+      - name: vol2
+        secret:
+          secretName: notification-refresh-token
