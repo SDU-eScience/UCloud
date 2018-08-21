@@ -4,13 +4,13 @@ import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import { Cloud } from "Authentication/SDUCloudObject";
-import * as uf from "UtilityFunctions";
+import * as UF from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
 import { SingleApplication } from "Applications/Applications";
 import { simpleSearch } from "Metadata/api";
 import { SearchItem } from "Metadata/Search";
 import { emptyPage } from "DefaultObjects";
-import { AllFileOperations } from "Utilities/FileUtilities";
+import { AllFileOperations, getParentPath, getFilenameFromPath } from "Utilities/FileUtilities";
 import { SimpleSearchProps, SimpleSearchState } from ".";
 import { HeaderSearchType } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
@@ -99,6 +99,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, error } = this.state;
         const errorMessage = !!error ? (<Message color="red" content={error} onDismiss={() => this.setState(() => ({ error: "" }))} />) : null;
+        // Currently missing ACLS to allow for fileOperations
         const fileOperations = AllFileOperations(true, null, () => this.searchFiles(search, files.pageNumber, files.itemsPerPage), this.props.history);
         const panes = [
             {
@@ -160,9 +161,9 @@ const SimpleFileList = ({ files }) => (
         {files.map((f, i) => (
             <List.Item key={i}>
                 <List.Content>
-                    <Icon name={uf.iconFromFilePath(f.path, f.fileType, Cloud.homeFolder)} size={null} color={"blue"} />
-                    <Link to={`/files/${f.fileType === "FILE" ? uf.getParentPath(f.path) : f.path}`}>
-                        {uf.getFilenameFromPath(f.path)}
+                    <Icon name={UF.iconFromFilePath(f.path, f.fileType, Cloud.homeFolder)} size={null} color={"blue"} />
+                    <Link to={`/files/${f.fileType === "FILE" ? getParentPath(f.path) : f.path}`}>
+                        {getFilenameFromPath(f.path)}
                     </Link>
                 </List.Content>
                 {/* <FileOperations fileOperations={fileOperations} files={[f]} /> */}

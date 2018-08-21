@@ -9,7 +9,8 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
-import { getFilenameFromPath, favoriteApplication, infoNotification, failureNotification } from "UtilityFunctions";
+import { favoriteApplication, infoNotification, failureNotification } from "UtilityFunctions";
+import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."

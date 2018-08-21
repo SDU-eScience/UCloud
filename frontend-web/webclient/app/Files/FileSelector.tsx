@@ -4,7 +4,8 @@ import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
 import * as PropTypes from "prop-types";
-import { getFilenameFromPath, getParentPath, isInvalidPathName, inSuccessRange } from "UtilityFunctions";
+import { inSuccessRange } from "UtilityFunctions";
+import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory } from "Utilities/FileUtilities";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
 import { changeUppyRunAppOpen } from "Uppy/Redux/UppyActions";
@@ -14,7 +15,7 @@ import "./Files.scss";
 import "Styling/Shared.scss";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileListProps, FileSelectorModalProps, FileSelectorBodyProps } from ".";
-import { filepathQuery } from "Utilities/FileUtilities";
+import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props, context) {
@@ -185,7 +186,7 @@ export const FileSelectorModal = (props: FileSelectorModalProps) => (
 );
 
 const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders = false, ...props }: FileSelectorBodyProps) => {
-    let f = onlyAllowFolders ? props.page.items.filter(f => uf.isDirectory(f)) : props.page.items;
+    let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
     const files = f.filter((it) => !disallowedPaths.some((d) => d === it.path));
     const { path } = props;
     return (
@@ -211,7 +212,7 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
                     path={path}
                     setSelectedFile={props.setSelectedFile}
                     canSelectFolders
-                    folderName={`${getFilenameFromPath(uf.replaceHomeFolder(path, Cloud.homeFolder))} (Current folder)`}
+                    folderName={`${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))} (Current folder)`}
                     fetchFiles={() => null}
                 />
                 <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
@@ -243,7 +244,7 @@ function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, 
     ) : null;
 }
 
-const CreatingFolder = ({ creatingFolder, handleKeyDown }) => 
+const CreatingFolder = ({ creatingFolder, handleKeyDown }) =>
     !creatingFolder ? null : (
         <List.Item className="itemPadding">
             <List.Content>
@@ -271,21 +272,21 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: File
                 file.type === "FILE" ? (
                     <List.Item key={index} className="itemPadding pointer-cursor">
                         <List.Content onClick={() => setSelectedFile(file)}>
-                            <List.Icon name={uf.iconFromFilePath(file.path, file.type, Cloud.homeFolder)}/>
-                            {uf.getFilenameFromPath(file.path)}
-                        </List.Content>
-                    </List.Item>
-                ) : (
-                    <List.Item key={index} className="itemPadding pointer-cursor">
-                        <List.Content floated="right">
-                            <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
-                        </List.Content>
-                        <List.Content onClick={() => fetchFiles(file.path)}>
-                            <FileIcon size={null} name="folder" link={file.link} color="blue" />
+                            <List.Icon name={uf.iconFromFilePath(file.path, file.type, Cloud.homeFolder)} />
                             {getFilenameFromPath(file.path)}
                         </List.Content>
                     </List.Item>
-                ))}
+                ) : (
+                        <List.Item key={index} className="itemPadding pointer-cursor">
+                            <List.Content floated="right">
+                                <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
+                            </List.Content>
+                            <List.Content onClick={() => fetchFiles(file.path)}>
+                                <FileIcon size={null} name="folder" link={file.link} color="blue" />
+                                {getFilenameFromPath(file.path)}
+                            </List.Content>
+                        </List.Item>
+                    ))}
         </React.Fragment>);
 
 export default FileSelector;

@@ -13,7 +13,7 @@ import {
     FILES_ERROR,
     SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "UtilityFunctions";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Action, Error } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";

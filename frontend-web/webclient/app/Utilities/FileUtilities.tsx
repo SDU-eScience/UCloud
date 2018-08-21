@@ -1,7 +1,9 @@
 import Cloud from "Authentication/lib";
-import { File, MoveCopyOperations, FileOperation, SortOrder, SortBy } from "Files";
-import { Page } from "Types";
+import { File, MoveCopyOperations, FileOperation, SortOrder, SortBy, Acl } from "Files";
+import { Page, AccessRight } from "Types";
+import { RightsMap } from "DefaultObjects";
 import { History } from "history";
+import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
 
 
@@ -16,38 +18,30 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
         operations.setDisallowedPaths([]);
         files.forEach((f) => {
             const currentPath = f.path;
-            cloud.get(`/files/stat?path=${newPath}/${UF.getFilenameFromPath(currentPath)}`).then(({ request }) => {
-                if (request.status === 200) UF.failureNotification("File already exists");
-            }).catch(({ request }) => {
-                if (request.status === 404) {
-                    const newPathForFile = `${newPath}/${UF.getFilenameFromPath(currentPath)}`;
-                    cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++).catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`)).then(() => {
-                        if (i === files.length) {
-                            operations.fetchPageFromPath(newPathForFile);
-                            UF.successNotification("File copied.");
-                        }
-                    });
+            const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
+            cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++).catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`)).then(() => {
+                if (i === files.length) {
+                    operations.fetchPageFromPath(newPathForFile);
+                    UF.successNotification("File copied.");
                 }
-                else {
-                    UF.failureNotification(`An error occurred, please try again later.`);
-                }
-            }); // End Catch
+            });
+            UF.failureNotification(`An error occurred, please try again later.`);
         }); // End forEach
     }); // End Callback
 };
 
 export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud): void {
     operations.showFileSelector(true);
-    const parentPath = UF.getParentPath(files[0].path);
+    const parentPath = getParentPath(files[0].path);
     operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
     operations.setFileSelectorCallback((file) => {
         const newPath = file.path;
         files.forEach((f) => {
             const currentPath = f.path;
-            const newPathForFile = `${newPath}/${UF.getFilenameFromPath(currentPath)}`;
+            const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
             cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => {
-                const fromPath = UF.getFilenameFromPath(currentPath);
-                const toPath = UF.replaceHomeFolder(newPathForFile, cloud.homeFolder);
+                const fromPath = getFilenameFromPath(currentPath);
+                const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
                 UF.successNotification(`${fromPath} moved to ${toPath}`);
                 operations.fetchPageFromPath(newPathForFile);
             }).catch(() => UF.failureNotification("An error occurred, please try again later"));
@@ -73,16 +67,16 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
  * @returns Share and Download operations for files
  */
 export const StateLessOperations = (): FileOperation[] => [
-    { text: "Share", onClick: (files: File[], cloud: Cloud) => UF.shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "share alternate", color: null },
-    { text: "Download", onClick: (files: File[], cloud: Cloud) => UF.downloadFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files), icon: "download", color: null }
+    { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "share alternate", color: null },
+    { text: "Download", onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files), icon: "download", color: null }
 ];
 
 /**
  * @returns Move and Copy operations for files
  */
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): FileOperation[] => [
-    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => UF.getCurrentRights(files, cloud).rightsLevel < 3, icon: "copy", color: null },
-    { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => UF.getCurrentRights(files, cloud).rightsLevel < 3 || files.some(f => UF.isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: null }
+    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3, icon: "copy", color: null },
+    { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3 || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: null }
 ];
 
 /**
@@ -91,7 +85,7 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @returns the Delete operation
  */
 export const DeleteFileOperation = (onDeleted: () => void): FileOperation[] => [
-    { text: "Delete", onClick: (files: File[], cloud: Cloud) => UF.batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => UF.getCurrentRights(files, cloud).rightsLevel < 3 || files.some(f => UF.isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
+    { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3 || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
 ];
 
 /**
@@ -100,9 +94,9 @@ export const DeleteFileOperation = (onDeleted: () => void): FileOperation[] => [
 export const HistoryFilesOperations = (history: History): FileOperation[] => [
     { text: "Properties", onClick: (files: File[], cloud: Cloud) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1, icon: "settings", color: "blue" },
     {
-        predicate: (files: File[], cloud: Cloud) => UF.isProject(files[0]),
-        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1 && !UF.canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
-        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 && !UF.canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
+        predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
+        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1 && !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
+        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 && !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
     }
 ];
 
@@ -138,3 +132,183 @@ export const newMockFolder = (): File => ({
     annotations: [],
     isMockFolder: true
 });
+
+/**
+ * Checks if a pathname is legal/already in use
+ * @param {string} path The path being tested
+ * @param {string[]} filePaths the other file paths path is being compared against
+ * @returns whether or not the path is invalid
+ */
+export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
+    const disallowedName = ["..", "/"].some((it) => path.includes(it));
+    if (disallowedName || path === "") { UF.failureNotification("Folder name cannot contain '..' or '/' or empty"); return true; }
+    const existingName = filePaths.some((it) => it === path);
+    if (existingName) { UF.failureNotification("File with that name already exists"); return true; }
+    return false;
+};
+
+/**
+ * Checks if the specific folder is a fixed folder, meaning it can not be removed, renamed, deleted, etc.
+ * @param {string} filePath the path of the file to be checked
+ * @param {string} homeFolder the path for the homefolder of the current user
+ */
+export const isFixedFolder = (filePath: string, homeFolder: string): boolean => {
+    return [ // homeFolder contains trailing slash
+        `${homeFolder}Favorites`,
+        `${homeFolder}Jobs`,
+        `${homeFolder}Trash bin`
+    ].some((it) => UF.removeTrailingSlash(it) === filePath)
+};
+
+/**
+ * Used for favoriting files based on a path and page consisting of files.
+ * @param {Page<File>} page The page of files to be searched through
+ * @param {File[]} filesToFavorite Files to be favorited
+ * @param {Cloud} cloud The instance of a Cloud object used for requests
+ * @returns {Page<File>} The page of files with the file favorited
+ */
+export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: Cloud): Page<File> => {
+    filesToFavorite.forEach(f => {
+        const file = page.items.find((file: File) => file.path === f.path);
+        favoriteFile(file, cloud);
+    });
+    return page;
+};
+
+/**
+ * Used to favorite/defavorite a file based on its current state.
+ * @param {File} file The single file to be favorited
+ * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
+ */
+export const favoriteFile = (file: File, cloud: Cloud): void => {
+    file.favorited = !file.favorited;
+    if (file.favorited)
+        cloud.post(`/files/favorite?path=${file.path}`, {});
+    else
+        cloud.delete(`/files/favorite?path=${file.path}`, {});
+}
+
+export const canBeProject = (files: File[], homeFolder: string) => files.length === 1 && isDirectory(files[0]) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
+export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
+
+export const toFileText = (selectedFiles: File[]): string =>
+    selectedFiles.length > 1 ? `${selectedFiles.length} files selected.` : getFilenameFromPath(selectedFiles[0].path);
+
+export const isLink = (file: File) => file.link;
+export const isDirectory = (file: File) => file.type === "DIRECTORY";
+export const replaceHomeFolder = (path: string, homeFolder: string) => UF.addTrailingSlash(path).replace(UF.addTrailingSlash(homeFolder), "Home/");
+
+export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
+    deletionSwal([filePath]).then((result: any) => {
+        if (result.dismiss) {
+            return;
+        } else {
+            cloud.delete("/files", { path: filePath }).then(() => callback ? callback() : null);
+        }
+    });
+
+export const getParentPath = (path: string): string => {
+    if (!path) {
+        return "";
+    }
+    let splitPath = path.split("/");
+    splitPath = splitPath.filter(path => path);
+    let parentPath = "/";
+    for (let i = 0; i < splitPath.length - 1; i++) {
+        parentPath += splitPath[i] + "/";
+    }
+    return parentPath;
+};
+
+export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop();
+
+export const downloadFiles = (files: File[], cloud: Cloud) => {
+    files.map(f => f.path).forEach(p =>
+        cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) => {
+            let link = document.createElement("a");
+            window.location.href = "/api/files/download?path=" + encodeURI(p) + "&token=" + encodeURI(token);
+            link.download = "";
+            link.click();
+        }));
+}
+
+export const fileSizeToString = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    if (bytes < 1000) {
+        return `${bytes} B`;
+    } else if (bytes < 1000 ** 2) {
+        return `${(bytes / 1000).toFixed(2)} KB`;
+    } else if (bytes < 1000 ** 3) {
+        return `${(bytes / 1000 ** 2).toFixed(2)} MB`;
+    } else if (bytes < 1000 ** 4) {
+        return `${(bytes / 1000 ** 3).toFixed(2)} GB`;
+    } else if (bytes < 1000 ** 5) {
+        return `${(bytes / 1000 ** 4).toFixed(2)} TB`;
+    } else if (bytes < 1000 ** 6) {
+        return `${(bytes / 1000 ** 5).toFixed(2)} PB`;
+    } else if (bytes < 1000 ** 7) {
+        return `${(bytes / 1000 ** 6).toFixed(2)} EB`;
+    } else {
+        return `${bytes} B`;
+    }
+};
+
+export const getCurrentRights = (files: File[], cloud: Cloud) => {
+    let lowestPrivilegeOptions = RightsMap["OWN"];
+    files.forEach((it) => {
+        it.acl.filter((acl: Acl) => acl.entity.displayName === cloud.username).forEach((acl: Acl) => {
+            lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
+        });
+    });
+    return {
+        rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
+        rightsLevel: lowestPrivilegeOptions
+    }
+};
+
+export const shareFiles = (files: File[], cloud: Cloud) =>
+    UF.shareSwal().then((input) => {
+        if (input.dismiss) return;
+        const rights = [] as string[];
+        if (UF.isElementChecked("read-swal")) rights.push(AccessRight.READ);
+        if (UF.isElementChecked("write-swal")) rights.push(AccessRight.WRITE);
+        if (UF.isElementChecked("execute-swal")) rights.push(AccessRight.EXECUTE);
+        let i = 0;
+        files.map((f) => f.path).forEach((path, i, paths) => {
+            const body = {
+                sharedWith: input.value,
+                path,
+                rights
+            };
+            cloud.put(`/shares/`, body).then(() => ++i === paths.length ? UF.successNotification("Files shared successfully") : null)
+                .catch(() => UF.failureNotification(`${getFilenameFromPath(path)} could not be shared at this time. Please try again later.`));
+        });
+    });
+
+const deletionSwal = (filePaths: string[]) => {
+    const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :
+        `Delete file ${getFilenameFromPath(filePaths[0])}`;
+    return swal({
+        title: "Delete files",
+        text: deletionText,
+        confirmButtonText: "Delete files",
+        type: "warning",
+        showCancelButton: true,
+        showCloseButton: true,
+    })
+};
+
+export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => void) => {
+    const paths = files.map(f => f.path);
+    deletionSwal(paths).then((result: any) => {
+        if (result.dismiss) {
+            return;
+        } else {
+            let i = 0;
+            paths.forEach((p) => {
+                cloud.delete("/files", { path: p }).then(() => ++i === paths.length ? callback() : null)
+                    .catch(() => i++);
+            });
+        }
+    })
+};

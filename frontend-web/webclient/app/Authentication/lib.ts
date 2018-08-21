@@ -58,13 +58,30 @@ export default class SDUCloud {
         if (path.indexOf("/") !== 0) path = "/" + path;
         let baseContext = this.context;
         return this.receiveAccessTokenOrRefreshIt().then((token) => {
-            // FIXME. Look into fetch as an alternative 
-            // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+            // As long as same-origin is not handled server-side, use XHR.
+            /* return fetch(baseContext + context + path, {
+                body: !!body ? JSON.stringify(body) : null,
+                method: method,
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "content-type": "application/json"
+                },
+            }).then(response => {
+                const contentType = response.headers.get("content-type");
+                if (response.ok) {
+                    if (contentType && contentType.includes("application/json")) {
+                        return response.json().then((data) => ({ response: data, request: response }))
+                    }
+                    return { response: {}, request: response };
+                }
+                throw response.blob().then(data => ({ response: data, request: response }));
+            }); */
+
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
                 req.open(method, baseContext + context + path);
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
-                req.setRequestHeader("contentType", "application/json");
+                req.setRequestHeader("content-type", "application/json");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                 req.onload = () => {
                     let responseContentType = req.getResponseHeader("content-type");

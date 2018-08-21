@@ -10,7 +10,8 @@ import { connect } from "react-redux";
 import "./Zenodo.scss";
 import { History } from "history";
 import { removeEntry } from "Utilities/ArrayUtilities";
-import { getFilenameFromPath, failureNotification } from "UtilityFunctions";
+import { failureNotification } from "UtilityFunctions";
+import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { File } from "Files";
 
 interface ZenodoPublishState {
