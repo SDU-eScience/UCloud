@@ -4,8 +4,7 @@ import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
 import * as PropTypes from "prop-types";
-import { inSuccessRange } from "UtilityFunctions";
-import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory } from "Utilities/FileUtilities";
+import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, createFolder } from "Utilities/FileUtilities";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
 import { changeUppyRunAppOpen } from "Uppy/Redux/UppyActions";
@@ -42,15 +41,10 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             const { path, page } = this.state;
             const fileNames = page.items.map((it) => getFilenameFromPath(it.path));
             if (isInvalidPathName(name, fileNames)) { return }
-            const directoryPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
-            Cloud.post("/files/directory", { path: directoryPath }).then(({ request }) => {
-                if (inSuccessRange(request.status)) {
-                    this.setState(() => ({ creatingFolder: false }));
-                    this.fetchFiles(path, page.pageNumber, page.itemsPerPage);
-                }
-            }).catch((_) => {
-                uf.failureNotification("Folder could not be created.");
+            const newPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
+            createFolder(newPath, Cloud, () => {
                 this.setState(() => ({ creatingFolder: false }));
+                this.fetchFiles(path, page.pageNumber, page.itemsPerPage);
             });
         }
     }
@@ -105,13 +99,13 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 
     fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
         this.setState(() => ({ loading: true, creatingFolder: false }));
-        this.state.promises.makeCancelable(Cloud.get(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(({ response }) => {
+        this.state.promises.makeCancelable(Cloud.get(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(({ response }) =>
             this.setState(() => ({
                 page: response,
                 loading: false,
                 path
-            }));
-        });
+            }))
+        );
     }
 
     render() {
@@ -163,6 +157,7 @@ export const FileSelectorModal = (props: FileSelectorModalProps) => (
             File selector
             <Button circular floated="right" icon="cancel" type="button" onClick={props.onHide} />
             <Button icon="redo" loading={props.loading} floated="right" circular onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />
+            <CreateFolderButton createFolder={props.createFolder} />
         </Modal.Header>
         <Modal.Content scrolling>
             <BreadCrumbs currentPath={props.path} navigate={(path) => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />
@@ -217,14 +212,13 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
                 />
                 <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
             </List>
-            <CreateFolderButton createFolder={props.createFolder} />
         </React.Fragment>)
 };
 
-type CreateFolderButton = { createFolder: Function }
+type CreateFolderButton = { createFolder: () => void }
 const CreateFolderButton = ({ createFolder }: CreateFolderButton) =>
     !!createFolder ?
-        (<Button onClick={() => createFolder()} className="create-folder-button" content="Create new folder" />) : null;
+        (<Button onClick={() => createFolder()} basic className="float-right" content="Create new folder" />) : null;
 
 
 function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, canSelectFolders }) {

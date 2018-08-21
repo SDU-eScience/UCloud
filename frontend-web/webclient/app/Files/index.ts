@@ -99,6 +99,7 @@ export interface FilesOperations { // Redux operations
     updateFiles: (files: Page<File>) => void
     updatePath: (path: string) => void
     showFileSelector: (open: boolean) => void
+    checkAllFiles: (checked: boolean, page: Page<File>) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
 }
 
@@ -177,7 +178,7 @@ export interface FileSelectorModalProps {
     canSelectFolders?: boolean
     creatingFolder?: boolean
     handleKeyDown?: Function
-    createFolder?: Function
+    createFolder?: () => void
     errorMessage?: string
     onErrorDismiss?: () => void
     navigate?: (path, pageNumber, itemsPerPage) => void
@@ -192,7 +193,7 @@ export interface FileSelectorBodyProps {
     fetchFiles: (path: string) => void
     handleKeyDown?: Function
     setSelectedFile: Function
-    createFolder?: Function
+    createFolder?: () => void
     path: string
 }
 
@@ -261,5 +262,7 @@ export interface DetailedFileSearchState {
     modifiedBefore: Moment
     modifiedAfter: Moment
 }
+
+export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
