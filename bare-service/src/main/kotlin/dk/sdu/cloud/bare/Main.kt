@@ -22,7 +22,7 @@ fun main(args: Array<String>) {
         refreshToken
     )
 
-    if (micro.runScriptHandler()) exitProcess(0)
+    if (micro.runScriptHandler()) return
 
     val server = Server(micro.kafka, cloud, micro.serviceInstance, micro.hibernateDatabase, micro.serverProvider)
     server.start()

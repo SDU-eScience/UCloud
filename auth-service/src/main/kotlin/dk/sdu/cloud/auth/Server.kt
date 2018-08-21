@@ -2,7 +2,6 @@ package dk.sdu.cloud.auth
 
 import com.auth0.jwt.algorithms.Algorithm
 import com.onelogin.saml2.settings.Saml2Settings
-import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.PasswordController
@@ -20,25 +19,22 @@ import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 
-class AuthServer(
+class Server(
     private val db: HibernateSessionFactory,
     private val cloud: AuthenticatedCloud,
     private val jwtAlg: Algorithm,
     private val config: AuthConfiguration,
     private val authSettings: Saml2Settings,
-    override val serviceRegistry: ServiceRegistry,
     override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider
-) : CommonServer, WithServiceRegistry {
+    private val ktor: HttpServerProvider,
+    private val instance: ServiceInstance
+) : CommonServer {
     override val log: Logger = logger()
-    override val endpoints = listOf("/auth")
 
     override lateinit var kStreams: KafkaStreams
     override lateinit var httpServer: ApplicationEngine
 
     override fun start() {
-        val instance = AuthServiceDescription.instance(config.connConfig)
-
         log.info("Creating core services...")
         val userDao = UserHibernateDAO()
         val refreshTokenDao = RefreshTokenHibernateDAO()
@@ -112,6 +108,5 @@ class AuthServer(
         }
 
         startServices()
-        registerWithRegistry()
     }
 }
