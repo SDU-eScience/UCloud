@@ -1,13 +1,12 @@
 import swal from "sweetalert2";
-import { RightsMap, SensitivityLevel } from "./DefaultObjects";
+import { RightsMap, SensitivityLevel } from "DefaultObjects";
 import Cloud from "Authentication/lib";
 import { SemanticICONS } from "semantic-ui-react";
-import { SortBy, SortOrder, File, Acl } from "./Files";
-import { Page, AccessRight } from "./Types";
-import { Application } from "Applications";
+import { SortBy, SortOrder, File, Acl, FileType } from "Files";
+import { Page, AccessRight } from "Types";
 import { dateToString } from "Utilities/DateUtilities";
 
-export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).toUpperCase() + str.toLowerCase().slice(1);
+export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
 /**
  * Checks if a pathname is legal/already in use
@@ -16,8 +15,8 @@ export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).t
  * @returns whether or not the path is invalid
  */
 export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
-    const disallowedName = ["..", ".", "/"].some((it) => path.includes(it));
-    if (disallowedName || path === "") { failureNotification("Folder name cannot contain '.', '..' or '/' or empty"); return true; }
+    const disallowedName = ["..", "/"].some((it) => path.includes(it));
+    if (disallowedName || path === "") { failureNotification("Folder name cannot contain '..' or '/' or empty"); return true; }
     const existingName = filePaths.some((it) => it === path);
     if (existingName) { failureNotification("File with that name already exists"); return true; }
     return false;
@@ -37,15 +36,17 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
 };
 
 /**
- * Used for favoriting a file based on a path and page consisting of files.
+ * Used for favoriting files based on a path and page consisting of files.
  * @param {Page<File>} page The page of files to be searched through
- * @param {string} path The path of the file to be favorited
+ * @param {File[]} filesToFavorite Files to be favorited
  * @param {Cloud} cloud The instance of a Cloud object used for requests
  * @returns {Page<File>} The page of files with the file favorited
  */
-export const favoriteFileFromPage = (page: Page<File>, path: string, cloud: Cloud): Page<File> => {
-    let file = page.items.find((file: File) => file.path === path);
-    favoriteFile(file, cloud);
+export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: Cloud): Page<File> => {
+    filesToFavorite.forEach(f => {
+        const file = page.items.find((file: File) => file.path === f.path);
+        favoriteFile(file, cloud);
+    });
     return page;
 };
 
@@ -137,7 +138,7 @@ function isElementChecked(id: string): boolean {
     return (document.getElementById(id) as HTMLInputElement).checked;
 }
 
-export const shareFiles = (paths: string[], cloud: Cloud) =>
+export const shareFiles = (files: File[], cloud: Cloud) =>
     shareSwal().then((input) => {
         if (input.dismiss) return;
         const rights = [] as string[];
@@ -145,7 +146,7 @@ export const shareFiles = (paths: string[], cloud: Cloud) =>
         if (isElementChecked("write-swal")) rights.push(AccessRight.WRITE);
         if (isElementChecked("execute-swal")) rights.push(AccessRight.EXECUTE);
         let i = 0;
-        paths.forEach(path => {
+        files.map((f) => f.path).forEach((path, i, paths) => {
             const body = {
                 sharedWith: input.value,
                 path,
@@ -180,14 +181,15 @@ const deletionSwal = (filePaths: string[]) => {
     })
 };
 
-export const batchDeleteFiles = (filePaths: string[], cloud: Cloud, callback: () => void) => {
-    deletionSwal(filePaths).then((result: any) => {
+export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => void) => {
+    const paths = files.map(f => f.path);
+    deletionSwal(paths).then((result: any) => {
         if (result.dismiss) {
             return;
         } else {
             let i = 0;
-            filePaths.forEach((it) => {
-                cloud.delete("/files", { path: it }).then(() => { ++i === filePaths.length ? callback() : null })
+            paths.forEach((p) => {
+                cloud.delete("/files", { path: p }).then(() => ++i === paths.length ? callback() : null)
                     .catch(() => i++);
             });
         }
@@ -243,8 +245,8 @@ export const getParentPath = (path: string): string => {
 
 export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop();
 
-export const downloadFiles = (paths: string[], cloud: Cloud) => {
-    paths.forEach(p =>
+export const downloadFiles = (files: File[], cloud: Cloud) => {
+    files.map(f => f.path).forEach(p =>
         cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) => {
             let link = document.createElement("a");
             window.location.href = "/api/files/download?path=" + encodeURI(p) + "&token=" + encodeURI(token);
@@ -294,23 +296,11 @@ export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortB
     return null;
 };
 
-export const createRange = (count: number): number[] => {
-    let range = [];
-    for (let i = 0; i < count; i++) {
-        range.push(i);
-    }
-    return range;
-};
-
-export const createRangeInclusive = (count: number): number[] => {
-    let range = [];
-    for (let i = 0; i <= count; i++) {
-        range.push(i);
-    }
-    return range;
-};
-
-export const iconFromFilePath = (filePath: string): SemanticICONS => {
+export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
+    const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
+    if (homeFolderReplaced === "Home/Jobs/") return "tasks";
+    if (homeFolderReplaced === "Home/Favorites/") return "star";
+    if (type === "DIRECTORY") return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
         return "file outline";
@@ -320,6 +310,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
         case "md":
         case "swift":
         case "kt":
+        case "kts":
         case "js":
         case "jsx":
         case "ts":
@@ -373,7 +364,7 @@ export const iconFromFilePath = (filePath: string): SemanticICONS => {
             return "file archive outline";
         default:
             if (getFilenameFromPath(filePath).split(".").length > 1)
-                console.warn(`Unhandled extension "${filePath}" for file ${filePath}`);
+                console.warn(`Unhandled extension "${extension}" for file ${filePath}`);
             return "file outline";
     }
 };
@@ -394,7 +385,8 @@ const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) 
     });
 };
 
-export const canBeProject = (file: File, homeFolder: string) => isDirectory(file) && !isFixedFolder(file.path, homeFolder) && !isLink(file);
+// FIXME Less index accessing
+export const canBeProject = (files: File[], homeFolder: string) => files.length === 1 && isDirectory(files[0]) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
 export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
 
 export const toFileText = (selectedFiles: File[]): string =>
@@ -409,17 +401,6 @@ export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.s
 export const addTrailingSlash = (path: string) => path.endsWith("/") ? path : `${path}/`;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
 
-/**
- * Shortens the passed string if the length exceeds max size. If it exceeds, the string is shortened, trimmed, and 
- * ellipses are added.
- * @param {string} content the string to be shortened
- * @param {number} maxSize the maximum size allowed for the string
- */
-export const shortenString = (content: string, maxLength: number): string => {
-    if (content.length < maxLength) return content;
-    return content.slice(0, maxLength).trim().concat("...");
-}
-
 export const blankOrNull = (value: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
 
 export const ifPresent = (f: any, handler: (f: any) => void) => {
@@ -428,25 +409,6 @@ export const ifPresent = (f: any, handler: (f: any) => void) => {
 
 export const downloadAllowed = (files: File[]) =>
     files.length === 1 || files.every(f => f.sensitivityLevel !== "SENSITIVE")
-
-/**
- * //FIXME Missing backend functionality
- * Favorites an application. 
- * @param {Application} Application the application to be favorited
- * @param {Cloud} cloud The cloud instance for requests
- */
-export const favoriteApplicationFromPage = (application: Application, page: Page<Application>, cloud: Cloud): Page<Application> => {
-    const a = page.items.find(it => it.description.info.name === application.description.info.name);
-    a.favorite = !a.favorite;
-    infoNotification("Backend functionality for favoriting applications missing");
-    return page;
-    /*  const {info} = a.description;
-        if (a.favorite) {
-            cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-        } else {
-            cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-        } */
-}
 
 export const prettierString = (str: string) => toLowerCaseAndCapitalize(str).replace(/_/g, " ")
 
@@ -460,7 +422,7 @@ export const favoriteApplication = (app) => {
     return app;
 }
 
-export function defaultErrorHandler(error: any): number {
+export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }): number {
     let request: XMLHttpRequest = error.request;
     let why: string = null;
 

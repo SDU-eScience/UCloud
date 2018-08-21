@@ -14,8 +14,10 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
 import { Application, ParameterTypes } from ".";
+import { extractParametersVersion1 } from "Utilities/ApplicationUtilities";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
+    private siteVersion = 1;
     constructor(props) {
         super(props);
         this.state = {
@@ -82,51 +84,21 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         }));
     }
 
-    compareType(type, parameter): boolean {
-        switch (type) {
-            case ParameterTypes.Boolean:
-                return typeof parameter === "boolean";
-            case ParameterTypes.Integer:
-                return typeof parameter === "number" && parameter % 1 === 0;
-            case ParameterTypes.FloatingPoint:
-                return typeof parameter === "number";
-            case ParameterTypes.Text:
-                return typeof parameter === "string";
-            case ParameterTypes.InputDirectory:
-            case ParameterTypes.InputFile:
-                return typeof parameter.destination === "string" && typeof parameter.source === "string";
-            default:
-                return false;
-        }
-    }
-
-    extractParameters(parameters, allowedParameterKeys) {
-        let extractedParameters = {};
-        allowedParameterKeys.forEach(par => {
-            if (parameters[par.name] !== undefined) {
-                if (this.compareType(par.type, parameters[par.name])) {
-                    extractedParameters[par.name] = parameters[par.name];
-                }
-            }
-        });
-        return extractedParameters;
-    }
-
     importParameters = (file: File) => {
         const fileReader = new FileReader();
         fileReader.onload = () => {
             const result = fileReader.result as string;
             try {
-                const { application, parameters, numberOfNodes, tasksPerNode, maxTime } = JSON.parse(result);
+                const { application, parameters, numberOfNodes, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
                 if (application.name !== this.state.appName) {
                     failureNotification("Application name does not match");
                     return;
                 } else if (application.version !== this.state.appVersion) {
                     infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
                 }
-                const extractedParameters = this.extractParameters(parameters, this.state.parameters.map(it => ({
+                const extractedParameters = extractParametersVersion1(parameters, this.state.parameters.map(it => ({
                     name: it.name, type: it.type
-                })));
+                })), siteVersion);
                 this.setState(() => ({
                     parameterValues: { ...this.state.parameterValues, ...extractedParameters },
                     jobInfo: this.extractJobInfo({ maxTime, numberOfNodes, tasksPerNode })
@@ -152,27 +124,18 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 
     exportParameters() {
-        // FIXME: This is repeated in onSubmit
-        let { maxTime } = this.state.jobInfo;
-        if (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null) {
-            maxTime.hours = maxTime.hours ? maxTime.hours : 0;
-            maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
-            maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
-        } else if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
-            maxTime = null;
-        }
-        // FIXME END
-
+        const jobInfo = this.extractJobInfo(this.state.jobInfo);
         const element = document.createElement("a");
         element.setAttribute("href", "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+            siteVersion: this.siteVersion,
             application: {
                 name: this.state.appName,
                 version: this.state.appVersion,
             },
             parameters: { ...this.state.parameterValues },
-            numberOfNodes: this.state.jobInfo.numberOfNodes,
-            tasksPerNode: this.state.jobInfo.tasksPerNode,
-            maxTime: maxTime,
+            numberOfNodes: jobInfo.numberOfNodes,
+            tasksPerNode: jobInfo.tasksPerNode,
+            maxTime: jobInfo.maxTime,
         })));
 
         element.setAttribute("download", `${this.state.appName}-${this.state.appVersion}-params.json`);
@@ -184,15 +147,8 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
 
     onSubmit(event) {
         event.preventDefault();
-
-        let maxTime = this.state.jobInfo.maxTime;
-        if (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null) {
-            maxTime.hours = maxTime.hours ? maxTime.hours : 0;
-            maxTime.minutes = maxTime.minutes ? maxTime.minutes : 0;
-            maxTime.seconds = maxTime.seconds ? maxTime.seconds : 0;
-        } else if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) {
-            maxTime = null;
-        }
+        let maxTime = this.extractJobInfo(this.state.jobInfo).maxTime;
+        if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
         let job = {
             application: {
                 name: this.state.appName,
@@ -578,10 +534,10 @@ const GenericNumberParameter = (props) => {
     let value = (props.value != null) ? props.value : "";
 
     const hasLabel = !!props.parameter.unitName;
-
+    
     let baseField = (
         <Input
-            labelPosition='right'
+            labelPosition="right"
             label={{ basic: true, content: hasLabel ? props.parameter.unitName : "Number" }}
             placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
             required={!props.parameter.optional} name={props.parameter.name}

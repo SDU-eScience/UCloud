@@ -10,15 +10,13 @@ import {
     RECEIVE_FILE_SELECTOR_FILES,
     SET_FILE_SELECTOR_CALLBACK,
     SET_DISALLOWED_PATHS,
-    SET_CREATING_FOLDER,
-    SET_EDITING_FILE,
-    RESET_FOLDER_EDITING,
     FILES_ERROR,
     SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
 import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "UtilityFunctions";
 import { Page, ReceivePage, SetLoadingAction, Action, Error } from "Types";
 import { SortOrder, SortBy, File } from "..";
+import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -28,7 +26,7 @@ import { SortOrder, SortBy, File } from "..";
 * @param {Page<File>} page number of the page to be fetched
 */
 export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
-    Cloud.get(`files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`).then(({ response }) =>
+    Cloud.get(filepathQuery(path, page, itemsPerPage, order, sortBy)).then(({ response }) =>
         receiveFiles(response, path, order, sortBy)
     ).catch(() =>
         setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
@@ -81,7 +79,7 @@ interface ReceiveFiles extends ReceivePage<File> { path: string, sortOrder: Sort
  * @param {SortBy} sortBy - the value the sorting was based on
  */
 const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => {
-    page.items.forEach((f) => f.isChecked = false);
+    page.items.forEach((f) => f.isChecked = f.beingRenamed = false);
     return {
         type: RECEIVE_FILES,
         page,
@@ -98,10 +96,10 @@ export type SortingColumn = 0 | 1;
  * @param {SortOrder} asc - the order of the sorting. ASCENDING or DESCENDING
  * @param {SortBy} sortBy - what field the row should show
  */
-export const setSortingColumn = (sortBy: SortBy, index: SortingColumn) => ({
+export const setSortingColumn = (sortingColumn: SortBy, index: number) => ({
     type: SET_FILES_SORTING_COLUMN,
-    index,
-    sortBy
+    sortingColumn,
+    index
 });
 
 interface FileSelectorShownAction extends Action { state: boolean }
@@ -134,7 +132,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  * @param {SortBy} sortBy the field to be sorted by
  */
 export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
-    Cloud.get(`files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`)
+    Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
         .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
         );
@@ -146,7 +144,7 @@ export const fetchPageFromPath = (path: string, itemsPerPage: number, order: Sor
  * @param itemsPerPage 
  */
 export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<File | Error> =>
-    Cloud.get(`files?path=${path}&page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }) => {
+    Cloud.get(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, path);
     }).catch(() => setFileSelectorError(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`));
@@ -188,31 +186,3 @@ export const setFileSelectorError = (error?: string): Error => ({
     type: SET_FILE_SELECTOR_ERROR,
     error
 });
-
-interface SetEditingFileAction extends Action { editFileIndex: number }
-/**
- * Sets the index of the file being edited.
- * @param editFileIndex - the index of the file in the current page being edited
- */
-export const setEditingFile = (editFileIndex: number) => ({
-    type: SET_EDITING_FILE,
-    editFileIndex
-});
-
-interface SetCreatingFolder extends Action { creatingFolder: boolean }
-/**
- * Sets the value of whether or not the user is creating a folder
- * @param {boolean} creatingFolder - whether or not the user is creating a folder
- */
-export const setCreatingFolder = (creatingFolder: boolean): SetCreatingFolder => ({
-    type: SET_CREATING_FOLDER,
-    creatingFolder
-});
-
-/**
- * Sets the editing folder index to -1 (Meaning not currently editing a file), 
- * and sets creating folder to false.
- */
-export const resetFolderEditing = (): Action => ({
-    type: RESET_FOLDER_EDITING
-})

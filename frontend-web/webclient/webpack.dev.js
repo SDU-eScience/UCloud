@@ -1,9 +1,9 @@
-var webpack = require('webpack');
-var webpackMerge = require('webpack-merge');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
+var webpack = require("webpack");
+var webpackMerge = require("webpack-merge");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
-var commonConfig = require('./webpack.config.js');
-var path = require('path');
+var commonConfig = require("./webpack.config.js");
+var path = require("path");
 
 module.exports = webpackMerge(commonConfig, {
     devtool: "inline-source-map",
@@ -16,9 +16,9 @@ module.exports = webpackMerge(commonConfig, {
     },
 
     output: {
-        path: path.join(process.cwd(), '/dist'),
-        publicPath: 'http://localhost:9000/',
-        filename: '[name].js',
+        path: path.join(process.cwd(), "/dist"),
+        publicPath: "http://localhost:9000/",
+        filename: "[name].js",
     },
 
     plugins: [
@@ -31,18 +31,18 @@ module.exports = webpackMerge(commonConfig, {
         }),
         // Copies individual files or entire directories to the build directory
         new CopyWebpackPlugin([{
-            from: 'mock-api',
-            to: 'mock-api',
-            context: path.join(__dirname, 'app')
+            from: "mock-api",
+            to: "mock-api",
+            context: path.join(__dirname, "app")
         }])
     ],
 
     devServer: {
         historyApiFallback: true,
-        stats: 'minimal',
+        stats: "minimal",
         index: "app/index.html",
         headers: {
-            'Access-Control-Allow-Origin': '*'
+            "Access-Control-Allow-Origin": "*"
         },
         inline: true,
         proxy: [{

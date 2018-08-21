@@ -35,9 +35,7 @@ export default class PromiseKeeper {
      *  The held promises are cleared from the keeper as they are cancelled and no longer have any function
      */
     cancelPromises(): void {
-        this.promises.forEach((it) => {
-            it.cancel();
-        });
+        this.promises.forEach((it) => it.cancel());
         this.promises = [];
     }
 }

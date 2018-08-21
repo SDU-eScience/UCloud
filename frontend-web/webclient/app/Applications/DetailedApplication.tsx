@@ -105,9 +105,7 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
                     </Label>
                     <Label color="blue">
                         <Icon name="file" />
-                        Output files: {appInformation.description.outputFileGlobs.map((f, i, { length }) =>
-                            i !== length - 1 ? `${f}, ` : f
-                        )}
+                        Output files: {appInformation.description.outputFileGlobs.join(", ")}
                     </Label>
                     <Label content={`${appInformation.description.parameters.length} parameters`} />
                 </List.Content>

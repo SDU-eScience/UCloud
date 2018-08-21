@@ -10,6 +10,7 @@ import dk.sdu.cloud.metadata.api.ProjectEventProducer
 import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.utils.withAuthMock
+import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
@@ -35,7 +36,7 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
-fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
+fun TestApplicationRequest.setUser(username: String = "user1", role: Role = Role.USER) {
     addHeader(HttpHeaders.Authorization, "Bearer $username/$role")
 }
 
@@ -53,10 +54,6 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
         protect()
         configureControllers(*controllers)
     }
-}
-
-private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-    HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
 }
 
 private fun Application.configureProjectServer(
@@ -86,7 +83,7 @@ class ProjectTest {
                             val response =
                                 handleRequest(HttpMethod.Put, "/api/projects") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser("user1")
+                                    setUser()
                                     setBody("""{ "fsRoot" : "/home/user1/folder/test1" }""")
                                 }.response
 
@@ -95,7 +92,7 @@ class ProjectTest {
                             val response2 =
                                 handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/test1") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser("user1")
+                                    setUser()
                                 }.response
 
                             assertEquals(HttpStatusCode.OK, response2.status())
@@ -127,7 +124,7 @@ class ProjectTest {
                             val response =
                                 handleRequest(HttpMethod.Put, "/api/projects") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser("user1")
+                                    setUser()
                                     setBody("""{ "fsRoot" : "/home/user1/folder/notThere" }""")
                                 }.response
 
@@ -154,7 +151,7 @@ class ProjectTest {
                             val response =
                                 handleRequest(HttpMethod.Put, "/api/projects") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser("user1")
+                                    setUser()
                                     setBody("""{ "fsRoot" : "/home/user1/folder/test1" }""")
                                 }.response
 
@@ -246,7 +243,7 @@ class ProjectTest {
                             val response =
                                 handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/notthere") {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser("user1")
+                                    setUser()
                                 }.response
 
                             assertEquals(HttpStatusCode.NotFound, response.status())

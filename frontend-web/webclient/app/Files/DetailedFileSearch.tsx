@@ -1,27 +1,12 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { Grid, Dropdown, Label, Header, Form, Button, Input, Checkbox } from "semantic-ui-react";
+import { Grid, Dropdown, Label, Header, Form, Button, Input } from "semantic-ui-react";
 import { addEntryIfNotPresent } from "Utilities/ArrayUtilities"
-import { infoNotification } from "UtilityFunctions";
-
-interface DetailedFileSearchProps {
-
-}
-
-type Annotation = "Project";
-
-type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
-
-interface DetailedFileSearchState {
-    allowFolders: boolean
-    allowFiles: boolean
-    filename: string
-    extensions: string[]
-    extensionValue: string
-    tags: string[]
-    sensitivities: SensitivityLevel[],
-    annotations: Annotation[]
-}
+import { infoNotification, failureNotification } from "UtilityFunctions";
+import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime } from ".";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { Moment } from "moment";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
     constructor(props) {
@@ -31,37 +16,39 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             allowFiles: true,
             filename: "",
             extensionValue: "",
-            extensions: [],
-            tags: [],
-            annotations: [],
-            sensitivities: []
+            extensions: new Set(),
+            tagValue: "",
+            tags: new Set(),
+            annotations: new Set(),
+            sensitivities: new Set(),
+            createdBefore: null,
+            createdAfter: null,
+            modifiedBefore: null,
+            modifiedAfter: null
         }
     }
 
     onAddSensitivity(sensitivity: SensitivityLevel): void {
         const { sensitivities } = this.state;
-        // FIXME: Shouldn't be able to occur?
-        if (sensitivities.includes(sensitivity)) return;
-
-        sensitivities.push(sensitivity);
+        sensitivities.add(sensitivity);
         this.setState(() => ({ sensitivities }));
     }
 
     onRemoveSensitivity(sensitivity: SensitivityLevel): void {
         const { sensitivities } = this.state;
-        const remainingSensitivities = sensitivities.filter(s => s !== sensitivity)
-        this.setState(() => ({ sensitivities: remainingSensitivities }));
+        sensitivities.delete(sensitivity);
+        this.setState(() => ({ sensitivities }));
     }
 
-    // Not DRY
     onRemoveExtension(extension: string) {
         const { extensions } = this.state;
-        const remaining = extensions.filter(e => e !== extension);
-        this.setState(() => ({ extensions: remaining }));
+        extensions.delete(extension)
+        this.setState(() => ({ extensions }));
     }
 
     onAddExtension() {
         const { extensionValue, extensions } = this.state;
+        if (!extensionValue) return;
         const newExtensions = extensionValue.trim().split(" ").filter(it => it);
         let entryAdded = false;
         newExtensions.forEach(ext => { entryAdded = addEntryIfNotPresent(extensions, ext) || entryAdded });
@@ -82,24 +69,82 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
     }
 
     onAddAnnotation(annotation: Annotation) {
+        if (!annotation) return;
         const { annotations } = this.state;
-        annotations.push(annotation);
+        annotations.add(annotation);
         this.setState(() => ({ annotations }));
     }
 
     onRemoveAnnotation(annotation: Annotation) {
         const { annotations } = this.state;
-        const remaining = annotations.filter(a => a !== annotation);
-        this.setState(() => ({ annotations: remaining }));
+        annotations.delete(annotation);
+        this.setState(() => ({ annotations }));
+    }
+
+    onRemoveTag = (tag: string) => {
+        const { tags } = this.state;
+        tags.delete(tag);
+        this.setState(() => ({ tags }));
+    }
+
+    onAddTags = () => {
+        const { tagValue, tags } = this.state;
+        if (!tagValue) return;
+        const newTags = tagValue.trim().split(" ").filter(it => it);
+        let entryAdded = false;
+        newTags.forEach(ext => { entryAdded = addEntryIfNotPresent(tags, ext) || entryAdded });
+        this.setState(() => ({
+            tags,
+            tagValue: entryAdded ? "" : tagValue
+        }));
+        if (!entryAdded) {
+            infoNotification("Tag already added");
+        }
+    }
+
+    // FIXME, should show errors in fields instead;
+    validateAndSetDate(m: Moment, property: PossibleTime) {
+        const { createdAfter, createdBefore, modifiedAfter, modifiedBefore } = this.state;
+        const isBefore = property.includes("Before")
+        if (property.startsWith("created")) {
+            if (isBefore) {
+                if (!createdAfter || m.isAfter(createdAfter)) {
+                    this.setState(() => ({ createdBefore: m }));
+                } else {
+                    failureNotification("Created before must be after created after");
+                }
+            } else {
+                if (!createdBefore || m.isBefore(createdBefore)) {
+                    this.setState(() => ({ createdAfter: m }));
+                } else {
+                    failureNotification("Created after must be before created before");
+                }
+            }
+        } else { // Modified
+            if (isBefore) { // Modified Before
+                if ((!createdAfter || m.isAfter(createdAfter)) && (!modifiedAfter || m.isAfter(modifiedAfter))) {
+                    this.setState(() => ({ modifiedBefore: m }));
+                } else {
+                    failureNotification("Modified before must be after created after and modified after");
+                }
+            } else { // Modified After
+                if ((!createdBefore || m.isBefore(createdBefore)) && (!modifiedBefore || m.isBefore(modifiedBefore))) {
+                    this.setState(() => ({ modifiedAfter: m }));
+                } else {
+                    failureNotification("Modified after must be before created before and modified before");
+                }
+            }
+        }
     }
 
     onSearch = () => {
-
+        console.log(this.state);
+        console.warn("Todo");
     }
 
     render() {
-        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations } = this.state;
-        const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.includes(s.text as SensitivityLevel));
+        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations, tags, tagValue } = this.state;
+        const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
             <div>
                 <Dropdown
@@ -109,7 +154,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                 />
             </div>
         ) : null;
-        const remainingAnnotations = annotationOptions.filter(a => !annotations.includes(a.text as Annotation));
+        const remainingAnnotations = annotationOptions.filter(a => !annotations.has(a.text as Annotation));
         const annotationsDropdown = remainingAnnotations.length ? (
             <div>
                 <Dropdown
@@ -127,43 +172,59 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Input fluid placeholder="Filename must include..." onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
                     <Header as="h3" content="Created at" />
                     <Form onSubmit={(e) => e.preventDefault()}>
-                        <Form.Group widths="equal">
+                        <Form.Group>
                             <Form.Field>
-                                <label>Created after date</label>
-                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <label>Created after</label>
+                                <DatePicker
+                                    selected={this.state.createdAfter}
+                                    onChange={(d) => this.validateAndSetDate(d, "createdAfter")}
+                                    showTimeSelect
+                                    timeFormat="hh:mm"
+                                    timeIntervals={15}
+                                    dateFormat="LLL"
+                                    timeCaption="time"
+                                />
                             </Form.Field>
                             <Form.Field>
-                                <label>Created after time</label>
-                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Created before date</label>
-                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Created before time</label>
-                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <label>Created before</label>
+                                <DatePicker
+                                    selected={this.state.createdBefore}
+                                    onChange={(d) => this.validateAndSetDate(d, "createdBefore")}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={15}
+                                    dateFormat="LLL"
+                                    timeCaption="time"
+                                />
                             </Form.Field>
                         </Form.Group>
                     </Form>
                     <Header as="h3" content="Modified at" />
-                    <Form onSubmit={(e) => e.preventDefault()} >
-                        <Form.Group widths="equal">
+                    <Form onSubmit={(e) => e.preventDefault()}>
+                        <Form.Group>
                             <Form.Field>
-                                <label>Modified after date</label>
-                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <label>Modified after</label>
+                                <DatePicker
+                                    selected={this.state.modifiedAfter}
+                                    onChange={(d) => this.validateAndSetDate(d, "modifiedAfter")}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={15}
+                                    dateFormat="LLL"
+                                    timeCaption="time"
+                                />
                             </Form.Field>
                             <Form.Field>
-                                <label>Modified after time</label>
-                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Modified before date</label>
-                                <Input type="date" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Modified before time</label>
-                                <Input type="time" onChange={(_, { value }) => console.warn(`Not implemented yet. Got value ${value}`)} />
+                                <label>Modified before</label>
+                                <DatePicker
+                                    selected={this.state.modifiedBefore}
+                                    onChange={(d) => this.validateAndSetDate(d, "modifiedBefore")}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={15}
+                                    dateFormat="LLL"
+                                    timeCaption="time"
+                                />
                             </Form.Field>
                         </Form.Group>
                     </Form>
@@ -173,7 +234,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         <Form.Checkbox label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
                     </Form.Group>
                     <Header as="h3" content="File extensions" />
-                    <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: [] }))} />
+                    <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: new Set() }))} />
                     <Form onSubmit={(e) => { e.preventDefault(); this.onAddExtension(); }}>
                         <Form.Input value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
                         <Dropdown
@@ -183,14 +244,19 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         />
                     </Form>
                     <Header as="h3" content="Sensitivity" />
-                    <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} clearAll={() => this.setState(() => ({ sensitivities: [] }))} />
+                    <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} clearAll={() => this.setState(() => ({ sensitivities: new Set() }))} />
                     {sensitivityDropdown}
 
                     <Header as="h3" content="Annotations" />
-                    <SearchLabels labels={annotations} onLabelRemove={(l) => this.onRemoveAnnotation(l)} clearAll={() => this.setState(() => ({ annotations: [] }))} />
+                    <SearchLabels labels={annotations} onLabelRemove={(l) => this.onRemoveAnnotation(l)} clearAll={() => this.setState(() => ({ annotations: new Set() }))} />
                     {annotationsDropdown}
 
-                    <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => console.log("Almost submitted!")} />
+                    <Header as="h3" content="Tags" />
+                    <SearchLabels labels={tags} onLabelRemove={(l) => this.onRemoveTag(l)} clearAll={() => this.setState(() => ({ tags: new Set() }))} />
+                    <Form onSubmit={(e) => { e.preventDefault(); this.onAddTags(); }}>
+                        <Form.Input value={tagValue} onChange={(_, { value }) => this.setState(() => ({ tagValue: value }))} />
+                    </Form>
+                    <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => this.onSearch()} />
                 </Grid.Column>
             </Grid>
         );
@@ -199,8 +265,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
 
 const SearchLabels = (props) => (
     <div className="padding-bottom">
-        {props.labels.map((l, i) => (<Label className="label-padding" basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
-        {props.labels.length > 1 ? (<Label className="label-padding" color="blue" content="Clear all" onRemove={props.clearAll} />) : null}
+        {[...props.labels].map((l, i) => (<Label className="label-padding" basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
+        {props.labels.size > 1 ? (<Label className="label-padding" color="blue" content="Clear all" onRemove={props.clearAll} />) : null}
     </div>
 );
 

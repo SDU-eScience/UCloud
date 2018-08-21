@@ -14,6 +14,9 @@ import "Styling/Shared.scss";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";
+import { File, SortBy } from "Files";
+import { filepathQuery } from "Utilities/FileUtilities";
+import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -77,35 +80,31 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             this.retrieveStateWhenCompleted();
             return;
         }
-
         this.setState({ loading: true });
         this.state.promises.makeCancelable(
-            Cloud.get(`hpc/jobs/follow/${this.jobId}?` +
-                `stdoutLineStart=${this.state.stdoutLine}&stdoutMaxLines=1000` +
-                `&stderrLineStart=${this.state.stderrLine}&stderrMaxLines=1000`
-            ).then(
-                ({ response }) => {
-                    this.setState({
-                        stdout: this.state.stdout + response.stdout,
-                        stderr: this.state.stderr + response.stderr,
-                        stdoutLine: response.stdoutNextLine,
-                        stderrLine: response.stderrNextLine,
+            Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
+        ).promise.then(
+            ({ response }) => {
+                this.setState({
+                    stdout: this.state.stdout.concat(response.stdout),
+                    stderr: this.state.stderr.concat(response.stderr),
+                    stdoutLine: response.stdoutNextLine,
+                    stderrLine: response.stderrNextLine,
 
-                        app: response.application,
-                        status: response.status,
-                        appState: response.state,
-                        complete: response.complete
-                    });
+                    app: response.application,
+                    status: response.status,
+                    appState: response.state,
+                    complete: response.complete
+                });
 
-                    this.scrollIfNeeded();
-                    if (response.complete) this.retrieveStateWhenCompleted();
-                },
+                this.scrollIfNeeded();
+                if (response.complete) this.retrieveStateWhenCompleted();
+            },
 
-                failure => {
-                    failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
-                    console.log(failure);
-                }).finally(() => this.setState({ loading: false }))
-        );
+            failure => {
+                failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
+                console.log(failure);
+            }).finally(() => this.setState({ loading: false }));
     }
 
     retrieveStateWhenCompleted() {
@@ -117,19 +116,18 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
         this.state.promises.makeCancelable(
-            Cloud.get(`files?path=/home/${Cloud.username}/Jobs/${this.jobId}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`)).promise.then(({ response }) => {
-                this.setState({
-                    page: response,
-                    loading: false
-                });
-                window.clearInterval(this.state.reloadIntervalId);
+            Cloud.get(filepathQuery(`/home/${Cloud.username}/Jobs/${this.jobId}`, pageNumber, itemsPerPage))
+        ).promise.then(({ response }) => {
+            this.setState({
+                page: response,
+                loading: false
             });
+            window.clearInterval(this.state.reloadIntervalId);
+        });
     }
 
-    favoriteFile(path: string) {
-        this.setState(() => ({ page: favoriteFileFromPage(this.state.page, path, Cloud) }))
-    }
-
+    favoriteFile = (file: File) => this.setState(() => ({ page: favoriteFileFromPage(this.state.page, [file], Cloud) }));
+    
     renderProgressPanel = () => (
         <div className="job-result-box">
             <h4>Progress</h4>
@@ -263,25 +261,18 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 <h4>Output Files</h4>
                 <PaginationList
                     page={page}
-                    onRefreshClick={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
+                    onRefresh={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
                     pageRenderer={(page) =>
                         <FilesTable
+                            sortBy={SortBy.PATH}
+                            fileOperations={[]}
                             files={page.items}
                             refetchFiles={() => null}
-                            handleKeyDown={() => null}
-                            showFileSelector={() => null}
-                            setDisallowedPaths={() => null}
-                            editFolderIndex={-1}
                             sortFiles={() => null}
-                            allowCopyAndMove={false}
-                            startEditFile={() => null}
-                            projectNavigation={() => null}
-                            creatingNewFolder={false}
-                            fetchPageFromPath={() => null}
                             sortingIcon={() => null}
                             onCheckFile={() => null}
-                            setFileSelectorCallback={() => null}
-                            onFavoriteFile={(path) => this.favoriteFile(path)}
+                            sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
+                            onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                         />}
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
                     onItemsPerPageChanged={itemsPerPage => this.retrieveFilesPage(0, itemsPerPage)}

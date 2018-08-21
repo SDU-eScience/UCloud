@@ -39,6 +39,7 @@ export default function initializeTestCloudObject() {
     return new SDUCloud("http://localhost:9000", "local-dev");
 }
 
-test("Error silencer", () => {
-    expect(1).toBe(1);
-});
+// FIXME Shouldn't be necessary
+test("Error silencer", () =>
+    expect(1).toBe(1)
+)

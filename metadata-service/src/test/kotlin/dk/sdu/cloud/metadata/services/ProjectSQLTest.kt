@@ -1,5 +1,6 @@
 package dk.sdu.cloud.metadata.services
 
+import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import org.junit.Test
@@ -9,37 +10,20 @@ import kotlin.test.assertTrue
 
 class ProjectSQLTest {
     private val projectOwner = "user"
+    private val project1 = Project(null, "home/sdu/user", "home/sdu/user", projectOwner, "Project Description")
+    private val project2 = Project(null, "home/sdu/user/extra", "home/sdu/user/extra", projectOwner, "Project Description")
 
-    private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-        HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
-    }
 
     @Test
     fun `find By Id test`(){
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user/extra",
-                    "home/sdu/user/extra",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
+            projectService.createProject(project2)
 
-            val project = projectService.findById(2)
+            val result = projectService.findById(2)
 
-            assertEquals("home/sdu/user/extra", project?.fsRoot)
+            assertEquals("home/sdu/user/extra", result?.fsRoot)
         }
     }
 
@@ -47,24 +31,8 @@ class ProjectSQLTest {
     fun `find By Id - Not found - test`(){
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user/extra",
-                    "home/sdu/user/extra",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
+            projectService.createProject(project2)
 
             assertNull(projectService.findById(500))
         }
@@ -75,27 +43,10 @@ class ProjectSQLTest {
     fun `find Best Matching Project By Path test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user/extra",
-                    "home/sdu/user/extra",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
+            projectService.createProject(project2)
 
             val project = projectService.findBestMatchingProjectByPath("home/sdu/user/extra/I/am/to/long")
-            println(projectService.findById(2))
             assertEquals(2, project.id)
         }
     }
@@ -104,24 +55,8 @@ class ProjectSQLTest {
     fun `find Best Matching Project By Path - Not Found - test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user/extra",
-                    "home/sdu/user/extra",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
+            projectService.createProject(project2)
 
             projectService.findBestMatchingProjectByPath("home/sdu/I/am/to/ling")
 
@@ -132,22 +67,15 @@ class ProjectSQLTest {
     fun `delete project by ID test`(){
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
 
-            val project = projectService.findById(1)
-            assertEquals("home/sdu/user", project?.fsRoot)
+            val result = projectService.findById(1)
+            assertEquals("home/sdu/user", result?.fsRoot)
 
             projectService.deleteProjectById(1)
 
-            projectService.findById(1)
+            val result2 = projectService.findById(1)
+            assertNull(result2)
         }
     }
 
@@ -155,18 +83,10 @@ class ProjectSQLTest {
     fun `delete project by ID - Wrong id - test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
 
-            val project = projectService.findById(1)
-            assertEquals("home/sdu/user", project?.fsRoot)
+            val result = projectService.findById(1)
+            assertEquals("home/sdu/user", result?.fsRoot)
 
             projectService.deleteProjectById(4)
         }
@@ -176,23 +96,15 @@ class ProjectSQLTest {
     fun `delete project by FSRoot test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "/home/sdu/user",
-                    "/home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
 
-            val project = projectService.findByFSRoot("/home/sdu/user")
-            assertEquals("/home/sdu/user", project.fsRoot)
+            val result = projectService.findByFSRoot("home/sdu/user")
+            assertEquals("home/sdu/user", result.fsRoot)
 
-            projectService.deleteProjectByRoot("/home/sdu/user")
+            projectService.deleteProjectByRoot("home/sdu/user")
 
             try {
-                projectService.findByFSRoot("/home/sdu/user")
+                projectService.findByFSRoot("home/sdu/user")
                 assertTrue(false)
             } catch (ex: ProjectException.NotFound) {
                 // All good
@@ -204,15 +116,7 @@ class ProjectSQLTest {
     fun `delete project by FSRoot - Not correct path - test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
 
             projectService.deleteProjectByRoot("home/sdu/notCorrect")
         }
@@ -222,23 +126,15 @@ class ProjectSQLTest {
     fun `update project root test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
 
-            val project = projectService.findById(1)
-            assertEquals("home/sdu/user", project?.fsRoot)
+            val result = projectService.findById(1)
+            assertEquals("home/sdu/user", result?.fsRoot)
 
             projectService.updateProjectRoot(1, "Home/alone/2")
 
-            val project2 = projectService.findById(1)
-            assertEquals("Home/alone/2", project2?.fsRoot)
+            val result2 = projectService.findById(1)
+            assertEquals("Home/alone/2", result2?.fsRoot)
         }
     }
 
@@ -246,15 +142,7 @@ class ProjectSQLTest {
     fun `update project - not existing ID - test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
-            projectService.createProject(
-                Project(
-                    null,
-                    "home/sdu/user",
-                    "home/sdu/user",
-                    projectOwner,
-                    "Project Description"
-                )
-            )
+            projectService.createProject(project1)
 
             val project = projectService.findByFSRoot("home/sdu/user")
             assertEquals("home/sdu/user", project.fsRoot)

@@ -46,7 +46,7 @@ class Analyses extends React.Component<AnalysesProps, AnalysesState> {
                     loading={loading}
                     onErrorDismiss={onErrorDismiss}
                     errorMessage={error}
-                    onRefreshClick={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
+                    onRefresh={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
                     pageRenderer={(page) =>
                         <Table basic="very" unstackable className="mobile-padding">
                             <TableHeader />
@@ -58,7 +58,6 @@ class Analyses extends React.Component<AnalysesProps, AnalysesState> {
                     page={page}
                     onItemsPerPageChanged={(size) => this.props.fetchAnalyses(size, 0)}
                     onPageChanged={(pageNumber) => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
-                    onRefresh={() => null}
                 />
             </React.StrictMode>
         )
@@ -76,7 +75,7 @@ const TableHeader = () => (
             <Responsive as={Table.HeaderCell} minWidth={768}>Last updated at</Responsive>
         </Table.Row>
     </Table.Header>
-)
+);
 
 const Analysis = ({ analysis }) => {
     const jobIdField = analysis.status === "COMPLETE" ?
@@ -104,7 +103,7 @@ const formatDate = (millis) => {
     let d = new Date(millis);
     return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/` +
         `${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:` +
-        `${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`
+        `${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`;
 };
 
 const pad = (value, length) =>

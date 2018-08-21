@@ -18,6 +18,7 @@ interface HeaderProps {
     open?: boolean
     dispatch: Dispatch
     history: History
+    prioritizedSearch: string
 }
 
 interface HeaderState {
@@ -38,7 +39,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
     }
 
     public render() {
-        const { open, dispatch } = this.props;
+        const { open, dispatch, prioritizedSearch } = this.props;
         const { history } = this.context.router;
         const sidebarIcon = open ? "triangle left" : "triangle right";
         const { searchText } = this.state;
@@ -82,20 +83,20 @@ class Header extends React.Component<HeaderProps, HeaderState> {
                                 size="tiny"
                                 onSubmit={(e) => {
                                     e.preventDefault();
-                                    if (!!searchText) history.push(`/metadata/search/${searchText}`)
+                                    if (!!searchText) history.push(`/simplesearch/${prioritizedSearch}/${searchText}`)
                                 }}
                             >
                                 <Input
                                     value={searchText}
-                                    onChange={(_, { value }) => this.setState(() => ({ searchText }))}
+                                    onChange={(_, { value }) => this.setState(() => ({ searchText: value }))}
                                     className="header-search"
                                     fluid
                                     icon="search"
-                                    placeholder="Search by project..."
+                                    placeholder="Search for files, apps, and projects..."
                                 />
                             </Form>
                         </Responsive>
-                        <Responsive maxWidth={999} as={Link} to={"/metadata/search/"}>
+                        <Responsive maxWidth={999} as={Link} to={`/simplesearch/${prioritizedSearch}/`}>
                             <Icon name="search" />
                         </Responsive>
                     </Menu.Item>
@@ -140,5 +141,5 @@ class Header extends React.Component<HeaderProps, HeaderState> {
 }
 
 
-const mapStateToProps = ({ sidebar }: HeaderStateToProps) => ({ open: sidebar.open });
+const mapStateToProps = ({ sidebar, header }: HeaderStateToProps) => ({ open: sidebar.open, prioritizedSearch: header.prioritizedSearch });
 export default connect(mapStateToProps)(Header);

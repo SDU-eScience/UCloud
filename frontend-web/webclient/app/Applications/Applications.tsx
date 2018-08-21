@@ -16,7 +16,7 @@ import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } fro
 import { setErrorMessage } from "./Redux/ApplicationsActions";
 // Requires at least TS 3.0.0
 import { MaterialColors } from "Assets/materialcolors.json";
-import { favoriteApplicationFromPage } from "UtilityFunctions";
+import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 
@@ -41,13 +41,14 @@ class Applications extends React.Component<ApplicationsProps> {
     render() {
         const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
         const favoriteApp = (app: Application) => updateApplications(favoriteApplicationFromPage(app, page, Cloud));
+        console.log(page);
         return (
             <React.StrictMode>
                 <Pagination.List
                     loading={loading}
                     onErrorDismiss={onErrorDismiss}
                     errorMessage={error}
-                    onRefreshClick={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
+                    onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={({ items }: Page<Application>) =>
                         <Card.Group className="card-margin">
                             {items.map((app, index) => <SingleApplication key={index} app={app} favoriteApp={favoriteApp} />)}
@@ -61,8 +62,8 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 }
 
-interface SingleApplicationProps { app: Application, favoriteApp: (app: Application) => void }
-function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
+interface SingleApplicationProps { app: Application, favoriteApp?: (app: Application) => void }
+export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
     const hashCode = toHashCode(app.description.info.name);
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
     const mClength = MaterialColors[color].length;
@@ -90,9 +91,9 @@ function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
             </div>
             <Card.Content>
                 <List horizontal floated="right">
-                    <List.Item>
-                        <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => favoriteApp(app)} />
-                    </List.Item>
+                    {!!favoriteApp ? <List.Item>
+                        <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => !!favoriteApp ? favoriteApp(app) : null} />
+                    </List.Item> : null}
                     <List.Item>
                         <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
                             <Icon color="green" name="play" />

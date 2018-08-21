@@ -21,7 +21,6 @@ interface ListProps {
     customEmptyPage?: React.ReactNode
 
     // Callbacks
-    onRefreshClick?: () => void
     onItemsPerPageChanged: (itemsPerPage: number) => void
     onPageChanged: (newPage: number) => void
     onRefresh?: () => void
@@ -44,11 +43,11 @@ export class List extends React.PureComponent<ListProps> {
             errorComponent = props.errorMessage();
         }
 
-        const refreshButton = !!this.props.onRefreshClick ? (
+        const refreshButton = !!this.props.onRefresh ? (
             <RefreshButton
                 className="pagination-float-right"
                 loading={this.props.loading}
-                onClick={this.props.onRefreshClick} 
+                onClick={this.props.onRefresh} 
             />
         ) : null;
 
@@ -90,7 +89,7 @@ export class List extends React.PureComponent<ListProps> {
                     return <div>
                         <Header as="h2">
                             No results.
-                        <a
+                            <a
                                 href="#"
                                 onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, (c) => c()) }}
                             >

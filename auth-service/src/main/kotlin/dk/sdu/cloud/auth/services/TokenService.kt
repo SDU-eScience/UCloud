@@ -4,7 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
-import dk.sdu.cloud.auth.services.saml.Auth
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -106,12 +106,12 @@ class TokenService<DBSession>(
         return RequestAndRefreshToken(accessToken, refreshToken)
     }
 
-    fun processSAMLAuthentication(auth: Auth): Person.ByWAYF? {
+    fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
         try {
             log.debug("Processing SAML response")
-            if (auth.authenticated) {
+            if (samlRequestProcessor.authenticated) {
                 val id =
-                    auth.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull() ?: throw IllegalArgumentException(
+                    samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull() ?: throw IllegalArgumentException(
                         "Missing EduPersonTargetedId"
                     )
 
@@ -122,7 +122,7 @@ class TokenService<DBSession>(
                 } catch (ex: UserException.NotFound) {
                     log.debug("User not found. Creating new user...")
 
-                    val userCreated = PersonUtils.createUserByWAYF(auth)
+                    val userCreated = PersonUtils.createUserByWAYF(samlRequestProcessor)
                     log.debug("userCreated=$userCreated")
                     launch {
                         userEventProducer.emit(UserEvent.Created(id, userCreated))

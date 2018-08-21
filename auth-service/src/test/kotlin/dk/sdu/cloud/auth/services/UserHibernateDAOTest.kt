@@ -1,12 +1,10 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.auth.api.PublicPerson
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
-import dk.sdu.cloud.auth.services.saml.Auth
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.withTransaction
 import io.mockk.every
 import io.mockk.mockk
@@ -14,28 +12,32 @@ import org.hibernate.NonUniqueObjectException
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class UserHibernateDAOTest{
 
-    private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-        HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
-    }
+    val email = "test@testmail.com"
+    val person = PersonUtils.createUserByPassword(
+        "FirstName Middle",
+        "Lastname",
+        email,
+        Role.ADMIN,
+        "ThisIsMyPassword"
+    )
+    val email2 = "anotherEmail@test.com"
+    val person2 = PersonUtils.createUserByPassword(
+        "McFirstName McMiddle",
+        "McLastname",
+        email2,
+        Role.USER,
+        "Password1234"
+    )
 
     @Test
     fun `insert, find and delete`() {
         withDatabase { db ->
             db.withTransaction { session ->
-                val email = "test@testmail.com"
-                val person = PersonUtils.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword"
-                )
                 val userHibernate = UserHibernateDAO()
                 userHibernate.insert(session, person)
                 assertEquals(email, userHibernate.findById(session, email).id)
@@ -49,23 +51,6 @@ class UserHibernateDAOTest{
     fun `insert 2 and list all`() {
         withDatabase { db ->
             db.withTransaction { session ->
-                val email = "test@testmail.com"
-                val email2 = "anotherEmail@test.com"
-                val person = PersonUtils.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword"
-                )
-                val person2 = PersonUtils.createUserByPassword(
-                    "McFirstName McMiddle",
-                    "McLastname",
-                    email2,
-                    Role.USER,
-                    "Password1234"
-                )
-
                 val userHibernate = UserHibernateDAO()
                 userHibernate.insert(session, person)
                 userHibernate.insert(session, person2)
@@ -84,24 +69,9 @@ class UserHibernateDAOTest{
     fun `insert 2 with same email`() {
         withDatabase { db ->
             db.withTransaction { session ->
-                val email = "test@testmail.com"
-                val person = PersonUtils.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword"
-                )
-                val person2 = PersonUtils.createUserByPassword(
-                    "McFirstName McMiddle",
-                    "McLastname",
-                    email,
-                    Role.ADMIN,
-                    "Password1234"
-                )
                 val userHibernate = UserHibernateDAO()
                 userHibernate.insert(session, person)
-                userHibernate.insert(session, person2)
+                userHibernate.insert(session, person)
 
             }
         }
@@ -120,7 +90,7 @@ class UserHibernateDAOTest{
     fun `insert WAYF`() {
         withDatabase { db ->
 
-            val auth = mockk<Auth>()
+            val auth = mockk<SamlRequestProcessor>()
 
             db.withTransaction { session ->
 
@@ -140,7 +110,6 @@ class UserHibernateDAOTest{
                 userDao.insert(session, person)
 
                 assertEquals("SDU", person.organizationId)
-
             }
         }
     }
@@ -159,7 +128,6 @@ class UserHibernateDAOTest{
         assertTrue(backToEntity.modifiedAt > entity.modifiedAt)
         assertEquals(backToEntity.id, entity.id)
         assertEquals(backToEntity.role, entity.role)
-
     }
 
     @Test
@@ -198,7 +166,6 @@ class UserHibernateDAOTest{
         val hashedPerson2 = person2.hashCode()
         //Same values, so should be same hash
         assertEquals(hashedPerson, hashedPerson2)
-
     }
 
     @Test

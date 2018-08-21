@@ -94,7 +94,7 @@ class MetadataTest {
                         val response =
                             handleRequest(HttpMethod.Post, "/api/metadata") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(user)
+                                setUser()
                                 setBody(
                                     """
                                 {
@@ -124,7 +124,6 @@ class MetadataTest {
     @Test
     fun `find by ID test`() {
         objectMockk(FileDescriptions).use {
-            val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
                 val projectService: ProjectService<*> = mockk(relaxed = true)
@@ -148,7 +147,7 @@ class MetadataTest {
                         val response =
                             handleRequest(HttpMethod.Get, "/api/metadata/1") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(user)
+                                setUser()
                             }.response
 
                         assertEquals(HttpStatusCode.OK, response.status())
@@ -171,7 +170,6 @@ class MetadataTest {
     @Test
     fun `find by ID - Nothing found - test`() {
         objectMockk(FileDescriptions).use {
-            val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
                 val projectService: ProjectService<*> = mockk(relaxed = true)
@@ -188,7 +186,7 @@ class MetadataTest {
                         val response =
                             handleRequest(HttpMethod.Get, "/api/metadata/1") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(user)
+                                setUser()
                             }.response
 
                         assertEquals(HttpStatusCode.NotFound, response.status())
@@ -234,7 +232,7 @@ class MetadataTest {
                         val response =
                             handleRequest(HttpMethod.Get, "/api/metadata/by-path?path=/home/") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(user)
+                                setUser()
                             }.response
 
                         assertEquals(HttpStatusCode.OK, response.status())
@@ -287,7 +285,7 @@ class MetadataTest {
                         val response =
                             handleRequest(HttpMethod.Get, "/api/metadata/by-path?path=/home/") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(user)
+                                setUser()
                             }.response
 
                         assertEquals(HttpStatusCode.NotFound, response.status())
@@ -309,7 +307,6 @@ class MetadataTest {
     @Test
     fun `find By Path - Not existing project - test`() {
         objectMockk(FileDescriptions).use {
-            val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
                 val projectService: ProjectService<*> = mockk(relaxed = true)
@@ -335,7 +332,7 @@ class MetadataTest {
                         val response =
                             handleRequest(HttpMethod.Get, "/api/metadata/by-path?path=/home/") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(user)
+                                setUser()
                             }.response
 
                         assertEquals(HttpStatusCode.NotFound, response.status())
@@ -348,7 +345,6 @@ class MetadataTest {
     @Test
     fun `simple query test`() {
         objectMockk(FileDescriptions).use {
-            val user = "user1"
             withAuthMock {
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
                 val projectService: ProjectService<*> = mockk(relaxed = true)
@@ -376,7 +372,7 @@ class MetadataTest {
                                 "/api/metadata/search?query=wunderbar&itemsPerPage=10&page=0"
                             ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(user)
+                                setUser()
                             }.response
                         //Throws 22 exceptions due to the hits not containing any info.
                         assertEquals(HttpStatusCode.OK, response.status())

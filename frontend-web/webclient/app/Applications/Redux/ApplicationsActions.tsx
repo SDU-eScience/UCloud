@@ -12,6 +12,7 @@ import {
     Error
 } from "Types";
 import { Application } from ".."
+import { hpcApplicationsQuery } from "Utilities/ApplicationUtilities";
 
 interface ReceiveApplicationsAction extends Action { page: Page<Application> }
 const receiveApplications = (page: Page<Application>): ReceiveApplicationsAction => ({
@@ -25,7 +26,7 @@ export const setErrorMessage = (error?: string): Error => ({
 });
 
 export const fetchApplications = (page: number, itemsPerPage: number): Promise<ReceiveApplicationsAction | Error> =>
-    Cloud.get(`/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`).then(({ response }: { response: Page<Application> }) => 
+    Cloud.get(hpcApplicationsQuery(page, itemsPerPage)).then(({ response }: { response: Page<Application> }) => 
         receiveApplications(response)
     ).catch(() => setErrorMessage("An error occurred while retrieving applications."));
 

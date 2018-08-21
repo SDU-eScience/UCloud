@@ -1,15 +1,20 @@
 import { Page } from "Types";
 import { History } from "history";
-import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps } from "semantic-ui-react";
+import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS } from "semantic-ui-react";
 import { match } from "react-router-dom";
+import Cloud from "Authentication/lib";
+import { Moment } from "moment";
+import * as React from "react";
+import PromiseKeeper from "PromiseKeeper";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
     DESCENDING = "DESCENDING"
 }
 
+export type FileType = "FILE" | "DIRECTORY";
 export interface File {
-    type: string
+    type: FileType
     path: string
     createdAt: number
     modifiedAt: number
@@ -19,8 +24,10 @@ export interface File {
     favorited: boolean
     sensitivityLevel: string
     isChecked?: boolean
+    beingRenamed?: boolean
     link: boolean
     annotations: string[]
+    isMockFolder?: boolean
 }
 
 export interface Acl {
@@ -53,7 +60,7 @@ export interface FilesProps extends FilesStateProps, FilesOperations {
 }
 
 export interface MockedTableProps {
-    handleKeyDown: (a, b, c) => void
+    onCreateFolder: (a, c) => void
     creatingFolder: boolean
 }
 
@@ -69,12 +76,12 @@ export interface FilesStateProps { // Redux Props
     fileSelectorPage: Page<File>
     sortBy: SortBy
     sortOrder: SortOrder
-    creatingFolder: boolean
-    editFileIndex: number
     error: string
     fileSelectorError: string
     checkedFilesCount: number
     favFilesCount: number
+    renamingCount: number
+    fileCount: number
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
 }
@@ -83,7 +90,7 @@ export interface FilesOperations { // Redux operations
     prioritizeFileSearch: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
-    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy) => void
+    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
@@ -93,10 +100,6 @@ export interface FilesOperations { // Redux operations
     updatePath: (path: string) => void
     showFileSelector: (open: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
-    setCreatingFolder: (creating: boolean) => void
-    setEditingFileIndex: (index: number) => void
-    resetFolderEditing: () => void
-    setSortingColumn: (sortBy: SortBy, index: number) => void
 }
 
 export interface FileSelectorProps {
@@ -111,75 +114,59 @@ export interface FileSelectorProps {
 }
 
 export interface FileSelectorState {
-    promises: any
+    promises: PromiseKeeper
     path: string
     loading: boolean
     page: Page<File>
     modalShown: boolean
-    breadcrumbs: { path: string, actualPath: string }[]
     uppyOnUploadSuccess: Function
     creatingFolder: boolean
 }
 
 export interface FilesTableProps {
-    onDropdownSelect?: (s: SortBy, index: number) => void
-    sortingColumns?: [SortBy, SortBy]
+    sortOrder?: SortOrder
+    onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
+    sortingColumns: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
-    showFileSelector: (open: boolean) => void
-    setFileSelectorCallback: (c: Function) => void
-    setDisallowedPaths: (p: string[]) => void
     sortingIcon: (name: string) => SemanticICONS
-    editFolderIndex: number
     sortFiles: (sortBy: SortBy) => void
-    handleKeyDown: (a: number, b: boolean, c: string) => void
+    onRenameFile?: (key: number, file: File, name: string) => void
+    onCreateFolder?: (key: number, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
     refetchFiles: () => void
-    startEditFile: (i: number) => void
-    projectNavigation: (p: string) => void
-    creatingNewFolder: boolean
-    allowCopyAndMove: boolean
-    onFavoriteFile: (p: string) => void
-    fetchPageFromPath: (p: string) => void
-}
-
-export interface EditOrCreateProjectButtonProps {
-    file: File
-    disabled: boolean
-    projectNavigation: (s: string) => void
+    sortBy: SortBy
+    onFavoriteFile: (f: File[]) => void
+    fileOperations: FileOperation[]
 }
 
 export interface CreateFolderProps {
     creatingNewFolder: boolean
-    handleKeyDown: (a: number, b: boolean, c: string) => void
-}
-
-export interface PredicatedDropDownItemProps {
-    predicate: boolean
-    content: string
-    onClick: () => void
+    onCreateFolder: (key: number, name: string) => void
 }
 
 export interface FilesTableHeaderProps {
     sortingIcon?: (s: SortBy) => SemanticICONS
     sortFiles?: (s: SortBy) => void
+    sortOrder: SortOrder
+    sortBy: SortBy
     masterCheckbox?: React.ReactNode
-    sortingColumns?: [SortBy, SortBy]
-    onDropdownSelect?: (s: SortBy, index: number) => void
+    sortingColumns: [SortBy, SortBy]
+    onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
 }
 
 export interface FilenameAndIconsProps {
     file: File
-    beingRenamed: boolean
     hasCheckbox: boolean
     size?: SemanticSIZES
-    onKeyDown: (a: number, b: boolean, c: string) => void
+    onRenameFile: (key: number, file: File, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
-    onFavoriteFile: (p: string) => void
+    onFavoriteFile: (files: File[]) => void
 }
 
 export interface FileSelectorModalProps {
-    show, loading: boolean
+    show: boolean
+    loading: boolean
     path: string
     onHide: (event: React.MouseEvent<HTMLButtonElement | HTMLElement>, data: ButtonProps | ModalProps) => void
     page: Page<File>
@@ -222,16 +209,57 @@ export interface MoveCopyOperations {
     fetchPageFromPath: (path: string) => void
 }
 
-export interface FileOptionsProps extends MoveCopyOperations {
+export interface FileOptionsProps {
     files: File[]
-    rename: () => void
-    refetch: () => void
-    projectNavigation: (str: string) => void
+    fileOperations: FileOperation[]
 }
 
 export interface SortByDropdownProps {
     currentSelection: SortBy
     sortOrder: SortOrder
-    onSortOrderChange: (s: SortOrder) => void
-    onSelect: (s: SortBy) => void
+    onSelect: (sortorder: SortOrder, s: SortBy) => void
+    asDropdown: boolean
+    isSortedBy: boolean
 }
+
+export interface MobileButtonsProps {
+    file: File
+    fileOperations: FileOperation[]
+}
+
+export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
+export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS, color: SemanticCOLORS }
+export type FileOperation = (Operation | PredicatedOperation)
+
+export interface ContextButtonsProps {
+    currentPath: string
+    createFolder: () => void
+    refetch: () => void
+}
+
+
+export interface DetailedFileSearchProps {
+
+}
+
+export type Annotation = "Project";
+
+export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
+
+export interface DetailedFileSearchState {
+    allowFolders: boolean
+    allowFiles: boolean
+    filename: string
+    extensions: Set<string>
+    extensionValue: string
+    tags: Set<string>
+    tagValue: string,
+    sensitivities: Set<SensitivityLevel>,
+    annotations: Set<Annotation>
+    createdBefore: Moment
+    createdAfter: Moment
+    modifiedBefore: Moment
+    modifiedAfter: Moment
+}
+
+export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";

@@ -90,7 +90,7 @@ class SearchComponent extends React.Component<SearchProps, SearchState> {
     }
 }
 
-const SearchItem = ({ item }: { item: ProjectMetadata }) => (
+export const SearchItem = ({ item }: { item: ProjectMetadata }) => (
     <Card fluid>
         <Card.Content>
             <Header><Link to={`/metadata/${item.sduCloudRoot}`}>{item.title}</Link></Header>

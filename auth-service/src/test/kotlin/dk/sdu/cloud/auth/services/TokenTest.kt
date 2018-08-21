@@ -2,16 +2,12 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import dk.sdu.cloud.auth.api.RequestAndRefreshToken
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
-import dk.sdu.cloud.auth.services.saml.Auth
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.utils.withAuthMock
-import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.auth.utils.withDatabase
+import dk.sdu.cloud.service.db.*
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
@@ -20,45 +16,46 @@ import kotlin.test.*
 
 class TokenTest{
 
-    private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-        HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
+    private val email = "test@testmail.com"
+    private val token = "token"
+    private val person = PersonUtils.createUserByPassword(
+        "FirstName Middle",
+        "Lastname",
+        email,
+        Role.ADMIN,
+        "ThisIsMyPassword"
+    )
+
+    private fun createTokenService(
+        db: HibernateSessionFactory,
+        jwtAlg: Algorithm
+    ): TokenService<*> {
+        val userDao = UserHibernateDAO()
+        val refreshTokenDao = RefreshTokenHibernateDAO()
+        val tokenService = TokenService(
+            db,
+            userDao,
+            refreshTokenDao,
+            jwtAlg,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true)
+        )
+        return tokenService
     }
 
     @Test
     fun `create and register test`() {
         withDatabase { db ->
-            val email = "test@testmail.com"
-            db.withTransaction { session ->
+            val jwtAlg = JWTAlgorithm.HMAC256("foobar")
+            val tokenService = createTokenService(db, jwtAlg)
 
-                val person = PersonUtils.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword"
-                )
+            val jwtParser = JWT.require(jwtAlg).build()
+            val result = tokenService.createAndRegisterTokenFor(person)
+            val parsedJwt = jwtParser.verify(result.accessToken)
+            assertEquals(email, parsedJwt.subject)
 
-                val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                val userDao = UserHibernateDAO()
-                val refreshTokenDao = RefreshTokenHibernateDAO()
-                val tokenService = TokenService(
-                    db,
-                    userDao,
-                    refreshTokenDao,
-                    jwtAlg,
-                    mockk(relaxed = true),
-                    mockk(relaxed = true),
-                    mockk(relaxed = true)
-                )
-
-                val jwtParser = JWT.require(jwtAlg).build()
-
-                val result = tokenService.createAndRegisterTokenFor(person)
-                val parsedJwt = jwtParser.verify(result.accessToken)
-                assertEquals(email, parsedJwt.subject)
-
-                assertTrue(result.refreshToken.isNotEmpty())
-            }
+            assertTrue(result.refreshToken.isNotEmpty())
         }
     }
 
@@ -67,18 +64,9 @@ class TokenTest{
         withAuthMock {
             withDatabase { db ->
                 val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                val userDao = UserHibernateDAO()
-                val refreshTokenDao = RefreshTokenHibernateDAO()
-                val tokenService = TokenService(
-                    db,
-                    userDao,
-                    refreshTokenDao,
-                    jwtAlg,
-                    mockk(relaxed = true),
-                    mockk(relaxed = true),
-                    mockk(relaxed = true)
-                )
-                val auth = mockk<Auth>()
+                val tokenService = createTokenService(db, jwtAlg)
+
+                val auth = mockk<SamlRequestProcessor>()
                 every { auth.authenticated } returns true
                 every { auth.attributes } answers {
                     val h = HashMap<String, List<String>>(10)
@@ -102,18 +90,9 @@ class TokenTest{
     fun `process SAML auth test - missing EDU Person Target ID`() {
         withDatabase { db ->
             val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-            val userDao = UserHibernateDAO()
-            val refreshTokenDao = RefreshTokenHibernateDAO()
-            val tokenService = TokenService(
-                db,
-                userDao,
-                refreshTokenDao,
-                jwtAlg,
-                mockk(relaxed = true),
-                mockk(relaxed = true),
-                mockk(relaxed = true)
-            )
-            val auth = mockk<Auth>()
+            val tokenService = createTokenService(db, jwtAlg)
+
+            val auth = mockk<SamlRequestProcessor>()
             every { auth.authenticated } returns true
             every { auth.attributes} returns HashMap(1)
             assertNull(tokenService.processSAMLAuthentication(auth))
@@ -125,18 +104,9 @@ class TokenTest{
     fun `process SAML auth test - not authenticated`() {
         withDatabase { db ->
             val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-            val userDao = UserHibernateDAO()
-            val refreshTokenDao = RefreshTokenHibernateDAO()
-            val tokenService = TokenService(
-                db,
-                userDao,
-                refreshTokenDao,
-                jwtAlg,
-                mockk(relaxed = true),
-                mockk(relaxed = true),
-                mockk(relaxed = true)
-            )
-            val auth = mockk<Auth>()
+            val tokenService = createTokenService(db, jwtAlg)
+
+            val auth = mockk<SamlRequestProcessor>()
             every { auth.authenticated } returns false
             assertNull(tokenService.processSAMLAuthentication(auth))
 
@@ -149,26 +119,10 @@ class TokenTest{
             withDatabase { db ->
                 val email = "test@testmail.com"
                 val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-                val userDao = UserHibernateDAO()
-                val refreshTokenDao = RefreshTokenHibernateDAO()
-                val tokenService = TokenService(
-                    db,
-                    userDao,
-                    refreshTokenDao,
-                    jwtAlg,
-                    mockk(relaxed = true),
-                    mockk(relaxed = true),
-                    mockk(relaxed = true)
-                )
+                val tokenService = createTokenService(db, jwtAlg)
+
                 db.withTransaction { session ->
-                    val person = PersonUtils.createUserByPassword(
-                        "FirstName Middle",
-                        "Lastname",
-                        email,
-                        Role.ADMIN,
-                        "ThisIsMyPassword"
-                    )
-                    userDao.insert(session, person)
+                    UserHibernateDAO().insert(session, person)
                 }
 
                 val jwtParser = JWT.require(jwtAlg).build()
@@ -187,31 +141,11 @@ class TokenTest{
     @Test
     fun `refresh test`() {
         withDatabase { db ->
-            val email = "test@testmail.com"
-            val token = "token"
-
             val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-            val userDao = UserHibernateDAO()
-            val refreshTokenDao = RefreshTokenHibernateDAO()
-            val tokenService = TokenService(
-                db,
-                userDao,
-                refreshTokenDao,
-                jwtAlg,
-                mockk(relaxed = true),
-                mockk(relaxed = true),
-                mockk(relaxed = true)
-            )
+            val tokenService = createTokenService(db, jwtAlg)
 
             db.withTransaction { session ->
-                val person = PersonUtils.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword"
-                )
-                userDao.insert(session, person)
+                UserHibernateDAO().insert(session, person)
 
                 val refreshTAU = RefreshTokenAndUser(email, token)
                 val refreshHibernateTAU = RefreshTokenHibernateDAO()
@@ -233,17 +167,8 @@ class TokenTest{
     fun `refresh test - not valid token`() {
         withDatabase { db ->
             val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-            val userDao = UserHibernateDAO()
-            val refreshTokenDao = RefreshTokenHibernateDAO()
-            val tokenService = TokenService(
-                db,
-                userDao,
-                refreshTokenDao,
-                jwtAlg,
-                mockk(relaxed = true),
-                mockk(relaxed = true),
-                mockk(relaxed = true)
-            )
+            val tokenService = createTokenService(db, jwtAlg)
+
             tokenService.refresh("not a token")
         }
     }
@@ -251,35 +176,14 @@ class TokenTest{
     @Test
     fun `logout test `() {
         withDatabase { db ->
-            val email = "test@testmail.com"
-            val token = "token"
-
             val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-            val userDao = UserHibernateDAO()
-            val refreshTokenDao = RefreshTokenHibernateDAO()
-
-            val tokenService = TokenService(
-                db,
-                userDao,
-                refreshTokenDao,
-                jwtAlg,
-                mockk(relaxed = true),
-                mockk(relaxed = true),
-                mockk(relaxed = true)
-            )
+            val tokenService = createTokenService(db, jwtAlg)
 
             db.withTransaction { session ->
-                val person = PersonUtils.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword"
-                )
-                userDao.insert(session, person)
+                UserHibernateDAO().insert(session, person)
 
                 val refreshTAU = RefreshTokenAndUser(email, token)
-                refreshTokenDao.insert(session, refreshTAU)
+                RefreshTokenHibernateDAO().insert(session, refreshTAU)
             }
 
             tokenService.logout(token)
@@ -291,17 +195,7 @@ class TokenTest{
     fun `logout test - not valid token`() {
         withDatabase { db ->
             val jwtAlg = JWTAlgorithm.HMAC256("foobar")
-            val userDao = UserHibernateDAO()
-            val refreshTokenDao = RefreshTokenHibernateDAO()
-            val tokenService = TokenService(
-                db,
-                userDao,
-                refreshTokenDao,
-                jwtAlg,
-                mockk(relaxed = true),
-                mockk(relaxed = true),
-                mockk(relaxed = true)
-            )
+            val tokenService = createTokenService(db, jwtAlg)
             tokenService.logout("not a token")
         }
     }

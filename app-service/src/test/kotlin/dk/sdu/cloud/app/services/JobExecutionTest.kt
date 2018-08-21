@@ -1,11 +1,10 @@
-package dk.sdu.cloud.app
+package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.JWT
 import com.jcraft.jsch.JSchException
 import com.jcraft.jsch.SftpATTRS
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.OneTimeAccessToken

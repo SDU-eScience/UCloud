@@ -5,9 +5,11 @@ import {
     Grid,
     Card,
     Button,
-    Icon} from "semantic-ui-react";
+    Icon
+} from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import "./index.scss";
+import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, fileSizeToString, iconFromFilePath, infoNotification } from "UtilityFunctions";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 
@@ -261,7 +263,7 @@ const UploaderRow = (p: {
         <Card.Content>
             <Grid divided stackable>
                 <Grid.Column width={1}>
-                    <Icon size="large" name={iconFromFilePath(p.file.name)} />
+                    <Icon size="large" name={iconFromFilePath(p.file.name, "FILE", Cloud.homeFolder)} />
                 </Grid.Column>
                 {body}
             </Grid>

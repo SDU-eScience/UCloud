@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.utils.withAuthMock
+import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.*
@@ -27,10 +28,6 @@ import kotlin.test.assertEquals
 
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = dk.sdu.cloud.auth.api.Role.USER) {
     addHeader(io.ktor.http.HttpHeaders.Authorization, "Bearer $username/$role")
-}
-
-private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-    HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
 }
 
 fun Application.configureBaseServer(vararg controllers: Controller) {
@@ -72,7 +69,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService<Session>(db,userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db,userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 
@@ -128,7 +125,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService<Session>(db, userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 
@@ -163,7 +160,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService<Session>(db, userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 
@@ -196,7 +193,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService<Session>(db, userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 
@@ -246,7 +243,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService<Session>(db, userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 
@@ -296,7 +293,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService<Session>(db, userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 
@@ -330,7 +327,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService<Session>(db, userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 
@@ -368,7 +365,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService<Session>(db, userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 

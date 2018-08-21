@@ -6,7 +6,7 @@
         "noImplicitThis": true,
         "noImplicitAny": false,
         "module": "esnext",
-        "target": "esnext",
+        "target": "es2018",
         "jsx": "react",
         "pretty": true,
         "allowJs": true,

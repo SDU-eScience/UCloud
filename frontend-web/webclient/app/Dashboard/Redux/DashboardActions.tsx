@@ -11,6 +11,7 @@ import {
 import { SetLoadingAction, Action, Error } from "Types";
 import { Analysis } from "Applications";
 import { File } from "Files";
+import { hpcJobsQuery } from "Utilities/ApplicationUtilities";
 
 interface Fetch<T> extends Action { content: T[] }
 /**
@@ -66,9 +67,9 @@ const receiveRecentFiles = (content: File[]): Fetch<File> => ({
  * Fetches the 10 latest updated analyses
  */
 export const fetchRecentAnalyses = (): Promise<Fetch<Analysis> | Error> =>
-    Cloud.get(`/hpc/jobs/?itemsPerPage=${10}&page=${0}`).then(({ response }) =>
+    Cloud.get(hpcJobsQuery(10, 0)).then(({ response }) =>
         receiveRecentAnalyses(response.items)
-    ).catch(() => setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, "Failed to fetch recent analyses. Please try again later."));
+    ).catch(_ => setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, "Failed to fetch recent analyses. Please try again later."));
 
 /**
 * Returns an action containing most recently updated analyses

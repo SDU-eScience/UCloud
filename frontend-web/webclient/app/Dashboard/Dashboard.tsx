@@ -3,12 +3,13 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { getParentPath, iconFromFilePath } from "UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "Authentication/SDUCloudObject"
-import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath, shortenString } from "UtilityFunctions";
+import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
 import "Styling/Shared.scss";
-import { Card, List, Icon, Message } from "semantic-ui-react";
+import "Dashboard/dashboard.scss";
+import { Card, List, Icon, Message, Header } from "semantic-ui-react";
 import * as moment from "moment";
 import { FileIcon } from "UtilityComponents";
 import {
@@ -19,7 +20,7 @@ import {
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification } from "Notifications";
 import { Analysis } from "Applications";
-import { File } from "Files";
+import { File, FileType } from "Files";
 
 class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {
@@ -65,15 +66,13 @@ class Dashboard extends React.Component<DashboardProps> {
 }
 
 const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: Function }) => {
-    const noFavorites = files.length || isLoading ? "" : (<h3 className="text-center">
-        <small>No favorites found.</small>
-    </h3>);
+    const noFavorites = files.length || isLoading ? null : (<Header as="h3" sub content="No favorites found" />);
     const filesList = files.map((file: File, i: number) =>
         (<List.Item key={i} className="itemPadding">
             <List.Content floated="right">
                 <Icon name="star" color="blue" onClick={() => favorite(file)} />
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={false} maxPathLength={11} />
+            <ListFileContent path={file.path} type={file.type} link={false} pixelsWide={200} />
         </List.Item>)
     );
 
@@ -90,39 +89,31 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         </Card >)
 };
 
-const ListFileContent = ({ path, type, link, maxPathLength }: { path: string, type: string, link: boolean, maxPathLength: number }) =>
-    <React.Fragment>
-        <List.Content>
-            <FileIcon name={type === "FILE" ? iconFromFilePath(path) : "folder"} size={null} link={link} color="grey" />
-            <Link to={`files/${type === "FILE" ? getParentPath(path) : path}`}>
-                {shortenString(getFilenameFromPath(path), maxPathLength)}
-            </Link>
-        </List.Content>
-    </React.Fragment>
+const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) =>
+    <List.Content>
+        <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={null} link={link} color="grey" />
+        <Link to={`/files/${type === "FILE" ? getParentPath(path) : path}`}>
+            <span className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(path)}</span>
+        </Link>
+    </List.Content>
 
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => {
-    const filesList = files.sort((a: File, b: File) => b.modifiedAt - a.modifiedAt).map((file, i) => (
-        <List.Item key={i} className="itemPadding">
-            <List.Content floated="right">
-                <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
-            </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={file.link} maxPathLength={7} />
-        </List.Item>
-    ));
-
     return (
         <Card>
             <Card.Content>
                 <Card.Header content="Recently used files" />
-                {isLoading || files.length ? null :
-                    (<h3>
-                        <small>No analyses found</small>
-                    </h3>)
-                }
+                {isLoading || files.length ? null : (<Header as="h3" sub content="No recently used files" />)}
                 <DefaultLoading loading={isLoading} />
                 <List divided size={"large"}>
-                    {filesList}
+                    {files.map((file, i) => (
+                        <List.Item key={i} className="itemPadding">
+                            <List.Content floated="right">
+                                <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
+                            </List.Content>
+                            <ListFileContent path={file.path} type={file.type} link={file.link} pixelsWide={117} />
+                        </List.Item>
+                    ))}
                 </List>
             </Card.Content>
         </Card>);
@@ -133,11 +124,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
         <Card.Content>
             <Card.Header content="Recent Analyses" />
             <DefaultLoading loading={isLoading} />
-            {isLoading || analyses.length ? null :
-                (<h3>
-                    <small>No analyses found</small>
-                </h3>)
-            }
+            {isLoading || analyses.length ? null : (<Header as="h3" sub content="No Analyses found" />)}
             <List divided size={"large"}>
                 {analyses.map((analysis: Analysis, index: number) =>
                     <List.Item key={index} className="itemPadding">

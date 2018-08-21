@@ -2,8 +2,11 @@ import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Button, Segment } from "semantic-ui-react";
 
+
+const zenodoRedirectPath = (returnTo: string) => `/zenodo/request?returnTo=${returnTo}`;
+
 const ZenodoRedirect = () =>
-    Cloud.post(`/zenodo/request?returnTo=${window.location.href}`).then(({ response }) => {
+    Cloud.post(zenodoRedirectPath(window.location.href)).then(({ response }) => {
         const redirectTo = response.redirectTo;
         if (redirectTo) window.location.href = redirectTo;
     });

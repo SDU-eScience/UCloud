@@ -86,7 +86,7 @@ const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>
 
 const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`) as SortBy;
-    if (!sortingColumn) {
+    if (!sortingColumn || !(sortingColumn in SortBy)) {
         if (columnIndex === 0) {
             window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);
             return SortBy.MODIFIED_AT;
@@ -105,14 +105,11 @@ interface ComponentWithPage<T> {
 }
 
 export interface FilesReduxObject extends ComponentWithPage<File> {
-    creatingFolder: boolean
-    editFileIndex: number
     sortOrder: SortOrder
     sortBy: SortBy
     path: string
     filesInfoPath: string
     fileSelectorError: string
-    projects: any[]
     sortingColumns: [SortBy, SortBy]
     fileSelectorLoading: boolean
     fileSelectorShown: false
@@ -147,8 +144,7 @@ interface HeaderSearch {
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 
-
-interface InitialReduxObject {
+export interface ReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
     uppy: any
@@ -161,7 +157,7 @@ interface InitialReduxObject {
     sidebar: SidebarReduxObject
 }
 
-export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
+export const initObject = (cloud: SDUCloud): ReduxObject => ({
     dashboard: {
         favoriteFiles: [] as File[],
         recentFiles: [] as File[],
@@ -175,8 +171,6 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         recentAnalysesError: null
     },
     files: {
-        creatingFolder: false,
-        editFileIndex: -1,
         page: emptyPage,
         sortOrder: SortOrder.ASCENDING,
         sortBy: SortBy.PATH,
@@ -184,7 +178,6 @@ export const initObject = (cloud: SDUCloud): InitialReduxObject => ({
         error: null,
         path: "",
         filesInfoPath: "",
-        projects: [] as any[],
         sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
         fileSelectorLoading: false,
         fileSelectorShown: false,
