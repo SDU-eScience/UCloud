@@ -16,8 +16,7 @@ import { Uploader } from "Uploader";
 import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
-    FileOptionsProps, FilesTableProps, SortByDropdownProps, MobileButtonsProps, FileOperation, ContextButtonsProps,
-    Operation, ContextBarProps
+    FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps
 } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
@@ -40,8 +39,7 @@ class Files extends React.Component<FilesProps> {
 
     newFolder() {
         let { page, updateFiles } = this.props;
-        page.items = page.items.filter(it => !it.isMockFolder)
-        page.items = [newMockFolder()].concat([...page.items]);
+        page.items = [newMockFolder()].concat([...page.items.filter(it => !it.isMockFolder)]);
         updateFiles(page);
     }
 
@@ -186,14 +184,14 @@ export const FilesTable = ({
                             onFavoriteFile={onFavoriteFile}
                             hasCheckbox={masterCheckbox != null}
                             onRenameFile={onRenameFile}
-                            onCheckFile={(checked: boolean, newFile: File) => onCheckFile(checked, newFile)}
+                            onCheckFile={(checked: boolean) => onCheckFile(checked, file)}
                         />
                         <Responsive as={Table.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)} />
                         <Responsive as={Table.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)} />
                         <Table.Cell>
                             <Dropdown direction="left" icon="ellipsis horizontal">
                                 <Dropdown.Menu>
-                                    <FileOperations files={[file]} className="context-button-margin" fileOperations={fileOperations} As={Dropdown.Item} />
+                                    <FileOperations files={[file]} fileOperations={fileOperations} As={Dropdown.Item} />
                                 </Dropdown.Menu>
                             </Dropdown>
                         </Table.Cell>
@@ -270,10 +268,10 @@ const ContextButtons = ({ currentPath, createFolder, refetch }: ContextButtonsPr
     </div>
 );
 
-const PredicatedCheckbox = ({ predicate, item, onClick }) =>
+const PredicatedCheckbox = ({ predicate, checked, onClick }) =>
     predicate ? (
         <Checkbox
-            checked={item}
+            checked={checked}
             type="checkbox"
             className="hidden-checkbox checkbox-margin"
             onClick={onClick}
@@ -294,7 +292,7 @@ const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon 
 
 function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} item={file.isChecked} onClick={(_, { checked }) => onCheckFile(checked, file)} />
+    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_, { checked }) => onCheckFile(checked)} />
     const icon = (
         <FileIcon
             color={isDirectory(file) ? "blue" : "grey"}

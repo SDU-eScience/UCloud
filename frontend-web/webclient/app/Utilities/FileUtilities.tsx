@@ -1,5 +1,5 @@
 import Cloud from "Authentication/lib";
-import { File, MoveCopyOperations, FileOperation, SortOrder, SortBy, Acl } from "Files";
+import { File, MoveCopyOperations, FileOperation, SortOrder, SortBy, Acl, Annotation, AnnotationsMap } from "Files";
 import { Page, AccessRight } from "Types";
 import { RightsMap } from "DefaultObjects";
 import { History } from "history";
@@ -326,3 +326,7 @@ export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) 
             onSuccess()
         }
     }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
+
+
+
+export const annotationToString = (annotation: Annotation) => { console.log(annotation, AnnotationsMap[annotation]); return AnnotationsMap[annotation];}
