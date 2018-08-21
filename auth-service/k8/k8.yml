@@ -1,0 +1,89 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: auth-service-deployment
+  labels:
+    app: auth-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+      - name: auth-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/auth-service:1.2.1
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/auth-config
+        - --config-dir
+        - /etc/refresh-token
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/auth-certs
+          name: cert-secrets
+        - mountPath: /etc/auth-config
+          name: config
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      volumes:
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: auth-psql
+      - name: cert-secrets
+        secret:
+          optional: false
+          secretName: auth-certs
+      - name: config
+        configMap:
+          name: auth-config
+      - name: refresh-token
+        secret:
+          secretName: auth-refresh-token
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: auth-service
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: auth-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.dev-sdu-cloud.dk
+    http:
+      paths:
+      - path: /auth
+        backend:
+          serviceName: auth
+          servicePort: 8080

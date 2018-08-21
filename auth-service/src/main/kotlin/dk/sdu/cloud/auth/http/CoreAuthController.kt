@@ -1,7 +1,11 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.auth.services.*
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.bearer
+import dk.sdu.cloud.auth.services.OneTimeTokenDAO
+import dk.sdu.cloud.auth.services.ServiceDAO
+import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -50,8 +54,12 @@ class CoreAuthController<DBSession>(
             }
 
             static {
-                val folder = File("static")
-                files(folder)
+                val staticFolder =
+                    listOf("./static", "/var/auth-static").map { File(it) }.find { it.exists() && it.isDirectory }
+
+                if (staticFolder != null) {
+                    files(staticFolder)
+                }
             }
 
             get("login") {
