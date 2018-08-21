@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { favoriteFileFromPage, fileSizeToString, toLowerCaseAndCapitalize } from "UtilityFunctions";
+import { toLowerCaseAndCapitalize } from "UtilityFunctions";
+import { favoriteFileFromPage, fileSizeToString } from "Utilities/FileUtilities";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel } from "DefaultObjects";

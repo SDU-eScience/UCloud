@@ -21,7 +21,10 @@ import {
 } from ".";
 import { ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
-import { startRenamingFiles, AllFileOperations, newMockFolder } from "Utilities/FileUtilities";
+import {
+    startRenamingFiles, AllFileOperations, newMockFolder, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
+    isProject, toFileText, getParentPath, isDirectory
+} from "Utilities/FileUtilities";
 
 class Files extends React.Component<FilesProps> {
     constructor(props) {
@@ -41,10 +44,10 @@ class Files extends React.Component<FilesProps> {
     }
 
     newFolder() {
-        let { page } = this.props;
+        let { page, updateFiles } = this.props;
         page.items = page.items.filter(it => !it.isMockFolder)
         page.items = [newMockFolder()].concat([...page.items]);
-        this.props.updateFiles(page);
+        updateFiles(page);
     }
 
     onRenameFile = (key: number, file: File, name: string) => {
@@ -54,8 +57,8 @@ class Files extends React.Component<FilesProps> {
             page.items = page.items.filter(it => !it.isMockFolder);
             updateFiles(page);
         } else if (key === KeyCode.ENTER) {
-            const fileNames = page.items.map((it) => UF.getFilenameFromPath(it.path));
-            if (UF.isInvalidPathName(name, fileNames)) return;
+            const fileNames = page.items.map((it) => getFilenameFromPath(it.path));
+            if (isInvalidPathName(name, fileNames)) return;
             const fullPath = `${UF.addTrailingSlash(path)}${name}`;
             if (file.isMockFolder) {
                 Cloud.post("/files/directory", { path: fullPath }).then(({ request }) => {
@@ -106,10 +109,10 @@ class Files extends React.Component<FilesProps> {
         const navigate = (path: string) => history.push(`/files/${path}`);
         const fetchPageFromPath = (path: string) => {
             this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
-            this.props.updatePath(UF.getParentPath(path)); navigate(UF.getParentPath(path));
+            this.props.updatePath(getParentPath(path)); navigate(getParentPath(path));
         };
         const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath };
-        const favoriteFile = (files: File[]) => updateFiles(UF.favoriteFileFromPage(page, files, Cloud));
+        const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
             { text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)), disabled: (files: File[]) => false, icon: "edit", color: null },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
@@ -201,7 +204,7 @@ export const FilesTable = ({
                         <FilenameAndIcons
                             file={f}
                             onFavoriteFile={onFavoriteFile}
-                            hasCheckbox={masterCheckbox !== null}
+                            hasCheckbox={masterCheckbox != null}
                             onRenameFile={onRenameFile}
                             onCheckFile={(checked: boolean, newFile: File) => onCheckFile(checked, newFile)}
                         />
@@ -307,16 +310,16 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
 const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon className="group-icon-padding" name="users" />) : null;
 
 function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }: FilenameAndIconsProps) {
-    const fileName = UF.getFilenameFromPath(file.path);
+    const fileName = getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} item={file.isChecked} onClick={(_, { checked }) => onCheckFile(checked, file)} />
     const icon = (
         <FileIcon
-            color={UF.isDirectory(file) ? "blue" : "grey"}
+            color={isDirectory(file) ? "blue" : "grey"}
             name={UF.iconFromFilePath(file.path, file.type, Cloud.homeFolder)}
             size={size} link={file.link}
         />
     );
-    const nameLink = (UF.isDirectory(file) ?
+    const nameLink = (isDirectory(file) ?
         <Link to={`/files/${file.path}`}>
             {icon}{fileName}
         </Link> : <React.Fragment>{icon}{fileName}</React.Fragment>);
@@ -334,14 +337,14 @@ function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null
         <Table.Cell className="table-cell-padding-left">
             {checkbox}
             {nameLink}
-            <GroupIcon isProject={UF.isProject(file)} />
+            <GroupIcon isProject={isProject(file)} />
             <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
         </Table.Cell>
 };
 
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
     <div>
-        <Header as="h3">{UF.toFileText(files)}</Header>
+        <Header as="h3">{toFileText(files)}</Header>
         <FileOperations files={files} fileOperations={fileOperations} As={Button} fluid basic />
     </div>
 ) : null;

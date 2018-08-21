@@ -10,7 +10,8 @@ import {
 import * as Dropzone from "react-dropzone/dist/index";
 import "./index.scss";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, fileSizeToString, iconFromFilePath, infoNotification } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, infoNotification } from "UtilityFunctions";
+import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 
 interface Upload {

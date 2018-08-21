@@ -2,7 +2,7 @@ import * as React from "react";
 import { Spinner } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { shortUUID, failureNotification, favoriteFileFromPage } from "UtilityFunctions";
+import { shortUUID, failureNotification } from "UtilityFunctions";
 import { Container, List, Card, Icon, Popup, Step, SemanticICONS, Grid } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { FilesTable } from "Files/Files";
@@ -15,7 +15,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";
 import { File, SortBy } from "Files";
-import { filepathQuery } from "Utilities/FileUtilities";
+import { filepathQuery, favoriteFileFromPage } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
@@ -49,7 +49,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     componentDidMount() {
         this.retrieveStdStreams();
-        let reloadIntervalId = window.setInterval(() => this.retrieveStdStreams(), 1000);
+        let reloadIntervalId = window.setInterval(() => this.retrieveStdStreams(), 1_000);
         this.setState({ reloadIntervalId: reloadIntervalId });
     }
 

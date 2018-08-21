@@ -3,7 +3,8 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import * as PropTypes from "prop-types";
 import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
 import { AccessRight, Page } from "Types";
-import { getFilenameFromPath, shareSwal } from "UtilityFunctions";
+import { shareSwal } from "UtilityFunctions";
+import { getFilenameFromPath } from "Utilities/FileUtilities";
 import "./List.scss"
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -33,9 +34,10 @@ export class List extends React.Component<ListProps, ListState> {
     }
 
     reload() {
-        retrieveShares(this.state.page, this.state.itemsPerPage).then(e => this.setState({ shares: e.items })).catch(e => {
-            this.setState({ errorMessage: "Unable to retrieve shares!" });
-        }).then(() => this.setState(() => ({ loading: false })));
+        retrieveShares(this.state.page, this.state.itemsPerPage).then(e =>
+            this.setState({ shares: e.items.sort((a, b) => a.path.localeCompare(b.path)) })).catch(e => {
+                this.setState({ errorMessage: "Unable to retrieve shares!" });
+            }).then(() => this.setState(() => ({ loading: false })));
     }
 
     public render() {
@@ -216,9 +218,9 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         }
 
         updateShare(share.id, filtered)
-            .then(it => this.maybeInvoke(it.id, this.props.onRights))
-            .catch(e => this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError))
-            .then(e => this.setState({ isLoading: false }));
+            .then(it => { console.log(it); this.maybeInvoke(it.id, this.props.onRights) })
+            .catch(e => { console.log(it); this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError) })
+            .then(e => { console.log(e); this.setState({ isLoading: false }) });
     }
 
     onCreateShare(path: string) {
@@ -344,6 +346,6 @@ function createShare(user: string, path: string, rights: AccessRight[]): Promise
 }
 
 function updateShare(id: ShareId, rights: AccessRight[]): Promise<any> {
-    return Cloud.post(`/shares/`, { id, rights }).then(e => e.response);
+    return Cloud.post(`/shares/`, { id, rights }).then(e => { console.log(e); return e.response });
 }
 
