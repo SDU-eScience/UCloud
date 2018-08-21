@@ -2,6 +2,7 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
 import dk.sdu.cloud.service.db.*
+import org.flywaydb.core.Flyway
 
 class HibernateFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -11,8 +12,10 @@ class HibernateFeature : MicroFeature {
             throw IllegalStateException("$why. Please provide it in configuration at ${CONFIG_PATH.toList()}")
 
         val configuration = ctx.configuration.requestChunkAtOrNull(*CONFIG_PATH) ?: run {
-            log.warn("No database configuration provided at ${CONFIG_PATH.toList()}. " +
-                    "Using default test (non-persistent) database.")
+            log.warn(
+                "No database configuration provided at ${CONFIG_PATH.toList()}. " +
+                        "Using default test (non-persistent) database."
+            )
 
             Config()
         }
@@ -38,14 +41,14 @@ class HibernateFeature : MicroFeature {
                     findValidHostname(postgresExpectedHostnames)
                 } ?: throw IllegalStateException("Could not find a valid host")
 
-                val database =
-                    configuration.database ?: invalidConfig("Cannot automatically determine database for postgres")
+                val database = configuration.database ?: "postgres"
 
                 val port = configuration.port
 
                 val driver = configuration.driver ?: POSTGRES_DRIVER
                 val dialect = configuration.dialect ?: POSTGRES_9_5_DIALECT
 
+                val scriptsToRun = ctx.scriptsToRun
                 val jdbcUrl = postgresJdbcUrl(hostname, database, port)
                 val db = HibernateSessionFactory.create(
                     HibernateDatabaseConfig(
@@ -55,13 +58,36 @@ class HibernateFeature : MicroFeature {
                         credentials.username,
                         credentials.password,
                         defaultSchema = ctx.serviceDescription.name,
-                        validateSchemaOnStartup = !cliArgs.contains(ARG_GENERATE_DDL) && !cliArgs.contains(ARG_MIGRATE),
+                        validateSchemaOnStartup = !scriptsToRun.contains(SCRIPT_GENERATE_DDL) &&
+                                !scriptsToRun.contains(SCRIPT_MIGRATE),
                         showSQLInStdout = configuration.logSql
                     )
                 )
 
                 ctx.jdbcUrl = jdbcUrl
                 ctx.hibernateDatabase = db
+            }
+        }
+
+        if (ctx.featureOrNull(ScriptFeature) == null) {
+            log.info("ScriptFeature is not installed. Cannot add database script handlers")
+        } else {
+            ctx.optionallyAddScriptHandler(SCRIPT_GENERATE_DDL) {
+                println(ctx.hibernateDatabase.generateDDL())
+
+                ScriptHandlerResult.STOP
+            }
+
+            ctx.optionallyAddScriptHandler(SCRIPT_MIGRATE) {
+                val flyway = Flyway()
+                val username = configuration.credentials?.username ?: ""
+                val password = configuration.credentials?.password ?: ""
+                val jdbcUrl = ctx.jdbcUrl
+                flyway.setDataSource(jdbcUrl, username, password)
+                flyway.setSchemas(serviceDescription.name)
+                flyway.migrate()
+
+                ScriptHandlerResult.STOP
             }
         }
     }
@@ -76,8 +102,8 @@ class HibernateFeature : MicroFeature {
         internal val JDBC_KEY = MicroAttributeKey<String>("hibernate-jdbc-url")
 
         // Script args
-        const val ARG_GENERATE_DDL = "--generate-ddl"
-        const val ARG_MIGRATE = "--migrate-db"
+        const val SCRIPT_GENERATE_DDL = "generate-ddl"
+        const val SCRIPT_MIGRATE = "migrate-db"
 
         // Config chunks
         val CONFIG_PATH = arrayOf("hibernate", "database")

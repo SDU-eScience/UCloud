@@ -17,6 +17,8 @@ class Micro : Loggable {
     val attributes = MicroAttributes()
     private val featureRegistryKey = MicroAttributeKey<MicroAttributes>("feature-registry")
 
+    val featureRegistry: MicroAttributes get() = attributes[featureRegistryKey]
+
     fun <T : MicroFeature> feature(factory: MicroFeatureFactory<T, *>): T {
         return attributes[featureRegistryKey][factory.key]
     }
@@ -59,6 +61,10 @@ class MicroAttributes {
         attributes.clear()
     }
 
+    fun all(): Map<String, Any> {
+        return attributes.toMap()
+    }
+
     operator fun <T : Any> set(key: MicroAttributeKey<T>, value: T) {
         attributes[key.name] = value
     }
@@ -90,6 +96,7 @@ interface MicroFeatureFactory<Feature : MicroFeature, Config> {
 fun Micro.installDefaultFeatures(
     kafkaConfig: KafkaFeatureConfiguration = KafkaFeatureConfiguration()
 ) {
+    install(ScriptFeature)
     install(ConfigurationFeature)
     install(ServiceDiscoveryOverrides)
     install(DevelopmentOverrides)
