@@ -4,7 +4,13 @@ set -e
 USER=$1
 PRETTY=$2
 
-useradd -d / -G sftponly -s /bin/false "${USER}"
+#useradd -d / -G sftponly -s /bin/false "${USER}" # Compatible with CentOS
+adduser -D -H -G sftponly -s /bin/false "${USER}" # Compatible with Alpine (busybox)
+
+if [ ! -f /mnt/cephfs/home ]; then
+    mkdir -p /mnt/cephfs/home
+    chown 711 /mnt/cephfs/home
+fi
 
 # User initialization
 mkdir -m700 "/mnt/cephfs/home/${PRETTY}/"
@@ -14,7 +20,9 @@ mkdir -m700 "/mnt/cephfs/home/${PRETTY}/Uploads"
 echo "README STUFF!" > "/mnt/cephfs/home/${PRETTY}/README.txt"
 chmod 600 "/mnt/cephfs/home/${PRETTY}/README.txt"
 
-chown -R "${USER}:" "/mnt/cephfs/home/${PRETTY}"
+# For some reason busybox is having problems chowning directly on the username
+# TODO That will likely become a problem later
+chown -R `id -u ${USER}`: "/mnt/cephfs/home/${PRETTY}"
 
 # If not running as root (non-container) these are required
 # storage ALL=(%sftponly) NOPASSWD: ALL

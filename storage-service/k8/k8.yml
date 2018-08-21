@@ -1,0 +1,99 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: storage-service-deployment
+  labels:
+    app: storage-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storage-service
+  template:
+    metadata:
+      labels:
+        app: storage-service
+    spec:
+      containers:
+      - name: storage-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/storage-service:0.6.3
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/service-config
+        - --config-dir
+        - /etc/refresh-token
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /mnt/cephfs
+          name: cephfs
+
+      volumes:
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: storage-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: storage-refresh-token
+
+      - name: cephfs
+        emptyDir: {}
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: storage-service
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: storage-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.dev-sdu-cloud.dk
+    http:
+      paths:
+      - path: /api/tus
+        backend:
+          serviceName: storage
+          servicePort: 8080
+
+      - path: /api/files
+        backend:
+          serviceName: storage
+          servicePort: 8080
+
+      - path: /api/shares
+        backend:
+          serviceName: storage
+          servicePort: 8080
+
+      - path: /api/upload
+        backend:
+          serviceName: storage
+          servicePort: 8080

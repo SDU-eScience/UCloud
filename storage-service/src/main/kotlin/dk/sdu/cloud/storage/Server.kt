@@ -6,12 +6,13 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.storage.api.StorageEvents
-import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.api.TusHeaders
 import dk.sdu.cloud.storage.http.*
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*
-import dk.sdu.cloud.storage.services.cephfs.*
+import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
+import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpHeaders
@@ -23,27 +24,23 @@ import kotlinx.coroutines.experimental.launch
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.io.File
 
 class Server(
-    private val configuration: Configuration,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory,
-    override val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
+    private val instance: ServiceInstance,
     private val args: Array<String>
-): CommonServer, WithServiceRegistry {
+): CommonServer {
     override val log: Logger = logger()
-    override val endpoints = listOf("/api/tus", "/api/files", "/api/shares", "/api/upload")
+//    override val endpoints = listOf("/api/tus", "/api/files", "/api/shares", "/api/upload")
 
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
 
     override fun start() {
-        val instance = StorageServiceDescription.instance(configuration.connConfig)
-
         log.info("Creating core services")
         val isDevelopment = args.contains("--dev")
 
@@ -121,9 +118,7 @@ class Server(
                 exposeHeader(TusHeaders.UploadOffset)
                 exposeHeader(TusHeaders.Version)
 
-                method(HttpMethod.Patch)
-                method(HttpMethod.Options)
-                method(HttpMethod.Delete)
+                HttpMethod.DefaultMethods.forEach { method(it) }
                 allowCredentials = false
             }
 
@@ -171,6 +166,5 @@ class Server(
         }
 
         startServices()
-        registerWithRegistry()
     }
 }

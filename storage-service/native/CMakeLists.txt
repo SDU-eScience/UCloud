@@ -40,5 +40,5 @@ else ()
 endif ()
 
 if (NOT MACOSX)
-    target_link_libraries(ceph-interpreter acl)
+    target_link_libraries(ceph-interpreter acl fts)
 endif ()

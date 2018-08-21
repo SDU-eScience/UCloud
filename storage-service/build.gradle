@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.5.0-SNAPSHOT'
+version '0.6.3-SNAPSHOT'
 
 buildscript {
     ext.kotlin_version = '1.2.51'
@@ -70,11 +70,13 @@ dependencies {
     // ------------
     compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
 
+    compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.11.0'
+
     // ------------
     // Service
     // ------------
-    compile "dk.sdu.cloud:service-common:0.12.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.1.0-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.14.0-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.2.1-SNAPSHOT"
     compile "dk.sdu.cloud:notification-api:0.2.0-SNAPSHOT"
 
     // ------------
@@ -127,6 +129,11 @@ publishing {
                 tusDepNode.appendNode("groupId", "io.tus.java.client")
                 tusDepNode.appendNode("artifactId", "tus-java-client")
                 tusDepNode.appendNode("version", "0.3.1")
+
+                def httpNode = dependenciesNode.appendNode("dependency")
+                httpNode.appendNode("groupId", "com.squareup.okhttp3")
+                httpNode.appendNode("artifactId", "okhttp")
+                httpNode.appendNode("version", "3.11.0")
             }
         }
     }
