@@ -1,1 +1,0 @@
-Scenario: publication_delete

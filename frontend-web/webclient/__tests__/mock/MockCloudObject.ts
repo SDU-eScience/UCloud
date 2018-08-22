@@ -36,7 +36,7 @@ export default function initializeTestCloudObject() {
         "-0vrHrriWWDxnQljB8";
 
     localStorage.setItem("accessToken", accessToken);
-    return new SDUCloud("http://localhost:9000", "local-dev");
+    return new SDUCloud();
 }
 
 // FIXME Shouldn't be necessary

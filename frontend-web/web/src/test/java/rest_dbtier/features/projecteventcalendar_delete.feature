@@ -1,1 +1,0 @@
-Scenario: projecteventcalendar_delete

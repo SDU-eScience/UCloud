@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+echo "This script requires the JSON cli (npm install -g json)"
+echo "Using Gradle passwords from ~/.gradle/esci.properties"
+version=`cat webclient/package.json | json version`
+
+name="webclient"
+echo "Tagging as ${name}:${version}"
+
+docker build \
+    --target production \
+    --build-arg GRADLE_PROPS="`cat ~/.gradle/esci.properties`" \
+    --build-arg SERVICE_NAME="${name}" \
+    -t "${name}:${version}" \
+    .

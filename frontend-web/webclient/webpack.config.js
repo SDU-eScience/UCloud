@@ -77,7 +77,8 @@ module.exports = {
         // Useful for webpack bundles including a hash in the filename which changes every compilation. 
         new HtmlWebpackPlugin({
             template: 'app/index.html',
-            baseUrl: baseHref
+            baseUrl: baseHref,
+            hash: true
         }),
         new MiniCSSExtractPlugin("[name].[hash:6].css"),
         // Allows overriding inferred information.

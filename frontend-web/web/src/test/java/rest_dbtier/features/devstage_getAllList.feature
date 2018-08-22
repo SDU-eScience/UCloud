@@ -1,1 +1,0 @@
-Scenario: devstage_getAllList

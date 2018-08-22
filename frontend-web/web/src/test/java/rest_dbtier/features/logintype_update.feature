@@ -1,1 +1,0 @@
-Scenario: logintype_update

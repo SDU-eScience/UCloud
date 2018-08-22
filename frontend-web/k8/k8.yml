@@ -1,0 +1,78 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: webclient-deployment
+  labels:
+    app: webclient
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webclient
+  template:
+    metadata:
+      labels:
+        app: webclient
+    spec:
+      containers:
+      - name: webclient
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/webclient:0.1.2
+        volumeMounts:
+        - mountPath: /etc/service
+          name: webclient-refresh-token
+
+      volumes:
+      - name: webclient-refresh-token
+        secret:
+          optional: false
+          secretName: webclient-refresh-token
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webclient
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: webclient
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: webclient-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.dev-sdu-cloud.dk
+    http:
+      paths:
+      - path: /api/auth-callback
+        backend:
+          serviceName: webclient
+          servicePort: 8080
+      - path: /api/sync-callback
+        backend:
+          serviceName: webclient
+          servicePort: 8080
+      - path: /app
+        backend:
+          serviceName: webclient
+          servicePort: 8080
+      - path: /assets
+        backend:
+          serviceName: webclient
+          servicePort: 8080
+

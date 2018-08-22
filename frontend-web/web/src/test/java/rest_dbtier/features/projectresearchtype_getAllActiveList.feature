@@ -1,1 +1,0 @@
-Scenario: projectresearchtype_getAllActiveList

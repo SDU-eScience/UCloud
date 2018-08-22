@@ -1,1 +1,0 @@
-Scenario: irodsruleexectype_getAllList

@@ -21,7 +21,22 @@ export default class SDUCloud {
     private accessToken: string;
     private decodedToken: any;
 
-    constructor(context: string, serviceName: string) {
+    constructor() {
+        let context = location.protocol + '//' + 
+            location.hostname + 
+            (location.port ? ':' + location.port : '');
+        
+        let serviceName: string;
+        switch (location.hostname) {
+            case "localhost":
+                serviceName = "local-dev";
+                break;
+
+            default:
+                serviceName = "web";
+                break;
+        }
+        
         this.context = context;
         this.serviceName = serviceName;
 

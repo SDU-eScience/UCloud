@@ -1,1 +1,0 @@
-Scenario: subsystemcommand_create

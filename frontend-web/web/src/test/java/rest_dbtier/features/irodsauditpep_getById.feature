@@ -1,1 +1,0 @@
-Scenario: irodsauditpep_getById

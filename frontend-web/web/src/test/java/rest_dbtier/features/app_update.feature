@@ -1,1 +1,0 @@
-Scenario: app_update

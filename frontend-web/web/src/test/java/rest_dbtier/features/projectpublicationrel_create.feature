@@ -1,1 +1,0 @@
-Scenario: projectpublicationrel_create

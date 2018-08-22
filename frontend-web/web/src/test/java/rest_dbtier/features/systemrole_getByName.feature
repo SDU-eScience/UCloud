@@ -1,1 +1,0 @@
-Scenario: systemrole_getByName

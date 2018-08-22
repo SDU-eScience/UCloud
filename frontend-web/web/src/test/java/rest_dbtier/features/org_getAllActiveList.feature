@@ -1,1 +1,0 @@
-Scenario: org_getAllActiveList

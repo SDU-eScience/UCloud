@@ -1,1 +1,0 @@
-Scenario: subsystemcommandstatus_getAllList

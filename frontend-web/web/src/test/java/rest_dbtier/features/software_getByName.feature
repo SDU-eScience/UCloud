@@ -1,1 +1,0 @@
-Scenario: software_getByName

@@ -12,7 +12,8 @@ module.exports = webpackMerge(commonConfig, {
 
     output: {
         path: path.join(process.cwd(), "/dist"),
-        filename: "[name].[hash].js"
+        filename: "[name].[hash].js",
+        publicPath: "/assets/"
     },
 
     plugins: [

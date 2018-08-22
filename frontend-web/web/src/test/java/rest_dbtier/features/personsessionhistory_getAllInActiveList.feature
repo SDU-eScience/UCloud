@@ -1,1 +1,0 @@
-Scenario: personsessionhistory_getAllInActiveList

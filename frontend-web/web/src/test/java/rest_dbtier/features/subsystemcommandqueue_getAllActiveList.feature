@@ -1,1 +1,0 @@
-Scenario: subsystemcommandqueue_getAllActiveList
