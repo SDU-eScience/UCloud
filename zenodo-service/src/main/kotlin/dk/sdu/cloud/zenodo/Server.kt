@@ -28,19 +28,17 @@ class Server(
     private val db: HibernateSessionFactory,
     private val cloud: AuthenticatedCloud,
     override val kafka: KafkaServices,
-    override val serviceRegistry: ServiceRegistry,
     private val config: Configuration,
-    private val ktor: HttpServerProvider
-): CommonServer, WithServiceRegistry {
+    private val ktor: HttpServerProvider,
+    private val instance: ServiceInstance
+): CommonServer {
     override val log: Logger = logger()
-    override val endpoints = listOf("/api/zenodo", "/zenodo/oauth")
+//    override val endpoints = listOf("/api/zenodo", "/zenodo/oauth")
 
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
 
     override fun start() {
-        val instance = ZenodoServiceDescription.instance(config.connConfig)
-
         log.info("Configuring core services")
         val zenodoOauth = ZenodoOAuth(
             db = db,
@@ -92,6 +90,5 @@ class Server(
         }
 
         startServices()
-        registerWithRegistry()
     }
 }

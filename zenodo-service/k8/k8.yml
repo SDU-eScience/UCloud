@@ -1,0 +1,96 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: zenodo-service-deployment
+  labels:
+    app: zenodo-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zenodo-service
+  template:
+    metadata:
+      labels:
+        app: zenodo-service
+    spec:
+      containers:
+      - name: zenodo-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/zenodo-service:1.0.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/service-config
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/zenodo-api-keys
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/service-config
+          name: service-config
+        - mountPath: /etc/zenodo-api-keys
+          name: zenodo-api-keys
+
+      volumes:
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: zenodo-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: zenodo-refresh-token
+      - name: zenodo-api-keys
+        secret:
+          optional: false
+          secretName: zenodo-zenodo-api-keys
+      - name: service-config
+        configMap:
+          name: zenodo-config
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zenodo
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: zenodo-service
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: zenodo-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.dev-sdu-cloud.dk
+    http:
+      paths:
+      - path: /api/zenodo
+        backend:
+          serviceName: zenodo
+          servicePort: 8080
+      - path: /api/projects
+        backend:
+          serviceName: zenodo
+          servicePort: 8080
