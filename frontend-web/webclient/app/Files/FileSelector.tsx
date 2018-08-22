@@ -34,6 +34,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         store: PropTypes.object.isRequired
     }
 
+    // FIXME Find better name
     handleKeyDown = (key, name) => {
         if (key === KeyCode.ESC) {
             this.setState(() => ({ creatingFolder: false }));
@@ -124,7 +125,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 <Input
                     className="readonly mobile-padding"
                     required={this.props.isRequired}
-                    placeholder={"No file selected"}
+                    placeholder="No file selected"
                     value={path}
                     action
                 >
@@ -134,7 +135,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 </Input>
                 <FileSelectorModal
                     show={this.state.modalShown}
-                    onHide={() => this.setState(() => ({ modalShown: false }))}
+                    onHide={() => this.setState(() => ({ modalShown: false, creatingFolder: false }))}
                     path={this.state.path}
                     navigate={this.fetchFiles}
                     page={this.state.page}
@@ -242,14 +243,18 @@ const CreatingFolder = ({ creatingFolder, handleKeyDown }) =>
     !creatingFolder ? null : (
         <List.Item className="itemPadding">
             <List.Content>
-                <List.Icon name="folder" color="blue" />
                 <Input
+                    size="tiny"
                     onKeyDown={(e) => handleKeyDown(e.keyCode, e.target.value)}
                     placeholder="Folder name..."
                     autoFocus
                     transparent
-                />
-                <Button floated="right" onClick={() => handleKeyDown(KeyCode.ESC)}>✗</Button>
+                    fluid
+                >
+                    <List.Icon className="margin-top-7px" name="folder" color="blue" />
+                    <input />
+                    <Button content="Cancel" size="tiny" color="red" basic onClick={() => handleKeyDown(KeyCode.ESC)} />
+                </Input>
             </List.Content>
         </List.Item>
     );
