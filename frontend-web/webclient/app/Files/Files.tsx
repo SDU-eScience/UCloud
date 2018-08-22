@@ -306,14 +306,19 @@ function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null
         </Link> : <React.Fragment>{icon}{fileName}</React.Fragment>);
     return file.beingRenamed ?
         <Table.Cell className="table-cell-padding-left">
-            {checkbox}
-            {icon}
             <Input
                 defaultValue={fileName}
                 onKeyDown={(e) => onRenameFile(e.keyCode, file, e.target.value)}
                 autoFocus
                 transparent
-            />
+                fluid
+            >
+                {checkbox}
+                {icon}
+                <input />
+                <Button content="Cancel" size="small" color="red" basic onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
+            </Input>
+
         </Table.Cell> :
         <Table.Cell className="table-cell-padding-left">
             {checkbox}
