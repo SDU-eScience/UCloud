@@ -2,7 +2,6 @@ package dk.sdu.cloud.indexing
 
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.indexing.api.IndexingServiceDescription
 import dk.sdu.cloud.indexing.http.SearchController
 import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
@@ -19,29 +18,27 @@ import org.elasticsearch.client.RestHighLevelClient
 import kotlin.system.exitProcess
 
 class Server(
-    private val configuration: Configuration,
+    private val elasticHostAndPort: ElasticHostAndPort,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    override val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val args: Array<String>
-) : CommonServer, WithServiceRegistry {
+    private val args: Array<String>,
+    private val instance: ServiceInstance
+) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
     private val eventConsumers = ArrayList<EventConsumer<*>>()
     private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
-    override val endpoints: List<String> = listOf("/api/file-search", "/api/index")
+//    override val endpoints: List<String> = listOf("/api/file-search", "/api/index")
 
     override fun start() {
-        val instance = IndexingServiceDescription.instance(configuration.connConfig)
-
         elastic = RestHighLevelClient(
             RestClient.builder(
                 HttpHost(
-                    configuration.elasticHost,
-                    configuration.elasticPort,
+                    elasticHostAndPort.host,
+                    elasticHostAndPort.port,
                     "http"
                 )
             )
@@ -78,7 +75,6 @@ class Server(
         }
 
         startServices()
-        registerWithRegistry()
     }
 
     override fun stop() {

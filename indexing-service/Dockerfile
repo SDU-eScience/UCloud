@@ -41,10 +41,7 @@ RUN set -x && \
     cp build/distributions/*.tar /opt/service.tar && \
     cd /opt/service && \
     tar xvf ../service.tar --strip-components=1 && \
-    mv /opt/service/bin/${SERVICE_NAME} /opt/service/bin/service && \
-    rm ../service.tar && \
-    rm -rf /usr/src && \
-    rm -rf /root/.gradle/gradle.properties
+    mv /opt/service/bin/${SERVICE_NAME} /opt/service/bin/service 
 
 #
 # Production container is only capable of running the code

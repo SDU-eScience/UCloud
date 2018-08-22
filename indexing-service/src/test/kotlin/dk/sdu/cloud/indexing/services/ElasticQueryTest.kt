@@ -79,7 +79,7 @@ class ElasticQueryTest{
         every { rest.search(any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
-                val hits = SearchHits(Array<SearchHit>(20) { i -> SearchHit(2)}, 20, 1.9f)
+                val hits = SearchHits(Array(20) { _ -> SearchHit(2)}, 20, 1.9f)
                 hits
             }
             response
@@ -94,7 +94,7 @@ class ElasticQueryTest{
         every { rest.search(any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
-                val hits = SearchHits(Array<SearchHit>(20) { i -> SearchHit(2)}, 20, 1.9f)
+                val hits = SearchHits(Array(20) { _ -> SearchHit(2)}, 20, 1.9f)
                 hits
             }
             response
@@ -124,7 +124,7 @@ class ElasticQueryTest{
         every { rest.search(any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
-                val hits = SearchHits(Array<SearchHit>(20) { i -> SearchHit(2)}, 20, 1.9f)
+                val hits = SearchHits(Array(20) { _ -> SearchHit(2)}, 20, 1.9f)
                 hits
             }
             response

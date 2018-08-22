@@ -1,0 +1,73 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: indexing-service-deployment
+  labels:
+    app: indexing-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: indexing-service
+  template:
+    metadata:
+      labels:
+        app: indexing-service
+    spec:
+      containers:
+      - name: indexing-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/indexing-service:1.0.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: indexing-refresh-token
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: indexing
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: indexing-service
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: indexing-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.dev-sdu-cloud.dk
+    http:
+      paths:
+      - path: /api/file-search
+        backend:
+          serviceName: indexing
+          servicePort: 8080
+      - path: /api/index
+        backend:
+          serviceName: indexing
+          servicePort: 8080
