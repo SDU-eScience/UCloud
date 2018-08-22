@@ -26,7 +26,7 @@ export interface File {
     isChecked?: boolean
     beingRenamed?: boolean
     link: boolean
-    annotations: string[]
+    annotations: Annotation[]
     isMockFolder?: boolean
 }
 
@@ -161,7 +161,7 @@ export interface FilenameAndIconsProps {
     hasCheckbox: boolean
     size?: SemanticSIZES
     onRenameFile: (key: number, file: File, name: string) => void
-    onCheckFile: (c: boolean, f: File) => void
+    onCheckFile: (c: boolean) => void
     onFavoriteFile: (files: File[]) => void
 }
 
@@ -243,7 +243,12 @@ export interface DetailedFileSearchProps {
 
 }
 
-export type Annotation = "Project";
+export enum AnnotationsMap {
+    P = "Project"
+}
+
+export type Annotation = keyof AnnotationsMap;
+
 
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 

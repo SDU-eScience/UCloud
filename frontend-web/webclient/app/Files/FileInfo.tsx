@@ -10,6 +10,8 @@ import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { List as ShareList } from "Shares/List";
+import { File, Annotation } from "Files";
+import { annotationToString } from "Utilities/FileUtilities";
 
 const FileInfo = ({ dispatch, page, loading, ...props }) => {
     dispatch(updatePageTitle("File Info"));
@@ -26,7 +28,6 @@ const FileInfo = ({ dispatch, page, loading, ...props }) => {
     }
 
     if (!file) { return (<DefaultLoading loading={true} />) }
-
     return (
         <Container className="container-margin">
             <Header as='h2' icon textAlign='center'>
@@ -45,7 +46,7 @@ const FileInfo = ({ dispatch, page, loading, ...props }) => {
     );
 };
 
-const FileView = ({ file, favorite }) =>
+const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
     !file ? null : (
         <Card.Group>
             <Card>
@@ -67,7 +68,7 @@ const FileView = ({ file, favorite }) =>
                             <List.Content floated="right">
                                 <Icon
                                     name={file.favorited ? "star" : "star outline"}
-                                    onClick={() => favorite(file.path)}
+                                    onClick={() => favorite()}
                                     color="blue"
                                 />
                             </List.Content>
@@ -97,6 +98,18 @@ const FileView = ({ file, favorite }) =>
                                 {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
                                 </List.Content>
                         </List.Item>
+                    </List>
+                </Card.Content>
+            </Card>
+            <Card>
+                <Card.Content>
+                    <Card.Header content="Annotations" />
+                    <List divided>
+                        {file.annotations.map((it, i) => (
+                            <List.Item key={i} floated="right">
+                                {annotationToString(it as Annotation)}
+                            </List.Item>
+                        ))}
                     </List>
                 </Card.Content>
             </Card>
