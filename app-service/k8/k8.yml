@@ -1,0 +1,98 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: app-service-deployment
+  labels:
+    app: app-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-service
+  template:
+    metadata:
+      labels:
+        app: app-service
+    spec:
+      containers:
+      - name: app-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/app-service:0.2.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/service-config
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/ssh-password
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /root/.ssh
+          name: abc-ssh
+        - mountPath: /etc/service-config
+          name: service-config
+        - mountPath: /etc/ssh-password
+          name: ssh-password
+
+      volumes:
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: app-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-refresh-token
+      - name: abc-ssh
+        secret:
+          optional: false
+          secretName: app-ssh
+      - name: ssh-password
+        secret:
+          optional: false
+          secretName: app-ssh-password
+      - name: service-config
+        configMap:
+          name: app-config
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: app-service
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: app-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.dev-sdu-cloud.dk
+    http:
+      paths:
+      - path: /api/hpc
+        backend:
+          serviceName: app
+          servicePort: 8080

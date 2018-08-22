@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app
 
-import dk.sdu.cloud.app.api.AppServiceDescription
 import dk.sdu.cloud.app.api.HPCStreams
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.JobController
@@ -16,23 +15,20 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 class Server(
     override val kafka: KafkaServices,
-    override val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: HPCConfig,
     private val ktor: HttpServerProvider,
-    private val db: HibernateSessionFactory
-): CommonServer, WithServiceRegistry {
+    private val db: HibernateSessionFactory,
+    private val instance: ServiceInstance
+) : CommonServer {
     private var initialized = false
     override val log: Logger = logger()
-    override val endpoints = listOf("/api/hpc")
-
 
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
@@ -41,8 +37,6 @@ class Server(
 
     override fun start() {
         if (initialized) throw IllegalStateException("Already started!")
-
-        val instance = AppServiceDescription.instance(config.connConfig)
 
         log.info("Init Core Services")
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
@@ -98,8 +92,8 @@ class Server(
             log.info("HTTP server successfully configured!")
         }
         log.info("Starting Application Services")
+
         startServices()
-        registerWithRegistry()
         slurmPollAgent.start()
         jobExecutionService.initialize()
 
@@ -110,9 +104,5 @@ class Server(
         super.stop() // stops kStreams and httpServer
         slurmPollAgent.stop()
         scheduledExecutor.shutdown()
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(Server::class.java)
     }
 }

@@ -660,11 +660,11 @@ class JobExecutionService<DBSession>(
                     try {
                         scpDownload(fileToTransferFromHPC) { ins ->
                             MultiPartUploadDescriptions.callUpload(
-                                __cloudDoNotUseDirectly,
+                                __cloudDoNotUseDirectly, // We know what we are doing
                                 outputDirectory.removeSuffix("/") + "/" + fileToTransferFromHPC.substringAfterLast('/'),
                                 owner = event.owner,
                                 writer = { out ->
-                                    // Closing out is not something the HTTP client likes.
+                                    // Closing 'out' is not something the HTTP client likes.
                                     val buffer = ByteArray(1024 * 64)
                                     var hasMoreData = true
                                     while (hasMoreData) {

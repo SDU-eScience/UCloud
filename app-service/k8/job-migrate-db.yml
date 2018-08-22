@@ -1,0 +1,47 @@
+---
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: app-migration
+
+spec:
+  template:
+    metadata:
+      name: app-migration
+
+    spec:
+      containers:
+      - args:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/service
+        - --config-dir
+        - /etc/refresh-token
+        - --run-script
+        - migrate-db
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/app-service:0.2.0
+        name: app-migration
+
+        volumeMounts:
+        - mountPath: /etc/service
+          name: vol1
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      imagePullSecrets:
+        - name: esci-docker
+
+      restartPolicy: Never
+
+      volumes:
+      - name: vol1
+        secret:
+          optional: false
+          secretName: app-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-refresh-token
+
+
