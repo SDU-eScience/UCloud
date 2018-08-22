@@ -75,9 +75,9 @@ dependencies {
     // ------------
     // Service
     // ------------
-    compile "dk.sdu.cloud:service-common:0.12.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.1.0-SNAPSHOT"
-    compile "dk.sdu.cloud:storage-api:0.5.0-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.14.0-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.2.1-SNAPSHOT"
+    compile "dk.sdu.cloud:storage-api:0.6.3-SNAPSHOT"
 
     // -----------------
     // Elasticsearch

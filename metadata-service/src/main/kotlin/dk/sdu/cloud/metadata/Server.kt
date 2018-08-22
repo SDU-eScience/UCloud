@@ -3,7 +3,6 @@ package dk.sdu.cloud.metadata
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.metadata.api.MetadataServiceDescription
 import dk.sdu.cloud.metadata.api.ProjectEvents
 import dk.sdu.cloud.metadata.http.MetadataController
 import dk.sdu.cloud.metadata.http.ProjectsController
@@ -25,27 +24,25 @@ import kotlin.system.exitProcess
 
 class Server(
     private val db: HibernateSessionFactory,
-    private val configuration: Configuration,
+    private val configuration: ElasticHostAndPort,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    override val serviceRegistry: ServiceRegistry,
     private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val args: Array<String>
-) : CommonServer, WithServiceRegistry {
+    private val args: Array<String>,
+    private val instance: ServiceInstance
+) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
-    override val endpoints = listOf("/api/metadata", "/api/projects")
+
     override val log = logger()
 
     override fun start() {
-        val instance = MetadataServiceDescription.instance(configuration.connConfig)
-
         log.info("Creating core services")
         val projectService = ProjectService(db, ProjectHibernateDAO())
         val elasticMetadataService =
-            with(configuration.elastic) {
+            with(configuration) {
                 ElasticMetadataService(
-                    RestHighLevelClient(RestClient.builder(HttpHost(hostname, port, scheme))),
+                    RestHighLevelClient(RestClient.builder(HttpHost(host, port, "http"))),
                     projectService
                 )
             }
@@ -92,6 +89,5 @@ class Server(
         }
 
         startServices()
-        registerWithRegistry()
     }
 }

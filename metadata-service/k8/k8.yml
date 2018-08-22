@@ -1,0 +1,83 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: metadata-service-deployment
+  labels:
+    app: metadata-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metadata-service
+  template:
+    metadata:
+      labels:
+        app: metadata-service
+    spec:
+      containers:
+      - name: metadata-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/metadata-service:1.0.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/service-config
+        - --config-dir
+        - /etc/refresh-token
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      volumes:
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: metadata-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: metadata-refresh-token
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: metadata-service
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: metadata-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.dev-sdu-cloud.dk
+    http:
+      paths:
+      - path: /api/metadata
+        backend:
+          serviceName: metadata
+          servicePort: 8080
+      - path: /api/projects
+        backend:
+          serviceName: metadata
+          servicePort: 8080

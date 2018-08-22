@@ -1,116 +1,56 @@
 package dk.sdu.cloud.metadata
 
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.google.common.net.HostAndPort
-import com.orbitz.consul.Consul
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.metadata.api.MetadataServiceDescription
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.*
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
-import org.flywaydb.core.Flyway
-import org.slf4j.LoggerFactory
+import java.net.InetAddress
+import java.net.UnknownHostException
 
-data class ElasticConfiguration(
-    val hostname: String,
-    val port: Int = 9200,
-    val scheme: String = "http"
-)
+data class ElasticHostAndPort(
+    val host: String,
+    val port: Int = 9200
+) {
+    companion object {
+        fun guessDefaults() =
+            ElasticHostAndPort(
+                host = findValidHostname(listOf("elasticsearch", "localhost"))!!,
+                port = 9200
+            )
 
-data class Configuration(
-    private val connection: RawConnectionConfig,
-    val refreshToken: String,
-    val elastic: ElasticConfiguration
+        private fun testHostname(hostname: String): Boolean {
+            return try {
+                InetAddress.getByName(hostname)
+                true
+            } catch (ex: UnknownHostException) {
+                false
+            }
+        }
 
-) : ServerConfiguration {
-    @get:JsonIgnore
-    override val connConfig: ConnectionConfig
-        get() = connection.processed
-
-    override fun configure() {
-        connection.configure(MetadataServiceDescription, 43100)
-    }
-
-    override fun toString(): String {
-        return "Configuration(connection=$connection)"
+        private fun findValidHostname(hostnames: List<String>): String? {
+            return hostnames.find { testHostname(it) }
+        }
     }
 }
-
-private const val ARG_GENERATE_DDL = "--generate-ddl"
-private const val ARG_MIGRATE = "--migrate"
-
-private val log = LoggerFactory.getLogger("dk.sdu.cloud.metadata.MainKt")
 
 fun main(args: Array<String>) {
-    log.info("Starting storage service")
-
-    val serviceDescription = MetadataServiceDescription
-    val configuration = readConfigurationBasedOnArgs<Configuration>(args, serviceDescription, log = log)
-    val kafka = KafkaUtil.createKafkaServices(configuration, log = log)
-
-    log.info("Connecting to Service Registry")
-    val serviceRegistry = ServiceRegistry(
-        MetadataServiceDescription.instance(configuration.connConfig),
-        Consul.builder()
-            .withHostAndPort(HostAndPort.fromHost("localhost").withDefaultPort(8500))
-            .build()
-    )
-    log.info("Connected to Service Registry")
-
-    val cloud = RefreshingJWTAuthenticatedCloud(
-        defaultServiceClient(args, serviceRegistry),
-        configuration.refreshToken
-    )
-
-    val engine = Netty
-    val serverProvider: HttpServerProvider = { block ->
-        embeddedServer(engine, port = configuration.connConfig.service.port, module = block)
+    val micro = Micro().apply {
+        initWithDefaultFeatures(MetadataServiceDescription, args)
+        install(RefreshingJWTCloudFeature)
+        install(HibernateFeature)
     }
 
-    log.info("Using engine: ${engine.javaClass.simpleName}")
+    if (micro.runScriptHandler()) return
 
-    val jdbcUrl = with(configuration.connConfig.database!!) { postgresJdbcUrl(host, database) }
-    val db = with(configuration.connConfig.database!!) {
-        HibernateSessionFactory.create(
-            HibernateDatabaseConfig(
-                POSTGRES_DRIVER,
-                jdbcUrl,
-                POSTGRES_9_5_DIALECT,
-                username,
-                password,
-                defaultSchema = serviceDescription.name,
-                validateSchemaOnStartup = !args.contains(ARG_GENERATE_DDL) && !args.any { it.startsWith(ARG_MIGRATE) }
-            )
-        )
-    }
-    log.info("Database initialized")
-    when {
-        args.contains("--generate-ddl") -> {
-            println(db.generateDDL())
-            db.close()
-        }
+    val configuration = micro.configuration.requestChunkAtOrNull("elastic") ?: ElasticHostAndPort.guessDefaults()
 
-        args.contains("--migrate") -> {
-            val flyway = Flyway()
-            FlywayMigrationContext.configuration = configuration
-            FlywayMigrationContext.cloud = cloud
-
-            with(configuration.connConfig.database!!) {
-                flyway.setDataSource(jdbcUrl, username, password)
-            }
-            flyway.setSchemas(serviceDescription.name)
-            flyway.migrate()
-        }
-
-        else -> {
-            Server(db, configuration, kafka, serverProvider, serviceRegistry, cloud, args).start()
-        }
-    }
-}
-
-object FlywayMigrationContext {
-    lateinit var configuration: Configuration
-    lateinit var cloud: AuthenticatedCloud
+    Server(
+        micro.hibernateDatabase,
+        configuration,
+        micro.kafka,
+        micro.serverProvider,
+        micro.refreshingJwtCloud,
+        args,
+        micro.serviceInstance
+    ).start()
 }

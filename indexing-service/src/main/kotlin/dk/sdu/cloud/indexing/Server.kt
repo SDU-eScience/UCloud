@@ -31,7 +31,6 @@ class Server(
     private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
-//    override val endpoints: List<String> = listOf("/api/file-search", "/api/index")
 
     override fun start() {
         elastic = RestHighLevelClient(
