@@ -169,99 +169,101 @@ fun printHelp() {
     println("--help: This message")
 }
 
-fun main(args: Array<String>) {
-    runBlocking {
-        val shouldPull = args.contains("--pull")
-        val shouldPush = args.contains("--push")
-        val shouldAuth = args.contains("--auth")
-        val shouldHelp = args.contains("--help")
+suspend fun runAbcSyncCli(args: Array<String>): Int {
+    val shouldPull = args.contains("--pull")
+    val shouldPush = args.contains("--push")
+    val shouldAuth = args.contains("--auth")
+    val shouldHelp = args.contains("--help")
 
-        try {
-            if (shouldHelp) {
-                printHelp()
-                exitProcess(0)
-            }
-
-            if (shouldAuth) {
-                println("Go to https://cloud.sdu.dk/auth/login?service=sync and login")
-                println("Once you have authenticated you will be presented with an access token.")
-                println()
-                println("Enter your access token below:")
-                val token = Scanner(System.`in`).nextLine()
-                if (auth(token) == null) {
-                    println("Invalid token. Try again.")
-                    exitProcess(1)
-                }
-                mapper.writeValue(File(System.getProperty("user.home"), ".sdu-sync"), SyncSettings(token))
-                exitProcess(0)
-            }
-
-            val workingDirectory = File(".").absoluteFile.normalize()
-            val targetDirectory = args.firstOrNull() ?: run {
-                printHelp()
-                exitProcess(0)
-            }
-
-            val settings = try {
-                mapper.readValue<SyncSettings>(File(System.getProperty("user.home"), ".sdu-sync"))
-            } catch (ignored: Exception) {
-                throw IllegalStateException("Could not read settings", ignored)
-            }
-
-            val jwt = auth(settings.token)?.accessToken
-                    ?: throw IllegalStateException("Invalid token. Retry with abc2-sync --auth")
-
-            data class SyncPayload(val path: String, val modifiedSince: Long)
-
-            val response = HttpClient.post("https://cloud.sdu.dk/api/files/sync") {
-                addHeader("Authorization", "Bearer $jwt")
-                setJsonBody(SyncPayload(path = targetDirectory, modifiedSince = 0))
-            }
-
-            if (response.statusCode !in 200..299) {
-                throw IllegalStateException("Server error. ${response.statusCode} ${response.responseBody}")
-            }
-
-            val jobs = ArrayList<Deferred<SyncResult>>()
-            response.responseBodyAsStream.bufferedReader().use {
-                var line: String? = it.readLine()
-                var lines = 0
-                while (line != null) {
-                    val lineCopy: String = line
-                    debug(lineCopy)
-                    val item = parseSyncItem(lineCopy)
-                    if (item.fileType == "F") {
-                        jobs += async {
-                            compareWithLocal(workingDirectory, targetDirectory, item)
-                        }
-                    }
-                    line = it.readLine()
-                    lines++
-                }
-
-                debug("Processed $lines lines")
-            }
-
-            val allResults = jobs.map { it.await() }
-
-            if (shouldPull) {
-                pullFilesFromRemote(allResults, targetDirectory, jwt, workingDirectory)
-            }
-
-            if (shouldPush) {
-                pushFilesToRemote(allResults, workingDirectory, jwt, targetDirectory)
-            }
-
-            exitProcess(0)
-        } catch (ex: Exception) {
-            if (printStackTraces) {
-                ex.printStackTrace()
-            } else {
-                errPrintln(ex.message)
-            }
-            exitProcess(1)
+    try {
+        if (shouldHelp) {
+            printHelp()
+            return 0
         }
+
+        if (shouldAuth) {
+            println("Go to https://cloud.sdu.dk/auth/login?service=sync and login")
+            println("Once you have authenticated you will be presented with an access token.")
+            println()
+            println("Enter your access token below:")
+            val token = Scanner(System.`in`).nextLine()
+            if (auth(token) == null) {
+                println("Invalid token. Try again.")
+                return 1
+            }
+            mapper.writeValue(File(System.getProperty("user.home"), ".sdu-sync"), SyncSettings(token))
+            return 0
+        }
+
+        val workingDirectory = File(".").absoluteFile.normalize()
+        val targetDirectory = args.firstOrNull() ?: run {
+            printHelp()
+            return 0
+        }
+
+        val settings = try {
+            mapper.readValue<SyncSettings>(File(System.getProperty("user.home"), ".sdu-sync"))
+        } catch (ignored: Exception) {
+            throw IllegalStateException("Could not read settings", ignored)
+        }
+
+        val jwt = auth(settings.token)?.accessToken
+            ?: throw IllegalStateException("Invalid token. Retry with abc2-sync --auth")
+
+        data class SyncPayload(val path: String, val modifiedSince: Long)
+
+        val response = HttpClient.post("https://cloud.sdu.dk/api/files/sync") {
+            addHeader("Authorization", "Bearer $jwt")
+            setJsonBody(SyncPayload(path = targetDirectory, modifiedSince = 0))
+        }
+
+        if (response.statusCode !in 200..299) {
+            throw IllegalStateException("Server error. ${response.statusCode} ${response.responseBody}")
+        }
+
+        val jobs = ArrayList<Deferred<SyncResult>>()
+        response.responseBodyAsStream.bufferedReader().use {
+            var line: String? = it.readLine()
+            var lines = 0
+            while (line != null) {
+                val lineCopy: String = line
+                debug(lineCopy)
+                val item = parseSyncItem(lineCopy)
+                if (item.fileType == "F") {
+                    jobs += async {
+                        compareWithLocal(workingDirectory, targetDirectory, item)
+                    }
+                }
+                line = it.readLine()
+                lines++
+            }
+
+            debug("Processed $lines lines")
+        }
+
+        val allResults = jobs.map { it.await() }
+
+        if (shouldPull) {
+            pullFilesFromRemote(allResults, targetDirectory, jwt, workingDirectory)
+        }
+
+        if (shouldPush) {
+            pushFilesToRemote(allResults, workingDirectory, jwt, targetDirectory)
+        }
+
+        return 0
+    } catch (ex: Exception) {
+        if (printStackTraces) {
+            ex.printStackTrace()
+        } else {
+            errPrintln(ex.message)
+        }
+        return 1
     }
+}
+
+fun main(args: Array<String>) {
+    runBlocking { exitProcess(runAbcSyncCli(args)) }
 }
 
 private suspend fun pushFilesToRemote(
