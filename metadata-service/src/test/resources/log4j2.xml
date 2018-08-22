@@ -4,73 +4,49 @@
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
         </Console>
-        <RollingFile name="RollingFile" fileName="logs/app.log"
-                     filePattern="logs/$${date:yyyy-MM}/app-%d{MM-dd-yyyy}-%i.log.gz">
-            <PatternLayout>
-                <Pattern>%d %p %c{1.} [%t] %m%n</Pattern>
-            </PatternLayout>
-            <Policies>
-                <TimeBasedTriggeringPolicy/>
-                <SizeBasedTriggeringPolicy size="250 MB"/>
-            </Policies>
-        </RollingFile>
     </Appenders>
     <Loggers>
         <Root level="debug">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Root>
         <Logger name="org.apache.kafka" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="org.apache.zookeeper" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="org.asynchttpclient" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="org.irods.jargon" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="io.netty" level="info" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="dk.sdu.cloud.storage.api" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="org.irods.jargon.core.connection" level="fatal" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="dk.sdu.cloud.service.HealthCheck" level="info" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="io.mockk" level="info" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="dk.sdu.cloud.service.KtorUtilsKt" level="info" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="ktor.test" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="com.zaxxer" level="info" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
         <Logger name="org.hibernate" level="info" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
         </Logger>
     </Loggers>
 </Configuration>
