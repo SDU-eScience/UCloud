@@ -89,4 +89,7 @@ COPY --from=build-production-ready /bin/ceph-interpreter /bin/ceph-interpreter
 COPY bin/sdu_cloud_add_user /bin/sdu_cloud_add_user
 RUN chmod +x /bin/sdu_cloud_add_user
 
+RUN rm /etc/passwd
+RUN ln -s /mnt/cephfs/passwd /etc/passwd
+
 CMD ["/opt/service/bin/service", "--config-dir", "/etc/service"]

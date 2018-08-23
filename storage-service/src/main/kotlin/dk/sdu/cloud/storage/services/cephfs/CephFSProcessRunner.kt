@@ -117,6 +117,8 @@ class CephFSCommandRunner(
         return try {
             consumer(this)
         } finally {
+            if (!interpreter.isAlive) throw IllegalStateException("Unexpected EOF (after consumer)")
+
             wrappedStdout.discardAndReset()
 
             if (log.isDebugEnabled) {

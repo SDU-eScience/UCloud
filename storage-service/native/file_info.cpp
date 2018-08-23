@@ -129,19 +129,19 @@ static void print_shares(std::ostream &stream, const char *path) {
 
                 auto acl_uid = (uid_t *) qualifier;
                 passwd *pPasswd = getpwuid(*acl_uid);
-                if (pPasswd == nullptr) FATAL("acl uid");
 
-                share_name = pPasswd->pw_name;
-
-                retrieve_permissions = true;
+                if (pPasswd != nullptr) {
+                    share_name = pPasswd->pw_name;
+                    retrieve_permissions = true;
+                }
             } else if (acl_tag == ACL_GROUP) {
                 auto acl_uid = (gid_t *) qualifier;
                 group *pGroup = getgrgid(*acl_uid);
-                if (pGroup == nullptr) FATAL("acl gid");
 
-                share_name = pGroup->gr_name;
-
-                retrieve_permissions = true;
+                if (pGroup != nullptr) {
+                    share_name = pGroup->gr_name;
+                    retrieve_permissions = true;
+                }
             }
 
             if (retrieve_permissions) {

@@ -317,8 +317,9 @@ void read_command(int64_t start, int64_t max) {
     auto in_file = file_opened_for_reading;
     auto out_file = STDOUT_FILENO;
 
+    auto is_reading_all = start < 0 && max < 0;
     ssize_t remaining_bytes = -1;
-    if (start > 0 && max > 0) {
+    if (!is_reading_all) {
         lseek(in_file, start, SEEK_CUR);
         remaining_bytes = max - start;
     }
@@ -333,7 +334,10 @@ void read_command(int64_t start, int64_t max) {
         bytes_read = read(in_file, read_buffer, read_buffer_size);
         int required_iterations = 0;
         while (bytes_read > 0) {
-            assert(remaining_bytes == -1 || remaining_bytes >= 0);
+            if (remaining_bytes == 0 && !is_reading_all) {
+                break;
+            }
+
             char *out_ptr = read_buffer;
             ssize_t nwritten;
 
@@ -493,6 +497,7 @@ int main(int argc, char **argv) {
         } else if (IS_COMMAND("read")) {
             auto start = NEXT_ARGUMENT_INT(0);
             auto end = NEXT_ARGUMENT_INT(1);
+            fprintf(stderr, "%d, %d\n", start, end);
             read_command(start, end);
         } else if (IS_COMMAND("symlink")) {
             auto target_path = NEXT_ARGUMENT(0);

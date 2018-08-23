@@ -21,6 +21,27 @@ class BoundaryContainedStream(
 
     private var boundaryFound = false
 
+    private var consumedSinceReset = 0
+
+    private fun assertOrPanic(requirement: Boolean, why: String = "No reason") {
+        if (requirement) return
+
+        throw IllegalStateException(
+            """BoundaryContainedStream panic: $why
+
+            internalPointer = $internalPointer
+            internalBufferSize = $internalBufferSize
+            boundaryFound = $boundaryFound
+
+            clearedBytes = $clearedBytes
+            preclearedBytes = $preclearedBytes
+            preclearedRecentlyEmptied = $preclaredRecentlyEmptied
+
+            consumedSinceReset = $consumedSinceReset
+        """.trimIndent()
+        )
+    }
+
     fun discardAll() {
         val discardBuffer = ByteArray(8 * 1024)
         while (true) {
@@ -34,9 +55,10 @@ class BoundaryContainedStream(
     }
 
     fun resetStream() {
-        assert(boundaryFound)
-        assert(clearedBytes == 0)
+        assertOrPanic(boundaryFound)
+        assertOrPanic(clearedBytes == 0)
 
+        consumedSinceReset = 0
         boundaryFound = false
         internalPointer += boundaryBytes.size
 
@@ -50,7 +72,7 @@ class BoundaryContainedStream(
     }
 
     fun manualClearNextBytes(numberOfBytesToClear: Long) {
-        assert(preclearedBytes == 0L)
+        assertOrPanic(preclearedBytes == 0L)
         preclearedBytes = numberOfBytesToClear
 
         // All bytes from now on should detract from pre-cleared bytes, thus we need to reset clearedBytes
@@ -60,45 +82,47 @@ class BoundaryContainedStream(
     }
 
     private fun clearAsMuchAsPossible(): Boolean {
-        assert(clearedBytes == 0)
-        assert(internalPointer >= 0)
+        assertOrPanic(clearedBytes == 0)
+        assertOrPanic(internalPointer >= 0)
 
         val len = internalBufferSize - internalPointer
         return if (preclearedBytes > 0) {
             val min = min(preclearedBytes, len.toLong())
-            assert(min <= Int.MAX_VALUE)
+            assertOrPanic(min <= Int.MAX_VALUE)
 
             preclearedBytes -= min
             clearedBytes = min.toInt()
-            assert(clearedBytes >= 0)
+            assertOrPanic(clearedBytes >= 0)
 
             if (preclearedBytes == 0L) preclaredRecentlyEmptied = true
 
-            assert(preclearedBytes >= 0)
-            assert(clearedBytes >= 0)
+            assertOrPanic(preclearedBytes >= 0)
+            assertOrPanic(clearedBytes >= 0)
             false
         } else {
             val offset = searcher.search(internalBuffer, internalPointer, internalBufferSize)
             if (offset == -1) {
                 clearedBytes = if (boundaryBytes.size > len) len else len - (boundaryBytes.size - 1)
-                assert(clearedBytes >= 0)
+                assertOrPanic(clearedBytes >= 0)
                 false
             } else {
                 clearedBytes = offset - internalPointer
-                assert(clearedBytes >= 0)
+                assertOrPanic(clearedBytes >= 0)
                 true
             }
         }
     }
 
     private fun readMoreData() {
-        assert(clearedBytes == 0)
+        assertOrPanic(clearedBytes == 0)
 
         if (internalPointer != -1 && internalPointer != internalBufferSize) {
             // Copy existing data and read remaining
             val remainingBufferSize = internalBufferSize - internalPointer
-            assert(remainingBufferSize >= 0)
-            assert(remainingBufferSize < internalBuffer.size)
+            assertOrPanic(remainingBufferSize >= 0)
+
+            assertOrPanic(remainingBufferSize < internalBuffer.size)
+
             System.arraycopy(
                 internalBuffer,
                 internalPointer,
@@ -154,7 +178,7 @@ class BoundaryContainedStream(
             System.arraycopy(internalBuffer, internalPointer, b, off, bytesToMove)
             internalPointer += bytesToMove
             clearedBytes -= bytesToMove
-            assert(clearedBytes >= 0)
+            assertOrPanic(clearedBytes >= 0)
             return bytesToMove
         } else if (!boundaryFound) {
             readMoreData()
@@ -171,7 +195,9 @@ class BoundaryContainedStream(
                 System.arraycopy(internalBuffer, internalPointer, b, off, bytesToMove)
                 internalPointer += bytesToMove
                 clearedBytes -= bytesToMove
-                assert(clearedBytes >= 0)
+                assertOrPanic(clearedBytes >= 0)
+
+                consumedSinceReset += bytesToMove
                 return bytesToMove
             }
         } else {
