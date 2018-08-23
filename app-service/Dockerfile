@@ -57,5 +57,6 @@ ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
 RUN apk add --no-cache openjdk8-jre
 
 COPY --from=build-production-ready /opt/service/ /opt/service/
+COPY known_hosts /root/.ssh/known_hosts
 
 CMD ["/opt/service/bin/service", "--config-dir", "/etc/service"]

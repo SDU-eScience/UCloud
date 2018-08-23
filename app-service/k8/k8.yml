@@ -33,8 +33,12 @@ spec:
           name: psql-secrets
         - mountPath: /etc/refresh-token
           name: refresh-token
-        - mountPath: /root/.ssh
-          name: abc-ssh
+        - mountPath: /root/.ssh/id_rsa_abc
+          name: abc-ssh-key
+          subPath: id_rsa_abc
+        - mountPath: /root/.ssh/id_rsa_abc.pub
+          name: abc-ssh-pub
+          subPath: id_rsa_abc.pub
         - mountPath: /etc/service-config
           name: service-config
         - mountPath: /etc/ssh-password
@@ -49,10 +53,21 @@ spec:
         secret:
           optional: false
           secretName: app-refresh-token
-      - name: abc-ssh
+      - name: abc-ssh-key
         secret:
           optional: false
           secretName: app-ssh
+          items:
+          - key: id_rsa_abc
+            path: id_rsa_abc
+      - name: abc-ssh-pub
+        secret:
+          optional: false
+          secretName: app-ssh
+          items:
+          - key: id_rsa_abc.pub
+            path: id_rsa_abc.pub
+
       - name: ssh-password
         secret:
           optional: false
