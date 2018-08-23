@@ -43,9 +43,9 @@ spec:
         secret:
           optional: false
           secretName: storage-refresh-token
-
       - name: cephfs
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: cephfs
 
       imagePullSecrets:
         - name: esci-docker
