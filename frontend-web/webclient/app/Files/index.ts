@@ -28,6 +28,7 @@ export interface File {
     link: boolean
     annotations: Annotation[]
     isMockFolder?: boolean
+    content?: any
 }
 
 export interface Acl {

@@ -44,7 +44,7 @@
     "react-router-dom": "4.3.1",
     "redux": "4.0.0",
     "semantic-ui-css": "^2.3.3",
-    "semantic-ui-react": "^0.82.2",
+    "semantic-ui-react": "^0.82.3",
     "sweetalert2": "7.26.11",
     "uppy": "0.23.3"
   },
@@ -78,7 +78,6 @@
     "node-sass": "^4.9.3",
     "phantomjs-prebuilt": "2.1.16",
     "raw-loader": "0.5.1",
-    "react-hot-loader": "4.3.4",
     "sass-loader": "^7.1.0",
     "style-loader": "0.22.1",
     "ts-jest": "^23.1.4",

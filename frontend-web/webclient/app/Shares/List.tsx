@@ -35,7 +35,7 @@ export class List extends React.Component<ListProps, ListState> {
 
     reload() {
         retrieveShares(this.state.page, this.state.itemsPerPage).then(e =>
-            this.setState({ shares: e.items.sort((a, b) => a.path.localeCompare(b.path)) })).catch(e => {
+            this.setState({ shares: e.items })).catch(e => {
                 this.setState({ errorMessage: "Unable to retrieve shares!" });
             }).then(() => this.setState(() => ({ loading: false })));
     }

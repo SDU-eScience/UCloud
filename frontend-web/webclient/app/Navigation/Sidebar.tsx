@@ -3,12 +3,10 @@ import { Link } from "react-router-dom";
 import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { connect } from "react-redux";
-import { fetchSidebarOptions, setSidebarLoading, setSidebarClosed } from "./Redux/SidebarActions";
+import { setSidebarClosed } from "./Redux/SidebarActions";
 
 interface SidebarProps {
     open?: boolean
-    fetchSidebarOptions?: () => void
-    setSidebarLoading?: (loading: boolean) => void
     setSidebarClosed?: () => void
 }
 
@@ -22,8 +20,6 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
         this.state = {
             activeIndices: [false, false, false]
         };
-        props.setSidebarLoading(true);
-        props.fetchSidebarOptions();
     }
 
     handleClick = (e: React.MouseEvent<HTMLDivElement>, { index }: { index: number }) => {
@@ -172,8 +168,6 @@ const MenuLink = ({ icon, name, to, onClick }) =>
 
 
 const mapDispatchToProps = (dispatch) => ({
-    fetchSidebarOptions: () => dispatch(fetchSidebarOptions()),
-    setSidebarLoading: (loading: boolean) => dispatch(setSidebarLoading(loading)),
     setSidebarClosed: () => dispatch(setSidebarClosed())
 });
 

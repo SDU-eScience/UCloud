@@ -131,7 +131,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  * @param {SortOrder} order the order to sort by, either ascending or descending
  * @param {SortBy} sortBy the field to be sorted by
  */
-export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
+export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<File> | Error> =>
     Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
         .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)

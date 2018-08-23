@@ -132,6 +132,8 @@ export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortB
     return null;
 };
 
+export const getExtensionFromPath = (path: string) => path.split(".").pop();
+
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
     const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
     if (homeFolderReplaced === "Home/Jobs/") return "tasks";
@@ -141,7 +143,7 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     if (!filename.includes(".")) {
         return "file outline";
     }
-    const extension = filename.split(".").pop();
+    const extension = getExtensionFromPath(filePath);
     switch (extension) {
         case "md":
         case "swift":

@@ -111,7 +111,7 @@ export function AllFileOperations(stateless?: boolean, fileSelectorOps?: MoveCop
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`;
 
-export const fileLookupQuery = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
+export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
 
@@ -222,15 +222,22 @@ export const getParentPath = (path: string): string => {
 
 export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop();
 
-export const downloadFiles = (files: File[], cloud: Cloud) => {
+export const downloadFiles = (files: File[], cloud: Cloud) =>
     files.map(f => f.path).forEach(p =>
         cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) => {
-            let link = document.createElement("a");
-            window.location.href = "/api/files/download?path=" + encodeURI(p) + "&token=" + encodeURI(token);
-            link.download = "";
-            link.click();
+            const element = document.createElement("a");
+            element.setAttribute("href", `/api/files/download?path=${encodeURI(p)}&token=${encodeURI(token)}`);
+            element.style.display = "none";
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
         }));
-}
+
+
+export const fetchFileContent = (path: string, cloud: Cloud) =>
+    cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) =>
+        fetch(`/api/files/download?path=${encodeURI(path)}&token=${encodeURI(token)}`)
+    );
 
 export const fileSizeToString = (bytes: number): string => {
     if (bytes === 0) return "0 B";
@@ -329,4 +336,4 @@ export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) 
 
 
 
-export const annotationToString = (annotation: Annotation) => { console.log(annotation, AnnotationsMap[annotation]); return AnnotationsMap[annotation];}
+export const annotationToString = (annotation: Annotation) => { console.log(annotation, AnnotationsMap[annotation]); return AnnotationsMap[annotation]; }
