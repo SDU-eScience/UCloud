@@ -116,6 +116,386 @@ class ShareTests {
         }
     }
 
+
+    @Test
+    fun `Test Sorting of shares`() {
+        objectMockk(NotificationDescriptions, UserDescriptions).use {
+            coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    FindByNotificationId("mocked id")
+                )
+            }
+
+            coEvery { UserDescriptions.lookupUsers.call(any(), any()) } answers {
+                val payload = args.first() as LookupUsersRequest
+
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    LookupUsersResponse(payload.users.map { it to UserLookup(it, Role.USER) }.toMap())
+                )
+            }
+
+            withAuthMock {
+                val userToRunAs = "user"
+                val userToShareWith = "user1"
+
+                withTestApplication(
+                    moduleFunction = {
+                        configureServerWithFileController(
+                            userDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)
+                        ) {
+                            val db = HibernateSessionFactory.create(
+                                H2_TEST_CONFIG.copy(
+                                    usePool = false,
+                                    showSQLInStdout = true
+                                )
+                            )
+                            val aclService = ACLService(it.fs)
+                            val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
+
+                            configureControllers(ShareController(shareService, it.runner, it.coreFs))
+                        }
+                    },
+
+                    test = {
+                        val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/a",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+                        assertEquals(HttpStatusCode.OK, insertResponse.status())
+
+                        val insertResponse2 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/c",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+                        assertEquals(HttpStatusCode.OK, insertResponse2.status())
+
+                        val insertResponse3 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/b",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse3.status())
+
+                        val insertResponse4 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/another-one/file",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse4.status())
+
+                        val mapper = jacksonObjectMapper()
+
+                        val getResponse = handleRequest(HttpMethod.Get, "/api/shares?itemsPerPage=10&page=0") {
+                            setUser(userToRunAs, Role.USER)
+                        }.response
+                        println(getResponse.content)
+                        assertEquals(HttpStatusCode.OK, getResponse.status())
+
+                        val obj = mapper.readValue<Page<SharesByPath>>(getResponse.content!!)
+                        obj.items.forEach {
+                            println(it)
+                        }
+                        assertEquals("/home/user1/folder/a", obj.items[0].path)
+                        assertEquals("/home/user1/folder/b", obj.items[1].path)
+                        assertEquals("/home/user1/folder/c", obj.items[2].path)
+                        assertEquals("/home/user1/another-one/file", obj.items[3].path)
+
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test Sorting of shares - page test`() {
+        objectMockk(NotificationDescriptions, UserDescriptions).use {
+            coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    FindByNotificationId("mocked id")
+                )
+            }
+
+            coEvery { UserDescriptions.lookupUsers.call(any(), any()) } answers {
+                val payload = args.first() as LookupUsersRequest
+
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    LookupUsersResponse(payload.users.map { it to UserLookup(it, Role.USER) }.toMap())
+                )
+            }
+
+            withAuthMock {
+                val userToRunAs = "user"
+                val userToShareWith = "user1"
+
+                withTestApplication(
+                    moduleFunction = {
+                        configureServerWithFileController(
+                            userDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)
+                        ) {
+                            val db = HibernateSessionFactory.create(
+                                H2_TEST_CONFIG.copy(
+                                    usePool = false,
+                                    showSQLInStdout = true
+                                )
+                            )
+                            val aclService = ACLService(it.fs)
+                            val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
+
+                            configureControllers(ShareController(shareService, it.runner, it.coreFs))
+                        }
+                    },
+
+                    test = {
+                        val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/a",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+                        assertEquals(HttpStatusCode.OK, insertResponse.status())
+
+                        val insertResponse2 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/c",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+                        assertEquals(HttpStatusCode.OK, insertResponse2.status())
+
+                        val insertResponse3 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/b",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse3.status())
+
+                        val insertResponse4 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/another-one/b",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse4.status())
+
+                        val insertResponse5 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/d",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse5.status())
+
+                        val insertResponse6 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/another-one/g",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse6.status())
+
+                        val insertResponse7 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/one/a",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse7.status())
+
+                        val insertResponse8 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/one/i",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse8.status())
+
+                        val insertResponse9 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/one/file",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse9.status())
+
+                        val insertResponse10 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/one/j",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse10.status())
+
+                        val insertResponse11 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/another-one/h",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse11.status())
+
+                        val insertResponse12 = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(userToRunAs, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/e",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, insertResponse12.status())
+
+                        val mapper = jacksonObjectMapper()
+
+                        val getResponse = handleRequest(HttpMethod.Get, "/api/shares?itemsPerPage=10&page=0") {
+                            setUser(userToRunAs, Role.USER)
+                        }.response
+
+                        assertEquals(HttpStatusCode.OK, getResponse.status())
+
+                        val obj = mapper.readValue<Page<SharesByPath>>(getResponse.content!!)
+
+                        assertEquals("/home/user1/folder/a", obj.items[0].path)
+                        assertEquals("/home/user1/one/a", obj.items[1].path)
+                        assertEquals("/home/user1/folder/b", obj.items[2].path)
+                        assertEquals("/home/user1/another-one/b", obj.items[3].path)
+                        assertEquals("/home/user1/folder/c", obj.items[4].path)
+                        assertEquals("/home/user1/folder/d", obj.items[5].path)
+                        assertEquals("/home/user1/folder/e", obj.items[6].path)
+                        assertEquals("/home/user1/one/file", obj.items[7].path)
+                        assertEquals("/home/user1/another-one/g", obj.items[8].path)
+                        assertEquals("/home/user1/another-one/h", obj.items[9].path)
+
+                        val getResponse2 = handleRequest(HttpMethod.Get, "/api/shares?itemsPerPage=10&page=1") {
+                            setUser(userToRunAs, Role.USER)
+                        }.response
+                        assertEquals(HttpStatusCode.OK, getResponse2.status())
+
+                        val obj2 = mapper.readValue<Page<SharesByPath>>(getResponse2.content!!)
+
+                        assertEquals("/home/user1/one/i", obj2.items[0].path)
+                        assertEquals("/home/user1/one/j", obj2.items[1].path)
+                    }
+                )
+            }
+        }
+    }
+
     /*
     @Test
     fun createNotOwnerOfFilesTest() {

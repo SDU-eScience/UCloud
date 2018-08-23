@@ -42,7 +42,9 @@ data class ShareEntity(
     var modifiedAt: Date,
 
     @Enumerated(EnumType.ORDINAL)
-    var state: ShareState
+    var state: ShareState,
+
+    var filename: String
 ) {
     companion object : HibernateEntity<ShareEntity>, WithId<Long>
 }
@@ -69,7 +71,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         )
 
         val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
-            with(criteria) {
+            with(criteria){
                 select(entity[ShareEntity::path])
                 distinct(true)
 
@@ -81,12 +83,18 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
 
         // Retrieve all shares for these paths and group
         val groupedByPath = session
-            .criteria<ShareEntity> {
-                allOf(
-                    entity[ShareEntity::path] isInCollection distinctPaths,
-                    isAuthorized(user, requireOwnership = false)
-                )
-            }
+            .criteria<ShareEntity>(
+                orderBy = {
+                    listOf(ascending(entity[ShareEntity::filename]))
+                },
+
+                predicate = {
+                    allOf(
+                        entity[ShareEntity::path] isInCollection distinctPaths,
+                        isAuthorized(user, requireOwnership = false)
+                    )
+                }
+            )
             .list()
             .map { it.toModel() }
             .let { groupByPath(user, it) }
@@ -113,7 +121,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             .map { it.toModel() }
             .takeIf { it.isNotEmpty() }
             ?.let { groupByPath(user, it).single() }
-        ?: throw ShareException.NotFound()
+            ?: throw ShareException.NotFound()
     }
 
     private fun groupByPath(user: String, shares: List<Share>): List<SharesByPath> {
@@ -214,7 +222,8 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             rights.asInt(),
             Date(),
             Date(),
-            state
+            state,
+            path.substringAfterLast("/")
         )
     }
 
