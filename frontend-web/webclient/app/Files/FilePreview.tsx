@@ -9,7 +9,7 @@ import { File } from "Files";
 import { match } from "react-router";
 import { FilesReduxObject } from "DefaultObjects";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { removeTrailingSlash } from "UtilityFunctions";
+import { removeTrailingSlash, getExtensionFromPath } from "UtilityFunctions";
 
 interface FilePreviewStateProps {
     page: Page<File>
@@ -38,8 +38,8 @@ class FilePreview extends React.Component<FilePreviewProps> {
         }
     }
 
-    renderContent {
-        
+    renderContent() {
+        const extension = getExtensionFromPath(this.filepath);
     }
 
     fetchFileContent() {

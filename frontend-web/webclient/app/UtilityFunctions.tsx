@@ -215,20 +215,19 @@ export const createProject = (filePath: string, cloud: Cloud, navigate: (path: s
 
 const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) => void, remainingTries: number) => {
     cloud.get(`/metadata/by-path?path=${path}`).then(() => navigate(path)).catch(() => {
-        if (remainingTries > 0) {
-            setTimeout(redirectToProject(path, cloud, navigate, remainingTries - 1), 400);
-        } else {
+        remainingTries > 0 ?
+            setTimeout(redirectToProject(path, cloud, navigate, remainingTries - 1), 400) :
             successNotification(`Project ${path} is being created.`)
-        }
     });
 };
 
-// FIXME Less index accessing
 export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 export const addTrailingSlash = (path: string) => path.endsWith("/") ? path : `${path}/`;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
+
+export const is5xxStatusCode = (status: number) => inRange(status, 500, 511);
 
 export const blankOrNull = (value: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
 

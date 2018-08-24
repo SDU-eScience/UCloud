@@ -1,5 +1,5 @@
 import * as jwt from "jsonwebtoken";
-import { failureNotification, inRange } from "UtilityFunctions";
+import { failureNotification, inRange, is5xxStatusCode } from "UtilityFunctions";
 
 /**
  * Represents an instance of the SDUCloud object used for contacting the backend, implicitly using JWTs.
@@ -325,26 +325,38 @@ export default class SDUCloud {
     }
 
     logout() {
+        /* fetch(`${this.context}${this.authContext}/logout`, {
+            headers: {
+                "Authorization": `Bearer ${SDUCloud.storedRefreshToken}`,
+                "contentType": "application/json"
+            },
+        }).then(response => {
+            if (!is5xxStatusCode(response.status)) {
+                window.localStorage.removeItem("accessToken");
+                window.localStorage.removeItem("refreshToken");
+                this.openBrowserLoginPage();
+            };
+            throw Error("The server was unreachable, please try again later.")
+        }).catch(err => failureNotification(err.message)); */
+
         new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
             req.open("POST", `${this.context}${this.authContext}/logout`);
             req.setRequestHeader("Authorization", `Bearer ${SDUCloud.storedRefreshToken}`);
             req.setRequestHeader("contentType", "application/json");
             req.onload = () => {
-                if (inRange(req.status, 200, 299)) {
+                if (!is5xxStatusCode(req.status)) {
                     resolve(req.response);
-                } else {
-                    reject(req.response);
                 }
+                reject(req.response);
             };
             req.send();
-        }).then(e => {
+        }).then(() => {
             window.localStorage.removeItem("accessToken");
             window.localStorage.removeItem("refreshToken");
-            this.openBrowserLoginPage()
-        }).catch(e => {
-            failureNotification("Unable to logout. Try again later.");
-            console.warn("Unable to invalidate session server side!");
+            this.openBrowserLoginPage();
+        }).catch(() => {
+            failureNotification("The server was unreachable, please try again later.");
         });
     }
 
