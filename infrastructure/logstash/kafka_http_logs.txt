@@ -1,0 +1,25 @@
+input {
+  kafka {
+    topics => ["http.logs"]
+    auto_offset_reset => "earliest"
+    bootstrap_servers => "kafka-kafka.kafka.svc.cluster.local:9092"
+  }
+}
+
+filter {
+  json {
+    source => "message"
+  }
+  mutate {
+    lowercase => "requestName"
+    remove_field => "message"
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["http://elasticsearch-client.elasticsearch.svc.cluster.local:9200"]
+    manage_template => false
+    index => "http_logs_%{requestName}"
+  }
+}
