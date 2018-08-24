@@ -89,17 +89,17 @@ export const simpleSearch = (
     return Cloud.get(
         `/metadata/search?query=${query}` +
         `&page=${page}&itemsPerPage=${itemsPerPage}`
-    ).then(f => f.response);
+    ).then(f => f.response); // FIXME Add error handling
 };
 
 export const getById = (id: string): Promise<ProjectMetadataWithRights> => {
-    return Cloud.get(`/metadata/${id}`).then(f => f.response);
+    return Cloud.get(`/metadata/${id}`).then(f => f.response); // FIXME Add error handling
 };
 
 export const getByPath = (path: string): Promise<ProjectMetadataWithRights> => {
-    return Cloud.get(`/metadata/by-path?path=${path}`).then(f => f.response);
+    return Cloud.get(`/metadata/by-path?path=${path}`).then(f => f.response); // FIXME Add error handling
 };
 
 export const updateById = (payload: any): Promise<any> => {
-    return Cloud.post("/metadata", payload).then(f => f.response);
+    return Cloud.post("/metadata", payload).then(f => f.response); // FIXME Add error handling
 };

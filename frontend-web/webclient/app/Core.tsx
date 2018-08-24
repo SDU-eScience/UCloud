@@ -33,6 +33,7 @@ const Core = () => (
             <Switch>
                 <Route path="/files/*" component={Files} />
                 <Route exact path="/dashboard" component={Dashboard} />
+                <Route exact path="/" component={Dashboard} />
                 <Route exact path="/fileInfo/*" component={FileInfo} />
                 <Route exact path="/filepreview/*" component={FilePreview} />
                 <Route exact path="/status" component={Status} />

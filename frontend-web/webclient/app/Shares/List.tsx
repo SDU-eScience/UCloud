@@ -37,7 +37,7 @@ export class List extends React.Component<ListProps, ListState> {
         retrieveShares(this.state.page, this.state.itemsPerPage).then(e =>
             this.setState({ shares: e.items })).catch(e => {
                 this.setState({ errorMessage: "Unable to retrieve shares!" });
-            }).then(() => this.setState(() => ({ loading: false })));
+            }).finally(() => this.setState(() => ({ loading: false })));
     }
 
     public render() {
@@ -220,7 +220,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         updateShare(share.id, filtered)
             .then(it => { console.log(it); this.maybeInvoke(it.id, this.props.onRights) })
             .catch(e => { console.log(it); this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError) })
-            .then(e => { console.log(e); this.setState({ isLoading: false }) });
+            .finally(() => this.setState({ isLoading: false }));
     }
 
     onCreateShare(path: string) {
@@ -235,7 +235,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             createShare(value, path, rights)
                 .then(it => this.maybeInvoke(it.id, this.props.onShared))
                 .catch(e => this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError))
-                .then(e => this.setState({ isLoading: false }))
+                .finally(() => this.setState({ isLoading: false }))
         })
     }
 
@@ -245,7 +245,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         revokeShare(share.id)
             .then(it => this.maybeInvoke(share, this.props.onRevoked))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .then(e => this.setState({ isLoading: false }));
+            .finally(() => this.setState({ isLoading: false }));
     }
 
     onAccept(share: Share) {
@@ -254,7 +254,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         acceptShare(share.id)
             .then(it => this.maybeInvoke(share, this.props.onAccepted))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .then(e => this.setState({ isLoading: false }));
+            .finally(() => this.setState({ isLoading: false }));
     }
 
     onReject(share: Share) {
@@ -263,7 +263,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         rejectShare(share.id)
             .then(it => this.maybeInvoke(share, this.props.onRejected))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .then(e => this.setState({ isLoading: false }));
+            .finally(() => this.setState({ isLoading: false }));
     }
 }
 
@@ -326,26 +326,26 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (byState) url += `state=${byState}`
-    return Cloud.get(url).then((e) => e.response);
+    return Cloud.get(url).then((e) => e.response); // FIXME Add error handling
 }
 
 function acceptShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/accept/${shareId}`).then(e => e.response);
+    return Cloud.post(`/shares/accept/${shareId}`).then(e => e.response); // FIXME Add error handling
 }
 
 function rejectShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/reject/${shareId}`).then(e => e.response);
+    return Cloud.post(`/shares/reject/${shareId}`).then(e => e.response); // FIXME Add error handling
 }
 
 function revokeShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/revoke/${shareId}`).then(e => e.response);
+    return Cloud.post(`/shares/revoke/${shareId}`).then(e => e.response); // FIXME Add error handling
 }
 
 function createShare(user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> {
-    return Cloud.put(`/shares/`, { sharedWith: user, path, rights }).then(e => e.response);
+    return Cloud.put(`/shares/`, { sharedWith: user, path, rights }).then(e => e.response); // FIXME Add error handling
 }
 
 function updateShare(id: ShareId, rights: AccessRight[]): Promise<any> {
-    return Cloud.post(`/shares/`, { id, rights }).then(e => { console.log(e); return e.response });
+    return Cloud.post(`/shares/`, { id, rights }).then(e => { console.log(e); return e.response }); // FIXME Add error handling
 }
 

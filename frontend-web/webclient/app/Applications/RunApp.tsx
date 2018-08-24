@@ -163,7 +163,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             //comment: this.state.comment.slice(),
         };
         Cloud.post("/hpc/jobs", job).then((req) => {
-            if (req.request.status === 200) {
+            if (req.request.status === 200) { // FIXME Guaranteed to be 200?
                 this.props.history.push(`/analyses/${req.response.jobId}`);
             } else {
                 swal("And error occurred. Please try again later.");

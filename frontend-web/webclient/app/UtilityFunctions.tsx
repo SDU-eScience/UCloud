@@ -132,19 +132,12 @@ export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortB
     return null;
 };
 
-export const getExtensionFromPath = (path: string) => path.split(".").pop();
+export const extensionTypeFromPath = (path) => extensionType((extensionFromPath(path)));
+export const extensionFromPath = (path: string) => path.split(".").pop();
 
-export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
-    const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
-    if (homeFolderReplaced === "Home/Jobs/") return "tasks";
-    if (homeFolderReplaced === "Home/Favorites/") return "star";
-    if (type === "DIRECTORY") return "folder";
-    const filename = getFilenameFromPath(filePath);
-    if (!filename.includes(".")) {
-        return "file outline";
-    }
-    const extension = getExtensionFromPath(filePath);
-    switch (extension) {
+type ExtensionType = "" | "code" | "image" | "text" | "sound" | "archive"
+export const extensionType = (ext: string): ExtensionType => {
+    switch (ext) {
         case "md":
         case "swift":
         case "kt":
@@ -176,7 +169,7 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
         case "toc":
         case "jar":
         case "exe":
-            return "file code outline";
+            return "code";
         case "png":
         case "gif":
         case "tiff":
@@ -192,13 +185,41 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
         case "csv":
         case "yml":
         case "plist":
-            return "file outline";
+            return "text";
         case "wav":
         case "mp3":
-            return "volume up";
+            return "sound";
         case "gz":
         case "zip":
         case "tar":
+            return "archive";
+        default:
+            return "";
+    }
+}
+
+
+export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
+    const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
+    if (homeFolderReplaced === "Home/Jobs/") return "tasks";
+    if (homeFolderReplaced === "Home/Favorites/") return "star";
+    if (type === "DIRECTORY") return "folder";
+    const filename = getFilenameFromPath(filePath);
+    if (!filename.includes(".")) {
+        return "file outline";
+    }
+    const extension = extensionFromPath(filePath);
+    const fileExtensionType = extensionType(extension);
+    switch (fileExtensionType) {
+        case "code":
+            return "file code outline";
+        case "image":
+            return "image";
+        case "text":
+            return "file outline";
+        case "sound":
+            return "volume up";
+        case "archive":
             return "file archive outline";
         default:
             if (getFilenameFromPath(filePath).split(".").length > 1)
@@ -214,7 +235,7 @@ export const createProject = (filePath: string, cloud: Cloud, navigate: (path: s
     }).catch(() => failureNotification(`An error occurred creating project ${filePath}`));
 
 const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) => void, remainingTries: number) => {
-    cloud.get(`/metadata/by-path?path=${path}`).then(() => navigate(path)).catch(() => {
+    cloud.get(`/metadata/by-path?path=${path}`).then(() => navigate(path)).catch((err) => {
         remainingTries > 0 ?
             setTimeout(redirectToProject(path, cloud, navigate, remainingTries - 1), 400) :
             successNotification(`Project ${path} is being created.`)
@@ -227,7 +248,7 @@ export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.s
 export const addTrailingSlash = (path: string) => path.endsWith("/") ? path : `${path}/`;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
 
-export const is5xxStatusCode = (status: number) => inRange(status, 500, 511);
+export const is5xxStatusCode = (status: number) => inRange(status, 500, 599);
 
 export const blankOrNull = (value: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
 

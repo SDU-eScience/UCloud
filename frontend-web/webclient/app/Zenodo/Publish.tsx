@@ -50,7 +50,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
         }
         Cloud.post("/zenodo/publish/", { filePaths: filePaths, name: this.state.name }).then((res) => {
             this.props.history.push(`/zenodo/info/${res.response.publicationId}`);
-        });
+        }); // FIXME Error handling
         this.setState(() => ({ requestSent: true }));
     }
 

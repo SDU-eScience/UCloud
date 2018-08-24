@@ -70,7 +70,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 name: name,
             };
             this.props.onFileSelect(fileObject);
-        });
+        }); // FIXME Add error handling
     };
 
     componentDidMount() {
@@ -106,7 +106,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 loading: false,
                 path
             }))
-        );
+        ); // FIXME Error handling
     }
 
     render() {

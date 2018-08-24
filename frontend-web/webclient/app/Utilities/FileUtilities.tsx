@@ -19,7 +19,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
         files.forEach((f) => {
             const currentPath = f.path;
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
-            cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++).catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`)).then(() => {
+            cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++).catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`)).finally(() => {
                 if (i === files.length) {
                     operations.fetchPageFromPath(newPathForFile);
                     UF.successNotification("File copied.");
@@ -237,7 +237,7 @@ export const downloadFiles = (files: File[], cloud: Cloud) =>
 export const fetchFileContent = (path: string, cloud: Cloud) =>
     cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) =>
         fetch(`/api/files/download?path=${encodeURI(path)}&token=${encodeURI(token)}`)
-    );
+    ); // FIXME Error
 
 export const fileSizeToString = (bytes: number): string => {
     if (bytes === 0) return "0 B";
@@ -290,7 +290,7 @@ export const shareFiles = (files: File[], cloud: Cloud) =>
             cloud.put(`/shares/`, body).then(() => ++i === paths.length ? UF.successNotification("Files shared successfully") : null)
                 .catch(() => UF.failureNotification(`${getFilenameFromPath(path)} could not be shared at this time. Please try again later.`));
         });
-    });
+    }); // FIXME Error handling
 
 const deletionSwal = (filePaths: string[]) => {
     const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :

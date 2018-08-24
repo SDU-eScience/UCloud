@@ -9,7 +9,7 @@ import { File } from "Files";
 import { match } from "react-router";
 import { FilesReduxObject } from "DefaultObjects";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { removeTrailingSlash, getExtensionFromPath } from "UtilityFunctions";
+import { removeTrailingSlash, extensionTypeFromPath } from "UtilityFunctions";
 
 interface FilePreviewStateProps {
     page: Page<File>
@@ -39,20 +39,33 @@ class FilePreview extends React.Component<FilePreviewProps> {
     }
 
     renderContent() {
-        const extension = getExtensionFromPath(this.filepath);
+        const type = extensionTypeFromPath(this.filepath);
+        const loading = !this.file || !this.file.content;
+        if (loading) return (<DefaultLoading loading={loading} />)
+        switch (type) {
+            case "code":
+                return (<code style={{ whiteSpace: "pre-wrap" }}>{this.file.content}</code>)
+            case "image":
+                return (<img src={`data:image/png;${this.file.content}`} />)
+            case "text":
+            case "sound":
+            case "archive":
+            default:
+                return (<div>Can't render content</div>)
+        }
     }
 
     fetchFileContent() {
-        if (this.file && this.file.size < 32_000_000) {
+        if (this.file && this.file.size < 16_000_000) {
             fetchFileContent(this.filepath, Cloud)
                 .then(it => it.text().then(it => {
                     const { page } = this.props;
                     page.items.find(it => removeTrailingSlash(it.path) === this.filepath).content = it;
                     this.props.updatePage(page);
-                }));
+                })); // FIXME Error handling
         }
         else {
-            // SET ERROR AS FILE IS LARGER THAN 32 GB
+            // SET ERROR AS FILE IS LARGER THAN 32 MB
         }
     }
 
@@ -82,11 +95,9 @@ class FilePreview extends React.Component<FilePreviewProps> {
     }
 
     render() {
-        const loading = !this.file || !this.file.content;
         return (
             <Container>
-                <DefaultLoading loading={loading} />
-                {loading ? null : <span>{this.file.content}</span>}
+                {this.renderContent()}
             </Container>
         );
     }

@@ -123,7 +123,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 loading: false
             });
             window.clearInterval(this.state.reloadIntervalId);
-        });
+        }); // FIXME: Error Handling
     }
 
     favoriteFile = (file: File) => this.setState(() => ({ page: favoriteFileFromPage(this.state.page, [file], Cloud) }));

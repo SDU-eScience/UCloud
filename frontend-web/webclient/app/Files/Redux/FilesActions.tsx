@@ -135,7 +135,7 @@ export const fetchPageFromPath = (path: string, itemsPerPage: number, order: Sor
     Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
         .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
-        );
+        ); // FIXME Add error handling
 
 /**
  * 
