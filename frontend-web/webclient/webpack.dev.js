@@ -48,9 +48,10 @@ module.exports = webpackMerge(commonConfig, {
         proxy: [{
             context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout", 
                       "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png", 
-                      "/auth/saml/", "/auth/users/"],
+                      "/auth/saml/", "/auth/users/", "/auth/redirect.js"],
             target: "https://cloud.sdu.dk",
             secure: false,
+            changeOrigin: true,
         }, {
             context: "/auth",
             target: "http://localhost:8080",
