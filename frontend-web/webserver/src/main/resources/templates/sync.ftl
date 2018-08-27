@@ -35,15 +35,6 @@
         </div>
     </div>
 
-    <script>
-        function copy() {
-            console.log("Test");
-            var input = document.getElementById("refreshToken");
-            input.focus();
-            console.log(input);
-            input.setSelectionRange(0, input.value.length + 1);
-            document.execCommand('copy');
-        }
-    </script>
+    <script src="/api/sync-callback/sync.js"></script>
 </body>
 </html>

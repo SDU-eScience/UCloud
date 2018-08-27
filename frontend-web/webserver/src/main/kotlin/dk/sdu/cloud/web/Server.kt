@@ -7,6 +7,7 @@ import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.content.files
+import io.ktor.content.resources
 import io.ktor.content.static
 import io.ktor.freemarker.FreeMarker
 import io.ktor.freemarker.FreeMarkerContent
@@ -66,6 +67,10 @@ class Server(
                     }
                 }
 
+                static("/api/auth-callback") {
+                    resources("assets")
+                }
+
                 post("/api/auth-callback") {
                     try {
                         val parameters = call.receiveParameters()
@@ -80,6 +85,10 @@ class Server(
                     } catch (ex: Exception) {
                         call.respond(HttpStatusCode.BadRequest)
                     }
+                }
+
+                static("/api/sync-callback") {
+                    resources("assets")
                 }
 
                 post("/api/sync-callback") {

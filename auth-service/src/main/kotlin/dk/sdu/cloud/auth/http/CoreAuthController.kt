@@ -15,6 +15,7 @@ import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.content.CachingOptions
 import io.ktor.content.files
+import io.ktor.content.resource
 import io.ktor.content.static
 import io.ktor.features.CachingHeaders
 import io.ktor.html.respondHtml
@@ -23,6 +24,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.header
 import io.ktor.response.respond
+import io.ktor.response.respondFile
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Routing
 import io.ktor.routing.get
@@ -60,6 +62,8 @@ class CoreAuthController<DBSession>(
                 if (staticFolder != null) {
                     files(staticFolder)
                 }
+
+                resource("redirect.js", resourcePackage = "assets")
             }
 
             get("login") {
@@ -267,16 +271,7 @@ class CoreAuthController<DBSession>(
                             }
                         }
 
-                        script {
-                            unsafe {
-                                //language=JavaScript
-                                +"""
-                                function main() {
-                                    document.querySelector("#form").submit();
-                                }
-                                """.trimIndent()
-                            }
-                        }
+                        script(src = "/auth/redirect.js") {}
                     }
                 }
             }
