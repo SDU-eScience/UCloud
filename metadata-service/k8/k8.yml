@@ -60,24 +60,3 @@ spec:
     targetPort: 8080
   selector:
     app: metadata-service
-
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: metadata-service-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: ""
-spec:
-  rules:
-  - host: cloud.dev-sdu-cloud.dk
-    http:
-      paths:
-      - path: /api/metadata
-        backend:
-          serviceName: metadata
-          servicePort: 8080
-      - path: /api/projects
-        backend:
-          serviceName: metadata
-          servicePort: 8080

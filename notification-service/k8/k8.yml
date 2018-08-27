@@ -57,20 +57,3 @@ spec:
     targetPort: 8080
   selector:
     app: notification-service
-
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: notification-service-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: ""
-spec:
-  rules:
-  - host: cloud.dev-sdu-cloud.dk
-    http:
-      paths:
-      - path: /api/notifications
-        backend:
-          serviceName: notification
-          servicePort: 8080

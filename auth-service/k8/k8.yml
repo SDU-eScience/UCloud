@@ -70,20 +70,3 @@ spec:
     targetPort: 8080
   selector:
     app: auth-service
-
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: auth-service-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: ""
-spec:
-  rules:
-  - host: cloud.dev-sdu-cloud.dk
-    http:
-      paths:
-      - path: /auth
-        backend:
-          serviceName: auth
-          servicePort: 8080

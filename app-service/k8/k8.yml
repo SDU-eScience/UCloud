@@ -94,20 +94,3 @@ spec:
     targetPort: 8080
   selector:
     app: app-service
-
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: app-service-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: ""
-spec:
-  rules:
-  - host: cloud.dev-sdu-cloud.dk
-    http:
-      paths:
-      - path: /api/hpc
-        backend:
-          serviceName: app
-          servicePort: 8080

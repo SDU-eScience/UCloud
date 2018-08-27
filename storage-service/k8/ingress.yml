@@ -1,0 +1,32 @@
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: storage-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.sdu.dk
+    http:
+      paths:
+      - path: /api/tus
+        backend:
+          serviceName: storage
+          servicePort: 8080
+
+      - path: /api/files
+        backend:
+          serviceName: storage
+          servicePort: 8080
+
+      - path: /api/shares
+        backend:
+          serviceName: storage
+          servicePort: 8080
+
+      - path: /api/upload
+        backend:
+          serviceName: storage
+          servicePort: 8080

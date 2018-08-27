@@ -1,0 +1,28 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: webclient-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.sdu.dk
+    http:
+      paths:
+      - path: /api/auth-callback
+        backend:
+          serviceName: webclient
+          servicePort: 8080
+      - path: /api/sync-callback
+        backend:
+          serviceName: webclient
+          servicePort: 8080
+      - path: /app
+        backend:
+          serviceName: webclient
+          servicePort: 8080
+      - path: /assets
+        backend:
+          serviceName: webclient
+          servicePort: 8080
