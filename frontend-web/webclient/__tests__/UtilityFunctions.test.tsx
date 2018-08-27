@@ -20,11 +20,11 @@ test("Empty string", () => {
 
 // Add trailing slash
 
-test("Add trailing slash to string", () => 
+test("Add trailing slash to string", () =>
     expect(UF.addTrailingSlash("/home/test@user.dk")).toBe("/home/test@user.dk/")
 );
 
-test("Don't add trailing slash to string", () => 
+test("Don't add trailing slash to string", () =>
     expect(UF.addTrailingSlash("/home/test@user.dk/")).toBe("/home/test@user.dk/")
 );
 
@@ -57,6 +57,46 @@ test("Prettify string, upper and lower case", () =>
     expect(UF.prettierString("hEllO,_WorlD")).toBe("Hello, world")
 );
 
-test("Prettify string", () =>
+test("Prettify lowercase string", () =>
     expect(UF.prettierString("path")).toBe("Path")
 );
+
+test("Prettify 'empty' string", () =>
+    expect(UF.prettierString("__")).toBe("  ")
+);
+
+// Blank or null
+
+test("Blank string", () =>
+    expect(UF.blankOrUndefined("          ")).toBe(true)
+);
+
+test("Characters surrounded by whitespace", () =>
+    expect(UF.blankOrUndefined("   TEXT   ")).toBe(false)
+);
+
+// In range
+
+test("In range", () =>
+    expect(UF.inRange({ status: 10, min: 0, max: 20 })).toBe(true)
+);
+
+test("Out of range", () =>
+    expect(UF.inRange({ status: 0, min: 1, max: 10 })).toBe(false)
+);
+
+/* 
+    getOwnerFromAcls
+    getSortingIcon
+    extensionTypeFromPath
+    extensionFromPath
+    extensionType
+    iconFromFilePath
+    createProject
+    inSuccessRange
+    shortUUID
+    is5xxStatusCode
+    ifPresent
+    downloadAllowed
+    favoriteApplication
+*/
