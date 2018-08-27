@@ -9,7 +9,7 @@ const ZenodoRedirect = () =>
     Cloud.post(zenodoRedirectPath(window.location.href)).then(({ response }) => {
         const redirectTo = response.redirectTo;
         if (redirectTo) window.location.href = redirectTo;
-    });
+    }); // FIXME Error handling
 
 export const NotConnectedToZenodo = () => (
     <Segment>

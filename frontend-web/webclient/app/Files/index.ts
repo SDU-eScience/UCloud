@@ -26,8 +26,9 @@ export interface File {
     isChecked?: boolean
     beingRenamed?: boolean
     link: boolean
-    annotations: string[]
+    annotations: Annotation[]
     isMockFolder?: boolean
+    content?: any
 }
 
 export interface Acl {
@@ -99,6 +100,7 @@ export interface FilesOperations { // Redux operations
     updateFiles: (files: Page<File>) => void
     updatePath: (path: string) => void
     showFileSelector: (open: boolean) => void
+    checkAllFiles: (checked: boolean, page: Page<File>) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
 }
 
@@ -160,7 +162,7 @@ export interface FilenameAndIconsProps {
     hasCheckbox: boolean
     size?: SemanticSIZES
     onRenameFile: (key: number, file: File, name: string) => void
-    onCheckFile: (c: boolean, f: File) => void
+    onCheckFile: (c: boolean) => void
     onFavoriteFile: (files: File[]) => void
 }
 
@@ -177,7 +179,7 @@ export interface FileSelectorModalProps {
     canSelectFolders?: boolean
     creatingFolder?: boolean
     handleKeyDown?: Function
-    createFolder?: Function
+    createFolder?: () => void
     errorMessage?: string
     onErrorDismiss?: () => void
     navigate?: (path, pageNumber, itemsPerPage) => void
@@ -192,7 +194,7 @@ export interface FileSelectorBodyProps {
     fetchFiles: (path: string) => void
     handleKeyDown?: Function
     setSelectedFile: Function
-    createFolder?: Function
+    createFolder?: () => void
     path: string
 }
 
@@ -242,7 +244,12 @@ export interface DetailedFileSearchProps {
 
 }
 
-export type Annotation = "Project";
+export enum AnnotationsMap {
+    P = "Project"
+}
+
+export type Annotation = keyof AnnotationsMap;
+
 
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
@@ -261,5 +268,7 @@ export interface DetailedFileSearchState {
     modifiedBefore: Moment
     modifiedAfter: Moment
 }
+
+export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";

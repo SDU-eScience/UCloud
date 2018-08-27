@@ -10,7 +10,8 @@ import {
 import * as Dropzone from "react-dropzone/dist/index";
 import "./index.scss";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, fileSizeToString, iconFromFilePath, infoNotification } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, infoNotification } from "UtilityFunctions";
+import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 
 interface Upload {
@@ -80,33 +81,25 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
         const upload = this.state.uploads[index];
         upload.isUploading = true;
         this.setState(() => ({ uploads: this.state.uploads }));
-
+        const onThen = (xhr: XMLHttpRequest) => {
+            xhr.onloadend = () => {
+                if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads)) {
+                    this.props.onFilesUploaded();
+                }
+            }
+            upload.uploadXHR = xhr;
+            this.setState({ uploads: this.state.uploads });
+        }; // FIXME Add error handling
         if (!upload.extractArchive) {
             multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.setState({ uploads: this.state.uploads });
-            }).then(xhr => {
-                xhr.onloadend = () => {
-                    if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads)) {
-                        this.props.onFilesUploaded();
-                    }
-                }
-                upload.uploadXHR = xhr;
-                this.setState({ uploads: this.state.uploads });
-            });
+            }).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
             bulkUpload(this.props.location, upload.file, BulkUploadPolicy.OVERWRITE, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.setState({ uploads: this.state.uploads });
-            }).then(xhr => {
-                xhr.onloadend = () => {
-                    if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads)) {
-                        this.props.onFilesUploaded();
-                    }
-                }
-                upload.uploadXHR = xhr;
-                this.setState({ uploads: this.state.uploads });
-            });
+            }).then(xhr => onThen(xhr)); // FIXME Add error handling
         }
     }
 

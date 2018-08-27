@@ -1,5 +1,5 @@
 buildscript {
-    ext.kotlin_version = '1.2.41'
+    ext.kotlin_version = '1.2.51'
     ext.dokka_version = "0.9.16"
 
     repositories {
@@ -47,6 +47,10 @@ dependencies {
     compile "dk.sdu.cloud:client-core:0.1.0-SNAPSHOT"
     compile "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
+
+    testCompile "junit:junit:4.12"
+    testCompile "io.mockk:mockk:1.8"
+    testCompile group: 'com.h2database', name: 'h2', version: '1.4.196'
 }
 
 compileKotlin {

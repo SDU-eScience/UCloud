@@ -1,5 +1,5 @@
 import * as jwt from "jsonwebtoken";
-import { failureNotification, inRange } from "UtilityFunctions";
+import { failureNotification, inRange, is5xxStatusCode } from "UtilityFunctions";
 
 /**
  * Represents an instance of the SDUCloud object used for contacting the backend, implicitly using JWTs.
@@ -73,13 +73,30 @@ export default class SDUCloud {
         if (path.indexOf("/") !== 0) path = "/" + path;
         let baseContext = this.context;
         return this.receiveAccessTokenOrRefreshIt().then((token) => {
-            // FIXME. Look into fetch as an alternative 
-            // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+            // As long as same-origin is not handled server-side, use XHR.
+            /* return fetch(baseContext + context + path, {
+                body: !!body ? JSON.stringify(body) : null,
+                method: method,
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "content-type": "application/json"
+                },
+            }).then(response => {
+                const contentType = response.headers.get("content-type");
+                if (response.ok) {
+                    if (contentType && contentType.includes("application/json")) {
+                        return response.json().then((data) => ({ response: data, request: response }))
+                    }
+                    return { response: {}, request: response };
+                }
+                throw response.blob().then(data => ({ response: data, request: response }));
+            }); */
+
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
                 req.open(method, baseContext + context + path);
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
-                req.setRequestHeader("contentType", "application/json");
+                req.setRequestHeader("content-type", "application/json");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                 req.onload = () => {
                     let responseContentType = req.getResponseHeader("content-type");
@@ -323,26 +340,38 @@ export default class SDUCloud {
     }
 
     logout() {
+        /* fetch(`${this.context}${this.authContext}/logout`, {
+            headers: {
+                "Authorization": `Bearer ${SDUCloud.storedRefreshToken}`,
+                "contentType": "application/json"
+            },
+        }).then(response => {
+            if (!is5xxStatusCode(response.status)) {
+                window.localStorage.removeItem("accessToken");
+                window.localStorage.removeItem("refreshToken");
+                this.openBrowserLoginPage();
+            };
+            throw Error("The server was unreachable, please try again later.")
+        }).catch(err => failureNotification(err.message)); */
+
         new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
             req.open("POST", `${this.context}${this.authContext}/logout`);
             req.setRequestHeader("Authorization", `Bearer ${SDUCloud.storedRefreshToken}`);
             req.setRequestHeader("contentType", "application/json");
             req.onload = () => {
-                if (inRange(req.status, 200, 299)) {
+                if (!is5xxStatusCode(req.status)) {
                     resolve(req.response);
-                } else {
-                    reject(req.response);
                 }
+                reject(req.response);
             };
             req.send();
-        }).then(e => {
+        }).then(() => {
             window.localStorage.removeItem("accessToken");
             window.localStorage.removeItem("refreshToken");
-            this.openBrowserLoginPage()
-        }).catch(e => {
-            failureNotification("Unable to logout. Try again later.");
-            console.warn("Unable to invalidate session server side!");
+            this.openBrowserLoginPage();
+        }).catch(() => {
+            failureNotification("The server was unreachable, please try again later.");
         });
     }
 

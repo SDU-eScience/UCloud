@@ -88,10 +88,6 @@ table.ui.very.basic.padded.table tbody tr.file-row td.table-cell-padding-left {
     padding: 0 5px 0 5px
 }
 
-button.ui.button.create-folder-button {
-    margin-bottom: 10px;
-}
-
 div.ui.checked.checkbox.padding-right {
     padding-right: 15px;
 }
@@ -111,4 +107,8 @@ div.ui.fluid.transparent.input input.input-left-margin {
 // FIXME Issues with datepicker without this
 ul.react-datepicker__time-list {
    padding-left: 8px;
+}
+
+i.margin-top-7px {
+    margin-top: 7px;
 }

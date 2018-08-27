@@ -1,6 +1,6 @@
 {
   "name": "sducloud",
-  "version": "0.1.2",
+  "version": "0.1.0",
   "description": "SDU Cloud",
   "author": "IMADA - eScience Center, SDU",
   "jest": {
@@ -10,7 +10,7 @@
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
     },
-    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
+    "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(jsx?|tsx?)$",
     "moduleFileExtensions": [
       "ts",
       "tsx",
@@ -44,7 +44,7 @@
     "react-router-dom": "4.3.1",
     "redux": "4.0.0",
     "semantic-ui-css": "^2.3.3",
-    "semantic-ui-react": "^0.82.2",
+    "semantic-ui-react": "^0.82.3",
     "sweetalert2": "7.26.11",
     "uppy": "0.23.3"
   },
@@ -68,25 +68,24 @@
     "copy-webpack-plugin": "4.5.2",
     "css-loader": "^1.0.0",
     "empty-module": "~0.0.2",
-    "file-loader": "1.1.11",
+    "file-loader": "2.0.0",
     "html-loader": "0.5.5",
     "html-webpack-plugin": "3.2.0",
     "imports-loader": "0.8.0",
     "jest": "^23.5.0",
-    "mini-css-extract-plugin": "^0.4.1",
+    "mini-css-extract-plugin": "^0.4.2",
     "napa": "3.0.0",
     "node-sass": "^4.9.3",
     "phantomjs-prebuilt": "2.1.16",
     "raw-loader": "0.5.1",
-    "react-hot-loader": "4.3.4",
     "sass-loader": "^7.1.0",
     "style-loader": "0.22.1",
-    "ts-jest": "^23.1.3",
+    "ts-jest": "^23.1.4",
     "ts-loader": "^4.5.0",
     "typescript": "3.0.1",
     "uglifyjs-webpack-plugin": "^1.3.0",
     "url-loader": "1.1.1",
-    "webpack": "4.16.5",
+    "webpack": "4.17.1",
     "webpack-cli": "^3.1.0",
     "webpack-dev-server": "3.1.5",
     "webpack-merge": "4.1.4"

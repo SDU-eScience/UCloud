@@ -81,10 +81,22 @@ fun createDummyFS(): File {
                     touch("a", "File A")
                     touch("b", "File B")
                     touch("c", "File C")
+                    touch("d", "File E")
+                    touch("e", "File F")
+
                 }
 
                 mkdir("another-one") {
-                    touch("file")
+                    touch("b")
+                    touch("g", "File G")
+                    touch("h", "File H")
+
+                }
+                mkdir("one") {
+                    touch("a", "File AA")
+                    touch("i", "File I")
+                    touch("j", "File J")
+                    touch("file", "File BB")
                 }
                 mkdir("Favorites") {}
             }

@@ -25,7 +25,7 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private fun Application.configureProjectServer(
+private fun Application.configureJobServer(
     db: HibernateSessionFactory,
     jobService: JobService<HibernateSession>
 ) {
@@ -80,7 +80,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureProjectServer(db, jobService)
+                        configureJobServer(db, jobService)
 
                         every { jobService.findJobById(any(), any()) } returns job
 
@@ -112,7 +112,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureProjectServer(db, jobService)
+                        configureJobServer(db, jobService)
 
                         every { jobService.findJobById(any(), any()) } returns null
 
@@ -139,7 +139,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureProjectServer(db, jobService)
+                        configureJobServer(db, jobService)
                         every { jobService.recentJobs(any(), any()) } answers {
                             Page(1,10,0, listOf(job))
                         }
@@ -171,7 +171,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureProjectServer(db, jobService)
+                        configureJobServer(db, jobService)
 
                         coEvery { jobService.startJob(any(), any(), any()) } returns "Job started"
 
@@ -217,7 +217,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureProjectServer(db, jobService)
+                        configureJobServer(db, jobService)
                     },
 
                     test = {
@@ -249,7 +249,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureProjectServer(db, jobService)
+                        configureJobServer(db, jobService)
 
                         every { jobService.findJobForInternalUseById(any(), any()) } answers {
                             jobInfo
@@ -288,7 +288,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureProjectServer(db, jobService)
+                        configureJobServer(db, jobService)
 
                         every { jobService.findJobForInternalUseById(any(), any()) } answers {
                             null
@@ -318,7 +318,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureProjectServer(db, jobService)
+                        configureJobServer(db, jobService)
 
                         every { jobService.findJobForInternalUseById(any(), any()) } answers {
                             jobInfo

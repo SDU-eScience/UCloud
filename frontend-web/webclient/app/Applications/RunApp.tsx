@@ -9,7 +9,8 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
-import { getFilenameFromPath, favoriteApplication, infoNotification, failureNotification } from "UtilityFunctions";
+import { favoriteApplication, infoNotification, failureNotification } from "UtilityFunctions";
+import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
 import { RunAppProps, RunAppState } from "."
@@ -162,7 +163,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             //comment: this.state.comment.slice(),
         };
         Cloud.post("/hpc/jobs", job).then((req) => {
-            if (req.request.status === 200) {
+            if (req.request.status === 200) { // FIXME Guaranteed to be 200?
                 this.props.history.push(`/analyses/${req.response.jobId}`);
             } else {
                 swal("And error occurred. Please try again later.");

@@ -102,7 +102,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         }
     }
 
-    // FIXME, should show errors in fields instead;
+    // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
     validateAndSetDate(m: Moment, property: PossibleTime) {
         const { createdAfter, createdBefore, modifiedAfter, modifiedBefore } = this.state;
         const isBefore = property.includes("Before")
@@ -168,7 +168,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             <Grid container columns={16} >
                 <Grid.Column width={16}>
                     <Header as="h3" content="Filename" />
-                    {filename ? <div className="padding-bottom"><Label content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
+                    {filename ? <div className="padding-bottom"><Label className="label-padding" content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
                     <Input fluid placeholder="Filename must include..." onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
                     <Header as="h3" content="Created at" />
                     <Form onSubmit={(e) => e.preventDefault()}>

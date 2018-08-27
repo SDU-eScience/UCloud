@@ -1,9 +1,9 @@
 import * as React from "react";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { getParentPath, iconFromFilePath } from "UtilityFunctions";
+import { iconFromFilePath, toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { Link } from "react-router-dom";
 import { Cloud } from "Authentication/SDUCloudObject"
-import { favoriteFile, toLowerCaseAndCapitalize, getFilenameFromPath } from "UtilityFunctions";
+import { favoriteFile, getParentPath, getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";

@@ -10,7 +10,8 @@ import { connect } from "react-redux";
 import "./Zenodo.scss";
 import { History } from "history";
 import { removeEntry } from "Utilities/ArrayUtilities";
-import { getFilenameFromPath, failureNotification } from "UtilityFunctions";
+import { failureNotification } from "UtilityFunctions";
+import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { File } from "Files";
 
 interface ZenodoPublishState {
@@ -49,7 +50,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
         }
         Cloud.post("/zenodo/publish/", { filePaths: filePaths, name: this.state.name }).then((res) => {
             this.props.history.push(`/zenodo/info/${res.response.publicationId}`);
-        });
+        }); // FIXME Error handling
         this.setState(() => ({ requestSent: true }));
     }
 

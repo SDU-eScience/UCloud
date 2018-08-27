@@ -13,7 +13,7 @@ import {
     FILES_ERROR,
     SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "UtilityFunctions";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Action, Error } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
@@ -131,11 +131,11 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  * @param {SortOrder} order the order to sort by, either ascending or descending
  * @param {SortBy} sortBy the field to be sorted by
  */
-export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<File> | Error> =>
+export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<File> | Error> =>
     Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
         .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
-        );
+        ); // FIXME Add error handling
 
 /**
  * 
@@ -186,3 +186,8 @@ export const setFileSelectorError = (error?: string): Error => ({
     type: SET_FILE_SELECTOR_ERROR,
     error
 });
+
+export const checkAllFiles = (checked: boolean, page: Page<File>) => {
+    page.items.forEach((it) => it.isChecked = checked);
+    return updateFiles(page);
+}

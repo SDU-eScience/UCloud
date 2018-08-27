@@ -178,6 +178,7 @@ sealed class ApplicationDescription(val application: String) {
                     else -> return@forEachIndexed
                 }
 
+
                 val missingVariable = variables.find { !parameters.containsKey(it) }
                 if (missingVariable != null) {
                     throw ApplicationVerificationException.BadVariableReference(parameterName, missingVariable)
@@ -308,6 +309,7 @@ sealed class ToolDescription(val tool: String) {
 
             if (authors.isEmpty()) throw ToolVerificationException.BadValue(::authors.name, "Authors is empty")
             val badAuthorIndex = authors.indexOfFirst { it.contains("\n") }
+            println(badAuthorIndex)
             if (badAuthorIndex != -1) {
                 throw ToolVerificationException.BadValue("author[$badAuthorIndex]", "Cannot contain new lines")
             }
