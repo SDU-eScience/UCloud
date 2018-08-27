@@ -87,7 +87,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
     render() {
         const { name } = this.state;
         if (this.props.loading) {
-            return (<DefaultLoading loading={true} />);
+            return (<DefaultLoading className="" size={undefined} loading={true} />);
         } else if (!this.props.connected) {
             return (<NotConnectedToZenodo />);
         }
@@ -146,7 +146,7 @@ const FileSelections = ({ files, handleFileSelection, removeFile }: { files: str
                     path={file}
                     onFileSelect={(chosenFile: File) => handleFileSelection(chosenFile, index)}
                     allowUpload={false}
-                    remove={files.length > 1 ? () => removeFile(index) : null}
+                    remove={files.length > 1 ? () => removeFile(index) : undefined}
                 />
             </Form.Field>))}
     </React.Fragment>

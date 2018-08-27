@@ -110,7 +110,7 @@ const pad = (value, length) =>
     (value.toString().length < length) ? pad("0" + value, length) : value;
 
 const mapDispatchToProps = (dispatch): AnalysesOperations => ({
-    onErrorDismiss: () => dispatch(setErrorMessage(null)),
+    onErrorDismiss: () => dispatch(setErrorMessage(undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Results")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
     fetchAnalyses: (itemsPerPage: number, pageNumber: number) => dispatch(fetchAnalyses(itemsPerPage, pageNumber))

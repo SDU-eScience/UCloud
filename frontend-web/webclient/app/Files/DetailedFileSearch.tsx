@@ -21,10 +21,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             tags: new Set(),
             annotations: new Set(),
             sensitivities: new Set(),
-            createdBefore: null,
-            createdAfter: null,
-            modifiedBefore: null,
-            modifiedAfter: null
+            createdBefore: undefined,
+            createdAfter: undefined,
+            modifiedBefore: undefined,
+            modifiedAfter: undefined
         }
     }
 
@@ -103,7 +103,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
     }
 
     // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
-    validateAndSetDate(m: Moment, property: PossibleTime) {
+    validateAndSetDate(m: Moment | null, property: PossibleTime) {
+        if (!m) return;
         const { createdAfter, createdBefore, modifiedAfter, modifiedBefore } = this.state;
         const isBefore = property.includes("Before")
         if (property.startsWith("created")) {

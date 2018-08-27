@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider } from "semantic-ui-react";
+import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticICONS } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
@@ -46,7 +46,8 @@ class Files extends React.Component<FilesProps> {
     onRenameFile = (key: number, file: File, name: string) => {
         const { path, fetchPageFromPath, updateFiles, page } = this.props;
         if (key === KeyCode.ESC) {
-            page.items.find(f => f.path === file.path).beingRenamed = false;
+            const item = page.items.find(f => f.path === file.path);
+            if (item !== undefined) item.beingRenamed = false;
             page.items = page.items.filter(it => !it.isMockFolder);
             updateFiles(page);
         } else if (key === KeyCode.ENTER) {
@@ -76,7 +77,7 @@ class Files extends React.Component<FilesProps> {
         // Master Checkbox
         const checkbox = (<Checkbox
             className="hidden-checkbox checkbox-margin"
-            onClick={(_, d) => this.props.checkAllFiles(d.checked, page)}
+            onClick={(_, d) => this.props.checkAllFiles(!!d.checked, page)}
             checked={page.items.length === selectedFiles.length && page.items.length > 0}
             indeterminate={selectedFiles.length < page.items.length && selectedFiles.length > 0}
             onChange={(e) => e.stopPropagation()}
@@ -92,7 +93,7 @@ class Files extends React.Component<FilesProps> {
         const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath };
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
-            { text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)), disabled: (files: File[]) => false, icon: "edit", color: null },
+            { text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)), disabled: (files: File[]) => false, icon: "edit", color: undefined },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
         return (
@@ -172,7 +173,7 @@ export const FilesTable = ({
                 sortOrder={sortOrder}
                 sortingColumns={sortingColumns}
                 masterCheckbox={masterCheckbox}
-                sortingIcon={sortingIcon}
+                toSortingIcon={sortingIcon}
                 sortFiles={sortFiles}
                 sortBy={sortBy}
             />
@@ -201,31 +202,33 @@ export const FilesTable = ({
         </Table>
     );
 
-const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect, isSortedBy, currentSelection, sortOrder, minWidth = null }) => (
+
+interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: SemanticICONS, minWidth?: number }
+const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (sO: SortOrder, sB: SortBy) => null, isSortedBy, currentSelection, sortOrder, minWidth = undefined }: ResponsiveTableColumnProps) => (
     <Responsive minWidth={minWidth} as={Table.HeaderCell}>
         <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
         <Icon className="float-right" name={iconName} />
     </Responsive>
 )
 
-const FilesTableHeader = ({ sortingIcon, sortFiles, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy }: FilesTableHeaderProps) => (
+const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy }: FilesTableHeaderProps) => (
     <Table.Header>
         <Table.Row>
             <Table.HeaderCell className="filename-row" onClick={() => sortFiles(SortBy.PATH)}>
                 {masterCheckbox}
                 Filename
-                <Icon className="float-right" name={sortingIcon(SortBy.PATH)} />
+                <Icon className="float-right" name={toSortingIcon(SortBy.PATH)} />
             </Table.HeaderCell>
             {sortingColumns.map((sC, i) => (
                 <ResponsiveTableColumn
                     key={i}
                     isSortedBy={sC === sortBy}
                     minWidth={768}
-                    onSelect={(sortOrder: SortOrder, sortBy: SortBy) => onDropdownSelect(sortOrder, sortBy, i)}
+                    onSelect={(sortOrder: SortOrder, sortBy: SortBy) => { if (!!onDropdownSelect) onDropdownSelect(sortOrder, sortBy, i) }}
                     currentSelection={sC}
                     sortOrder={sortOrder}
                     asDropdown={!!onDropdownSelect}
-                    iconName={sortingIcon(sC)}
+                    iconName={toSortingIcon(sC)}
                 />
             ))}
             <Table.HeaderCell />
@@ -290,7 +293,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
 
 const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon className="group-icon-padding" name="users" />) : null;
 
-function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null, hasCheckbox = false, onFavoriteFile = null }: FilenameAndIconsProps) {
+function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile = () => null }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_, { checked }) => onCheckFile(checked)} />
     const icon = (
@@ -303,12 +306,12 @@ function FilenameAndIcons({ file, size = "big", onRenameFile, onCheckFile = null
     const nameLink = (isDirectory(file) ?
         <Link to={`/files/${file.path}`}>
             {icon}{fileName}
-        </Link> : <React.Fragment>{icon}{fileName}</React.Fragment>);
+        </Link> : <Link to={`/filepreview/${file.path}`}>{icon}{fileName}</Link>);
     return file.beingRenamed ?
         <Table.Cell className="table-cell-padding-left">
             <Input
                 defaultValue={fileName}
-                onKeyDown={(e) => onRenameFile(e.keyCode, file, e.target.value)}
+                onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, e.target.value) }}
                 autoFocus
                 transparent
                 fluid
@@ -372,7 +375,7 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
 
 const mapDispatchToProps = (dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
-    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(null)),
+    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(undefined)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => {
         dispatch(Actions.updatePath(path));
@@ -389,7 +392,8 @@ const mapDispatchToProps = (dispatch): FilesOperations => ({
     showFileSelector: (open: boolean) => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: (callback) => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked: boolean, page: Page<File>, newFile: File) => { // FIXME: Make an action instead with path?
-        page.items.find(file => file.path === newFile.path).isChecked = checked;
+        const item = page.items.find(file => file.path === newFile.path);
+        if (item) item.isChecked = checked;
         dispatch(Actions.updateFiles(page));
     },
     setPageTitle: () => dispatch(updatePageTitle("Files")),

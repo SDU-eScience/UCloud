@@ -47,6 +47,7 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
 
     favoriteApplication = (): void => {
         const { appInformation } = this.state;
+        if (!appInformation) return;
         appInformation.favorite = !appInformation.favorite;
         if (appInformation.favorite) {
             // post
@@ -59,7 +60,7 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
     render() {
         const { appInformation } = this.state;
         const error = this.state.error ? (
-            <Message color="red" content={this.state.error} onDismiss={() => this.setState(() => ({ error: null }))} />
+            <Message color="red" content={this.state.error} onDismiss={() => this.setState(() => ({ error: undefined }))} />
         ) : null;
         return (
             <Grid container columns={16}>
@@ -77,7 +78,6 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
     }
 }
 
-interface ApplicationDetails { appInformation: ApplicationInformation }
 
 const ApplicationTags = (props: { tags: string[] }) => {
     const mockedTags = ["nanomachines", "medication", "megamachines", "hyper light simulation", "teleportation research"];
@@ -88,6 +88,7 @@ const ApplicationTags = (props: { tags: string[] }) => {
     )
 };
 
+interface ApplicationDetails { appInformation?: ApplicationInformation }
 const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
     if (appInformation == null) return null;
 
@@ -123,30 +124,6 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
         </List >
     )
 }
-
-// FIXME, remove?
-const ApplicationParameters = (props: ApplicationDetails) => (
-    <Table basic="very">
-        <Table.Header>
-            <Table.Row>
-                <Table.HeaderCell content="Parameter name" />
-                <Table.HeaderCell content="Default value" />
-                <Table.HeaderCell content="Optional" />
-                <Table.HeaderCell content="Parameter name" />
-            </Table.Row>
-        </Table.Header>
-        <Table.Body>
-            {props.appInformation.description.parameters.map((p, i) =>
-                <Table.Row key={i}>
-                    <Table.Cell content={p.name} />
-                    <Table.Cell content={p.defaultValue == null ? "No default value" : p.defaultValue} />
-                    <Table.Cell icon={p.optional ? "check" : "close"} />
-                    <Table.Cell content={typeToString(p.type as ParameterTypes)} />
-                </Table.Row>
-            )}
-        </Table.Body>
-    </Table>
-)
 
 const typeToString = (parameterType: ParameterTypes): string => {
     switch (parameterType) {

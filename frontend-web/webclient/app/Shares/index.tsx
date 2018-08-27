@@ -4,7 +4,7 @@ import { AccessRight } from "Types";
 
 export interface ListState {
     shares: SharesByPath[]
-    errorMessage: string,
+    errorMessage?: string,
     page: number,
     itemsPerPage: number
     loading: boolean

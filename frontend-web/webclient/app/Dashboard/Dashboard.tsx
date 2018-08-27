@@ -177,13 +177,13 @@ const Notification = ({ notification }: { notification: Notification }) => {
 const statusToIconName = (status: string) => status === "SUCCESS" ? "check" : "x";
 const statusToColor = (status: string) => status === "SUCCESS" ? "green" : "red";
 
-const ErrorMessage = ({ error, onDismiss }: { error?: string, onDismiss: () => void }) => error !== null ?
+const ErrorMessage = ({ error, onDismiss }: { error?: string, onDismiss: () => void }) => error != null ?
     (<Message content={error} onDismiss={onDismiss} negative />) : null;
 
 const mapDispatchToProps = (dispatch): DashboardOperations => ({
-    errorDismissFavorites: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, null)),
-    errorDismissRecentAnalyses: () => dispatch(setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, null)),
-    errorDismissRecentFiles: () => dispatch(setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, null)),
+    errorDismissFavorites: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
+    errorDismissRecentAnalyses: () => dispatch(setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, undefined)),
+    errorDismissRecentFiles: () => dispatch(setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
     setAllLoading: (loading) => dispatch(setAllLoading(loading)),
     fetchFavorites: () => dispatch(fetchFavorites()),

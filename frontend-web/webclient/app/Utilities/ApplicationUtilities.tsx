@@ -1,4 +1,4 @@
-import { infoNotification } from "UtilityFunctions";
+import { infoNotification, failureNotification } from "UtilityFunctions";
 import { Application, ParameterTypes } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
@@ -21,8 +21,12 @@ export const hpcApplicationsQuery = (page: number, itemsPerPage: number) => `/hp
 */
 export const favoriteApplicationFromPage = (application: Application, page: Page<Application>, cloud: Cloud): Page<Application> => {
     const a = page.items.find(it => it.description.info.name === application.description.info.name);
-    a.favorite = !a.favorite;
-    infoNotification("Backend functionality for favoriting applications missing");
+    if (a) {
+        a.favorite = !a.favorite;
+        infoNotification("Backend functionality for favoriting applications missing");
+    } else {
+        failureNotification("An error occurred ")
+    }
     return page;
     /*  
     const { info } = a.description;
@@ -34,7 +38,7 @@ export const favoriteApplicationFromPage = (application: Application, page: Page
     */
 }
 
-export const extractParametersVersion1 = (parameters, allowedParameterKeys, siteVersion: number) => {
+export const extractParameters = (parameters, allowedParameterKeys, siteVersion: number) => {
     let extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({ name, type }) => {

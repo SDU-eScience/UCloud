@@ -109,7 +109,7 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     sortBy: SortBy
     path: string
     filesInfoPath: string
-    fileSelectorError: string
+    fileSelectorError?: string
     sortingColumns: [SortBy, SortBy]
     fileSelectorLoading: boolean
     fileSelectorShown: false
@@ -166,16 +166,16 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
         favoriteLoading: false,
         recentLoading: false,
         analysesLoading: false,
-        favoriteError: null,
-        recentFilesError: null,
-        recentAnalysesError: null
+        favoriteError: undefined,
+        recentFilesError: undefined,
+        recentAnalysesError: undefined
     },
     files: {
         page: emptyPage,
         sortOrder: SortOrder.ASCENDING,
         sortBy: SortBy.PATH,
         loading: false,
-        error: null,
+        error: undefined,
         path: "",
         filesInfoPath: "",
         sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
@@ -184,7 +184,7 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
         fileSelectorPage: emptyPage,
         fileSelectorPath: cloud.homeFolder,
         fileSelectorCallback: Function,
-        fileSelectorError: null,
+        fileSelectorError: undefined,
         disallowedPaths: []
     },
     uppy: {
@@ -200,7 +200,7 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     applications: {
         page: emptyPage,
         loading: false,
-        error: null
+        error: undefined
     },
     header: {
         prioritizedSearch: "files"
@@ -209,18 +209,18 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
         page: emptyPage,
         loading: false,
         redirectTo: "",
-        error: null
+        error: undefined
     },
     analyses: {
         page: emptyPage,
         loading: false,
-        error: null
+        error: undefined
     },
     zenodo: {
         connected: false,
         loading: false,
         page: emptyPage,
-        error: null
+        error: undefined
     },
     sidebar: {
         open: false,

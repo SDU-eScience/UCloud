@@ -7,7 +7,7 @@ import "./Header.scss";
 import * as PropTypes from "prop-types";
 import { Dispatch } from "redux";
 import Notifications from "Notifications";
-import { setSidebarOpen } from "./Redux/SidebarActions";
+import { setSidebarState } from "./Redux/SidebarActions";
 import Avatar from "avataaars";
 import { History } from "history";
 import { infoNotification } from "UtilityFunctions";
@@ -46,7 +46,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
 
         return (
             <Menu className="menu-padding" inverted attached borderless size="tiny" >
-                <Responsive maxWidth={999} as={Menu.Item} onClick={() => dispatch(setSidebarOpen())}>
+                <Responsive maxWidth={999} as={Menu.Item} onClick={() => dispatch(setSidebarState(true))}>
                     <Icon.Group size="large">
                         <Icon name="sidebar" />
                         <Icon corner color="grey" size="huge" name={sidebarIcon} />

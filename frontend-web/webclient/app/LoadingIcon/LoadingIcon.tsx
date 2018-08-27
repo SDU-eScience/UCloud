@@ -10,6 +10,6 @@ export const Spinner = ({ loading, color }) => (loading) ?
         <div />
     </i> : null;
 
-export const DefaultLoading = ({ size = null, ...props }) => (props.loading) ?
-    <Icon name="circle notched" size={size} className={props.className} loading />
-    : null;
+type DefaultLoadingProps = { size?: any, className?: string, loading: boolean };
+export const DefaultLoading = ({ size = undefined, ...props }: DefaultLoadingProps) => (props.loading) ?
+    <Icon name="circle notched" size={size} className={props.className} loading /> : null;

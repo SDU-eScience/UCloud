@@ -65,7 +65,7 @@ export interface Application {
     owner: string
     createdAt: number
     modifiedAt: number
-    favorite?: boolean
+    favorite: boolean
     tool: {
         owner: string
         createdAt: number
@@ -112,7 +112,19 @@ export interface DetailedResultState {
     promises: PromiseKeeper
 }
 
-export type StdElement = { scrollTop: number, scrollHeight: number }
+export type StdElement = { scrollTop: number, scrollHeight: number } | null
+
+export type MaxTime = {
+    hours: number | null
+    minutes: number | null
+    seconds: number | null
+} | null
+
+export interface JobInfo {
+    maxTime: MaxTime
+    numberOfNodes: number | null
+    tasksPerNode: number | null
+}
 
 export interface RunAppState {
     promises: PromiseKeeper
@@ -126,15 +138,7 @@ export interface RunAppState {
     appAuthor: string[]
     parameters: ApplicationParameter[]
     parameterValues: {}
-    jobInfo: {
-        maxTime?: {
-            hours: number | null
-            minutes: number | null
-            seconds: number | null
-        }
-        numberOfNodes: number | null
-        tasksPerNode: number | null
-    }
+    jobInfo: JobInfo
     tool: {} // ???
     comment: string
     jobSubmitted: boolean

@@ -22,10 +22,10 @@ export default class SDUCloud {
     private decodedToken: any;
 
     constructor() {
-        let context = location.protocol + '//' + 
-            location.hostname + 
+        let context = location.protocol + '//' +
+            location.hostname +
             (location.port ? ':' + location.port : '');
-        
+
         let serviceName: string;
         switch (location.hostname) {
             case "localhost":
@@ -36,7 +36,7 @@ export default class SDUCloud {
                 serviceName = "web";
                 break;
         }
-        
+
         this.context = context;
         this.serviceName = serviceName;
 
@@ -110,7 +110,7 @@ export default class SDUCloud {
                         }
                     }
 
-                    if (inRange(req.status, 200, 299)) {
+                    if (inRange({ status: req.status, min: 200, max: 299 })) {
                         resolve({
                             response: parsedResponse,
                             request: req,
@@ -132,7 +132,7 @@ export default class SDUCloud {
      * Calls with the GET HTTP method. See call(method, path, body)
      */
     get(path, context = this.apiContext) {
-        return this.call("GET", path, null, context);
+        return this.call("GET", path, undefined, context);
     }
 
     /**
@@ -174,7 +174,7 @@ export default class SDUCloud {
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
     head(path, context = this.apiContext) {
-        return this.call("HEAD", path, null, context);
+        return this.call("HEAD", path, undefined, context);
     }
 
     /**
@@ -216,7 +216,7 @@ export default class SDUCloud {
     get userRole(): string {
         const info = this.userInfo;
         if (info) return info.role;
-        return null;
+        return "";
     }
 
     /**
@@ -246,7 +246,7 @@ export default class SDUCloud {
      * @return {Promise} a promise of an access token
      */
     receiveAccessTokenOrRefreshIt(): Promise<any> {
-        let tokenPromise = null;
+        let tokenPromise: Promise<any> | null = null;
         if (this._isTokenExpired()) {
             tokenPromise = this._refresh();
         } else {
@@ -267,7 +267,7 @@ export default class SDUCloud {
                     req.setRequestHeader("Authorization", `Bearer ${token}`);
                     req.setRequestHeader("contentType", "application/json");
                     req.onload = () => {
-                        if (inRange(req.status, 200, 299)) {
+                        if (inRange({ status: req.status, min: 200, max: 299 })) {
                             const response = req.response.length === 0 ? "{}" : req.response;
                             resolve({ response: JSON.parse(response), request: req });
                         } else {
@@ -333,8 +333,8 @@ export default class SDUCloud {
             this.decodedToken = jwt.decode(accessToken, { complete: true });
         } catch (err) {
             console.log("Received malformed JWT");
-            SDUCloud.storedAccessToken = null;
-            SDUCloud.storedRefreshToken = null;
+            SDUCloud.storedAccessToken = "";
+            SDUCloud.storedRefreshToken = "";
             throw err;
         }
     }
@@ -376,15 +376,17 @@ export default class SDUCloud {
     }
 
     static get storedAccessToken(): string {
-        return window.localStorage.getItem("accessToken");
+        const accessToken = window.localStorage.getItem("accessToken");
+        if (accessToken) return accessToken; else return "";
     }
 
-    static set storedAccessToken(value) {
+    static set storedAccessToken(value: string) {
         window.localStorage.setItem("accessToken", value);
     }
 
     static get storedRefreshToken(): string {
-        return window.localStorage.getItem("refreshToken");
+        const refreshToken = window.localStorage.getItem("refreshToken");
+        if (refreshToken) return refreshToken; else return "";
     }
 
     static set storedRefreshToken(value) {

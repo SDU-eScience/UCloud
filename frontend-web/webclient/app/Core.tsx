@@ -29,7 +29,7 @@ const NotFound = () => (<div><h1>Not found.</h1></div>);
 const Core = () => (
     <React.Fragment>
         <Header />
-        <Sidebar>
+        <Sidebar open={false} setSidebarState={(o) => null}>
             <Switch>
                 <Route path="/files/*" component={Files} />
                 <Route exact path="/dashboard" component={Dashboard} />

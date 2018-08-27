@@ -25,7 +25,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             loading: false,
             page: emptyPage,
             modalShown: false,
-            uppyOnUploadSuccess: null,
+            uppyOnUploadSuccess: undefined,
             creatingFolder: false
         };
     }
@@ -85,7 +85,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     onUppyClose = (): void => {
         this.props.uppy.off("upload-success", this.state.uppyOnUploadSuccess);
         this.setState(() => ({
-            uppyOnUploadSuccess: null,
+            uppyOnUploadSuccess: undefined,
         }));
     }
 
@@ -152,7 +152,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     }
 }
 
-export const FileSelectorModal = (props: FileSelectorModalProps) => (
+export const FileSelectorModal = ({ canSelectFolders = false, ...props }: FileSelectorModalProps) => (
     <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick size="large">
         <Modal.Header>
             File selector
@@ -167,6 +167,7 @@ export const FileSelectorModal = (props: FileSelectorModalProps) => (
                 onErrorDismiss={props.onErrorDismiss}
                 pageRenderer={(page) =>
                     <FileSelectorBody
+                        canSelectFolders={canSelectFolders}
                         {...props}
                         page={page}
                         fetchFiles={(path) => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
@@ -181,7 +182,7 @@ export const FileSelectorModal = (props: FileSelectorModalProps) => (
     </Modal>
 );
 
-const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders = false, ...props }: FileSelectorBodyProps) => {
+const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
     const files = f.filter((it) => !disallowedPaths.some((d) => d === it.path));
     const { path } = props;
@@ -199,7 +200,7 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
                     predicate={uf.removeTrailingSlash(path) !== uf.removeTrailingSlash(Cloud.homeFolder) && !(disallowedPaths.some(it => it === getParentPath(path)))}
                     folderName=".."
                     path={getParentPath(path)}
-                    canSelectFolders={props.canSelectFolders}
+                    canSelectFolders={canSelectFolders}
                     setSelectedFile={props.setSelectedFile}
                     fetchFiles={props.fetchFiles}
                 />
@@ -211,12 +212,12 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
                     folderName={`${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))} (Current folder)`}
                     fetchFiles={() => null}
                 />
-                <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={props.canSelectFolders} />
+                <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={canSelectFolders} />
             </List>
         </React.Fragment>)
 };
 
-type CreateFolderButton = { createFolder: () => void }
+type CreateFolderButton = { createFolder?: () => void }
 const CreateFolderButton = ({ createFolder }: CreateFolderButton) =>
     !!createFolder ?
         (<Button onClick={() => createFolder()} basic className="float-right" content="Create new folder" />) : null;

@@ -1,16 +1,11 @@
 import * as Types from "./SidebarReducer";
-import {  Action } from "Types";
+import { Action } from "Types";
 
+interface SidebarState extends Action { open: boolean }
 /**
- * Sets the sidebar as open. Only relevant for mobile
+ * Sets the sidebar state. Only relevant for mobile/tablet
  */
-export const setSidebarOpen = (): Action => ({
-    type: Types.SET_SIDEBAR_OPEN
-});
-
-/**
- * Sets the sidebar as closed. Only relevant for mobile
- */
-export const setSidebarClosed = (): Action => ({
-    type: Types.SET_SIDEBAR_CLOSED
+export const setSidebarState = (open: boolean): SidebarState => ({
+    type: Types.SET_SIDEBAR_STATE,
+    open
 })

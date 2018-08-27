@@ -1726,6 +1726,6 @@ export const allLicenses: License[] = [
     }
   ];
 
-export const findLicenseByIdentifier = (identifier: string): License | null => {
+export const findLicenseByIdentifier = (identifier: string): License | undefined => {
   return allLicenses.find(it => it.identifier == identifier);
 };

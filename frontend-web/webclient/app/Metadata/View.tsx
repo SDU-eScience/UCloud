@@ -5,7 +5,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import * as ReactMarkdown from "react-markdown";
 import { Contributor, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
-import { blankOrNull } from "UtilityFunctions";
+import { blankOrUndefined } from "UtilityFunctions";
 import {
     Label,
     Icon,
@@ -18,11 +18,12 @@ import "./view.scss";
 
 interface ViewProps {
     metadata: ProjectMetadata
-    canEdit: boolean
+    canEdit?: boolean
 }
 
 export const View = (props: ViewProps) => {
-    const { metadata, canEdit } = props;
+    const { canEdit } = props;
+    const metadata = handleNullArrays(props.metadata);
     const license = metadata.license ? findLicenseByIdentifier(metadata.license) : null;
 
     return <div>
@@ -43,7 +44,7 @@ export const View = (props: ViewProps) => {
                 <ReactMarkdown source={metadata.description} />
             </Grid.Column>
             <Grid.Column width={4}>
-                { canEdit ?
+                {canEdit ?
                     <React.Fragment>
                         <Header as="h4">
                             <Icon name="hand pointer" />
@@ -86,7 +87,7 @@ export const View = (props: ViewProps) => {
                         </List.Item>
                         : null
                     }
-               </List>
+                </List>
 
                 <Header as="h4">
                     <Icon name="hashtag" />
@@ -138,9 +139,9 @@ export const View = (props: ViewProps) => {
 const ContributorItem = (props: { contributor: Contributor }) => {
     const { contributor } = props;
     if (
-        !blankOrNull(contributor.affiliation) ||
-        !blankOrNull(contributor.gnd) ||
-        !blankOrNull(contributor.orcId)
+        !blankOrUndefined(contributor.affiliation) ||
+        !blankOrUndefined(contributor.gnd) ||
+        !blankOrUndefined(contributor.orcId)
     ) {
         return <Popup
             trigger={
@@ -153,15 +154,15 @@ const ContributorItem = (props: { contributor: Contributor }) => {
             }
             content={
                 <React.Fragment>
-                    {!blankOrNull(contributor.affiliation) ?
+                    {!blankOrUndefined(contributor.affiliation) ?
                         <p><b>Affiliation:</b> {contributor.affiliation}</p>
                         : null
                     }
-                    {!blankOrNull(contributor.gnd) ?
+                    {!blankOrUndefined(contributor.gnd) ?
                         <p><b>GND:</b> {contributor.gnd}</p>
                         : null
                     }
-                    {!blankOrNull(contributor.orcId) ?
+                    {!blankOrUndefined(contributor.orcId) ?
                         <p>
                             <b>ORCID:</b>
                             {" "}
@@ -189,16 +190,11 @@ interface ManagedViewState {
 }
 
 export class ManagedView extends React.Component<any, ManagedViewState> {
-    constructor(props) {
-        super(props);
-        this.state = {};
-    }
-
     // TODO This is not the correct place to do this!
     componentDidMount() {
         const urlPath = this.props.match.params[0];
         if (!!this.state.metadata) return;
-        
+
         getByPath(urlPath)
             .then(it => this.setState(() => ({ metadata: handleNullArrays(it.metadata), canEdit: it.canEdit })))
             .catch(() => console.warn("TODO something went wrong"));
@@ -206,7 +202,7 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
 
     render() {
         if (!this.state.metadata) {
-            return <DefaultLoading loading />;
+            return <DefaultLoading size={undefined} loading className="" />;
         } else {
             return <View canEdit={this.state.canEdit} metadata={this.state.metadata} />;
         }
@@ -214,7 +210,7 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
 }
 
 // TODO find more elegant solution
-const handleNullArrays = (metadata: ProjectMetadata):ProjectMetadata => {
+const handleNullArrays = (metadata: ProjectMetadata): ProjectMetadata => {
     const mData = { ...metadata };
     mData.contributors = mData.contributors ? mData.contributors : [];
     mData.keywords = mData.keywords ? mData.keywords : [];

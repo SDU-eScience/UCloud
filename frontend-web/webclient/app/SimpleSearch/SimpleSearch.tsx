@@ -100,12 +100,13 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, error } = this.state;
         const errorMessage = !!error ? (<Message color="red" content={error} onDismiss={() => this.setState(() => ({ error: "" }))} />) : null;
         // Currently missing ACLS to allow for fileOperations
-        const fileOperations = AllFileOperations(true, null, () => this.searchFiles(search, files.pageNumber, files.itemsPerPage), this.props.history);
+        const fileOperations = AllFileOperations(true, false, () => this.searchFiles(search, files.pageNumber, files.itemsPerPage), this.props.history);
         const panes = [
             {
                 menuItem: "Files", render: () => (
                     <Tab.Pane loading={filesLoading}>
                         <Pagination.List
+                            loading={filesLoading}
                             pageRenderer={(page) => (<SimpleFileList files={page.items} />)}
                             page={files}
                             onItemsPerPageChanged={(itemsPerPage: number) => this.searchFiles(search, 0, itemsPerPage)}
@@ -161,7 +162,7 @@ const SimpleFileList = ({ files }) => (
         {files.map((f, i) => (
             <List.Item key={i}>
                 <List.Content>
-                    <Icon name={UF.iconFromFilePath(f.path, f.fileType, Cloud.homeFolder)} size={null} color={"blue"} />
+                    <Icon name={UF.iconFromFilePath(f.path, f.fileType, Cloud.homeFolder)} size={undefined} color={"blue"} />
                     <Link to={`/files/${f.fileType === "FILE" ? getParentPath(f.path) : f.path}`}>
                         {getFilenameFromPath(f.path)}
                     </Link>

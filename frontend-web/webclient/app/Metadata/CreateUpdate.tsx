@@ -3,7 +3,7 @@ import { Search, Form, Button } from "semantic-ui-react";
 import { identifierTypes } from "DefaultObjects";
 import { allLicenses } from "./licenses";
 import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
-import { blankOrNull } from "UtilityFunctions";
+import { blankOrUndefined } from "UtilityFunctions";
 import * as PropTypes from "prop-types";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
@@ -14,24 +14,24 @@ const newSubject = (): Subject => ({ term: "", identifier: "" });
 
 const contributorHasValue = (contributor: Contributor): boolean => {
     return (
-        !blankOrNull(contributor.affiliation) ||
-        !blankOrNull(contributor.orcId) ||
-        !blankOrNull(contributor.gnd) ||
-        !blankOrNull(contributor.name)
+        !blankOrUndefined(contributor.affiliation) ||
+        !blankOrUndefined(contributor.orcId) ||
+        !blankOrUndefined(contributor.gnd) ||
+        !blankOrUndefined(contributor.name)
     );
 }
 
 const subjectHasValue = (subject: Subject): boolean => {
     return (
-        !blankOrNull(subject.identifier) ||
-        !blankOrNull(subject.term)
+        !blankOrUndefined(subject.identifier) ||
+        !blankOrUndefined(subject.term)
     );
 }
 
 const identifierHasValue = (identifier: RelatedIdentifier): boolean => {
     return (
-        !blankOrNull(identifier.identifier) ||
-        !blankOrNull(identifier.relation)
+        !blankOrUndefined(identifier.identifier) ||
+        !blankOrUndefined(identifier.relation)
     );
 };
 
@@ -115,14 +115,14 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                 title: s.title,
                 description: s.description,
                 license: licenseIdentifier,
-                keywords: s.keywords.filter(e => !blankOrNull(e)),
+                keywords: s.keywords.filter(e => !blankOrUndefined(e)),
                 // notes, // TODO Needs to be user editable
                 // dataManagementPlan: s.dataManagementPlan,
                 contributors: s.contributors.filter(e => contributorHasValue(e)),
-                references: s.references.filter(e => !blankOrNull(e)),
+                references: s.references.filter(e => !blankOrUndefined(e)),
                 subjects: s.subjects.filter(e => subjectHasValue(e)),
                 relatedIdentifiers: s.relatedIdentifiers.filter(e => identifierHasValue(e)),
-                grants: s.grants.filter(e => !blankOrNull(e)).map(it => ({ id: it }))
+                grants: s.grants.filter(e => !blankOrUndefined(e)).map(it => ({ id: it }))
             };
 
             updateById(payload)
@@ -134,13 +134,13 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     validateForm(): boolean {
         let errors = {};
 
-        if (blankOrNull(this.state.title)) errors["title"] = true;
-        if (blankOrNull(this.state.description)) errors["description"] = true;
+        if (blankOrUndefined(this.state.title)) errors["title"] = true;
+        if (blankOrUndefined(this.state.description)) errors["description"] = true;
 
         let errCollaborators = {};
         this.state.contributors.forEach((element, index) => {
             if (contributorHasValue(element)) {
-                if (blankOrNull(element.name)) errCollaborators[index] = true;
+                if (blankOrUndefined(element.name)) errCollaborators[index] = true;
             }
         });
         errors["contributors"] = errCollaborators;
@@ -148,7 +148,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         let errSubjects = {};
         this.state.subjects.forEach((element, index) => {
             if (subjectHasValue(element)) {
-                if (blankOrNull(element.term)) errSubjects[index] = true;
+                if (blankOrUndefined(element.term)) errSubjects[index] = true;
             }
         });
         errors["subjects"] = errSubjects;
@@ -156,7 +156,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         let errIdentifiers = {};
         this.state.relatedIdentifiers.forEach((element, index) => {
             if (identifierHasValue(element)) {
-                if (blankOrNull(element.identifier)) errIdentifiers[index] = true;
+                if (blankOrUndefined(element.identifier)) errIdentifiers[index] = true;
             }
         });
         errors["relatedIdentifiers"] = errIdentifiers;

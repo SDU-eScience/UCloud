@@ -36,7 +36,7 @@ export class List extends React.PureComponent<ListProps> {
         const props = this.props;
         const body = this.renderBody();
 
-        let errorComponent = null;
+        let errorComponent: React.ReactNode = null;
         if (typeof props.errorMessage == "string") {
             errorComponent = <Message color="red" onDismiss={props.onErrorDismiss}>{props.errorMessage}</Message>;
         } else if (typeof props.errorMessage == "function") {
@@ -80,7 +80,7 @@ export class List extends React.PureComponent<ListProps> {
         if (props.loading) {
             return <Grid centered verticalAlign="middle" columns={1}>
                 <div className="pagination-loader">
-                    <DefaultLoading loading className="pagination-list-loading" />
+                    <DefaultLoading loading size={undefined} className="pagination-list-loading" />
                 </div>
             </Grid>
         } else {

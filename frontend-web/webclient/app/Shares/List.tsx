@@ -15,7 +15,7 @@ export class List extends React.Component<ListProps, ListState> {
         super(props);
         this.state = {
             shares: [],
-            errorMessage: null,
+            errorMessage: undefined,
             page: 0,
             itemsPerPage: 10,
             loading: true
@@ -48,7 +48,7 @@ export class List extends React.Component<ListProps, ListState> {
         const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
         return (
             <React.Fragment>
-                {errorMessage ? <Message color="red" onDismiss={() => this.setState({ errorMessage: null })}>{errorMessage}</Message> : null}
+                {errorMessage ? <Message color="red" onDismiss={() => this.setState({ errorMessage: undefined })}>{errorMessage}</Message> : null}
                 <DefaultLoading loading={this.state.loading} size="big" />
                 <Header>Shared with Me</Header>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>

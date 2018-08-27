@@ -40,8 +40,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
 
     renderContent() {
         const type = extensionTypeFromPath(this.filepath);
-        const loading = !this.file || !this.file.content;
-        if (loading) return (<DefaultLoading loading={loading} />)
+        if (!this.file || !this.file.content) return (<DefaultLoading loading={true} />)
         switch (type) {
             case "code":
                 return (<code style={{ whiteSpace: "pre-wrap" }}>{this.file.content}</code>)
@@ -60,7 +59,8 @@ class FilePreview extends React.Component<FilePreviewProps> {
             fetchFileContent(this.filepath, Cloud)
                 .then(it => it.text().then(it => {
                     const { page } = this.props;
-                    page.items.find(it => removeTrailingSlash(it.path) === this.filepath).content = it;
+                    const item = page.items.find(it => removeTrailingSlash(it.path) === this.filepath);
+                    if (item) item.content = it;
                     this.props.updatePage(page);
                 })); // FIXME Error handling
         }

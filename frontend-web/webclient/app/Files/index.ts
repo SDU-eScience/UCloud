@@ -77,8 +77,8 @@ export interface FilesStateProps { // Redux Props
     fileSelectorPage: Page<File>
     sortBy: SortBy
     sortOrder: SortOrder
-    error: string
-    fileSelectorError: string
+    error?: string
+    fileSelectorError?: string
     checkedFilesCount: number
     favFilesCount: number
     renamingCount: number
@@ -121,17 +121,17 @@ export interface FileSelectorState {
     loading: boolean
     page: Page<File>
     modalShown: boolean
-    uppyOnUploadSuccess: Function
+    uppyOnUploadSuccess?: Function
     creatingFolder: boolean
 }
 
 export interface FilesTableProps {
-    sortOrder?: SortOrder
+    sortOrder: SortOrder
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     sortingColumns: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
-    sortingIcon: (name: string) => SemanticICONS
+    sortingIcon?: (name: string) => SemanticICONS | undefined
     sortFiles: (sortBy: SortBy) => void
     onRenameFile?: (key: number, file: File, name: string) => void
     onCreateFolder?: (key: number, name: string) => void
@@ -148,7 +148,7 @@ export interface CreateFolderProps {
 }
 
 export interface FilesTableHeaderProps {
-    sortingIcon?: (s: SortBy) => SemanticICONS
+    toSortingIcon?: (s: SortBy) => SemanticICONS | undefined
     sortFiles?: (s: SortBy) => void
     sortOrder: SortOrder
     sortBy: SortBy
@@ -161,9 +161,9 @@ export interface FilenameAndIconsProps {
     file: File
     hasCheckbox: boolean
     size?: SemanticSIZES
-    onRenameFile: (key: number, file: File, name: string) => void
-    onCheckFile: (c: boolean) => void
-    onFavoriteFile: (files: File[]) => void
+    onRenameFile?: (key: number, file: File, name: string) => void
+    onCheckFile?: (c: boolean) => void
+    onFavoriteFile?: (files: File[]) => void
 }
 
 export interface FileSelectorModalProps {
@@ -189,7 +189,7 @@ export interface FileSelectorBodyProps {
     disallowedPaths?: string[]
     onlyAllowFolders?: boolean
     creatingFolder?: boolean
-    canSelectFolders?: boolean
+    canSelectFolders: boolean
     page: Page<File>
     fetchFiles: (path: string) => void
     handleKeyDown?: Function
@@ -207,7 +207,7 @@ export interface FileListProps {
 export interface MoveCopyOperations {
     showFileSelector: (show: boolean) => void
     setDisallowedPaths: (paths: string[]) => void
-    setFileSelectorCallback: (callback: Function) => void
+    setFileSelectorCallback: (callback?: Function) => void
     fetchPageFromPath: (path: string) => void
 }
 
@@ -230,8 +230,8 @@ export interface MobileButtonsProps {
 }
 
 export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS, color: SemanticCOLORS }
-export type FileOperation = (Operation | PredicatedOperation)
+export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS, color?: SemanticCOLORS }
+export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {
     currentPath: string
@@ -263,10 +263,10 @@ export interface DetailedFileSearchState {
     tagValue: string,
     sensitivities: Set<SensitivityLevel>,
     annotations: Set<Annotation>
-    createdBefore: Moment
-    createdAfter: Moment
-    modifiedBefore: Moment
-    modifiedAfter: Moment
+    createdBefore?: Moment
+    createdAfter?: Moment
+    modifiedBefore?: Moment
+    modifiedAfter?: Moment
 }
 
 export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }

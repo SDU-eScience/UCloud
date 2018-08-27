@@ -14,7 +14,7 @@ import "Styling/Shared.scss";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";
-import { File, SortBy } from "Files";
+import { File, SortBy, SortOrder } from "Files";
 import { filepathQuery, favoriteFileFromPage } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 
@@ -264,12 +264,12 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     onRefresh={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
                     pageRenderer={(page) =>
                         <FilesTable
+                            sortOrder={SortOrder.ASCENDING}
                             sortBy={SortBy.PATH}
                             fileOperations={[]}
                             files={page.items}
                             refetchFiles={() => null}
                             sortFiles={() => null}
-                            sortingIcon={() => null}
                             onCheckFile={() => null}
                             sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}

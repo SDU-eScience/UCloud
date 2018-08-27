@@ -37,11 +37,11 @@ export interface ProjectMetadata {
     embargoDate?: number
     accessConditions?: string
 
-    keywords?: string[]
+    keywords: string[]
     notes?: string
-    contributors?: Contributor[]
-    references?: string[]
-    grants?: Grant[]
+    contributors: Contributor[]
+    references: string[]
+    grants: Grant[]
 
     subjects?: Subject[]
     relatedIdentifiers?: RelatedIdentifier[]

@@ -13,9 +13,9 @@ import { favoriteApplication, infoNotification, failureNotification } from "Util
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import "Styling/Shared.scss";
-import { RunAppProps, RunAppState } from "."
+import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
 import { Application, ParameterTypes } from ".";
-import { extractParametersVersion1 } from "Utilities/ApplicationUtilities";
+import { extractParameters } from "Utilities/ApplicationUtilities";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -24,14 +24,14 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.state = {
             promises: new PromiseKeeper(),
             loading: false,
-            favorite: null,
-            error: null,
+            favorite: false,
+            error: undefined,
             appName: props.match.params.appName,
             displayAppName: props.match.params.appName,
             appVersion: props.match.params.appVersion,
             appDescription: "",
             appAuthor: [],
-            parameters: null,
+            parameters: [],
             parameterValues: {},
             jobInfo: {
                 maxTime: {
@@ -97,7 +97,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                 } else if (application.version !== this.state.appVersion) {
                     infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
                 }
-                const extractedParameters = extractParametersVersion1(parameters, this.state.parameters.map(it => ({
+                const extractedParameters = extractParameters(parameters, this.state.parameters.map(it => ({
                     name: it.name, type: it.type
                 })), siteVersion);
                 this.setState(() => ({
@@ -111,10 +111,10 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    extractJobInfo(jobInfo) {
+    extractJobInfo(jobInfo): JobInfo {
         let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
         const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
-        if (maxTime !== null && (maxTime.hours !== null || maxTime.minutes !== null || maxTime.seconds !== null)) {
+        if (maxTime != null && (maxTime.hours != null || maxTime.minutes != null || maxTime.seconds != null)) {
             extractedJobInfo.maxTime.hours = maxTime.hours ? maxTime.hours : null;
             extractedJobInfo.maxTime.minutes = maxTime.minutes ? maxTime.minutes : null;
             extractedJobInfo.maxTime.seconds = maxTime.seconds ? maxTime.seconds : null;
@@ -148,8 +148,9 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
 
     onSubmit(event) {
         event.preventDefault();
-        let maxTime = this.extractJobInfo(this.state.jobInfo).maxTime;
-        if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
+        let maxTime: MaxTime = this.extractJobInfo(this.state.jobInfo).maxTime;
+        if (maxTime) 
+            if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
         let job = {
             application: {
                 name: this.state.appName,
@@ -217,11 +218,11 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 
     render() {
-        const error = this.state.error ? <Message color="red" onDismiss={() => this.setState(() => ({ error: null }))} content={this.state.error} /> : null;
+        const error = this.state.error ? <Message color="red" onDismiss={() => this.setState(() => ({ error: undefined }))} content={this.state.error} /> : null;
         return (
             <Grid container columns={16}>
                 <Grid.Column width={16}>
-                    <DefaultLoading loading={this.state.loading} />
+                    <DefaultLoading size={undefined} loading={this.state.loading} />
                     {error}
                     <ApplicationHeader
                         importParameters={this.importParameters}
@@ -264,7 +265,7 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
                 <Button onClick={() => exportParameters()} content="Export parameters" />
                 <Button as="label">
                     Import parameters
-                    <input className="import-parameters" type="file" onChange={(e) => importParameters(e.target.files[0])} />
+                    <input className="import-parameters" type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
                 </Button>
                 <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
             </Header.Content>
@@ -423,9 +424,11 @@ const parameterTypeToComponent = (type) => {
             return BooleanParameter;
         default:
             console.warn(`Unknown parameter type: ${type}`);
-            return null;
+            return GenericNumberParameter; // Must be a constructor or have call signatures
     }
 };
+
+
 
 const Parameter = (props) => {
     let Component = parameterTypeToComponent(props.parameter.type);
@@ -491,10 +494,12 @@ const TextParameter = (props) => {
     );
 };
 
+
+type BooleanParameterOption = { value?: boolean, display: string }
 const BooleanParameter = (props) => {
-    let options = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
+    let options: BooleanParameterOption[] = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
     if (props.parameter.optional) {
-        options.unshift({ value: null, display: "" });
+        options.unshift({ value: undefined, display: "" });
     }
 
     const internalOnChange = (event, data) => {
@@ -535,7 +540,7 @@ const GenericNumberParameter = (props) => {
     let value = (props.value != null) ? props.value : "";
 
     const hasLabel = !!props.parameter.unitName;
-    
+
     let baseField = (
         <Input
             labelPosition="right"
@@ -549,7 +554,7 @@ const GenericNumberParameter = (props) => {
             onChange={e => internalOnChange(e)} />
     );
 
-    let slider = null;
+    let slider: React.ReactNode = null;
     if (props.parameter.min !== null && props.parameter.max !== null) {
         slider = (
             <Input

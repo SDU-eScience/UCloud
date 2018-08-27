@@ -13,17 +13,17 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
     constructor(props: ZenodoInfoProps) {
         super(props);
         this.state = {
-            error: null,
+            error: undefined,
             promises: new PromiseKeeper(),
             loading: true,
             publicationID: decodeURIComponent(props.match.params.jobID),
-            publication: null,
+            publication: undefined,
             intervalId: -1
         };
     }
 
     onErrorDismiss = (): void => {
-        this.setState(() => ({ error: null }));
+        this.setState(() => ({ error: undefined }));
     }
 
     setErrorMessage = (jobID: string): void => {

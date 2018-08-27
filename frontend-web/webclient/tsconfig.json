@@ -3,6 +3,7 @@
         "noImplicitReturns": true,
         "outDir": "./dist/",
         "alwaysStrict": true,
+        "strictNullChecks": true,
         "noImplicitThis": true,
         "noImplicitAny": false,
         "module": "esnext",

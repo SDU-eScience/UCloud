@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { connect } from "react-redux";
-import { setSidebarClosed } from "./Redux/SidebarActions";
+import { setSidebarState } from "./Redux/SidebarActions";
 
 interface SidebarProps {
-    open?: boolean
-    setSidebarClosed?: () => void
+    open: boolean
+    setSidebarState: (open: boolean) => void
 }
 
 interface SidebarState {
@@ -29,7 +29,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
     }
 
     render() {
-        const { open, setSidebarClosed } = this.props;
+        const { open, setSidebarState } = this.props;
         const { activeIndices } = this.state;
 
         const sidebarIsOpen = open && window.innerWidth < 1000;
@@ -48,7 +48,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
             <React.Fragment>
                 <Responsive minWidth={1000}>
                     <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
-                        <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={setSidebarClosed} />
+                        <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={() => setSidebarState(false)} />
                     </Accordion>
 
                     {content}
@@ -56,15 +56,16 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
 
                 <Responsive maxWidth={999} as={Sidebar.Pushable}>
                     <MobileSidebar
-                        closeSidebar={setSidebarClosed}
+                        closeSidebar={() => setSidebarState(false)}
                         visible={open}
                         handleClick={this.handleClick}
                         activeIndices={activeIndices}
                     />
 
                     <Sidebar.Pusher
-                        onClick={() => open ? setSidebarClosed() : null}
-                        dimmed={sidebarIsOpen}>
+                        onClick={() => setSidebarState(false)}
+                        dimmed={sidebarIsOpen}
+                    >
                         {content}
                     </Sidebar.Pusher>
                 </Responsive>
@@ -149,7 +150,7 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
             <Menu.Item>
                 <MenuLink icon="share" to="/shares" name="Shares" onClick={() => closeSidebar()} />
             </Menu.Item>
-        <AdminOptions menuActive={activeIndices[2]} handleClick={handleClick} closeSidebar={closeSidebar} />
+            <AdminOptions menuActive={activeIndices[2]} handleClick={handleClick} closeSidebar={closeSidebar} />
         </Accordion>
     </React.Fragment>
 );
@@ -168,7 +169,7 @@ const MenuLink = ({ icon, name, to, onClick }) =>
 
 
 const mapDispatchToProps = (dispatch) => ({
-    setSidebarClosed: () => dispatch(setSidebarClosed())
+    setSidebarState: (open: boolean) => dispatch(setSidebarState(open))
 });
 
 const mapStateToProps = ({ sidebar }) => sidebar;

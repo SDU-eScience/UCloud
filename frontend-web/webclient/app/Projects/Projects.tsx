@@ -20,6 +20,7 @@ class Projects extends React.Component<any, any> {
                             <Card content="Empty" />
                         </Card.Group>
                     )}
+                    loading={this.props.loading}
                     onPageChanged={(pageNumber) => null}
                     onItemsPerPageChanged={(itemsPerPage: number) => null}
                 />

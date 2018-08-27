@@ -78,11 +78,14 @@ export const shareSwal = () => swal({
     showCancelButton: true,
     inputPlaceholder: "Enter username...",
     focusConfirm: false,
-    inputValidator: (value) =>
-        (!value && "Username missing") ||
-        !(isElementChecked("read-swal") ||
+    inputValidator: (value: string) => {
+        if (!value) return "Username missing";
+        if (!(isElementChecked("read-swal") ||
             isElementChecked("write-swal") ||
-            isElementChecked("execute-swal")) && "Select at least one access right",
+            isElementChecked("execute-swal"))) return "Select at least one access right";
+        return null;
+    }
+
 });
 
 export function isElementChecked(id: string): boolean {
@@ -125,15 +128,19 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     }
 }
 
-export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy): SemanticICONS => {
+export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy) => {
     if (sortBy === name) {
         return sortOrder === SortOrder.DESCENDING ? "chevron down" : "chevron up";
-    }
-    return null;
+    };
+    return undefined;
 };
 
-export const extensionTypeFromPath = (path) => extensionType((extensionFromPath(path)));
-export const extensionFromPath = (path: string) => path.split(".").pop();
+export const extensionTypeFromPath = (path) => extensionType(extensionFromPath(path));
+export const extensionFromPath = (path: string): string => {
+    const extension = path.split(".").pop();
+    if (extension) return extension;
+    return "";
+}
 
 type ExtensionType = "" | "code" | "image" | "text" | "sound" | "archive"
 export const extensionType = (ext: string): ExtensionType => {
@@ -242,15 +249,14 @@ const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) 
     });
 };
 
-export const inRange = (status: number, min: number, max: number): boolean => status >= min && status <= max;
-export const inSuccessRange = (status: number): boolean => inRange(status, 200, 299);
+export const inRange = ({ status, min, max }: { status: number, min: number, max: number }): boolean =>
+    status == null || min == null || max == null ? false : status >= min && status <= max;
+export const inSuccessRange = (status: number): boolean => inRange({ status, min: 200, max: 299 });
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 export const addTrailingSlash = (path: string) => path.endsWith("/") ? path : `${path}/`;
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
-
-export const is5xxStatusCode = (status: number) => inRange(status, 500, 599);
-
-export const blankOrNull = (value: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
+export const is5xxStatusCode = (status: number) => inRange({ status, min: 500, max: 599 });
+export const blankOrUndefined = (value?: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);
 
 export const ifPresent = (f: any, handler: (f: any) => void) => {
     if (f) handler(f)
@@ -273,7 +279,8 @@ export const favoriteApplication = (app) => {
 
 export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }): number {
     let request: XMLHttpRequest = error.request;
-    let why: string = null;
+    // FIXME must be solvable more elegantly
+    let why: string | null = null;
 
     if (!!error.response && !!error.response.why) {
         why = error.response.why;

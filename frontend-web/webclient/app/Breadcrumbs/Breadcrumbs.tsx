@@ -21,7 +21,7 @@ export const BreadCrumbs = ({ currentPath, navigate }: BreadCrumbsList) => {
         <Breadcrumb size="large" className="breadcrumb-margin">
             {breadcrumbs}
             <Breadcrumb.Section active>
-                {activePathsMapping.local}
+                {activePathsMapping ? activePathsMapping.local : null}
             </Breadcrumb.Section>
             <Breadcrumb.Divider />
         </Breadcrumb>
@@ -31,7 +31,7 @@ export const BreadCrumbs = ({ currentPath, navigate }: BreadCrumbsList) => {
 
 export function buildBreadCrumbs(path: string) {
     const paths = path.split("/").filter((path: string) => path);
-    let pathsMapping:BreadCrumbMapping[] = [];
+    let pathsMapping: BreadCrumbMapping[] = [];
     for (let i = 0; i < paths.length; i++) {
         let actualPath = "/";
         for (let j = 0; j <= i; j++) {
@@ -40,7 +40,7 @@ export function buildBreadCrumbs(path: string) {
         pathsMapping.push({ actualPath: actualPath, local: paths[i] });
     }
     if (path.includes(Cloud.homeFolder)) { // remove first two indices 
-        pathsMapping = 
+        pathsMapping =
             [{ actualPath: Cloud.homeFolder, local: "Home" }].concat(pathsMapping.slice(2, pathsMapping.length));
     }
     return pathsMapping;

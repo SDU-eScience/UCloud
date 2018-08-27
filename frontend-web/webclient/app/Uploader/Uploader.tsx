@@ -32,7 +32,7 @@ interface UploaderProps {
     onFilesUploaded?: () => void
 }
 
-const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => it.uploadXHR.readyState === 4);
+const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4);
 
 const newUpload = (file: File): Upload => {
     return {
@@ -40,7 +40,7 @@ const newUpload = (file: File): Upload => {
         isUploading: false,
         progressPercentage: 0,
         extractArchive: false,
-        uploadXHR: null
+        uploadXHR: undefined
     }
 }
 
@@ -180,7 +180,7 @@ const UploaderRow = (p: {
     file: File,
     extractArchive: boolean,
     isUploading: boolean,
-    progressPercentage?: number,
+    progressPercentage: number,
     onExtractChange?: (value: boolean) => void,
     onUpload?: (e: React.MouseEvent<any>) => void,
     onDelete?: (e: React.MouseEvent<any>) => void,

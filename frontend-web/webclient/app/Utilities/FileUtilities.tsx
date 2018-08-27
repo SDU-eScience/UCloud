@@ -14,7 +14,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
     operations.setFileSelectorCallback((file) => {
         const newPath = file.path;
         operations.showFileSelector(false);
-        operations.setFileSelectorCallback(null);
+        operations.setFileSelectorCallback(undefined);
         operations.setDisallowedPaths([]);
         files.forEach((f) => {
             const currentPath = f.path;
@@ -46,7 +46,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
                 operations.fetchPageFromPath(newPathForFile);
             }).catch(() => UF.failureNotification("An error occurred, please try again later"));
             operations.showFileSelector(false);
-            operations.setFileSelectorCallback(null);
+            operations.setFileSelectorCallback(undefined);
             operations.setDisallowedPaths([]);
         });
     })
@@ -67,16 +67,16 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
  * @returns Share and Download operations for files
  */
 export const StateLessOperations = (): FileOperation[] => [
-    { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "share alternate", color: null },
-    { text: "Download", onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files), icon: "download", color: null }
+    { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "share alternate", color: undefined },
+    { text: "Download", onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files), icon: "download", color: undefined }
 ];
 
 /**
  * @returns Move and Copy operations for files
  */
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): FileOperation[] => [
-    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3, icon: "copy", color: null },
-    { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3 || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: null }
+    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3, icon: "copy", color: undefined },
+    { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3 || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: undefined }
 ];
 
 /**
@@ -100,7 +100,7 @@ export const HistoryFilesOperations = (history: History): FileOperation[] => [
     }
 ];
 
-export function AllFileOperations(stateless?: boolean, fileSelectorOps?: MoveCopyOperations, onDeleted?: () => void, history?: History) {
+export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: () => void | false, history: History | false) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps) : [];
     const deleteOperation = !!onDeleted ? DeleteFileOperation(onDeleted) : [];
@@ -170,7 +170,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
 export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: Cloud): Page<File> => {
     filesToFavorite.forEach(f => {
         const file = page.items.find((file: File) => file.path === f.path);
-        favoriteFile(file, cloud);
+        if (file) favoriteFile(file, cloud);
     });
     return page;
 };
@@ -220,7 +220,10 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop();
+export const getFilenameFromPath = (path: string): string => {
+    const p = path.split("/").filter(p => p).pop();
+    if (p) return p; else return "";
+}
 
 export const downloadFiles = (files: File[], cloud: Cloud) =>
     files.map(f => f.path).forEach(p =>
@@ -287,7 +290,7 @@ export const shareFiles = (files: File[], cloud: Cloud) =>
                 path,
                 rights
             };
-            cloud.put(`/shares/`, body).then(() => ++i === paths.length ? UF.successNotification("Files shared successfully") : null)
+            cloud.put(`/shares/`, body).then((): void => { if (++i === paths.length) UF.successNotification("Files shared successfully") })
                 .catch(() => UF.failureNotification(`${getFilenameFromPath(path)} could not be shared at this time. Please try again later.`));
         });
     }); // FIXME Error handling

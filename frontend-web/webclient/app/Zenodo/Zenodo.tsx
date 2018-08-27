@@ -98,7 +98,7 @@ const TableHeader = () => (
 );
 
 const PublicationRow = ({ publication }) => {
-    let actionButton = null;
+    let actionButton: React.ReactNode = null;
     if (publication.zenodoAction) {
         actionButton = (
             <Dropdown.Item content="Finish publication at Zenodo" as="a" href={publication.zenodoAction} target="_blank" />
@@ -122,7 +122,7 @@ const PublicationRow = ({ publication }) => {
 }
 
 const mapDispatchToProps = (dispatch): ZenodoOperations => ({
-    onErrorDismiss: () => dispatch(setErrorMessage(SET_ZENODO_ERROR, null)),
+    onErrorDismiss: () => dispatch(setErrorMessage(SET_ZENODO_ERROR, undefined)),
     fetchPublications: (pageNo, pageSize) => {
         dispatch(setZenodoLoading(true));
         dispatch(fetchPublications(pageNo, pageSize))
