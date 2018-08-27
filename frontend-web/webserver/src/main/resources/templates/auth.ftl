@@ -13,11 +13,7 @@
 <input type="hidden" value="${accessToken}" id="accessToken">
 <input type="hidden" value="${refreshToken}" id="refreshToken">
 
-<script>
-    window.localStorage.setItem("accessToken", document.getElementById("accessToken").value);
-    window.localStorage.setItem("refreshToken", document.getElementById("refreshToken").value);
-    window.location.href = "/app/dashboard";
-</script>
+<script src="/api/auth-callback/auth.js"></script>
 
 </body>
 </html>
