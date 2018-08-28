@@ -22,7 +22,7 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
-class CoreAuthTest{
+class CoreAuthTest {
 
     private data class TestContext(
         val ottDao: OneTimeTokenHibernateDAO,
@@ -33,9 +33,11 @@ class CoreAuthTest{
         val tokenService: TokenService<HibernateSession>
     )
 
-    private fun Application.createCoreAuthController(db: HibernateSessionFactory,
-                                                     enablePassword: Boolean,
-                                                     enableWayf: Boolean): TestContext {
+    private fun Application.createCoreAuthController(
+        db: HibernateSessionFactory,
+        enablePassword: Boolean,
+        enableWayf: Boolean
+    ): TestContext {
         val ottDao = OneTimeTokenHibernateDAO()
         val userDao = UserHibernateDAO()
         val refreshTokenDao = RefreshTokenHibernateDAO()
@@ -171,20 +173,21 @@ class CoreAuthTest{
 
                         assertEquals(HttpStatusCode.Found, response.status())
                         val result = response.headers.values("Location").toString().trim('[', ']')
-                        assertEquals("/auth/login", result)                    }
+                        assertEquals("/auth/login", result)
+                    }
                 )
             }
         }
     }
 
     @Test
-    fun `Redirect login test - service given, no accesstoken given`() {
+    fun `Redirect login test - service given, no accessToken given`() {
         withDatabase { db ->
             withAuthMock {
+                val serviceName = "_service"
                 withTestApplication(
                     moduleFunction = {
-
-                        ServiceDAO.insert(Service("_service", "endpointOfService"))
+                        ServiceDAO.insert(Service(serviceName, "endpointOfService"))
                         createCoreAuthController(db, true, false)
                     },
 
@@ -197,7 +200,8 @@ class CoreAuthTest{
 
                         assertEquals(HttpStatusCode.Found, response.status())
                         val result = response.headers.values("Location").toString().trim('[', ']')
-                        assertEquals("/auth/login?invalid&service", result)                    }
+                        assertEquals("/auth/login?invalid&service=$serviceName", result)
+                    }
                 )
             }
         }
@@ -216,7 +220,10 @@ class CoreAuthTest{
 
                     test = {
                         val response =
-                            handleRequest(HttpMethod.Get, "/auth/login-redirect?service=_service&accessToken=access&refreshToken=rtoken") {
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/auth/login-redirect?service=_service&accessToken=access&refreshToken=rtoken"
+                            ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser(role = Role.ADMIN)
                             }.response

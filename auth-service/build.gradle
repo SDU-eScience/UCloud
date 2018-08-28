@@ -71,7 +71,7 @@ dependencies {
     compile "com.auth0:java-jwt:3.4.0"
     compile "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
     compile group: "com.onelogin", name: "java-saml-core", version: "2.3.0"
-    compile 'dk.sdu.cloud:service-common:0.14.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.14.1-SNAPSHOT'
 
     testCompile "junit:junit:4.12"
     testCompile "io.mockk:mockk:1.8"

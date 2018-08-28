@@ -155,7 +155,6 @@ class UserTest {
     @Test
     fun `create user - wrong JSON`() {
         withDatabase { db ->
-
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
