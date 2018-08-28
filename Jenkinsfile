@@ -6,7 +6,7 @@ pipeline {
         echo 'Hello World'
         sh '''ls 
 echo "Moving to notification service"
-cd notifications
+cd notification-service
 ls'''
       }
     }
