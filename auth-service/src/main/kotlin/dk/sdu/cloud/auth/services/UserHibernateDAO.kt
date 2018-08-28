@@ -4,7 +4,6 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.ServicePrincipal
-import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.*
 import org.hibernate.annotations.NaturalId
 import java.util.*
@@ -210,7 +209,7 @@ class UserHibernateDAO : UserDAO<HibernateSession> {
     }
 }
 
-    fun Principal.toEntity(): PrincipalEntity {
+fun Principal.toEntity(): PrincipalEntity {
     return when (this) {
         is Person.ByWAYF -> PersonEntityByWAYF(
             id,
