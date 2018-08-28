@@ -73,9 +73,8 @@ class PasswordController<DBSession>(
                     "/auth/login-redirect?" +
                             "service=${service.urlEncoded}" +
                             "&accessToken=${token.accessToken.urlEncoded}" +
-                            "&refreshToken=${token.refreshToken.urlEncoded}"// +
-//                            "&csrfToken=${token.csrf.urlEncoded}"
-                // TODO
+                            "&refreshToken=${token.refreshToken.urlEncoded}" +
+                            "&csrfToken=${token.csrfToken.urlEncoded}"
                 )
             }
 

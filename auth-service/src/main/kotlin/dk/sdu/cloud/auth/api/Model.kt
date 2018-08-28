@@ -167,6 +167,6 @@ data class ServicePrincipal(
 }
 
 
-data class RequestAndRefreshToken(val accessToken: String, val refreshToken: String)
+data class AuthenticationTokens(val accessToken: String, val refreshToken: String, val csrfToken: String)
 data class AccessToken(val accessToken: String)
 data class AccessTokenAndCsrf(val accessToken: String, val csrfToken: String)

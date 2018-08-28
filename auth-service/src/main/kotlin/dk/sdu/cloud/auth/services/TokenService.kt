@@ -3,18 +3,16 @@ package dk.sdu.cloud.auth.services
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.auth.processors.generateCsrfToken
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
+import java.security.SecureRandom
 import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
@@ -24,11 +22,16 @@ class TokenService<DBSession>(
     private val userDao: UserDAO<DBSession>,
     private val refreshTokenDao: RefreshTokenDAO<DBSession>,
     private val jwtAlg: JWTAlgorithm,
-    private val userEventProducer: MappedEventProducer<String, UserEvent>,
-    private val tokenEventProducer: MappedEventProducer<String, RefreshTokenEvent>,
-    private val ottEventProducer: MappedEventProducer<String, OneTimeTokenEvent>
+    private val userCreationService: UserCreationService<*>
 ) {
     private val log = LoggerFactory.getLogger(TokenService::class.java)
+
+    private val secureRandom = SecureRandom()
+    private fun generateCsrfToken(): String {
+        val array = ByteArray(64)
+        secureRandom.nextBytes(array)
+        return Base64.getEncoder().encodeToString(array)
+    }
 
     private fun createAccessTokenForExistingSession(user: Principal): AccessToken {
         log.debug("Creating access token for existing session user=$user")
@@ -92,20 +95,20 @@ class TokenService<DBSession>(
         withClaim("principalType", type)
     }
 
-    fun createAndRegisterTokenFor(user: Principal): RequestAndRefreshToken {
+    fun createAndRegisterTokenFor(user: Principal): AuthenticationTokens {
         log.debug("Creating and registering token for $user")
         val accessToken = createAccessTokenForExistingSession(user).accessToken
         val refreshToken = UUID.randomUUID().toString()
+        val csrf = generateCsrfToken()
 
-        launch {
-            val createEvent = RefreshTokenEvent.Created(refreshToken, user.id)
-            tokenEventProducer.emit(createEvent)
-
-            val invokeEvent = RefreshTokenEvent.Invoked(refreshToken, accessToken)
-            tokenEventProducer.emit(invokeEvent)
+        val tokens = AuthenticationTokens(accessToken, refreshToken, csrf)
+        db.withTransaction {
+            val tokenAndUser = RefreshTokenAndUser(user.id, tokens.refreshToken, tokens.csrfToken)
+            log.debug(tokenAndUser.toString())
+            refreshTokenDao.insert(it, tokenAndUser)
         }
 
-        return RequestAndRefreshToken(accessToken, refreshToken)
+        return tokens
     }
 
     fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
@@ -126,11 +129,7 @@ class TokenService<DBSession>(
                     log.debug("User not found. Creating new user...")
 
                     val userCreated = PersonUtils.createUserByWAYF(samlRequestProcessor)
-                    log.debug("userCreated=$userCreated")
-                    launch {
-                        userEventProducer.emit(UserEvent.Created(id, userCreated))
-                    }
-
+                    userCreationService.blockingCreateUser(userCreated)
                     userCreated
                 }
             }
@@ -159,23 +158,11 @@ class TokenService<DBSession>(
                 userDao.findByIdOrNull(it, validated.subject) ?: throw RefreshTokenException.InternalError()
             }
 
-        val oneTimeToken = createOneTimeAccessTokenForExistingSession(user, *audience)
-        launch {
-            val invokeEvent = RefreshTokenEvent.InvokedOneTime(
-                jwt, audience.toList(),
-                oneTimeToken.accessToken
-            )
-            tokenEventProducer.emit(invokeEvent)
-
-            val createdEvent = OneTimeTokenEvent.Created(oneTimeToken.jti)
-            ottEventProducer.emit(createdEvent)
-        }
-
-        return oneTimeToken
+        return createOneTimeAccessTokenForExistingSession(user, *audience)
     }
 
     fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
-        val accessTokenAndCsrf = db.withTransaction { session ->
+        return db.withTransaction { session ->
             log.debug("Refreshing token: rawToken=$rawToken")
             val token = refreshTokenDao.findById(session, rawToken) ?: run {
                 log.debug("Could not find token!")
@@ -200,22 +187,11 @@ class TokenService<DBSession>(
             val accessToken = createAccessTokenForExistingSession(user)
             AccessTokenAndCsrf(accessToken.accessToken, newCsrf)
         }
-
-        launch {
-            val invokeEvent = RefreshTokenEvent.Invoked(rawToken, accessTokenAndCsrf.accessToken)
-            tokenEventProducer.emit(invokeEvent)
-        }
-        return accessTokenAndCsrf
     }
 
     fun logout(refreshToken: String) {
-        val token = db.withTransaction {
-            refreshTokenDao.findById(it, refreshToken) ?: throw RefreshTokenException.InvalidToken()
-        }
-
-        launch {
-            val event = RefreshTokenEvent.Invalidated(token.token)
-            tokenEventProducer.emit(event)
+        db.withTransaction {
+            if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
         }
     }
 

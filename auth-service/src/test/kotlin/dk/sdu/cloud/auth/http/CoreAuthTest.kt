@@ -48,8 +48,6 @@ class CoreAuthTest {
             userDao,
             refreshTokenDao,
             jwtAlg,
-            mockk(relaxed = true),
-            mockk(relaxed = true),
             mockk(relaxed = true)
         )
         installDefaultFeatures(
