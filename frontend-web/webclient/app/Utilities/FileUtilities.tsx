@@ -1,7 +1,6 @@
 import Cloud from "Authentication/lib";
 import { File, MoveCopyOperations, FileOperation, SortOrder, SortBy, Acl, Annotation, AnnotationsMap } from "Files";
-import { Page, AccessRight } from "Types";
-import { RightsMap } from "DefaultObjects";
+import { Page } from "Types";
 import { History } from "history";
 import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
@@ -55,13 +54,17 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
     const paths = files.map(it => it.path);
     // FIXME Very slow
-    page.items.forEach(it => {
-        if (paths.some(p => p === it.path)) {
-            it.beingRenamed = true
+    page.items.forEach((file: File) => {
+        if (paths.some((p: string) => p === file.path)) {
+            file.beingRenamed = true
         }
     });
     return page;
 }
+
+type AccessRight = "READ" | "WRITE" | "EXECUTE";
+const hasAccess = (accessRight: AccessRight, file: File) => file.acl.every(acl => acl.rights.some(it => it === accessRight));
+const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => files.every(f => hasAccess(accessRight, f));
 
 /**
  * @returns Share and Download operations for files
@@ -75,8 +78,8 @@ export const StateLessOperations = (): FileOperation[] => [
  * @returns Move and Copy operations for files
  */
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): FileOperation[] => [
-    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3, icon: "copy", color: undefined },
-    { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3 || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: undefined }
+    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files), icon: "copy", color: undefined },
+    { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: undefined }
 ];
 
 /**
@@ -85,7 +88,7 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @returns the Delete operation
  */
 export const DeleteFileOperation = (onDeleted: () => void): FileOperation[] => [
-    { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => getCurrentRights(files, cloud).rightsLevel < 3 || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
+    { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
 ];
 
 /**
@@ -263,26 +266,13 @@ export const fileSizeToString = (bytes: number): string => {
     }
 };
 
-export const getCurrentRights = (files: File[], cloud: Cloud) => {
-    let lowestPrivilegeOptions = RightsMap["OWN"];
-    files.forEach((it) => {
-        it.acl.filter((acl: Acl) => acl.entity.displayName === cloud.username).forEach((acl: Acl) => {
-            lowestPrivilegeOptions = Math.min(RightsMap[acl.right], lowestPrivilegeOptions);
-        });
-    });
-    return {
-        rightsName: Object.keys(RightsMap)[lowestPrivilegeOptions],
-        rightsLevel: lowestPrivilegeOptions
-    }
-};
-
 export const shareFiles = (files: File[], cloud: Cloud) =>
     UF.shareSwal().then((input) => {
         if (input.dismiss) return;
         const rights = [] as string[];
-        if (UF.isElementChecked("read-swal")) rights.push(AccessRight.READ);
-        if (UF.isElementChecked("write-swal")) rights.push(AccessRight.WRITE);
-        if (UF.isElementChecked("execute-swal")) rights.push(AccessRight.EXECUTE);
+        if (UF.isElementChecked("read-swal")) rights.push("READ");
+        if (UF.isElementChecked("write-swal")) rights.push("WRITE");
+        if (UF.isElementChecked("execute-swal")) rights.push("EXECUTE");
         let i = 0;
         files.map((f) => f.path).forEach((path, i, paths) => {
             const body = {

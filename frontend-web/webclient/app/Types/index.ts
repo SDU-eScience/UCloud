@@ -9,7 +9,7 @@ export interface SidebarOption {
 export interface Page<T> {
     itemsInTotal: number,
     itemsPerPage: number,
-
+    pagesInTotal: number
     pageNumber: number,
     items: T[]
 }

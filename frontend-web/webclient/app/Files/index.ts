@@ -20,7 +20,7 @@ export interface File {
     modifiedAt: number
     ownerName: string
     size: number
-    acl: Array<Acl>
+    acl: Acl[]
     favorited: boolean
     sensitivityLevel: string
     isChecked?: boolean
@@ -32,15 +32,9 @@ export interface File {
 }
 
 export interface Acl {
-    entity: Entity
-    right: string
-}
-
-export interface Entity {
-    type: string
-    name: string
-    displayName: string
-    zone: string
+    entity: string
+    rights: string[]
+    group: boolean
 }
 
 export enum SortBy {
