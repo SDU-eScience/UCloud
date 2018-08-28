@@ -36,14 +36,14 @@ pipeline {
         stage('Test App-service') {
           steps {
             sh '''cd app-service
-gradlew build test'''
+./gradlew build test'''
           }
         }
         stage('Test Client-core') {
           steps {
             sh '''cd client-core
 
-gradlew build test'''
+./gradlew build test'''
           }
         }
       }
