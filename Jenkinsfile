@@ -7,5 +7,11 @@ pipeline {
 ./gradlew build -x test'''
       }
     }
+    stage('Test') {
+      steps {
+        sh '''cd notification-service
+./gradlew test'''
+      }
+    }
   }
 }
