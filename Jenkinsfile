@@ -1,10 +1,10 @@
 pipeline {
   agent any
   stages {
-    stage('test') {
+    stage('Build') {
       steps {
         echo 'Moving to Notifications-service'
-        sh 'cd notifications-service'
+        sh 'cd notification-service'
         echo 'Building Gradle'
         sh './gradlew build'
       }
