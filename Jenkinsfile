@@ -4,7 +4,7 @@ pipeline {
     stage('Build') {
       steps {
         sh '''cd notification-service
-./gradlew build'''
+./gradlew build -x test'''
       }
     }
   }
