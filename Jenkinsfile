@@ -30,7 +30,7 @@ pipeline {
         stage('Test Notification-service') {
           steps {
             sh '''cd notification-service
-./gradlew test'''
+./gradlew test --continue'''
           }
         }
         stage('Test App-service') {
