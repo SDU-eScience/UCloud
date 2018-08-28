@@ -27,7 +27,7 @@ import * as Metadata from "Metadata";
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
 const Core = () => (
-    <React.Fragment>
+    <>
         <Header />
         <Sidebar open={false} setSidebarState={(o) => null}>
             <Switch>
@@ -58,7 +58,7 @@ const Core = () => (
             </Switch>
         </Sidebar>
         <UppyWrapper />
-    </React.Fragment >
+    </ >
 );
 
 export default Core;

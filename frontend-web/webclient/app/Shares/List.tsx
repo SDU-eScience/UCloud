@@ -47,7 +47,7 @@ export class List extends React.Component<ListProps, ListState> {
         const noSharesWith = shares.filter(it => !it.sharedByMe).length === 0;
         const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
         return (
-            <React.Fragment>
+            <>
                 {errorMessage ? <Message color="red" onDismiss={() => this.setState({ errorMessage: undefined })}>{errorMessage}</Message> : null}
                 <DefaultLoading loading={this.state.loading} size="big" />
                 <Header>Shared with Me</Header>
@@ -74,7 +74,7 @@ export class List extends React.Component<ListProps, ListState> {
                         onRights={e => this.onEntryAction(e)}
                         onError={it => this.setState({ errorMessage: it })} />
                 )}
-            </React.Fragment>
+            </>
         );
     }
 

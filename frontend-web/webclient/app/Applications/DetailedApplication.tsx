@@ -82,9 +82,7 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
 const ApplicationTags = (props: { tags: string[] }) => {
     const mockedTags = ["nanomachines", "medication", "megamachines", "hyper light simulation", "teleportation research"];
     return (
-        <React.Fragment>
-            {mockedTags.map((tag, i) => <Label key={i} basic content={tag} />)}
-        </React.Fragment>
+        <>{mockedTags.map((tag, i) => <Label key={i} basic content={tag} />)}</>
     )
 };
 

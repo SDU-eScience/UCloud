@@ -92,7 +92,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
             return (<NotConnectedToZenodo />);
         }
         return (
-            <React.Fragment>
+            <>
                 <Header as="h3" >
                     <Header.Content className="mobile-padding">
                         File Selection
@@ -132,13 +132,13 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
                         />
                     </Form.Field>
                 </Form>
-            </React.Fragment>
+            </>
         );
     }
 }
 
 const FileSelections = ({ files, handleFileSelection, removeFile }: { files: string[], handleFileSelection: Function, removeFile: Function }) => (
-    <React.Fragment>
+    <>
         {files.map((file, index) =>
             (<Form.Field key={index}>
                 <FileSelector
@@ -149,7 +149,7 @@ const FileSelections = ({ files, handleFileSelection, removeFile }: { files: str
                     remove={files.length > 1 ? () => removeFile(index) : undefined}
                 />
             </Form.Field>))}
-    </React.Fragment>
+    </>
 );
 
 const mapStateToProps = ({ zenodo }) => ({ connected: zenodo.connected, loading: zenodo.loading });

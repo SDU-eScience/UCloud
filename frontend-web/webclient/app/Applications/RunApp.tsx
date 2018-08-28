@@ -332,7 +332,7 @@ const Parameters = (props) => {
 
 const JobMetaParams = (props) => {
     return (
-        <React.Fragment>
+        <>
             <Form.Input
                 label="Jobname"
                 type="text"
@@ -353,7 +353,7 @@ const JobMetaParams = (props) => {
                 disabled
                 onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
             />
-        </React.Fragment>
+        </>
     );
 }
 
@@ -361,7 +361,7 @@ const JobSchedulingParams = (props) => {
     // TODO refactor fields, very not DRY compliant
     const { maxTime, numberOfNodes, tasksPerNode } = props.jobInfo;
     return (
-        <React.Fragment>
+        <>
             <Form.Group widths="equal">
                 <Form.Input
                     label="Number of nodes"
@@ -405,7 +405,7 @@ const JobSchedulingParams = (props) => {
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
                 />
             </Form.Group>
-        </React.Fragment>)
+        </>)
 };
 
 const parameterTypeToComponent = (type) => {

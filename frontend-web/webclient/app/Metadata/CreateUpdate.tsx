@@ -445,7 +445,7 @@ const Subjects = ({ subjects, errors, onChange }: SubjectsProps) => {
             <InputInList name="identifier" displayName="Identifier" {...sharedProps} />
         </Form.Group>;
     });
-    return <React.Fragment>{elements}</React.Fragment>;
+    return <>{elements}</>;
 };
 
 interface RelatedIdentifiersProps {
@@ -473,7 +473,7 @@ const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIde
         </Form.Group>;
     });
 
-    return <React.Fragment>{elements}</React.Fragment>;
+    return <>{elements}</>;
 };
 
 interface CollaboratorsProps {
@@ -483,7 +483,7 @@ interface CollaboratorsProps {
 }
 
 const Contributors = ({ contributors, errors, onChange }: CollaboratorsProps) =>
-    <React.Fragment>
+    <>
         {
             contributors.map((value, index) => {
                 const sharedProps = { value, onChange, index };
@@ -497,7 +497,7 @@ const Contributors = ({ contributors, errors, onChange }: CollaboratorsProps) =>
                 </Form.Group>
             })
         }
-    </React.Fragment>
+    </>
 
 const InputInList = (p: {
     name: string,
@@ -518,7 +518,7 @@ const InputInList = (p: {
     );
 
 const FormFieldList = ({ items, name, onChange }) =>
-    <React.Fragment>
+    <>
         {
             items.map((c, i) =>
                 <Form.Input
@@ -528,4 +528,4 @@ const FormFieldList = ({ items, name, onChange }) =>
                     onChange={(e, { value }) => onChange(value, i)}
                 />)
         }
-    </React.Fragment>;
+    </>;

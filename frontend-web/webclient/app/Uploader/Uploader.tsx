@@ -190,7 +190,7 @@ const UploaderRow = (p: {
     let body;
 
     if (!p.isUploading) {
-        body = <React.Fragment>
+        body = <>
             <Grid.Column width={11}>
                 {fileTitle}
                 <br />
@@ -220,9 +220,9 @@ const UploaderRow = (p: {
                     />
                 </Button.Group>
             </Grid.Column>
-        </React.Fragment>;
+        </>;
     } else {
-        body = <React.Fragment>
+        body = <>
             <Grid.Column width={4}>
                 {fileTitle}
                 <br />
@@ -249,7 +249,7 @@ const UploaderRow = (p: {
             <Grid.Column width={3}>
                 <Button icon="close" content="Cancel" fluid negative onClick={(e) => ifPresent(p.onAbort, c => c(e))} />
             </Grid.Column>
-        </React.Fragment>;
+        </>;
     }
 
     return <Card fluid>

@@ -45,7 +45,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
             case "code":
                 return (<code style={{ whiteSpace: "pre-wrap" }}>{this.file.content}</code>)
             case "image":
-                return (<img src={`data:image/png;${this.file.content}`} />)
+                return (<img src={`data:image/png;base64,${btoa(this.file.content)}`} />)
             case "text":
             case "sound":
             case "archive":
@@ -57,7 +57,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
     fetchFileContent() {
         if (this.file && this.file.size < 16_000_000) {
             fetchFileContent(this.filepath, Cloud)
-                .then(it => it.text().then(it => {
+                .then(it => it.blob().then(it => {
                     const { page } = this.props;
                     const item = page.items.find(it => removeTrailingSlash(it.path) === this.filepath);
                     if (item) item.content = it;

@@ -52,7 +52,7 @@ export class List extends React.PureComponent<ListProps> {
         ) : null;
 
         return (
-            <React.Fragment>
+            <>
                 {errorComponent}
                 {refreshButton}
                 <Self.EntriesPerPageSelector
@@ -70,7 +70,7 @@ export class List extends React.PureComponent<ListProps> {
                         totalPages={Math.ceil(props.page.itemsInTotal / props.page.itemsPerPage)}
                     />
                 </div>
-            </React.Fragment>
+            </>
         );
     }
 

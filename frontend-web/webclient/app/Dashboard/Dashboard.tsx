@@ -160,13 +160,13 @@ const Notification = ({ notification }: { notification: Notification }) => {
     switch (notification.type) {
         case "SHARE_REQUEST":
             return (
-                <React.Fragment>
+                <>
                     <List.Content floated="right">
                         <List.Description content={moment(new Date(notification.ts as number)).fromNow()} />
                     </List.Content>
                     <List.Icon name="share alternate" color="blue" verticalAlign="middle" />
                     <List.Content header="Share Request" description={notification.message} />
-                </React.Fragment>
+                </>
             )
         default: {
             return null;

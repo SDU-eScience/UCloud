@@ -45,7 +45,7 @@ export const View = (props: ViewProps) => {
             </Grid.Column>
             <Grid.Column width={4}>
                 {canEdit ?
-                    <React.Fragment>
+                    <>
                         <Header as="h4">
                             <Icon name="hand pointer" />
                             <Header.Content>Actions</Header.Content>
@@ -60,7 +60,7 @@ export const View = (props: ViewProps) => {
                                 </Link>
                             </List.Item>
                         </List>
-                    </React.Fragment>
+                    </>
                     : null
                 }
                 <Header as="h4">
@@ -153,7 +153,7 @@ const ContributorItem = (props: { contributor: Contributor }) => {
                 </List.Item>
             }
             content={
-                <React.Fragment>
+                <>
                     {!blankOrUndefined(contributor.affiliation) ?
                         <p><b>Affiliation:</b> {contributor.affiliation}</p>
                         : null
@@ -172,7 +172,7 @@ const ContributorItem = (props: { contributor: Contributor }) => {
                         </p>
                         : null
                     }
-                </React.Fragment>
+                </>
             }
             on="click"
             position="bottom left"

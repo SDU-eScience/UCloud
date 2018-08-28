@@ -187,7 +187,7 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
     const files = f.filter((it) => !disallowedPaths.some((d) => d === it.path));
     const { path } = props;
     return (
-        <React.Fragment>
+        <>
             <List divided size="large">
                 <List.Header>
                     Filename
@@ -214,7 +214,7 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
                 />
                 <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={canSelectFolders} />
             </List>
-        </React.Fragment>)
+        </>)
 };
 
 type CreateFolderButton = { createFolder?: () => void }
@@ -267,7 +267,7 @@ const FolderSelection = ({ canSelectFolders, setSelectedFile }) => canSelectFold
 
 const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: FileListProps) =>
     !files.length ? null :
-        (<React.Fragment>
+        (<>
             {files.map((file, index) =>
                 file.type === "FILE" ? (
                     <List.Item key={index} className="itemPadding pointer-cursor">
@@ -287,6 +287,6 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: File
                             </List.Content>
                         </List.Item>
                     ))}
-        </React.Fragment>);
+        </>);
 
 export default FileSelector;

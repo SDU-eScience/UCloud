@@ -246,7 +246,7 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
                 <Dropdown.Item key={i} onClick={() => onSelect(sortOrder, sortByKey)} text={UF.prettierString(sortByKey)} />
             ))}
         </Dropdown.Menu>
-    </Dropdown>) : <React.Fragment>{UF.prettierString(currentSelection)}</React.Fragment>;
+    </Dropdown>) : <>{UF.prettierString(currentSelection)}</>;
 
 const ContextBar = ({ currentPath, files, ...props }: ContextBarProps) => (
     <div>

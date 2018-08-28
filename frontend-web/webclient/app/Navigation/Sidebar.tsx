@@ -45,7 +45,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
         );
 
         return (
-            <React.Fragment>
+            <>
                 <Responsive minWidth={1000}>
                     <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
                         <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={() => setSidebarState(false)} />
@@ -69,7 +69,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
                         {content}
                     </Sidebar.Pusher>
                 </Responsive>
-            </React.Fragment >
+            </ >
         );
     }
 }
@@ -98,7 +98,7 @@ const MobileSidebar = ({ handleClick, activeIndices, visible, closeSidebar }: Mo
 );
 
 const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
-    <React.Fragment>
+    <>
         <Accordion>
             <Menu.Item>
                 <MenuLink icon="home" to="/dashboard" name="Dashboard" onClick={() => closeSidebar()} />
@@ -152,7 +152,7 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
             </Menu.Item>
             <AdminOptions menuActive={activeIndices[2]} handleClick={handleClick} closeSidebar={closeSidebar} />
         </Accordion>
-    </React.Fragment>
+    </>
 );
 
 const MenuLink = ({ icon, name, to, onClick }) =>

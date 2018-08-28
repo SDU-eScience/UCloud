@@ -83,11 +83,9 @@ class SearchComponent extends React.Component<SearchProps, SearchState> {
         );
     }
 
-    pageRenderer(page: Page<ProjectMetadata>): React.ReactNode {
-        return <React.Fragment>
-            {page.items.map((item, index) => <SearchItem item={item} key={index} />)}
-        </React.Fragment>;
-    }
+    pageRenderer = (page: Page<ProjectMetadata>): React.ReactNode => (
+        <>{page.items.map((item, index) => <SearchItem item={item} key={index} />)}</>
+    )
 }
 
 export const SearchItem = ({ item }: { item: ProjectMetadata }) => (
