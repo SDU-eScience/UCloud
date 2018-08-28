@@ -31,7 +31,11 @@ pipeline {
           steps {
             sh '''cd notification-service
 ./gradlew test --continue'''
-            junit '**/notification-service/build/**/*.xml'
+          }
+          post {
+            always {
+              junit '**/notification-service/build/**/*.xml'
+            }
           }
         }
         stage('Test App-service') {
@@ -39,7 +43,11 @@ pipeline {
             sh '''cd app-service
 ./gradlew build test --continue
 '''
-            junit '**/app-service/build/**/*.xml'
+          }
+          post {
+            always {
+              junit '**/app-service/build/**/*.xml'
+            }
           }
         }
         stage('Test Client-core') {
@@ -48,7 +56,11 @@ pipeline {
 
 ./gradlew build test --continue
 '''
-            junit '**/client-core/build/**/*.xml'
+          }
+          post {
+            always {
+              junit '**/client-core/build/**/*.xml'
+            }
           }
         }
       }
