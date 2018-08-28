@@ -39,6 +39,13 @@ pipeline {
 gradlew build test'''
           }
         }
+        stage('Test Client-core') {
+          steps {
+            sh '''cd client-core
+
+gradlew build test'''
+          }
+        }
       }
     }
   }
