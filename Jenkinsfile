@@ -2,15 +2,35 @@ pipeline {
   agent any
   stages {
     stage('Build') {
-      steps {
-        sh '''cd notification-service
+      parallel {
+        stage('Build Notification-service') {
+          steps {
+            sh '''cd notification-service
 ./gradlew build -x test'''
+          }
+        }
+        stage('Build App-service') {
+          steps {
+            sh '''cd app-service
+gradlew build -x test'''
+          }
+        }
       }
     }
     stage('Test') {
-      steps {
-        sh '''cd notification-service
+      parallel {
+        stage('Test Notification-service') {
+          steps {
+            sh '''cd notification-service
 ./gradlew test'''
+          }
+        }
+        stage('Test App-service') {
+          steps {
+            sh '''cd app-service
+gradlew build test'''
+          }
+        }
       }
     }
   }
