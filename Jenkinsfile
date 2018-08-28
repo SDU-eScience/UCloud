@@ -37,7 +37,8 @@ pipeline {
         stage('Test App-service') {
           steps {
             sh '''cd app-service
-./gradlew build test'''
+./gradlew build test --continue
+'''
             junit '**/app-service/build/**/*.xml'
           }
         }
@@ -45,7 +46,8 @@ pipeline {
           steps {
             sh '''cd client-core
 
-./gradlew build test'''
+./gradlew build test --continue
+'''
             junit '**/client-core/build/**/*.xml'
           }
         }
