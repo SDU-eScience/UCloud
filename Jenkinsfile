@@ -12,8 +12,7 @@ pipeline {
         stage('Build App-service') {
           steps {
             sh '''cd app-service
-ls
-gradlew build -x test
+./gradlew build -x test
 '''
           }
         }
