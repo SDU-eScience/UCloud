@@ -3,9 +3,11 @@ package dk.sdu.cloud.auth.services
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.processors.generateCsrfToken
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -111,9 +113,10 @@ class TokenService<DBSession>(
             log.debug("Processing SAML response")
             if (samlRequestProcessor.authenticated) {
                 val id =
-                    samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull() ?: throw IllegalArgumentException(
-                        "Missing EduPersonTargetedId"
-                    )
+                    samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
+                            ?: throw IllegalArgumentException(
+                                "Missing EduPersonTargetedId"
+                            )
 
                 log.debug("User is authenticated with id $id")
 
@@ -171,11 +174,16 @@ class TokenService<DBSession>(
         return oneTimeToken
     }
 
-    fun refresh(rawToken: String): AccessToken {
-        val accessToken = db.withTransaction { session ->
+    fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
+        val accessTokenAndCsrf = db.withTransaction { session ->
             log.debug("Refreshing token: rawToken=$rawToken")
             val token = refreshTokenDao.findById(session, rawToken) ?: run {
                 log.debug("Could not find token!")
+                throw RefreshTokenException.InvalidToken()
+            }
+
+            if (csrfToken != null && csrfToken != token.csrf) {
+                log.info("Invalid CSRF token")
                 throw RefreshTokenException.InvalidToken()
             }
 
@@ -187,14 +195,17 @@ class TokenService<DBSession>(
                 throw RefreshTokenException.InternalError()
             }
 
-            createAccessTokenForExistingSession(user)
+            val newCsrf = generateCsrfToken()
+            refreshTokenDao.updateCsrf(session, rawToken, newCsrf)
+            val accessToken = createAccessTokenForExistingSession(user)
+            AccessTokenAndCsrf(accessToken.accessToken, newCsrf)
         }
 
         launch {
-            val invokeEvent = RefreshTokenEvent.Invoked(rawToken, accessToken.accessToken)
+            val invokeEvent = RefreshTokenEvent.Invoked(rawToken, accessTokenAndCsrf.accessToken)
             tokenEventProducer.emit(invokeEvent)
         }
-        return accessToken
+        return accessTokenAndCsrf
     }
 
     fun logout(refreshToken: String) {
@@ -208,15 +219,9 @@ class TokenService<DBSession>(
         }
     }
 
-    sealed class RefreshTokenException : Exception() {
-        abstract val httpCode: HttpStatusCode
-
-        class InvalidToken : RefreshTokenException() {
-            override val httpCode = HttpStatusCode.Unauthorized
-        }
-
-        class InternalError : RefreshTokenException() {
-            override val httpCode = HttpStatusCode.InternalServerError
-        }
+    sealed class RefreshTokenException(why: String, httpStatusCode: HttpStatusCode) :
+        RPCException(why, httpStatusCode) {
+        class InvalidToken : RefreshTokenException("Invalid token", HttpStatusCode.Unauthorized)
+        class InternalError : RefreshTokenException("Internal server error", HttpStatusCode.InternalServerError)
     }
 }

@@ -8,6 +8,16 @@ import dk.sdu.cloud.service.db.withTransaction
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Predicate
 import org.slf4j.LoggerFactory
+import java.security.SecureRandom
+import java.util.*
+
+// TODO Placed here for now. We will remove most of the event-driven stuff anyway
+private val secureRandom = SecureRandom()
+fun generateCsrfToken(): String {
+    val array = ByteArray(64)
+    secureRandom.nextBytes(array)
+    return Base64.getEncoder().encodeToString(array)
+}
 
 class RefreshTokenProcessor<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -30,7 +40,9 @@ class RefreshTokenProcessor<DBSession>(
         createdStream.foreach { _, value ->
             log.info("Handling event: $value")
             db.withTransaction {
-                refreshTokenDAO.insert(it, RefreshTokenAndUser(value.associatedUser, value.token))
+                val tokenAndUser = RefreshTokenAndUser(value.associatedUser, value.token, generateCsrfToken())
+                log.debug(tokenAndUser.toString())
+                refreshTokenDAO.insert(it, tokenAndUser)
             }
         }
 

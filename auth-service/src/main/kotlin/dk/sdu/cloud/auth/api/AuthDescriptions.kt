@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.api
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import io.ktor.http.HttpMethod
 
@@ -17,6 +18,17 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
         path {
             using(baseContext)
             +"refresh"
+        }
+    }
+
+    val webRefresh = callDescription<Unit, AccessTokenAndCsrf, CommonErrorMessage> {
+        method = HttpMethod.Post
+        prettyName = "refresh-web"
+
+        path {
+            using(baseContext)
+            +"refresh"
+            +"web"
         }
     }
 

@@ -6,7 +6,6 @@ import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.utils.withAuthMock
 import dk.sdu.cloud.auth.utils.withDatabase
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -18,7 +17,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.withTestApplication
-import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
 import java.util.*
@@ -240,7 +238,7 @@ class CoreAuthTest{
 
                         db.withTransaction { session ->
                             UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
                         }
                     },
 
@@ -268,7 +266,7 @@ class CoreAuthTest{
 
                         db.withTransaction { session ->
                             UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user", ""))
                         }
                     },
 
@@ -296,7 +294,7 @@ class CoreAuthTest{
 
                         db.withTransaction { session ->
                             UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
                         }
                     },
 
@@ -324,7 +322,7 @@ class CoreAuthTest{
 
                         db.withTransaction { session ->
                             UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
                         }
                     },
 
@@ -352,7 +350,7 @@ class CoreAuthTest{
 
                         db.withTransaction { session ->
                             UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
                         }
                     },
 
@@ -388,7 +386,7 @@ class CoreAuthTest{
                                     "password"
                                 )
                             )
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/USER"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/USER", ""))
                         }
                     },
 
@@ -416,7 +414,7 @@ class CoreAuthTest{
 
                         db.withTransaction { session ->
                             UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
                         }
                     },
 
@@ -452,7 +450,7 @@ class CoreAuthTest{
 
                         db.withTransaction { session ->
                             UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN"))
+                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
                         }
                     },
 

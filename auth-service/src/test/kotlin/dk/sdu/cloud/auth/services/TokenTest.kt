@@ -147,7 +147,7 @@ class TokenTest{
             db.withTransaction { session ->
                 UserHibernateDAO().insert(session, person)
 
-                val refreshTAU = RefreshTokenAndUser(email, token)
+                val refreshTAU = RefreshTokenAndUser(email, token, "")
                 val refreshHibernateTAU = RefreshTokenHibernateDAO()
                 refreshHibernateTAU.insert(session, refreshTAU)
 
@@ -182,7 +182,7 @@ class TokenTest{
             db.withTransaction { session ->
                 UserHibernateDAO().insert(session, person)
 
-                val refreshTAU = RefreshTokenAndUser(email, token)
+                val refreshTAU = RefreshTokenAndUser(email, token, "")
                 RefreshTokenHibernateDAO().insert(session, refreshTAU)
             }
 
