@@ -48,5 +48,10 @@ pipeline {
         }
       }
     }
+    stage('Collect Test Results') {
+      steps {
+        junit '**/notification-service/build/**/*.xml'
+      }
+    }
   }
 }
