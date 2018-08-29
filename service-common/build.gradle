@@ -13,14 +13,13 @@ buildscript {
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath "org.jetbrains.dokka:dokka-gradle-plugin:${dokka_version}"
-        classpath 'net.saliman:gradle-cobertura-plugin:2.5.4'
     }
 }
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
 apply plugin: 'org.jetbrains.dokka'
-apply plugin: 'cobertura'
+apply plugin: 'jacoco'
 
 dokka {
     outputFormat = "html"
@@ -101,12 +100,18 @@ compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
 }
 
-cobertura {
-    coverageFormats = ['html', 'xml']
-    coverageIgnoreTrivial = false
-    coverageIgnores = ['org.slf4j.Logger.*']
-    coverageReportDir = new File("$buildDir/reports/cobertura")
+jacocoTestReport {
+    reports {
+        xml {
+            enabled true // coveralls plugin depends on xml format report
+        }
+
+        html {
+            enabled true
+        }
+    }
 }
+test.finalizedBy(project.tasks.jacocoTestReport)
 
 kotlin {
     experimental {
@@ -151,6 +156,5 @@ publishing {
     }
 }
 
-test.finalizedBy(project.tasks.cobertura)
 
 
