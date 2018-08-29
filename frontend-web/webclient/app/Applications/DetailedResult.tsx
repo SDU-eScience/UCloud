@@ -15,8 +15,10 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";
 import { File, SortBy, SortOrder } from "Files";
+import { AllFileOperations } from "Utilities/FileUtilities";
 import { filepathQuery, favoriteFileFromPage } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
+import { History } from "history";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -57,6 +59,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         if (this.state.reloadIntervalId) window.clearInterval(this.state.reloadIntervalId);
         this.state.promises.cancelPromises();
     }
+
+    static fileOperations = (history: History) =>
+        AllFileOperations(true, false, false, history)
 
     scrollIfNeeded() {
         if (!this.stdoutEl || !this.stderrEl) return;
@@ -266,7 +271,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         <FilesTable
                             sortOrder={SortOrder.ASCENDING}
                             sortBy={SortBy.PATH}
-                            fileOperations={[]}
+                            fileOperations={DetailedResult.fileOperations(this.props.history)}
                             files={page.items}
                             refetchFiles={() => null}
                             sortFiles={() => null}

@@ -24,7 +24,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.header
 import io.ktor.response.respond
-import io.ktor.response.respondFile
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Routing
 import io.ktor.routing.get
@@ -66,7 +65,7 @@ class CoreAuthController<DBSession>(
                 resource("redirect.js", resourcePackage = "assets")
             }
 
-            get("login") {
+            get("login") { _ ->
                 val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
                 val isInvalid = call.parameters["invalid"] != null
 
@@ -206,7 +205,7 @@ class CoreAuthController<DBSession>(
                 }
             }
 
-            get("login-redirect") {
+            get("login-redirect") { _ ->
                 logEntry(log, parameterIncludeFilter = {
                     it == "service" || it == "accessToken" || it == "refreshToken"
                 })
@@ -242,8 +241,6 @@ class CoreAuthController<DBSession>(
                     }
 
                     body {
-                        onLoad = "main()"
-
                         p {
                             +("If your browser does not automatically redirect you, then please " +
                                     "click submit.")
@@ -277,7 +274,7 @@ class CoreAuthController<DBSession>(
             }
 
 
-            implement(AuthDescriptions.refresh) {
+            implement(AuthDescriptions.refresh) { _ ->
                 logEntry(log, Unit) { "refreshToken=${call.request.headers[HttpHeaders.Authorization]}" }
 
                 val refreshToken = call.request.bearer ?: return@implement run {
@@ -309,9 +306,9 @@ class CoreAuthController<DBSession>(
                 }
             }
 
-            implement(AuthDescriptions.claim) {
-                logEntry(log, it)
-                val jti = it.jti
+            implement(AuthDescriptions.claim) { req ->
+                logEntry(log, req)
+                val jti = req.jti
                 val token = call.request.bearer ?: return@implement run {
                     log.debug("Missing bearer token")
                     error(HttpStatusCode.Unauthorized)
@@ -345,7 +342,7 @@ class CoreAuthController<DBSession>(
                 }
             }
 
-            implement(AuthDescriptions.logout) {
+            implement(AuthDescriptions.logout) { _ ->
                 logEntry(log, Unit) { "refresh = ${call.request.bearer}" }
 
                 // TODO Invalidate at WAYF

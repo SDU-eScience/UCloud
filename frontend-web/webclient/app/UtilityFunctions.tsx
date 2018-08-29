@@ -136,11 +136,7 @@ export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortB
 };
 
 export const extensionTypeFromPath = (path) => extensionType(extensionFromPath(path));
-export const extensionFromPath = (path: string): string => {
-    const extension = path.split(".").pop();
-    if (extension) return extension;
-    return "";
-}
+export const extensionFromPath = (path: string): string => path.split(".").pop() || "";
 
 type ExtensionType = "" | "code" | "image" | "text" | "sound" | "archive"
 export const extensionType = (ext: string): ExtensionType => {
@@ -235,7 +231,7 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     }
 };
 
-// TODO Remove navigation when backend support comes.
+// FIXME Remove navigation when backend support comes.
 export const createProject = (filePath: string, cloud: Cloud, navigate: (path: string) => void) =>
     cloud.put("/projects", { fsRoot: filePath }).then(() => {
         redirectToProject(filePath, cloud, navigate, 5);
@@ -267,6 +263,7 @@ export const downloadAllowed = (files: File[]) =>
 
 export const prettierString = (str: string) => toLowerCaseAndCapitalize(str).replace(/_/g, " ")
 
+// FIXME move to ApplicationUtilities
 export const favoriteApplication = (app) => {
     app.favorite = !app.favorite;
     if (app.favorite) {

@@ -59,6 +59,7 @@ export interface AnalysesState {
 export interface DetailedResultProps {
     dispatch: Dispatch
     match: match<{ jobId: string }>
+    history: History
 }
 
 export interface Application {

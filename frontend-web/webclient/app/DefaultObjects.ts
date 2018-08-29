@@ -28,14 +28,7 @@ export enum KeyCode {
     B = 66
 }
 
-export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0 };
-
-export const RightsMap: { [s: string]: number } = {
-    "NONE": 0,
-    "READ": 1,
-    "READ_WRITE": 2,
-    "EXECUTE": 3
-};
+export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0 };
 
 export enum AnalysesStatusMap {
     "PENDING",

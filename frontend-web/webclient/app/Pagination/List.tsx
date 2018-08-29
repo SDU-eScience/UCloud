@@ -67,7 +67,7 @@ export class List extends React.PureComponent<ListProps> {
                         as="span"
                         currentPage={props.page.pageNumber}
                         toPage={(page) => ifPresent(props.onPageChanged, (c) => c(page))}
-                        totalPages={Math.ceil(props.page.itemsInTotal / props.page.itemsPerPage)}
+                        totalPages={props.page.pagesInTotal + 1}
                     />
                 </div>
             </>
