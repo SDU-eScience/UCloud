@@ -109,7 +109,11 @@ class TokenTest {
             with(createTokenService(db, jwtAlg)) {
                 val auth = mockk<SamlRequestProcessor>()
                 every { auth.authenticated } returns true
-                every { auth.attributes } returns HashMap(1)
+                val fuck = hashMapOf<String, List<String>>()
+                every { auth.attributes } answers {
+                    println("Fuck")
+                    fuck
+                }
                 assertNull(tokenService.processSAMLAuthentication(auth))
             }
         }

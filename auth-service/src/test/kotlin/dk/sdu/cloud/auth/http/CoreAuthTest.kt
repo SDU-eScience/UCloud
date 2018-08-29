@@ -6,25 +6,25 @@ import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.utils.withAuthMock
 import dk.sdu.cloud.auth.utils.withDatabase
+import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
 import io.ktor.application.install
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.routing.routing
-import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.withTestApplication
+import io.ktor.server.testing.*
 import io.mockk.mockk
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class CoreAuthTest {
-
     private data class TestContext(
+        val db: HibernateSessionFactory,
         val ottDao: OneTimeTokenHibernateDAO,
         val userdao: UserHibernateDAO,
         val refreshTokenDao: RefreshTokenHibernateDAO,
@@ -69,7 +69,57 @@ class CoreAuthTest {
             ).configure(this)
         }
 
-        return TestContext(ottDao, userDao, refreshTokenDao, jwtAlg, config, tokenService)
+        return TestContext(db, ottDao, userDao, refreshTokenDao, jwtAlg, config, tokenService)
+    }
+
+    private fun withBasicSetup(
+        enablePassword: Boolean = true,
+        enableWayf: Boolean = false,
+        test: TestApplicationEngine.(ctx: TestContext) -> Unit
+    ) {
+        lateinit var ctx: TestContext
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        ctx = createCoreAuthController(db, enablePassword, enableWayf)
+                    },
+
+                    test = {
+                        test(ctx)
+                    }
+                )
+            }
+        }
+    }
+
+    private fun TestContext.createUser(
+        session: HibernateSession,
+        username: String,
+        role: Role = Role.USER,
+        password: String = "password"
+    ) {
+        userdao.insert(
+            session,
+            PersonUtils.createUserByPassword(
+                "firstname",
+                "lastname",
+                username,
+                role,
+                password
+            )
+        )
+    }
+
+    private fun TestContext.createRefreshToken(
+        session: HibernateSession,
+        username: String,
+        role: Role = Role.USER,
+        csrf: String = "csrf"
+    ): RefreshTokenAndUser {
+        val tokenAndUser = RefreshTokenAndUser(username, "$username/$role", csrf)
+        refreshTokenDao.insert(session, tokenAndUser)
+        return tokenAndUser
     }
 
     private val person = PersonUtils.createUserByPassword(
@@ -80,396 +130,441 @@ class CoreAuthTest {
         "password"
     )
 
+    fun TestApplicationEngine.sendRequest(
+        method: HttpMethod,
+        uri: String,
+        user: String = "user",
+        role: Role = Role.USER,
+        addUser: Boolean = true,
+        setup: TestApplicationRequest.() -> Unit = {}
+    ): TestApplicationCall {
+        return handleRequest(method, uri) {
+            addHeader("Job-Id", UUID.randomUUID().toString())
+            if (addUser) setUser(username = user, role = role)
+            setup()
+        }
+    }
+
     @Test
     fun `Login Test - service given, isInvalid True, Wayf false, password true`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        ServiceDAO.insert(Service("_service", "endpointOfService"))
-
-                        createCoreAuthController(db, true, false)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/auth/login?service=_service&invalid=true") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-                    }
-                )
-            }
+        withBasicSetup(enablePassword = true, enableWayf = false) { _ ->
+            val serviceName = "_service"
+            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
+            val response =
+                sendRequest(HttpMethod.Get, "/auth/login?service=$serviceName&invalid=true", addUser = false).response
+            assertEquals(HttpStatusCode.OK, response.status())
         }
     }
 
     @Test
     fun `Login Test - service given, isInvalid True, Wayf true, password false`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        ServiceDAO.insert(Service("_service", "endpointOfService"))
-
-                        createCoreAuthController(db, false, true)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/auth/login?service=_service&invalid=true") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-                    }
-                )
-            }
+        withBasicSetup(enablePassword = false, enableWayf = true) { ctx ->
+            val serviceName = "_service"
+            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
+            val response =
+                sendRequest(HttpMethod.Get, "/auth/login?service=$serviceName&isInvalid=true", addUser = false).response
+            assertEquals(HttpStatusCode.OK, response.status())
         }
     }
 
     @Test
     fun `Login test - no service given`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/auth/login") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-                    }
-                )
-            }
+        withBasicSetup {
+            val response = sendRequest(HttpMethod.Get, "/auth/login", addUser = false).response
+            assertEquals(HttpStatusCode.OK, response.status())
         }
     }
 
     @Test
     fun `Redirect login test - no service given`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/auth/login-redirect") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.Found, response.status())
-                        val result = response.headers.values("Location").toString().trim('[', ']')
-                        assertEquals("/auth/login", result)
-                    }
-                )
-            }
+        withBasicSetup {
+            val response = sendRequest(HttpMethod.Get, "/auth/login-redirect").response
+            assertEquals(HttpStatusCode.Found, response.status())
+            val result = response.headers.values("Location").toString().trim('[', ']')
+            assertEquals("/auth/login", result)
         }
     }
 
     @Test
     fun `Redirect login test - service given, no accessToken given`() {
-        withDatabase { db ->
-            withAuthMock {
-                val serviceName = "_service"
-                withTestApplication(
-                    moduleFunction = {
-                        ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-                        createCoreAuthController(db, true, false)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/auth/login-redirect?service=_service") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.Found, response.status())
-                        val result = response.headers.values("Location").toString().trim('[', ']')
-                        assertEquals("/auth/login?invalid&service=$serviceName", result)
-                    }
-                )
-            }
+        withBasicSetup {
+            val serviceName = "_service"
+            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
+            val response = sendRequest(HttpMethod.Get, "/auth/login-redirect?service=$serviceName").response
+            assertEquals(HttpStatusCode.Found, response.status())
+            val result = response.headers.values("Location").toString().trim('[', ']')
+            assertEquals("/auth/login?invalid&service=$serviceName", result)
         }
     }
 
     @Test
-    fun `Redirect login test - service given, accesstoken given`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        ServiceDAO.insert(Service("_service", "endpointOfService"))
+    fun `Redirect login test - service given, accessToken given`() {
+        withBasicSetup {
+            val serviceName = "_service"
+            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
 
-                        createCoreAuthController(db, true, false)
-                    },
+            val response = sendRequest(
+                HttpMethod.Get,
+                "/auth/login-redirect?service=$serviceName&accessToken=access&refreshToken=rtoken"
+            ).response
 
-                    test = {
-                        val response =
-                            handleRequest(
-                                HttpMethod.Get,
-                                "/auth/login-redirect?service=_service&accessToken=access&refreshToken=rtoken"
-                            ) {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-                    }
-                )
-            }
+            assertEquals(HttpStatusCode.OK, response.status())
         }
     }
 
     @Test
     fun `Refresh test`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-
-                        db.withTransaction { session ->
-                            UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
-                        }
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/auth/refresh") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-                    }
-                )
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.ADMIN
+            ctx.db.withTransaction {
+                ctx.createUser(it, username, role)
+                ctx.createRefreshToken(it, username, role)
             }
+
+            val response = sendRequest(HttpMethod.Post, "/auth/refresh", user = username, role = role).response
+            assertEquals(HttpStatusCode.OK, response.status())
         }
     }
 
     @Test
     fun `Refresh test - unauthorized`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-
-                        db.withTransaction { session ->
-                            UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user", ""))
-                        }
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/auth/refresh") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.Unauthorized, response.status())
-                    }
-                )
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.ADMIN
+            ctx.db.withTransaction {
+                ctx.createUser(it, username, role)
+                ctx.createRefreshToken(it, username, role)
             }
+
+            val response = sendRequest(HttpMethod.Post, "/auth/refresh", addUser = false) {
+                addHeader("Authorization", "Bearer bad-token")
+            }.response
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Refresh test - no token`() {
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.ADMIN
+            ctx.db.withTransaction {
+                ctx.createUser(it, username, role)
+                ctx.createRefreshToken(it, username, role)
+            }
+
+            val response = sendRequest(HttpMethod.Post, "/auth/refresh", addUser = false).response
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
         }
     }
 
     @Test
     fun `Request test`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-
-                        db.withTransaction { session ->
-                            UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
-                        }
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/auth/request?audience=user") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-                    }
-                )
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.ADMIN
+            ctx.db.withTransaction {
+                ctx.createUser(it, username, role)
+                ctx.createRefreshToken(it, username, role)
             }
+
+            val response =
+                sendRequest(HttpMethod.Post, "/auth/request?audience=user", user = username, role = role).response
+            assertEquals(HttpStatusCode.OK, response.status())
         }
     }
 
     @Test
     fun `Request test - missing params`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-
-                        db.withTransaction { session ->
-                            UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
-                        }
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/auth/request?user") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.BadRequest, response.status())
-                    }
-                )
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.ADMIN
+            ctx.db.withTransaction {
+                ctx.createUser(it, username, role)
+                ctx.createRefreshToken(it, username, role)
             }
+
+            val response = sendRequest(HttpMethod.Post, "/auth/request?user", user = username, role = role).response
+            assertEquals(HttpStatusCode.BadRequest, response.status())
         }
     }
 
     @Test
     fun `Claim test`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-
-                        db.withTransaction { session ->
-                            UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
-                        }
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/auth/claim/givenJTI") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.NoContent, response.status())
-                    }
-                )
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.ADMIN
+            val jti = "givenJTI"
+            ctx.db.withTransaction {
+                ctx.createUser(it, username, role)
+                ctx.createRefreshToken(it, username, role)
             }
+
+            val response = sendRequest(HttpMethod.Post, "/auth/claim/$jti", user = username, role = role).response
+            assertEquals(HttpStatusCode.NoContent, response.status())
         }
     }
 
     @Test
     fun `Claim test - Unauthorized not ADMIN or SERVICE`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-
-                        db.withTransaction { session ->
-                            UserHibernateDAO().insert(
-                                session, PersonUtils.createUserByPassword(
-                                    "firstname",
-                                    "lastname",
-                                    "user",
-                                    Role.USER,
-                                    "password"
-                                )
-                            )
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/USER", ""))
-                        }
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/auth/claim/givenJTI") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.USER)
-                            }.response
-
-                        assertEquals(HttpStatusCode.Forbidden, response.status())
-                    }
-                )
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.USER
+            ctx.db.withTransaction { session ->
+                ctx.createUser(session, username, role)
+                ctx.createRefreshToken(session, username, role)
             }
+
+            val response =
+                sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role).response
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Claim test - No token`() {
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.USER
+            ctx.db.withTransaction { session ->
+                ctx.createUser(session, username, role)
+                ctx.createRefreshToken(session, username, role)
+            }
+
+            val response =
+                sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", addUser = false).response
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
         }
     }
 
     @Test
     fun `Claim test - claim same`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
-
-                        db.withTransaction { session ->
-                            UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
-                        }
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/auth/claim/givenJTI") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.NoContent, response.status())
-
-                        val response2 =
-                            handleRequest(HttpMethod.Post, "/auth/claim/givenJTI") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.Conflict, response2.status())
-                    }
-                )
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.ADMIN
+            ctx.db.withTransaction { session ->
+                ctx.createUser(session, username, role)
+                ctx.createRefreshToken(session, username, role)
             }
+
+            val response1 = sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role).response
+            assertEquals(HttpStatusCode.NoContent, response1.status())
+
+            val response2 = sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role).response
+            assertEquals(HttpStatusCode.Conflict, response2.status())
         }
     }
 
     @Test
     fun `Logout Test`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        createCoreAuthController(db, true, false)
+        withBasicSetup { ctx ->
+            val (username, role) = "user" to Role.USER
+            ctx.db.withTransaction { session ->
+                ctx.createUser(session, username, role)
+                ctx.createRefreshToken(session, username, role)
+            }
 
-                        db.withTransaction { session ->
-                            UserHibernateDAO().insert(session, person)
-                            RefreshTokenHibernateDAO().insert(session, RefreshTokenAndUser("user", "user/ADMIN", ""))
-                        }
-                    },
+            val response = sendRequest(HttpMethod.Post, "/auth/logout").response
+            assertEquals(HttpStatusCode.NoContent, response.status())
+        }
+    }
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/auth/logout") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
+    private fun TestApplicationEngine.webRefreshInitialize(ctx: TestContext): RefreshTokenAndUser {
+        val (username, role) = "user" to Role.USER
+        lateinit var refreshToken: RefreshTokenAndUser
+        ctx.db.withTransaction { session ->
+            ctx.createUser(session, username, role)
+            refreshToken = ctx.createRefreshToken(session, username, role)
+        }
 
-                        assertEquals(HttpStatusCode.NoContent, response.status())
-                    }
+        return refreshToken
+    }
+
+    private fun TestApplicationEngine.webRefresh(
+        refreshToken: RefreshTokenAndUser,
+        addCsrfToken: Boolean = true,
+        addRefreshToken: Boolean = true,
+        vararg headersToUse: String,
+        setup: TestApplicationRequest.() -> Unit = {}
+    ): TestApplicationResponse {
+        return sendRequest(HttpMethod.Post, "/auth/refresh/web") {
+            headersToUse.forEach { addHeader(it, "https://cloud.sdu.dk") }
+
+            if (addCsrfToken) {
+                addHeader(CoreAuthController.REFRESH_WEB_CSRF_TOKEN, refreshToken.csrf)
+            }
+
+            if (addRefreshToken) {
+                addHeader(
+                    HttpHeaders.Cookie,
+                    renderCookieHeader(
+                        Cookie(
+                            CoreAuthController.REFRESH_WEB_REFRESH_TOKEN_COOKIE,
+                            refreshToken.token
+                        )
+                    )
                 )
             }
+
+            setup()
+        }.response
+    }
+
+    private fun webRefreshVerifySuccess(response: TestApplicationResponse) {
+        assertEquals(HttpStatusCode.OK, response.status())
+        val tree = defaultMapper.readTree(response.content!!)
+
+        val accessToken = tree["accessToken"]!!
+        val csrfToken = tree["csrfToken"]!!
+
+        assertTrue(accessToken.isTextual)
+        assertTrue(csrfToken.isTextual)
+
+        assertTrue(accessToken.asText().isNotBlank())
+        assertTrue(csrfToken.asText().isNotBlank())
+    }
+
+    @Test
+    fun `Web refresh - test happy path (origin)`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
+            webRefreshVerifySuccess(response)
+        }
+    }
+
+    @Test
+    fun `Web refresh - test happy path (referrer)`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Referrer))
+            webRefreshVerifySuccess(response)
+        }
+    }
+
+    @Test
+    fun `Web refresh - test happy path (origin, referrer)`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin, HttpHeaders.Referrer))
+            webRefreshVerifySuccess(response)
+        }
+    }
+
+    @Test
+    fun `Web refresh - test happy path (blank origin, referrer)`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Referrer)) {
+                addHeader(HttpHeaders.Origin, "         ")
+            }
+            webRefreshVerifySuccess(response)
+        }
+    }
+
+    @Test
+    fun `Web refresh - test blank referer`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *emptyArray()) {
+                addHeader(HttpHeaders.Referrer, "         ")
+            }
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+    @Test
+    fun `Web refresh - malformed (malformed origin)`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *emptyArray()) {
+                addHeader(HttpHeaders.Origin, "this is not a valid header")
+            }
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+    @Test
+    fun `Web refresh - malformed (origin, malformed referrer)`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *emptyArray()) {
+                addHeader(HttpHeaders.Referrer, "this is not a valid header")
+            }
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+
+    @Test
+    fun `Web refresh - untrusted origin`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *emptyArray()) {
+                addHeader(HttpHeaders.Referrer, "https://evil.com")
+            }
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+    @Test
+    fun `Web refresh - test missing origin and referrer`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *emptyArray())
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+    @Test
+    fun `Web refresh - test missing csrf`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, addCsrfToken = false, headersToUse = *arrayOf(HttpHeaders.Origin))
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+    @Test
+    fun `Web refresh - test missing refreshToken`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, addRefreshToken = false, headersToUse = *arrayOf(HttpHeaders.Origin))
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+    @Test
+    fun `Web refresh - test bad csrf token`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, addCsrfToken = false, headersToUse = *arrayOf(HttpHeaders.Origin)) {
+                addHeader(CoreAuthController.REFRESH_WEB_CSRF_TOKEN, "Bad csrf token")
+            }
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Web refresh - test bad refresh token`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, addRefreshToken = false, headersToUse = *arrayOf(HttpHeaders.Origin)) {
+                addHeader(
+                    HttpHeaders.Cookie,
+                    renderCookieHeader(
+                        Cookie(
+                            CoreAuthController.REFRESH_WEB_REFRESH_TOKEN_COOKIE,
+                            "bad refresh token"
+                        )
+                    )
+                )
+            }
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Web refresh - twice with same csrf fails`() {
+        withBasicSetup { ctx ->
+            val token = webRefreshInitialize(ctx)
+            val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
+            webRefreshVerifySuccess(response)
+
+            val response2 = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
+            assertEquals(HttpStatusCode.Unauthorized, response2.status())
         }
     }
 }

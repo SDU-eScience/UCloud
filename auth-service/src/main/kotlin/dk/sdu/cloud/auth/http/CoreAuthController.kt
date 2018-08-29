@@ -1,10 +1,7 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.AccessToken
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.bearer
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
@@ -31,6 +28,8 @@ import io.ktor.response.respondRedirect
 import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.route
+import io.ktor.util.escapeHTML
+import kotlinx.coroutines.experimental.delay
 import kotlinx.html.*
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -232,6 +231,7 @@ class CoreAuthController<DBSession>(
                 // the user to be logged out though, and it will require a valid access token. This makes the attack
                 // a bit useless.
 
+                val csrfToken = call.parameters["csrfToken"]
 
                 if (TokenValidation.validateOrNull(token) == null) {
                     log.info("Invalid access token")
@@ -258,13 +258,20 @@ class CoreAuthController<DBSession>(
 
                             input(InputType.hidden) {
                                 name = "accessToken"
-                                value = token
+                                value = token.escapeHTML().urlEncoded
                             }
 
                             if (refreshToken != null) {
                                 input(InputType.hidden) {
                                     name = "refreshToken"
-                                    value = refreshToken
+                                    value = refreshToken.escapeHTML().urlEncoded
+                                }
+                            }
+
+                            if (csrfToken != null) {
+                                input(InputType.hidden) {
+                                    name = "csrfToken"
+                                    value = csrfToken.escapeHTML().urlEncoded
                                 }
                             }
 
@@ -332,13 +339,13 @@ class CoreAuthController<DBSession>(
                 }
 
                 // Then validate CSRF and refresh token
-                val csrfToken = call.request.header("X-CSRFToken") ?: run {
+                val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
                     log.info("No CSRF token included")
                     error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                     return@implement
                 }
 
-                val refreshToken = call.request.cookies["refreshToken"] ?: run {
+                val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
                     log.info("Missing refresh token")
                     error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                     return@implement
@@ -360,32 +367,9 @@ class CoreAuthController<DBSession>(
 
             implement(AuthDescriptions.claim) { req ->
                 logEntry(log, req)
-                val jti = req.jti
-                val token = call.request.bearer ?: return@implement run {
-                    log.debug("Missing bearer token")
-                    error(HttpStatusCode.Unauthorized)
-                }
+                if (!protect(PRIVILEGED_ROLES)) return@implement
 
-                val principal = TokenValidation.validateOrNull(token) ?: return@implement run {
-                    log.debug("Invalid token")
-                    error(HttpStatusCode.Forbidden)
-                }
-
-                val principalRole = try {
-                    Role.valueOf(principal.getClaim("role").asString())
-                } catch (ex: Exception) {
-                    log.debug("Invalid or missing role for principal")
-                    error(HttpStatusCode.Forbidden)
-                    return@implement
-                }
-
-                if (principalRole != Role.SERVICE && principalRole != Role.ADMIN) {
-                    log.debug("Cannot claim token as non-service/admin principal")
-                    error(HttpStatusCode.Forbidden)
-                    return@implement
-                }
-
-                val tokenWasClaimed = db.withTransaction { ottDao.claim(it, jti, principal.subject) }
+                val tokenWasClaimed = db.withTransaction { ottDao.claim(it, req.jti, call.request.currentUsername) }
 
                 if (tokenWasClaimed) {
                     ok(HttpStatusCode.NoContent)
@@ -404,8 +388,11 @@ class CoreAuthController<DBSession>(
                 tokenService.logout(refreshToken)
                 call.respond(HttpStatusCode.NoContent)
             }
-
-
         }
+    }
+
+    companion object {
+        const val REFRESH_WEB_CSRF_TOKEN = "X-CSRFToken"
+        const val REFRESH_WEB_REFRESH_TOKEN_COOKIE = "refreshToken"
     }
 }

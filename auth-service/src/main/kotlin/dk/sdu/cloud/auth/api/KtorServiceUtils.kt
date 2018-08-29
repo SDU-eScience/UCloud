@@ -89,11 +89,18 @@ class JWTProtection {
         val roleAsString = validated.getClaim("role").asString()
         val role = try {
             Role.valueOf(roleAsString)
-        } catch (ex: NoSuchElementException) {
-            log.warn("Unknown role attribute in validated token! Role: $roleAsString")
-            call.respond(HttpStatusCode.InternalServerError)
-            finish()
-            return
+        } catch (ex: Exception) {
+            when (ex) {
+                is NoSuchElementException, is IllegalArgumentException -> {
+                    log.warn("Unknown role attribute in validated token! Role: $roleAsString")
+                    call.respond(HttpStatusCode.InternalServerError)
+                    finish()
+                    return
+                }
+
+                else -> throw ex
+            }
+
         }
 
         call.request.validatedPrincipal = validated
