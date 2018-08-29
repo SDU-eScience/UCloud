@@ -66,7 +66,7 @@ class Dashboard extends React.Component<DashboardProps> {
 }
 
 const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: Function }) => {
-    const noFavorites = files.length || isLoading ? null : (<Header as="h3" sub content="No favorites found" />);
+    const noFavorites = files.length || isLoading ? null : (<h3><small>No favorites found</small></h3>);
     const filesList = files.map((file: File, i: number) =>
         (<List.Item key={i} className="itemPadding">
             <List.Content floated="right">
@@ -77,7 +77,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
     );
 
     return (
-        <Card>
+        <Card fluid={window.innerWidth <= 645}>
             <Card.Content>
                 <Card.Header content="Favorite files" />
                 <DefaultLoading loading={isLoading} />
@@ -100,10 +100,10 @@ const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type:
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => {
     return (
-        <Card>
+        <Card fluid={window.innerWidth <= 645}>
             <Card.Content>
                 <Card.Header content="Recently used files" />
-                {isLoading || files.length ? null : (<Header as="h3" sub content="No recently used files" />)}
+                {isLoading || files.length ? null : (<h3><small>No recently used files</small></h3>)}
                 <DefaultLoading loading={isLoading} />
                 <List divided size={"large"}>
                     {files.map((file, i) => (
@@ -120,11 +120,11 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
 };
 
 const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
-    <Card>
+    <Card fluid={window.innerWidth <= 645}>
         <Card.Content>
             <Card.Header content="Recent Analyses" />
             <DefaultLoading loading={isLoading} />
-            {isLoading || analyses.length ? null : (<Header as="h3" sub content="No Analyses found" />)}
+            {isLoading || analyses.length ? null : (<h3><small>No Analyses found</small></h3>)}
             <List divided size={"large"}>
                 {analyses.map((analysis: Analysis, index: number) =>
                     <List.Item key={index} className="itemPadding">
@@ -141,7 +141,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
 );
 
 const DashboardNotifications = ({ notifications }: { notifications: Notification[] }) => (
-    <Card>
+    <Card fluid={window.innerWidth <= 645}>
         <Card.Content>
             <Card.Header content="Recent notifications" />
             {notifications.length === 0 ? <h3><small>No notifications</small></h3> : null}
