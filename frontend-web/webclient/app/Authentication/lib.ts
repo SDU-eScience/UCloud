@@ -345,15 +345,16 @@ export default class SDUCloud {
                 "Authorization": `Bearer ${SDUCloud.storedRefreshToken}`,
                 "contentType": "application/json"
             },
+            method: "POST"
         }).then(response => {
             if (!is5xxStatusCode(response.status)) {
                 window.localStorage.removeItem("accessToken");
                 window.localStorage.removeItem("refreshToken");
                 this.openBrowserLoginPage();
+                return;
             };
             throw Error("The server was unreachable, please try again later.")
         }).catch(err => failureNotification(err.message)); */
-
         new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
             req.open("POST", `${this.context}${this.authContext}/logout`);
