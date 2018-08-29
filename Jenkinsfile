@@ -44,7 +44,7 @@ pipeline {
 ./gradlew build test --continue
 '''
           }
-          post {
+          post {
             always {
               junit '**/app-service/build/**/*.xml'
             }
