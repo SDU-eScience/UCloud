@@ -247,12 +247,10 @@ export default class SDUCloud {
      */
     receiveAccessTokenOrRefreshIt(): Promise<any> {
         let tokenPromise: Promise<any> | null = null;
-        if (this._isTokenExpired()) {
-            tokenPromise = this._refresh();
+        if (this.isTokenExpired()) {
+            tokenPromise = this.refresh();
         } else {
-            tokenPromise = new Promise((resolve, reject) => {
-                resolve(SDUCloud.storedAccessToken);
-            });
+            tokenPromise = new Promise((resolve, reject) => resolve(SDUCloud.storedAccessToken));
         }
         return tokenPromise;
     }
@@ -276,22 +274,15 @@ export default class SDUCloud {
                     };
                     req.send();
                 });
-            }).then((data: any) => {
-                return new Promise((resolve, reject) => {
-                    resolve(data.response.accessToken);
-                });
-            });
+            }).then((data: any) => new Promise((resolve, reject) => resolve(data.response.accessToken)));
     }
 
-    _refresh() {
-        let token = SDUCloud.storedRefreshToken;
+    private refresh() {
+        const token = SDUCloud.storedRefreshToken;
         if (!token) {
-            return new Promise((resolve, reject) => {
-                reject(this._missingAuth());
-            });
-        }
-        ;
-        let refreshPath = this.context + this.authContext + "/refresh";
+            return new Promise((resolve, reject) => reject(this.missingAuth()));
+        };
+        const refreshPath = this.context + this.authContext + "/refresh";
         return new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
             req.open("POST", refreshPath);
@@ -300,6 +291,7 @@ export default class SDUCloud {
                 if (req.status === 200) {
                     resolve(JSON.parse(req.response));
                 } else {
+                    if (req.status === 401) this.clearTokens();
                     reject({ status: req.status, response: req.response });
                 }
             };
@@ -319,7 +311,7 @@ export default class SDUCloud {
      * @param refreshToken the refresh token (can be null)
      */
     setTokens(accessToken: string, refreshToken?: string) {
-        if (!accessToken) throw this._missingAuth();
+        if (!accessToken) throw this.missingAuth();
 
         this.accessToken = accessToken;
         SDUCloud.storedAccessToken = accessToken;
@@ -333,8 +325,7 @@ export default class SDUCloud {
             this.decodedToken = jwt.decode(accessToken, { complete: true });
         } catch (err) {
             console.log("Received malformed JWT");
-            SDUCloud.storedAccessToken = "";
-            SDUCloud.storedRefreshToken = "";
+            this.clearTokens();
             throw err;
         }
     }
@@ -368,17 +359,20 @@ export default class SDUCloud {
             };
             req.send();
         }).then(() => {
-            window.localStorage.removeItem("accessToken");
-            window.localStorage.removeItem("refreshToken");
+            this.clearTokens();
             this.openBrowserLoginPage();
         }).catch(() => {
             failureNotification("The server was unreachable, please try again later.");
         });
     }
 
+    clearTokens() {
+        SDUCloud.storedAccessToken = "";
+        SDUCloud.storedRefreshToken = "";
+    }
+
     static get storedAccessToken(): string {
-        const accessToken = window.localStorage.getItem("accessToken");
-        if (accessToken) return accessToken; else return "";
+        return window.localStorage.getItem("accessToken") || "";
     }
 
     static set storedAccessToken(value: string) {
@@ -386,15 +380,14 @@ export default class SDUCloud {
     }
 
     static get storedRefreshToken(): string {
-        const refreshToken = window.localStorage.getItem("refreshToken");
-        if (refreshToken) return refreshToken; else return "";
+        return window.localStorage.getItem("refreshToken") || "";
     }
 
     static set storedRefreshToken(value) {
         window.localStorage.setItem("refreshToken", value);
     }
 
-    _isTokenExpired() {
+    private isTokenExpired() {
         let token = this.decodedToken;
         if (!token || !token.payload) return true;
         let nowInSeconds = Math.floor(Date.now() / 1000);
@@ -402,7 +395,7 @@ export default class SDUCloud {
         return token.payload.exp < inFiveMinutes;
     }
 
-    _missingAuth() {
+    private missingAuth() {
         if (this.redirectOnInvalidTokens) {
             this.openBrowserLoginPage();
             return 0;
