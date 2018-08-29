@@ -1,5 +1,10 @@
 import * as jwt from "jsonwebtoken";
-import { failureNotification, inRange, is5xxStatusCode } from "UtilityFunctions";
+import { 
+    failureNotification, 
+    inRange, 
+    is5xxStatusCode, 
+    inSuccessRange 
+} from "UtilityFunctions";
 
 /**
  * Represents an instance of the SDUCloud object used for contacting the backend, implicitly using JWTs.
@@ -17,8 +22,8 @@ export default class SDUCloud {
     private readonly redirectOnInvalidTokens: boolean;
 
     private apiContext: string;
-    private refreshToken: string;
     private accessToken: string;
+    private csrfToken: string;
     private decodedToken: any;
 
     constructor() {
@@ -29,11 +34,11 @@ export default class SDUCloud {
         let serviceName: string;
         switch (location.hostname) {
             case "localhost":
-                serviceName = "local-dev";
+                serviceName = "local-dev-csrf";
                 break;
 
             default:
-                serviceName = "web";
+                serviceName = "web-csrf";
                 break;
         }
 
@@ -47,9 +52,9 @@ export default class SDUCloud {
         this.redirectOnInvalidTokens = true;
 
         let accessToken = SDUCloud.storedAccessToken;
-        let refreshToken = SDUCloud.storedRefreshToken;
-        if (accessToken) {
-            this.setTokens(accessToken, refreshToken);
+        let csrfToken = SDUCloud.storedCsrfToken;
+        if (accessToken && csrfToken) {
+            this.setTokens(accessToken, csrfToken);
         }
     }
 
@@ -110,7 +115,7 @@ export default class SDUCloud {
                         }
                     }
 
-                    if (inRange({ status: req.status, min: 200, max: 299 })) {
+                    if (inSuccessRange(req.status)) {
                         resolve({
                             response: parsedResponse,
                             request: req,
@@ -284,20 +289,20 @@ export default class SDUCloud {
     }
 
     _refresh() {
-        let token = SDUCloud.storedRefreshToken;
-        if (!token) {
+        let csrfToken = SDUCloud.storedCsrfToken;
+        if (!csrfToken) {
             return new Promise((resolve, reject) => {
                 reject(this._missingAuth());
             });
         }
-        ;
-        let refreshPath = this.context + this.authContext + "/refresh";
+
+        let refreshPath = this.context + this.authContext + "/refresh/web";
         return new Promise((resolve, reject) => {
             let req = new XMLHttpRequest();
             req.open("POST", refreshPath);
-            req.setRequestHeader("Authorization", `Bearer ${token}`);
+            req.setRequestHeader("X-CSRFToken", csrfToken);
             req.onload = () => {
-                if (req.status === 200) {
+                if (inSuccessRange(req.status)) {
                     resolve(JSON.parse(req.response));
                 } else {
                     reject({ status: req.status, response: req.response });
@@ -306,7 +311,7 @@ export default class SDUCloud {
             req.send();
         }).then((data: any) => {
             return new Promise((resolve, reject) => {
-                this.setTokens(data.accessToken);
+                this.setTokens(data.accessToken, data.csrfToken);
                 resolve(data.accessToken);
             });
         });
@@ -316,63 +321,42 @@ export default class SDUCloud {
      * Updates tokens received by the auth service.
      *
      * @param accessToken the (JWT) access token.
-     * @param refreshToken the refresh token (can be null)
+     * @param csrfToken the csrf token
      */
-    setTokens(accessToken: string, refreshToken?: string) {
+    setTokens(accessToken: string, csrfToken: string) {
         if (!accessToken) throw this._missingAuth();
 
         this.accessToken = accessToken;
         SDUCloud.storedAccessToken = accessToken;
 
-        if (refreshToken) {
-            this.refreshToken = refreshToken;
-            SDUCloud.storedRefreshToken = refreshToken;
-        }
+        this.csrfToken = csrfToken;
+        SDUCloud.storedCsrfToken = csrfToken;
 
         try {
             this.decodedToken = jwt.decode(accessToken, { complete: true });
         } catch (err) {
             console.log("Received malformed JWT");
             SDUCloud.storedAccessToken = "";
-            SDUCloud.storedRefreshToken = "";
+            SDUCloud.storedCsrfToken = "";
             throw err;
         }
     }
 
     logout() {
-        /* fetch(`${this.context}${this.authContext}/logout`, {
+        fetch(`${this.context}${this.authContext}/logout/web`, {
             headers: {
-                "Authorization": `Bearer ${SDUCloud.storedRefreshToken}`,
+                "X-CSRFToken": SDUCloud.storedCsrfToken,
                 "contentType": "application/json"
             },
+            method: "POST"
         }).then(response => {
             if (!is5xxStatusCode(response.status)) {
                 window.localStorage.removeItem("accessToken");
-                window.localStorage.removeItem("refreshToken");
+                window.localStorage.removeItem("csrfToken");
                 this.openBrowserLoginPage();
             };
             throw Error("The server was unreachable, please try again later.")
-        }).catch(err => failureNotification(err.message)); */
-
-        new Promise((resolve, reject) => {
-            let req = new XMLHttpRequest();
-            req.open("POST", `${this.context}${this.authContext}/logout`);
-            req.setRequestHeader("Authorization", `Bearer ${SDUCloud.storedRefreshToken}`);
-            req.setRequestHeader("contentType", "application/json");
-            req.onload = () => {
-                if (!is5xxStatusCode(req.status)) {
-                    resolve(req.response);
-                }
-                reject(req.response);
-            };
-            req.send();
-        }).then(() => {
-            window.localStorage.removeItem("accessToken");
-            window.localStorage.removeItem("refreshToken");
-            this.openBrowserLoginPage();
-        }).catch(() => {
-            failureNotification("The server was unreachable, please try again later.");
-        });
+        }).catch(err => failureNotification(err.message));
     }
 
     static get storedAccessToken(): string {
@@ -384,13 +368,13 @@ export default class SDUCloud {
         window.localStorage.setItem("accessToken", value);
     }
 
-    static get storedRefreshToken(): string {
-        const refreshToken = window.localStorage.getItem("refreshToken");
-        if (refreshToken) return refreshToken; else return "";
+    static get storedCsrfToken(): string {
+        const csrfToken = window.localStorage.getItem("csrfToken");
+        if (csrfToken) return csrfToken; else return "";
     }
 
-    static set storedRefreshToken(value) {
-        window.localStorage.setItem("refreshToken", value);
+    static set storedCsrfToken(value) {
+        window.localStorage.setItem("csrfToken", value);
     }
 
     _isTokenExpired() {

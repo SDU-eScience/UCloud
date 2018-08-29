@@ -12,6 +12,9 @@ object ServiceDAO {
         insert(Service("web", "https://cloud.sdu.dk/api/auth-callback"))
         insert(Service("sync", "https://cloud.sdu.dk/api/sync-callback"))
         insert(Service("local-dev", "http://localhost:9000/api/auth-callback"))
+
+        insert(Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf"))
+        insert(Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf"))
     }
 
     fun insert(service: Service): Boolean {

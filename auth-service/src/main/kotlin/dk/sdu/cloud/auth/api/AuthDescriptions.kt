@@ -42,6 +42,17 @@ object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
         }
     }
 
+    val webLogout = callDescription<Unit, Unit, CommonErrorMessage> {
+        method = HttpMethod.Post
+        prettyName = "logout-web"
+
+        path {
+            using(baseContext)
+            +"logout"
+            +"web"
+        }
+    }
+
     val claim = callDescription<ClaimOneTimeToken, Unit, Unit> {
         method = HttpMethod.Post
         prettyName = "claim"

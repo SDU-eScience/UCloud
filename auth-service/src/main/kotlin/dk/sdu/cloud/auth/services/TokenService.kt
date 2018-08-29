@@ -171,6 +171,7 @@ class TokenService<DBSession>(
 
             if (csrfToken != null && csrfToken != token.csrf) {
                 log.info("Invalid CSRF token")
+                log.debug("Received token: $csrfToken, but I expected ${token.csrf}")
                 throw RefreshTokenException.InvalidToken()
             }
 
@@ -189,9 +190,16 @@ class TokenService<DBSession>(
         }
     }
 
-    fun logout(refreshToken: String) {
+    fun logout(refreshToken: String, csrfToken: String? = null) {
         db.withTransaction {
-            if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
+            if (csrfToken == null) {
+                if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
+            } else {
+                val userAndToken =
+                    refreshTokenDao.findById(it, refreshToken) ?: throw RefreshTokenException.InvalidToken()
+                if (csrfToken != userAndToken.csrf) throw RefreshTokenException.InvalidToken()
+                if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
+            }
         }
     }
 
