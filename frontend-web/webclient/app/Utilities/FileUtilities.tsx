@@ -99,11 +99,11 @@ export const HistoryFilesOperations = (history: History): FileOperation[] => [
     {
         predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
         onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1 && !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
-        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 && !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
+        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 || !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
     }
 ];
 
-export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: () => void | false, history: History | false) {
+export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, history: History | false) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps) : [];
     const deleteOperation = !!onDeleted ? DeleteFileOperation(onDeleted) : [];
@@ -191,7 +191,11 @@ export const favoriteFile = (file: File, cloud: Cloud): void => {
         cloud.delete(`/files/favorite?path=${file.path}`, {});
 }
 
-export const canBeProject = (files: File[], homeFolder: string) => files.length === 1 && isDirectory(files[0]) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
+export const canBeProject = (files: File[], homeFolder: string): boolean => 
+    files.length === 1 && files.every((f) => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
+
+
+
 export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
 
 export const toFileText = (selectedFiles: File[]): string =>

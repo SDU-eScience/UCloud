@@ -341,14 +341,15 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
 export const FileOperations = ({ files, fileOperations, As, ...props }) =>
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
-        if ("predicate" in fileOp) {
-            operation = fileOp.predicate(files, Cloud) ? fileOp.onTrue : fileOp.onFalse;
+        if ("predicate" in operation) {
+            operation = operation.predicate(files, Cloud) ? fileOp.onTrue : fileOp.onFalse;
+
         }
-        operation = (operation as Operation);
+        operation = operation as Operation;
+    
         return !operation.disabled(files, Cloud) ? (
             <As
                 key={i}
-                disabled={operation.disabled(files, Cloud)}
                 content={operation.text}
                 icon={operation.icon}
                 color={operation.color}

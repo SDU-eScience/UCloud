@@ -358,8 +358,11 @@ const JobMetaParams = (props) => {
 }
 
 const JobSchedulingParams = (props) => {
+    if (!props.tool) return null;
+    
     // TODO refactor fields, very not DRY compliant
     const { maxTime, numberOfNodes, tasksPerNode } = props.jobInfo;
+    
     return (
         <>
             <Form.Group widths="equal">
