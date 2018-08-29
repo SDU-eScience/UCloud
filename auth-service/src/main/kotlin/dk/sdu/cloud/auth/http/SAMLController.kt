@@ -2,8 +2,8 @@ package dk.sdu.cloud.auth.http
 
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.services.saml.KtorUtils
+import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.util.urlDecoded
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.logEntry
@@ -101,7 +101,8 @@ class SAMLController(
                             "/auth/login-redirect?" +
                                     "service=${service.urlEncoded}" +
                                     "&accessToken=${token.accessToken.urlEncoded}" +
-                                    "&refreshToken=${token.refreshToken.urlEncoded}"
+                                    "&refreshToken=${token.refreshToken.urlEncoded}" +
+                                    "&csrfToken=${token.csrfToken.urlEncoded}"
                         )
                     }
                 }

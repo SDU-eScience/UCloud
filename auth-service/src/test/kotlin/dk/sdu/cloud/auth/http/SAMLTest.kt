@@ -6,6 +6,7 @@ import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.*
+import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.utils.withAuthMock
 import dk.sdu.cloud.auth.utils.withDatabase
@@ -51,9 +52,7 @@ class SAMLTest {
             userDao,
             refreshTokenDao,
             jwtAlg,
-            mockk(relaxed = true),
-            mockk(relaxed = true),
-            mockk(relaxed = true)
+            UserCreationService(db, userDao, mockk(relaxed = true))
         )
 
         installDefaultFeatures(
@@ -79,7 +78,8 @@ class SAMLTest {
         return TestContext(userDao, refreshTokenDao, jwtAlg, tokenService, authSettings, samlRequestProcessorFactory)
     }
 
-    private val samlResponse = Util.base64encoder("""
+    private val samlResponse = Util.base64encoder(
+        """
                             <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
                             xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
                             ID="_8e8dc5f69a98cc4c1ff3427e5ce34606fd672f91e6"
@@ -87,7 +87,8 @@ class SAMLTest {
                             Destination="http://sp.example.com/demo1/index.php?acs"
                             InResponseTo="ONELOGIN_4fee3b046395c4e751011e97f8900b5273d56685">
                             </samlp:Response>
-                            """.trimIndent())
+                            """.trimIndent()
+    )
 
     @Test
     fun `Metadata Test`() {
@@ -227,27 +228,23 @@ class SAMLTest {
                                 coEvery { response.processResponse(any()) } just Runs
                                 every { response.authenticated } returns true
                                 every { response.attributes } answers {
-                                    val h = HashMap<String, List<String>>(10)
-                                    h.put("urn:oid:1.3.6.1.4.1.5923.1.1.1.10", listOf("test"))
-                                    h.put("gn", listOf("gn"))
-                                    h.put("sn", listOf("sn"))
-                                    h.put("schacHomeOrganization", listOf("SDU"))
-                                    h
+                                    hashMapOf(
+                                        AttributeURIs.EduPersonTargetedId to listOf("test"),
+                                        "gn" to listOf("gn"),
+                                        "sn" to listOf("sn"),
+                                        "schacHomeOrganization" to listOf("SDU")
+                                    )
                                 }
                                 response
                             }
-
                         }
-
                     },
 
                     test = {
-
                         val response =
                             handleRequest(HttpMethod.Post, "/auth/saml/acs") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                                setUser(role = Role.ADMIN)
                                 setBody(
                                     "RelayState=http://thisIsAWebSite.com/auth/saml/login?service=_service" +
                                             "&" +
@@ -256,8 +253,10 @@ class SAMLTest {
                             }.response
 
                         assertEquals(HttpStatusCode.Found, response.status())
-                        assertTrue(response.headers.values("Location").toString().contains(
-                            "/auth/login-redirect?service=_service")
+                        assertTrue(
+                            response.headers.values("Location").toString().contains(
+                                "/auth/login-redirect?service=_service"
+                            )
                         )
                         assertTrue(response.headers.values("Location").toString().contains("accessToken"))
                         assertTrue(response.headers.values("Location").toString().contains("refreshToken"))
@@ -313,7 +312,7 @@ class SAMLTest {
                 withTestApplication(
                     moduleFunction = {
                         with(createSamlController(db)) {
-                            every { samlRequestProcessorFactory.invoke(any(),any(), any())} answers {
+                            every { samlRequestProcessorFactory.invoke(any(), any(), any()) } answers {
                                 val response = mockk<SamlRequestProcessor>()
                                 coEvery { response.processResponse(any()) } just Runs
                                 response

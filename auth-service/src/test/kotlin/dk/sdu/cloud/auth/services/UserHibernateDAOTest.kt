@@ -124,8 +124,6 @@ class UserHibernateDAOTest{
         val principal = entity.toModel()
         assertEquals(ServicePrincipal("_id", Role.SERVICE), principal)
         val backToEntity = principal.toEntity()
-        assertTrue(backToEntity.createdAt > entity.createdAt)
-        assertTrue(backToEntity.modifiedAt > entity.modifiedAt)
         assertEquals(backToEntity.id, entity.id)
         assertEquals(backToEntity.role, entity.role)
     }
@@ -186,7 +184,5 @@ class UserHibernateDAOTest{
         val backToEntity = model.toEntity()
 
         assertEquals(entity.id, backToEntity.id)
-        assertTrue(entity.createdAt < backToEntity.createdAt)
-        assertTrue(entity.modifiedAt < backToEntity.modifiedAt)
     }
 }

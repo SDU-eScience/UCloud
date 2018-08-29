@@ -7,8 +7,6 @@ import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.http.UserController
-import dk.sdu.cloud.auth.processors.OneTimeTokenProcessor
-import dk.sdu.cloud.auth.processors.RefreshTokenProcessor
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.client.AuthenticatedCloud
@@ -31,7 +29,7 @@ class Server(
 ) : CommonServer {
     override val log: Logger = logger()
 
-    override lateinit var kStreams: KafkaStreams
+    override val kStreams: KafkaStreams? = null
     override lateinit var httpServer: ApplicationEngine
 
     override fun start() {
@@ -39,32 +37,21 @@ class Server(
         val userDao = UserHibernateDAO()
         val refreshTokenDao = RefreshTokenHibernateDAO()
         val ottDao = OneTimeTokenHibernateDAO()
+        val userCreationService = UserCreationService(
+            db,
+            userDao,
+            kafka.producer.forStream(AuthStreams.UserUpdateStream)
+        )
 
         val tokenService = TokenService(
             db,
             userDao,
             refreshTokenDao,
             jwtAlg,
-            kafka.producer.forStream(AuthStreams.UserUpdateStream),
-            kafka.producer.forStream(AuthStreams.RefreshTokenStream),
-            kafka.producer.forStream(AuthStreams.OneTimeTokenStream)
+            userCreationService
         )
-        val userCreationService = UserCreationService(
-            db,
-            userDao,
-            kafka.producer.forStream(AuthStreams.UserUpdateStream)
-        )
+
         log.info("Core services constructed!")
-
-        kStreams = buildStreams { kBuilder ->
-            RefreshTokenProcessor(
-                db,
-                refreshTokenDao,
-                kBuilder.stream(AuthStreams.RefreshTokenStream)
-            ).also { it.init() }
-
-            OneTimeTokenProcessor(kBuilder.stream(AuthStreams.OneTimeTokenStream)).also { it.init() }
-        }
 
         httpServer = ktor {
             log.info("Configuring HTTP server")

@@ -14,6 +14,10 @@ spec:
         backend:
           serviceName: webclient
           servicePort: 8080
+      - path: /api/auth-callback-csrf
+        backend:
+          serviceName: webclient
+          servicePort: 8080
       - path: /api/sync-callback
         backend:
           serviceName: webclient

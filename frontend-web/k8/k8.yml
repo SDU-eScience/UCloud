@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: webclient
-        image: registry.dev-sdu-cloud.dk/sdu-cloud/webclient:0.1.2
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/webclient:0.2.0
         volumeMounts:
         - mountPath: /etc/service
           name: webclient-refresh-token
