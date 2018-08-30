@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Checkbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
-import "./index.scss";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";

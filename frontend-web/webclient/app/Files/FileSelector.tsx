@@ -10,8 +10,6 @@ import PromiseKeeper from "PromiseKeeper";
 import { changeUppyRunAppOpen } from "Uppy/Redux/UppyActions";
 import { KeyCode } from "DefaultObjects";
 import { FileIcon } from "UtilityComponents";
-import "./Files.scss";
-import "Styling/Shared.scss";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileListProps, FileSelectorModalProps, FileSelectorBodyProps } from ".";
 import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";

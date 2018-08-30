@@ -14,7 +14,6 @@ import {
     Popup,
     Grid
 } from "semantic-ui-react";
-import "./view.scss";
 
 interface ViewProps {
     metadata: ProjectMetadata

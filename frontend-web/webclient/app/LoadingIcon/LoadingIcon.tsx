@@ -1,7 +1,5 @@
 import * as React from "react";
 import { Icon } from "semantic-ui-react";
-import "loaders.css/loaders.css";
-import "./colors.scss";
 
 export const Spinner = ({ loading, color }) => (loading) ?
     <i className={"loader-inner ball-pulse " + color}>

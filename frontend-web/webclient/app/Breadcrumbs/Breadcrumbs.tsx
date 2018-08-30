@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Breadcrumb } from "semantic-ui-react";
-import "./Breadcrumbs.scss";
 import { BreadCrumbMapping, Breadcrumbs as BreadCrumbsList } from ".";
 import { Cloud } from "Authentication/SDUCloudObject";
 

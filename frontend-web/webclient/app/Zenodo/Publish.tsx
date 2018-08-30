@@ -7,7 +7,6 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { fetchPublications, setZenodoLoading } from "./Redux/ZenodoActions";
 import { connect } from "react-redux";
-import "./Zenodo.scss";
 import { History } from "history";
 import { removeEntry } from "Utilities/ArrayUtilities";
 import { failureNotification } from "UtilityFunctions";

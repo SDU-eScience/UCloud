@@ -1,0 +1,50 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Render empty files table 1`] = `
+<table
+  className="ui unstackable very basic table"
+>
+  <thead
+    className=""
+  >
+    <tr
+      className=""
+    >
+      <th
+        className="filename-row"
+        onClick={[Function]}
+      >
+        Filename
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      >
+        Path
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      >
+        Modified at
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      />
+    </tr>
+  </thead>
+  <tbody
+    className=""
+  />
+</table>
+`;

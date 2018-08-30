@@ -12,7 +12,6 @@ import { connect } from "react-redux";
 import { favoriteApplication, infoNotification, failureNotification } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import "Styling/Shared.scss";
 import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
 import { Application, ParameterTypes } from ".";
 import { extractParameters } from "Utilities/ApplicationUtilities";

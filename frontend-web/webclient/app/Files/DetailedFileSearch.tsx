@@ -5,7 +5,6 @@ import { addEntryIfNotPresent } from "Utilities/ArrayUtilities"
 import { infoNotification, failureNotification } from "UtilityFunctions";
 import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime } from ".";
 import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import { Moment } from "moment";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {

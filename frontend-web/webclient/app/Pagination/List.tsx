@@ -3,7 +3,6 @@ import { Grid, Message, Header } from "semantic-ui-react";
 import { Page } from "Types";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import * as Self from ".";
-import "./pagination.scss";
 import { ifPresent } from "UtilityFunctions";
 import { RefreshButton } from "UtilityComponents";
 

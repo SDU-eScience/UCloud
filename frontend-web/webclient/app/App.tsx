@@ -17,7 +17,6 @@ import analyses from "Applications/Redux/AnalysesReducer";
 import notifications from "Notifications/Redux/NotificationsReducer";
 import { initObject } from "DefaultObjects";
 import uploader from "Uploader/Redux/UploaderReducer";
-import "semantic-ui-css/semantic.min.css"
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 

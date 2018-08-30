@@ -9,7 +9,6 @@ import {
     updateApplications
 } from "./Redux/ApplicationsActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import "Styling/Shared.scss";
 import { Page } from "Types";
 import { Application } from ".";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";

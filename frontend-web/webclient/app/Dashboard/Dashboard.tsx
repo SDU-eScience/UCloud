@@ -7,9 +7,7 @@ import { favoriteFile, getParentPath, getFilenameFromPath } from "Utilities/File
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
-import "Styling/Shared.scss";
-import "Dashboard/dashboard.scss";
-import { Card, List, Icon, Message, Header } from "semantic-ui-react";
+import { Card, List, Icon, Message } from "semantic-ui-react";
 import * as moment from "moment";
 import { FileIcon } from "UtilityComponents";
 import {

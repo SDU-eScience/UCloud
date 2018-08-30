@@ -5,7 +5,6 @@ import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, 
 import { AccessRight, Page } from "Types";
 import { shareSwal } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
-import "./List.scss"
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";

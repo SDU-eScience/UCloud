@@ -4,7 +4,6 @@ import { Popup, Feed, Icon, SemanticICONS, Label, Button, Divider } from 'semant
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
-import "./index.scss";
 import { withRouter } from "react-router";
 import { Page } from "Types";
 import { fetchNotifications, notificationRead } from "./Redux/NotificationsActions";

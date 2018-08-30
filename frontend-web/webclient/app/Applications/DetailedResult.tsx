@@ -7,10 +7,7 @@ import { Container, List, Card, Icon, Popup, Step, SemanticICONS, Grid } from "s
 import { Link } from "react-router-dom";
 import { FilesTable } from "Files/Files";
 import { List as PaginationList } from "Pagination";
-import "./wizard.scss";
-import "./Applications.scss";
 import { connect } from "react-redux";
-import "Styling/Shared.scss";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement } from ".";

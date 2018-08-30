@@ -6,7 +6,6 @@ import { Table, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
-import "Styling/Shared.scss";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
 import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } from ".";
 import { setErrorMessage } from "./Redux/AnalysesActions";

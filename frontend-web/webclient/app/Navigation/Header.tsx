@@ -3,7 +3,6 @@ import { Input, Menu, Dropdown, Icon, Responsive, Header as HeaderTag, Form } fr
 import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
-import "./Header.scss";
 import * as PropTypes from "prop-types";
 import { Dispatch } from "redux";
 import Notifications from "Notifications";
