@@ -18,8 +18,8 @@ class CloudContextFeature : MicroFeature {
                         "Cannot use development mode CloudContext")
             }
 
-            log.info("Using direct service client")
-            DirectServiceClient()
+            log.info("Using sdu cloud client")
+            SDUCloud("https://cloud.sdu.dk")
         }
 
         ctx.cloudContext = context

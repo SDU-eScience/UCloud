@@ -20,7 +20,7 @@ spec:
         - /etc/refresh-token
         - --run-script
         - migrate-db
-        image: registry.dev-sdu-cloud.dk/sdu-cloud/auth-service:1.2.0
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/auth-service:1.3.0
         name: auth-migration
 
         volumeMounts:

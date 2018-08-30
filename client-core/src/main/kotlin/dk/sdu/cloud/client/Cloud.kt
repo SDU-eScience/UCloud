@@ -41,7 +41,7 @@ sealed class RESTResponse<out T, out E> {
     data class Err<out T, out E>(override val response: HttpResponse, val error: E? = null) : RESTResponse<T, E>()
 }
 
-abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owner: ServiceDescription) {
+abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private val namespace: String) {
     private val resolvedEndpoint = resolvedEndpoint.removePrefix("/")
 
     companion object {
@@ -62,7 +62,7 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
             attempts++
             if (attempts == 5) throw ConnectException("Too many retries!")
 
-            val endpoint = context.parent.resolveEndpoint(this).removeSuffix("/")
+            val endpoint = context.parent.resolveEndpoint(namespace).removeSuffix("/")
             val url = "$endpoint/$resolvedEndpoint"
             val resp = try {
                 httpClient.get<HttpResponse>(url) {
@@ -118,14 +118,12 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, val owne
 }
 
 interface CloudContext {
-    fun resolveEndpoint(call: PreparedRESTCall<*, *>): String
-    fun resolveEndpoint(service: ServiceDescription): String
+    fun resolveEndpoint(namespace: String): String
     fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean
 }
 
 class SDUCloud(private val endpoint: String) : CloudContext {
-    override fun resolveEndpoint(call: PreparedRESTCall<*, *>): String = endpoint
-    override fun resolveEndpoint(service: ServiceDescription): String = endpoint
+    override fun resolveEndpoint(namespace: String): String = endpoint
 
     override fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean {
         // There is not much to do if gateway is not responding

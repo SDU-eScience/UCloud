@@ -46,8 +46,6 @@ class PasswordTest{
             userDao,
             refreshTokenDao,
             jwtAlg,
-            mockk(relaxed = true),
-            mockk(relaxed = true),
             mockk(relaxed = true)
         )
 

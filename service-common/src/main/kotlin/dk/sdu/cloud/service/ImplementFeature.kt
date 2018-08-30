@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import com.fasterxml.jackson.core.JsonParseException
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonMappingException
@@ -101,9 +102,19 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                                 }
                             }
                         } catch (ex: Exception) {
-                            log.warn("Caught exception while trying to deserialize body!")
-                            log.warn(ex.stackTraceToString())
-                            return@handle call.respond(HttpStatusCode.InternalServerError)
+                            when (ex) {
+                                is JsonParseException -> {
+                                    log.debug("Bad JSON")
+                                    log.debug(ex.stackTraceToString())
+                                    return@handle call.respond(HttpStatusCode.BadRequest)
+                                }
+
+                                else -> {
+                                    log.warn("Caught exception while trying to deserialize body!")
+                                    log.warn(ex.stackTraceToString())
+                                    return@handle call.respond(HttpStatusCode.InternalServerError)
+                                }
+                            }
                         }
 
                     // Retrieve argument values from path (if any)

@@ -9,7 +9,7 @@ import io.mockk.mockk
 import io.mockk.objectMockk
 import io.mockk.use
 
-fun mockedUser(user: String = "user1", role: Role = Role.USER): SecurityPrincipal {
+private fun mockedUser(user: String = "user1", role: String): SecurityPrincipal {
     val jwt = mockk<SecurityPrincipal>()
     every { jwt.subject } returns user
 
@@ -29,7 +29,7 @@ fun <T> withAuthMock(block: () -> T): T {
         every { TokenValidation.validate(any(), any()) } answers {
             val token = arg<String>(0).split("/")
             val user = token.first()
-            val role = if (token.size == 2) Role.valueOf(token[1]) else Role.USER
+            val role = if (token.size == 2) token[1] else Role.USER.name
 
             mockedUser(user, role)
         }
@@ -37,7 +37,7 @@ fun <T> withAuthMock(block: () -> T): T {
         every { TokenValidation.validateOrNull(any(), any()) } answers {
             val token = arg<String>(0).split("/")
             val user = token.first()
-            val role = if (token.size == 2) Role.valueOf(token[1]) else Role.USER
+            val role = if (token.size == 2) token[1] else Role.USER.name
             mockedUser(user, role)
         }
 

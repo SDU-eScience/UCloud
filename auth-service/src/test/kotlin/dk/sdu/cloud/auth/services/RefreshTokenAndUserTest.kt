@@ -2,8 +2,6 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.utils.withDatabase
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -29,7 +27,7 @@ class RefreshTokenAndUserTest{
                     "ThisIsMyPassword"
                 )
                 UserHibernateDAO().insert(session, person)
-                val refreshTAU = RefreshTokenAndUser(email, token)
+                val refreshTAU = RefreshTokenAndUser(email, token, "")
                 val refreshHibernateTAU = RefreshTokenHibernateDAO()
 
                 refreshHibernateTAU.insert(session, refreshTAU)
@@ -45,7 +43,7 @@ class RefreshTokenAndUserTest{
     fun `insert - user not found`() {
         withDatabase { db ->
             db.withTransaction { session ->
-                val refreshTAU = RefreshTokenAndUser("non existing User", "token")
+                val refreshTAU = RefreshTokenAndUser("non existing User", "token", "")
                 val refreshHibernateTAU = RefreshTokenHibernateDAO()
                 refreshHibernateTAU.insert(session, refreshTAU)
             }

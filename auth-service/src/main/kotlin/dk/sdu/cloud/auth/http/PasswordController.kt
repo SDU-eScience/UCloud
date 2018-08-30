@@ -6,7 +6,6 @@ import dk.sdu.cloud.auth.services.UserDAO
 import dk.sdu.cloud.auth.services.UserException
 import dk.sdu.cloud.auth.services.checkPassword
 import dk.sdu.cloud.auth.util.urlEncoded
-import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry
@@ -26,7 +25,7 @@ class PasswordController<DBSession>(
 ) {
     fun configure(routing: Routing): Unit = with(routing) {
         route("auth") {
-            post("login") {
+            post("login") { _ ->
                 val params = try {
                     call.receiveParameters().toMap()
                 } catch (ex: Exception) {
@@ -74,7 +73,8 @@ class PasswordController<DBSession>(
                     "/auth/login-redirect?" +
                             "service=${service.urlEncoded}" +
                             "&accessToken=${token.accessToken.urlEncoded}" +
-                            "&refreshToken=${token.refreshToken.urlEncoded}"
+                            "&refreshToken=${token.refreshToken.urlEncoded}" +
+                            "&csrfToken=${token.csrfToken.urlEncoded}"
                 )
             }
 

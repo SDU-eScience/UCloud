@@ -27,7 +27,7 @@ object MyServiceDescription : ServiceDescription {
 
 data class SomeData(val data: Int)
 
-object TestDescriptions : RESTDescriptions(MyServiceDescription) {
+object TestDescriptions : RESTDescriptions("echo") {
     val echoId = callDescription<FindByIntId, SomeData, CommonErrorMessage> {
         method = HttpMethod.Post
         prettyName = "echoId"

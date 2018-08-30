@@ -42,11 +42,11 @@ class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
     }
 
     fun build(
-        owner: ServiceDescription,
+        namespace: String,
         additionalConfiguration: (HttpRequestBuilder.(R) -> Unit)?
     ): RESTCallDescription<R, S, E> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
-        val fullName = prettyName?.let { pretty -> owner.name + '.' + pretty }
+        val fullName = prettyName?.let { pretty -> "$namespace.$pretty" }
 
         return RESTCallDescription(
             method,
@@ -58,7 +58,7 @@ class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
             responseTypeFailure,
             deserializerSuccess,
             deserializerError,
-            owner,
+            namespace,
             fullName,
             additionalConfiguration
         )

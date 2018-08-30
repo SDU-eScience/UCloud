@@ -1,8 +1,7 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.bearer
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
@@ -22,15 +21,19 @@ import io.ktor.html.respondHtml
 import io.ktor.http.CacheControl
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.request.header
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.route
+import io.ktor.util.escapeHTML
 import kotlinx.html.*
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.MalformedURLException
+import java.net.URL
 
 // TODO Bad name
 class CoreAuthController<DBSession>(
@@ -41,6 +44,44 @@ class CoreAuthController<DBSession>(
     private val enableWayf: Boolean
 ) {
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)
+
+    private suspend fun RESTHandler<*, *, CommonErrorMessage>.requestOriginIsTrusted(): Boolean {
+        // TODO Don't hardcode this
+        fun isValidHostname(hostname: String): Boolean = hostname in setOf("localhost", "cloud.sdu.dk")
+
+        // First validate referer/origin headers (according to recommendations from OWASP)
+        val referer = call.request.header(HttpHeaders.Referrer)
+        val origin = call.request.header(HttpHeaders.Origin)
+
+        val hostnameFromHeaders = try {
+            if (!origin.isNullOrBlank()) {
+                URL(origin).host
+            } else if (!referer.isNullOrBlank()) {
+                URL(referer).host
+            } else {
+                // Block request (OWASP recommendation)
+                log.info("Missing referer and origin header")
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                return false
+            }
+        } catch (ex: MalformedURLException) {
+            // Block request (OWASP recommendation)
+            log.info("Bad URL from header: $referer $origin")
+            error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+            return false
+        }
+
+        if (!isValidHostname(hostnameFromHeaders)) {
+            log.info(
+                "Origin from headers (referer=$referer, origin=$origin, " +
+                        "hostnameFromHeaders=$hostnameFromHeaders) is not trusted."
+            )
+            error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+            return false
+        }
+
+        return true
+    }
 
     fun configure(routing: Routing): Unit = with(routing) {
         route("auth") {
@@ -227,6 +268,7 @@ class CoreAuthController<DBSession>(
                 // the user to be logged out though, and it will require a valid access token. This makes the attack
                 // a bit useless.
 
+                val csrfToken = call.parameters["csrfToken"]
 
                 if (TokenValidation.validateOrNull(token) == null) {
                     log.info("Invalid access token")
@@ -253,13 +295,20 @@ class CoreAuthController<DBSession>(
 
                             input(InputType.hidden) {
                                 name = "accessToken"
-                                value = token
+                                value = token.escapeHTML()
                             }
 
                             if (refreshToken != null) {
                                 input(InputType.hidden) {
                                     name = "refreshToken"
-                                    value = refreshToken
+                                    value = refreshToken.escapeHTML()
+                                }
+                            }
+
+                            if (csrfToken != null) {
+                                input(InputType.hidden) {
+                                    name = "csrfToken"
+                                    value = csrfToken.escapeHTML()
                                 }
                             }
 
@@ -281,13 +330,33 @@ class CoreAuthController<DBSession>(
                     error(HttpStatusCode.Unauthorized)
                 }
 
-                try {
-                    val token = tokenService.refresh(refreshToken)
-                    ok(token)
-                } catch (ex: TokenService.RefreshTokenException) {
-                    log.info(ex.message)
-                    error(ex.httpCode)
+                val token = tokenService.refresh(refreshToken)
+                ok(AccessToken(token.accessToken))
+            }
+
+            implement(AuthDescriptions.webRefresh) { _ ->
+                logEntry(log, Unit)
+
+                // Note: This is currently the only endpoint in the entire system that needs CSRF protection.
+                // That is why this endpoint contains all of the protection stuff directly. If we _ever_ need more
+                // endpoints with CSRF protection, this code should be moved out.
+
+                if (!requestOriginIsTrusted()) return@implement
+
+                // Then validate CSRF and refresh token
+                val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
+                    log.info("No CSRF token included")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
                 }
+
+                val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
+                    log.info("Missing refresh token")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
+
+                ok(tokenService.refresh(refreshToken, csrfToken))
             }
 
             implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
@@ -297,43 +366,15 @@ class CoreAuthController<DBSession>(
                     error(HttpStatusCode.Unauthorized)
                 }
 
-                try {
-                    val token = tokenService.requestOneTimeToken(bearerToken, *it.audience.split(",").toTypedArray())
-                    ok(token)
-                } catch (ex: TokenService.RefreshTokenException) {
-                    log.info(ex.message)
-                    error(ex.httpCode)
-                }
+                val token = tokenService.requestOneTimeToken(bearerToken, *it.audience.split(",").toTypedArray())
+                ok(token)
             }
 
             implement(AuthDescriptions.claim) { req ->
                 logEntry(log, req)
-                val jti = req.jti
-                val token = call.request.bearer ?: return@implement run {
-                    log.debug("Missing bearer token")
-                    error(HttpStatusCode.Unauthorized)
-                }
+                if (!protect(PRIVILEGED_ROLES)) return@implement
 
-                val principal = TokenValidation.validateOrNull(token) ?: return@implement run {
-                    log.debug("Invalid token")
-                    error(HttpStatusCode.Forbidden)
-                }
-
-                val principalRole = try {
-                    Role.valueOf(principal.getClaim("role").asString())
-                } catch (ex: Exception) {
-                    log.debug("Invalid or missing role for principal")
-                    error(HttpStatusCode.Forbidden)
-                    return@implement
-                }
-
-                if (principalRole != Role.SERVICE && principalRole != Role.ADMIN) {
-                    log.debug("Cannot claim token as non-service/admin principal")
-                    error(HttpStatusCode.Forbidden)
-                    return@implement
-                }
-
-                val tokenWasClaimed = db.withTransaction { ottDao.claim(it, jti, principal.subject) }
+                val tokenWasClaimed = db.withTransaction { ottDao.claim(it, req.jti, call.request.currentUsername) }
 
                 if (tokenWasClaimed) {
                     ok(HttpStatusCode.NoContent)
@@ -342,23 +383,45 @@ class CoreAuthController<DBSession>(
                 }
             }
 
+            // TODO This stuff won't work with cookie based auth
             implement(AuthDescriptions.logout) { _ ->
                 logEntry(log, Unit) { "refresh = ${call.request.bearer}" }
 
-                // TODO Invalidate at WAYF
                 val refreshToken = call.request.bearer ?: return@implement run {
                     call.respond(HttpStatusCode.Unauthorized)
                 }
-                try {
-                    tokenService.logout(refreshToken)
-                    call.respond(HttpStatusCode.NoContent)
-                } catch (ex: TokenService.RefreshTokenException) {
-                    log.info(ex.message)
-                    call.respond(ex.httpCode)
-                }
+
+                tokenService.logout(refreshToken)
+                call.respond(HttpStatusCode.NoContent)
             }
 
+            implement(AuthDescriptions.webLogout) { _ ->
+                logEntry(log, Unit)
 
+                if (!requestOriginIsTrusted()) return@implement
+
+                // Then validate CSRF and refresh token
+                val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
+                    log.info("No CSRF token included")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
+
+                val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
+                    log.info("Missing refresh token")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
+
+                tokenService.logout(refreshToken, csrfToken)
+                call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
+    }
+
+    companion object {
+        const val REFRESH_WEB_CSRF_TOKEN = "X-CSRFToken"
+        const val REFRESH_WEB_REFRESH_TOKEN_COOKIE = "refreshToken"
     }
 }
