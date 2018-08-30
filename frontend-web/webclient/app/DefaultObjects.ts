@@ -10,6 +10,7 @@ import { SortOrder, SortBy } from "Files";
 import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
+import { Upload } from "Uploader";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -137,9 +138,18 @@ interface HeaderSearch {
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 
+interface UploaderReduxObject {
+    uploads: Upload[]
+    visible: boolean
+    path: string
+    allowMultiple: boolean
+    onFilesUploaded: () => void
+}
+
 export interface ReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
+    uploader: UploaderReduxObject
     uppy: any
     status: StatusReduxObject,
     applications: ComponentWithPage<Application>
@@ -219,6 +229,13 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
         open: false,
         loading: false,
         options: [] as SidebarOption[]
+    },
+    uploader: {
+        path: "",
+        uploads: [],
+        visible: false,
+        allowMultiple: false,
+        onFilesUploaded: () => null
     }
 });
 

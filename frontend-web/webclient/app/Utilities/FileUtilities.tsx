@@ -194,7 +194,7 @@ export const favoriteFile = (file: File, cloud: Cloud): void => {
 export const canBeProject = (files: File[], homeFolder: string): boolean => 
     files.length === 1 && files.every((f) => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
 
-
+export const previewSupportedExtension = (path: string) => false;
 
 export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
 

@@ -31,7 +31,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         this.state = {
             searchText: ""
         };
-        props.dispatch(fetchLoginStatus())
+        props.dispatch(fetchLoginStatus());
     }
 
     static contextTypes = {
@@ -141,5 +141,8 @@ class Header extends React.Component<HeaderProps, HeaderState> {
 }
 
 
-const mapStateToProps = ({ sidebar, header }: HeaderStateToProps) => ({ open: sidebar.open, prioritizedSearch: header.prioritizedSearch });
+const mapStateToProps = ({ sidebar, header }: HeaderStateToProps) => ({
+    open: sidebar.open,
+    prioritizedSearch: header.prioritizedSearch
+});
 export default connect(mapStateToProps)(Header);

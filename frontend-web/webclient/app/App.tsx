@@ -16,11 +16,10 @@ import sidebar from "Navigation/Redux/SidebarReducer";
 import analyses from "Applications/Redux/AnalysesReducer";
 import notifications from "Notifications/Redux/NotificationsReducer";
 import { initObject } from "DefaultObjects";
+import uploader from "Uploader/Redux/UploaderReducer";
 import "semantic-ui-css/semantic.min.css"
 
-window.onload = () => {
-    Cloud.receiveAccessTokenOrRefreshIt();
-};
+window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
 // Middleware allowing for dispatching promises.
 const addPromiseSupportToDispatch = (store) => {
@@ -43,6 +42,7 @@ const rootReducer = combineReducers({
     status,
     zenodo,
     sidebar,
+    uploader,
     notifications
 });
 

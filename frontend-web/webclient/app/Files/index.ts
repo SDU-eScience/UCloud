@@ -96,6 +96,7 @@ export interface FilesOperations { // Redux operations
     showFileSelector: (open: boolean) => void
     checkAllFiles: (checked: boolean, page: Page<File>) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
+    showUploader: () => void
 }
 
 export interface FileSelectorProps {
@@ -228,9 +229,8 @@ export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) =
 export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {
-    currentPath: string
     createFolder: () => void
-    refetch: () => void
+    showUploader: () => void
 }
 
 

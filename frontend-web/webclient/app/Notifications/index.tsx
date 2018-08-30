@@ -17,6 +17,7 @@ interface NotificationProps {
     fetchNotifications: Function,
     notificationRead: Function,
     history: History
+    activeUploads: number
 }
 
 class Notifications extends React.Component<NotificationProps> {
@@ -34,7 +35,6 @@ class Notifications extends React.Component<NotificationProps> {
     }
 
     private onNotificationRead(notification: Notification) {
-        // TODO This is not the "react" way
         this.props.notificationRead(notification.id);
         Cloud.post(`notifications/read/${notification.id}`)
     }
@@ -54,7 +54,8 @@ class Notifications extends React.Component<NotificationProps> {
     }
 
     public render() {
-        let entries: JSX.Element[] = this.props.page.items.map((notification, index) =>
+        const { activeUploads, page } = this.props;
+        const entries: JSX.Element[] = page.items.map((notification, index) =>
             <NotificationEntry
                 key={index}
                 notification={notification}
@@ -68,16 +69,22 @@ class Notifications extends React.Component<NotificationProps> {
             return <Redirect to={theRedirect} />
         }
 
-        const unreadLength = this.props.page.items.filter((e) => !e.read).length;
-        const label = unreadLength > 0 ? (
-            <Label color='red' floating circular>
-                {unreadLength}
+        const unreadLength = page.items.filter((e) => !e.read).length;
+        const label = unreadLength + activeUploads > 0 ? (
+            <Label color="red" floating circular>
+                {unreadLength + activeUploads}
             </Label>
+        ) : null;
+        const uploads = activeUploads > 0 ? (
+            <>
+                {`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
+                <Divider />
+            </>
         ) : null;
         return (
             <Popup
                 trigger={
-                    <Button color='blue' className="notification-button-padding" circular>
+                    <Button color="blue" className="notification-button-padding" circular>
                         <Icon className="notification-button-padding" name="bell" />
                         {label}
                     </Button>
@@ -86,6 +93,7 @@ class Notifications extends React.Component<NotificationProps> {
                     <Feed>
                         {entries.length ? entries : <NoNotifications />}
                         <Divider />
+                        {uploads}
                         <Status />
                     </Feed>}
                 on="click"
@@ -156,6 +164,10 @@ const mapDispatchToProps = (dispatch) => ({
     fetchNotifications: () => dispatch(fetchNotifications()),
     notificationRead: (id) => dispatch(notificationRead(id))
 });
-const mapStateToProps = (state) => state.notifications;
+const mapStateToProps = (state) => ({
+    ...state.notifications,
+    activeUploads: state.uploader.uploads.filter(it => it.uploadXHR &&
+        it.uploadXHR.readyState > XMLHttpRequest.UNSENT && it.uploadXHR.readyState < XMLHttpRequest.DONE).length
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Notifications));

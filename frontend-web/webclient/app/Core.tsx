@@ -23,12 +23,14 @@ import Projects from "Projects/Projects";
 import FilePreview from "Files/FilePreview";
 import * as Share from "Shares";
 import * as Metadata from "Metadata";
+import Uploader from "Uploader/Uploader";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
 const Core = () => (
     <>
         <Header />
+        <Uploader />
         <Sidebar open={false} setSidebarState={(o) => null}>
             <Switch>
                 <Route path="/files/*" component={Files} />

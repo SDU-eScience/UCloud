@@ -7,8 +7,9 @@ import { Status } from ".";
 interface StatusProps { status: Status }
 const Status = ({ status }: StatusProps) => (
     <Button
-        className={`btn btn-info center-text ${statusToButton(status.level)}`}
+        className="center-text"
         fluid
+        color={statusToButton(status.level)}
         as={Link}
         to={"/status"}
         content={status.title}

@@ -1,60 +1,35 @@
 import * as React from "react";
-import {
-    Checkbox,
-    Progress,
-    Grid,
-    Card,
-    Button,
-    Icon
-} from "semantic-ui-react";
+import { Checkbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import "./index.scss";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
-
-interface Upload {
-    file: File
-    isUploading: boolean
-    progressPercentage: number
-    extractArchive: boolean
-    uploadXHR?: XMLHttpRequest
-}
-
-interface UploaderState {
-    uploads: Upload[]
-}
-
-interface UploaderProps {
-    allowMultiple?: boolean
-    location: string
-    onFilesUploaded?: () => void
-}
+import { connect } from "react-redux";
+import { ReduxObject } from "DefaultObjects";
+import { Upload, UploaderProps, UploaderState } from ".";
+import { setUploaderVisible, setUploads } from "Uploader/Redux/UploaderActions";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4);
 
-const newUpload = (file: File): Upload => {
-    return {
-        file,
-        isUploading: false,
-        progressPercentage: 0,
-        extractArchive: false,
-        uploadXHR: undefined
-    }
-}
+const newUpload = (file: File): Upload => ({
+    file,
+    isUploading: false,
+    progressPercentage: 0,
+    extractArchive: false,
+    uploadXHR: undefined
+});
 
-export class Uploader extends React.Component<UploaderProps, UploaderState> {
-    constructor(props: UploaderProps) {
-        super(props);
-
-        this.state = {
-            uploads: []
-        };
+class Uploader extends React.Component<UploaderProps, UploaderState> {
+    constructor(props) {
+        super(props)
     }
 
+    // TODO Should this remain? Check if actually called on leaving page
     componentWillUnmount() {
-        this.state.uploads.forEach(it => {
+        console.warn("Unmounting uploader");
+        this.props.uploads.forEach(it => {
             if (!!it.uploadXHR) {
                 if (it.uploadXHR.readyState != XMLHttpRequest.DONE) {
                     console.log("Aborting", it);
@@ -64,114 +39,116 @@ export class Uploader extends React.Component<UploaderProps, UploaderState> {
         });
     }
 
-    // TODO The upload component should be able to continue in background?
-    onFilesAdded(files: File[]) {
+    onFilesAdded = (files: File[]) => {
         if (files.some(it => it.size === 0)) infoNotification("It is not possible to upload empty files.");
         const filteredFiles = files.filter(it => it.size > 0).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
         if (this.props.allowMultiple !== false) { // true if no value
-            this.setState(() => ({ uploads: this.state.uploads.concat(filteredFiles) }));
+            this.props.dispatch(setUploads(this.props.uploads.concat(filteredFiles)))
         } else {
-            this.setState(() => ({ uploads: [filteredFiles[0]] }))
+            this.props.dispatch(setUploads([filteredFiles[0]]))
         }
     }
 
-    // TODO - The .then()'s are the same.
-    startUpload(index: number) {
-        const upload = this.state.uploads[index];
+    startUpload = (index: number) => {
+        const upload = this.props.uploads[index];
         upload.isUploading = true;
-        this.setState(() => ({ uploads: this.state.uploads }));
+        this.props.dispatch(setUploads(this.props.uploads));
         const onThen = (xhr: XMLHttpRequest) => {
             xhr.onloadend = () => {
-                if (!!this.props.onFilesUploaded && uploadsFinished(this.state.uploads)) {
+                if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
                     this.props.onFilesUploaded();
                 }
             }
             upload.uploadXHR = xhr;
-            this.setState({ uploads: this.state.uploads });
-        }; // FIXME Add error handling
+            this.props.dispatch(setUploads(this.props.uploads));
+        };
         if (!upload.extractArchive) {
             multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
-                this.setState({ uploads: this.state.uploads });
+                this.props.dispatch(setUploads(this.props.uploads));
             }).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
             bulkUpload(this.props.location, upload.file, BulkUploadPolicy.OVERWRITE, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
-                this.setState({ uploads: this.state.uploads });
+                this.props.dispatch(setUploads(this.props.uploads));
             }).then(xhr => onThen(xhr)); // FIXME Add error handling
         }
     }
 
-    startAllUploads(event) {
+    startAllUploads = (event) => {
         event.preventDefault();
-        const length = this.state.uploads.length;
+        const length = this.props.uploads.length;
         for (let i = 0; i < length; i++) {
             this.startUpload(i);
         }
     }
 
-    removeUpload(index: number) {
-        const files = this.state.uploads.slice();
+    removeUpload = (index: number) => {
+        const files = this.props.uploads.slice();
         if (index < files.length) {
             const remainderFiles = files.slice(0, index).concat(files.slice(index + 1));
             this.setState({ uploads: remainderFiles });
         }
     }
 
-    abort(index: number) {
-        const upload = this.state.uploads[index];
+    abort = (index: number) => {
+        const upload = this.props.uploads[index];
         if (!!upload.uploadXHR && upload.uploadXHR.readyState != XMLHttpRequest.DONE) {
             upload.uploadXHR.abort();
             this.removeUpload(index);
         }
     }
 
-    onExtractChange(index: number, value: boolean) {
-        const uploads = this.state.uploads;
+    onExtractChange = (index: number, value: boolean) => {
+        const uploads = this.props.uploads;
         uploads[index].extractArchive = value;
         this.setState({ uploads });
     }
 
     render() {
         return (
-            <div>
-                {
-                    this.state.uploads.map((upload, index) => (
-                        <UploaderRow
-                            key={index}
-                            {...upload}
-                            onExtractChange={value => this.onExtractChange(index, value)}
-                            onUpload={() => this.startUpload(index)}
-                            onDelete={it => { it.preventDefault(); this.removeUpload(index) }}
-                            onAbort={it => { it.preventDefault(); this.abort(index) }}
-                        />
-                    ))
-                }
+            <Modal open={this.props.visible} onClose={() => this.props.dispatch(setUploaderVisible(false))}>
+                <Modal.Header content="Upload Files" />
+                <Modal.Content scrolling>
+                    <Modal.Description>
+                        <div>
+                            {this.props.uploads.map((upload, index) => (
+                                <UploaderRow
+                                    key={index}
+                                    {...upload}
+                                    onExtractChange={value => this.onExtractChange(index, value)}
+                                    onUpload={() => this.startUpload(index)}
+                                    onDelete={it => { it.preventDefault(); this.removeUpload(index) }}
+                                    onAbort={it => { it.preventDefault(); this.abort(index) }}
+                                />
+                            ))}
 
-                {
-                    this.state.uploads.filter(it => !it.isUploading).length > 1 ?
-                        <Button
-                            fluid
-                            positive
-                            icon="cloud upload"
-                            content="Start all!"
-                            className="start-all-btn"
-                            onClick={this.startAllUploads.bind(this)}
-                        />
-                        : null
-                }
+                            {this.props.uploads.filter(it => !it.isUploading).length > 1 ?
+                                <Button
+                                    fluid
+                                    positive
+                                    icon="cloud upload"
+                                    content="Start all!"
+                                    className="start-all-btn"
+                                    onClick={this.startAllUploads}
+                                />
+                                : null}
 
-                <Dropzone className="dropzone" onDrop={this.onFilesAdded.bind(this)}>
-                    <p>
-                        <Icon name="cloud upload" />
-                        Drop files here or <a href="#" onClick={e => e.preventDefault()}>browse</a>
-                    </p>
-                    <p>
-                        <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
-                    </p>
-                </Dropzone>
-            </div>
+                            <Dropzone className="dropzone" onDrop={this.onFilesAdded}>
+                                <p>
+                                    <Icon name="cloud upload" />
+                                    Drop files here or <a href="#" onClick={e => e.preventDefault()}>browse</a>
+                                </p>
+                                <p>
+                                    <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
+                                </p>
+                            </Dropzone>
+                        </div>
+                    </Modal.Description>
+                </Modal.Content>
+            </Modal>
+
         );
     }
 }
@@ -266,3 +243,22 @@ const UploaderRow = (p: {
 
 const archiveExtensions: string[] = [".tar.gz"]
 const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
+
+interface UploaderStateToProps {
+    visible: boolean
+    location: string
+
+}
+
+const mapStateToProps = ({ files, uploader }: ReduxObject): any => {
+    return ({
+        activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
+        location: files.path,
+        visible: uploader.visible,
+        allowMultiple: true,
+        uploads: uploader.uploads,
+        onFilesUploaded: () => null
+    })
+}
+
+export default connect(mapStateToProps)(Uploader);

@@ -2,7 +2,8 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Modal, Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticICONS } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticICONS } from "semantic-ui-react";
+import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
@@ -12,7 +13,6 @@ import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
 import { FileIcon } from "UtilityComponents";
-import { Uploader } from "Uploader";
 import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
@@ -21,7 +21,7 @@ import {
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
     startRenamingFiles, AllFileOperations, newMockFolder, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
-    isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder
+    isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 
 class Files extends React.Component<FilesProps> {
@@ -105,6 +105,7 @@ class Files extends React.Component<FilesProps> {
                             maxWidth={991}
                             createFolder={() => this.newFolder()}
                             currentPath={path}
+                            showUploader={this.props.showUploader}
                         />
                         <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
                     </Grid.Row>
@@ -138,11 +139,10 @@ class Files extends React.Component<FilesProps> {
                 </Grid.Column>
                 <Responsive as={Grid.Column} computer={3} minWidth={992}>
                     <ContextBar
+                        showUploader={this.props.showUploader}
                         fileOperations={fileOperations}
                         files={selectedFiles}
-                        currentPath={path}
                         createFolder={() => this.newFolder()}
-                        refetch={() => refetch()}
                     />
                 </Responsive>
                 <FileSelectorModal
@@ -248,24 +248,17 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
         </Dropdown.Menu>
     </Dropdown>) : <>{UF.prettierString(currentSelection)}</>;
 
-const ContextBar = ({ currentPath, files, ...props }: ContextBarProps) => (
+const ContextBar = ({ files, ...props }: ContextBarProps) => (
     <div>
-        <ContextButtons refetch={props.refetch} currentPath={currentPath} createFolder={props.createFolder} />
+        <ContextButtons showUploader={props.showUploader} createFolder={props.createFolder} />
         <Divider />
         <FileOptions files={files} {...props} />
     </div>
 );
 
-const ContextButtons = ({ currentPath, createFolder, refetch }: ContextButtonsProps) => (
+const ContextButtons = ({ createFolder, showUploader }: ContextButtonsProps) => (
     <div>
-        <Modal trigger={<Button color="blue" className="context-button-margin" fluid content="Upload Files" />}>
-            <Modal.Header content="Upload Files" />
-            <Modal.Content scrolling>
-                <Modal.Description>
-                    <Uploader location={currentPath} onFilesUploaded={refetch} />
-                </Modal.Description>
-            </Modal.Content>
-        </Modal>
+        <Button color="blue" className="context-button-margin" fluid onClick={() => showUploader()} content="Upload Files" />
         <Button basic className="context-button-margin" fluid onClick={() => createFolder()} content="New folder" />
         <Button as={Link} to={`/filesearch`} basic className="context-button-margin" fluid content="Advanced Search" color="green" />
     </div>
@@ -293,6 +286,16 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
 
 const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon className="group-icon-padding" name="users" />) : null;
 
+const FileLink = ({ file, children }) => {
+    if (isDirectory(file)) {
+        return (<Link to={`/files/${file.path}`}>{children}</Link>);
+    } else if (previewSupportedExtension(file.path)) {
+        return (<Link to={`/filepreview/${file.path}`}>{children}</Link>);
+    } else {
+        return (<>{children}</>);
+    }
+}
+
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile = () => null }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_, { checked }) => onCheckFile(checked)} />
@@ -303,10 +306,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             size={size} link={file.link}
         />
     );
-    const nameLink = (isDirectory(file) ?
-        <Link to={`/files/${file.path}`}>
-            {icon}{fileName}
-        </Link> : <Link to={`/filepreview/${file.path}`}>{icon}{fileName}</Link>);
+    const nameLink = <FileLink file={file}>{icon}{fileName}</FileLink>;
     return file.beingRenamed ?
         <Table.Cell className="table-cell-padding-left">
             <Input
@@ -346,7 +346,6 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) =>
 
         }
         operation = operation as Operation;
-    
         return !operation.disabled(files, Cloud) ? (
             <As
                 key={i}
@@ -401,6 +400,7 @@ const mapDispatchToProps = (dispatch): FilesOperations => ({
     updateFiles: (page: Page<File>) => dispatch(Actions.updateFiles(page)),
     checkAllFiles: (checked: boolean, page: Page<File>) => dispatch(Actions.checkAllFiles(checked, page)),
     setDisallowedPaths: (disallowedPaths: string[]) => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
+    showUploader: () => dispatch(setUploaderVisible(true))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);
