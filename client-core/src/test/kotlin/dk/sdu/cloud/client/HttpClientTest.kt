@@ -14,7 +14,7 @@ data class CreateDirectoryRequest(
     val owner: String?
 )
 
-object FileDescriptions : RESTDescriptions(TDescription) {
+object FileDescriptions : RESTDescriptions("files") {
     private val baseContext = "/api/files"
     val createDirectory = callDescription<CreateDirectoryRequest, Unit, CommonErrorMessage> {
         prettyName = "createDirectory"
@@ -38,7 +38,7 @@ object TDescription : ServiceDescription {
     override val version: String = "1.0.0"
 }
 
-object TestObjects : RESTDescriptions(TDescription) {
+object TestObjects : RESTDescriptions("files") {
     val download = callDescription<Unit, BinaryStream, CommonErrorMessage> {
         method = HttpMethod.Get
         prettyName = "download"

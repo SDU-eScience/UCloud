@@ -26,7 +26,7 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
     val responseTypeFailure: KClass<E>,
     val deserializerSuccess: ObjectReader,
     val deserializerError: ObjectReader,
-    val owner: ServiceDescription,
+    val namespace: String,
     var fullName: String?,
     val requestConfiguration: (HttpRequestBuilder.(R) -> Unit)? = null
 ) {
@@ -69,7 +69,7 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
             ?.let { "?$it" } ?: ""
 
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
-        return object : PreparedRESTCall<S, E>(resolvedPath, owner) {
+        return object : PreparedRESTCall<S, E>(resolvedPath, namespace) {
             override fun deserializeSuccess(response: HttpResponse): S {
                 return if (responseTypeSuccess == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
@@ -116,7 +116,7 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
             }
 
             override fun toString(): String {
-                val name = (fullName ?: "$method $resolvedPath") + " (${owner.name}@${owner.version})"
+                val name = (fullName ?: "$method $resolvedPath") + " ($namespace)"
                 return "$name($payload)"
             }
         }
@@ -164,29 +164,5 @@ data class RESTParams<R : Any>(val parameters: List<RESTQueryParameter<R>>)
 
 sealed class RESTQueryParameter<R : Any> {
     data class Property<R : Any, P>(val property: KProperty1<R, P>) : RESTQueryParameter<R>()
-}
-
-inline fun <reified T : Any, reified E : Any> preparedCallWithJsonOutput(
-    endpoint: String,
-    owner: ServiceDescription,
-    mapper: ObjectMapper = defaultMapper,
-    crossinline configureBody: HttpRequestBuilder.() -> Unit = {}
-): PreparedRESTCall<T, E> {
-    val successRef = mapper.readerFor(jacksonTypeRef<T>())
-    val errorRef = mapper.readerFor(jacksonTypeRef<E>())
-
-    return object : PreparedRESTCall<T, E>(endpoint, owner) {
-        override fun HttpRequestBuilder.configure() {
-            configureBody()
-        }
-
-        override fun deserializeSuccess(response: HttpResponse): T {
-            return successRef.readValue(response.content.toInputStream())
-        }
-
-        override fun deserializeError(response: HttpResponse): E? {
-            return errorRef.readValue(response.content.toInputStream())
-        }
-    }
 }
 

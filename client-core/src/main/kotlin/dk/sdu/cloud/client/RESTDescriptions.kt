@@ -1,8 +1,6 @@
 package dk.sdu.cloud.client
 
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.http.HttpMethod
@@ -29,7 +27,7 @@ sealed class ProxyDescription {
 }
 
 
-abstract class RESTDescriptions(val owner: ServiceDescription) {
+abstract class RESTDescriptions(val namespace: String) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     private val _descriptions: MutableList<ProxyDescription> = ArrayList()
@@ -53,7 +51,7 @@ abstract class RESTDescriptions(val owner: ServiceDescription) {
             deserializerError = mapper.readerFor(jacksonTypeRef<E>())
         )
         builder.body()
-        return builder.build(owner, additionalRequestConfiguration).also { register(it) }
+        return builder.build(namespace, additionalRequestConfiguration).also { register(it) }
     }
 
     /**
