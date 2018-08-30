@@ -665,6 +665,350 @@ exports[`Files in filestable 1`] = `
 </table>
 `;
 
+exports[`Full Files component, full page of files 1`] = `
+<div
+  className="ui grid"
+>
+  <div
+    className="thirteen wide computer sixteen wide tablet column"
+  >
+    <div
+      className="row"
+    />
+    <i
+      aria-hidden="true"
+      className="sync small circular link loading icon pagination-float-right"
+      onClick={[Function]}
+    />
+    <span
+      className="items-per-page-padding pagination-float-right"
+    >
+      <span>
+        Items per page 
+      </span>
+      <div
+        aria-expanded={false}
+        className="ui compact inline dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          25
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              10
+            </span>
+          </div>
+          <div
+            aria-checked={true}
+            aria-selected={true}
+            className="active selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              25
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              50
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              100
+            </span>
+          </div>
+        </div>
+      </div>
+    </span>
+    <div
+      className="ui centered middle aligned one column grid"
+    >
+      <div
+        className="pagination-loader"
+      >
+        <i
+          aria-hidden="true"
+          className="circle notched loading icon pagination-list-loading"
+        />
+      </div>
+    </div>
+    <div />
+  </div>
+  <div
+    className="three wide computer column"
+  >
+    <div>
+      <div>
+        <button
+          className="ui blue fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          Upload Files
+        </button>
+        <button
+          className="ui basic fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          New folder
+        </button>
+        <a
+          className="ui green basic fluid button context-button-margin"
+          href="/filesearch"
+          onClick={[Function]}
+          role="button"
+        >
+          Advanced Search
+        </a>
+      </div>
+      <div
+        className="ui divider"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Full Files component, no files 1`] = `
+<div
+  className="ui grid"
+>
+  <div
+    className="thirteen wide computer sixteen wide tablet column"
+  >
+    <div
+      className="row"
+    />
+    <i
+      aria-hidden="true"
+      className="sync small circular link loading icon pagination-float-right"
+      onClick={[Function]}
+    />
+    <span
+      className="items-per-page-padding pagination-float-right"
+    >
+      <span>
+        Items per page 
+      </span>
+      <div
+        aria-expanded={false}
+        className="ui compact inline dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          25
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              10
+            </span>
+          </div>
+          <div
+            aria-checked={true}
+            aria-selected={true}
+            className="active selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              25
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              50
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              100
+            </span>
+          </div>
+        </div>
+      </div>
+    </span>
+    <div
+      className="ui centered middle aligned one column grid"
+    >
+      <div
+        className="pagination-loader"
+      >
+        <i
+          aria-hidden="true"
+          className="circle notched loading icon pagination-list-loading"
+        />
+      </div>
+    </div>
+    <div />
+  </div>
+  <div
+    className="three wide computer column"
+  >
+    <div>
+      <div>
+        <button
+          className="ui blue fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          Upload Files
+        </button>
+        <button
+          className="ui basic fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          New folder
+        </button>
+        <a
+          className="ui green basic fluid button context-button-margin"
+          href="/filesearch"
+          onClick={[Function]}
+          role="button"
+        >
+          Advanced Search
+        </a>
+      </div>
+      <div
+        className="ui divider"
+      />
+    </div>
+  </div>
+</div>
+`;
+
 exports[`Render empty files table 1`] = `
 <table
   className="ui unstackable very basic table"

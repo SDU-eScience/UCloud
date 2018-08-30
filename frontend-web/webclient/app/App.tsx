@@ -5,6 +5,7 @@ import { createStore, combineReducers } from "redux";
 import { BrowserRouter } from "react-router-dom";
 import Core from "./Core";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { initObject } from "DefaultObjects";
 import header from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
 import uppyReducers from "Uppy/Redux/UppyReducers";
@@ -15,7 +16,6 @@ import zenodo from "Zenodo/Redux/ZenodoReducer";
 import sidebar from "Navigation/Redux/SidebarReducer";
 import analyses from "Applications/Redux/AnalysesReducer";
 import notifications from "Notifications/Redux/NotificationsReducer";
-import { initObject } from "DefaultObjects";
 import uploader from "Uploader/Redux/UploaderReducer";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
@@ -46,12 +46,12 @@ const rootReducer = combineReducers({
 });
 
 const configureStore = (initialObject) => {
-    let store = createStore(rootReducer, initialObject);
+    const store = createStore(rootReducer, initialObject);
     store.dispatch = addPromiseSupportToDispatch(store);
     return store;
 };
 
-let store = configureStore(initObject(Cloud));
+const store = configureStore(initObject(Cloud));
 
 ReactDOM.render(
     <Provider store={store}>
