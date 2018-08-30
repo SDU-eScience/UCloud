@@ -47,7 +47,7 @@ data class UploadCreationCommand(
  * Describes the endpoints exposed by TUS. For most use-cases the recommended way to interact with this service is
  * through a TUS-client.
  */
-object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
+object TusDescriptions : RESTDescriptions("tus") {
     val baseContext = "/api/tus"
 
     val create = callDescription<UploadCreationCommand, Unit, Unit>(
@@ -71,20 +71,20 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
         },
 
         body = {
-            prettyName = "tusCreate"
+            prettyName = "create"
             path { using(baseContext) }
             method = HttpMethod.Post
         }
     )
 
     val probeTusConfiguration = callDescription<Unit, Unit, Unit> {
-        prettyName = "tusOptions"
+        prettyName = "probeTusConfiguration"
         path { using(baseContext) }
         method = HttpMethod.Options
     }
 
     val findUploadStatusById = callDescription<FindByStringId, Unit, Unit> {
-        prettyName = "tusFindUploadStatusById"
+        prettyName = "findUploadStatusById"
         method = HttpMethod.Head
         path {
             using(baseContext)
@@ -93,7 +93,7 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val uploadChunkViaPost = callDescription<FindByStringId, Unit, Unit> {
-        prettyName = "tusUpload"
+        prettyName = "uploadChunkViaPost"
         method = HttpMethod.Post
         path {
             using(baseContext)
@@ -102,7 +102,7 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val uploadChunk = callDescription<FindByStringId, Unit, Unit> {
-        prettyName = "tusUpload"
+        prettyName = "uploadChunk"
         method = HttpMethod.Patch
         path {
             using(baseContext)
@@ -128,7 +128,7 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
         token: String
     ): TusUploader {
         log.debug("Creating uploader: $inputStream, $location, $payloadSizeMax32Bits, $cloud, $token")
-        val endpoint = cloud.resolveEndpoint(owner)
+        val endpoint = cloud.resolveEndpoint(namespace)
         val store = TusURLMemoryStore()
         val client = TusClient().apply {
             headers = mapOf("Authorization" to "Bearer $token")
@@ -149,10 +149,6 @@ object TusDescriptions : RESTDescriptions(StorageServiceDescription) {
         uploader.chunkSize = 1024 * 8
         uploader.requestPayloadSize = payloadSizeMax32Bits // The tus java client really has problems. Limit is stupid
         return uploader
-    }
-
-    init {
-        register("/api/tus/{id}", HttpMethod.Options) // Needed for CORS
     }
 
     private val log = LoggerFactory.getLogger(TusDescriptions::class.java)

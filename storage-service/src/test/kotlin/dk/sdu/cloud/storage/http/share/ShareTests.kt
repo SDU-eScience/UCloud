@@ -37,7 +37,7 @@ class ShareTests {
             coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
                 RESTResponse.Ok(
                     mockk(relaxed = true),
-                    FindByNotificationId("mocked id")
+                    FindByNotificationId(0)
                 )
             }
 
@@ -123,7 +123,7 @@ class ShareTests {
             coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
                 RESTResponse.Ok(
                     mockk(relaxed = true),
-                    FindByNotificationId("mocked id")
+                    FindByNotificationId(0)
                 )
             }
 
@@ -246,7 +246,7 @@ class ShareTests {
             coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
                 RESTResponse.Ok(
                     mockk(relaxed = true),
-                    FindByNotificationId("mocked id")
+                    FindByNotificationId(0)
                 )
             }
 

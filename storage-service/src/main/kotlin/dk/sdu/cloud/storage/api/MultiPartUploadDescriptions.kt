@@ -15,7 +15,7 @@ import java.util.*
 
 data class BulkUploadErrorMessage(val message: String, val rejectedUploads: List<String>)
 
-object MultiPartUploadDescriptions : RESTDescriptions(StorageServiceDescription) {
+object MultiPartUploadDescriptions : RESTDescriptions("upload") {
     const val baseContext = "/api/upload"
     private val client = OkHttpClient()
 
@@ -97,8 +97,7 @@ object MultiPartUploadDescriptions : RESTDescriptions(StorageServiceDescription)
 
         writer: (BufferedSink) -> Unit
     ) {
-        val call = upload.prepare(Unit)
-        val endpoint = cloud.resolveEndpoint(call).removeSuffix("/") + baseContext
+        val endpoint = cloud.resolveEndpoint(namespace).removeSuffix("/") + baseContext
 
         val streamingBody = object : RequestBody() {
             override fun contentType(): MediaType {
