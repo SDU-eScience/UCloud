@@ -11,7 +11,7 @@ data class ProjectMetadataWithRightsInfo(
     val canEdit: Boolean
 )
 
-object MetadataDescriptions : RESTDescriptions(MetadataServiceDescription) {
+object MetadataDescriptions : RESTDescriptions("metadata") {
     const val baseContext = "/api/metadata"
 
     val updateProjectMetadata = callDescription<ProjectMetadataEditRequest, Unit, CommonErrorMessage> {

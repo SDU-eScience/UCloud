@@ -12,7 +12,7 @@ data class SimpleQueryRequest(
     override val page: Int?
 ) : WithPagination
 
-object MetadataQueryDescriptions : RESTDescriptions(MetadataServiceDescription) {
+object MetadataQueryDescriptions : RESTDescriptions("metadata") {
     private const val baseContext = "/api/metadata"
 
     val simpleQuery = callDescription<SimpleQueryRequest, Page<ProjectMetadata>, CommonErrorMessage> {

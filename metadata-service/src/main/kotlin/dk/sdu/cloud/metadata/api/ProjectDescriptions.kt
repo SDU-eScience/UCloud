@@ -14,7 +14,7 @@ data class CreateProjectResponse(val id: Long)
 
 typealias FindByProjectId = FindByLongId
 
-object ProjectDescriptions : RESTDescriptions(MetadataServiceDescription) {
+object ProjectDescriptions : RESTDescriptions("projects") {
     const val baseContext = "/api/projects"
 
     val create = callDescription<CreateProjectRequest, CreateProjectResponse, CommonErrorMessage> {
