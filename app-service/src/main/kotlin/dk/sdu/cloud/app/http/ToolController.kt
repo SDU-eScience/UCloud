@@ -39,7 +39,7 @@ class ToolController<DBSession>(
                     it,
                     call.request.currentUsername,
                     req.name,
-                    req.pagination
+                    req.normalize()
                 )
             }
 

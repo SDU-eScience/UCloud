@@ -49,7 +49,7 @@ class AppController<DBSession>(
             logEntry(log, req)
 
             val result = db.withTransaction {
-                source.findAllByName(it, call.request.currentUsername, req.name, req.pagination)
+                source.findAllByName(it, call.request.currentUsername, req.name, req.normalize())
             }
 
             ok(result)

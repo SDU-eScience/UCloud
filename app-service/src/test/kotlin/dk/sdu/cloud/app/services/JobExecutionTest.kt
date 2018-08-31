@@ -15,7 +15,8 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpStatusCode
 import io.mockk.*
