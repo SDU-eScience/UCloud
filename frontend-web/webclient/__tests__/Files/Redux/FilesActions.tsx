@@ -80,7 +80,17 @@ test("Set Files as not loading", () => {
     expect(nonEmptyPageStore.getState().files.loading).toBe(false);
 });
 
-// setErrorMessage
+test("Set Files error", () => {
+    const ErrorMessage = "Error_Message";
+    nonEmptyPageStore.dispatch(FileActions.setErrorMessage(ErrorMessage));
+    expect(nonEmptyPageStore.getState().files.error).toBe(ErrorMessage);
+})
+
+test("Clear Files error", () => {
+    const ErrorMessage = undefined;
+    nonEmptyPageStore.dispatch(FileActions.setErrorMessage(ErrorMessage));
+    expect(nonEmptyPageStore.getState().files.error).toBe(ErrorMessage);
+});
 
 test("Show file selector", () => {
     nonEmptyPageStore.dispatch(FileActions.fileSelectorShown(true));
@@ -91,6 +101,21 @@ test("Hide file selector", () => {
     nonEmptyPageStore.dispatch(FileActions.fileSelectorShown(false));
     expect(nonEmptyPageStore.getState().files.fileSelectorShown).toBe(false);
 });
+
+// setDisallowedPaths
+
+test("Set disallowed paths", () => {
+    const disallowedPaths = [ "1", "2", "3" ]
+    nonEmptyPageStore.dispatch(FileActions.setDisallowedPaths(disallowedPaths));
+    expect(nonEmptyPageStore.getState().files.disallowedPaths);
+});
+
+test("Clear disallowed paths", () => {
+    const disallowedPaths = []
+    nonEmptyPageStore.dispatch(FileActions.setDisallowedPaths(disallowedPaths));
+    expect(nonEmptyPageStore.getState().files.disallowedPaths);
+});
+
 
 test("Set FileSelector loading", () => {
     nonEmptyPageStore.dispatch(FileActions.setFileSelectorLoading());
@@ -130,4 +155,3 @@ test("Clear File Selector error", () => {
 // setSortingColumn
 // receiveFileSelectorFiles
 // setFileSelectorLoading
-// setDisallowedPaths
