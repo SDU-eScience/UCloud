@@ -1,12 +1,11 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.file.api.*
 import io.mockk.every
 import io.mockk.mockk
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.DocWriteRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse
 import org.elasticsearch.action.bulk.BulkItemResponse
 import org.elasticsearch.action.bulk.BulkResponse
 import org.elasticsearch.action.delete.DeleteResponse

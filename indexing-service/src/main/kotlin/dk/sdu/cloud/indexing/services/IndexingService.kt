@@ -1,7 +1,7 @@
 package dk.sdu.cloud.indexing.services
 
 import dk.sdu.cloud.filesearch.api.SearchResult
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.file.api.*
 
 interface Migratable {
     fun migrate() {}

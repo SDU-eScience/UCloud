@@ -2,8 +2,8 @@ package dk.sdu.cloud.indexing.services
 
 import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.SensitivityLevel
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
 import io.mockk.every
 import io.mockk.mockk
 import org.elasticsearch.action.get.GetResponse

@@ -9,9 +9,9 @@ import dk.sdu.cloud.filesearch.api.SearchResult
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.indexing.services.toExternalResult
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
-import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.VerifyFileKnowledgeRequest
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.Logger

@@ -3,7 +3,7 @@ package dk.sdu.cloud.indexing.services
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.indexing.util.*
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageEvent
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.DocWriteRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest

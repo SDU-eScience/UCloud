@@ -3,9 +3,9 @@ package dk.sdu.cloud.indexing.services
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.storage.api.DeliverMaterializedFileSystemRequest
-import dk.sdu.cloud.storage.api.DeliverMaterializedFileSystemResponse
-import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemRequest
+import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemResponse
+import dk.sdu.cloud.file.api.FileDescriptions
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode

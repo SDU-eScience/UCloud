@@ -1,6 +1,6 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.file.api.*
 
 data class ElasticIndexedFile(
     val id: String,
