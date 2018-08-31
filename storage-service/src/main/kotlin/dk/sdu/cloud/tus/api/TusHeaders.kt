@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.tus.api
 
 object TusHeaders {
     /**
@@ -43,7 +43,13 @@ object TusHeaders {
 
     const val UploadMetadata = "Upload-Metadata"
 
-    val KnownHeaders = listOf(MaxSize, Extension, UploadOffset, UploadLength, Resumable)
+    val KnownHeaders = listOf(
+        MaxSize,
+        Extension,
+        UploadOffset,
+        UploadLength,
+        Resumable
+    )
 }
 
 object TusExtensions {

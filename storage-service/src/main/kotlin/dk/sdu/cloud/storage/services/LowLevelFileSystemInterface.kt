@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.AccessRight
-import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.files.api.AccessRight
+import dk.sdu.cloud.files.api.StorageEvent
 import java.io.InputStream
 import java.io.OutputStream
 

@@ -8,9 +8,9 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
-import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.files.api.DOWNLOAD_FILE_SCOPE
+import dk.sdu.cloud.files.api.FileDescriptions
+import dk.sdu.cloud.files.api.FileType
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall
@@ -22,7 +22,6 @@ import io.ktor.http.defaultForFilePath
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.routing.Route
-import io.ktor.routing.route
 import kotlinx.coroutines.experimental.io.ByteWriteChannel
 import kotlinx.coroutines.experimental.io.jvm.javaio.toOutputStream
 import kotlinx.coroutines.experimental.runBlocking

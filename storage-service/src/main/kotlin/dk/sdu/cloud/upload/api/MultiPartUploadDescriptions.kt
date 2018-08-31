@@ -1,10 +1,11 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.upload.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.files.api.SensitivityLevel
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.defaultForFilePath

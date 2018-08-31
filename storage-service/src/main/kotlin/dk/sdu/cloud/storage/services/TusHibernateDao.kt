@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.service.db.*
-import dk.sdu.cloud.storage.api.SensitivityLevel
+import dk.sdu.cloud.files.api.SensitivityLevel
 import java.util.*
 import javax.persistence.*
 import javax.persistence.criteria.Predicate

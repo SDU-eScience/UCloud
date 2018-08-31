@@ -1,10 +1,10 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.files.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.CallResult
 import dk.sdu.cloud.storage.util.tryWithFS
@@ -35,7 +35,7 @@ class FilesController<Ctx : FSUserContext>(
                     fileLookupService.listDirectory(
                         it,
                         request.path,
-                        request.pagination,
+                        request.normalize(),
                         request.sortBy ?: FileSortBy.TYPE,
                         request.order ?: SortOrder.ASCENDING
                     )

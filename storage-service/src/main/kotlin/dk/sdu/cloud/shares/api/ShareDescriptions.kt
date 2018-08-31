@@ -1,24 +1,17 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.shares.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.files.api.AccessRight
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
-
-interface WithPagination {
-    val itemsPerPage: Int?
-    val page: Int?
-
-    val pagination: NormalizedPaginationRequest get() = PaginationRequest(itemsPerPage, page).normalize()
-}
 
 data class ListSharesRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
-) : WithPagination
+) : WithPaginationRequest
 
 data class CreateShareRequest(
     val sharedWith: String,
@@ -46,7 +39,12 @@ data class UpdateShareRequest(
 )
 
 fun Share.minimalize(): MinimalShare =
-    MinimalShare(id ?: throw NullPointerException("id must be != null"), sharedWith, rights, state)
+    MinimalShare(
+        id ?: throw NullPointerException("id must be != null"),
+        sharedWith,
+        rights,
+        state
+    )
 
 object ShareDescriptions : RESTDescriptions("shares") {
     const val baseContext = "/api/shares"

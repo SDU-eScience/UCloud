@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.files.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -7,6 +7,8 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.WithPaginationRequest
+
 import io.ktor.http.HttpMethod
 
 data class FindByPath(val path: String)
@@ -39,7 +41,7 @@ data class ListDirectoryRequest(
     override val page: Int?,
     val order: SortOrder?,
     val sortBy: FileSortBy?
-) : WithPagination
+) : WithPaginationRequest
 
 data class LookupFileInDirectoryRequest(
     val path: String,
@@ -110,9 +112,7 @@ data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
 data class DeliverMaterializedFileSystemRequest(
     val rootsToMaterialized: Map<String, List<EventMaterializedStorageFile>>
-): WithPrettyToString {
-    override fun toString() = toPrettyString()
-}
+)
 
 data class DeliverMaterializedFileSystemResponse(
     val shouldContinue: Map<String, Boolean>

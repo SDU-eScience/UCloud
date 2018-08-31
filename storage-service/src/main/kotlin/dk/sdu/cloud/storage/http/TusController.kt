@@ -1,14 +1,17 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.files.api.SensitivityLevel
+import dk.sdu.cloud.files.api.WriteConflictPolicy
 import dk.sdu.cloud.service.KafkaHttpRouteLogger
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.joinPath
+import dk.sdu.cloud.tus.api.TusDescriptions
+import dk.sdu.cloud.tus.api.TusExtensions
+import dk.sdu.cloud.tus.api.TusHeaders
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call

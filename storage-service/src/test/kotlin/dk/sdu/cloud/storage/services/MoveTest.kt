@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.WriteConflictPolicy
+import dk.sdu.cloud.files.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.util.FSException

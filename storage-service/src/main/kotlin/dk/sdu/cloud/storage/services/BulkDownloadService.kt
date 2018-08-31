@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.storage.api.FileType
+import dk.sdu.cloud.files.api.FileType
 import dk.sdu.cloud.storage.util.FSException
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarHeader

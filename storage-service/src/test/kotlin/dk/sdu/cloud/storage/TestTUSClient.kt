@@ -1,9 +1,9 @@
 package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.client.*
-import dk.sdu.cloud.storage.api.TusDescriptions
-import dk.sdu.cloud.storage.api.UploadCreationCommand
-import dk.sdu.cloud.storage.api.start
+import dk.sdu.cloud.tus.api.TusDescriptions
+import dk.sdu.cloud.tus.api.UploadCreationCommand
+import dk.sdu.cloud.tus.api.start
 import kotlinx.coroutines.experimental.runBlocking
 import java.io.File
 import java.net.ConnectException

@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.AccessRight
+import dk.sdu.cloud.files.api.AccessRight
 import dk.sdu.cloud.storage.util.parents
 
 class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterface<Ctx>) {

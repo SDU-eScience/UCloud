@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.tus.api
 
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.CloudContext
@@ -117,7 +117,13 @@ object TusDescriptions : RESTDescriptions("tus") {
         payloadSizeMax32Bits: Int,
         cloud: JWTAuthenticatedCloud
     ): TusUploader {
-        return uploader(inputStream, location, payloadSizeMax32Bits, cloud.parent, cloud.token)
+        return uploader(
+            inputStream,
+            location,
+            payloadSizeMax32Bits,
+            cloud.parent,
+            cloud.token
+        )
     }
 
     fun uploader(
