@@ -174,9 +174,6 @@ test("Files list with items, dropdown.item, empty FilesOperations", () =>
 
 const fileOperations = AllFileOperations(true, false, () => null, mockHistory);
 
-console.log(fullPageStore.getState().files);
-
-
 test("Empty files list, button, some fileoperations", () =>
     expect(Renderer.create(
         <FileOperations
