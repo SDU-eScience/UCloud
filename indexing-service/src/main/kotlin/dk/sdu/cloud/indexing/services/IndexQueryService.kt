@@ -1,6 +1,6 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.indexing.api.TimestampQuery
+import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.storage.api.EventMaterializedStorageFile

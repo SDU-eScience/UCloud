@@ -1,6 +1,6 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.indexing.api.TimestampQuery
+import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.storage.api.FileType
 import dk.sdu.cloud.storage.api.SensitivityLevel
@@ -108,7 +108,7 @@ class ElasticQueryTest{
                 listOf("extensions"),
                 listOf(FileType.FILE, FileType.DIRECTORY),
                 TimestampQuery(123456, 1234567890),
-                TimestampQuery(1234567,1234567890),
+                TimestampQuery(1234567, 1234567890),
                 listOf(SensitivityLevel.CONFIDENTIAL,SensitivityLevel.OPEN_ACCESS),
                 listOf("A"),
                 NormalizedPaginationRequest(20,0)

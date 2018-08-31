@@ -2,7 +2,7 @@ package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.indexing.api.TimestampQuery
+import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.indexing.util.isNullOrEmpty
 import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.indexing.util.term

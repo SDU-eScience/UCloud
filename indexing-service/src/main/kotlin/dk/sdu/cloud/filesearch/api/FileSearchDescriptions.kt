@@ -1,4 +1,4 @@
-package dk.sdu.cloud.indexing.api
+package dk.sdu.cloud.filesearch.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
@@ -33,7 +33,7 @@ data class SearchResult(
     val fileType: FileType
 )
 
-object FileSearchDescriptions : RESTDescriptions(IndexingServiceDescription) {
+object FileSearchDescriptions : RESTDescriptions("fileSearch") {
     const val baseContext: String = "/api/file-search"
 
     val simpleSearch = callDescription<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage> {

@@ -4,8 +4,8 @@ import dk.sdu.cloud.auth.api.currentUsername
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.indexing.api.FileSearchDescriptions
-import dk.sdu.cloud.indexing.api.SearchResult
+import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
+import dk.sdu.cloud.filesearch.api.SearchResult
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.indexing.services.toExternalResult
 import dk.sdu.cloud.service.*
