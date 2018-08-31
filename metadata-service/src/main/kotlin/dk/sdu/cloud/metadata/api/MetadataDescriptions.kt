@@ -3,7 +3,7 @@ package dk.sdu.cloud.metadata.api
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.storage.api.FindByPath
+import dk.sdu.cloud.file.api.FindByPath
 import io.ktor.http.HttpMethod
 
 data class ProjectMetadataWithRightsInfo(

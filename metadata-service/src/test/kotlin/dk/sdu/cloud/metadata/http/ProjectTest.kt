@@ -16,10 +16,10 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.FindByPath
-import dk.sdu.cloud.storage.api.StorageFile
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.StorageFile
 import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.client.response.HttpResponse

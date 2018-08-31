@@ -10,8 +10,8 @@ import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.FindByPath
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindByPath
 import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match

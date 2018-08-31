@@ -66,7 +66,7 @@ class MetadataController(
             logEntry(log, it)
 
             tryWithProject {
-                ok(metadataAdvancedQueryService.simpleQuery(call.request.currentUsername, it.query, it.pagination))
+                ok(metadataAdvancedQueryService.simpleQuery(call.request.currentUsername, it.query, it.normalize()))
             }
         }
     }

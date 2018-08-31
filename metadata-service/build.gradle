@@ -14,7 +14,7 @@ repositories {
 dependencies {
     compile "dk.sdu.cloud:service-common:0.15.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.4.0-SNAPSHOT"
-    compile "dk.sdu.cloud:storage-api:0.7.0-SNAPSHOT"
+    compile "dk.sdu.cloud:file-api:0.7.0-SNAPSHOT"
 
     compile 'mbuhot:eskotlin:0.4.0'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
