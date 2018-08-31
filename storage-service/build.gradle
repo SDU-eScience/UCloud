@@ -17,6 +17,16 @@ dependencies {
     compile "dk.sdu.cloud:notification-api:0.3.0-SNAPSHOT"
 }
 
+task debugMe() {
+    logger.info("Looking for all source sets")
+    logger.info("${sourceSets["generated"].allSource.asPath}")
+    logger.info("${sourceSets["generated"].compileClasspath.asPath}")
+    logger.info("${sourceSets["generated"].runtimeClasspath.asPath}")
+    logger.info("${sourceSets["generated"].output.asPath}")
+    logger.info("${sourceSets["main"].compileClasspath.asPath}")
+    logger.info("${sourceSets}")
+}
+
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.storage.MainKt"
 

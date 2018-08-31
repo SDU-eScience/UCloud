@@ -134,16 +134,17 @@ test.finalizedBy(project.tasks.jacocoTestReport)
 // Service manifest generation
 //
 sourceSets {
+    logger.info("${project.projectDir}/src/generated/kotlin")
     generated {
         compileClasspath += main.compileClasspath
         runtimeClasspath += main.runtimeClasspath
 
         kotlin {
-            srcDir 'src/generated/kotlin'
+            it.srcDir("${project.projectDir}/src/generated/kotlin")
         }
 
         resources {
-            srcDir 'src/generated/resources'
+            it.srcDir("${project.projectDir}/src/generated/resources")
         }
     }
 

@@ -22,7 +22,7 @@ class MoveTesting {
                     assertEquals(HttpStatusCode.OK, response.status())
 
                     val response2 = move(fileToMove, newPath)
-                    assertEquals(HttpStatusCode.NoContent, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
                     val response3 = stat(fileToMove)
                     assertEquals(HttpStatusCode.NotFound, response3.status())
@@ -48,7 +48,7 @@ class MoveTesting {
                     assertEquals(HttpStatusCode.OK, response.status())
 
                     val response2 = move(fileToMove, newLocation)
-                    assertEquals(HttpStatusCode.NoContent, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
                 }
             )
@@ -90,7 +90,7 @@ class MoveTesting {
                     assertEquals(HttpStatusCode.OK, response.status())
 
                     val response2 = move(fileToMove, newPath)
-                    assertEquals(HttpStatusCode.NoContent, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
                     val response3 = stat(fileToMove)
                     assertEquals(HttpStatusCode.NotFound, response3.status())

@@ -3,8 +3,8 @@ package dk.sdu.cloud.storage.http.files
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.storage.api.FileSortBy
-import dk.sdu.cloud.storage.api.SortOrder
+import dk.sdu.cloud.files.api.FileSortBy
+import dk.sdu.cloud.files.api.SortOrder
 import dk.sdu.cloud.files.api.StorageFile
 import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.touch

@@ -21,13 +21,13 @@ class FavoritesTest {
                     assertEquals(HttpStatusCode.NotFound, response.status())
 
                     val response1 = createFavorite(favPath)
-                    assertEquals(HttpStatusCode.NoContent, response1.status())
+                    assertEquals(HttpStatusCode.OK, response1.status())
 
                     val response2 = stat(favLink)
                     assertEquals(HttpStatusCode.OK, response2.status())
 
                     val response3 = deleteFavorite(favPath)
-                    assertEquals(HttpStatusCode.NoContent, response3.status())
+                    assertEquals(HttpStatusCode.OK, response3.status())
 
                     val response4 = stat(favLink)
                     assertEquals(HttpStatusCode.NotFound, response4.status())
@@ -49,13 +49,13 @@ class FavoritesTest {
                     assertEquals(HttpStatusCode.NotFound, response.status())
 
                     val response1 = createFavorite(favPath)
-                    assertEquals(HttpStatusCode.NoContent, response1.status())
+                    assertEquals(HttpStatusCode.OK, response1.status())
 
                     val response2 = stat(favLink)
                     assertEquals(HttpStatusCode.OK, response2.status())
 
                     val response3 = deleteFavorite(favPath)
-                    assertEquals(HttpStatusCode.NoContent, response3.status())
+                    assertEquals(HttpStatusCode.OK, response3.status())
 
                     val response4 = stat(favLink)
                     assertEquals(HttpStatusCode.NotFound, response4.status())

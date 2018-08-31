@@ -25,7 +25,7 @@ class CopyingTests {
                     assertEquals(HttpStatusCode.NotFound, response1.status())
 
                     val response2 = copy(path, newPath, WriteConflictPolicy.REJECT)
-                    assertEquals(HttpStatusCode.NoContent, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
                     val response3 = stat(path)
                     assertEquals(HttpStatusCode.OK, response3.status())
@@ -54,7 +54,7 @@ class CopyingTests {
                     assertEquals(HttpStatusCode.OK, response1.status())
 
                     val response2 = copy(path, newPath, WriteConflictPolicy.OVERWRITE)
-                    assertEquals(HttpStatusCode.NoContent, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
                 }
             )
         }
@@ -77,7 +77,7 @@ class CopyingTests {
                     assertEquals(HttpStatusCode.OK, response1.status())
 
                     val response2 = copy(path, newPath, WriteConflictPolicy.RENAME)
-                    assertEquals(HttpStatusCode.NoContent, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
                     val response3 = stat("$newPath(1)")
                     assertEquals(HttpStatusCode.OK, response3.status())
@@ -123,7 +123,7 @@ class CopyingTests {
                     assertEquals(HttpStatusCode.OK, response.status())
 
                     val response2 = copy(path, newPath, WriteConflictPolicy.REJECT)
-                    assertEquals(HttpStatusCode.NoContent, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
                     val response3 = listDir(newPath)
                     assertEquals(HttpStatusCode.OK, response3.status())
