@@ -1,5 +1,104 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`Empty files list, button, empty FilesOperations 1`] = `null`;
+
+exports[`Empty files list, button, some fileoperations 1`] = `
+Array [
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    Share
+  </button>,
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    Download
+  </button>,
+  <button
+    className="ui red basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    Delete
+  </button>,
+]
+`;
+
+exports[`Empty files list, dropdown.item, empty FilesOperations 1`] = `null`;
+
+exports[`Empty files list, dropdown.item, some fileoperations 1`] = `
+Array [
+  <div
+    basic={true}
+    className="item context-button-margin"
+    fluid={true}
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    <span
+      className="text"
+    >
+      Share
+    </span>
+  </div>,
+  <div
+    basic={true}
+    className="item context-button-margin"
+    fluid={true}
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    <span
+      className="text"
+    >
+      Download
+    </span>
+  </div>,
+  <div
+    basic={true}
+    className="item context-button-margin"
+    color="red"
+    fluid={true}
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    <span
+      className="text"
+    >
+      Delete
+    </span>
+  </div>,
+]
+`;
+
 exports[`Files in filestable 1`] = `
 <table
   className="ui unstackable very basic table"
@@ -665,6 +764,99 @@ exports[`Files in filestable 1`] = `
 </table>
 `;
 
+exports[`Files list with items, button, emtpy FilesOperations 1`] = `null`;
+
+exports[`Files list with items, button, some fileoperations 1`] = `
+Array [
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    Share
+  </button>,
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    Download
+  </button>,
+  <button
+    className="ui red basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    Delete
+  </button>,
+]
+`;
+
+exports[`Files list with items, dropdown.item, empty FilesOperations 1`] = `null`;
+
+exports[`Files list with items, dropdown.item, some fileoperations 1`] = `
+Array [
+  <div
+    className="item context-button-margin"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    <span
+      className="text"
+    >
+      Share
+    </span>
+  </div>,
+  <div
+    className="item context-button-margin"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    <span
+      className="text"
+    >
+      Download
+    </span>
+  </div>,
+  <div
+    className="item context-button-margin"
+    color="red"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    <span
+      className="text"
+    >
+      Delete
+    </span>
+  </div>,
+]
+`;
+
 exports[`Full Files component, full page of files 1`] = `
 <div
   className="ui grid"
@@ -702,7 +894,7 @@ exports[`Full Files component, full page of files 1`] = `
           className="text"
           role="alert"
         >
-          25
+          10
         </div>
         <i
           aria-hidden="true"
@@ -713,9 +905,9 @@ exports[`Full Files component, full page of files 1`] = `
           className="menu transition"
         >
           <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
+            aria-checked={true}
+            aria-selected={true}
+            className="active selected item"
             onClick={[Function]}
             role="option"
             style={
@@ -731,9 +923,9 @@ exports[`Full Files component, full page of files 1`] = `
             </span>
           </div>
           <div
-            aria-checked={true}
-            aria-selected={true}
-            className="active selected item"
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
             onClick={[Function]}
             role="option"
             style={
@@ -799,7 +991,95 @@ exports[`Full Files component, full page of files 1`] = `
         />
       </div>
     </div>
-    <div />
+    <div>
+      <span
+        aria-label="Pagination Navigation"
+        className="ui pagination menu"
+        role="navigation"
+      >
+        <a
+          aria-current={false}
+          aria-label="First item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="firstItem"
+          value={1}
+        >
+          «
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Previous item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="prevItem"
+          value={1}
+        >
+          ⟨
+        </a>
+        <a
+          aria-current={true}
+          className="active item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={1}
+        >
+          1
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={2}
+        >
+          2
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={3}
+        >
+          3
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Next item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="nextItem"
+          value={2}
+        >
+          ⟩
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Last item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="lastItem"
+          value={3}
+        >
+          »
+        </a>
+      </span>
+    </div>
   </div>
   <div
     className="three wide computer column"
@@ -874,7 +1154,7 @@ exports[`Full Files component, no files 1`] = `
           className="text"
           role="alert"
         >
-          25
+          10
         </div>
         <i
           aria-hidden="true"
@@ -885,9 +1165,9 @@ exports[`Full Files component, no files 1`] = `
           className="menu transition"
         >
           <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
+            aria-checked={true}
+            aria-selected={true}
+            className="active selected item"
             onClick={[Function]}
             role="option"
             style={
@@ -903,9 +1183,9 @@ exports[`Full Files component, no files 1`] = `
             </span>
           </div>
           <div
-            aria-checked={true}
-            aria-selected={true}
-            className="active selected item"
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
             onClick={[Function]}
             role="option"
             style={
@@ -971,7 +1251,95 @@ exports[`Full Files component, no files 1`] = `
         />
       </div>
     </div>
-    <div />
+    <div>
+      <span
+        aria-label="Pagination Navigation"
+        className="ui pagination menu"
+        role="navigation"
+      >
+        <a
+          aria-current={false}
+          aria-label="First item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="firstItem"
+          value={1}
+        >
+          «
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Previous item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="prevItem"
+          value={1}
+        >
+          ⟨
+        </a>
+        <a
+          aria-current={true}
+          className="active item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={1}
+        >
+          1
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={2}
+        >
+          2
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={3}
+        >
+          3
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Next item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="nextItem"
+          value={2}
+        >
+          ⟩
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Last item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="lastItem"
+          value={3}
+        >
+          »
+        </a>
+      </span>
+    </div>
   </div>
   <div
     className="three wide computer column"

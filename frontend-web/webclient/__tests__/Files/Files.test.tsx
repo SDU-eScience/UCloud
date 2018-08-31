@@ -1,14 +1,16 @@
 import * as React from "react";
 import * as Renderer from "react-test-renderer";
 import { emptyPage } from "DefaultObjects";
-import Files, { FilesTable } from "Files/Files";
+import Files, { FilesTable, FileOperations } from "Files/Files";
 import { File, SortOrder, SortBy } from "Files";
-import { mockFiles_SensitivityConfidential } from "./mock/Files"
+import { mockFiles_SensitivityConfidential } from "../mock/Files"
 import { MemoryRouter } from "react-router-dom";
 import { createMemoryHistory } from "history";
 import { Provider } from "react-redux";
 import { createStore, combineReducers } from "redux";
 import files from "Files/Redux/FilesReducer";
+import { Button, Dropdown } from "semantic-ui-react";
+import { AllFileOperations } from "Utilities/FileUtilities";
 
 test("Render empty files table", () => {
     expect(Renderer.create(
@@ -106,9 +108,10 @@ test("Full Files component, no files", () => {
 
 
 const fullPageStore = {
-    ...emptyPageStore,
-    page: mockFiles_SensitivityConfidential
-}
+    ...emptyPageStore
+};
+
+fullPageStore.getState().files.page = mockFiles_SensitivityConfidential;
 
 test("Full Files component, full page of files", () => {
     expect(Renderer.create(
@@ -122,3 +125,100 @@ test("Full Files component, full page of files", () => {
         </Provider>)
     ).toMatchSnapshot();
 });
+
+test("Empty files list, button, empty FilesOperations", () => {
+    expect(Renderer.create(
+        <FileOperations
+            fileOperations={[]}
+            files={emptyPageStore.getState().files.page.items}
+            As={Button}
+            fluid
+            basic
+        />
+    ).toJSON()).toMatchSnapshot()
+});
+
+test("Empty files list, dropdown.item, empty FilesOperations", () =>
+    expect(Renderer.create(
+        <FileOperations
+            fileOperations={[]}
+            files={emptyPageStore.getState().files.page.items}
+            As={Dropdown.Item}
+        />
+    ).toJSON()).toMatchSnapshot()
+);
+
+test("Files list with items, button, emtpy FilesOperations", () =>
+    expect(Renderer.create(
+        <FileOperations
+            fileOperations={[]}
+            files={fullPageStore.getState().files.page.items}
+            As={Button}
+            fluid
+            basic
+        />
+    ).toJSON()).toMatchSnapshot()
+);
+
+test("Files list with items, dropdown.item, empty FilesOperations", () =>
+    expect(Renderer.create(
+        <FileOperations
+            fileOperations={[]}
+            files={fullPageStore.getState().files.page.items}
+            As={Button}
+            fluid
+            basic
+        />
+    ).toJSON()).toMatchSnapshot()
+);
+
+const fileOperations = AllFileOperations(true, false, () => null, mockHistory);
+
+console.log(fullPageStore.getState().files);
+
+
+test("Empty files list, button, some fileoperations", () =>
+    expect(Renderer.create(
+        <FileOperations
+            fileOperations={fileOperations}
+            files={emptyPageStore.getState().files.page.items}
+            As={Button}
+            fluid
+            basic
+        />
+    )).toMatchSnapshot()
+);
+
+test("Empty files list, dropdown.item, some fileoperations", () =>
+    expect(Renderer.create(
+        <FileOperations
+            fileOperations={fileOperations}
+            files={emptyPageStore.getState().files.page.items}
+            As={Dropdown.Item}
+            fluid
+            basic
+        />
+    )).toMatchSnapshot()
+);
+
+test("Files list with items, button, some fileoperations", () =>
+    expect(Renderer.create(
+        <FileOperations
+            fileOperations={fileOperations}
+            files={fullPageStore.getState().files.page.items}
+            As={Button}
+            fluid
+            basic
+        />
+    )).toMatchSnapshot()
+);
+
+test("Files list with items, dropdown.item, some fileoperations", () =>
+    expect(Renderer.create(
+        <FileOperations
+            fileOperations={fileOperations}
+            files={fullPageStore.getState().files.page.items}
+            As={Dropdown.Item}
+        />
+    )).toMatchSnapshot()
+);

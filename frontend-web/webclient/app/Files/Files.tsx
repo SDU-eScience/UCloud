@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticICONS } from "semantic-ui-react";
+import { Dropdown, DropdownItem, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticICONS } from "semantic-ui-react";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
@@ -16,7 +16,8 @@ import { FileIcon } from "UtilityComponents";
 import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
-    FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps
+    FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps,
+    PredicatedOperation
 } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
@@ -338,13 +339,21 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
     </div>
 ) : null;
 
-export const FileOperations = ({ files, fileOperations, As, ...props }) =>
+/* interface FileOperationsProps {
+    files: File[]
+    fileOperations: FileOperation[]
+    As: any
+    fluid?: boolean
+    basic?: boolean
+} */
+
+export const FileOperations = ({ files, fileOperations, As, fluid, basic }) => fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
-        if ("predicate" in operation) {
-            operation = operation.predicate(files, Cloud) ? fileOp.onTrue : fileOp.onFalse;
-
-        }
+        if ((fileOp as PredicatedOperation).predicate) {
+            operation = fileOp as PredicatedOperation
+            operation = operation.predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
+        } 
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (
             <As
@@ -354,10 +363,11 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) =>
                 color={operation.color}
                 className="context-button-margin"
                 onClick={() => (operation as Operation).onClick(files, Cloud)}
-                {...props}
+                fluid={fluid}
+                basic={basic}
             />
         ) : null;
-    })
+    }) : null;
 
 const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown,
