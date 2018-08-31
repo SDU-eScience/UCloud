@@ -104,7 +104,7 @@ publishing {
 // Ktor
 //
 dependencies {
-    compile group: 'io.ktor', name: 'ktor-server-netty', version: "$ktor_version"
+    compile group: 'io.ktor', name: "ktor-server-${ktor_engine}", version: "$ktor_version"
 }
 
 //

@@ -13,18 +13,8 @@ dependencies {
     compile 'io.tus.java.client:tus-java-client:0.3.1'
 
     compile "dk.sdu.cloud:service-common:0.15.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.2.1-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.4.0-SNAPSHOT"
     compile "dk.sdu.cloud:notification-api:0.3.0-SNAPSHOT"
-}
-
-task debugMe() {
-    logger.info("Looking for all source sets")
-    logger.info("${sourceSets["generated"].allSource.asPath}")
-    logger.info("${sourceSets["generated"].compileClasspath.asPath}")
-    logger.info("${sourceSets["generated"].runtimeClasspath.asPath}")
-    logger.info("${sourceSets["generated"].output.asPath}")
-    logger.info("${sourceSets["main"].compileClasspath.asPath}")
-    logger.info("${sourceSets}")
 }
 
 apply plugin: 'application'
