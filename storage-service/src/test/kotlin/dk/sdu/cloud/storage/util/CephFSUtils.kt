@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.util
 
-import dk.sdu.cloud.files.api.Timestamps
+import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem

@@ -1,9 +1,9 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.files.api.FileType
-import dk.sdu.cloud.files.api.StorageEvent
-import dk.sdu.cloud.files.api.StorageEventProducer
-import dk.sdu.cloud.files.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.util.*
 import kotlinx.coroutines.experimental.channels.BroadcastChannel
 import kotlinx.coroutines.experimental.channels.ReceiveChannel

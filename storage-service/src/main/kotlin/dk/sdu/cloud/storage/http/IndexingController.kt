@@ -2,9 +2,9 @@ package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.auth.api.PRIVILEGED_ROLES
 import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.files.api.DeliverMaterializedFileSystemResponse
-import dk.sdu.cloud.files.api.FileDescriptions
-import dk.sdu.cloud.files.api.VerifyFileKnowledgeResponse
+import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemResponse
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
@@ -32,8 +32,8 @@ class IndexingController<Ctx : FSUserContext>(
             tryWithFS(commandRunnerFactory, req.user) {
                 ok(
                     VerifyFileKnowledgeResponse(
-                    indexingService.verifyKnowledge(it, req.files)
-                )
+                        indexingService.verifyKnowledge(it, req.files)
+                    )
                 )
             }
         }

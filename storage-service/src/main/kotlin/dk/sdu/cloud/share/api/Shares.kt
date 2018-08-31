@@ -1,7 +1,7 @@
-package dk.sdu.cloud.shares.api
+package dk.sdu.cloud.share.api
 
 import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.files.api.AccessRight
+import dk.sdu.cloud.file.api.AccessRight
 
 enum class ShareState {
     REQUEST_SENT,

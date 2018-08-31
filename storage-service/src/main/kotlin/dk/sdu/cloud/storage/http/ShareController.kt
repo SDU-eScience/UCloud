@@ -6,9 +6,9 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.shares.api.FindByShareId
-import dk.sdu.cloud.shares.api.ShareDescriptions
-import dk.sdu.cloud.shares.api.ShareState
+import dk.sdu.cloud.share.api.FindByShareId
+import dk.sdu.cloud.share.api.ShareDescriptions
+import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall

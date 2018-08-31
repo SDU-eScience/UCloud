@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.files.api.*
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry

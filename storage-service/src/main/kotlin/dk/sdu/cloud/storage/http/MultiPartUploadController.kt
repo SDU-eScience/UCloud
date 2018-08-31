@@ -8,8 +8,8 @@ import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.files.api.SensitivityLevel
-import dk.sdu.cloud.files.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.services.BulkUploadService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory

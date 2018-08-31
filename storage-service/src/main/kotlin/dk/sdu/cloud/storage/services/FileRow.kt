@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.files.api.*
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.storage.SERVICE_UNIX_USER
 
 // This slightly messy code allows us to skip null checks. This makes for a better API

@@ -8,9 +8,9 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.files.api.DOWNLOAD_FILE_SCOPE
-import dk.sdu.cloud.files.api.FileDescriptions
-import dk.sdu.cloud.files.api.FileType
+import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall

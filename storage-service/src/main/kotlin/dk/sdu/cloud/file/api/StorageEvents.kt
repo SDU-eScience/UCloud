@@ -1,4 +1,4 @@
-package dk.sdu.cloud.files.api
+package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo

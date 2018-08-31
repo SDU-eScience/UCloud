@@ -1,9 +1,9 @@
-package dk.sdu.cloud.shares.api
+package dk.sdu.cloud.share.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.files.api.AccessRight
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod

@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.files.api.*
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory

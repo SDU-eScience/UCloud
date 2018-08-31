@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.util
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.files.api.LongRunningResponse
+import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory

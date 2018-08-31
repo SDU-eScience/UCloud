@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.files.api.StorageEvent
-import dk.sdu.cloud.files.api.StorageEventProducer
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks

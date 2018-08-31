@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.services.cephfs
 
-import dk.sdu.cloud.files.api.*
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.storage.services.*
 
 private const val SHARED_WITH_UTYPE = 1

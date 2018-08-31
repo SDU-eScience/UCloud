@@ -4,10 +4,10 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.files.api.FileSortBy
-import dk.sdu.cloud.files.api.SortOrder
-import dk.sdu.cloud.files.api.StorageEventProducer
-import dk.sdu.cloud.files.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.SortOrder
+import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.definition
