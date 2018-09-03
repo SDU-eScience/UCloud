@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.7.0-SNAPSHOT'
+version '0.7.1-SNAPSHOT'
 
 apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 
@@ -12,9 +12,11 @@ dependencies {
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
     compile 'io.tus.java.client:tus-java-client:0.3.1'
 
-    compile "dk.sdu.cloud:service-common:0.15.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.4.0-SNAPSHOT"
-    compile "dk.sdu.cloud:notification-api:0.4.0-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.16.0-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.4.1-SNAPSHOT"
+    compile "dk.sdu.cloud:notification-api:0.4.1-SNAPSHOT"
+
+    compile group: 'com.h2database', name: 'h2', version: '1.4.196'
 }
 
 apply plugin: 'application'
@@ -28,7 +30,7 @@ sduCloud.createTasksForApiJar(
 sduCloud.createTasksForApiJar(
         "upload",
         [
-                "dk.sdu.cloud:files-api:${project.version}",
+                "dk.sdu.cloud:file-api:${project.version}",
                 "com.squareup.okhttp3:okhttp:3.11.0"
         ]
 )
@@ -43,6 +45,6 @@ sduCloud.createTasksForApiJar(
 sduCloud.createTasksForApiJar(
         "share",
         [
-                "dk.sdu.cloud:files-api:${project.version}",
+                "dk.sdu.cloud:file-api:${project.version}",
         ]
 )

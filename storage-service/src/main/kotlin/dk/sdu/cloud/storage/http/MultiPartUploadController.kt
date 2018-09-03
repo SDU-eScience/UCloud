@@ -17,9 +17,10 @@ import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.util.tryWithFS
 import dk.sdu.cloud.upload.api.BulkUploadErrorMessage
 import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
-import io.ktor.content.PartData
-import io.ktor.content.forEachPart
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
+import io.ktor.http.content.streamProvider
 import io.ktor.request.receiveMultipart
 import io.ktor.routing.Route
 import kotlinx.coroutines.experimental.launch

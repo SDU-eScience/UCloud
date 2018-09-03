@@ -1,14 +1,14 @@
 group 'dk.sdu.cloud'
 version '1.4.1-SNAPSHOT'
 
+apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
+
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
 
 repositories {
     jcenter()
 }
-
-apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
@@ -28,5 +28,11 @@ sduCloud.createTasksForApiJar("auth", [])
 kotlin {
     experimental {
         coroutines "enable"
+    }
+}
+
+run {
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
     }
 }

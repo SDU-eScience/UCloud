@@ -14,10 +14,10 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall
-import io.ktor.content.OutgoingContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
 import io.ktor.http.defaultForFilePath
 import io.ktor.response.header
 import io.ktor.response.respond
@@ -100,11 +100,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                             "attachment; filename=\"${stat.path.substringAfterLast('/')}\""
                         )
 
-                        // See #185
-                        // ktor unable to send files larger than 2GB
-                        val sizeForWorkaroundIssue185 = if (stat.size >= Int.MAX_VALUE) null else stat.size
-
-                        call.respondDirectWrite(sizeForWorkaroundIssue185, contentType, HttpStatusCode.OK) {
+                        call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
                             fs.read(ctx, request.path) {
                                 val stream = this
                                 runBlocking {
