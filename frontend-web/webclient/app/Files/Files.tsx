@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, SemanticICONS } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider } from "semantic-ui-react";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
@@ -31,8 +31,8 @@ class Files extends React.Component<FilesProps> {
         const { page, fetchFiles, sortOrder, sortBy, history, setPageTitle, prioritizeFileSearch } = this.props;
         setPageTitle();
         prioritizeFileSearch();
-        if (!this.urlPath) history.push(`/files/${Cloud.homeFolder}/`);
-        fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
+        if (!this.urlPath) { history.push(`/files/${Cloud.homeFolder}/`); }
+        else { fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy); }
     }
 
     get urlPath(): string { return this.props.match.params[0]; }
@@ -55,9 +55,11 @@ class Files extends React.Component<FilesProps> {
             if (isInvalidPathName(name, fileNames)) return;
             const fullPath = `${UF.addTrailingSlash(path)}${name}`;
             if (file.isMockFolder) {
-                createFolder(fullPath, Cloud, () => fetchPageFromPath(fullPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy));
+                createFolder(fullPath, Cloud,
+                    () => fetchPageFromPath(fullPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy));
             } else {
-                moveFile(file.path, fullPath, Cloud, () => fetchPageFromPath(fullPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy));
+                moveFile(file.path, fullPath, Cloud,
+                    () => fetchPageFromPath(fullPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy));
             }
         }
     }
@@ -91,7 +93,10 @@ class Files extends React.Component<FilesProps> {
         const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath };
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
-            { text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)), disabled: (files: File[]) => false, icon: "edit", color: undefined },
+            {
+                text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)),
+                disabled: (files: File[]) => false, icon: "edit", color: undefined
+            },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
         return (

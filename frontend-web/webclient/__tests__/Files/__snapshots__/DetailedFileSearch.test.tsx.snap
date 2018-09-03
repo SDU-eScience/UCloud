@@ -1,0 +1,535 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DetailedFileSearch Detailed File Search component 1`] = `
+<div
+  className="ui container sixteen column grid"
+>
+  <div
+    className="sixteen wide column"
+  >
+    <h3
+      className="ui header"
+    >
+      Filename
+    </h3>
+    <div
+      className="ui fluid input"
+    >
+      <input
+        onChange={[Function]}
+        placeholder="Filename must include..."
+        type="text"
+      />
+    </div>
+    <h3
+      className="ui header"
+    >
+      Created at
+    </h3>
+    <form
+      className="ui form"
+      onSubmit={[Function]}
+    >
+      <div
+        className="fields"
+      >
+        <div
+          className="field"
+        >
+          <label>
+            Created after
+          </label>
+          <div>
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className=""
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          className="field"
+        >
+          <label>
+            Created before
+          </label>
+          <div>
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className=""
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+    <h3
+      className="ui header"
+    >
+      Modified at
+    </h3>
+    <form
+      className="ui form"
+      onSubmit={[Function]}
+    >
+      <div
+        className="fields"
+      >
+        <div
+          className="field"
+        >
+          <label>
+            Modified after
+          </label>
+          <div>
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className=""
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          className="field"
+        >
+          <label>
+            Modified before
+          </label>
+          <div>
+            <div
+              className="react-datepicker-wrapper"
+            >
+              <div
+                className="react-datepicker__input-container"
+              >
+                <input
+                  className=""
+                  disabled={false}
+                  onBlur={[Function]}
+                  onChange={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onKeyDown={[Function]}
+                  readOnly={false}
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+    <h3
+      className="ui header"
+    >
+      File Types
+    </h3>
+    <div
+      className="inline fields"
+    >
+      <div
+        className="field"
+      >
+        <div
+          className="ui checked checkbox"
+          onChange={[Function]}
+          onClick={[Function]}
+          onMouseDown={[Function]}
+        >
+          <input
+            checked={true}
+            className="hidden"
+            onClick={[Function]}
+            readOnly={true}
+            tabIndex={0}
+            type="checkbox"
+          />
+          <label>
+            Folders
+          </label>
+        </div>
+      </div>
+      <div
+        className="field"
+      >
+        <div
+          className="ui checked checkbox"
+          onChange={[Function]}
+          onClick={[Function]}
+          onMouseDown={[Function]}
+        >
+          <input
+            checked={true}
+            className="hidden"
+            onClick={[Function]}
+            readOnly={true}
+            tabIndex={0}
+            type="checkbox"
+          />
+          <label>
+            Files
+          </label>
+        </div>
+      </div>
+    </div>
+    <h3
+      className="ui header"
+    >
+      File extensions
+    </h3>
+    <div
+      className="padding-bottom"
+    />
+    <form
+      className="ui form"
+      onSubmit={[Function]}
+    >
+      <div
+        className="field"
+      >
+        <div
+          className="ui input"
+        >
+          <input
+            onChange={[Function]}
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        aria-expanded={false}
+        className="ui dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          Add extension preset
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={false}
+            aria-selected={true}
+            className="selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              Text
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              Image
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              Sound
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              Compressed files
+            </span>
+          </div>
+        </div>
+      </div>
+    </form>
+    <h3
+      className="ui header"
+    >
+      Sensitivity
+    </h3>
+    <div
+      className="padding-bottom"
+    />
+    <div>
+      <div
+        aria-expanded={false}
+        className="ui dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          Add sensitivity level
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={false}
+            aria-selected={true}
+            className="selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              Open Access
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              Confidential
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              Sensitive
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h3
+      className="ui header"
+    >
+      Annotations
+    </h3>
+    <div
+      className="padding-bottom"
+    />
+    <div>
+      <div
+        aria-expanded={false}
+        className="ui dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          Add annotation
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={false}
+            aria-selected={true}
+            className="selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              Project
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h3
+      className="ui header"
+    >
+      Tags
+    </h3>
+    <div
+      className="padding-bottom"
+    />
+    <form
+      className="ui form"
+      onSubmit={[Function]}
+    >
+      <div
+        className="field"
+      >
+        <div
+          className="ui input"
+        >
+          <input
+            onChange={[Function]}
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+    </form>
+    <button
+      className="ui blue button"
+      onClick={[Function]}
+      role="button"
+      style={
+        Object {
+          "marginTop": "15px",
+        }
+      }
+    >
+      Search
+    </button>
+  </div>
+</div>
+`;

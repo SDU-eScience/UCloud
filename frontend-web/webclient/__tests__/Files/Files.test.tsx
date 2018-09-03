@@ -2,56 +2,18 @@ import * as React from "react";
 import * as Renderer from "react-test-renderer";
 import { emptyPage } from "DefaultObjects";
 import Files, { FilesTable, FileOperations } from "Files/Files";
-import { File, SortOrder, SortBy } from "Files";
+import { SortOrder, SortBy } from "Files";
 import { mockFiles_SensitivityConfidential } from "../mock/Files"
 import { MemoryRouter } from "react-router-dom";
-import { createMemoryHistory } from "history";
 import { Provider } from "react-redux";
-import { createStore, combineReducers } from "redux";
+import { createMemoryHistory } from "history";
 import files from "Files/Redux/FilesReducer";
 import { Button, Dropdown } from "semantic-ui-react";
 import { AllFileOperations } from "Utilities/FileUtilities";
+import { configureStore } from "Utilities/ReduxUtilities";
+import { initFiles } from "DefaultObjects";
 
-// Middleware allowing for dispatching promises.
-const addPromiseSupportToDispatch = (store) => {
-    const rawDispatch = store.dispatch;
-    return (action) => {
-        if (typeof action.then === "function") {
-            return action.then(rawDispatch);
-        }
-        return rawDispatch(action);
-    };
-};
-
-const rootReducer = combineReducers({
-    files
-});
-
-const configureStore = (initialObject) => {
-    const store = createStore(rootReducer, initialObject);
-    store.dispatch = addPromiseSupportToDispatch(store);
-    return store;
-};
-
-const emptyPageStore = configureStore({
-    files: {
-        page: emptyPage,
-        sortOrder: SortOrder.ASCENDING,
-        sortBy: SortBy.PATH,
-        loading: false,
-        error: undefined,
-        path: "",
-        filesInfoPath: "",
-        sortingColumns: [SortBy.PATH, SortBy.MODIFIED_AT],
-        fileSelectorLoading: false,
-        fileSelectorShown: false,
-        fileSelectorPage: emptyPage,
-        fileSelectorPath: "/home/Home",
-        fileSelectorCallback: () => null,
-        fileSelectorError: undefined,
-        disallowedPaths: []
-    }
-});
+const emptyPageStore = configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files });
 
 const mockHistory = createMemoryHistory();
 
@@ -107,10 +69,10 @@ describe("Files-component", () => {
                 <MemoryRouter>
                     <Files
                         history={mockHistory}
-                        match={{ params: [] as string[], isExact: false, path: "", url: "home" }}
+                        match={{ params: [], isExact: false, path: "", url: "home" }}
                     />
                 </MemoryRouter>
-            </Provider>)
+            </Provider>).toJSON()
         ).toMatchSnapshot();
     });
 
@@ -120,12 +82,12 @@ describe("Files-component", () => {
                 <MemoryRouter>
                     <Files
                         history={mockHistory}
-                        match={{ params: [] as string[], isExact: false, path: "", url: "home" }}
+                        match={{ params: [], isExact: false, path: "", url: "home" }}
                     />
                 </MemoryRouter>
-            </Provider>)
+            </Provider>).toJSON()
         ).toMatchSnapshot();
-    })
+    });
 });
 
 

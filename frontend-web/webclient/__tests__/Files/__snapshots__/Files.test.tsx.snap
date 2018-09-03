@@ -204,7 +204,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
     />
     <i
       aria-hidden="true"
-      className="sync small circular link loading icon pagination-float-right"
+      className="sync small circular link icon pagination-float-right"
       onClick={[Function]}
     />
     <span
@@ -314,18 +314,2352 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </div>
       </div>
     </span>
-    <div
-      className="ui centered middle aligned one column grid"
+    <table
+      className="ui unstackable very basic table"
     >
-      <div
-        className="pagination-loader"
+      <thead
+        className=""
       >
-        <i
-          aria-hidden="true"
-          className="circle notched loading icon pagination-list-loading"
-        />
-      </div>
-    </div>
+        <tr
+          className=""
+        >
+          <th
+            className="filename-row"
+            onClick={[Function]}
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            Filename
+            <i
+              aria-hidden="true"
+              className="chevron up icon float-right"
+            />
+          </th>
+          <th
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui simple dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              >
+                Modified at
+              </div>
+              <i
+                aria-hidden="true"
+                className="dropdown icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition"
+              >
+                <div
+                  aria-disabled={false}
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Ascending
+                  </span>
+                </div>
+                <div
+                  aria-disabled={false}
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Descending
+                  </span>
+                </div>
+                <div
+                  className="divider"
+                />
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Type
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Path
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Created at
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Size
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Acl
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Favorited
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Sensitivity
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Annotation
+                  </span>
+                </div>
+              </div>
+            </div>
+            <i
+              aria-hidden="true"
+              className="icon float-right"
+            />
+          </th>
+          <th
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui simple dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              >
+                Acl
+              </div>
+              <i
+                aria-hidden="true"
+                className="dropdown icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition"
+              >
+                <div
+                  aria-disabled={false}
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Ascending
+                  </span>
+                </div>
+                <div
+                  aria-disabled={false}
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Descending
+                  </span>
+                </div>
+                <div
+                  className="divider"
+                />
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Type
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Path
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Created at
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Modified at
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Size
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Favorited
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Sensitivity
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Annotation
+                  </span>
+                </div>
+              </div>
+            </div>
+            <i
+              aria-hidden="true"
+              className="icon float-right"
+            />
+          </th>
+          <th
+            className=""
+          />
+        </tr>
+      </thead>
+      <tbody
+        className=""
+      >
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <i
+              aria-hidden="true"
+              className="grey image big icon"
+            />
+            Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-27 16:25:00
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/AABA"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              AABA
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-21 15:29:51
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/Favorites"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              Favorites
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-21 15:22:13
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/Jobs"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              Jobs
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-21 09:32:44
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/A folder the sequel"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              A folder the sequel
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-21 09:26:13
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/B"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              B
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star icon  favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-14 13:06:18
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/rehjoerijhoerijh"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              rehjoerijhoerijh
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-13 16:29:48
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/Test"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              Test
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-7 10:22:12
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-6 13:32:48
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-6 13:29:15
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
     <div>
       <span
         aria-label="Pagination Navigation"
@@ -464,7 +2798,7 @@ exports[`Files-component Full Files component, no files 1`] = `
     />
     <i
       aria-hidden="true"
-      className="sync small circular link loading icon pagination-float-right"
+      className="sync small circular link icon pagination-float-right"
       onClick={[Function]}
     />
     <span
@@ -574,18 +2908,2352 @@ exports[`Files-component Full Files component, no files 1`] = `
         </div>
       </div>
     </span>
-    <div
-      className="ui centered middle aligned one column grid"
+    <table
+      className="ui unstackable very basic table"
     >
-      <div
-        className="pagination-loader"
+      <thead
+        className=""
       >
-        <i
-          aria-hidden="true"
-          className="circle notched loading icon pagination-list-loading"
-        />
-      </div>
-    </div>
+        <tr
+          className=""
+        >
+          <th
+            className="filename-row"
+            onClick={[Function]}
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            Filename
+            <i
+              aria-hidden="true"
+              className="chevron up icon float-right"
+            />
+          </th>
+          <th
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui simple dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              >
+                Modified at
+              </div>
+              <i
+                aria-hidden="true"
+                className="dropdown icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition"
+              >
+                <div
+                  aria-disabled={false}
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Ascending
+                  </span>
+                </div>
+                <div
+                  aria-disabled={false}
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Descending
+                  </span>
+                </div>
+                <div
+                  className="divider"
+                />
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Type
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Path
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Created at
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Size
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Acl
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Favorited
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Sensitivity
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Annotation
+                  </span>
+                </div>
+              </div>
+            </div>
+            <i
+              aria-hidden="true"
+              className="icon float-right"
+            />
+          </th>
+          <th
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui simple dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              >
+                Acl
+              </div>
+              <i
+                aria-hidden="true"
+                className="dropdown icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition"
+              >
+                <div
+                  aria-disabled={false}
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Ascending
+                  </span>
+                </div>
+                <div
+                  aria-disabled={false}
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Descending
+                  </span>
+                </div>
+                <div
+                  className="divider"
+                />
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Type
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Path
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Created at
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Modified at
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Size
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Favorited
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Sensitivity
+                  </span>
+                </div>
+                <div
+                  className="item"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <span
+                    className="text"
+                  >
+                    Annotation
+                  </span>
+                </div>
+              </div>
+            </div>
+            <i
+              aria-hidden="true"
+              className="icon float-right"
+            />
+          </th>
+          <th
+            className=""
+          />
+        </tr>
+      </thead>
+      <tbody
+        className=""
+      >
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <i
+              aria-hidden="true"
+              className="grey image big icon"
+            />
+            Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-27 16:25:00
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/AABA"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              AABA
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-21 15:29:51
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/Favorites"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              Favorites
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-21 15:22:13
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/Jobs"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              Jobs
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-21 09:32:44
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/A folder the sequel"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              A folder the sequel
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-21 09:26:13
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/B"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              B
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star icon  favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-14 13:06:18
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/rehjoerijhoerijh"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              rehjoerijhoerijh
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-13 16:29:48
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/Test"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              Test
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-7 10:22:12
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-6 13:32:48
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="file-row"
+        >
+          <td
+            className="table-cell-padding-left"
+          >
+            <div
+              className="ui fitted checkbox hidden-checkbox checkbox-margin"
+              onChange={[Function]}
+              onClick={[Function]}
+              onMouseDown={[Function]}
+            >
+              <input
+                checked={false}
+                className="hidden"
+                onClick={[Function]}
+                readOnly={true}
+                tabIndex={0}
+                type="checkbox"
+              />
+              <label />
+            </div>
+            <a
+              href="/files//home/user@user.telecity/somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="blue folder big icon"
+              />
+              somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
+            </a>
+            <i
+              aria-hidden="true"
+              className="blue star outline icon file-data favorite-padding"
+              onClick={[Function]}
+            />
+          </td>
+          <td
+            className=""
+          >
+            2018-8-6 13:29:15
+          </td>
+          <td
+            className=""
+          >
+            Only You
+          </td>
+          <td
+            className=""
+          >
+            <div
+              aria-expanded={false}
+              className="ui dropdown"
+              onBlur={[Function]}
+              onChange={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseDown={[Function]}
+              role="listbox"
+              tabIndex={0}
+            >
+              <div
+                aria-live="polite"
+                className="text"
+                role="alert"
+              />
+              <i
+                aria-hidden="true"
+                className="ellipsis horizontal icon"
+                onClick={[Function]}
+              />
+              <div
+                className="menu transition left"
+              >
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Rename
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share alternate icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Share
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="download icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Download
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="copy icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Copy
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="move icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Move
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="red"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="trash icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Delete
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="settings icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Properties
+                  </span>
+                </div>
+                <div
+                  className="item context-button-margin"
+                  color="blue"
+                  onClick={[Function]}
+                  role="option"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="group icon"
+                  />
+                  <span
+                    className="text"
+                  >
+                    Create Project
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
     <div>
       <span
         aria-label="Pagination Navigation"

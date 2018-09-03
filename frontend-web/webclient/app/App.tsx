@@ -1,9 +1,8 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
-import { createStore, combineReducers } from "redux";
 import { BrowserRouter } from "react-router-dom";
-import Core from "./Core";
+import Core from "Core";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { initObject } from "DefaultObjects";
 import header from "Navigation/Redux/HeaderReducer";
@@ -17,21 +16,11 @@ import sidebar from "Navigation/Redux/SidebarReducer";
 import analyses from "Applications/Redux/AnalysesReducer";
 import notifications from "Notifications/Redux/NotificationsReducer";
 import uploader from "Uploader/Redux/UploaderReducer";
+import { configureStore } from "Utilities/ReduxUtilities";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
-// Middleware allowing for dispatching promises.
-const addPromiseSupportToDispatch = (store) => {
-    const rawDispatch = store.dispatch;
-    return (action) => {
-        if (typeof action.then === "function") {
-            return action.then(rawDispatch);
-        }
-        return rawDispatch(action);
-    };
-};
-
-const rootReducer = combineReducers({
+const store = configureStore(initObject(Cloud), {
     files,
     dashboard,
     analyses,
@@ -44,14 +33,6 @@ const rootReducer = combineReducers({
     uploader,
     notifications
 });
-
-const configureStore = (initialObject) => {
-    const store = createStore(rootReducer, initialObject);
-    store.dispatch = addPromiseSupportToDispatch(store);
-    return store;
-};
-
-const store = configureStore(initObject(Cloud));
 
 ReactDOM.render(
     <Provider store={store}>

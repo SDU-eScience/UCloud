@@ -27,7 +27,7 @@ export enum KeyCode {
     RIGHT = 39,
     A = 65,
     B = 66
-}
+};
 
 export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0 };
 
@@ -37,11 +37,11 @@ export enum AnalysesStatusMap {
     "COMPLETED"
 };
 
-export const RightsNameMap: { [s: string]: string } = {
-    "NONE": "None",
-    "READ": "Read",
-    "READ_WRITE": "Read/Write",
-    "EXECUTE": "Execute"
+export enum RightsNameMap {
+    "NONE" = "None",
+    "READ" = "Read",
+    "READ_WRITE" = "Read/Write",
+    "EXECUTE" = "Execute"
 };
 
 export enum SensitivityLevel {
@@ -50,10 +50,10 @@ export enum SensitivityLevel {
     "SENSITIVE" = "Sensitive"
 };
 
-export const SensitivityLevelMap: { [s: string]: number } = {
-    "OPEN_ACCESS": 0,
-    "CONFIDENTIAL": 1,
-    "SENSITIVE": 2
+export enum SensitivityLevelMap {
+    "OPEN_ACCESS",
+    "CONFIDENTIAL",
+    "SENSITIVE"
 };
 
 interface UppyRestriction {
@@ -160,84 +160,82 @@ export interface ReduxObject {
     sidebar: SidebarReduxObject
 }
 
-export const initObject = (cloud: SDUCloud): ReduxObject => ({
-    dashboard: {
-        favoriteFiles: [] as File[],
-        recentFiles: [] as File[],
-        recentAnalyses: [] as Analysis[],
-        notifications: [] as Notification[],
-        favoriteLoading: false,
-        recentLoading: false,
-        analysesLoading: false,
-        favoriteError: undefined,
-        recentFilesError: undefined,
-        recentAnalysesError: undefined
-    },
-    files: {
-        page: emptyPage,
-        sortOrder: SortOrder.ASCENDING,
-        sortBy: SortBy.PATH,
-        loading: false,
-        error: undefined,
-        path: "",
-        filesInfoPath: "",
-        sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
-        fileSelectorLoading: false,
-        fileSelectorShown: false,
-        fileSelectorPage: emptyPage,
-        fileSelectorPath: cloud.homeFolder,
-        fileSelectorCallback: () => null,
-        fileSelectorError: undefined,
-        disallowedPaths: []
-    },
-    uppy: {
-        uppyFiles: initializeUppy({ maxNumberOfFiles: false } as UppyRestriction, cloud),
-        uppyFilesOpen: false,
-        uppyRunApp: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
-        uppyRunAppOpen: false
-    },
-    status: {
-        status: DefaultStatus,
-        title: ""
-    },
-    applications: {
-        page: emptyPage,
-        loading: false,
-        error: undefined
-    },
-    header: {
-        prioritizedSearch: "files"
-    },
-    notifications: {
-        page: emptyPage,
-        loading: false,
-        redirectTo: "",
-        error: undefined
-    },
-    analyses: {
-        page: emptyPage,
-        loading: false,
-        error: undefined
-    },
-    zenodo: {
-        connected: false,
-        loading: false,
-        page: emptyPage,
-        error: undefined
-    },
-    sidebar: {
-        open: false,
-        loading: false,
-        options: [] as SidebarOption[]
-    },
-    uploader: {
-        path: "",
-        uploads: [],
-        visible: false,
-        allowMultiple: false,
-        onFilesUploaded: () => null
-    }
+const initNotifications = () => ({
+    page: emptyPage,
+    loading: false,
+    redirectTo: "",
+    error: undefined
 });
+
+const initHeader = (): HeaderSearch => ({
+    prioritizedSearch: "files"
+});
+
+const initApplications = () => ({
+    page: emptyPage,
+    loading: false,
+    error: undefined
+});
+
+const initStatus = () => ({
+    status: DefaultStatus,
+    title: ""
+});
+
+const initDashboard = () => ({
+    favoriteFiles: [] as File[],
+    recentFiles: [] as File[],
+    recentAnalyses: [] as Analysis[],
+    notifications: [] as Notification[],
+    favoriteLoading: false,
+    recentLoading: false,
+    analysesLoading: false,
+    favoriteError: undefined,
+    recentFilesError: undefined,
+    recentAnalysesError: undefined
+});
+
+export const initObject = (cloud: SDUCloud): ReduxObject => ({
+    dashboard: initDashboard(),
+    files: initFiles(cloud),
+    uppy: initUppy(cloud),
+    status: initStatus(),
+    applications: initApplications(),
+    header: initHeader(),
+    notifications: initNotifications(),
+    analyses: initAnalyses(),
+    zenodo: initZenodo(),
+    sidebar: initSidebar(),
+    uploader: initUploads()
+});
+
+const initAnalyses = (): ComponentWithPage<Analysis> => ({
+    page: emptyPage,
+    loading: false,
+    error: undefined
+});
+
+
+const initZenodo = () => ({
+    connected: false,
+    loading: false,
+    page: emptyPage,
+    error: undefined
+})
+
+const initSidebar = () => ({
+    open: false,
+    loading: false,
+    options: [] as SidebarOption[]
+});
+
+const initUploads = () => ({
+    path: "",
+    uploads: [],
+    visible: false,
+    allowMultiple: false,
+    onFilesUploaded: () => null
+})
 
 export const identifierTypes = [
     {
@@ -289,3 +287,29 @@ export const identifierTypes = [
         value: "IsAlternateIdentifier"
     }
 ];
+
+export const initFiles = ({ homeFolder }: { homeFolder: string }): FilesReduxObject => ({
+    page: emptyPage,
+    sortOrder: SortOrder.ASCENDING,
+    sortBy: SortBy.PATH,
+    loading: false,
+    error: undefined,
+    path: "",
+    filesInfoPath: "",
+    sortingColumns: [getFilesSortingColumnOrDefault(0), getFilesSortingColumnOrDefault(1)],
+    fileSelectorLoading: false,
+    fileSelectorShown: false,
+    fileSelectorPage: emptyPage,
+    fileSelectorPath: homeFolder,
+    fileSelectorCallback: () => null,
+    fileSelectorError: undefined,
+    disallowedPaths: []
+
+})
+
+const initUppy = (cloud: SDUCloud) => ({
+    uppyFiles: initializeUppy({ maxNumberOfFiles: false } as UppyRestriction, cloud),
+    uppyFilesOpen: false,
+    uppyRunApp: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
+    uppyRunAppOpen: false
+});

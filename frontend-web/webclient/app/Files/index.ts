@@ -234,9 +234,7 @@ export interface ContextButtonsProps {
 }
 
 
-export interface DetailedFileSearchProps {
-
-}
+export interface DetailedFileSearchProps {}
 
 export enum AnnotationsMap {
     P = "Project"
