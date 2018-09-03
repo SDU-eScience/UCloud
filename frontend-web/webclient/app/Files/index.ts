@@ -127,7 +127,7 @@ export interface FilesTableProps {
     files: File[]
     masterCheckbox?: React.ReactNode
     sortingIcon?: (name: string) => SemanticICONS | undefined
-    sortFiles: (sortBy: SortBy) => void
+    sortFiles: (sortOrder: SortOrder, sortBy: SortBy) => void
     onRenameFile?: (key: number, file: File, name: string) => void
     onCreateFolder?: (key: number, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
@@ -144,7 +144,7 @@ export interface CreateFolderProps {
 
 export interface FilesTableHeaderProps {
     toSortingIcon?: (s: SortBy) => SemanticICONS | undefined
-    sortFiles?: (s: SortBy) => void
+    sortFiles?: (sortOrder: SortOrder, sortBy: SortBy) => void
     sortOrder: SortOrder
     sortBy: SortBy
     masterCheckbox?: React.ReactNode
@@ -266,3 +266,12 @@ export interface DetailedFileSearchState {
 export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
+
+export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: SemanticICONS, minWidth?: number }
+
+export interface FileInfoProps {
+    dispatch: (a) => void, page: Page<File>,
+    loading: boolean,
+    match: { params: string[] },
+    filesPath: string
+}

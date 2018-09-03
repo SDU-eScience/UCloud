@@ -186,7 +186,7 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
         fileSelectorShown: false,
         fileSelectorPage: emptyPage,
         fileSelectorPath: cloud.homeFolder,
-        fileSelectorCallback: Function,
+        fileSelectorCallback: () => null,
         fileSelectorError: undefined,
         disallowedPaths: []
     },

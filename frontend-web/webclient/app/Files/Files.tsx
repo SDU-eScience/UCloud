@@ -16,7 +16,8 @@ import { FileIcon } from "UtilityComponents";
 import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
-    FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps
+    FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps,
+    PredicatedOperation, ResponsiveTableColumnProps
 } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
@@ -27,15 +28,14 @@ import {
 class Files extends React.Component<FilesProps> {
 
     componentDidMount() {
-        const { match, page, fetchFiles, sortOrder, sortBy, history, setPageTitle, prioritizeFileSearch } = this.props;
+        const { page, fetchFiles, sortOrder, sortBy, history, setPageTitle, prioritizeFileSearch } = this.props;
         setPageTitle();
         prioritizeFileSearch();
-        const urlPath = match.params[0];
-        if (!urlPath) {
-            history.push(`/files/${Cloud.homeFolder}/`);
-        }
-        fetchFiles(match.params[0], page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
+        if (!this.urlPath) history.push(`/files/${Cloud.homeFolder}/`);
+        fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
+
+    get urlPath(): string { return this.props.match.params[0]; }
 
     newFolder() {
         let { page, updateFiles } = this.props;
@@ -74,7 +74,6 @@ class Files extends React.Component<FilesProps> {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, error } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
-        // Master Checkbox
         const checkbox = (<Checkbox
             className="hidden-checkbox checkbox-margin"
             onClick={(_, d) => this.props.checkAllFiles(!!d.checked, page)}
@@ -82,7 +81,6 @@ class Files extends React.Component<FilesProps> {
             indeterminate={selectedFiles.length < page.items.length && selectedFiles.length > 0}
             onChange={(e) => e.stopPropagation()}
         />);
-        // Lambdas
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         const navigate = (path: string) => history.push(`/files/${path}`);
         const fetchPageFromPath = (path: string) => {
@@ -118,7 +116,7 @@ class Files extends React.Component<FilesProps> {
                             <FilesTable
                                 onFavoriteFile={favoriteFile}
                                 fileOperations={fileOperations}
-                                sortFiles={(sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                                sortFiles={(sortOrder: SortOrder, sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                                 sortingIcon={(name: SortBy) => UF.getSortingIcon(sortBy, sortOrder, name)}
                                 sortOrder={sortOrder}
                                 sortingColumns={[leftSortingColumn, rightSortingColumn]}
@@ -202,8 +200,6 @@ export const FilesTable = ({
         </Table>
     );
 
-
-interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: SemanticICONS, minWidth?: number }
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (sO: SortOrder, sB: SortBy) => null, isSortedBy, currentSelection, sortOrder, minWidth = undefined }: ResponsiveTableColumnProps) => (
     <Responsive minWidth={minWidth} as={Table.HeaderCell}>
         <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
@@ -211,10 +207,13 @@ const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (sO: SortOrder
     </Responsive>
 )
 
+const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
+    sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
+
 const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy }: FilesTableHeaderProps) => (
     <Table.Header>
         <Table.Row>
-            <Table.HeaderCell className="filename-row" onClick={() => sortFiles(SortBy.PATH)}>
+            <Table.HeaderCell className="filename-row" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
                 {masterCheckbox}
                 Filename
                 <Icon className="float-right" name={toSortingIcon(SortBy.PATH)} />
@@ -338,12 +337,20 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
     </div>
 ) : null;
 
-export const FileOperations = ({ files, fileOperations, As, ...props }) =>
+/* interface FileOperationsProps {
+    files: File[]
+    fileOperations: FileOperation[]
+    As: any
+    fluid?: boolean
+    basic?: boolean
+} */
+
+export const FileOperations = ({ files, fileOperations, As, fluid, basic }) => fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
-        if ("predicate" in operation) {
-            operation = operation.predicate(files, Cloud) ? fileOp.onTrue : fileOp.onFalse;
-
+        if ((fileOp as PredicatedOperation).predicate) {
+            operation = fileOp as PredicatedOperation
+            operation = operation.predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
         }
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (
@@ -354,10 +361,11 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) =>
                 color={operation.color}
                 className="context-button-margin"
                 onClick={() => (operation as Operation).onClick(files, Cloud)}
-                {...props}
+                fluid={fluid}
+                basic={basic}
             />
         ) : null;
-    })
+    }) : null;
 
 const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown,

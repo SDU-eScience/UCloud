@@ -1,0 +1,1427 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`File operations Empty files list, button, empty FilesOperations 1`] = `null`;
+
+exports[`File operations Empty files list, button, some fileoperations 1`] = `
+Array [
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    Share
+  </button>,
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    Download
+  </button>,
+  <button
+    className="ui red basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    Delete
+  </button>,
+]
+`;
+
+exports[`File operations Empty files list, dropdown.item, empty FilesOperations 1`] = `null`;
+
+exports[`File operations Empty files list, dropdown.item, some fileoperations 1`] = `
+Array [
+  <div
+    basic={true}
+    className="item context-button-margin"
+    fluid={true}
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    <span
+      className="text"
+    >
+      Share
+    </span>
+  </div>,
+  <div
+    basic={true}
+    className="item context-button-margin"
+    fluid={true}
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    <span
+      className="text"
+    >
+      Download
+    </span>
+  </div>,
+  <div
+    basic={true}
+    className="item context-button-margin"
+    color="red"
+    fluid={true}
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    <span
+      className="text"
+    >
+      Delete
+    </span>
+  </div>,
+]
+`;
+
+exports[`File operations Files list with items, button, empty FilesOperations 1`] = `null`;
+
+exports[`File operations Files list with items, button, some fileoperations 1`] = `
+Array [
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    Share
+  </button>,
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    Download
+  </button>,
+  <button
+    className="ui red basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    Delete
+  </button>,
+]
+`;
+
+exports[`File operations Files list with items, dropdown.item, empty FilesOperations 1`] = `null`;
+
+exports[`File operations Files list with items, dropdown.item, some fileoperations 1`] = `
+Array [
+  <div
+    className="item context-button-margin"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    <span
+      className="text"
+    >
+      Share
+    </span>
+  </div>,
+  <div
+    className="item context-button-margin"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    <span
+      className="text"
+    >
+      Download
+    </span>
+  </div>,
+  <div
+    className="item context-button-margin"
+    color="red"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    <span
+      className="text"
+    >
+      Delete
+    </span>
+  </div>,
+]
+`;
+
+exports[`Files-component Full Files component, full page of files 1`] = `
+<div
+  className="ui grid"
+>
+  <div
+    className="thirteen wide computer sixteen wide tablet column"
+  >
+    <div
+      className="row"
+    />
+    <i
+      aria-hidden="true"
+      className="sync small circular link loading icon pagination-float-right"
+      onClick={[Function]}
+    />
+    <span
+      className="items-per-page-padding pagination-float-right"
+    >
+      <span>
+        Items per page 
+      </span>
+      <div
+        aria-expanded={false}
+        className="ui compact inline dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          10
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={true}
+            aria-selected={true}
+            className="active selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              10
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              25
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              50
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              100
+            </span>
+          </div>
+        </div>
+      </div>
+    </span>
+    <div
+      className="ui centered middle aligned one column grid"
+    >
+      <div
+        className="pagination-loader"
+      >
+        <i
+          aria-hidden="true"
+          className="circle notched loading icon pagination-list-loading"
+        />
+      </div>
+    </div>
+    <div>
+      <span
+        aria-label="Pagination Navigation"
+        className="ui pagination menu"
+        role="navigation"
+      >
+        <a
+          aria-current={false}
+          aria-label="First item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="firstItem"
+          value={1}
+        >
+          «
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Previous item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="prevItem"
+          value={1}
+        >
+          ⟨
+        </a>
+        <a
+          aria-current={true}
+          className="active item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={1}
+        >
+          1
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={2}
+        >
+          2
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={3}
+        >
+          3
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Next item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="nextItem"
+          value={2}
+        >
+          ⟩
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Last item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="lastItem"
+          value={3}
+        >
+          »
+        </a>
+      </span>
+    </div>
+  </div>
+  <div
+    className="three wide computer column"
+  >
+    <div>
+      <div>
+        <button
+          className="ui blue fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          Upload Files
+        </button>
+        <button
+          className="ui basic fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          New folder
+        </button>
+        <a
+          className="ui green basic fluid button context-button-margin"
+          href="/filesearch"
+          onClick={[Function]}
+          role="button"
+        >
+          Advanced Search
+        </a>
+      </div>
+      <div
+        className="ui divider"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Files-component Full Files component, no files 1`] = `
+<div
+  className="ui grid"
+>
+  <div
+    className="thirteen wide computer sixteen wide tablet column"
+  >
+    <div
+      className="row"
+    />
+    <i
+      aria-hidden="true"
+      className="sync small circular link loading icon pagination-float-right"
+      onClick={[Function]}
+    />
+    <span
+      className="items-per-page-padding pagination-float-right"
+    >
+      <span>
+        Items per page 
+      </span>
+      <div
+        aria-expanded={false}
+        className="ui compact inline dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          10
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={true}
+            aria-selected={true}
+            className="active selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              10
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              25
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              50
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              100
+            </span>
+          </div>
+        </div>
+      </div>
+    </span>
+    <div
+      className="ui centered middle aligned one column grid"
+    >
+      <div
+        className="pagination-loader"
+      >
+        <i
+          aria-hidden="true"
+          className="circle notched loading icon pagination-list-loading"
+        />
+      </div>
+    </div>
+    <div>
+      <span
+        aria-label="Pagination Navigation"
+        className="ui pagination menu"
+        role="navigation"
+      >
+        <a
+          aria-current={false}
+          aria-label="First item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="firstItem"
+          value={1}
+        >
+          «
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Previous item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="prevItem"
+          value={1}
+        >
+          ⟨
+        </a>
+        <a
+          aria-current={true}
+          className="active item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={1}
+        >
+          1
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={2}
+        >
+          2
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={3}
+        >
+          3
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Next item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="nextItem"
+          value={2}
+        >
+          ⟩
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Last item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="lastItem"
+          value={3}
+        >
+          »
+        </a>
+      </span>
+    </div>
+  </div>
+  <div
+    className="three wide computer column"
+  >
+    <div>
+      <div>
+        <button
+          className="ui blue fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          Upload Files
+        </button>
+        <button
+          className="ui basic fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          New folder
+        </button>
+        <a
+          className="ui green basic fluid button context-button-margin"
+          href="/filesearch"
+          onClick={[Function]}
+          role="button"
+        >
+          Advanced Search
+        </a>
+      </div>
+      <div
+        className="ui divider"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`FilesTable Render empty 1`] = `
+<table
+  className="ui unstackable very basic table"
+>
+  <thead
+    className=""
+  >
+    <tr
+      className=""
+    >
+      <th
+        className="filename-row"
+        onClick={[Function]}
+      >
+        Filename
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      >
+        Path
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      >
+        Modified at
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      />
+    </tr>
+  </thead>
+  <tbody
+    className=""
+  />
+</table>
+`;
+
+exports[`FilesTable Render non-empty 1`] = `
+<table
+  className="ui unstackable very basic table"
+>
+  <thead
+    className=""
+  >
+    <tr
+      className=""
+    >
+      <th
+        className="filename-row"
+        onClick={[Function]}
+      >
+        Filename
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      >
+        Path
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      >
+        Modified at
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      />
+    </tr>
+  </thead>
+  <tbody
+    className=""
+  >
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <i
+          aria-hidden="true"
+          className="grey image big icon"
+        />
+        Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
+      </td>
+      <td
+        className=""
+      >
+        2018-8-27 16:25:00
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/AABA"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          AABA
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        AABA
+      </td>
+      <td
+        className=""
+      >
+        2018-8-21 15:29:51
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/Favorites"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          Favorites
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        Favorites
+      </td>
+      <td
+        className=""
+      >
+        2018-8-21 15:22:13
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/Jobs"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          Jobs
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        Jobs
+      </td>
+      <td
+        className=""
+      >
+        2018-8-21 09:32:44
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/A folder the sequel"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          A folder the sequel
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        A folder the sequel
+      </td>
+      <td
+        className=""
+      >
+        2018-8-21 09:26:13
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/B"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          B
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star icon  favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        B
+      </td>
+      <td
+        className=""
+      >
+        2018-8-14 13:06:18
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/rehjoerijhoerijh"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          rehjoerijhoerijh
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        rehjoerijhoerijh
+      </td>
+      <td
+        className=""
+      >
+        2018-8-13 16:29:48
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/Test"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          Test
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        Test
+      </td>
+      <td
+        className=""
+      >
+        2018-8-7 10:22:12
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
+      </td>
+      <td
+        className=""
+      >
+        2018-8-6 13:32:48
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+    <tr
+      className="file-row"
+    >
+      <td
+        className="table-cell-padding-left"
+      >
+        <a
+          href="/files//home/user@user.telecity/somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="blue folder big icon"
+          />
+          somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
+        </a>
+        <i
+          aria-hidden="true"
+          className="blue star outline icon file-data favorite-padding"
+          onClick={[Function]}
+        />
+      </td>
+      <td
+        className=""
+      >
+        somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
+      </td>
+      <td
+        className=""
+      >
+        2018-8-6 13:29:15
+      </td>
+      <td
+        className=""
+      >
+        <div
+          aria-expanded={false}
+          className="ui dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="listbox"
+          tabIndex={0}
+        >
+          <div
+            aria-live="polite"
+            className="text"
+            role="alert"
+          />
+          <i
+            aria-hidden="true"
+            className="ellipsis horizontal icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition left"
+          />
+        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+`;
