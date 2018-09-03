@@ -59,7 +59,6 @@ class Server(
             log.info("Configuring HTTP server")
 
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
-            install(JWTProtection)
 
             log.info("Creating HTTP controllers")
             val coreController = CoreAuthController(

@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.2-SNAPSHOT'
+version '1.4.4-SNAPSHOT'
 
 apply from: "../shared-gradle/sdu-cloud.gradle"
 
