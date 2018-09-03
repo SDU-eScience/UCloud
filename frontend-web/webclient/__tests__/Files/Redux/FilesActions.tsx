@@ -73,7 +73,7 @@ test("Remove check from all files in non-empty page", () => {
 test("Set Files as loading", () => {
     nonEmptyPageStore.dispatch(FileActions.setLoading(true));
     expect(nonEmptyPageStore.getState().files.loading).toBe(true);
-}); 
+});
 
 test("Set Files as not loading", () => {
     nonEmptyPageStore.dispatch(FileActions.setLoading(false));
@@ -105,7 +105,7 @@ test("Hide file selector", () => {
 // setDisallowedPaths
 
 test("Set disallowed paths", () => {
-    const disallowedPaths = [ "1", "2", "3" ]
+    const disallowedPaths = ["1", "2", "3"]
     nonEmptyPageStore.dispatch(FileActions.setDisallowedPaths(disallowedPaths));
     expect(nonEmptyPageStore.getState().files.disallowedPaths);
 });
@@ -145,13 +145,52 @@ test("Clear File Selector error", () => {
     expect(nonEmptyPageStore.getState().files.fileSelectorError).toBe(ErrorMessage);
 });
 
+test("Update currently held files to be empty", () => {
+    nonEmptyPageStore.dispatch(FileActions.updateFiles(emptyPage));
+    expect(nonEmptyPageStore.getState().files.page).toBe(emptyPage);
+});
 
+test("Update currently held files to contain items", () => {
+    emptyPageStore.dispatch(FileActions.updateFiles(mockFiles_SensitivityConfidential))
+    expect(emptyPageStore.getState().files.page).toBe(mockFiles_SensitivityConfidential)
+});
+
+test("Update path", () => {
+    const newPath = "/home/path/to/folder";
+    emptyPageStore.dispatch(FileActions.updatePath(newPath));
+    expect(emptyPageStore.getState().files.path).toBe(newPath);
+});
+
+test("Set sorting column 0", () => {
+    const index = 0;
+    emptyPageStore.dispatch(FileActions.setSortingColumn(SortBy.CREATED_AT, index));
+    expect(emptyPageStore.getState().files.sortingColumns[index]).toBe(SortBy.CREATED_AT);
+});
+
+test("Set sorting column 1", () => {
+    const index = 1;
+    emptyPageStore.dispatch(FileActions.setSortingColumn(SortBy.SENSITIVITY, index));
+    expect(emptyPageStore.getState().files.sortingColumns[index]).toBe(SortBy.SENSITIVITY);
+});
+
+test("Set file selector loading", () => {
+    emptyPageStore.dispatch(FileActions.setFileSelectorLoading());
+    expect(emptyPageStore.getState().files.fileSelectorLoading).toBe(true);
+});
+
+test("Receive empty page for file selector", () => {
+    const pathForEmptyPage = "/home/user@test.telecity/";
+    nonEmptyPageStore.dispatch(FileActions.receiveFileSelectorFiles(emptyPage, pathForEmptyPage));
+    expect(nonEmptyPageStore.getState().files.fileSelectorPage).toBe(emptyPage);
+});
+
+test("Receive non-empty page for file selector", () => {
+    const pathForNonEmptyPage = "/home/user@test.telecity/";
+    emptyPageStore.dispatch(FileActions.receiveFileSelectorFiles(mockFiles_SensitivityConfidential, pathForNonEmptyPage));
+    expect(emptyPageStore.getState().files.fileSelectorPage).toBe(mockFiles_SensitivityConfidential);
+});
+
+// Missing ability to contact backend
 // fetchFiles (Can't do currently)
 // fetchPageFromPath (Can't do currently)
 // fetchFileselectorFiles (Can't do currently)
-
-// updateFiles
-// updatePath
-// setSortingColumn
-// receiveFileSelectorFiles
-// setFileSelectorLoading
