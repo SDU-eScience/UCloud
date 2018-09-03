@@ -268,3 +268,10 @@ export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps {
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
 export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: SemanticICONS, minWidth?: number }
+
+export interface FileInfoProps {
+    dispatch: (a) => void, page: Page<File>,
+    loading: boolean,
+    match: { params: string[] },
+    filesPath: string
+}

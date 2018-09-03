@@ -10,27 +10,27 @@ import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { List as ShareList } from "Shares/List";
-import { File, Annotation } from "Files";
+import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
 
-const FileInfo = ({ dispatch, page, loading, ...props }) => {
+const FileInfo = ({ dispatch, page, loading, match, filesPath }: FileInfoProps) => {
     dispatch(updatePageTitle("File Info"));
     let file;
-    const path = props.match.params[0];
-    if (path === props.filesPath) {
+    const path = match.params[0];
+    if (path === filesPath) {
         const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
         file = page.items.find(file => file.path === filePath);
     } else { // FIXME MapDispatchToProps
         dispatch(setLoading(true));
         if (loading) return null;
-        dispatch(fetchPageFromPath(path, page.itemsPerPage, props.sortOrder, props.sortBy));
+        dispatch(fetchPageFromPath(path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH));
         dispatch(updatePath(path));
     }
 
     if (!file) { return (<DefaultLoading loading={true} />) }
     return (
         <Container className="container-margin">
-            <Header as='h2' icon textAlign='center'>
+            <Header as="h2" icon textAlign="center">
                 <Header.Content>
                     {file.path}
                 </Header.Content>

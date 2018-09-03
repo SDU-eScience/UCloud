@@ -1,8 +1,8 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Empty files list, button, empty FilesOperations 1`] = `null`;
+exports[`File operations Empty files list, button, empty FilesOperations 1`] = `null`;
 
-exports[`Empty files list, button, some fileoperations 1`] = `
+exports[`File operations Empty files list, button, some fileoperations 1`] = `
 Array [
   <button
     className="ui basic fluid button context-button-margin"
@@ -40,9 +40,9 @@ Array [
 ]
 `;
 
-exports[`Empty files list, dropdown.item, empty FilesOperations 1`] = `null`;
+exports[`File operations Empty files list, dropdown.item, empty FilesOperations 1`] = `null`;
 
-exports[`Empty files list, dropdown.item, some fileoperations 1`] = `
+exports[`File operations Empty files list, dropdown.item, some fileoperations 1`] = `
 Array [
   <div
     basic={true}
@@ -99,7 +99,669 @@ Array [
 ]
 `;
 
-exports[`Files in filestable 1`] = `
+exports[`File operations Files list with items, button, empty FilesOperations 1`] = `null`;
+
+exports[`File operations Files list with items, button, some fileoperations 1`] = `
+Array [
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    Share
+  </button>,
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    Download
+  </button>,
+  <button
+    className="ui red basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    Delete
+  </button>,
+]
+`;
+
+exports[`File operations Files list with items, dropdown.item, empty FilesOperations 1`] = `null`;
+
+exports[`File operations Files list with items, dropdown.item, some fileoperations 1`] = `
+Array [
+  <div
+    className="item context-button-margin"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="share alternate icon"
+    />
+    <span
+      className="text"
+    >
+      Share
+    </span>
+  </div>,
+  <div
+    className="item context-button-margin"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="download icon"
+    />
+    <span
+      className="text"
+    >
+      Download
+    </span>
+  </div>,
+  <div
+    className="item context-button-margin"
+    color="red"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="trash icon"
+    />
+    <span
+      className="text"
+    >
+      Delete
+    </span>
+  </div>,
+]
+`;
+
+exports[`Files-component Full Files component, full page of files 1`] = `
+<div
+  className="ui grid"
+>
+  <div
+    className="thirteen wide computer sixteen wide tablet column"
+  >
+    <div
+      className="row"
+    />
+    <i
+      aria-hidden="true"
+      className="sync small circular link loading icon pagination-float-right"
+      onClick={[Function]}
+    />
+    <span
+      className="items-per-page-padding pagination-float-right"
+    >
+      <span>
+        Items per page 
+      </span>
+      <div
+        aria-expanded={false}
+        className="ui compact inline dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          10
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={true}
+            aria-selected={true}
+            className="active selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              10
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              25
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              50
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              100
+            </span>
+          </div>
+        </div>
+      </div>
+    </span>
+    <div
+      className="ui centered middle aligned one column grid"
+    >
+      <div
+        className="pagination-loader"
+      >
+        <i
+          aria-hidden="true"
+          className="circle notched loading icon pagination-list-loading"
+        />
+      </div>
+    </div>
+    <div>
+      <span
+        aria-label="Pagination Navigation"
+        className="ui pagination menu"
+        role="navigation"
+      >
+        <a
+          aria-current={false}
+          aria-label="First item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="firstItem"
+          value={1}
+        >
+          «
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Previous item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="prevItem"
+          value={1}
+        >
+          ⟨
+        </a>
+        <a
+          aria-current={true}
+          className="active item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={1}
+        >
+          1
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={2}
+        >
+          2
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={3}
+        >
+          3
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Next item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="nextItem"
+          value={2}
+        >
+          ⟩
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Last item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="lastItem"
+          value={3}
+        >
+          »
+        </a>
+      </span>
+    </div>
+  </div>
+  <div
+    className="three wide computer column"
+  >
+    <div>
+      <div>
+        <button
+          className="ui blue fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          Upload Files
+        </button>
+        <button
+          className="ui basic fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          New folder
+        </button>
+        <a
+          className="ui green basic fluid button context-button-margin"
+          href="/filesearch"
+          onClick={[Function]}
+          role="button"
+        >
+          Advanced Search
+        </a>
+      </div>
+      <div
+        className="ui divider"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Files-component Full Files component, no files 1`] = `
+<div
+  className="ui grid"
+>
+  <div
+    className="thirteen wide computer sixteen wide tablet column"
+  >
+    <div
+      className="row"
+    />
+    <i
+      aria-hidden="true"
+      className="sync small circular link loading icon pagination-float-right"
+      onClick={[Function]}
+    />
+    <span
+      className="items-per-page-padding pagination-float-right"
+    >
+      <span>
+        Items per page 
+      </span>
+      <div
+        aria-expanded={false}
+        className="ui compact inline dropdown"
+        onBlur={[Function]}
+        onChange={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseDown={[Function]}
+        role="listbox"
+        tabIndex={0}
+      >
+        <div
+          aria-live="polite"
+          className="text"
+          role="alert"
+        >
+          10
+        </div>
+        <i
+          aria-hidden="true"
+          className="dropdown icon"
+          onClick={[Function]}
+        />
+        <div
+          className="menu transition"
+        >
+          <div
+            aria-checked={true}
+            aria-selected={true}
+            className="active selected item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              10
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              25
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              50
+            </span>
+          </div>
+          <div
+            aria-checked={false}
+            aria-selected={false}
+            className="item"
+            onClick={[Function]}
+            role="option"
+            style={
+              Object {
+                "pointerEvents": "all",
+              }
+            }
+          >
+            <span
+              className="text"
+            >
+              100
+            </span>
+          </div>
+        </div>
+      </div>
+    </span>
+    <div
+      className="ui centered middle aligned one column grid"
+    >
+      <div
+        className="pagination-loader"
+      >
+        <i
+          aria-hidden="true"
+          className="circle notched loading icon pagination-list-loading"
+        />
+      </div>
+    </div>
+    <div>
+      <span
+        aria-label="Pagination Navigation"
+        className="ui pagination menu"
+        role="navigation"
+      >
+        <a
+          aria-current={false}
+          aria-label="First item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="firstItem"
+          value={1}
+        >
+          «
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Previous item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="prevItem"
+          value={1}
+        >
+          ⟨
+        </a>
+        <a
+          aria-current={true}
+          className="active item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={1}
+        >
+          1
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={2}
+        >
+          2
+        </a>
+        <a
+          aria-current={false}
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="pageItem"
+          value={3}
+        >
+          3
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Next item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="nextItem"
+          value={2}
+        >
+          ⟩
+        </a>
+        <a
+          aria-current={false}
+          aria-label="Last item"
+          className="item"
+          onClick={[Function]}
+          onKeyDown={[Function]}
+          tabIndex={0}
+          type="lastItem"
+          value={3}
+        >
+          »
+        </a>
+      </span>
+    </div>
+  </div>
+  <div
+    className="three wide computer column"
+  >
+    <div>
+      <div>
+        <button
+          className="ui blue fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          Upload Files
+        </button>
+        <button
+          className="ui basic fluid button context-button-margin"
+          onClick={[Function]}
+          role="button"
+        >
+          New folder
+        </button>
+        <a
+          className="ui green basic fluid button context-button-margin"
+          href="/filesearch"
+          onClick={[Function]}
+          role="button"
+        >
+          Advanced Search
+        </a>
+      </div>
+      <div
+        className="ui divider"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`FilesTable Render empty 1`] = `
+<table
+  className="ui unstackable very basic table"
+>
+  <thead
+    className=""
+  >
+    <tr
+      className=""
+    >
+      <th
+        className="filename-row"
+        onClick={[Function]}
+      >
+        Filename
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      >
+        Path
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      >
+        Modified at
+        <i
+          aria-hidden="true"
+          className="icon float-right"
+        />
+      </th>
+      <th
+        className=""
+      />
+    </tr>
+  </thead>
+  <tbody
+    className=""
+  />
+</table>
+`;
+
+exports[`FilesTable Render non-empty 1`] = `
 <table
   className="ui unstackable very basic table"
 >
@@ -761,667 +1423,5 @@ exports[`Files in filestable 1`] = `
       </td>
     </tr>
   </tbody>
-</table>
-`;
-
-exports[`Files list with items, button, emtpy FilesOperations 1`] = `null`;
-
-exports[`Files list with items, button, some fileoperations 1`] = `
-Array [
-  <button
-    className="ui basic fluid button context-button-margin"
-    onClick={[Function]}
-    role="button"
-  >
-    <i
-      aria-hidden="true"
-      className="share alternate icon"
-    />
-    Share
-  </button>,
-  <button
-    className="ui basic fluid button context-button-margin"
-    onClick={[Function]}
-    role="button"
-  >
-    <i
-      aria-hidden="true"
-      className="download icon"
-    />
-    Download
-  </button>,
-  <button
-    className="ui red basic fluid button context-button-margin"
-    onClick={[Function]}
-    role="button"
-  >
-    <i
-      aria-hidden="true"
-      className="trash icon"
-    />
-    Delete
-  </button>,
-]
-`;
-
-exports[`Files list with items, dropdown.item, empty FilesOperations 1`] = `null`;
-
-exports[`Files list with items, dropdown.item, some fileoperations 1`] = `
-Array [
-  <div
-    className="item context-button-margin"
-    onClick={[Function]}
-    role="option"
-  >
-    <i
-      aria-hidden="true"
-      className="share alternate icon"
-    />
-    <span
-      className="text"
-    >
-      Share
-    </span>
-  </div>,
-  <div
-    className="item context-button-margin"
-    onClick={[Function]}
-    role="option"
-  >
-    <i
-      aria-hidden="true"
-      className="download icon"
-    />
-    <span
-      className="text"
-    >
-      Download
-    </span>
-  </div>,
-  <div
-    className="item context-button-margin"
-    color="red"
-    onClick={[Function]}
-    role="option"
-  >
-    <i
-      aria-hidden="true"
-      className="trash icon"
-    />
-    <span
-      className="text"
-    >
-      Delete
-    </span>
-  </div>,
-]
-`;
-
-exports[`Full Files component, full page of files 1`] = `
-<div
-  className="ui grid"
->
-  <div
-    className="thirteen wide computer sixteen wide tablet column"
-  >
-    <div
-      className="row"
-    />
-    <i
-      aria-hidden="true"
-      className="sync small circular link loading icon pagination-float-right"
-      onClick={[Function]}
-    />
-    <span
-      className="items-per-page-padding pagination-float-right"
-    >
-      <span>
-        Items per page 
-      </span>
-      <div
-        aria-expanded={false}
-        className="ui compact inline dropdown"
-        onBlur={[Function]}
-        onChange={[Function]}
-        onClick={[Function]}
-        onFocus={[Function]}
-        onMouseDown={[Function]}
-        role="listbox"
-        tabIndex={0}
-      >
-        <div
-          aria-live="polite"
-          className="text"
-          role="alert"
-        >
-          10
-        </div>
-        <i
-          aria-hidden="true"
-          className="dropdown icon"
-          onClick={[Function]}
-        />
-        <div
-          className="menu transition"
-        >
-          <div
-            aria-checked={true}
-            aria-selected={true}
-            className="active selected item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              10
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              25
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              50
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              100
-            </span>
-          </div>
-        </div>
-      </div>
-    </span>
-    <div
-      className="ui centered middle aligned one column grid"
-    >
-      <div
-        className="pagination-loader"
-      >
-        <i
-          aria-hidden="true"
-          className="circle notched loading icon pagination-list-loading"
-        />
-      </div>
-    </div>
-    <div>
-      <span
-        aria-label="Pagination Navigation"
-        className="ui pagination menu"
-        role="navigation"
-      >
-        <a
-          aria-current={false}
-          aria-label="First item"
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="firstItem"
-          value={1}
-        >
-          «
-        </a>
-        <a
-          aria-current={false}
-          aria-label="Previous item"
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="prevItem"
-          value={1}
-        >
-          ⟨
-        </a>
-        <a
-          aria-current={true}
-          className="active item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="pageItem"
-          value={1}
-        >
-          1
-        </a>
-        <a
-          aria-current={false}
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="pageItem"
-          value={2}
-        >
-          2
-        </a>
-        <a
-          aria-current={false}
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="pageItem"
-          value={3}
-        >
-          3
-        </a>
-        <a
-          aria-current={false}
-          aria-label="Next item"
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="nextItem"
-          value={2}
-        >
-          ⟩
-        </a>
-        <a
-          aria-current={false}
-          aria-label="Last item"
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="lastItem"
-          value={3}
-        >
-          »
-        </a>
-      </span>
-    </div>
-  </div>
-  <div
-    className="three wide computer column"
-  >
-    <div>
-      <div>
-        <button
-          className="ui blue fluid button context-button-margin"
-          onClick={[Function]}
-          role="button"
-        >
-          Upload Files
-        </button>
-        <button
-          className="ui basic fluid button context-button-margin"
-          onClick={[Function]}
-          role="button"
-        >
-          New folder
-        </button>
-        <a
-          className="ui green basic fluid button context-button-margin"
-          href="/filesearch"
-          onClick={[Function]}
-          role="button"
-        >
-          Advanced Search
-        </a>
-      </div>
-      <div
-        className="ui divider"
-      />
-    </div>
-  </div>
-</div>
-`;
-
-exports[`Full Files component, no files 1`] = `
-<div
-  className="ui grid"
->
-  <div
-    className="thirteen wide computer sixteen wide tablet column"
-  >
-    <div
-      className="row"
-    />
-    <i
-      aria-hidden="true"
-      className="sync small circular link loading icon pagination-float-right"
-      onClick={[Function]}
-    />
-    <span
-      className="items-per-page-padding pagination-float-right"
-    >
-      <span>
-        Items per page 
-      </span>
-      <div
-        aria-expanded={false}
-        className="ui compact inline dropdown"
-        onBlur={[Function]}
-        onChange={[Function]}
-        onClick={[Function]}
-        onFocus={[Function]}
-        onMouseDown={[Function]}
-        role="listbox"
-        tabIndex={0}
-      >
-        <div
-          aria-live="polite"
-          className="text"
-          role="alert"
-        >
-          10
-        </div>
-        <i
-          aria-hidden="true"
-          className="dropdown icon"
-          onClick={[Function]}
-        />
-        <div
-          className="menu transition"
-        >
-          <div
-            aria-checked={true}
-            aria-selected={true}
-            className="active selected item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              10
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              25
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              50
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              100
-            </span>
-          </div>
-        </div>
-      </div>
-    </span>
-    <div
-      className="ui centered middle aligned one column grid"
-    >
-      <div
-        className="pagination-loader"
-      >
-        <i
-          aria-hidden="true"
-          className="circle notched loading icon pagination-list-loading"
-        />
-      </div>
-    </div>
-    <div>
-      <span
-        aria-label="Pagination Navigation"
-        className="ui pagination menu"
-        role="navigation"
-      >
-        <a
-          aria-current={false}
-          aria-label="First item"
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="firstItem"
-          value={1}
-        >
-          «
-        </a>
-        <a
-          aria-current={false}
-          aria-label="Previous item"
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="prevItem"
-          value={1}
-        >
-          ⟨
-        </a>
-        <a
-          aria-current={true}
-          className="active item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="pageItem"
-          value={1}
-        >
-          1
-        </a>
-        <a
-          aria-current={false}
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="pageItem"
-          value={2}
-        >
-          2
-        </a>
-        <a
-          aria-current={false}
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="pageItem"
-          value={3}
-        >
-          3
-        </a>
-        <a
-          aria-current={false}
-          aria-label="Next item"
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="nextItem"
-          value={2}
-        >
-          ⟩
-        </a>
-        <a
-          aria-current={false}
-          aria-label="Last item"
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="lastItem"
-          value={3}
-        >
-          »
-        </a>
-      </span>
-    </div>
-  </div>
-  <div
-    className="three wide computer column"
-  >
-    <div>
-      <div>
-        <button
-          className="ui blue fluid button context-button-margin"
-          onClick={[Function]}
-          role="button"
-        >
-          Upload Files
-        </button>
-        <button
-          className="ui basic fluid button context-button-margin"
-          onClick={[Function]}
-          role="button"
-        >
-          New folder
-        </button>
-        <a
-          className="ui green basic fluid button context-button-margin"
-          href="/filesearch"
-          onClick={[Function]}
-          role="button"
-        >
-          Advanced Search
-        </a>
-      </div>
-      <div
-        className="ui divider"
-      />
-    </div>
-  </div>
-</div>
-`;
-
-exports[`Render empty files table 1`] = `
-<table
-  className="ui unstackable very basic table"
->
-  <thead
-    className=""
-  >
-    <tr
-      className=""
-    >
-      <th
-        className="filename-row"
-        onClick={[Function]}
-      >
-        Filename
-        <i
-          aria-hidden="true"
-          className="icon float-right"
-        />
-      </th>
-      <th
-        className=""
-      >
-        Path
-        <i
-          aria-hidden="true"
-          className="icon float-right"
-        />
-      </th>
-      <th
-        className=""
-      >
-        Modified at
-        <i
-          aria-hidden="true"
-          className="icon float-right"
-        />
-      </th>
-      <th
-        className=""
-      />
-    </tr>
-  </thead>
-  <tbody
-    className=""
-  />
 </table>
 `;
